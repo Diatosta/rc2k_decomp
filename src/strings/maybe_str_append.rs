@@ -1,11 +1,12 @@
 use std::arch::naked_asm;
+use std::ffi::{c_char, CStr};
 use std::ptr::{copy_nonoverlapping, null};
 use std::slice::from_raw_parts;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::OnceLock;
 use detour::RawDetour;
 use windows_sys::Win32::System::Memory::{VirtualAlloc, MEM_COMMIT, MEM_RESERVE, PAGE_EXECUTE_READWRITE};
-use crate::framework::{log, HookStats, MAX_LOGGED, SHADOW_MODE};
+use crate::framework::{log, HookStats, MAX_LOGGED, SHADOW_MODE, TRACE};
 
 pub static STATS: HookStats = HookStats::new();
 static DETOUR: OnceLock<RawDetour> = OnceLock::new();
@@ -25,8 +26,20 @@ unsafe fn reimplemented(mut src: *const u8, mut dst: *mut u8) -> *mut u8 {
     dst
 }
 
+fn show(src: *const u8) -> String {
+    let bytes = unsafe { CStr::from_ptr(src as *const c_char) }.to_bytes();
+    let shown = &bytes[..bytes.len().min(200)];
+    let more = if bytes.len() > shown.len() { "..." } else { "" };
+    format!("\"{}\"{more}", shown.escape_ascii())
+}
+
 extern "C" fn dispatch(src: *const u8, dst: *mut u8) -> *mut u8 {
     STATS.calls.fetch_add(1, Ordering::Relaxed);
+
+    if TRACE.load(Ordering::Relaxed) {
+        log(&format!("maybe_str_append({})", show(src)));
+    }
+
     if !SHADOW_MODE.load(Ordering::Relaxed) {
         return unsafe { reimplemented(src, dst) };
     }

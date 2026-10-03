@@ -3,7 +3,7 @@ mod framework;
 mod registry;
 pub mod strings;
 
-use crate::framework::{BASE, CONSOLE_OUT, SHADOW_MODE, log};
+use crate::framework::{log, BASE, CONSOLE_OUT, SHADOW_MODE, TRACE};
 use crate::registry::ALL;
 use std::collections::HashMap;
 use std::ffi::c_void;
@@ -106,6 +106,10 @@ fn console_loop(input: File, mut out: File, mut enabled: Vec<bool>) {
                     }
                 }
             }
+            ["trace", v] => {
+                TRACE.store(*v == "on", Ordering::Relaxed);
+                let _ = writeln!(out, "trace = {v}");
+            }
             [] => {}
             _ => {
                 let _ = writeln!(out, "?");
@@ -173,6 +177,7 @@ struct Config {
     shadow: bool,
     default_enabled: Option<bool>,
     hooks: HashMap<String, bool>,
+    trace: bool,
 }
 
 fn config_path() -> Option<PathBuf> {
@@ -215,6 +220,7 @@ fn load_config() -> Option<Config> {
 
 fn apply_config(cfg: &Config, enabled: &mut [bool]) {
     SHADOW_MODE.store(cfg.shadow, Ordering::Relaxed);
+    TRACE.store(cfg.trace, Ordering::Relaxed);
 
     for name in cfg.hooks.keys() {
         if !ALL.iter().any(|h| h.name == name.as_str()) {
@@ -238,6 +244,6 @@ fn apply_config(cfg: &Config, enabled: &mut [bool]) {
             }
         }
 
-        log(&format!("config applied: shadow={}", cfg.shadow));
+        log(&format!("config applied: shadow={} trace={}", cfg.shadow, cfg.trace));
     }
 }

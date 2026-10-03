@@ -6,6 +6,7 @@ use std::sync::{Mutex, OnceLock};
 pub static SHADOW_MODE: AtomicBool = AtomicBool::new(false);
 pub static BASE: AtomicUsize = AtomicUsize::new(0);
 pub static CONSOLE_OUT: OnceLock<Mutex<File>> = OnceLock::new();
+pub static TRACE: AtomicBool = AtomicBool::new(false);
 pub const MAX_LOGGED: usize = 50;
 
 
@@ -45,7 +46,6 @@ pub fn log(msg: &str) {
         && let Ok(mut f) = out.lock()
     {
         let _ = writeln!(f, "{msg}");
-        return;
     }
 
     if let Ok(mut f) = OpenOptions::new()
