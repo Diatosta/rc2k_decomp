@@ -13,5 +13,8 @@ windows-sys = { version = "0.61.2", features = [
     "Win32_System_LibraryLoader",
     "Win32_System_SystemServices",
     "Win32_UI_Input_KeyboardAndMouse",
-    "Win32_System_Console"
+    "Win32_System_Console",
+    "Win32_System_Threading"
 ] }
+toml = "1.1.6"
+serde = { version = "1.0.229", features = ["derive"] }

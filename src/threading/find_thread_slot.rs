@@ -1,0 +1,103 @@
+use crate::framework::{HookStats, MAX_LOGGED, SHADOW_MODE, game_addr, log};
+use crate::threading::thread_slot::ThreadSlot;
+use detour::RawDetour;
+use std::arch::naked_asm;
+use std::sync::OnceLock;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use windows_sys::Win32::System::Threading::GetCurrentThreadId;
+
+const _: () = assert!(std::mem::size_of::<ThreadSlot>() == 0x110);
+const _: () = assert!(std::mem::offset_of!(ThreadSlot, thread_id) == 4);
+
+const SLOTS_RVA: usize = 0x5184F4 - 0x400000;
+const SLOT_COUNT: usize = 4;
+
+static DETOUR: OnceLock<RawDetour> = OnceLock::new();
+static TRAMPOLINE: AtomicUsize = AtomicUsize::new(0);
+pub static STATS: HookStats = HookStats::new();
+
+unsafe fn reimplemented() -> *const ThreadSlot {
+    let slots = game_addr(SLOTS_RVA) as *const ThreadSlot;
+    let tid = unsafe { GetCurrentThreadId() };
+    for i in 0..SLOT_COUNT {
+        let slot = unsafe { slots.add(i) };
+
+        if unsafe { (&raw const (*slot).thread_id).read_volatile() } == tid {
+            log(&format!("find_thread_slot: tid={tid:#x}"));
+            unsafe {
+                log(&format!(
+                    "Got thread slot at {slot:p} unknown={:#x} thread_id={:#x}",
+                    (&raw const (*slot).unknown0).read_volatile(),
+                    (&raw const (*slot).thread_id).read_volatile()
+                ));
+            }
+            return slot;
+        }
+    }
+    std::ptr::null()
+}
+
+extern "C" fn dispatch() -> *const ThreadSlot {
+    STATS.calls.fetch_add(1, Ordering::Relaxed);
+    let mine = unsafe { reimplemented() };
+
+    if !SHADOW_MODE.load(Ordering::Relaxed) {
+        return mine;
+    }
+
+    let original = unsafe { call_original() };
+    if original != mine {
+        let n = STATS.mismatches.fetch_add(1, Ordering::Relaxed);
+        if n < MAX_LOGGED {
+            log(&format!(
+                "MISMATCH find_thread_slot: original={original:p} rust={mine:p}"
+            ));
+        }
+    }
+    original
+}
+
+#[unsafe(naked)]
+unsafe extern "C" fn thunk() {
+    naked_asm!(
+        "push eax",
+        "push ecx",
+        "push edx",
+        "call {dispatch}",
+        "mov esi, eax",
+        "pop edx",
+        "pop ecx",
+        "pop eax",
+        "test esi, esi",
+        "ret",
+        dispatch = sym dispatch
+    );
+}
+
+#[unsafe(naked)]
+unsafe extern "C" fn call_original() -> *const ThreadSlot {
+    naked_asm!(
+        "push esi",
+        "call dword ptr [{t}]",
+        "mov eax, esi",
+        "pop esi",
+        "ret",
+        t = sym TRAMPOLINE,
+    )
+}
+
+pub unsafe fn install(addr: usize) -> Result<(), detour::Error> {
+    unsafe {
+        let d = RawDetour::new(addr as *const (), thunk as *const ())?;
+        TRAMPOLINE.store(d.trampoline() as usize, Ordering::Relaxed);
+        d.enable()?;
+        let _ = DETOUR.set(d);
+    }
+
+    Ok(())
+}
+
+pub unsafe fn set_enabled(on: bool) -> Result<(), detour::Error> {
+    let Some(d) = DETOUR.get() else { return Ok(()) };
+    unsafe { if on { d.enable() } else { d.disable() } }
+}
