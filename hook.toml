@@ -1,7 +1,8 @@
 shadow = true
 default_enabled = true
-trace = true
+trace = false
 
 [hooks]
 "threading::find_thread_slot" = true
 "strings::maybe_str_append" = true
+"strings::hex_append" = true
