@@ -1,6 +1,7 @@
 pub mod threading;
 mod framework;
 mod registry;
+pub mod strings;
 
 use crate::framework::{BASE, CONSOLE_OUT, SHADOW_MODE, log};
 use crate::registry::ALL;
@@ -21,7 +22,7 @@ use windows_sys::core::BOOL;
 
 fn console_init() -> Option<(File, File)> {
     unsafe { AllocConsole() };
-    let out = OpenOptions::new().write(true).open("COCONUT$").ok()?;
+    let out = OpenOptions::new().write(true).open("CONOUT$").ok()?;
     let input = File::open("CONIN$").ok()?;
     let out_for_log = out.try_clone().ok()?;
     let _ = CONSOLE_OUT.set(Mutex::new(out_for_log));

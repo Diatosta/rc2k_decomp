@@ -3,3 +3,4 @@ default_enabled = true
 
 [hooks]
 "threading::find_thread_slot" = true
+"strings::maybe_str_append" = true
