@@ -1,3 +1,6 @@
 [target.i686-pc-windows-msvc]
 linker = "lld-link"
-rustflags = ["-C", "target-feature=+crt-static"]
+rustflags = [
+    "-C", "target-feature=+crt-static",
+    "-C", "link-arg=/IGNORE:4099",
+]
