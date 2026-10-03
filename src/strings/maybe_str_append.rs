@@ -1,17 +1,14 @@
 use std::arch::naked_asm;
 use std::ffi::{c_char, CStr};
-use std::ptr::{copy_nonoverlapping, null};
 use std::slice::from_raw_parts;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::OnceLock;
-use detour::RawDetour;
-use windows_sys::Win32::System::Memory::{VirtualAlloc, MEM_COMMIT, MEM_RESERVE, PAGE_EXECUTE_READWRITE};
-use crate::framework::{log, HookStats, MAX_LOGGED, SHADOW_MODE, TRACE};
+use crate::framework::{log, MAX_LOGGED, SHADOW_MODE, TRACE, RawHook};
 
-pub static STATS: HookStats = HookStats::new();
-static DETOUR: OnceLock<RawDetour> = OnceLock::new();
-static ORIGINAL_COPY: AtomicUsize = AtomicUsize::new(0);
-const ORIG_LEN: usize = 0x11;
+static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
+
+pub static HOOK: RawHook = RawHook::new("strings::maybe_str_append", 0x401F7D - 0x400000, thunk, &ORIGINAL)
+    .private_copy(0x11)
+    .self_test(self_test);
 
 unsafe fn reimplemented(mut src: *const u8, mut dst: *mut u8) -> *mut u8 {
     unsafe {
@@ -34,7 +31,7 @@ fn show(src: *const u8) -> String {
 }
 
 extern "C" fn dispatch(src: *const u8, dst: *mut u8) -> *mut u8 {
-    STATS.calls.fetch_add(1, Ordering::Relaxed);
+    HOOK.stats.calls.fetch_add(1, Ordering::Relaxed);
 
     if TRACE.load(Ordering::Relaxed) {
         log(&format!("maybe_str_append({})", show(src)));
@@ -59,7 +56,7 @@ extern "C" fn dispatch(src: *const u8, dst: *mut u8) -> *mut u8 {
     let written = unsafe { from_raw_parts(dst, orig_len) };
 
     if orig_len != mine_len || written != &scratch[..mine_len] {
-        let n = STATS.mismatches.fetch_add(1, Ordering::Relaxed);
+        let n = HOOK.stats.mismatches.fetch_add(1, Ordering::Relaxed);
         if n < MAX_LOGGED {
             log(&format!("Mismatch in maybe_str_append: original wrote {orig_len} bytes, rust {mine_len}"));
         }
@@ -93,33 +90,13 @@ unsafe extern "C" fn call_original(_src: *const u8, _dst: *mut u8) -> *mut u8 {
         "mov eax, ebx",
         "pop ebx",
         "ret",
-        t = sym ORIGINAL_COPY,
+        t = sym ORIGINAL,
     )
-}
-
-pub unsafe fn install(addr: usize) -> Result<(), detour::Error> {
-    unsafe {
-        let mem = VirtualAlloc(null(), ORIG_LEN, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE) as *mut u8;
-        assert!(!mem.is_null(), "VirtualAlloc failed");
-        copy_nonoverlapping(addr as *const u8, mem, ORIG_LEN);
-        ORIGINAL_COPY.store(mem as usize, Ordering::Relaxed);
-
-        let d = RawDetour::new(addr as *const (), thunk as *const ())?;
-        d.enable()?;
-        let _ = DETOUR.set(d);
-    }
-
-    Ok(())
-}
-
-pub unsafe fn set_enabled(on: bool) -> Result<(), detour::Error> {
-    let Some(d) = DETOUR.get() else { return Ok(()) };
-    unsafe { if on { d.enable() } else { d.disable() } }
 }
 
 /// Calls the original directly and compares the result with the Rust version
 pub fn self_test() -> (usize, usize) {
-    if ORIGINAL_COPY.load(Ordering::Relaxed) == 0 { return (0, 0); }
+    if ORIGINAL.load(Ordering::Relaxed) == 0 { return (0, 0); }
     let long: Vec<u8> = (0..300).map(|i| b'a' + (i % 26) as u8).collect();
     let samples: [&[u8]; 5] = [b"", b"a", b"hello", b"Error code [", &long];
     let mut failures = 0;
@@ -138,6 +115,8 @@ pub fn self_test() -> (usize, usize) {
         if !(same_end && buf_o == buf_r) {
             failures += 1;
             log(&format!("maybe_str_append selftest FAILED for {:?}", String::from_utf8_lossy(&s[..s.len().min(20)])));
+        } else {
+            log(&format!("maybe_str_append selftest PASSED for original {:?} rust {:?}", show(buf_o.as_ptr()), show(buf_r.as_ptr())));
         }
     }
 

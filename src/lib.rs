@@ -36,14 +36,14 @@ static INSTALLED: OnceLock<Vec<bool>> = OnceLock::new();
 fn apply(pat: &str, on: bool, enabled: &mut [bool], out: &mut impl Write) {
     let mut changed = 0;
     for (i, h) in ALL.iter().enumerate() {
-        if (pat == "all" || h.name.starts_with(pat)) && enabled[i] != on {
-            match unsafe { (h.set_enabled)(on) } {
+        if (pat == "all" || h.name().starts_with(pat)) && enabled[i] != on {
+            match unsafe { h.set_enabled(on) } {
                 Ok(()) => {
                     enabled[i] = on;
                     changed += 1;
                 }
                 Err(e) => {
-                    let _ = writeln!(out, "{}: {e}", h.name);
+                    let _ = writeln!(out, "{}: {e}", h.name());
                 }
             }
         }
@@ -57,22 +57,18 @@ fn apply(pat: &str, on: bool, enabled: &mut [bool], out: &mut impl Write) {
 }
 
 fn console_loop(input: File, mut out: File, mut enabled: Vec<bool>) {
-    let _ = writeln!(
-        out,
-        "commands: list | on <name|prefix|all> | off <name|prefix|all> | shadow on|off | stats | reload | selftest"
-    );
+    log("commands: list | on <name|prefix|all> | off <name|prefix|all> | shadow on|off | stats | reload | selftest");
 
     for line in BufReader::new(input).lines().map_while(Result::ok) {
         let parts: Vec<&str> = line.split_whitespace().collect();
         match parts.as_slice() {
             ["list"] => {
                 for (i, h) in ALL.iter().enumerate() {
-                    let _ = writeln!(
-                        out,
+                    log(&format!(
                         "{:>4} {}",
                         if enabled[i] { "on" } else { "off" },
-                        h.name
-                    );
+                        h.name()
+                    ));
                 }
             }
             ["on", pat] => apply(pat, true, &mut enabled, &mut out),
@@ -83,36 +79,34 @@ fn console_loop(input: File, mut out: File, mut enabled: Vec<bool>) {
             }
             ["stats"] => {
                 for h in ALL.iter() {
-                    let _ = writeln!(
-                        out,
-                        "{:<24} calls={} mismatches={}",
-                        h.name,
-                        h.stats.calls.load(Ordering::Relaxed),
-                        h.stats.mismatches.load(Ordering::Relaxed)
-                    );
+                    log(&format!(
+                        "{:<30} calls={} mismatches={}",
+                        h.name(),
+                        h.stats().calls.load(Ordering::Relaxed),
+                        h.stats().mismatches.load(Ordering::Relaxed)
+                    ));
                 }
             }
             ["reload"] => {
                 if let Some(cfg) = load_config() {
                     apply_config(&cfg, &mut enabled);
                 }
-                let _ = writeln!(out, "reload done");
+                log("reload done");
             }
             ["selftest"] => {
                 for h in ALL.iter() {
-                    if let Some(test) = h.self_test {
-                        let (cases, bad) = test();
-                        let _ = writeln!(out, "{:<24} cases={cases} mismatches={bad}", h.name);
+                    if let Some((cases, bad)) = h.self_test() {
+                        log(&format!("{:<24} cases={cases} mismatches={bad}", h.name()));
                     }
                 }
             }
             ["trace", v] => {
                 TRACE.store(*v == "on", Ordering::Relaxed);
-                let _ = writeln!(out, "trace = {v}");
+                log(&format!("trace = {v}"));
             }
             [] => {}
             _ => {
-                let _ = writeln!(out, "?");
+                log("?");
             }
         }
     }
@@ -126,14 +120,14 @@ fn install_all() -> Vec<bool> {
     let installed: Vec<bool> = ALL
         .iter()
         .map(|h| {
-            let addr = base + h.rva;
-            match unsafe { (h.install)(addr) } {
+            let addr = base + h.rva();
+            match unsafe { h.install(addr) } {
                 Ok(()) => {
-                    log(&format!("hooked {} at {addr:#x}", h.name));
+                    log(&format!("hooked {} at {addr:#x}", h.name()));
                     true
                 }
                 Err(e) => {
-                    log(&format!("FAILED to hook {}: {e}", h.name));
+                    log(&format!("FAILED to hook {}: {e}", h.name()));
                     false
                 }
             }
@@ -223,7 +217,7 @@ fn apply_config(cfg: &Config, enabled: &mut [bool]) {
     TRACE.store(cfg.trace, Ordering::Relaxed);
 
     for name in cfg.hooks.keys() {
-        if !ALL.iter().any(|h| h.name == name.as_str()) {
+        if !ALL.iter().any(|h| h.name() == name.as_str()) {
             log(&format!("config: hook '{name}' not found"));
         }
 
@@ -233,12 +227,12 @@ fn apply_config(cfg: &Config, enabled: &mut [bool]) {
                 continue;
             }
 
-            let want = cfg.hooks.get(h.name).copied().unwrap_or(default);
+            let want = cfg.hooks.get(h.name()).copied().unwrap_or(default);
             if want != enabled[i] {
-                match unsafe { (h.set_enabled)(want) } {
+                match unsafe { h.set_enabled(want) } {
                     Ok(()) => enabled[i] = want,
                     Err(e) => {
-                        log(&format!("config: {}: {e}", h.name));
+                        log(&format!("config: {}: {e}", h.name()));
                     }
                 }
             }

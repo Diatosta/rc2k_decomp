@@ -1,20 +1,18 @@
-use crate::framework::{HookStats, MAX_LOGGED, SHADOW_MODE, game_addr, log};
+use crate::framework::{game_addr, log, RawHook, MAX_LOGGED, SHADOW_MODE};
 use crate::threading::thread_slot::ThreadSlot;
-use detour::RawDetour;
 use std::arch::naked_asm;
-use std::sync::OnceLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use windows_sys::Win32::System::Threading::GetCurrentThreadId;
 
-const _: () = assert!(std::mem::size_of::<ThreadSlot>() == 0x110);
+static TRAMPOLINE: AtomicUsize = AtomicUsize::new(0);
+
+pub static HOOK: RawHook = RawHook::new("threading::find_thread_slot", 0x410CC5 - 0x400000, thunk, &TRAMPOLINE);
+
+const _: () = assert!(size_of::<ThreadSlot>() == 0x110);
 const _: () = assert!(std::mem::offset_of!(ThreadSlot, thread_id) == 4);
 
 const SLOTS_RVA: usize = 0x5184F4 - 0x400000;
 const SLOT_COUNT: usize = 4;
-
-static DETOUR: OnceLock<RawDetour> = OnceLock::new();
-static TRAMPOLINE: AtomicUsize = AtomicUsize::new(0);
-pub static STATS: HookStats = HookStats::new();
 
 unsafe fn reimplemented() -> *const ThreadSlot {
     let slots = game_addr(SLOTS_RVA) as *const ThreadSlot;
@@ -38,7 +36,7 @@ unsafe fn reimplemented() -> *const ThreadSlot {
 }
 
 extern "C" fn dispatch() -> *const ThreadSlot {
-    STATS.calls.fetch_add(1, Ordering::Relaxed);
+    HOOK.stats.calls.fetch_add(1, Ordering::Relaxed);
     let mine = unsafe { reimplemented() };
 
     if !SHADOW_MODE.load(Ordering::Relaxed) {
@@ -47,7 +45,7 @@ extern "C" fn dispatch() -> *const ThreadSlot {
 
     let original = unsafe { call_original() };
     if original != mine {
-        let n = STATS.mismatches.fetch_add(1, Ordering::Relaxed);
+        let n = HOOK.stats.mismatches.fetch_add(1, Ordering::Relaxed);
         if n < MAX_LOGGED {
             log(&format!(
                 "MISMATCH find_thread_slot: original={original:p} rust={mine:p}"
@@ -84,20 +82,4 @@ unsafe extern "C" fn call_original() -> *const ThreadSlot {
         "ret",
         t = sym TRAMPOLINE,
     )
-}
-
-pub unsafe fn install(addr: usize) -> Result<(), detour::Error> {
-    unsafe {
-        let d = RawDetour::new(addr as *const (), thunk as *const ())?;
-        TRAMPOLINE.store(d.trampoline() as usize, Ordering::Relaxed);
-        d.enable()?;
-        let _ = DETOUR.set(d);
-    }
-
-    Ok(())
-}
-
-pub unsafe fn set_enabled(on: bool) -> Result<(), detour::Error> {
-    let Some(d) = DETOUR.get() else { return Ok(()) };
-    unsafe { if on { d.enable() } else { d.disable() } }
 }
