@@ -1,12 +1,25 @@
-use crate::framework::{game_addr, log, RawHook, MAX_LOGGED, SHADOW_MODE};
+use crate::framework::{MAX_LOGGED, RawHook, Regs, SHADOW_MODE, game_addr, hook_asm, log};
 use crate::threading::thread_slot::ThreadSlot;
-use std::arch::naked_asm;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use windows_sys::Win32::System::Threading::GetCurrentThreadId;
 
 static TRAMPOLINE: AtomicUsize = AtomicUsize::new(0);
 
-pub static HOOK: RawHook = RawHook::new("threading::find_thread_slot", 0x410CC5 - 0x400000, thunk, &TRAMPOLINE);
+pub static HOOK: RawHook = RawHook::new(
+    "threading::find_thread_slot",
+    0x410CC5 - 0x400000,
+    thunk,
+    &TRAMPOLINE,
+);
+
+// The callers branch on ZF right after the call, so set it from esi like the original does.
+hook_asm!(
+    thunk,
+    call_original,
+    dispatch = dispatch,
+    original = TRAMPOLINE,
+    epilogue = "test esi, esi"
+);
 
 const _: () = assert!(size_of::<ThreadSlot>() == 0x110);
 const _: () = assert!(std::mem::offset_of!(ThreadSlot, thread_id) == 4);
@@ -35,15 +48,19 @@ unsafe fn reimplemented() -> *const ThreadSlot {
     std::ptr::null()
 }
 
-extern "C" fn dispatch() -> *const ThreadSlot {
+extern "C" fn dispatch(r: &mut Regs) {
     HOOK.stats.calls.fetch_add(1, Ordering::Relaxed);
     let mine = unsafe { reimplemented() };
 
     if !SHADOW_MODE.load(Ordering::Relaxed) {
-        return mine;
+        r.esi = mine as u32;
+        return;
     }
 
-    let original = unsafe { call_original() };
+    let mut o = *r;
+
+    unsafe { call_original(&mut o) };
+    let original = o.esi as *const ThreadSlot;
     if original != mine {
         let n = HOOK.stats.mismatches.fetch_add(1, Ordering::Relaxed);
         if n < MAX_LOGGED {
@@ -52,34 +69,5 @@ extern "C" fn dispatch() -> *const ThreadSlot {
             ));
         }
     }
-    original
-}
-
-#[unsafe(naked)]
-unsafe extern "C" fn thunk() {
-    naked_asm!(
-        "push eax",
-        "push ecx",
-        "push edx",
-        "call {dispatch}",
-        "mov esi, eax",
-        "pop edx",
-        "pop ecx",
-        "pop eax",
-        "test esi, esi",
-        "ret",
-        dispatch = sym dispatch
-    );
-}
-
-#[unsafe(naked)]
-unsafe extern "C" fn call_original() -> *const ThreadSlot {
-    naked_asm!(
-        "push esi",
-        "call dword ptr [{t}]",
-        "mov eax, esi",
-        "pop esi",
-        "ret",
-        t = sym TRAMPOLINE,
-    )
+    r.esi = o.esi;
 }

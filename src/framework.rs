@@ -1,11 +1,13 @@
-use std::io::Write;
+use detour::RawDetour;
 use std::fs::{File, OpenOptions};
+use std::io::Write;
 use std::ptr::{copy_nonoverlapping, null, read_unaligned, write_unaligned};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Mutex, OnceLock};
-use detour::RawDetour;
 use windows_sys::Win32::System::Diagnostics::Debug::FlushInstructionCache;
-use windows_sys::Win32::System::Memory::{VirtualAlloc, MEM_COMMIT, MEM_RESERVE, PAGE_EXECUTE_READWRITE, VirtualProtect};
+use windows_sys::Win32::System::Memory::{
+    MEM_COMMIT, MEM_RESERVE, PAGE_EXECUTE_READWRITE, VirtualAlloc, VirtualProtect,
+};
 use windows_sys::Win32::System::Threading::GetCurrentProcess;
 
 pub static SHADOW_MODE: AtomicBool = AtomicBool::new(false);
@@ -22,7 +24,9 @@ pub trait GameHook: Sync {
     unsafe fn set_enabled(&self, on: bool) -> Result<(), detour::Error>;
 
     /// (cases, mismatches). None = this hook has no self-test
-    fn self_test(&self) -> Option<(usize, usize)> { None }
+    fn self_test(&self) -> Option<(usize, usize)> {
+        None
+    }
 }
 
 pub struct RawHook {
@@ -47,7 +51,10 @@ impl RawHook {
         original: &'static AtomicUsize,
     ) -> Self {
         Self {
-            name, rva, thunk, original,
+            name,
+            rva,
+            thunk,
+            original,
             stats: HookStats::new(),
             private_copy_len: 0,
             self_test_fn: None,
@@ -76,7 +83,12 @@ impl RawHook {
     unsafe fn write_code(addr: usize, bytes: &[u8]) {
         unsafe {
             let mut old = 0u32;
-            VirtualProtect(addr as *const _, bytes.len(), PAGE_EXECUTE_READWRITE, &mut old);
+            VirtualProtect(
+                addr as *const _,
+                bytes.len(),
+                PAGE_EXECUTE_READWRITE,
+                &mut old,
+            );
             copy_nonoverlapping(bytes.as_ptr(), addr as *mut u8, bytes.len());
             VirtualProtect(addr as *const _, bytes.len(), old, &mut old);
             FlushInstructionCache(GetCurrentProcess(), addr as *const _, bytes.len());
@@ -96,17 +108,25 @@ impl RawHook {
     }
 }
 impl GameHook for RawHook {
-    fn name(&self) -> &'static str { self.name }
-    fn rva(&self) -> usize { self.rva }
-    fn stats(&self) -> &HookStats { &self.stats }
+    fn name(&self) -> &'static str {
+        self.name
+    }
+    fn rva(&self) -> usize {
+        self.rva
+    }
+    fn stats(&self) -> &HookStats {
+        &self.stats
+    }
 
     unsafe fn install(&self, addr: usize) -> Result<(), detour::Error> {
         unsafe {
             if self.private_copy_len > 0 {
                 // Copy the untouched function before patching it
                 let mem = VirtualAlloc(
-                    null(), self.private_copy_len,
-                    MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE,
+                    null(),
+                    self.private_copy_len,
+                    MEM_COMMIT | MEM_RESERVE,
+                    PAGE_EXECUTE_READWRITE,
                 ) as *mut u8;
 
                 assert!(!mem.is_null(), "VirtualAlloc failed");
@@ -126,7 +146,10 @@ impl GameHook for RawHook {
                 self.original.store(mem as usize, Ordering::Relaxed);
 
                 if self.manual {
-                    assert!(self.private_copy_len >= 5, "manual_patch needs private_copy");
+                    assert!(
+                        self.private_copy_len >= 5,
+                        "manual_patch needs private_copy"
+                    );
                     let mut orig = [0u8; 5];
                     copy_nonoverlapping(addr as *const u8, orig.as_mut_ptr(), 5);
                     let _ = self.saved.set(orig);
@@ -137,7 +160,8 @@ impl GameHook for RawHook {
 
             let d = RawDetour::new(addr as *const (), self.thunk as *const ())?;
             if self.private_copy_len == 0 {
-                self.original.store(d.trampoline() as usize, Ordering::Relaxed);
+                self.original
+                    .store(d.trampoline() as usize, Ordering::Relaxed);
             }
 
             d.enable()?;
@@ -149,15 +173,19 @@ impl GameHook for RawHook {
 
     unsafe fn set_enabled(&self, on: bool) -> Result<(), detour::Error> {
         if self.manual {
-            let Some(orig) = self.saved.get() else { return Ok(()) };
+            let Some(orig) = self.saved.get() else {
+                return Ok(());
+            };
             let addr = game_addr(self.rva);
             let patch = Self::jmp_bytes(addr, self.thunk as usize);
-            let bytes: &[u8; 5] = if on { &patch } else {orig};
+            let bytes: &[u8; 5] = if on { &patch } else { orig };
             unsafe { Self::write_code(addr, bytes) };
             return Ok(());
         }
 
-        let Some(d) = self.detour.get() else { return Ok(()) };
+        let Some(d) = self.detour.get() else {
+            return Ok(());
+        };
         unsafe { if on { d.enable() } else { d.disable() } }
     }
 
@@ -203,3 +231,77 @@ pub fn log(msg: &str) {
         let _ = writeln!(f, "{msg}");
     }
 }
+
+#[repr(C)]
+#[derive(Copy, Clone, Default)]
+pub struct Regs {
+    pub edi: u32,
+    pub esi: u32,
+    pub ebp: u32,
+    pub esp: u32,
+    pub ebx: u32,
+    pub edx: u32,
+    pub ecx: u32,
+    pub eax: u32,
+}
+
+macro_rules! hook_asm {
+    ($thunk:ident, $call_original:ident, dispatch = $dispatch:ident, original = $orig:ident
+     $(, epilogue = $epilogue:literal)?) => {
+        /// Detour target: the game calls this believing it is the original function.
+        #[unsafe(naked)]
+        unsafe extern "C" fn $thunk() {
+            core::arch::naked_asm!(
+                "pushad",
+                "mov eax, esp",
+                "push eax",            // arg: *mut Regs
+                "call {dispatch}",
+                "add esp, 4",
+                "popad",
+                $($epilogue,)?         // e.g. "test esi, esi" when the caller reads ZF
+                "ret",
+                dispatch = sym $dispatch,
+            )
+        }
+
+        /// Runs the original with the registers in `regs`; stores the resulting registers back.
+        #[unsafe(naked)]
+        unsafe extern "C" fn $call_original(_regs: *mut $crate::framework::Regs) {
+            core::arch::naked_asm!(
+                "push ebx", "push esi", "push edi", "push ebp",
+                "mov eax, [esp + 20]",           // eax = regs
+                "push eax",                      // remember regs across the call
+                "mov ecx, [eax + {o_ecx}]",
+                "mov edx, [eax + {o_edx}]",
+                "mov ebx, [eax + {o_ebx}]",
+                "mov esi, [eax + {o_esi}]",
+                "mov edi, [eax + {o_edi}]",
+                "mov ebp, [eax + {o_ebp}]",
+                "mov eax, [eax + {o_eax}]",
+                "call dword ptr [{t}]",
+                "push eax",
+                "mov eax, [esp + 4]",            // eax = regs again
+                "mov [eax + {o_ecx}], ecx",
+                "mov [eax + {o_edx}], edx",
+                "mov [eax + {o_ebx}], ebx",
+                "mov [eax + {o_esi}], esi",
+                "mov [eax + {o_edi}], edi",
+                "mov [eax + {o_ebp}], ebp",
+                "pop dword ptr [eax + {o_eax}]", // the original's eax
+                "add esp, 4",
+                "pop ebp", "pop edi", "pop esi", "pop ebx",
+                "ret",
+                t = sym $orig,
+                o_eax = const core::mem::offset_of!($crate::framework::Regs, eax),
+                o_ecx = const core::mem::offset_of!($crate::framework::Regs, ecx),
+                o_edx = const core::mem::offset_of!($crate::framework::Regs, edx),
+                o_ebx = const core::mem::offset_of!($crate::framework::Regs, ebx),
+                o_esi = const core::mem::offset_of!($crate::framework::Regs, esi),
+                o_edi = const core::mem::offset_of!($crate::framework::Regs, edi),
+                o_ebp = const core::mem::offset_of!($crate::framework::Regs, ebp),
+            )
+        }
+    };
+}
+
+pub(crate) use hook_asm;

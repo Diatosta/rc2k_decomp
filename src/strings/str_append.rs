@@ -1,21 +1,23 @@
-use crate::framework::{MAX_LOGGED, RawHook, SHADOW_MODE, TRACE, log};
+use crate::framework::{MAX_LOGGED, RawHook, Regs, SHADOW_MODE, TRACE, hook_asm, log};
 use crate::strings::utils::{show, written};
-use std::arch::naked_asm;
 use std::slice::from_raw_parts;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
-pub static HOOK: RawHook = RawHook::new(
-    "strings::str_append",
-    0x401F7D - 0x400000,
-    thunk,
-    &ORIGINAL,
-)
-.private_copy(0x11)
-.self_test(self_test);
+pub static HOOK: RawHook =
+    RawHook::new("strings::str_append", 0x401F7D - 0x400000, thunk, &ORIGINAL)
+        .private_copy(0x11)
+        .self_test(self_test);
 
-pub unsafe fn reimplemented(mut src: *const u8, mut dst: *mut u8) -> *mut u8 {
+hook_asm!(
+    thunk,
+    call_original,
+    dispatch = dispatch,
+    original = ORIGINAL
+);
+
+pub(super) unsafe fn reimplemented(mut src: *const u8, mut dst: *mut u8) -> *mut u8 {
     unsafe {
         loop {
             let c = *src;
@@ -30,15 +32,17 @@ pub unsafe fn reimplemented(mut src: *const u8, mut dst: *mut u8) -> *mut u8 {
     dst
 }
 
-extern "C" fn dispatch(src: *const u8, dst: *mut u8) -> *mut u8 {
+extern "C" fn dispatch(r: &mut Regs) {
     HOOK.stats.calls.fetch_add(1, Ordering::Relaxed);
+    let (src, dst) = (r.eax as *const u8, r.ebx as *mut u8);
 
     if TRACE.load(Ordering::Relaxed) {
         log(&format!("str_append({})", show(src)));
     }
 
     if !SHADOW_MODE.load(Ordering::Relaxed) {
-        return unsafe { reimplemented(src, dst) };
+        r.ebx = unsafe { reimplemented(src, dst) } as u32;
+        return;
     }
 
     // Shadow: Rust writes into scratch, the original does the real writing
@@ -51,11 +55,14 @@ extern "C" fn dispatch(src: *const u8, dst: *mut u8) -> *mut u8 {
     let mine = unsafe { reimplemented(src, scratch.as_mut_ptr()) };
     let mine_len = mine as usize - scratch.as_ptr() as usize;
 
-    let original = unsafe { call_original(src, dst) };
-    let orig_len = original as usize - dst as usize;
-    let written = unsafe { from_raw_parts(dst, orig_len) };
+    let mut o = *r;
+    unsafe { call_original(&mut o) };
+    let orig_len = (o.ebx as usize).wrapping_sub(dst as usize);
 
-    if orig_len != mine_len || written != &scratch[..mine_len] {
+    let same =
+        orig_len == mine_len && unsafe { from_raw_parts(dst, mine_len) } == &scratch[..mine_len];
+
+    if !same {
         let n = HOOK.stats.mismatches.fetch_add(1, Ordering::Relaxed);
         if n < MAX_LOGGED {
             log(&format!(
@@ -64,36 +71,7 @@ extern "C" fn dispatch(src: *const u8, dst: *mut u8) -> *mut u8 {
         }
     }
 
-    original
-}
-
-#[unsafe(naked)]
-unsafe extern "C" fn thunk() {
-    naked_asm!(
-        "push eax", "push ecx", "push edx",
-        "push ebx",  // arg 2: dst
-        "push eax",  // arg 1: src
-        "call {dispatch}",
-        "add esp, 8",
-        "mov ebx, eax",
-        "pop edx", "pop ecx", "pop eax",
-        "ret",
-        dispatch = sym dispatch,
-    )
-}
-
-#[unsafe(naked)]
-unsafe extern "C" fn call_original(_src: *const u8, _dst: *mut u8) -> *mut u8 {
-    naked_asm!(
-        "push ebx",
-        "mov eax, [esp + 8]",  // src
-        "mov ebx, [esp + 12]", // dst
-        "call dword ptr [{t}]",
-        "mov eax, ebx",
-        "pop ebx",
-        "ret",
-        t = sym ORIGINAL,
-    )
+    r.ebx = o.ebx;
 }
 
 /// Calls the original directly and compares the result with the Rust version
@@ -110,19 +88,23 @@ pub fn self_test() -> (usize, usize) {
         src.push(0);
         let n = s.len() + 8;
         let (mut buf_o, mut buf_r) = (vec![0xAAu8; n], vec![0xAAu8; n]);
-        let (eo, er) = unsafe {
-            (
-                call_original(src.as_ptr(), buf_o.as_mut_ptr()),
-                reimplemented(src.as_ptr(), buf_r.as_mut_ptr()),
-            )
-        };
 
-        let same_end =
-            eo as usize - buf_o.as_ptr() as usize == er as usize - buf_r.as_ptr() as usize;
+        let mut ro = Regs {
+            eax: src.as_ptr() as u32,
+            ebx: buf_o.as_mut_ptr() as u32,
+            ..Regs::default()
+        };
+        unsafe { call_original(&mut ro) };
+        let eo = ro.ebx as *const u8;
+
+        let er = unsafe { reimplemented(src.as_ptr(), buf_r.as_mut_ptr()) };
+
+        let same_end = (eo as usize).wrapping_sub(buf_o.as_ptr() as usize)
+            == (er as usize).wrapping_sub(buf_r.as_ptr() as usize);
         if !(same_end && buf_o == buf_r) {
             failures += 1;
             log(&format!(
-                "maybe_str_append selftest FAILED for original {} rust {}",
+                "str_append selftest FAILED for original {} rust {}",
                 written(&buf_o, eo),
                 written(&buf_r, er)
             ));

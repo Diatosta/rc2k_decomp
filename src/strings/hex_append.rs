@@ -1,6 +1,5 @@
-use crate::framework::{MAX_LOGGED, RawHook, SHADOW_MODE, log};
+use crate::framework::{MAX_LOGGED, RawHook, Regs, SHADOW_MODE, hook_asm, log};
 use crate::strings::utils::written;
-use std::arch::naked_asm;
 use std::slice::from_raw_parts;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -13,6 +12,13 @@ pub static HOOK: RawHook = RawHook::new(
     &TRAMPOLINE,
 )
 .self_test(self_test);
+
+hook_asm!(
+    thunk,
+    call_original,
+    dispatch = dispatch,
+    original = TRAMPOLINE
+);
 
 const HEX_DIGITS: &[u8; 16] = b"0123456789ABCDEF";
 
@@ -27,26 +33,34 @@ unsafe fn reimplemented(value: u32, digits: usize, mut dst: *mut u8) -> *mut u8 
     dst
 }
 
-extern "C" fn dispatch(value: u32, digits: u32, dst: *mut u8) -> *mut u8 {
+extern "C" fn dispatch(r: &mut Regs) {
     HOOK.stats.calls.fetch_add(1, Ordering::Relaxed);
+    let (value, digits, dst) = (r.eax, r.ecx, r.ebx as *mut u8);
 
     if digits > 8 {
-        return unsafe { call_original(value, digits, dst) };
+        let mut o = *r;
+        unsafe { call_original(&mut o) };
+        r.ebx = o.ebx;
+        return;
     }
 
     if !SHADOW_MODE.load(Ordering::Relaxed) {
-        return unsafe { reimplemented(value, digits as usize, dst) };
+        r.ebx = unsafe { reimplemented(value, digits as usize, dst) } as u32;
+        return;
     }
 
     let mut scratch = [0xAAu8; 8];
     let mine = unsafe { reimplemented(value, digits as usize, scratch.as_mut_ptr()) };
     let mine_len = mine as usize - scratch.as_ptr() as usize;
 
-    let original = unsafe { call_original(value, digits, dst) };
-    let orig_len = original as usize - dst as usize;
-    let written = unsafe { from_raw_parts(dst, orig_len) };
+    let mut o = *r;
+    unsafe { call_original(&mut o) };
+    let orig_len = (o.ebx as usize).wrapping_sub(dst as usize);
 
-    if orig_len != mine_len || written != &scratch[..mine_len] {
+    let same =
+        orig_len == mine_len && unsafe { from_raw_parts(dst, mine_len) } == &scratch[..mine_len];
+
+    if !same {
         let n = HOOK.stats.mismatches.fetch_add(1, Ordering::Relaxed);
         if n < MAX_LOGGED {
             log(&format!(
@@ -55,38 +69,7 @@ extern "C" fn dispatch(value: u32, digits: u32, dst: *mut u8) -> *mut u8 {
         }
     }
 
-    original
-}
-
-#[unsafe(naked)]
-unsafe extern "C" fn thunk() {
-    naked_asm!(
-        "push eax", "push ecx", "push edx",
-        "push ebx",            // arg 3: dst
-        "push ecx",            // arg 2: digits
-        "push eax",            // arg 1: value
-        "call {dispatch}",
-        "add esp, 12",
-        "mov ebx, eax",
-        "pop edx", "pop ecx", "pop eax",
-        "ret",
-        dispatch = sym dispatch,
-    )
-}
-
-#[unsafe(naked)]
-unsafe extern "C" fn call_original(_value: u32, _digits: u32, _dst: *mut u8) -> *mut u8 {
-    naked_asm!(
-        "push ebx",
-        "mov eax, [esp + 8]",   // value
-        "mov ecx, [esp + 12]",  // digits
-        "mov ebx, [esp + 16]",  // dst
-        "call dword ptr [{t}]",
-        "mov eax, ebx",
-        "pop ebx",
-        "ret",
-        t = sym TRAMPOLINE,
-    )
+    r.ebx = o.ebx;
 }
 
 pub fn self_test() -> (usize, usize) {
@@ -111,15 +94,20 @@ pub fn self_test() -> (usize, usize) {
         for digits in 0..=8u32 {
             cases += 1;
             let (mut buf_o, mut buf_r) = ([0xAAu8; 16], [0xAAu8; 16]);
-            let (eo, er) = unsafe {
-                (
-                    call_original(v, digits, buf_o.as_mut_ptr()),
-                    reimplemented(v, digits as usize, buf_r.as_mut_ptr()),
-                )
-            };
 
-            let same_end =
-                eo as usize - buf_o.as_ptr() as usize == er as usize - buf_r.as_ptr() as usize;
+            let mut ro = Regs {
+                eax: v,
+                ecx: digits,
+                ebx: buf_o.as_mut_ptr() as u32,
+                ..Regs::default()
+            };
+            unsafe { call_original(&mut ro) };
+            let eo = ro.ebx as *const u8;
+            let er = unsafe { reimplemented(v, digits as usize, buf_r.as_mut_ptr()) };
+
+            let same_end = (eo as usize).wrapping_sub(buf_o.as_ptr() as usize)
+                == (er as usize).wrapping_sub(buf_r.as_ptr() as usize);
+
             if !(same_end && buf_o == buf_r) {
                 failures += 1;
                 log(&format!(
