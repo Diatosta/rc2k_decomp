@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
 pub static HOOK: RawHook = RawHook::new(
-    "strings::maybe_str_append",
+    "strings::str_append",
     0x401F7D - 0x400000,
     thunk,
     &ORIGINAL,
@@ -15,7 +15,7 @@ pub static HOOK: RawHook = RawHook::new(
 .private_copy(0x11)
 .self_test(self_test);
 
-unsafe fn reimplemented(mut src: *const u8, mut dst: *mut u8) -> *mut u8 {
+pub unsafe fn reimplemented(mut src: *const u8, mut dst: *mut u8) -> *mut u8 {
     unsafe {
         loop {
             let c = *src;
@@ -34,7 +34,7 @@ extern "C" fn dispatch(src: *const u8, dst: *mut u8) -> *mut u8 {
     HOOK.stats.calls.fetch_add(1, Ordering::Relaxed);
 
     if TRACE.load(Ordering::Relaxed) {
-        log(&format!("maybe_str_append({})", show(src)));
+        log(&format!("str_append({})", show(src)));
     }
 
     if !SHADOW_MODE.load(Ordering::Relaxed) {
@@ -59,7 +59,7 @@ extern "C" fn dispatch(src: *const u8, dst: *mut u8) -> *mut u8 {
         let n = HOOK.stats.mismatches.fetch_add(1, Ordering::Relaxed);
         if n < MAX_LOGGED {
             log(&format!(
-                "Mismatch in maybe_str_append: original wrote {orig_len} bytes, rust {mine_len}"
+                "Mismatch in str_append: original wrote {orig_len} bytes, rust {mine_len}"
             ));
         }
     }

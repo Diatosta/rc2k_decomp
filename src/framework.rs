@@ -1,10 +1,12 @@
 use std::io::Write;
 use std::fs::{File, OpenOptions};
-use std::ptr::{copy_nonoverlapping, null};
+use std::ptr::{copy_nonoverlapping, null, read_unaligned, write_unaligned};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Mutex, OnceLock};
 use detour::RawDetour;
-use windows_sys::Win32::System::Memory::{VirtualAlloc, MEM_COMMIT, MEM_RESERVE, PAGE_EXECUTE_READWRITE};
+use windows_sys::Win32::System::Diagnostics::Debug::FlushInstructionCache;
+use windows_sys::Win32::System::Memory::{VirtualAlloc, MEM_COMMIT, MEM_RESERVE, PAGE_EXECUTE_READWRITE, VirtualProtect};
+use windows_sys::Win32::System::Threading::GetCurrentProcess;
 
 pub static SHADOW_MODE: AtomicBool = AtomicBool::new(false);
 pub static BASE: AtomicUsize = AtomicUsize::new(0);
@@ -33,6 +35,9 @@ pub struct RawHook {
     private_copy_len: usize,
     self_test_fn: Option<fn() -> (usize, usize)>,
     detour: OnceLock<RawDetour>,
+    relocs: &'static [usize],
+    manual: bool,
+    saved: OnceLock<[u8; 5]>,
 }
 impl RawHook {
     pub const fn new(
@@ -47,6 +52,9 @@ impl RawHook {
             private_copy_len: 0,
             self_test_fn: None,
             detour: OnceLock::new(),
+            relocs: &[],
+            manual: false,
+            saved: OnceLock::new(),
         }
     }
 
@@ -57,6 +65,33 @@ impl RawHook {
 
     pub const fn self_test(mut self, f: fn() -> (usize, usize)) -> Self {
         self.self_test_fn = Some(f);
+        self
+    }
+
+    pub const fn relocate_calls(mut self, offset: &'static [usize]) -> Self {
+        self.relocs = offset;
+        self
+    }
+
+    unsafe fn write_code(addr: usize, bytes: &[u8]) {
+        unsafe {
+            let mut old = 0u32;
+            VirtualProtect(addr as *const _, bytes.len(), PAGE_EXECUTE_READWRITE, &mut old);
+            copy_nonoverlapping(bytes.as_ptr(), addr as *mut u8, bytes.len());
+            VirtualProtect(addr as *const _, bytes.len(), old, &mut old);
+            FlushInstructionCache(GetCurrentProcess(), addr as *const _, bytes.len());
+        }
+    }
+
+    fn jmp_bytes(from: usize, to: usize) -> [u8; 5] {
+        let rel = to.wrapping_sub(from + 5) as u32;
+        let mut b = [0xE9, 0, 0, 0, 0];
+        b[1..].copy_from_slice(&rel.to_le_bytes());
+        b
+    }
+
+    pub const fn manual_patch(mut self) -> Self {
+        self.manual = true;
         self
     }
 }
@@ -76,12 +111,33 @@ impl GameHook for RawHook {
 
                 assert!(!mem.is_null(), "VirtualAlloc failed");
                 copy_nonoverlapping(addr as *const u8, mem, self.private_copy_len);
+
+                for &off in self.relocs {
+                    // 'off' is the offset of an E8 (call) / E9 (jmp) instruction
+                    assert!(matches!(*mem.add(off), 0xE8 | 0xE9));
+
+                    let p = mem.add(off + 1) as *mut i32;
+                    let old = read_unaligned(p);
+                    let target = (addr + off + 5).wrapping_add(old as usize);
+                    let new = target.wrapping_sub(mem as usize + off + 5) as i32;
+                    write_unaligned(p, new);
+                }
+
                 self.original.store(mem as usize, Ordering::Relaxed);
+
+                if self.manual {
+                    assert!(self.private_copy_len >= 5, "manual_patch needs private_copy");
+                    let mut orig = [0u8; 5];
+                    copy_nonoverlapping(addr as *const u8, orig.as_mut_ptr(), 5);
+                    let _ = self.saved.set(orig);
+                    Self::write_code(addr, &Self::jmp_bytes(addr, self.thunk as usize));
+                    return Ok(());
+                }
             }
 
             let d = RawDetour::new(addr as *const (), self.thunk as *const ())?;
             if self.private_copy_len == 0 {
-                self.original.store(d.trampoline() as *const () as usize, Ordering::Relaxed);
+                self.original.store(d.trampoline() as usize, Ordering::Relaxed);
             }
 
             d.enable()?;
@@ -92,6 +148,15 @@ impl GameHook for RawHook {
     }
 
     unsafe fn set_enabled(&self, on: bool) -> Result<(), detour::Error> {
+        if self.manual {
+            let Some(orig) = self.saved.get() else { return Ok(()) };
+            let addr = game_addr(self.rva);
+            let patch = Self::jmp_bytes(addr, self.thunk as usize);
+            let bytes: &[u8; 5] = if on { &patch } else {orig};
+            unsafe { Self::write_code(addr, bytes) };
+            return Ok(());
+        }
+
         let Some(d) = self.detour.get() else { return Ok(()) };
         unsafe { if on { d.enable() } else { d.disable() } }
     }

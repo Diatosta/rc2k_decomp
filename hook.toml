@@ -4,5 +4,6 @@ trace = false
 
 [hooks]
 "threading::find_thread_slot" = true
-"strings::maybe_str_append" = true
+"strings::str_append" = true
 "strings::hex_append" = true
+"strings::str_append_indexed" = true

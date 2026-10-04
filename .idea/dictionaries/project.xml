@@ -2,6 +2,7 @@
   <dictionary name="project">
     <words>
       <w>CONOUT</w>
+      <w>relocs</w>
       <w>selftest</w>
     </words>
   </dictionary>
