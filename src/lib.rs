@@ -1,5 +1,6 @@
 mod framework;
 pub mod math;
+pub mod records;
 mod registry;
 pub mod strings;
 pub mod threading;
