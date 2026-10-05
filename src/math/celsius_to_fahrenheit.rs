@@ -19,7 +19,7 @@ hook_asm!(
 );
 
 /// F = trunc(C * 9 / 5) + 32. i64 division truncates toward zero, like `idiv`.
-fn reimplemented(celsius: i32) -> i32 {
+pub fn reimplemented(celsius: i32) -> i32 {
     (((celsius as i64) * 9 / 5) as i32).wrapping_add(32)
 }
 
