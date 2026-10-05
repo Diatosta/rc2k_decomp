@@ -1,4 +1,6 @@
 use crate::framework::{MAX_LOGGED, RawHook, Regs, SHADOW_MODE, hook_asm, log};
+use crate::records::record::Record;
+use std::ptr::addr_of;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static TRAMPOLINE: AtomicUsize = AtomicUsize::new(0);
@@ -18,11 +20,12 @@ hook_asm!(
     original = TRAMPOLINE
 );
 
-const RECORD_SIZE: u32 = 0xA4;
+const RECORD_SIZE: u32 = size_of::<Record>() as u32;
 const SECTION_TAG: u32 = 4;
 
 fn read_tag(addr: u32) -> u32 {
-    unsafe { (addr as usize as *const u32).read_unaligned() }
+    let rec = addr as usize as *const Record;
+    unsafe { addr_of!((*rec).tag).read_unaligned() }
 }
 
 /// Mirrors the original, including having no end-of-table check.

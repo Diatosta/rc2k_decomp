@@ -3,6 +3,7 @@ pub mod math;
 pub mod records;
 mod registry;
 pub mod strings;
+pub mod text;
 pub mod threading;
 
 use crate::framework::{BASE, CONSOLE_OUT, SHADOW_MODE, TRACE, log};
