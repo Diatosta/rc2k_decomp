@@ -106,6 +106,30 @@ impl RawHook {
         self.manual = true;
         self
     }
+
+    pub fn is_enabled(&self) -> bool {
+        if self.manual {
+            let Some(orig) = self.saved.get() else {
+                return false;
+            };
+            let now = unsafe { *(game_addr(self.rva) as *const [u8; 5]) };
+            return now != *orig;
+        }
+        self.detour.get().is_some_and(|d| d.is_enabled())
+    }
+
+    /// Runs `f` with this hook switched off, then restores its previous state.
+    pub fn run_unhooked<R>(&self, f: impl FnOnce() -> R) -> R {
+        let was = self.is_enabled();
+        if was {
+            let _ = unsafe { self.set_enabled(false) };
+        }
+        let r = f();
+        if was {
+            let _ = unsafe { self.set_enabled(true) };
+        }
+        r
+    }
 }
 impl GameHook for RawHook {
     fn name(&self) -> &'static str {
@@ -250,7 +274,7 @@ macro_rules! hook_asm {
      $(, epilogue = $epilogue:literal)?) => {
         /// Detour target: the game calls this believing it is the original function.
         #[unsafe(naked)]
-        unsafe extern "C" fn $thunk() {
+        pub(crate) unsafe extern "C" fn $thunk() {
             core::arch::naked_asm!(
                 "pushad",
                 "mov eax, esp",
@@ -266,7 +290,7 @@ macro_rules! hook_asm {
 
         /// Runs the original with the registers in `regs`; stores the resulting registers back.
         #[unsafe(naked)]
-        unsafe extern "C" fn $call_original(_regs: *mut $crate::framework::Regs) {
+        pub(crate) unsafe extern "C" fn $call_original(_regs: *mut $crate::framework::Regs) {
             core::arch::naked_asm!(
                 "push ebx", "push esi", "push edi", "push ebp",
                 "mov eax, [esp + 20]",           // eax = regs

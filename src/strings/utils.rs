@@ -1,4 +1,4 @@
-use std::ffi::{c_char, CStr};
+use std::ffi::{CStr, c_char};
 
 pub fn show(src: *const u8) -> String {
     let bytes = unsafe { CStr::from_ptr(src as *const c_char) }.to_bytes();
@@ -14,4 +14,14 @@ pub fn written(buf: &[u8], end: *const u8) -> String {
         Some(b) => format!("\"{}\"", b.escape_ascii()),
         None => format!("<end pointer outside buffer: offset {len}>"),
     }
+}
+
+/// Printable form of a byte slice, truncated to 80 bytes.
+pub fn bytes_str(b: &[u8]) -> String {
+    let n = b.len().min(80);
+    format!(
+        "\"{}\"{}",
+        b[..n].escape_ascii(),
+        if b.len() > n { "..." } else { "" }
+    )
 }
