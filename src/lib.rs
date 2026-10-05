@@ -1,9 +1,10 @@
-pub mod threading;
 mod framework;
+pub mod math;
 mod registry;
 pub mod strings;
+pub mod threading;
 
-use crate::framework::{log, BASE, CONSOLE_OUT, SHADOW_MODE, TRACE};
+use crate::framework::{BASE, CONSOLE_OUT, SHADOW_MODE, TRACE, log};
 use crate::registry::ALL;
 use std::collections::HashMap;
 use std::ffi::c_void;
@@ -32,7 +33,6 @@ fn console_init() -> Option<(File, File)> {
 static DLL_HANDLE: AtomicUsize = AtomicUsize::new(0);
 static INSTALLED: OnceLock<Vec<bool>> = OnceLock::new();
 
-
 fn apply(pat: &str, on: bool, enabled: &mut [bool], out: &mut impl Write) {
     let mut changed = 0;
     for (i, h) in ALL.iter().enumerate() {
@@ -57,7 +57,9 @@ fn apply(pat: &str, on: bool, enabled: &mut [bool], out: &mut impl Write) {
 }
 
 fn console_loop(input: File, mut out: File, mut enabled: Vec<bool>) {
-    log("commands: list | on <name|prefix|all> | off <name|prefix|all> | shadow on|off | stats | reload | selftest");
+    log(
+        "commands: list | on <name|prefix|all> | off <name|prefix|all> | shadow on|off | stats | reload | selftest",
+    );
 
     for line in BufReader::new(input).lines().map_while(Result::ok) {
         let parts: Vec<&str> = line.split_whitespace().collect();
@@ -238,6 +240,9 @@ fn apply_config(cfg: &Config, enabled: &mut [bool]) {
             }
         }
 
-        log(&format!("config applied: shadow={} trace={}", cfg.shadow, cfg.trace));
+        log(&format!(
+            "config applied: shadow={} trace={}",
+            cfg.shadow, cfg.trace
+        ));
     }
 }
