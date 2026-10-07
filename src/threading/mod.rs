@@ -1,4 +1,4 @@
-mod find_thread_slot;
+pub(crate) mod find_thread_slot;
 pub mod thread_slot;
 
 use crate::framework::GameHook;

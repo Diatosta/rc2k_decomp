@@ -1,3 +1,4 @@
+pub mod files;
 mod framework;
 pub mod math;
 pub mod records;

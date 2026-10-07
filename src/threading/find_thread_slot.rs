@@ -27,7 +27,7 @@ const _: () = assert!(std::mem::offset_of!(ThreadSlot, thread_id) == 4);
 const SLOTS_RVA: usize = 0x5184F4 - 0x400000;
 const SLOT_COUNT: usize = 4;
 
-unsafe fn reimplemented() -> *const ThreadSlot {
+pub unsafe fn reimplemented() -> *const ThreadSlot {
     let slots = game_addr(SLOTS_RVA) as *const ThreadSlot;
     let tid = unsafe { GetCurrentThreadId() };
     for i in 0..SLOT_COUNT {

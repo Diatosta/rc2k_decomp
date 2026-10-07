@@ -2,13 +2,14 @@ use crate::framework::GameHook;
 
 mod append_string_by_id;
 mod append_temperature;
+mod bin_append;
 mod expand_entry;
 mod format_u32;
 mod hex_append;
 mod str_append;
 mod str_append_indexed;
 mod string_table;
-mod utils;
+pub(crate) mod utils;
 
 pub static HOOKS: &[&dyn GameHook] = &[
     &str_append::HOOK,
@@ -18,4 +19,5 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &expand_entry::HOOK,
     &format_u32::HOOK,
     &append_temperature::HOOK,
+    &bin_append::HOOK,
 ];
