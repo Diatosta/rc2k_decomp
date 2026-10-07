@@ -1,5 +1,6 @@
 pub mod files;
 mod framework;
+pub mod logfile;
 pub mod math;
 pub mod records;
 mod registry;
