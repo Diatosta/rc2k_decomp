@@ -5,9 +5,10 @@
 //! Out: ebx = the text buffer; everything else preserved
 //! The next id is whatever `append_string_by_id` leaves in eax, plus 1. That is the previous id
 //! for string-table ids, but a string pointer for the pointer-table branches, so a run only
-//! makes sense over string-table ids. A count of 0 wraps and never ends: left to the original,
-//! as is a text longer than the buffer.
+//! makes sense over string-table ids. A count of 0 wraps and never ends: refused, as is a text
+//! longer than the buffer, and the hook leaves both to the original.
 
+use crate::errors::BadInput;
 use crate::framework::{EBX, RawHook, Regs, SelfTest, game_ptr, hook_asm, rva, shadow};
 use crate::strings::append_string_by_id::append_string_by_id;
 use crate::strings::string_table::{LOW_IDS, blob, entry_count, ptr_low};
@@ -39,8 +40,13 @@ fn text() -> *mut u8 {
 
 // ---- Rust version ----
 
-/// The bytes the original leaves in the text buffer, including the NUL. `count` must not be 0.
-pub unsafe fn text_from_ids(first_id: u32, count: u32) -> Vec<u8> {
+/// The bytes the original leaves in the text buffer, including the NUL.
+pub unsafe fn text_from_ids(first_id: u32, count: u32) -> Result<Vec<u8>, BadInput> {
+    if count == 0 {
+        return Err(BadInput(
+            "count 0: the original's counter wraps and it never ends",
+        ));
+    }
     let mut out = Vec::new();
     let (mut id, mut left) = (first_id, count);
     loop {
@@ -48,13 +54,18 @@ pub unsafe fn text_from_ids(first_id: u32, count: u32) -> Vec<u8> {
             append_string_by_id(id, &mut |p, n| out.extend_from_slice(from_raw_parts(p, n)))
         };
         id = eax.wrapping_add(1);
-        left = left.wrapping_sub(1);
+        left -= 1;
         if left == 0 {
             break;
         }
     }
     out.push(0);
-    out
+    if out.len() > TEXT_LEN {
+        return Err(BadInput(
+            "text longer than the text buffer: the original writes past it",
+        ));
+    }
+    Ok(out)
 }
 
 // ---- hook ----
@@ -63,15 +74,10 @@ extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
     let (first_id, count) = (r.eax, r.ecx);
 
-    if count == 0 {
+    let Ok(mine) = (unsafe { text_from_ids(first_id, count) }) else {
         unsafe { call_original(r) };
         return;
-    }
-    let mine = unsafe { text_from_ids(first_id, count) };
-    if mine.len() > TEXT_LEN {
-        unsafe { call_original(r) };
-        return;
-    }
+    };
 
     if !shadow() {
         unsafe { copy_nonoverlapping(mine.as_ptr(), text(), mine.len()) };
@@ -118,10 +124,9 @@ fn self_test() -> (usize, usize) {
             if !(0..count).all(|k| from_table(first_id + k)) {
                 continue;
             }
-            let mine = unsafe { text_from_ids(first_id, count) };
-            if mine.len() > TEXT_LEN {
+            let Ok(mine) = (unsafe { text_from_ids(first_id, count) }) else {
                 continue;
-            }
+            };
 
             let saved = unsafe { from_raw_parts(text(), TEXT_LEN) }.to_vec();
             let before = Regs {

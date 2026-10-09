@@ -3,9 +3,10 @@
 //!
 //! In:  eax = hundredths of a mile, ebx = cursor
 //! Out: ebx = new cursor; everything else preserved
-//! In metric mode a value above `miles_to_km::MAX_INPUT` makes the original trap: left to the
-//! original.
+//! In metric mode a value above `miles_to_km::MAX_INPUT` makes the original trap: refused, and
+//! the hook leaves it to the original.
 
+use crate::errors::BadInput;
 use crate::framework::{EBX, RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::math::miles_to_km::{MAX_INPUT, miles_to_km};
 use crate::strings::format_u32::format_u32;
@@ -34,17 +35,17 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// With `metric`, `hundredths` must be at most `MAX_INPUT`.
-pub fn append_distance_2dp(hundredths: u32, metric: bool) -> Vec<u8> {
+/// Refuses what `miles_to_km` refuses.
+pub fn append_distance_2dp(hundredths: u32, metric: bool) -> Result<Vec<u8>, BadInput> {
     let v = if metric {
-        miles_to_km(hundredths)
+        miles_to_km(hundredths)?
     } else {
         hundredths
     };
     let mut out = format_u32(v / 100, 0);
     out.push(b'.');
     out.extend(format_u32(v % 100, 0x12));
-    out
+    Ok(out)
 }
 
 // ---- hook ----
@@ -54,11 +55,10 @@ extern "C" fn dispatch(r: &mut Regs) {
     let (hundredths, cursor) = (r.eax, r.ebx as *mut u8);
     let metric = is_metric();
 
-    if metric && hundredths > MAX_INPUT {
+    let Ok(mine) = append_distance_2dp(hundredths, metric) else {
         unsafe { call_original(r) };
         return;
-    }
-    let mine = append_distance_2dp(hundredths, metric);
+    };
 
     if !shadow() {
         unsafe { copy_nonoverlapping(mine.as_ptr(), cursor, mine.len()) };
@@ -106,7 +106,7 @@ fn self_test() -> (usize, usize) {
         let mut ro = before;
         unsafe { call_original(&mut ro) };
         let orig_len = (ro.ebx as usize).wrapping_sub(buf.as_ptr() as usize);
-        let mine = append_distance_2dp(v, metric);
+        let mine = append_distance_2dp(v, metric).unwrap_or_default();
         let preserved = ro.preserved_except(&before, EBX);
 
         t.check(buf.get(..orig_len) == Some(&mine[..]) && preserved, || {

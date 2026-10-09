@@ -4,9 +4,10 @@
 //!
 //! In:  eax = tenths of a mile, ecx = non-zero to append the unit label, ebx = cursor
 //! Out: ebx = new cursor; everything else preserved
-//! In metric mode a value above `miles_to_km::MAX_INPUT` makes the original trap: left to the
-//! original.
+//! In metric mode a value above `miles_to_km::MAX_INPUT` makes the original trap: refused, and
+//! the hook leaves it to the original.
 
+use crate::errors::BadInput;
 use crate::framework::{EBX, RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::math::miles_to_km::{MAX_INPUT, miles_to_km};
 use crate::strings::append_string_by_id::append_string_by_id;
@@ -31,11 +32,10 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// `units` is the game's unit setting (0 = imperial). With metric units, `tenths` must be at
-/// most `MAX_INPUT`.
-pub fn append_distance(tenths: u32, with_label: bool, units: u32) -> Vec<u8> {
+/// `units` is the game's unit setting (0 = imperial). Refuses what `miles_to_km` refuses.
+pub fn append_distance(tenths: u32, with_label: bool, units: u32) -> Result<Vec<u8>, BadInput> {
     let v = if units != 0 {
-        miles_to_km(tenths)
+        miles_to_km(tenths)?
     } else {
         tenths
     };
@@ -49,7 +49,7 @@ pub fn append_distance(tenths: u32, with_label: bool, units: u32) -> Vec<u8> {
             });
         }
     }
-    out
+    Ok(out)
 }
 
 // ---- hook ----
@@ -59,11 +59,10 @@ extern "C" fn dispatch(r: &mut Regs) {
     let (tenths, with_label, cursor) = (r.eax, r.ecx != 0, r.ebx as *mut u8);
     let units = units();
 
-    if units != 0 && tenths > MAX_INPUT {
+    let Ok(mine) = append_distance(tenths, with_label, units) else {
         unsafe { call_original(r) };
         return;
-    }
-    let mine = append_distance(tenths, with_label, units);
+    };
 
     if !shadow() {
         unsafe { copy_nonoverlapping(mine.as_ptr(), cursor, mine.len()) };
@@ -104,7 +103,7 @@ fn self_test() -> (usize, usize) {
     for &v in &values {
         // ecx is 0 or 1 and the other registers are 0: the label path ends in a `rep movsb`.
         for with_label in [0u32, 1] {
-            let mine = append_distance(v, with_label != 0, units);
+            let mine = append_distance(v, with_label != 0, units).unwrap_or_default();
             let mut buf = vec![0xAAu8; mine.len() + 4096];
             let before = Regs {
                 eax: v,

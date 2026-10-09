@@ -3,9 +3,11 @@
 //!
 //! In:  eax = value, ecx = digits (0..=32), ebx = cursor
 //! Out: ebx = new cursor; everything else preserved
-//! More than 32 digits makes the original read below its stack buffer: left to the original.
+//! More than 32 digits makes the original read below its stack buffer: refused, and the hook
+//! leaves that to the original.
 //! Its only caller is the fatal-error reporter, so the self-test is the only real coverage.
 
+use crate::errors::BadInput;
 use crate::framework::{EBX, RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::strings::utils::bytes_str;
 use std::ptr::copy_nonoverlapping;
@@ -35,14 +37,14 @@ fn bits(value: u32) -> [u8; 32] {
     out
 }
 
-/// `digits` must be at most 32.
-pub unsafe fn bin_append(value: u32, digits: u32, cursor: *mut u8) -> *mut u8 {
-    let all = bits(value);
-    let n = digits as usize;
-    unsafe {
-        copy_nonoverlapping(all.as_ptr().add(32 - n), cursor, n);
-        cursor.add(n)
+/// The low `digits` bits of `value` as '0' and '1', most significant first.
+pub fn bin_append(value: u32, digits: u32) -> Result<Vec<u8>, BadInput> {
+    if digits > 32 {
+        return Err(BadInput(
+            "more than 32 binary digits: the original reads below its stack buffer",
+        ));
     }
+    Ok(bits(value)[32 - digits as usize..].to_vec())
 }
 
 // ---- hook ----
@@ -50,24 +52,22 @@ pub unsafe fn bin_append(value: u32, digits: u32, cursor: *mut u8) -> *mut u8 {
 extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
     let (value, digits, cursor) = (r.eax, r.ecx, r.ebx as *mut u8);
-
-    if digits > 32 {
+    let Ok(mine) = bin_append(value, digits) else {
         unsafe { call_original(r) };
         return;
-    }
+    };
 
     if !shadow() {
-        r.ebx = unsafe { bin_append(value, digits, cursor) } as u32;
+        unsafe { copy_nonoverlapping(mine.as_ptr(), cursor, mine.len()) };
+        r.ebx = (cursor as usize + mine.len()) as u32;
         return;
     }
 
-    // Shadow: the original writes to the real buffer; check what it wrote.
     let mut o = *r;
     unsafe { call_original(&mut o) };
-    let n = digits as usize;
     let orig_len = (o.ebx as usize).wrapping_sub(cursor as usize);
 
-    if orig_len != n || unsafe { from_raw_parts(cursor, n) } != &bits(value)[32 - n..] {
+    if orig_len != mine.len() || unsafe { from_raw_parts(cursor, orig_len) } != &mine[..] {
         HOOK.mismatch(|| {
             format!("value={value:#x} digits={digits}: original wrote {orig_len} bytes")
         });
@@ -107,7 +107,7 @@ fn self_test() -> (usize, usize) {
 
             let n = digits as usize;
             let mut want = [0xAAu8; 64];
-            want[8..8 + n].copy_from_slice(&bits(v)[32 - n..]);
+            want[8..8 + n].copy_from_slice(&bin_append(v, digits).unwrap_or_default());
             let preserved = ro.preserved_except(&before, EBX);
 
             t.check(

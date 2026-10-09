@@ -4,8 +4,9 @@
 //! In:  eax = value in miles (any fixed-point scale)
 //! Out: eax = value in km; everything else preserved
 //! Above `MAX_INPUT` the result no longer fits 32 bits and the original's `div` traps: such
-//! values are left to the original.
+//! values are refused, and the hook leaves them to the original.
 
+use crate::errors::BadInput;
 use crate::framework::{EAX, RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use std::sync::atomic::AtomicUsize;
 
@@ -27,9 +28,13 @@ hook_asm!(
 pub const MAX_INPUT: u32 = (((1u64 << 32) * 10_000 - 1 - 5_000) / 16_093) as u32;
 
 /// (miles * 16093 + 5000) / 10000 with a 64-bit intermediate, like `mul` / `div`.
-/// `miles` must be at most `MAX_INPUT`.
-pub fn miles_to_km(miles: u32) -> u32 {
-    ((miles as u64 * 16_093 + 5_000) / 10_000) as u32
+pub fn miles_to_km(miles: u32) -> Result<u32, BadInput> {
+    if miles > MAX_INPUT {
+        return Err(BadInput(
+            "result does not fit 32 bits: the original's div traps",
+        ));
+    }
+    Ok(((miles as u64 * 16_093 + 5_000) / 10_000) as u32)
 }
 
 // ---- hook ----
@@ -37,12 +42,10 @@ pub fn miles_to_km(miles: u32) -> u32 {
 extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
     let miles = r.eax;
-
-    if miles > MAX_INPUT {
+    let Ok(mine) = miles_to_km(miles) else {
         unsafe { call_original(r) };
         return;
-    }
-    let mine = miles_to_km(miles);
+    };
 
     if !shadow() {
         r.eax = mine;
@@ -81,7 +84,7 @@ fn self_test() -> (usize, usize) {
         };
         let mut ro = before;
         unsafe { call_original(&mut ro) };
-        let mine = miles_to_km(miles);
+        let mine = miles_to_km(miles).unwrap_or(0);
         let preserved = ro.preserved_except(&before, EAX);
 
         t.check(ro.eax == mine && preserved, || {

@@ -4,9 +4,10 @@
 //! In:  eax = path
 //! Out: eax = resolved path (a buffer), or the input pointer if the path is used as it is;
 //!      everything else preserved
-//! The output buffer has no bounds check. A result longer than 0x100 bytes is left to the
-//! original, so both versions overflow in the same way.
+//! The output buffer has no bounds check. A result longer than 0x100 bytes is refused, and the
+//! hook leaves it to the original.
 
+use crate::errors::BadInput;
 use crate::framework::{EAX, RawHook, Regs, SelfTest, game_ptr, game_read, hook_asm, rva, shadow};
 use crate::strings::utils::bytes_str;
 use crate::threading::find_thread_slot::find_thread_slot;
@@ -74,16 +75,17 @@ fn at(p: &[u8], i: usize) -> u8 {
     p.get(i).copied().unwrap_or(0)
 }
 
-/// None = the path is used as it is. `path` excludes the NUL; the result includes one.
+/// Ok(None) = the path is used as it is. `path` excludes the NUL; the result includes one.
+/// A result that does not fit the 0x100-byte buffer is refused: the original writes past it.
 pub fn resolve_path(
     path: &[u8],
     media_mode: u32,
     base_a: &[u8],
     base_b: &[u8],
     pct: &[u8],
-) -> Option<Vec<u8>> {
+) -> Result<Option<Vec<u8>>, BadInput> {
     if path.starts_with(b"var\\") || path.starts_with(b"save") || at(path, 1) == b':' {
-        return None;
+        return Ok(None);
     }
     let (semi3, semi4) = (path.starts_with(b";3"), path.starts_with(b";4"));
     let use_b = !semi4 && (media_mode >= 3 || (!semi3 && media_mode == 2)); // unsigned compares
@@ -103,7 +105,12 @@ pub fn resolve_path(
         }
     }
     out.push(0);
-    Some(out)
+    if out.len() > BUF_LEN {
+        return Err(BadInput(
+            "resolved path longer than the buffer: the original writes past it",
+        ));
+    }
+    Ok(Some(out))
 }
 
 // ---- hook ----
@@ -112,12 +119,10 @@ extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
     let path = unsafe { cstr(r.eax as *const u8) };
     let g = unsafe { globals() };
-    let mine = resolve_path(path, g.mode, g.a, g.b, g.pct);
-
-    if mine.as_ref().is_some_and(|m| m.len() > BUF_LEN) {
+    let Ok(mine) = resolve_path(path, g.mode, g.a, g.b, g.pct) else {
         unsafe { call_original(r) };
         return;
-    }
+    };
 
     if !shadow() {
         if let Some(m) = mine {
@@ -175,7 +180,7 @@ fn self_test() -> (usize, usize) {
         let mut ro = before;
         unsafe { call_original(&mut ro) };
 
-        let mine = resolve_path(&p[..p.len() - 1], g.mode, g.a, g.b, g.pct);
+        let mine = resolve_path(&p[..p.len() - 1], g.mode, g.a, g.b, g.pct).unwrap_or(None);
         let now = unsafe { from_raw_parts(buf, BUF_LEN) };
         let mut want = snapshot.clone();
         let eax_want = match &mine {
