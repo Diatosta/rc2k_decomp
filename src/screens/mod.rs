@@ -2,11 +2,23 @@
 
 use crate::framework::{GameHook, game_ptr, rva};
 use crate::text::font::Font;
+use std::sync::atomic::{AtomicBool, Ordering};
 
-pub mod draw_record_rows;
 pub mod draw_stage_heading;
+pub mod draw_stage_records;
 
-pub static HOOKS: &[&dyn GameHook] = &[&draw_stage_heading::HOOK, &draw_record_rows::HOOK];
+pub static HOOKS: &[&dyn GameHook] = &[&draw_stage_heading::HOOK, &draw_stage_records::HOOK];
+
+/// Console switch `blank on|off`, kept for every hook in this module: while set, the hooks of this module return at once,
+/// running neither the original nor the Rust version, so whatever they draw disappears from
+/// the screen. That is how to confirm, in the game, what a screen function draws. It is
+/// harmless for these functions because they preserve every register; a new hook in this
+/// module must check `blanked()` right after `count_call()`.
+pub static BLANK: AtomicBool = AtomicBool::new(false);
+
+pub fn blanked() -> bool {
+    BLANK.load(Ordering::Relaxed)
+}
 
 /// byte_A8BB54: the text buffer these functions build their lines in.
 pub const LINE_BUFFER_RVA: usize = rva(0xA8BB54);

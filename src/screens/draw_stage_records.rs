@@ -1,13 +1,18 @@
-//! `screens::draw_record_rows` (0x4742BF): draws two rows at y = 508 and y = 531. Each has a
-//! label (strings 0x34B and 0x34C), a sprite, a name and a second sprite; the first row ends
-//! with a time, the second with a distance.
+//! `screens::draw_stage_records` (0x4742BF): draws the two record rows of a stage, at y = 508
+//! and y = 531: "best time: <flag> <name> <car> <time>" and
+//! "top speed: <flag> <name> <car> <speed>".
 //!
-//! In:  edi = entry for the first row: +0x08 first sprite number, +0x10 second sprite number,
-//!      +0x14 time in hundredths of a second, +0x20 name
+//! In:  edi = best-time entry: +0x08 nationality (flag sprite 0x1C + it), +0x10 car number
+//!      (see `car_sprite`), +0x14 time in hundredths of a second, +0x20 name
 //! Out: carry as the last `draw_text` leaves it; every register preserved
-//! The second row comes from the record the game has selected (see `selected_record`):
-//! +0x30 distance in tenths of a mile, +0x54 name, +0x74 and +0x78 the two sprite numbers.
-//! What the rows mean (a record holder and the current driver?) is a guess, and so is the name.
+//! The top-speed row comes from the record the game has selected (see `selected_record`):
+//! +0x30 speed in tenths of a mile per hour, +0x54 name, +0x74 nationality, +0x78 car number.
+//! The labels are strings 0x34B ("melhor tempo" in the Portuguese build) and 0x34C
+//! ("velocidade máxima").
+//!
+//! Screen: confirmed on the stage selection screen ("Escolha Etapa"), simulation mode, by
+//! blanking this hook (2026-10-09): the two rows at the bottom disappear and nothing else.
+//! It has three more call sites that have not been looked at.
 //!
 //! The sprites are drawn with whatever is in ebx as the palette: a pointer into text, or an
 //! index. That only works because those sprites do not use a palette; it is reproduced as is.
@@ -16,8 +21,8 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_read, hook_asm, rva, shadow};
 use crate::gfx::blit_glyph::{BlitCall, record_calls, recording_works};
 use crate::gfx::blit_marker_pair::sprite_table;
-use crate::screens::{font_at, font_is_loaded, line_buffer, set_line};
-use crate::strings::append_distance::append_distance;
+use crate::screens::{blanked, font_at, font_is_loaded, line_buffer, set_line};
+use crate::strings::append_speed::append_speed;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::append_time::{append_time, show_hours};
 use crate::strings::string_table::{blob, is_table_id};
@@ -30,8 +35,13 @@ use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
-pub static HOOK: RawHook =
-    RawHook::new("screens::draw_record_rows", rva(0x4742BF), thunk, &ORIGINAL).self_test(self_test);
+pub static HOOK: RawHook = RawHook::new(
+    "screens::draw_stage_records",
+    rva(0x4742BF),
+    thunk,
+    &ORIGINAL,
+)
+.self_test(self_test);
 
 hook_asm!(
     thunk,
@@ -55,11 +65,11 @@ const RECORD_SIZE: u32 = 0xA4;
 const ROW_1_Y: i32 = 0x1FC;
 const ROW_2_Y: i32 = 0x213;
 const LABEL_X: i32 = 0x188;
-const FIRST_SPRITE_X: i32 = 0x18A;
+const FLAG_X: i32 = 0x18A;
 const NAME_X: i32 = 0x1A6;
-const SECOND_SPRITE_X: i32 = 0x266;
+const CAR_X: i32 = 0x266;
 const TIME_X: i32 = 0x314;
-const DISTANCE_X: i32 = 0x2A8;
+const SPEED_X: i32 = 0x2A8;
 
 unsafe fn dword(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
@@ -86,8 +96,8 @@ unsafe fn selected_record() -> Option<(u32, u32)> {
 
 // ---- Rust version ----
 
-/// Sprite numbers 0x18 and 0x19 are swapped; the sprite is that number + 0x44.
-fn second_sprite(number: u32) -> u32 {
+/// The car sprite for a car number: the number + 0x44, with numbers 0x18 and 0x19 swapped.
+fn car_sprite(number: u32) -> u32 {
     (if (0x18..=0x19).contains(&number) {
         number ^ 1
     } else {
@@ -109,8 +119,8 @@ unsafe fn label(id: u32) -> Vec<u8> {
 }
 
 /// Returns the carry flag of the last `draw_text`. Refuses a missing record table and what
-/// the distance formatter refuses; the fatal errors are the blitter's.
-pub unsafe fn draw_record_rows(entry: u32, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+/// the speed formatter refuses; the fatal errors are the blitter's.
+pub unsafe fn draw_stage_records(entry: u32, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     unsafe {
         // Without it the original reads through a null pointer after drawing the first row.
         let Some((record, sub)) = selected_record() else {
@@ -137,29 +147,29 @@ pub unsafe fn draw_record_rows(entry: u32, canvas: &mut dyn Canvas) -> Result<bo
         set_line(&label(0x34C));
         let out = draw_text_at(label_font, line_buffer(), LABEL_X, ROW_2_Y, canvas)?;
 
-        // First row. ebx still holds what draw_text returned when each sprite is drawn.
-        let first = 0x1Cu32.wrapping_add(dword(entry.wrapping_add(8)));
-        sprite(canvas, first, FIRST_SPRITE_X, ROW_1_Y, out.text as u32)?;
+        // Best time. ebx still holds what draw_text returned when each sprite is drawn.
+        let flag = 0x1Cu32.wrapping_add(dword(entry.wrapping_add(8)));
+        sprite(canvas, flag, FLAG_X, ROW_1_Y, out.text as u32)?;
         let name = entry.wrapping_add(0x20) as *const u8;
         let out = draw_text_at(text_font, name, NAME_X, ROW_1_Y, canvas)?;
-        let second = second_sprite(dword(entry.wrapping_add(0x10)));
-        sprite(canvas, second, SECOND_SPRITE_X, ROW_1_Y, out.text as u32)?;
+        let car = car_sprite(dword(entry.wrapping_add(0x10)));
+        sprite(canvas, car, CAR_X, ROW_1_Y, out.text as u32)?;
         let mut time = append_time(dword(entry.wrapping_add(0x14)), show_hours());
         time.push(0);
         set_line(&time);
         draw_time_fixed_pitch_at(font_at(TIME_FONT), line_buffer(), TIME_X, ROW_1_Y, canvas)?;
 
-        // Second row: the selected record. Here ebx is the selection's third value.
-        let first = 0x1Cu32.wrapping_add(dword(record.wrapping_add(0x74)));
-        sprite(canvas, first, FIRST_SPRITE_X, ROW_2_Y, sub)?;
+        // Top speed: the selected record. Here ebx is the selection's third value.
+        let flag = 0x1Cu32.wrapping_add(dword(record.wrapping_add(0x74)));
+        sprite(canvas, flag, FLAG_X, ROW_2_Y, sub)?;
         let name = record.wrapping_add(0x54) as *const u8;
         let out = draw_text_at(text_font, name, NAME_X, ROW_2_Y, canvas)?;
-        let second = second_sprite(dword(record.wrapping_add(0x78)));
-        sprite(canvas, second, SECOND_SPRITE_X, ROW_2_Y, out.text as u32)?;
-        let mut distance = append_distance(dword(record.wrapping_add(0x30)), true, units())?;
-        distance.push(0);
-        set_line(&distance);
-        let out = draw_text_at(text_font, line_buffer(), DISTANCE_X, ROW_2_Y, canvas)?;
+        let car = car_sprite(dword(record.wrapping_add(0x78)));
+        sprite(canvas, car, CAR_X, ROW_2_Y, out.text as u32)?;
+        let mut speed = append_speed(dword(record.wrapping_add(0x30)), true, units())?;
+        speed.push(0);
+        set_line(&speed);
+        let out = draw_text_at(text_font, line_buffer(), SPEED_X, ROW_2_Y, canvas)?;
         Ok(out.too_wide)
     }
 }
@@ -174,10 +184,13 @@ unsafe fn line_area() -> Vec<u8> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
+    if blanked() {
+        return;
+    }
     let entry = r.edi;
 
     if !shadow() {
-        match unsafe { draw_record_rows(entry, &mut GameCanvas) } {
+        match unsafe { draw_stage_records(entry, &mut GameCanvas) } {
             Ok(too_wide) => {
                 r.set_carry(too_wide);
                 r.set_zero(!too_wide);
@@ -192,7 +205,7 @@ extern "C" fn dispatch(r: &mut Regs) {
     // Shadow: Rust goes through the motions in the line buffer and lists its blitter calls;
     // the original then does it again and really draws.
     let mut canvas = RecordingCanvas::new(true);
-    let Ok(too_wide) = (unsafe { draw_record_rows(entry, &mut canvas) }) else {
+    let Ok(too_wide) = (unsafe { draw_stage_records(entry, &mut canvas) }) else {
         unsafe { call_original(r) };
         return;
     };
@@ -246,7 +259,7 @@ fn self_test() -> (usize, usize) {
     let saved_line = unsafe { from_raw_parts(line_buffer(), 0x200) }.to_vec();
     let saved_state = unsafe { *state_ptr() };
 
-    // (first sprite number, second sprite number, time, name)
+    // (nationality, car number, time, name)
     let entries: [(u32, u32, u32, &[u8]); 4] = [
         (0, 0, 0, b"A\0"),
         (3, 0x18, 12_345, b"TEST DRIVER\0"),
@@ -271,7 +284,7 @@ fn self_test() -> (usize, usize) {
 
         unsafe { set_line(&saved_line) };
         let mut canvas = RecordingCanvas::new(false);
-        let mine = unsafe { draw_record_rows(entry.as_ptr() as u32, &mut canvas) };
+        let mine = unsafe { draw_stage_records(entry.as_ptr() as u32, &mut canvas) };
         let area_r = unsafe { line_area() };
         unsafe { set_line(&saved_line) };
 

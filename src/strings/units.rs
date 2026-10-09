@@ -5,7 +5,7 @@ use crate::framework::{game_ptr, game_read, rva};
 // 0 = imperial (Fahrenheit, miles) and non-zero = metric.
 const UNITS_RVA: usize = rva(0x51DE2C);
 const TEMPERATURE_LABEL_IDS_RVA: usize = rva(0x51EB84); // g_temperatureLabelIds[units]
-const DISTANCE_LABEL_IDS_RVA: usize = rva(0x51EB88); // g_distanceLabelIds[units]
+const SPEED_LABEL_IDS_RVA: usize = rva(0x51EB88); // g_speedLabelIds[units]: "km/h" when metric
 
 /// 0 = imperial, non-zero = metric. The game stores Celsius and miles.
 pub fn units() -> u32 {
@@ -26,6 +26,6 @@ fn label_id(table_rva: usize, units: u32) -> u32 {
 pub fn temperature_label_id(units: u32) -> u32 {
     label_id(TEMPERATURE_LABEL_IDS_RVA, units)
 }
-pub fn distance_label_id(units: u32) -> u32 {
-    label_id(DISTANCE_LABEL_IDS_RVA, units)
+pub fn speed_label_id(units: u32) -> u32 {
+    label_id(SPEED_LABEL_IDS_RVA, units)
 }

@@ -10,7 +10,7 @@ use crate::errors::FatalError;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::gfx::blit_glyph::{record_calls, recording_works};
 use crate::records::trakpak_entry::record_entry;
-use crate::screens::{font_at, font_is_loaded, line_buffer, set_line};
+use crate::screens::{blanked, font_at, font_is_loaded, line_buffer, set_line};
 use crate::strings::append_fraction::append_fraction;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::string_table::{blob, is_table_id};
@@ -81,6 +81,9 @@ pub unsafe fn draw_stage_heading(
 
 extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
+    if blanked() {
+        return;
+    }
     let record = r.edi as *const u8;
 
     if !shadow() {

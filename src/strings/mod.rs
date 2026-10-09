@@ -1,10 +1,10 @@
 use crate::framework::GameHook;
 
-pub mod append_distance;
 pub mod append_distance_2dp;
 pub mod append_fraction;
 pub mod append_min_sec;
 pub mod append_percent;
+pub mod append_speed;
 pub mod append_string_by_id;
 pub mod append_temperature;
 pub mod append_time;
@@ -35,6 +35,6 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &append_min_sec::HOOK,
     &append_time::HOOK,
     &append_distance_2dp::HOOK,
-    &append_distance::HOOK,
+    &append_speed::HOOK,
     &text_from_ids::HOOK,
 ];

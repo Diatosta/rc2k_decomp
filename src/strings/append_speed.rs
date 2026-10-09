@@ -1,18 +1,21 @@
-//! `strings::append_distance` (0x401B10): appends a distance given in tenths of a mile with one
-//! decimal, "Q.R", converted to km when the game is set to metric units, optionally followed by
-//! the unit label.
+//! `strings::append_speed` (0x401B10): appends a speed given in tenths of a mile per hour with
+//! one decimal, "Q.R", converted to km/h when the game is set to metric units, optionally
+//! followed by the unit label ("km/h" on a metric game).
 //!
-//! In:  eax = tenths of a mile, ecx = non-zero to append the unit label, ebx = cursor
+//! In:  eax = tenths of a mile per hour, ecx = non-zero to append the unit label, ebx = cursor
 //! Out: ebx = new cursor; everything else preserved
 //! In metric mode a value above `miles_to_km::MAX_INPUT` makes the original trap: refused, and
 //! the hook leaves it to the original.
+//!
+//! Screen: confirmed on the stage selection screen ("Escolha Etapa"), where
+//! `draw_stage_records` uses it for the top speed, shown as "187.3km/h".
 
 use crate::errors::BadInput;
 use crate::framework::{EBX, RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::math::miles_to_km::{MAX_INPUT, miles_to_km};
 use crate::strings::append_string_by_id::append_string_by_id;
 use crate::strings::format_u32::format_u32;
-use crate::strings::units::{distance_label_id, units};
+use crate::strings::units::{speed_label_id, units};
 use crate::strings::utils::bytes_str;
 use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts;
@@ -21,7 +24,7 @@ use std::sync::atomic::AtomicUsize;
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
 pub static HOOK: RawHook =
-    RawHook::new("strings::append_distance", rva(0x401B10), thunk, &ORIGINAL).self_test(self_test);
+    RawHook::new("strings::append_speed", rva(0x401B10), thunk, &ORIGINAL).self_test(self_test);
 
 hook_asm!(
     thunk,
@@ -33,7 +36,7 @@ hook_asm!(
 // ---- Rust version ----
 
 /// `units` is the game's unit setting (0 = imperial). Refuses what `miles_to_km` refuses.
-pub fn append_distance(tenths: u32, with_label: bool, units: u32) -> Result<Vec<u8>, BadInput> {
+pub fn append_speed(tenths: u32, with_label: bool, units: u32) -> Result<Vec<u8>, BadInput> {
     let v = if units != 0 {
         miles_to_km(tenths)?
     } else {
@@ -44,7 +47,7 @@ pub fn append_distance(tenths: u32, with_label: bool, units: u32) -> Result<Vec<
     out.extend(format_u32(v % 10, 0));
     if with_label {
         unsafe {
-            append_string_by_id(distance_label_id(units), &mut |p, n| {
+            append_string_by_id(speed_label_id(units), &mut |p, n| {
                 out.extend_from_slice(from_raw_parts(p, n))
             });
         }
@@ -59,7 +62,7 @@ extern "C" fn dispatch(r: &mut Regs) {
     let (tenths, with_label, cursor) = (r.eax, r.ecx != 0, r.ebx as *mut u8);
     let units = units();
 
-    let Ok(mine) = append_distance(tenths, with_label, units) else {
+    let Ok(mine) = append_speed(tenths, with_label, units) else {
         unsafe { call_original(r) };
         return;
     };
@@ -103,7 +106,7 @@ fn self_test() -> (usize, usize) {
     for &v in &values {
         // ecx is 0 or 1 and the other registers are 0: the label path ends in a `rep movsb`.
         for with_label in [0u32, 1] {
-            let mine = append_distance(v, with_label != 0, units).unwrap_or_default();
+            let mine = append_speed(v, with_label != 0, units).unwrap_or_default();
             let mut buf = vec![0xAAu8; mine.len() + 4096];
             let before = Regs {
                 eax: v,

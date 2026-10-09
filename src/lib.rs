@@ -65,7 +65,7 @@ fn apply(pat: &str, on: bool, enabled: &mut [bool], out: &mut impl Write) {
 
 fn console_loop(input: File, mut out: File, mut enabled: Vec<bool>) {
     log(
-        "commands: list | on <name|prefix|all> | off <name|prefix|all> | shadow on|off | trace on|off | stats | reload | selftest",
+        "commands: list | on <name|prefix|all> | off <name|prefix|all> | shadow on|off | trace on|off | blank on|off | stats | reload | selftest",
     );
 
     for line in BufReader::new(input).lines().map_while(Result::ok) {
@@ -108,6 +108,12 @@ fn console_loop(input: File, mut out: File, mut enabled: Vec<bool>) {
                         log(&format!("{:<30} cases={cases} failures={bad}", h.name()));
                     }
                 }
+            }
+            ["blank", v] => {
+                screens::BLANK.store(*v == "on", Ordering::Relaxed);
+                log(&format!(
+                    "blank = {v} (hooks in screens:: draw nothing while on)"
+                ));
             }
             ["trace", v] => {
                 TRACE.store(*v == "on", Ordering::Relaxed);
