@@ -63,6 +63,25 @@ pub unsafe fn draw_string_by_id(
     }
 }
 
+/// The same with a font object in game memory and the game's text buffer, for Rust callers.
+pub unsafe fn draw_string_by_id_at(
+    id: u32,
+    font: *mut Font,
+    x: i32,
+    y: i32,
+    canvas: &mut dyn Canvas,
+) -> Result<Outcome, Refused> {
+    unsafe {
+        let before = font.read_unaligned();
+        let mut copy = before;
+        let out = draw_string_by_id(id, &mut copy, x, y, text(), canvas)?;
+        if copy != before && canvas.keeps_font_changes() {
+            font.write_unaligned(copy);
+        }
+        Ok(out)
+    }
+}
+
 // ---- hook ----
 
 extern "C" fn dispatch(r: &mut Regs) {

@@ -1,9 +1,11 @@
-//! `math::mmss_to_seconds` (0x4019BB): turns a decimal "minutes and seconds" number into
-//! seconds: the last two decimal digits count once, everything above them counts 60 times
-//! (130 -> 90). The same arithmetic would serve hours and minutes.
+//! `math::hhmm_to_minutes` (0x4019BB): turns a time of day written as hours * 100 + minutes
+//! (1300 for 13:00) into minutes. The last two decimal digits count once, everything above
+//! them counts 60 times.
 //!
 //! In:  eax = value
 //! Out: eax = (value / 100) * 60 + value % 100; everything else preserved
+//! All 21 call sites are in the stage panel functions, on start, finish and total times; the
+//! same arithmetic would turn minutes * 100 + seconds into seconds.
 
 use crate::framework::{EAX, RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use std::sync::atomic::AtomicUsize;
@@ -11,7 +13,7 @@ use std::sync::atomic::AtomicUsize;
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
 pub static HOOK: RawHook =
-    RawHook::new("math::mmss_to_seconds", rva(0x4019BB), thunk, &ORIGINAL).self_test(self_test);
+    RawHook::new("math::hhmm_to_minutes", rva(0x4019BB), thunk, &ORIGINAL).self_test(self_test);
 
 hook_asm!(
     thunk,
@@ -23,16 +25,16 @@ hook_asm!(
 // ---- Rust version ----
 
 /// Unsigned, and cannot overflow: u32::MAX / 100 * 60 + 99 fits in 32 bits.
-pub fn mmss_to_seconds(mmss: u32) -> u32 {
-    (mmss / 100) * 60 + mmss % 100
+pub fn hhmm_to_minutes(hhmm: u32) -> u32 {
+    (hhmm / 100) * 60 + hhmm % 100
 }
 
 // ---- hook ----
 
 extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
-    let mmss = r.eax;
-    let mine = mmss_to_seconds(mmss);
+    let hhmm = r.eax;
+    let mine = hhmm_to_minutes(hhmm);
 
     if !shadow() {
         r.eax = mine;
@@ -42,7 +44,7 @@ extern "C" fn dispatch(r: &mut Regs) {
     let mut o = *r;
     unsafe { call_original(&mut o) };
     if o.eax != mine {
-        HOOK.mismatch(|| format!("mmss={mmss}: original={} rust={mine}", o.eax));
+        HOOK.mismatch(|| format!("hhmm={hhmm}: original={} rust={mine}", o.eax));
     }
     r.eax = o.eax;
 }
@@ -63,19 +65,19 @@ fn self_test() -> (usize, usize) {
         u32::MAX,
     ]);
 
-    for mmss in inputs {
+    for hhmm in inputs {
         let before = Regs {
-            eax: mmss,
+            eax: hhmm,
             ..Regs::SENTINEL
         };
         let mut ro = before;
         unsafe { call_original(&mut ro) };
-        let mine = mmss_to_seconds(mmss);
+        let mine = hhmm_to_minutes(hhmm);
         let preserved = ro.preserved_except(&before, EAX);
 
         t.check(ro.eax == mine && preserved, || {
             format!(
-                "mmss={mmss} original={} rust={mine} preserved={preserved}",
+                "hhmm={hhmm} original={} rust={mine} preserved={preserved}",
                 ro.eax
             )
         });

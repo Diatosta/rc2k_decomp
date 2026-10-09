@@ -5,9 +5,14 @@ use crate::text::font::Font;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 pub mod draw_stage_heading;
+pub mod draw_stage_info;
 pub mod draw_stage_records;
 
-pub static HOOKS: &[&dyn GameHook] = &[&draw_stage_heading::HOOK, &draw_stage_records::HOOK];
+pub static HOOKS: &[&dyn GameHook] = &[
+    &draw_stage_heading::HOOK,
+    &draw_stage_records::HOOK,
+    &draw_stage_info::HOOK,
+];
 
 /// Console switch `blank on|off`, kept for every hook in this module: while set, the hooks of this module return at once,
 /// running neither the original nor the Rust version, so whatever they draw disappears from

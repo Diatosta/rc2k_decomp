@@ -62,6 +62,19 @@ pub unsafe fn marker_calls(object: *const u8, palette: u32, table: u32) -> [Blit
     ]
 }
 
+/// Stores a marker's position in the two globals, as the original does before each blit.
+pub unsafe fn set_marker_position(call: &BlitCall) {
+    unsafe {
+        game_write(MARKER_X_RVA, call.x);
+        game_write(MARKER_Y_RVA, call.y);
+    }
+}
+
+/// The position the two globals hold.
+pub fn marker_position() -> (i32, i32) {
+    unsafe { (game_read(MARKER_X_RVA), game_read(MARKER_Y_RVA)) }
+}
+
 /// Draws both markers on the game's surface.
 pub unsafe fn blit_marker_pair(object: *const u8, palette: u32) -> Result<(), FatalError> {
     for call in unsafe { marker_calls(object, palette, sprite_table()) } {

@@ -94,6 +94,11 @@ unsafe fn selected_record() -> Option<(u32, u32)> {
     }
 }
 
+/// False while no record table is selected, in which case the original must not be run.
+pub fn has_selected_record() -> bool {
+    unsafe { selected_record() }.is_some()
+}
+
 // ---- Rust version ----
 
 /// The car sprite for a car number: the number + 0x44, with numbers 0x18 and 0x19 swapped.

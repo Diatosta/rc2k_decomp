@@ -51,6 +51,20 @@ pub fn find_record(table: u32, index: i32, section: u32, tag_at: impl Fn(u32) ->
     p.wrapping_add(index.wrapping_mul(RECORD_SIZE as i32) as u32)
 }
 
+/// `find_record` over real records in memory.
+pub fn find_record_in(table: u32, index: i32, section: u32) -> u32 {
+    find_record(table, index, section, read_tag)
+}
+
+/// True if `table` has at least `section` section headers among its first `limit` records:
+/// a bounded check that `find_record_in` will not run off the table.
+pub fn has_section(table: u32, section: u32, limit: u32) -> bool {
+    let headers = (0..limit)
+        .filter(|&i| read_tag(table.wrapping_add(i * RECORD_SIZE)) == SECTION_TAG)
+        .count() as u32;
+    headers >= section
+}
+
 // ---- hook ----
 
 extern "C" fn dispatch(r: &mut Regs) {

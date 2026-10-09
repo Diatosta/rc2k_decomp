@@ -1,8 +1,10 @@
-//! `strings::append_min_sec` (0x4019EB): appends a number of seconds as minutes and seconds,
-//! "M:SS".
+//! `strings::append_clock` (0x4019EB): appends a value as "Q:RR", where Q is the value divided
+//! by 60 and RR the remainder as two digits: hours and minutes from a number of minutes, or
+//! minutes and seconds from a number of seconds.
 //!
-//! In:  eax = seconds, ebx = cursor
+//! In:  eax = value, ebx = cursor
 //! Out: ebx = new cursor; everything else preserved
+//! The stage panel functions use it on minutes, for times of day ("13:00").
 
 use crate::framework::{EBX, RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::strings::format_u32::format_u32;
@@ -14,7 +16,7 @@ use std::sync::atomic::AtomicUsize;
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
 pub static HOOK: RawHook =
-    RawHook::new("strings::append_min_sec", rva(0x4019EB), thunk, &ORIGINAL).self_test(self_test);
+    RawHook::new("strings::append_clock", rva(0x4019EB), thunk, &ORIGINAL).self_test(self_test);
 
 hook_asm!(
     thunk,
@@ -25,11 +27,11 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// Minutes unpadded, seconds as two digits.
-pub fn append_min_sec(seconds: u32) -> Vec<u8> {
-    let mut out = format_u32(seconds / 60, 0);
+/// The quotient unpadded, the remainder as two digits.
+pub fn append_clock(value: u32) -> Vec<u8> {
+    let mut out = format_u32(value / 60, 0);
     out.push(b':');
-    out.extend(format_u32(seconds % 60, 0x12));
+    out.extend(format_u32(value % 60, 0x12));
     out
 }
 
@@ -37,8 +39,8 @@ pub fn append_min_sec(seconds: u32) -> Vec<u8> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
-    let (seconds, cursor) = (r.eax, r.ebx as *mut u8);
-    let mine = append_min_sec(seconds);
+    let (value, cursor) = (r.eax, r.ebx as *mut u8);
+    let mine = append_clock(value);
 
     if !shadow() {
         unsafe { copy_nonoverlapping(mine.as_ptr(), cursor, mine.len()) };
@@ -53,7 +55,7 @@ extern "C" fn dispatch(r: &mut Regs) {
     if orig_len != mine.len() || unsafe { from_raw_parts(cursor, orig_len) } != &mine[..] {
         HOOK.mismatch(|| {
             format!(
-                "seconds={seconds}: original wrote {orig_len} bytes, rust {}",
+                "value={value}: original wrote {orig_len} bytes, rust {}",
                 mine.len()
             )
         });
@@ -87,12 +89,12 @@ fn self_test() -> (usize, usize) {
         let mut ro = before;
         unsafe { call_original(&mut ro) };
         let orig_len = (ro.ebx as usize).wrapping_sub(buf.as_ptr() as usize);
-        let mine = append_min_sec(v);
+        let mine = append_clock(v);
         let preserved = ro.preserved_except(&before, EBX);
 
         t.check(buf.get(..orig_len) == Some(&mine[..]) && preserved, || {
             format!(
-                "seconds={v} original {} rust {} preserved={preserved}",
+                "value={v} original {} rust {} preserved={preserved}",
                 bytes_str(buf.get(..orig_len).unwrap_or(&[])),
                 bytes_str(&mine)
             )
