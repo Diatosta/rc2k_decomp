@@ -47,6 +47,8 @@ hook_asm!(
 
 /// What drawing text needs from outside: the kerning row table and the blitter.
 pub trait Canvas {
+    /// False for a canvas that only predicts: font objects in game memory are then left alone.
+    fn keeps_font_changes(&self) -> bool;
     fn reset_line_state(&mut self);
     unsafe fn glyph_kerning(&mut self, table: *const u8, glyph: u32) -> u32;
     unsafe fn blit_glyph(&mut self, call: BlitCall) -> Result<(), FatalError>;
@@ -56,6 +58,9 @@ pub trait Canvas {
 pub struct GameCanvas;
 
 impl Canvas for GameCanvas {
+    fn keeps_font_changes(&self) -> bool {
+        true
+    }
     fn reset_line_state(&mut self) {
         unsafe { reset_line_state() }
     }
@@ -96,6 +101,9 @@ impl RecordingCanvas {
 }
 
 impl Canvas for RecordingCanvas {
+    fn keeps_font_changes(&self) -> bool {
+        false
+    }
     fn reset_line_state(&mut self) {
         self.state = [0; STATE_LEN];
     }
@@ -304,6 +312,26 @@ pub unsafe fn draw_text(
                 x = x.wrapping_add(advance(table, glyph)).wrapping_add(spacing);
             }
         }
+    }
+}
+
+/// `draw_text` with a font object in game memory, for Rust callers. The object is only
+/// written (it only changes in `MODE_MEASURE`) if the canvas keeps font changes.
+pub unsafe fn draw_text_at(
+    font: *mut Font,
+    text: *const u8,
+    x: i32,
+    y: i32,
+    canvas: &mut dyn Canvas,
+) -> Result<Outcome, FatalError> {
+    unsafe {
+        let before = font.read_unaligned();
+        let mut copy = before;
+        let out = draw_text(&mut copy, text, x, y, canvas)?;
+        if copy != before && canvas.keeps_font_changes() {
+            font.write_unaligned(copy);
+        }
+        Ok(out)
     }
 }
 

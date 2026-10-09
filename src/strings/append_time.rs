@@ -30,7 +30,7 @@ hook_asm!(
 
 const SHOW_HOURS_RVA: usize = rva(0x4E0148); // g_timeShowHours: 1 = always write the hours
 
-fn show_hours() -> bool {
+pub fn show_hours() -> bool {
     unsafe { game_read::<u32>(SHOW_HOURS_RVA) == 1 }
 }
 

@@ -6,6 +6,7 @@ pub mod logfile;
 pub mod math;
 pub mod records;
 mod registry;
+pub mod screens;
 pub mod strings;
 pub mod text;
 pub mod threading;

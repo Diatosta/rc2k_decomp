@@ -1,0 +1,297 @@
+//! `screens::draw_record_rows` (0x4742BF): draws two rows at y = 508 and y = 531. Each has a
+//! label (strings 0x34B and 0x34C), a sprite, a name and a second sprite; the first row ends
+//! with a time, the second with a distance.
+//!
+//! In:  edi = entry for the first row: +0x08 first sprite number, +0x10 second sprite number,
+//!      +0x14 time in hundredths of a second, +0x20 name
+//! Out: carry as the last `draw_text` leaves it; every register preserved
+//! The second row comes from the record the game has selected (see `selected_record`):
+//! +0x30 distance in tenths of a mile, +0x54 name, +0x74 and +0x78 the two sprite numbers.
+//! What the rows mean (a record holder and the current driver?) is a guess, and so is the name.
+//!
+//! The sprites are drawn with whatever is in ebx as the palette: a pointer into text, or an
+//! index. That only works because those sprites do not use a palette; it is reproduced as is.
+
+use crate::errors::{BadInput, Refused};
+use crate::framework::{RawHook, Regs, SelfTest, game_read, hook_asm, rva, shadow};
+use crate::gfx::blit_glyph::{BlitCall, record_calls, recording_works};
+use crate::gfx::blit_marker_pair::sprite_table;
+use crate::screens::{font_at, font_is_loaded, line_buffer, set_line};
+use crate::strings::append_distance::append_distance;
+use crate::strings::append_string_by_id::push_string;
+use crate::strings::append_time::{append_time, show_hours};
+use crate::strings::string_table::{blob, is_table_id};
+use crate::strings::units::units;
+use crate::text::draw_text::{Canvas, GameCanvas, RecordingCanvas, draw_text_at};
+use crate::text::draw_time_fixed_pitch::draw_time_fixed_pitch_at;
+use crate::text::glyph_kerning::state_ptr;
+use std::slice::from_raw_parts;
+use std::sync::atomic::AtomicUsize;
+
+static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
+
+pub static HOOK: RawHook =
+    RawHook::new("screens::draw_record_rows", rva(0x4742BF), thunk, &ORIGINAL).self_test(self_test);
+
+hook_asm!(
+    thunk,
+    call_original,
+    dispatch = dispatch,
+    original = ORIGINAL
+);
+
+// ---- game data ----
+
+const LABEL_FONT: usize = 0x51E5A4;
+const TEXT_FONT: usize = 0x51E584;
+const TIME_FONT: usize = 0x51E564;
+
+const RECORD_TABLES_RVA: usize = rva(0x735512); // off_735512: pointers to tables of tables
+const SELECTED_GROUP_RVA: usize = rva(0x7558C8); // dword_7558C8
+const SELECTED_INDEX_RVA: usize = rva(0x7558CC); // dword_7558CC
+const SELECTED_SUB_RVA: usize = rva(0x7558D0); // dword_7558D0
+const RECORD_SIZE: u32 = 0xA4;
+
+const ROW_1_Y: i32 = 0x1FC;
+const ROW_2_Y: i32 = 0x213;
+const LABEL_X: i32 = 0x188;
+const FIRST_SPRITE_X: i32 = 0x18A;
+const NAME_X: i32 = 0x1A6;
+const SECOND_SPRITE_X: i32 = 0x266;
+const TIME_X: i32 = 0x314;
+const DISTANCE_X: i32 = 0x2A8;
+
+unsafe fn dword(at: u32) -> u32 {
+    unsafe { (at as *const u32).read_unaligned() }
+}
+
+/// The three selection values and the address of the record they select:
+/// `tables[group][sub] + index * 0xA4`. None while the tables are not there.
+unsafe fn selected_record() -> Option<(u32, u32)> {
+    unsafe {
+        let group: u32 = game_read(SELECTED_GROUP_RVA);
+        let index: u32 = game_read(SELECTED_INDEX_RVA);
+        let sub: u32 = game_read(SELECTED_SUB_RVA);
+        let tables: u32 = game_read(RECORD_TABLES_RVA + group as usize * 4);
+        if tables == 0 {
+            return None;
+        }
+        let table = dword(tables.wrapping_add(sub.wrapping_mul(4)));
+        if table == 0 {
+            return None;
+        }
+        Some((table.wrapping_add(index.wrapping_mul(RECORD_SIZE)), sub))
+    }
+}
+
+// ---- Rust version ----
+
+/// Sprite numbers 0x18 and 0x19 are swapped; the sprite is that number + 0x44.
+fn second_sprite(number: u32) -> u32 {
+    (if (0x18..=0x19).contains(&number) {
+        number ^ 1
+    } else {
+        number
+    })
+    .wrapping_add(0x44)
+}
+
+/// "<string id>:  <string 0>" with its NUL.
+unsafe fn label(id: u32) -> Vec<u8> {
+    let mut out = Vec::new();
+    unsafe {
+        push_string(&mut out, id);
+        out.extend_from_slice(b":  ");
+        push_string(&mut out, 0);
+    }
+    out.push(0);
+    out
+}
+
+/// Returns the carry flag of the last `draw_text`. Refuses a missing record table and what
+/// the distance formatter refuses; the fatal errors are the blitter's.
+pub unsafe fn draw_record_rows(entry: u32, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+    unsafe {
+        // Without it the original reads through a null pointer after drawing the first row.
+        let Some((record, sub)) = selected_record() else {
+            return Err(
+                BadInput("no record table is selected: the original reads through null").into(),
+            );
+        };
+        let sprites = sprite_table();
+        let sprite = |canvas: &mut dyn Canvas, glyph: u32, x: i32, y: i32, palette: u32| {
+            canvas.blit_glyph(BlitCall {
+                glyph,
+                x,
+                y,
+                palette,
+                table: sprites,
+            })
+        };
+        let label_font = font_at(LABEL_FONT);
+        let text_font = font_at(TEXT_FONT);
+
+        // Both labels.
+        set_line(&label(0x34B));
+        draw_text_at(label_font, line_buffer(), LABEL_X, ROW_1_Y, canvas)?;
+        set_line(&label(0x34C));
+        let out = draw_text_at(label_font, line_buffer(), LABEL_X, ROW_2_Y, canvas)?;
+
+        // First row. ebx still holds what draw_text returned when each sprite is drawn.
+        let first = 0x1Cu32.wrapping_add(dword(entry.wrapping_add(8)));
+        sprite(canvas, first, FIRST_SPRITE_X, ROW_1_Y, out.text as u32)?;
+        let name = entry.wrapping_add(0x20) as *const u8;
+        let out = draw_text_at(text_font, name, NAME_X, ROW_1_Y, canvas)?;
+        let second = second_sprite(dword(entry.wrapping_add(0x10)));
+        sprite(canvas, second, SECOND_SPRITE_X, ROW_1_Y, out.text as u32)?;
+        let mut time = append_time(dword(entry.wrapping_add(0x14)), show_hours());
+        time.push(0);
+        set_line(&time);
+        draw_time_fixed_pitch_at(font_at(TIME_FONT), line_buffer(), TIME_X, ROW_1_Y, canvas)?;
+
+        // Second row: the selected record. Here ebx is the selection's third value.
+        let first = 0x1Cu32.wrapping_add(dword(record.wrapping_add(0x74)));
+        sprite(canvas, first, FIRST_SPRITE_X, ROW_2_Y, sub)?;
+        let name = record.wrapping_add(0x54) as *const u8;
+        let out = draw_text_at(text_font, name, NAME_X, ROW_2_Y, canvas)?;
+        let second = second_sprite(dword(record.wrapping_add(0x78)));
+        sprite(canvas, second, SECOND_SPRITE_X, ROW_2_Y, out.text as u32)?;
+        let mut distance = append_distance(dword(record.wrapping_add(0x30)), true, units())?;
+        distance.push(0);
+        set_line(&distance);
+        let out = draw_text_at(text_font, line_buffer(), DISTANCE_X, ROW_2_Y, canvas)?;
+        Ok(out.too_wide)
+    }
+}
+
+// ---- hook ----
+
+/// The line buffer as far as these functions use it: the text and the one-character cell of
+/// `draw_time_fixed_pitch`.
+unsafe fn line_area() -> Vec<u8> {
+    unsafe { from_raw_parts(line_buffer(), 0x80) }.to_vec()
+}
+
+extern "C" fn dispatch(r: &mut Regs) {
+    HOOK.count_call();
+    let entry = r.edi;
+
+    if !shadow() {
+        match unsafe { draw_record_rows(entry, &mut GameCanvas) } {
+            Ok(too_wide) => {
+                r.set_carry(too_wide);
+                r.set_zero(!too_wide);
+            }
+            // The original, run from the start, redraws the same things and meets the same
+            // error.
+            Err(_) => unsafe { call_original(r) },
+        }
+        return;
+    }
+
+    // Shadow: Rust goes through the motions in the line buffer and lists its blitter calls;
+    // the original then does it again and really draws.
+    let mut canvas = RecordingCanvas::new(true);
+    let Ok(too_wide) = (unsafe { draw_record_rows(entry, &mut canvas) }) else {
+        unsafe { call_original(r) };
+        return;
+    };
+    let area_r = unsafe { line_area() };
+
+    let mut o = *r;
+    let calls = record_calls(false, || unsafe { call_original(&mut o) });
+    let area_o = unsafe { line_area() };
+
+    let ok = o.preserved_except(r, 0)
+        && o.carry() == too_wide
+        && area_o == area_r
+        && unsafe { *state_ptr() } == canvas.state
+        && (!recording_works() || calls == canvas.calls);
+    if !ok {
+        HOOK.mismatch(|| {
+            format!(
+                "entry={entry:#x}: original carry={} calls={} rust carry={too_wide} calls={} same_line_buffer={}",
+                o.carry(),
+                calls.len(),
+                canvas.calls.len(),
+                area_o == area_r
+            )
+        });
+    }
+    r.eflags = o.eflags;
+}
+
+// ---- self-test ----
+//
+// Uses the game's own fonts, strings and selected record, so it only runs when those are
+// there. The blitter's hook swallows the calls; the line buffer and the kerning table are
+// restored.
+
+fn self_test() -> (usize, usize) {
+    let Some(mut t) = SelfTest::begin(&HOOK) else {
+        return (0, 0);
+    };
+    if !recording_works() {
+        return t.skip("the gfx::blit_glyph hook is off, so the original would really draw");
+    }
+    let fonts_loaded = [LABEL_FONT, TEXT_FONT, TIME_FONT]
+        .iter()
+        .all(|&f| font_is_loaded(f));
+    if blob().is_null() || !fonts_loaded || ![0, 0x34B, 0x34C].iter().all(|&id| is_table_id(id)) {
+        return t.skip("the string table or the fonts are not loaded");
+    }
+    if unsafe { selected_record() }.is_none() {
+        return t.skip("no record is selected (its table is not loaded)");
+    }
+    let saved_line = unsafe { from_raw_parts(line_buffer(), 0x200) }.to_vec();
+    let saved_state = unsafe { *state_ptr() };
+
+    // (first sprite number, second sprite number, time, name)
+    let entries: [(u32, u32, u32, &[u8]); 4] = [
+        (0, 0, 0, b"A\0"),
+        (3, 0x18, 12_345, b"TEST DRIVER\0"),
+        (7, 0x19, 360_000, b"Another Name\0"),
+        (1, 0x1A, 599_999, b"\0"),
+    ];
+    for (first, second, time, name) in entries {
+        let mut entry = [0u8; 0x60];
+        entry[8..12].copy_from_slice(&first.to_le_bytes());
+        entry[0x10..0x14].copy_from_slice(&second.to_le_bytes());
+        entry[0x14..0x18].copy_from_slice(&time.to_le_bytes());
+        entry[0x20..0x20 + name.len()].copy_from_slice(name);
+
+        let before = Regs {
+            edi: entry.as_ptr() as u32,
+            ..Regs::default()
+        };
+        let mut ro = before;
+        let calls_o = record_calls(true, || unsafe { call_original(&mut ro) });
+        let area_o = unsafe { line_area() };
+        let state_o = unsafe { *state_ptr() };
+
+        unsafe { set_line(&saved_line) };
+        let mut canvas = RecordingCanvas::new(false);
+        let mine = unsafe { draw_record_rows(entry.as_ptr() as u32, &mut canvas) };
+        let area_r = unsafe { line_area() };
+        unsafe { set_line(&saved_line) };
+
+        let preserved = ro.preserved_except(&before, 0);
+        let ok = mine == Ok(ro.carry())
+            && area_o == area_r
+            && calls_o == canvas.calls
+            && state_o == canvas.state
+            && preserved;
+        t.check(ok, || {
+            format!(
+                "first={first} second={second:#x} time={time}: original carry={} calls={:?} preserved={preserved} same_line_buffer={}; rust {mine:?} calls={:?}",
+                ro.carry(),
+                calls_o,
+                area_o == area_r,
+                canvas.calls
+            )
+        });
+    }
+
+    unsafe { *state_ptr() = saved_state };
+    t.finish()
+}

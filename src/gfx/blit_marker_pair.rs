@@ -35,7 +35,7 @@ const SPRITE_TABLE_PTR_RVA: usize = rva(0x755581); // g_spriteTable: pointer to 
 const FIRST_GLYPH: u32 = 0x9C;
 const SECOND_GLYPH: u32 = 0x9D;
 
-fn sprite_table() -> u32 {
+pub fn sprite_table() -> u32 {
     unsafe { game_read(SPRITE_TABLE_PTR_RVA) }
 }
 

@@ -38,3 +38,11 @@ pub fn entry_count() -> usize {
     let first = unsafe { b.cast::<u32>().read_unaligned() } & 0x00FF_FFFF;
     ((first / 4) as usize).min(0x10000)
 }
+
+/// True if `id` is an entry of the packed table and is expanded from it (not taken from one
+/// of the pointer tables): the ids a test can use without knowing the pointer tables.
+pub fn is_table_id(id: u32) -> bool {
+    (id as usize) < entry_count()
+        && id & 0x1000 == 0
+        && !(LOW_IDS.contains(&id) && unsafe { !ptr_low(id).is_null() })
+}

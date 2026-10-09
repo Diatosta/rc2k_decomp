@@ -59,6 +59,11 @@ pub unsafe fn append_string_by_id(id: u32, emit: &mut impl FnMut(*const u8, usiz
     }
 }
 
+/// Appends the text of string `id` to `out`.
+pub unsafe fn push_string(out: &mut Vec<u8>, id: u32) {
+    unsafe { append_string_by_id(id, &mut |p, n| out.extend_from_slice(from_raw_parts(p, n))) };
+}
+
 // ---- hook ----
 
 extern "C" fn dispatch(r: &mut Regs) {

@@ -63,6 +63,22 @@ pub fn trakpak_entry(
         .wrapping_add(index.wrapping_mul(ENTRY_SIZE)))
 }
 
+/// The entry for the record at `record`, in the pack the game has loaded.
+pub unsafe fn record_entry(record: *const u8) -> Result<u32, FatalError> {
+    let (index, pack_id) = unsafe {
+        (
+            record.add(4).cast::<u32>().read_unaligned(),
+            record.add(8).cast::<u32>().read_unaligned(),
+        )
+    };
+    trakpak_entry(
+        game_addr(HEADER_RVA) as u32,
+        index,
+        pack_id,
+        loaded_pack_id(),
+    )
+}
+
 // ---- hook ----
 
 extern "C" fn dispatch(r: &mut Regs) {
