@@ -521,7 +521,8 @@ pub unsafe fn blit_glyph(
 }
 
 /// Draws glyph `glyph` of `table` on the game's surface with the game's clip rectangle, and
-/// updates the blitter's work globals: what a call of the original does.
+/// updates the blitter's work globals: what a call of the original does. Inside a swallowing
+/// `record_calls` it only reports the call.
 pub unsafe fn blit_glyph_on_surface(
     glyph: u32,
     table: *const u8,
@@ -529,6 +530,24 @@ pub unsafe fn blit_glyph_on_surface(
     y: i32,
     palette: *const u32,
 ) -> Result<Exit, FatalError> {
+    // Rust callers do not pass through the hook, so they report to the recording here. Without
+    // this a swallowing self-test would really draw whenever a hooked caller runs its Rust
+    // version (shadow off).
+    let swallowed = note_call(BlitCall {
+        glyph,
+        x,
+        y,
+        palette: palette as u32,
+        table: table as u32,
+    });
+    if swallowed {
+        return Ok(Exit {
+            eax: 0,
+            ebx: 0,
+            ecx: 0,
+            edx: 0,
+        });
+    }
     let surface = surface();
     let record = unsafe { glyph_record(&surface, table, glyph) }?;
     let mut scratch = read_scratch();
@@ -576,7 +595,8 @@ thread_local! {
 /// Runs `f` and returns the calls of `blit_glyph` that reached the hook on this thread
 /// meanwhile. With `swallow`, those calls are only listed: nothing is drawn and the original
 /// is not run, so a test can run original code that draws without touching the surface.
-/// Other threads are not affected. Needs the hook to be enabled (`recording_works`).
+/// Other threads are not affected. Calls made by original code are seen only while the hook is
+/// enabled (`recording_works`); calls made by Rust code through `blit_glyph_on_surface` always.
 pub fn record_calls(swallow: bool, f: impl FnOnce()) -> Vec<BlitCall> {
     let outer = RECORDER.with(|r| r.borrow_mut().take());
     // Inside a swallowing recording everything is swallowed.
@@ -598,6 +618,17 @@ pub fn record_calls(swallow: bool, f: impl FnOnce()) -> Vec<BlitCall> {
         RECORDER.with(|r| *r.borrow_mut() = Some(outer));
     }
     mine
+}
+
+/// Tells this thread's recording, if there is one, about a call. True if the call is to be
+/// swallowed: the caller must then draw nothing.
+fn note_call(call: BlitCall) -> bool {
+    RECORDER.with(|rec| {
+        rec.borrow_mut().as_mut().is_some_and(|rec| {
+            rec.calls.push(call);
+            rec.swallow
+        })
+    })
 }
 
 /// False if the hook is switched off, in which case `record_calls` sees nothing.
@@ -642,17 +673,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     let surface = surface();
     let (glyph, table) = (r.eax, r.esi as *const u8);
 
-    let swallowed = RECORDER.with(|rec| {
-        rec.borrow_mut().as_mut().is_some_and(|rec| {
-            rec.calls.push(BlitCall {
-                glyph,
-                x: r.ecx as i32,
-                y: r.edx as i32,
-                palette: r.ebx,
-                table: r.esi,
-            });
-            rec.swallow
-        })
+    let swallowed = note_call(BlitCall {
+        glyph,
+        x: r.ecx as i32,
+        y: r.edx as i32,
+        palette: r.ebx,
+        table: r.esi,
     });
     if swallowed {
         return;

@@ -84,7 +84,7 @@ fn console_loop(input: File, mut out: File, mut enabled: Vec<bool>) {
             ["off", pat] => apply(pat, false, &mut enabled, &mut out),
             ["shadow", v] => {
                 SHADOW_MODE.store(*v == "on", Ordering::Relaxed);
-                let _ = writeln!(out, "shadow = {v}");
+                log(&format!("shadow = {v}"));
             }
             ["stats"] => {
                 for h in ALL.iter() {
