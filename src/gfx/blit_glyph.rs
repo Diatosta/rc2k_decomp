@@ -24,6 +24,7 @@ use crate::gfx::surface::{
     BASE_RVA, BITS_PER_PIXEL_RVA, BYTES_PER_PIXEL_RVA, CLIP_BOTTOM_RVA, CLIP_LEFT_RVA,
     CLIP_RIGHT_RVA, CLIP_TOP_RVA, Clip, PITCH_RVA, Surface, clip, surface,
 };
+use std::cell::RefCell;
 use std::ptr::copy_nonoverlapping;
 use std::slice::{from_raw_parts, from_raw_parts_mut};
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
@@ -519,6 +520,91 @@ pub unsafe fn blit_glyph(
     }
 }
 
+/// Draws glyph `glyph` of `table` on the game's surface with the game's clip rectangle, and
+/// updates the blitter's work globals: what a call of the original does.
+pub unsafe fn blit_glyph_on_surface(
+    glyph: u32,
+    table: *const u8,
+    x: i32,
+    y: i32,
+    palette: *const u32,
+) -> Result<Exit, FatalError> {
+    let surface = surface();
+    let record = unsafe { glyph_record(&surface, table, glyph) }?;
+    let mut scratch = read_scratch();
+    let (exit, _) = unsafe {
+        blit_glyph(
+            record,
+            x,
+            y,
+            palette,
+            &surface,
+            &clip(),
+            &mut scratch,
+            &mut |addr, bytes| copy_nonoverlapping(bytes.as_ptr(), addr as *mut u8, bytes.len()),
+        )
+    };
+    write_scratch(&scratch);
+    Ok(exit)
+}
+
+// ---- call recorder ----
+//
+// Callers of blit_glyph (draw_text and others) are checked by comparing the calls the
+// original makes with the calls the Rust version makes. The hook is where every call of the
+// original passes, so it can list them.
+
+/// One call of `blit_glyph`, as its caller made it.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct BlitCall {
+    pub glyph: u32,
+    pub x: i32,
+    pub y: i32,
+    pub palette: u32,
+    pub table: u32,
+}
+
+struct Recorder {
+    calls: Vec<BlitCall>,
+    swallow: bool,
+}
+
+thread_local! {
+    static RECORDER: RefCell<Option<Recorder>> = const { RefCell::new(None) };
+}
+
+/// Runs `f` and returns the calls of `blit_glyph` that reached the hook on this thread
+/// meanwhile. With `swallow`, those calls are only listed: nothing is drawn and the original
+/// is not run, so a test can run original code that draws without touching the surface.
+/// Other threads are not affected. Needs the hook to be enabled (`recording_works`).
+pub fn record_calls(swallow: bool, f: impl FnOnce()) -> Vec<BlitCall> {
+    let outer = RECORDER.with(|r| r.borrow_mut().take());
+    // Inside a swallowing recording everything is swallowed.
+    let swallow = swallow || outer.as_ref().is_some_and(|o| o.swallow);
+    RECORDER.with(|r| {
+        *r.borrow_mut() = Some(Recorder {
+            calls: Vec::new(),
+            swallow,
+        })
+    });
+    f();
+    let mine = RECORDER
+        .with(|r| r.borrow_mut().take())
+        .map(|r| r.calls)
+        .unwrap_or_default();
+    // An enclosing recording sees these calls too.
+    if let Some(mut outer) = outer {
+        outer.calls.extend_from_slice(&mine);
+        RECORDER.with(|r| *r.borrow_mut() = Some(outer));
+    }
+    mine
+}
+
+/// False if the hook is switched off, in which case `record_calls` sees nothing.
+pub fn recording_works() -> bool {
+    HOOK.is_enabled()
+}
+
 // ---- hook ----
 
 impl Area {
@@ -555,6 +641,22 @@ extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
     let surface = surface();
     let (glyph, table) = (r.eax, r.esi as *const u8);
+
+    let swallowed = RECORDER.with(|rec| {
+        rec.borrow_mut().as_mut().is_some_and(|rec| {
+            rec.calls.push(BlitCall {
+                glyph,
+                x: r.ecx as i32,
+                y: r.edx as i32,
+                palette: r.ebx,
+                table: r.esi,
+            });
+            rec.swallow
+        })
+    });
+    if swallowed {
+        return;
+    }
 
     let Ok(record) = (unsafe { glyph_record(&surface, table, glyph) }) else {
         unsafe { call_original(r) };

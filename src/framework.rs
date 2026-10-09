@@ -318,6 +318,7 @@ pub fn log(msg: &str) {
     }
 }
 
+/// The registers at a hook: what the thunk's `pushad` and `pushfd` leave on the stack.
 #[repr(C)]
 #[derive(Copy, Clone, Default)]
 pub struct Regs {
@@ -329,7 +330,13 @@ pub struct Regs {
     pub edx: u32,
     pub ecx: u32,
     pub eax: u32,
+    /// In `dispatch`: the caller's flags, restored on return unless changed. After
+    /// `call_original`: the flags the original returned with. Never loaded before a call.
+    pub eflags: u32,
 }
+
+pub const CARRY_FLAG: u32 = 1 << 0;
+pub const ZERO_FLAG: u32 = 1 << 6;
 
 pub const EAX: u8 = 1 << 0;
 pub const ECX: u8 = 1 << 1;
@@ -350,7 +357,22 @@ impl Regs {
         edx: 0x5555_5555,
         ecx: 0x6666_6666,
         eax: 0x7777_7777,
+        eflags: 0,
     };
+
+    pub fn carry(&self) -> bool {
+        self.eflags & CARRY_FLAG != 0
+    }
+
+    /// Sets the carry flag the game sees when the hook returns.
+    pub fn set_carry(&mut self, on: bool) {
+        self.eflags = (self.eflags & !CARRY_FLAG) | if on { CARRY_FLAG } else { 0 };
+    }
+
+    /// Sets the zero flag the game sees when the hook returns.
+    pub fn set_zero(&mut self, on: bool) {
+        self.eflags = (self.eflags & !ZERO_FLAG) | if on { ZERO_FLAG } else { 0 };
+    }
 
     /// True if every register equals `before`, apart from those in `may_change`
     /// (a mask of `EAX`, `EBX`, ...). `esp` is never compared.
@@ -421,12 +443,15 @@ macro_rules! hook_asm {
         #[unsafe(naked)]
         pub(crate) unsafe extern "C" fn $thunk() {
             core::arch::naked_asm!(
+                "pushfd",              // Regs.eflags
                 "pushad",
                 "mov eax, esp",
                 "push eax",            // arg: *mut Regs
+                "cld",                 // Rust code expects the direction flag clear
                 "call {dispatch}",
                 "add esp, 4",
                 "popad",
+                "popfd",               // the caller's flags, or what dispatch set
                 $($epilogue,)?         // e.g. "test esi, esi" when the caller reads ZF
                 "ret",
                 dispatch = sym $dispatch,
@@ -448,8 +473,10 @@ macro_rules! hook_asm {
                 "mov ebp, [eax + {o_ebp}]",
                 "mov eax, [eax + {o_eax}]",
                 "call dword ptr [{t}]",
+                "pushfd",                        // the flags the original returned with
+                "cld",
                 "push eax",
-                "mov eax, [esp + 4]",            // eax = regs again
+                "mov eax, [esp + 8]",            // eax = regs again
                 "mov [eax + {o_ecx}], ecx",
                 "mov [eax + {o_edx}], edx",
                 "mov [eax + {o_ebx}], ebx",
@@ -457,11 +484,13 @@ macro_rules! hook_asm {
                 "mov [eax + {o_edi}], edi",
                 "mov [eax + {o_ebp}], ebp",
                 "pop dword ptr [eax + {o_eax}]", // the original's eax
+                "pop dword ptr [eax + {o_eflags}]",
                 "add esp, 4",
                 "pop ebp", "pop edi", "pop esi", "pop ebx",
                 "ret",
                 t = sym $orig,
                 o_eax = const core::mem::offset_of!($crate::framework::Regs, eax),
+                o_eflags = const core::mem::offset_of!($crate::framework::Regs, eflags),
                 o_ecx = const core::mem::offset_of!($crate::framework::Regs, ecx),
                 o_edx = const core::mem::offset_of!($crate::framework::Regs, edx),
                 o_ebx = const core::mem::offset_of!($crate::framework::Regs, ebx),

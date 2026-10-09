@@ -23,17 +23,18 @@ hook_asm!(
 
 const STATE_RVA: usize = rva(0x93E830); // g_textLineState: the kerning row table
 const ROWS: usize = 64;
-const STATE_LEN: usize = ROWS * 2;
-type State = [u8; STATE_LEN];
+pub const STATE_LEN: usize = ROWS * 2;
+/// The kerning row table: for each of 64 rows, trailing blank pixels and gap.
+pub type State = [u8; STATE_LEN];
 
-fn state_ptr() -> *mut State {
+pub fn state_ptr() -> *mut State {
     game_ptr(STATE_RVA)
 }
 
 // ---- Rust version ----
 
 /// Glyph record = table + (dword at table + 4*index), as `add esi, [esi+eax*4]` does.
-unsafe fn glyph_ptr(table: *const u8, index: u32) -> *const u8 {
+pub unsafe fn glyph_ptr(table: *const u8, index: u32) -> *const u8 {
     unsafe {
         let off = table
             .wrapping_add((index as usize).wrapping_mul(4))
@@ -140,7 +141,7 @@ extern "C" fn dispatch(r: &mut Regs) {
 
 // ---- self-test: synthetic glyph table (the original only reads through esi) ----
 
-fn row(runs: &[(u8, &[u8])]) -> Vec<u8> {
+pub(crate) fn row(runs: &[(u8, &[u8])]) -> Vec<u8> {
     let mut b = Vec::new();
     for &(gap, px) in runs {
         b.push(px.len() as u8);
@@ -151,7 +152,7 @@ fn row(runs: &[(u8, &[u8])]) -> Vec<u8> {
     b
 }
 
-fn glyph(width: u8, lead: u8, adv: u8, rows: &[Vec<u8>]) -> Vec<u8> {
+pub(crate) fn glyph(width: u8, lead: u8, adv: u8, rows: &[Vec<u8>]) -> Vec<u8> {
     let mut g = vec![width, lead, adv, rows.len() as u8];
     for r in rows {
         g.extend_from_slice(r);
@@ -160,7 +161,7 @@ fn glyph(width: u8, lead: u8, adv: u8, rows: &[Vec<u8>]) -> Vec<u8> {
 }
 
 /// n offsets (relative to the table start) followed by the glyph records.
-fn build_table(glyphs: &[Vec<u8>]) -> Vec<u8> {
+pub(crate) fn build_table(glyphs: &[Vec<u8>]) -> Vec<u8> {
     let (mut offsets, mut body) = (Vec::new(), Vec::new());
     let base = glyphs.len() * 4;
     for g in glyphs {
@@ -171,7 +172,7 @@ fn build_table(glyphs: &[Vec<u8>]) -> Vec<u8> {
     offsets
 }
 
-fn test_glyphs() -> Vec<Vec<u8>> {
+pub(crate) fn test_glyphs() -> Vec<Vec<u8>> {
     vec![
         glyph(5, 0, 0, &[]), // 0: no contour data
         glyph(

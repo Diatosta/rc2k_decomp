@@ -32,9 +32,9 @@ hook_asm!(
 // ---- game data ----
 
 const TEXT_RVA: usize = rva(0x93E430); // text: shared text buffer, up to the kerning table
-const TEXT_LEN: usize = 0x93E830 - 0x93E430;
+pub const TEXT_LEN: usize = 0x93E830 - 0x93E430;
 
-fn text() -> *mut u8 {
+pub fn text() -> *mut u8 {
     game_ptr(TEXT_RVA)
 }
 
