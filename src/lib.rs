@@ -8,7 +8,7 @@ pub mod strings;
 pub mod text;
 pub mod threading;
 
-use crate::framework::{BASE, CONSOLE_OUT, SHADOW_MODE, TRACE, log};
+use crate::framework::{BASE, CONSOLE_OUT, LOG_PATH, SHADOW_MODE, TRACE, log};
 use crate::registry::ALL;
 use std::collections::HashMap;
 use std::ffi::c_void;
@@ -62,7 +62,7 @@ fn apply(pat: &str, on: bool, enabled: &mut [bool], out: &mut impl Write) {
 
 fn console_loop(input: File, mut out: File, mut enabled: Vec<bool>) {
     log(
-        "commands: list | on <name|prefix|all> | off <name|prefix|all> | shadow on|off | stats | reload | selftest",
+        "commands: list | on <name|prefix|all> | off <name|prefix|all> | shadow on|off | trace on|off | stats | reload | selftest",
     );
 
     for line in BufReader::new(input).lines().map_while(Result::ok) {
@@ -102,7 +102,7 @@ fn console_loop(input: File, mut out: File, mut enabled: Vec<bool>) {
             ["selftest"] => {
                 for h in ALL.iter() {
                     if let Some((cases, bad)) = h.self_test() {
-                        log(&format!("{:<24} cases={cases} mismatches={bad}", h.name()));
+                        log(&format!("{:<30} cases={cases} failures={bad}", h.name()));
                     }
                 }
             }
@@ -145,12 +145,16 @@ fn install_all() -> Vec<bool> {
 }
 
 fn init() {
+    if let Some(path) = dll_sibling("hook.log") {
+        let _ = File::create(&path); // start each run with an empty log
+        let _ = LOG_PATH.set(path);
+    }
     let console = console_init();
     let mut enabled = install_all();
     let cfg = load_config().unwrap_or_default();
     apply_config(&cfg, &mut enabled);
     if let Some((input, out)) = console {
-        console_loop(input, out, vec![true; ALL.len()]);
+        console_loop(input, out, enabled);
     }
 }
 
@@ -180,7 +184,8 @@ struct Config {
     trace: bool,
 }
 
-fn config_path() -> Option<PathBuf> {
+/// A file in the same folder as this DLL.
+fn dll_sibling(name: &str) -> Option<PathBuf> {
     let mut buf = [0u16; 1024];
     let n = unsafe {
         GetModuleFileNameW(
@@ -193,7 +198,11 @@ fn config_path() -> Option<PathBuf> {
     if n == 0 {
         return None;
     }
-    Some(PathBuf::from(String::from_utf16_lossy(&buf[..n])).with_file_name("hook.toml"))
+    Some(PathBuf::from(String::from_utf16_lossy(&buf[..n])).with_file_name(name))
+}
+
+fn config_path() -> Option<PathBuf> {
+    dll_sibling("hook.toml")
 }
 
 fn load_config() -> Option<Config> {
@@ -226,27 +235,27 @@ fn apply_config(cfg: &Config, enabled: &mut [bool]) {
         if !ALL.iter().any(|h| h.name() == name.as_str()) {
             log(&format!("config: hook '{name}' not found"));
         }
+    }
 
-        let default = cfg.default_enabled.unwrap_or(true);
-        for (i, h) in ALL.iter().enumerate() {
-            if !INSTALLED.get().is_some_and(|v| v[i]) {
-                continue;
-            }
+    let default = cfg.default_enabled.unwrap_or(true);
+    for (i, h) in ALL.iter().enumerate() {
+        if !INSTALLED.get().is_some_and(|v| v[i]) {
+            continue;
+        }
 
-            let want = cfg.hooks.get(h.name()).copied().unwrap_or(default);
-            if want != enabled[i] {
-                match unsafe { h.set_enabled(want) } {
-                    Ok(()) => enabled[i] = want,
-                    Err(e) => {
-                        log(&format!("config: {}: {e}", h.name()));
-                    }
+        let want = cfg.hooks.get(h.name()).copied().unwrap_or(default);
+        if want != enabled[i] {
+            match unsafe { h.set_enabled(want) } {
+                Ok(()) => enabled[i] = want,
+                Err(e) => {
+                    log(&format!("config: {}: {e}", h.name()));
                 }
             }
         }
-
-        log(&format!(
-            "config applied: shadow={} trace={}",
-            cfg.shadow, cfg.trace
-        ));
     }
+
+    log(&format!(
+        "config applied: shadow={} trace={}",
+        cfg.shadow, cfg.trace
+    ));
 }

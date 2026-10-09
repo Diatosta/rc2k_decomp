@@ -1,31 +1,36 @@
-use crate::framework::{MAX_LOGGED, RawHook, Regs, SHADOW_MODE, game_addr, hook_asm, log};
-use std::sync::atomic::{AtomicUsize, Ordering};
+//! `text::glyph_kerning` (0x402577): updates the kerning row table for one glyph and returns
+//! how far the glyph can move left.
+//!
+//! In:  eax = glyph index, esi = glyph table
+//! Out: eax = kerning (amount to subtract from x); everything else preserved
 
-static TRAMPOLINE: AtomicUsize = AtomicUsize::new(0);
+use crate::framework::{EAX, RawHook, Regs, SelfTest, game_ptr, hook_asm, rva, shadow};
+use std::sync::atomic::AtomicUsize;
 
-const STATE_RVA: usize = 0x93E830 - 0x400000; // g_textLineState
-const ROWS: usize = 64;
-const STATE_LEN: usize = ROWS * 2;
-type State = [u8; STATE_LEN];
+static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
-pub static HOOK: RawHook = RawHook::new(
-    "text::glyph_kerning",
-    0x402577 - 0x400000,
-    thunk,
-    &TRAMPOLINE,
-)
-.self_test(self_test);
+pub static HOOK: RawHook =
+    RawHook::new("text::glyph_kerning", rva(0x402577), thunk, &ORIGINAL).self_test(self_test);
 
 hook_asm!(
     thunk,
     call_original,
     dispatch = dispatch,
-    original = TRAMPOLINE
+    original = ORIGINAL
 );
 
+// ---- game data ----
+
+const STATE_RVA: usize = rva(0x93E830); // g_textLineState: the kerning row table
+const ROWS: usize = 64;
+const STATE_LEN: usize = ROWS * 2;
+type State = [u8; STATE_LEN];
+
 fn state_ptr() -> *mut State {
-    game_addr(STATE_RVA) as *mut State
+    game_ptr(STATE_RVA)
 }
+
+// ---- Rust version ----
 
 /// Glyph record = table + (dword at table + 4*index), as `add esi, [esi+eax*4]` does.
 unsafe fn glyph_ptr(table: *const u8, index: u32) -> *const u8 {
@@ -48,10 +53,10 @@ fn trailing_of(state: &State, row: usize) -> u8 {
     if row < ROWS { state[row * 2] } else { 0 }
 }
 
-/// Pure core: updates `state` for one glyph and returns the amount to subtract from x.
+/// Updates `state` for one glyph record and returns the amount to subtract from x.
 /// Malformed glyphs (top rows + data rows > 64, or 0 data rows) are clamped, while the
 /// original would write outside the table or loop 256 times.
-unsafe fn kerning(glyph: *const u8, state: &mut State) -> u32 {
+pub unsafe fn glyph_kerning(glyph: *const u8, state: &mut State) -> u32 {
     unsafe {
         let adv = *glyph.add(2);
         if adv == 0 {
@@ -103,32 +108,32 @@ unsafe fn kerning(glyph: *const u8, state: &mut State) -> u32 {
     }
 }
 
-// eax = glyph index, esi = glyph table -> eax = kerning; everything else preserved
+// ---- hook ----
+
 extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.stats.calls.fetch_add(1, Ordering::Relaxed);
+    HOOK.count_call();
     let glyph = unsafe { glyph_ptr(r.esi as usize as *const u8, r.eax) };
 
-    if !SHADOW_MODE.load(Ordering::Relaxed) {
-        r.eax = unsafe { kerning(glyph, &mut *state_ptr()) };
+    if !shadow() {
+        r.eax = unsafe { glyph_kerning(glyph, &mut *state_ptr()) };
         return;
     }
 
     // Shadow: Rust works on a copy, the original changes the real table, then compare.
     let mut local = unsafe { *state_ptr() };
-    let mine = unsafe { kerning(glyph, &mut local) };
+    let mine = unsafe { glyph_kerning(glyph, &mut local) };
     let mut o = *r;
     unsafe { call_original(&mut o) };
     let after = unsafe { *state_ptr() };
     if o.eax != mine || after != local {
-        let n = HOOK.stats.mismatches.fetch_add(1, Ordering::Relaxed);
-        if n < MAX_LOGGED {
-            log(&format!(
-                "MISMATCH glyph_kerning(glyph={}): original={} rust={mine} state_equal={}",
+        HOOK.mismatch(|| {
+            format!(
+                "glyph={}: original={} rust={mine} state_equal={}",
                 r.eax,
                 o.eax,
                 after == local
-            ));
-        }
+            )
+        });
     }
     r.eax = o.eax;
 }
@@ -216,41 +221,28 @@ fn test_glyphs() -> Vec<Vec<u8>> {
     ]
 }
 
-pub fn self_test() -> (usize, usize) {
-    if TRAMPOLINE.load(Ordering::Relaxed) == 0 {
-        log("glyph_kerning selftest SKIPPED: original not available");
+fn self_test() -> (usize, usize) {
+    let Some(mut t) = SelfTest::begin(&HOOK) else {
         return (0, 0);
-    }
+    };
     let glyphs = test_glyphs();
     let table = build_table(&glyphs);
     let tp = table.as_ptr();
 
     // The original rewrites live renderer state: save it and restore it afterwards.
     let saved = unsafe { *state_ptr() };
-    let (mut cases, mut failures) = (0, 0);
 
+    let regs_for = |index: u32| Regs {
+        eax: index,
+        esi: tp as u32,
+        ..Regs::SENTINEL
+    };
     let call_orig = |index: u32| -> (Regs, State) {
-        let mut ro = Regs {
-            eax: index,
-            esi: tp as u32,
-            ecx: 0x1111_1111,
-            edx: 0x3333_3333,
-            ebx: 0x4444_4444,
-            edi: 0x2222_2222,
-            ebp: 0x6666_6666,
-            ..Regs::default()
-        };
+        let mut ro = regs_for(index);
         unsafe { call_original(&mut ro) };
         (ro, unsafe { *state_ptr() })
     };
-    let regs_ok = |ro: &Regs| {
-        ro.esi == tp as u32
-            && ro.ecx == 0x1111_1111
-            && ro.edx == 0x3333_3333
-            && ro.ebx == 0x4444_4444
-            && ro.edi == 0x2222_2222
-            && ro.ebp == 0x6666_6666
-    };
+    let regs_ok = |ro: &Regs, index: u32| ro.preserved_except(&regs_for(index), EAX);
 
     // Single glyphs from different starting states.
     let patterns: [State; 3] = [
@@ -260,20 +252,21 @@ pub fn self_test() -> (usize, usize) {
     ];
     for pattern in &patterns {
         for index in 0..glyphs.len() as u32 {
-            cases += 1;
             unsafe { *state_ptr() = *pattern };
             let (ro, after) = call_orig(index);
             let mut local = *pattern;
-            let mine = unsafe { kerning(glyph_ptr(tp, index), &mut local) };
-            if ro.eax != mine || after != local || !regs_ok(&ro) {
-                failures += 1;
-                log(&format!(
-                    "glyph_kerning selftest FAILED: glyph={index} original={} rust={mine} state_equal={} regs_ok={}",
-                    ro.eax,
-                    after == local,
-                    regs_ok(&ro)
-                ));
-            }
+            let mine = unsafe { glyph_kerning(glyph_ptr(tp, index), &mut local) };
+            t.check(
+                ro.eax == mine && after == local && regs_ok(&ro, index),
+                || {
+                    format!(
+                        "glyph={index} original={} rust={mine} state_equal={} regs_ok={}",
+                        ro.eax,
+                        after == local,
+                        regs_ok(&ro, index)
+                    )
+                },
+            );
         }
     }
 
@@ -283,23 +276,23 @@ pub fn self_test() -> (usize, usize) {
         &[6, 6, 6, 1, 5, 5][..],
         &[4, 3, 2, 1, 0][..],
     ] {
-        cases += 1;
         unsafe { *state_ptr() = [0; STATE_LEN] };
         let mut local = [0u8; STATE_LEN];
+        let mut failed = None;
         for (step, &index) in seq.iter().enumerate() {
             let (ro, after) = call_orig(index);
-            let mine = unsafe { kerning(glyph_ptr(tp, index), &mut local) };
-            if ro.eax != mine || after != local || !regs_ok(&ro) {
-                failures += 1;
-                log(&format!(
-                    "glyph_kerning selftest FAILED: sequence {seq:?} at step {step} (glyph {index}): original={} rust={mine}",
-                    ro.eax
-                ));
+            let mine = unsafe { glyph_kerning(glyph_ptr(tp, index), &mut local) };
+            if ro.eax != mine || after != local || !regs_ok(&ro, index) {
+                failed = Some((step, index, ro.eax, mine));
                 break;
             }
         }
+        t.check(failed.is_none(), || {
+            let (step, index, orig, mine) = failed.unwrap_or_default();
+            format!("sequence {seq:?} at step {step} (glyph {index}): original={orig} rust={mine}")
+        });
     }
 
     unsafe { *state_ptr() = saved };
-    (cases, failures)
+    t.finish()
 }

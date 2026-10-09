@@ -1,21 +1,24 @@
-use super::format_u32;
-use super::string_table::append_by_id;
-use crate::framework::{MAX_LOGGED, RawHook, Regs, SHADOW_MODE, game_addr, hook_asm, log};
-use crate::math::celsius_to_fahrenheit;
+//! `strings::append_temperature` (0x401AD9): appends a temperature with its unit label.
+//!
+//! In:  eax = temperature in Celsius, ebx = cursor
+//! Out: ebx = new cursor; eax = what `append_string_by_id` leaves for the unit label
+
+use crate::framework::{RawHook, Regs, SelfTest, game_ptr, game_read, hook_asm, rva, shadow};
+use crate::math::celsius_to_fahrenheit::celsius_to_fahrenheit;
+use crate::strings::append_string_by_id::append_string_by_id;
+use crate::strings::format_u32::format_u32;
 use crate::strings::utils::bytes_str;
+use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::AtomicUsize;
 
-static TRAMPOLINE: AtomicUsize = AtomicUsize::new(0);
-
-const UNITS_RVA: usize = 0x51DE2C - 0x400000; // dword_51DE2C: 0 = convert C -> F
-const LABEL_IDS_RVA: usize = 0x51EB84 - 0x400000; // word_51EB84[units]: label string ids
+static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
 pub static HOOK: RawHook = RawHook::new(
     "strings::append_temperature",
-    0x401AD9 - 0x400000,
+    rva(0x401AD9),
     thunk,
-    &TRAMPOLINE,
+    &ORIGINAL,
 )
 .self_test(self_test);
 
@@ -23,19 +26,26 @@ hook_asm!(
     thunk,
     call_original,
     dispatch = dispatch,
-    original = TRAMPOLINE
+    original = ORIGINAL
 );
 
+// ---- game data ----
+
+const UNITS_RVA: usize = rva(0x51DE2C); // g_temperatureUnit: 0 = convert C -> F
+const LABEL_IDS_RVA: usize = rva(0x51EB84); // word_51EB84[units]: label string ids
+
 fn units() -> u32 {
-    unsafe { (game_addr(UNITS_RVA) as *const u32).read_volatile() }
+    unsafe { game_read(UNITS_RVA) }
 }
 
-/// Returns (bytes written, the eax the original leaves behind).
-fn reimplemented(celsius: i32) -> (Vec<u8>, u32) {
+// ---- Rust version ----
+
+/// Returns (bytes to append, the eax the original leaves behind).
+pub fn append_temperature(celsius: i32) -> (Vec<u8>, u32) {
     let unit = units();
     let mut v = celsius;
     if unit == 0 {
-        v = celsius_to_fahrenheit::reimplemented(v);
+        v = celsius_to_fahrenheit(v);
     }
 
     let mut out = Vec::new();
@@ -43,59 +53,61 @@ fn reimplemented(celsius: i32) -> (Vec<u8>, u32) {
         out.push(b'-');
         v = v.wrapping_neg(); // the `neg eax` before the call to append_minus
     }
-    out.extend(format_u32::reimplemented(v as u32, 0));
+    out.extend(format_u32(v as u32, 0));
 
     let label_id = unsafe {
-        (game_addr(LABEL_IDS_RVA) as *const u16)
+        game_ptr::<u16>(LABEL_IDS_RVA)
             .wrapping_add(unit as usize)
             .read_volatile()
     } as u32;
     let eax = unsafe {
-        append_by_id(label_id, &mut |p, n| {
+        append_string_by_id(label_id, &mut |p, n| {
             out.extend_from_slice(from_raw_parts(p, n))
         })
     };
     (out, eax)
 }
 
-// eax = celsius value, ebx = dst -> new dst in ebx; eax = what append_string_by_id leaves
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.stats.calls.fetch_add(1, Ordering::Relaxed);
-    let (value, dst) = (r.eax as i32, r.ebx as *mut u8);
-    let (mine, mine_eax) = reimplemented(value);
+// ---- hook ----
 
-    if !SHADOW_MODE.load(Ordering::Relaxed) {
-        unsafe { std::ptr::copy_nonoverlapping(mine.as_ptr(), dst, mine.len()) };
-        r.ebx = (dst as usize + mine.len()) as u32;
+extern "C" fn dispatch(r: &mut Regs) {
+    HOOK.count_call();
+    let (celsius, cursor) = (r.eax as i32, r.ebx as *mut u8);
+    let (mine, mine_eax) = append_temperature(celsius);
+
+    if !shadow() {
+        unsafe { copy_nonoverlapping(mine.as_ptr(), cursor, mine.len()) };
+        r.ebx = (cursor as usize + mine.len()) as u32;
         r.eax = mine_eax;
         return;
     }
 
     let mut o = *r;
     unsafe { call_original(&mut o) };
-    let orig_len = (o.ebx as usize).wrapping_sub(dst as usize);
-    let same = orig_len == mine.len()
-        && unsafe { from_raw_parts(dst, orig_len) } == &mine[..]
-        && o.eax == mine_eax;
-    if !same {
-        let n = HOOK.stats.mismatches.fetch_add(1, Ordering::Relaxed);
-        if n < MAX_LOGGED {
-            log(&format!(
-                "MISMATCH append_temperature(value={value}): original wrote {orig_len} bytes (eax={:#x}), rust {} (eax={mine_eax:#x})",
+    let orig_len = (o.ebx as usize).wrapping_sub(cursor as usize);
+
+    if orig_len != mine.len()
+        || unsafe { from_raw_parts(cursor, orig_len) } != &mine[..]
+        || o.eax != mine_eax
+    {
+        HOOK.mismatch(|| {
+            format!(
+                "celsius={celsius}: original wrote {orig_len} bytes (eax={:#x}), rust {} (eax={mine_eax:#x})",
                 o.eax,
                 mine.len()
-            ));
-        }
+            )
+        });
     }
     r.ebx = o.ebx;
     r.eax = o.eax;
 }
 
-pub fn self_test() -> (usize, usize) {
-    if TRAMPOLINE.load(Ordering::Relaxed) == 0 {
-        log("append_temperature selftest SKIPPED: original not available");
+// ---- self-test ----
+
+fn self_test() -> (usize, usize) {
+    let Some(mut t) = SelfTest::begin(&HOOK) else {
         return (0, 0);
-    }
+    };
     // Tests the unit the game currently has selected: switch it in the game's options
     // and run selftest again to cover the other branch.
     let unit = units();
@@ -106,9 +118,8 @@ pub fn self_test() -> (usize, usize) {
         inputs.extend([i32::MIN, i32::MAX]);
     }
 
-    let mut failures = 0;
     for &c in &inputs {
-        let (mine, mine_eax) = reimplemented(c);
+        let (mine, mine_eax) = append_temperature(c);
         let mut buf = vec![0xAAu8; mine.len() + 4096];
         let mut ro = Regs {
             eax: c as u32,
@@ -118,14 +129,16 @@ pub fn self_test() -> (usize, usize) {
         unsafe { call_original(&mut ro) };
         let orig_len = (ro.ebx as usize).wrapping_sub(buf.as_ptr() as usize);
 
-        if buf.get(..orig_len) != Some(&mine[..]) || ro.eax != mine_eax {
-            failures += 1;
-            log(&format!(
-                "append_temperature selftest FAILED: value={c} units={unit} original {} rust {}",
-                bytes_str(buf.get(..orig_len).unwrap_or(&[])),
-                bytes_str(&mine)
-            ));
-        }
+        t.check(
+            buf.get(..orig_len) == Some(&mine[..]) && ro.eax == mine_eax,
+            || {
+                format!(
+                    "celsius={c} units={unit} original {} rust {}",
+                    bytes_str(buf.get(..orig_len).unwrap_or(&[])),
+                    bytes_str(&mine)
+                )
+            },
+        );
     }
-    (inputs.len(), failures)
+    t.finish()
 }

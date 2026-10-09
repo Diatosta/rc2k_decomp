@@ -1,17 +1,27 @@
-use crate::framework::{MAX_LOGGED, RawHook, Regs, SHADOW_MODE, hook_asm, log};
-use crate::strings::string_table::{LOW_IDS, append_by_id, blob, entry_count, ptr_low};
-use crate::strings::utils::bytes_str;
-use std::ops::Range;
-use std::slice::from_raw_parts;
-use std::sync::atomic::{AtomicUsize, Ordering};
+//! `strings::append_string_by_id` (0x401FA3): appends the text for a string id.
+//!
+//! In:  eax = id, ebx = cursor
+//! Out: ebx = new cursor; eax = the string pointer (pointer-table branches) or the id itself
+//!      (string-table branch)
+//! Part of the original lives in a separate chunk at 0x402010.
 
-static TRAMPOLINE: AtomicUsize = AtomicUsize::new(0);
+use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
+use crate::strings::expand_entry::expand_entry;
+use crate::strings::string_table::{LOW_IDS, blob, entry_count, ptr_high, ptr_low};
+use crate::strings::utils::bytes_str;
+use std::ffi::{CStr, c_char};
+use std::ops::Range;
+use std::ptr::copy_nonoverlapping;
+use std::slice::from_raw_parts;
+use std::sync::atomic::AtomicUsize;
+
+static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
 pub static HOOK: RawHook = RawHook::new(
     "strings::append_string_by_id",
-    0x401FA3 - 0x400000,
+    rva(0x401FA3),
     thunk,
-    &TRAMPOLINE,
+    &ORIGINAL,
 )
 .self_test(self_test);
 
@@ -19,20 +29,47 @@ hook_asm!(
     thunk,
     call_original,
     dispatch = dispatch,
-    original = TRAMPOLINE
+    original = ORIGINAL
 );
 
-// eax = id, ebx = dst -> new dst in ebx; eax = the string pointer (pointer-table branches)
-// or the id itself (fallback), exactly as the original leaves it.
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.stats.calls.fetch_add(1, Ordering::Relaxed);
-    let (id, dst) = (r.eax, r.ebx as *mut u8);
+// ---- Rust version ----
 
-    if !SHADOW_MODE.load(Ordering::Relaxed) {
-        let mut out = dst;
+/// `emit` receives each run of bytes to append. Returns the `eax` the original leaves behind.
+pub unsafe fn append_string_by_id(id: u32, emit: &mut impl FnMut(*const u8, usize)) -> u32 {
+    unsafe {
+        let direct = if id & 0x1000 != 0 {
+            Some(ptr_high(id))
+        } else if LOW_IDS.contains(&id) {
+            let p = ptr_low(id);
+            (!p.is_null()).then_some(p)
+        } else {
+            None
+        };
+        match direct {
+            Some(p) => {
+                let len = CStr::from_ptr(p as *const c_char).to_bytes().len();
+                emit(p, len);
+                p as usize as u32
+            }
+            None => {
+                expand_entry(blob(), id, emit);
+                id
+            }
+        }
+    }
+}
+
+// ---- hook ----
+
+extern "C" fn dispatch(r: &mut Regs) {
+    HOOK.count_call();
+    let (id, cursor) = (r.eax, r.ebx as *mut u8);
+
+    if !shadow() {
+        let mut out = cursor;
         let eax = unsafe {
-            append_by_id(id, &mut |p, n| {
-                std::ptr::copy_nonoverlapping(p, out, n);
+            append_string_by_id(id, &mut |p, n| {
+                copy_nonoverlapping(p, out, n);
                 out = out.add(n);
             })
         };
@@ -41,52 +78,56 @@ extern "C" fn dispatch(r: &mut Regs) {
         return;
     }
 
+    // Shadow: Rust collects into a Vec, the original does the real writing.
     let mut mine = Vec::new();
-    let mine_eax =
-        unsafe { append_by_id(id, &mut |p, n| mine.extend_from_slice(from_raw_parts(p, n))) };
+    let mine_eax = unsafe {
+        append_string_by_id(id, &mut |p, n| mine.extend_from_slice(from_raw_parts(p, n)))
+    };
 
     let mut o = *r;
     unsafe { call_original(&mut o) };
-    let orig_len = (o.ebx as usize).wrapping_sub(dst as usize);
+    let orig_len = (o.ebx as usize).wrapping_sub(cursor as usize);
 
-    let same = orig_len == mine.len()
-        && unsafe { from_raw_parts(dst, orig_len) } == &mine[..]
-        && o.eax == mine_eax;
-    if !same {
-        let n = HOOK.stats.mismatches.fetch_add(1, Ordering::Relaxed);
-        if n < MAX_LOGGED {
-            log(&format!(
-                "MISMATCH append_string_by_id(id={id:#x}): original wrote {orig_len} bytes (eax={:#x}), rust {} (eax={mine_eax:#x})",
+    if orig_len != mine.len()
+        || unsafe { from_raw_parts(cursor, orig_len) } != &mine[..]
+        || o.eax != mine_eax
+    {
+        HOOK.mismatch(|| {
+            format!(
+                "id={id:#x}: original wrote {orig_len} bytes (eax={:#x}), rust {} (eax={mine_eax:#x})",
                 o.eax,
                 mine.len()
-            ));
-        }
+            )
+        });
     }
     r.ebx = o.ebx;
     r.eax = o.eax;
 }
 
-/// Ids to test in the 0x1000 branch. Fill this in once you know how long dword_525DE8 is
+// ---- self-test: ids from the real tables ----
+
+/// Ids to test in the 0x1000 branch. Fill this in once the length of dword_525DE8 is known
 /// (check the array in IDA), e.g. 0x1000..0x1100. Empty = that branch isn't covered here.
 const HIGH_IDS: Range<u32> = 0x1000..0x1000;
 
-pub fn self_test() -> (usize, usize) {
-    if TRAMPOLINE.load(Ordering::Relaxed) == 0 || blob().is_null() {
-        log("append_string_by_id selftest SKIPPED: original or string table not available");
+fn self_test() -> (usize, usize) {
+    let Some(mut t) = SelfTest::begin(&HOOK) else {
         return (0, 0);
+    };
+    if blob().is_null() {
+        return t.skip("string table not loaded");
     }
     let entries = entry_count() as u32;
     // Low range: ids whose src[] pointer is set (direct branch), or that fall through
     // to expand_entry and are valid entries.
-    let ids: Vec<u32> = HIGH_IDS
-        .chain(LOW_IDS.filter(|&id| unsafe { !ptr_low(id).is_null() } || id < entries))
-        .collect();
+    let ids =
+        HIGH_IDS.chain(LOW_IDS.filter(|&id| unsafe { !ptr_low(id).is_null() } || id < entries));
 
-    let mut failures = 0;
-    for &id in &ids {
+    for id in ids {
         let mut mine = Vec::new();
-        let mine_eax =
-            unsafe { append_by_id(id, &mut |p, n| mine.extend_from_slice(from_raw_parts(p, n))) };
+        let mine_eax = unsafe {
+            append_string_by_id(id, &mut |p, n| mine.extend_from_slice(from_raw_parts(p, n)))
+        };
 
         let mut buf = vec![0xAAu8; mine.len() + 4096];
         let mut ro = Regs {
@@ -97,14 +138,16 @@ pub fn self_test() -> (usize, usize) {
         unsafe { call_original(&mut ro) };
         let orig_len = (ro.ebx as usize).wrapping_sub(buf.as_ptr() as usize);
 
-        if buf.get(..orig_len) != Some(&mine[..]) || ro.eax != mine_eax {
-            failures += 1;
-            log(&format!(
-                "append_string_by_id selftest FAILED: id={id:#x} original {} rust {}",
-                bytes_str(buf.get(..orig_len).unwrap_or(&[])),
-                bytes_str(&mine)
-            ));
-        }
+        t.check(
+            buf.get(..orig_len) == Some(&mine[..]) && ro.eax == mine_eax,
+            || {
+                format!(
+                    "id={id:#x} original {} rust {}",
+                    bytes_str(buf.get(..orig_len).unwrap_or(&[])),
+                    bytes_str(&mine)
+                )
+            },
+        );
     }
-    (ids.len(), failures)
+    t.finish()
 }

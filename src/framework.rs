@@ -1,6 +1,7 @@
 use detour::RawDetour;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
+use std::path::PathBuf;
 use std::ptr::{copy_nonoverlapping, null, read_unaligned, write_unaligned};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Mutex, OnceLock};
@@ -14,7 +15,23 @@ pub static SHADOW_MODE: AtomicBool = AtomicBool::new(false);
 pub static BASE: AtomicUsize = AtomicUsize::new(0);
 pub static CONSOLE_OUT: OnceLock<Mutex<File>> = OnceLock::new();
 pub static TRACE: AtomicBool = AtomicBool::new(false);
+/// `hook.log` next to the DLL, set by `init`. Nothing is written to a file before that.
+pub static LOG_PATH: OnceLock<PathBuf> = OnceLock::new();
 pub const MAX_LOGGED: usize = 50;
+pub const IMAGE_BASE: usize = 0x400000;
+
+/// RVA of an address as IDA shows it.
+pub const fn rva(addr: usize) -> usize {
+    addr - IMAGE_BASE
+}
+
+pub fn shadow() -> bool {
+    SHADOW_MODE.load(Ordering::Relaxed)
+}
+
+pub fn trace() -> bool {
+    TRACE.load(Ordering::Relaxed)
+}
 
 pub trait GameHook: Sync {
     fn name(&self) -> &'static str;
@@ -116,6 +133,23 @@ impl RawHook {
             return now != *orig;
         }
         self.detour.get().is_some_and(|d| d.is_enabled())
+    }
+
+    /// False until `install` has stored where `call_original` jumps.
+    pub fn has_original(&self) -> bool {
+        self.original.load(Ordering::Relaxed) != 0
+    }
+
+    /// Counts one call from the game. First line of every `dispatch`.
+    pub fn count_call(&self) {
+        self.stats.calls.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Counts a shadow mismatch and logs it, at most `MAX_LOGGED` times per hook.
+    pub fn mismatch(&self, detail: impl FnOnce() -> String) {
+        if self.stats.mismatches.fetch_add(1, Ordering::Relaxed) < MAX_LOGGED {
+            log(&format!("MISMATCH {}: {}", self.name, detail()));
+        }
     }
 
     /// Runs `f` with this hook switched off, then restores its previous state.
@@ -240,6 +274,36 @@ pub fn game_addr(rva: usize) -> usize {
     BASE.load(Ordering::Relaxed) + rva
 }
 
+/// Pointer to game memory at `rva`.
+pub fn game_ptr<T>(rva: usize) -> *mut T {
+    game_addr(rva) as *mut T
+}
+
+/// Reads a game global. Call it on every use: the game changes these at runtime.
+pub unsafe fn game_read<T: Copy>(rva: usize) -> T {
+    let p = game_ptr::<T>(rva);
+    // Some game tables sit on odd addresses.
+    unsafe {
+        if p.is_aligned() {
+            p.read_volatile()
+        } else {
+            p.read_unaligned()
+        }
+    }
+}
+
+/// Writes a game global.
+pub unsafe fn game_write<T: Copy>(rva: usize, value: T) {
+    let p = game_ptr::<T>(rva);
+    unsafe {
+        if p.is_aligned() {
+            p.write_volatile(value)
+        } else {
+            p.write_unaligned(value)
+        }
+    }
+}
+
 pub fn log(msg: &str) {
     if let Some(out) = CONSOLE_OUT.get()
         && let Ok(mut f) = out.lock()
@@ -247,10 +311,8 @@ pub fn log(msg: &str) {
         let _ = writeln!(f, "{msg}");
     }
 
-    if let Ok(mut f) = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(r"Z:\tmp\hook.log")
+    if let Some(path) = LOG_PATH.get()
+        && let Ok(mut f) = OpenOptions::new().create(true).append(true).open(path)
     {
         let _ = writeln!(f, "{msg}");
     }
@@ -267,6 +329,89 @@ pub struct Regs {
     pub edx: u32,
     pub ecx: u32,
     pub eax: u32,
+}
+
+pub const EAX: u8 = 1 << 0;
+pub const ECX: u8 = 1 << 1;
+pub const EDX: u8 = 1 << 2;
+pub const EBX: u8 = 1 << 3;
+pub const EBP: u8 = 1 << 4;
+pub const ESI: u8 = 1 << 5;
+pub const EDI: u8 = 1 << 6;
+
+impl Regs {
+    /// A recognisable value in every register, so a self-test can see which ones survive.
+    pub const SENTINEL: Regs = Regs {
+        edi: 0x1111_1111,
+        esi: 0x2222_2222,
+        ebp: 0x3333_3333,
+        esp: 0,
+        ebx: 0x4444_4444,
+        edx: 0x5555_5555,
+        ecx: 0x6666_6666,
+        eax: 0x7777_7777,
+    };
+
+    /// True if every register equals `before`, apart from those in `may_change`
+    /// (a mask of `EAX`, `EBX`, ...). `esp` is never compared.
+    pub fn preserved_except(&self, before: &Regs, may_change: u8) -> bool {
+        [
+            (EAX, self.eax, before.eax),
+            (ECX, self.ecx, before.ecx),
+            (EDX, self.edx, before.edx),
+            (EBX, self.ebx, before.ebx),
+            (EBP, self.ebp, before.ebp),
+            (ESI, self.esi, before.esi),
+            (EDI, self.edi, before.edi),
+        ]
+        .iter()
+        .all(|&(bit, now, was)| may_change & bit != 0 || now == was)
+    }
+}
+
+/// Case and failure counting for a hook's self-test. Only failures are logged.
+pub struct SelfTest {
+    name: &'static str,
+    cases: usize,
+    failures: usize,
+}
+impl SelfTest {
+    /// None (after logging one SKIPPED line) if the hook has no original to compare against.
+    pub fn begin(hook: &RawHook) -> Option<Self> {
+        let t = Self {
+            name: hook.name,
+            cases: 0,
+            failures: 0,
+        };
+        if hook.has_original() {
+            Some(t)
+        } else {
+            t.skip("original not available");
+            None
+        }
+    }
+
+    /// Logs one SKIPPED line and reports no cases.
+    pub fn skip(self, reason: &str) -> (usize, usize) {
+        log(&format!("SELFTEST SKIPPED {}: {reason}", self.name));
+        (0, 0)
+    }
+
+    /// Counts one case; on failure logs `detail` (at most `MAX_LOGGED` times).
+    pub fn check(&mut self, ok: bool, detail: impl FnOnce() -> String) {
+        self.cases += 1;
+        if !ok {
+            self.failures += 1;
+            if self.failures <= MAX_LOGGED {
+                log(&format!("SELFTEST FAIL {}: {}", self.name, detail()));
+            }
+        }
+    }
+
+    /// (cases, failures)
+    pub fn finish(self) -> (usize, usize) {
+        (self.cases, self.failures)
+    }
 }
 
 macro_rules! hook_asm {

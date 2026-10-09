@@ -1,24 +1,27 @@
-use crate::framework::{MAX_LOGGED, RawHook, Regs, SHADOW_MODE, hook_asm, log};
+//! `records::find_record` (0x47255D): finds a record by index within a section of a record table.
+//!
+//! In:  eax = index, ebx = section (0 = from the table start), edi = table
+//! Out: edi = record pointer; eax, ebx, ecx and edx preserved
+//! Section N starts after the Nth record whose tag is 4. There is no end-of-table check.
+
+use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::records::record::Record;
 use std::ptr::addr_of;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::AtomicUsize;
 
-static TRAMPOLINE: AtomicUsize = AtomicUsize::new(0);
+static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
-pub static HOOK: RawHook = RawHook::new(
-    "records::find_record",
-    0x47255D - 0x400000,
-    thunk,
-    &TRAMPOLINE,
-)
-.self_test(self_test);
+pub static HOOK: RawHook =
+    RawHook::new("records::find_record", rva(0x47255D), thunk, &ORIGINAL).self_test(self_test);
 
 hook_asm!(
     thunk,
     call_original,
     dispatch = dispatch,
-    original = TRAMPOLINE
+    original = ORIGINAL
 );
+
+// ---- Rust version ----
 
 const RECORD_SIZE: u32 = size_of::<Record>() as u32;
 const SECTION_TAG: u32 = 4;
@@ -29,7 +32,7 @@ fn read_tag(addr: u32) -> u32 {
 }
 
 /// Mirrors the original, including having no end-of-table check.
-fn find_record(table: u32, index: i32, section: u32, tag_at: impl Fn(u32) -> u32) -> u32 {
+pub fn find_record(table: u32, index: i32, section: u32, tag_at: impl Fn(u32) -> u32) -> u32 {
     let mut p = table;
     if section != 0 {
         let mut seen = 0u32;
@@ -48,13 +51,14 @@ fn find_record(table: u32, index: i32, section: u32, tag_at: impl Fn(u32) -> u32
     p.wrapping_add(index.wrapping_mul(RECORD_SIZE as i32) as u32)
 }
 
-// eax = index, ebx = section, edi = table -> pointer in edi; eax/ebx/ecx preserved
+// ---- hook ----
+
 extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.stats.calls.fetch_add(1, Ordering::Relaxed);
+    HOOK.count_call();
     let (index, section, table) = (r.eax as i32, r.ebx, r.edi);
     let mine = find_record(table, index, section, read_tag);
 
-    if !SHADOW_MODE.load(Ordering::Relaxed) {
+    if !shadow() {
         r.edi = mine;
         return;
     }
@@ -62,19 +66,20 @@ extern "C" fn dispatch(r: &mut Regs) {
     let mut o = *r;
     unsafe { call_original(&mut o) };
     if o.edi != mine {
-        let n = HOOK.stats.mismatches.fetch_add(1, Ordering::Relaxed);
-        if n < MAX_LOGGED {
-            log(&format!(
-                "MISMATCH find_record(index={index}, section={section}, table={table:#x}): original={:#x} rust={mine:#x}",
+        HOOK.mismatch(|| {
+            format!(
+                "index={index} section={section} table={table:#x}: original={:#x} rust={mine:#x}",
                 o.edi
-            ));
-        }
+            )
+        });
     }
     r.edi = o.edi;
 }
 
-/// A synthetic table: first dword of each record is SECTION_TAG at `markers`, never 4 elsewhere
-/// (including near misses). A 4 in another field must not count.
+// ---- self-test: synthetic tables ----
+
+/// First dword of each record is SECTION_TAG at `markers`, never 4 elsewhere (including near
+/// misses). A 4 in another field must not count.
 fn make_table(records: usize, markers: &[usize]) -> Vec<u8> {
     const FILLER: [u32; 8] = [0, 1, 2, 3, 5, 0x0400_0000, 0xFFFF_FFFF, 0x104];
     let size = RECORD_SIZE as usize;
@@ -91,23 +96,20 @@ fn make_table(records: usize, markers: &[usize]) -> Vec<u8> {
     t
 }
 
-pub fn self_test() -> (usize, usize) {
-    if TRAMPOLINE.load(Ordering::Relaxed) == 0 {
-        log("find_record selftest SKIPPED: original not available");
+fn self_test() -> (usize, usize) {
+    let Some(mut t) = SelfTest::begin(&HOOK) else {
         return (0, 0);
-    }
+    };
     // The original never stops at the end of a table, so only ask for sections that exist.
     let tables = [
         (make_table(24, &[2, 5, 6, 11, 17]), 5u32),
         (make_table(8, &[0, 1, 2, 3]), 4),
     ];
-    let (mut cases, mut failures) = (0, 0);
 
     for (table, markers) in &tables {
         let base = table.as_ptr() as u32;
         for section in 0..=*markers {
             for index in -3..=10i32 {
-                cases += 1;
                 let mut ro = Regs {
                     eax: index as u32,
                     ebx: section,
@@ -119,21 +121,18 @@ pub fn self_test() -> (usize, usize) {
                 unsafe { call_original(&mut ro) };
                 let mine = find_record(base, index, section, read_tag);
 
-                // also checks the register contract: eax, ebx, ecx, edx preserved
-                let ok = ro.edi == mine
-                    && ro.eax == index as u32
+                let preserved = ro.eax == index as u32
                     && ro.ebx == section
                     && ro.ecx == 0x1234_5678
                     && ro.edx == 0x9ABC_DEF0;
-                if !ok {
-                    failures += 1;
-                    log(&format!(
-                        "find_record selftest FAILED: index={index} section={section} original edi={:#x} rust={mine:#x}",
+                t.check(ro.edi == mine && preserved, || {
+                    format!(
+                        "index={index} section={section} original edi={:#x} rust={mine:#x} preserved={preserved}",
                         ro.edi
-                    ));
-                }
+                    )
+                });
             }
         }
     }
-    (cases, failures)
+    t.finish()
 }
