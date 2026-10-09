@@ -3,10 +3,11 @@
 //! In:  eax = temperature in Celsius, ebx = cursor
 //! Out: ebx = new cursor; eax = what `append_string_by_id` leaves for the unit label
 
-use crate::framework::{RawHook, Regs, SelfTest, game_ptr, game_read, hook_asm, rva, shadow};
+use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::math::celsius_to_fahrenheit::celsius_to_fahrenheit;
 use crate::strings::append_string_by_id::append_string_by_id;
 use crate::strings::format_u32::format_u32;
+use crate::strings::units::{temperature_label_id, units};
 use crate::strings::utils::bytes_str;
 use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts;
@@ -29,15 +30,6 @@ hook_asm!(
     original = ORIGINAL
 );
 
-// ---- game data ----
-
-const UNITS_RVA: usize = rva(0x51DE2C); // g_temperatureUnit: 0 = convert C -> F
-const LABEL_IDS_RVA: usize = rva(0x51EB84); // word_51EB84[units]: label string ids
-
-fn units() -> u32 {
-    unsafe { game_read(UNITS_RVA) }
-}
-
 // ---- Rust version ----
 
 /// Returns (bytes to append, the eax the original leaves behind).
@@ -55,11 +47,7 @@ pub fn append_temperature(celsius: i32) -> (Vec<u8>, u32) {
     }
     out.extend(format_u32(v as u32, 0));
 
-    let label_id = unsafe {
-        game_ptr::<u16>(LABEL_IDS_RVA)
-            .wrapping_add(unit as usize)
-            .read_volatile()
-    } as u32;
+    let label_id = temperature_label_id(unit);
     let eax = unsafe {
         append_string_by_id(label_id, &mut |p, n| {
             out.extend_from_slice(from_raw_parts(p, n))
