@@ -4,6 +4,7 @@ use crate::framework::GameHook;
 
 pub mod choose_repair;
 pub mod choose_repair_marked;
+pub mod clear_repair_flags;
 pub mod clear_repair_marks;
 pub mod edit_brake_balance;
 pub mod edit_gear_ratio;
@@ -13,8 +14,10 @@ pub mod edit_suspension_stiffness;
 pub mod edit_tyre;
 pub mod handle_edit_keys;
 pub mod harness;
+pub mod load_setup_slot;
 pub mod load_setup_values;
 pub mod pages;
+pub mod read_setup_slot;
 pub mod setup_values;
 pub mod state;
 pub mod step_brake_balance_down;
@@ -66,4 +69,7 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &edit_steering_sensitivity::HOOK,
     &edit_brake_balance::HOOK,
     &handle_edit_keys::HOOK,
+    &clear_repair_flags::HOOK,
+    &read_setup_slot::HOOK,
+    &load_setup_slot::HOOK,
 ];

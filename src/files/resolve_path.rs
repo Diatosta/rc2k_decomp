@@ -113,6 +113,20 @@ pub fn resolve_path(
     Ok(Some(out))
 }
 
+/// The path as the game would open it, for Rust callers: the pointer given if the path is used
+/// as it is, else the resolved path written to this thread's buffer.
+pub unsafe fn resolve_path_in_game(path: *const u8) -> Result<*const u8, BadInput> {
+    unsafe {
+        let g = globals();
+        let Some(resolved) = resolve_path(cstr(path), g.mode, g.a, g.b, g.pct)? else {
+            return Ok(path);
+        };
+        let buf = out_buffer();
+        copy_nonoverlapping(resolved.as_ptr(), buf, resolved.len());
+        Ok(buf)
+    }
+}
+
 // ---- hook ----
 
 extern "C" fn dispatch(r: &mut Regs) {
