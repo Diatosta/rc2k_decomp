@@ -1,4 +1,5 @@
 pub mod errors;
+pub mod fatal;
 pub mod files;
 mod framework;
 pub mod gfx;

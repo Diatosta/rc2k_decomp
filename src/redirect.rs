@@ -51,6 +51,16 @@ impl RedirectedCopy {
         }
     }
 
+    /// Points a `rel32` operand of the copy (a near jump out of the function, say) at
+    /// `new_target`. `rel_offset` is the offset of the four operand bytes.
+    pub unsafe fn retarget(&self, rel_offset: usize, new_target: usize) {
+        unsafe {
+            let at = self.0.add(rel_offset);
+            let rel = new_target.wrapping_sub(at as usize + 4) as i32;
+            (at as *mut i32).write_unaligned(rel);
+        }
+    }
+
     pub fn addr(&self) -> usize {
         self.0 as usize
     }
