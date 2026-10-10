@@ -36,7 +36,7 @@ hook_asm!(
 // ---- game data ----
 
 /// The seven variables at the start, in the order they are saved.
-const HEAD_RVAS: [usize; 7] = [
+pub const HEAD_RVAS: [usize; 7] = [
     rva(0x755984), // dword_755984
     rva(0x755950), // dword_755950
     rva(0x755958), // index: the event's stage in its section
@@ -46,21 +46,21 @@ const HEAD_RVAS: [usize; 7] = [
     rva(0x75AB40), // dword_75AB40
 ];
 const CARS_RVA: usize = rva(0x75647C); // off_75647C[4]
-const CARS: usize = 4;
-const CAR_LEN: usize = 0x28C;
-const CAR0_A_RVA: usize = rva(0x7554C0); // dword_7554C0 -> car 0 +0x14
-const CAR0_B_RVA: usize = rva(0x7554C4); // dword_7554C4 -> car 0 +0x274
-const NAME_PTR_OFFSET: u32 = 0x18;
-const NAME_OFFSET: u32 = 0x124;
-const NAME_LEN: usize = 0x20;
-const RECORDS_RVA: usize = rva(0x73B674); // unk_73B674
-const RECORDS_LEN: usize = 0xB4 * 0x94;
+pub const CARS: usize = 4;
+pub const CAR_LEN: usize = 0x28C;
+pub const CAR0_A_RVA: usize = rva(0x7554C0); // dword_7554C0 -> car 0 +0x14
+pub const CAR0_B_RVA: usize = rva(0x7554C4); // dword_7554C4 -> car 0 +0x274
+pub const NAME_PTR_OFFSET: u32 = 0x18;
+pub const NAME_OFFSET: u32 = 0x124;
+pub const NAME_LEN: usize = 0x20;
+pub const RECORDS_RVA: usize = rva(0x73B674); // unk_73B674
+pub const RECORDS_LEN: usize = 0xB4 * 0x94;
 
 /// Bytes written to the buffer.
 pub const GATHERED_LEN: usize = HEAD_RVAS.len() * 4 + CARS * CAR_LEN + RECORDS_LEN;
 
 /// The four car objects, if every one is there and has its pointer at +0x18.
-fn cars() -> Result<[u32; CARS], BadInput> {
+pub fn cars() -> Result<[u32; CARS], BadInput> {
     let mut cars = [0u32; CARS];
     for (n, car) in cars.iter_mut().enumerate() {
         *car = unsafe { ((game_addr(CARS_RVA) as *const u32).add(n)).read_unaligned() };
