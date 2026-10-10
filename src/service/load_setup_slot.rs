@@ -56,7 +56,7 @@ hook_asm!(
 
 // ---- game data ----
 
-const SLOT_PAGE_RVA: usize = rva(0x755244); // dword_755244
+pub const SLOT_PAGE_RVA: usize = rva(0x755244); // dword_755244
 const SLOTS_PER_PAGE: u32 = 30;
 
 /// The slot the highlighted menu item stands for.

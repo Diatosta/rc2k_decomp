@@ -5,7 +5,7 @@
 //! Out: every register preserved
 //! What confirming does, and what is refused, is in `pages.rs` (`change_page`).
 //! Manual patch with a private copy: a short jump or a call sits in the first bytes. The
-//! copy's calls are relocated.
+//! copy's calls are relocated (not its one near `jmp`, at 0x6F, which stays inside the copy).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
@@ -26,7 +26,7 @@ pub static HOOK: RawHook = RawHook::new(
 )
 .private_copy(0x136)
 .relocate_calls(&[
-    0x6, 0x21, 0x2A, 0x6F, 0x93, 0xC1, 0xDD, 0x10A, 0x125, 0x12A, 0x12F,
+    0x6, 0x21, 0x2A, 0x93, 0xC1, 0xDD, 0x10A, 0x125, 0x12A, 0x12F,
 ])
 .manual_patch()
 .self_test(self_test);
