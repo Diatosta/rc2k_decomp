@@ -11,6 +11,7 @@ mod registry;
 pub mod screens;
 pub mod service;
 pub mod strings;
+pub mod system;
 pub mod text;
 pub mod threading;
 

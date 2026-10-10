@@ -33,17 +33,17 @@ hook_asm!(
 
 // ---- game data ----
 
-const TEMPLATE_RVA: usize = rva(0x529716); // aSavedataCarset: "savedata\carsetup\carset00"
+pub const TEMPLATE_RVA: usize = rva(0x529716); // aSavedataCarset: "savedata\carsetup\carset00"
 pub const SETUP_FILE_RVA: usize = rva(0x527838); // dword_527838: the head of a setup file
 pub const SETUP_FILE_LEN: usize = 0x48;
 const SLOT_NAMES_RVA: usize = rva(0x527880); // byte_527880[100][0x20]
 pub const SLOT_COUNT: u32 = 100;
-const NAME_LEN: usize = 0x20;
+pub const NAME_LEN: usize = 0x20;
 
-const MAGIC: u32 = 0x5553_5243; // "CRSU"
-const VERSION: u32 = 0x5_0000;
+pub const MAGIC: u32 = 0x5553_5243; // "CRSU"
+pub const VERSION: u32 = 0x5_0000;
 
-fn slot_name(slot: u32) -> *mut u8 {
+pub fn slot_name(slot: u32) -> *mut u8 {
     game_ptr::<u8>(SLOT_NAMES_RVA).wrapping_add(slot as usize * NAME_LEN)
 }
 

@@ -38,6 +38,7 @@ pub mod toggle_suspension_stiffness_change;
 pub mod toggle_tyre_change;
 pub mod try_toggle_repair;
 pub mod update_repair_total;
+pub mod write_setup_slot;
 
 pub static HOOKS: &[&dyn GameHook] = &[
     &load_setup_values::HOOK,
@@ -72,4 +73,5 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &clear_repair_flags::HOOK,
     &read_setup_slot::HOOK,
     &load_setup_slot::HOOK,
+    &write_setup_slot::HOOK,
 ];
