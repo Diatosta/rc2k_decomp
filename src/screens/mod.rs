@@ -2,27 +2,51 @@
 
 use crate::framework::{GameHook, game_ptr, rva};
 use crate::text::font::Font;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+pub mod draw_selected_stage;
+pub mod draw_selected_stage_menu;
 pub mod draw_stage_heading;
 pub mod draw_stage_info;
+pub mod draw_stage_info_alt;
 pub mod draw_stage_records;
+pub mod stage_panel;
 
 pub static HOOKS: &[&dyn GameHook] = &[
     &draw_stage_heading::HOOK,
     &draw_stage_records::HOOK,
     &draw_stage_info::HOOK,
+    &draw_stage_info_alt::HOOK,
+    &draw_selected_stage::HOOK,
+    &draw_selected_stage_menu::HOOK,
 ];
 
-/// Console switch `blank on|off`, kept for every hook in this module: while set, the hooks of this module return at once,
-/// running neither the original nor the Rust version, so whatever they draw disappears from
-/// the screen. That is how to confirm, in the game, what a screen function draws. It is
-/// harmless for these functions because they preserve every register; a new hook in this
-/// module must check `blanked()` right after `count_call()`.
-pub static BLANK: AtomicBool = AtomicBool::new(false);
+/// Console switch `blank on [prefix]` / `blank off`, kept for every hook in this module: a
+/// blanked hook returns at once, running neither the original nor the Rust version, so
+/// whatever it draws disappears from the screen. That is how to confirm, in the game, what a
+/// screen function draws. Without a prefix every hook of this module is blanked; with one,
+/// only the hooks whose name starts with it, or the one hook with exactly that name. It is harmless for these functions because they
+/// preserve every register; a new hook in this module must check `blanked(name)` right after
+/// `count_call()`.
+static BLANK: AtomicBool = AtomicBool::new(false);
+static BLANK_PREFIX: Mutex<String> = Mutex::new(String::new());
 
-pub fn blanked() -> bool {
+pub fn set_blank(on: bool, prefix: &str) {
+    if let Ok(mut p) = BLANK_PREFIX.lock() {
+        *p = prefix.to_string();
+    }
+    BLANK.store(on, Ordering::Relaxed);
+}
+
+/// True if the hook called `name` is blanked at the moment. A prefix that is itself the full
+/// name of a hook selects only that hook (`screens::draw_selected_stage` is also how
+/// `screens::draw_selected_stage_menu` starts).
+pub fn blanked(name: &str) -> bool {
     BLANK.load(Ordering::Relaxed)
+        && BLANK_PREFIX
+            .lock()
+            .is_ok_and(|prefix| crate::registry::selects(prefix.as_str(), name))
 }
 
 /// byte_A8BB54: the text buffer these functions build their lines in.

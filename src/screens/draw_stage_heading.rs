@@ -4,10 +4,15 @@
 //!
 //! In:  edi = record
 //! Out: carry as `draw_text` leaves it; every register preserved
-//! "Stage heading" is a reading of that line; the text of string 0x481 has not been looked at.
+//! The line reads like "es 1/6: Clocaenog centro" in the Portuguese build: string 0x481 is the
+//! short stage label.
+//!
+//! Screen: it is part of the panel `draw_stage_info` draws, which the owner confirmed on
+//! 2026-10-10 as the stage details screen shown before each stage of a championship. Its other
+//! caller, `sub_480064`, has not been seen in the game.
 
 use crate::errors::FatalError;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
+use crate::framework::{GameHook, RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::gfx::blit_glyph::{record_calls, recording_works};
 use crate::records::trakpak_entry::record_entry;
 use crate::screens::{blanked, font_at, font_is_loaded, line_buffer, set_line};
@@ -53,9 +58,14 @@ unsafe fn dword(at: *const u8) -> u32 {
 
 /// The line with its NUL. The error is the track pack lookup's.
 pub unsafe fn stage_heading_text(record: *const u8) -> Result<Vec<u8>, FatalError> {
+    unsafe { heading_text(record, HEADING_STRING) }
+}
+
+/// The same line starting with another label string (the stage panels build one with 0x482).
+pub unsafe fn heading_text(record: *const u8, label: u32) -> Result<Vec<u8>, FatalError> {
     unsafe {
         let mut out = Vec::new();
-        push_string(&mut out, HEADING_STRING);
+        push_string(&mut out, label);
         out.push(b' ');
         out.extend(append_fraction(dword(record.add(0x40)), OUT_OF));
         out.extend_from_slice(b": ");
@@ -81,7 +91,7 @@ pub unsafe fn draw_stage_heading(
 
 extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
-    if blanked() {
+    if blanked(HOOK.name()) {
         return;
     }
     let record = r.edi as *const u8;

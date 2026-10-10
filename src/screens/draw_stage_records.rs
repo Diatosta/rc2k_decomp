@@ -5,7 +5,7 @@
 //! In:  edi = best-time entry: +0x08 nationality (flag sprite 0x1C + it), +0x10 car number
 //!      (see `car_sprite`), +0x14 time in hundredths of a second, +0x20 name
 //! Out: carry as the last `draw_text` leaves it; every register preserved
-//! The top-speed row comes from the record the game has selected (see `selected_record`):
+//! The top-speed row comes from the record the game has selected (see `selection`):
 //! +0x30 speed in tenths of a mile per hour, +0x54 name, +0x74 nationality, +0x78 car number.
 //! The labels are strings 0x34B ("melhor tempo" in the Portuguese build) and 0x34C
 //! ("velocidade máxima").
@@ -18,7 +18,7 @@
 //! index. That only works because those sprites do not use a palette; it is reproduced as is.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, hook_asm, rva, shadow};
+use crate::framework::{GameHook, RawHook, Regs, SelfTest, game_read, hook_asm, rva, shadow};
 use crate::gfx::blit_glyph::{BlitCall, record_calls, recording_works};
 use crate::gfx::blit_marker_pair::sprite_table;
 use crate::screens::{blanked, font_at, font_is_loaded, line_buffer, set_line};
@@ -75,9 +75,21 @@ unsafe fn dword(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
 }
 
-/// The three selection values and the address of the record they select:
-/// `tables[group][sub] + index * 0xA4`. None while the tables are not there.
-unsafe fn selected_record() -> Option<(u32, u32)> {
+/// The game's selection: a group, a table in that group and a record in that table.
+#[derive(Clone, Copy, Debug)]
+pub struct Selection {
+    /// dword_7558C8
+    pub group: u32,
+    /// dword_7558D0
+    pub sub: u32,
+    /// `tables[group][sub]`: the address of the table's first record.
+    pub table: u32,
+    /// `table + index * 0xA4`, with index = dword_7558CC.
+    pub record: u32,
+}
+
+/// None while the tables are not there; the original then reads through a null pointer.
+pub unsafe fn selection() -> Option<Selection> {
     unsafe {
         let group: u32 = game_read(SELECTED_GROUP_RVA);
         let index: u32 = game_read(SELECTED_INDEX_RVA);
@@ -90,8 +102,17 @@ unsafe fn selected_record() -> Option<(u32, u32)> {
         if table == 0 {
             return None;
         }
-        Some((table.wrapping_add(index.wrapping_mul(RECORD_SIZE)), sub))
+        Some(Selection {
+            group,
+            sub,
+            table,
+            record: table.wrapping_add(index.wrapping_mul(RECORD_SIZE)),
+        })
     }
+}
+
+unsafe fn selected_record() -> Option<(u32, u32)> {
+    unsafe { selection() }.map(|s| (s.record, s.sub))
 }
 
 /// False while no record table is selected, in which case the original must not be run.
@@ -189,7 +210,7 @@ unsafe fn line_area() -> Vec<u8> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
-    if blanked() {
+    if blanked(HOOK.name()) {
         return;
     }
     let entry = r.edi;

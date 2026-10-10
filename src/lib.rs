@@ -43,7 +43,7 @@ static INSTALLED: OnceLock<Vec<bool>> = OnceLock::new();
 fn apply(pat: &str, on: bool, enabled: &mut [bool], out: &mut impl Write) {
     let mut changed = 0;
     for (i, h) in ALL.iter().enumerate() {
-        if (pat == "all" || h.name().starts_with(pat)) && enabled[i] != on {
+        if registry::selects(pat, h.name()) && enabled[i] != on {
             match unsafe { h.set_enabled(on) } {
                 Ok(()) => {
                     enabled[i] = on;
@@ -65,7 +65,7 @@ fn apply(pat: &str, on: bool, enabled: &mut [bool], out: &mut impl Write) {
 
 fn console_loop(input: File, mut out: File, mut enabled: Vec<bool>) {
     log(
-        "commands: list | on <name|prefix|all> | off <name|prefix|all> | shadow on|off | trace on|off | blank on|off | stats | reload | selftest",
+        "commands: list | on <name|prefix|all> | off <name|prefix|all> | shadow on|off | trace on|off | blank on|off [prefix] | stats | reload | selftest",
     );
 
     for line in BufReader::new(input).lines().map_while(Result::ok) {
@@ -110,9 +110,15 @@ fn console_loop(input: File, mut out: File, mut enabled: Vec<bool>) {
                 }
             }
             ["blank", v] => {
-                screens::BLANK.store(*v == "on", Ordering::Relaxed);
+                screens::set_blank(*v == "on", "");
                 log(&format!(
-                    "blank = {v} (hooks in screens:: draw nothing while on)"
+                    "blank = {v} (every hook in screens:: draws nothing while on)"
+                ));
+            }
+            ["blank", v, prefix] => {
+                screens::set_blank(*v == "on", prefix);
+                log(&format!(
+                    "blank = {v} for hooks starting with {prefix} (they draw nothing while on)"
                 ));
             }
             ["trace", v] => {
