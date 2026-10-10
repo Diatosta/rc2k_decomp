@@ -59,9 +59,14 @@ thread_local! {
 
 /// Runs `f` and returns the key the hook handed out during it, if it was asked for one.
 pub fn noting_taken_key<R>(f: impl FnOnce() -> R) -> (R, Option<u8>) {
-    LAST_TAKEN.set(None);
+    // An enclosing call keeps its own note if nothing is taken in here.
+    let outer = LAST_TAKEN.replace(None);
     let result = f();
-    (result, LAST_TAKEN.get())
+    let taken = LAST_TAKEN.get();
+    if taken.is_none() {
+        LAST_TAKEN.set(outer);
+    }
+    (result, taken)
 }
 
 /// Runs `f` with `take_key` returning `key` instead of the real pending key.

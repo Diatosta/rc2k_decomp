@@ -11,8 +11,15 @@ pub mod clear_text;
 pub mod edit_replay_name;
 pub mod edit_savegame_name;
 pub mod go_back;
+pub mod handle_keys;
+pub mod handle_yes_no;
 pub mod item_at;
+pub mod move_highlight_down;
+pub mod move_highlight_left;
+pub mod move_highlight_right;
+pub mod move_highlight_up;
 pub mod name_lists;
+pub mod navigation;
 pub mod restore_text;
 pub mod run_draw_list;
 pub mod run_item_action;
@@ -38,4 +45,10 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &run_list::HOOK,
     &run_draw_list::HOOK,
     &run_item_action::HOOK,
+    &handle_yes_no::HOOK,
+    &move_highlight_up::HOOK,
+    &move_highlight_down::HOOK,
+    &move_highlight_right::HOOK,
+    &move_highlight_left::HOOK,
+    &handle_keys::HOOK,
 ];

@@ -4,5 +4,12 @@ use crate::framework::GameHook;
 
 pub mod key_to_char;
 pub mod take_key;
+pub mod yes_no_for_key;
+pub mod yes_no_key;
 
-pub static HOOKS: &[&dyn GameHook] = &[&take_key::HOOK, &key_to_char::HOOK];
+pub static HOOKS: &[&dyn GameHook] = &[
+    &take_key::HOOK,
+    &key_to_char::HOOK,
+    &yes_no_key::HOOK,
+    &yes_no_for_key::HOOK,
+];

@@ -36,9 +36,9 @@ hook_asm!(
 
 // ---- game data ----
 
-const LAYOUT_MODE_RVA: usize = rva(0x4F07D2); // byte_4F07D2
-const LAYOUT_RVA: usize = rva(0x4F07D4); // dword_4F07D4: the current layout block
-const LAYOUT_A_RVA: usize = rva(0x4F07F8); // dword_4F07F8
+pub const LAYOUT_MODE_RVA: usize = rva(0x4F07D2); // byte_4F07D2
+pub const LAYOUT_RVA: usize = rva(0x4F07D4); // dword_4F07D4: the current layout block
+pub const LAYOUT_A_RVA: usize = rva(0x4F07F8); // dword_4F07F8
 const LAYOUT_B_RVA: usize = rva(0x4F080C); // unk_4F080C
 pub const DEAD_KEY_RVA: usize = rva(0x4F6AD0); // byte_4F6AD0
 // The key-down table starts at the pending key, 0x4F6ADC, and is indexed by scan code.
