@@ -264,6 +264,7 @@ enum Step {
 /// Draws the glyph `record` at (`x`, `y`). `put(address, bytes)` receives every write.
 /// Returns the registers the original leaves and, unless the glyph is clipped away, the part
 /// of the surface it may have touched.
+#[allow(clippy::too_many_arguments)] // the original's five inputs, the surface, the clip and the sink
 pub unsafe fn blit_glyph(
     record: *const u8,
     x: i32,

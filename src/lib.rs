@@ -1,3 +1,10 @@
+// Nearly every function here is `unsafe` for one and the same reason: it reads and writes the
+// game's memory at fixed addresses, so it is only sound inside the running game, on data the
+// game has loaded, under the conditions its header comment gives. A "# Safety" section on each
+// of some 130 functions would repeat that sentence; the particular conditions are in each
+// function's own doc comment and in the `Err(BadInput)` cases it checks.
+#![allow(clippy::missing_safety_doc)]
+
 pub mod errors;
 pub mod fatal;
 pub mod files;

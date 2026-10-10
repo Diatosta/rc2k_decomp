@@ -10,9 +10,10 @@
 //!   - if the value was not changed in this edit (it equals the value at entry), the item's
 //!     selection is flipped (`toggle_change`), and unless that selected it, that is all;
 //!   - the flag is cleared and `try_toggle_repair` says whether selecting it fits:
-//!       status 2 (no time left at all): the chosen value goes back to the installed one;
-//!       status 1 (fits only by overrunning): selected and marked (`choose_repair_marked`);
-//!       status 3 (fits): the marks are cleared and it is selected (`choose_repair`).
+//!     - status 2 (no time left at all): the chosen value goes back to the installed one;
+//!     - status 1 (fits only by overrunning): selected and marked (`choose_repair_marked`);
+//!     - status 3 (fits): the marks are cleared and it is selected (`choose_repair`).
+//!
 //! Whatever happened, the four end with `update_repair_total`.
 
 use crate::errors::{BadInput, Refused};

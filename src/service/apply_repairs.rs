@@ -20,6 +20,7 @@
 //!   - tyre damage 0 sets bits 0x1E in the car's dword at +0x278; body damage 0 sets all its
 //!     other bits and zeroes eight dwords at +0x24C;
 //!   - `sleep(1000)`.
+//!
 //! A frame is the game's frame function `sub_405A71` with the service area's draw callback
 //! `sub_46CFD7`; neither is ported, so the Rust version calls them with `call_game`. The
 //! clock is `tick_count`. They come in through `Driver`, so that the logic can be run and
