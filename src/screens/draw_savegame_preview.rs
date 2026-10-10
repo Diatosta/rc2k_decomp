@@ -11,8 +11,9 @@
 //! Its address is in the draw lists at 0x758BAE and 0x758BC6.
 //!
 //! Screen: the load-game screen ("CARREGAR CAMPEONATO"), the part under the ten slots, by the
-//! owner's screenshot of 2026-10-10 and 1,455 shadow calls while it was open. The owner also
-//! ran `blank on screens::draw_savegame_preview` there; what disappeared was not reported.
+//! owner's screenshot of 2026-10-10 and 1,455 shadow calls while it was open. Confirmed by
+//! the owner with `blank on screens::draw_savegame_preview` the same day ("worked as
+//! intended": the block under the slot list went away).
 //! In shadow mode the two variables are put back after the Rust run, so that the original
 //! reads the file as well.
 

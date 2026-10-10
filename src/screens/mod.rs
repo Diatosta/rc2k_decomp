@@ -9,6 +9,7 @@ pub mod draw_brake_balance_marker;
 pub mod draw_empty_savegame;
 pub mod draw_inspection_status;
 pub mod draw_load_setup_list;
+pub mod draw_menu_labels;
 pub mod draw_repair_times;
 pub mod draw_ride_height_installed_marker;
 pub mod draw_ride_height_marker;
@@ -55,6 +56,7 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &draw_empty_savegame::HOOK,
     &draw_savegame_details::HOOK,
     &draw_savegame_preview::HOOK,
+    &draw_menu_labels::HOOK,
 ];
 
 /// Console switch `blank on [prefix]` / `blank off`, kept for every hook in this module: a

@@ -11,9 +11,15 @@ pub mod clear_text;
 pub mod edit_replay_name;
 pub mod edit_savegame_name;
 pub mod go_back;
+pub mod item_at;
 pub mod name_lists;
 pub mod restore_text;
+pub mod run_draw_list;
+pub mod run_item_action;
+pub mod run_list;
 pub mod text_entry;
+pub mod update_blink;
+pub mod update_frame_clock;
 
 pub static HOOKS: &[&dyn GameHook] = &[
     &go_back::HOOK,
@@ -26,4 +32,10 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &edit_savegame_name::HOOK,
     &begin_savegame_name::HOOK,
     &begin_replay_name::HOOK,
+    &update_frame_clock::HOOK,
+    &update_blink::HOOK,
+    &item_at::HOOK,
+    &run_list::HOOK,
+    &run_draw_list::HOOK,
+    &run_item_action::HOOK,
 ];
