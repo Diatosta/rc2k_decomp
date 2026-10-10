@@ -39,9 +39,9 @@ hook_asm!(
 
 // ---- game data ----
 
-const LAST_KEY_TIME_RVA: usize = rva(0x7556C4); // dword_7556C4: the clock at the last key
+pub const LAST_KEY_TIME_RVA: usize = rva(0x7556C4); // dword_7556C4: the clock at the last key
 const CURSOR_TIME_RVA: usize = rva(0x7556C8); // dword_7556C8: what the cursor's blink counts from
-const BLINK_OFF_RVA: usize = rva(0x7556AC); // dword_7556AC: 1 = the highlight does not blink
+pub const BLINK_OFF_RVA: usize = rva(0x7556AC); // dword_7556AC: 1 = the highlight does not blink
 const BLINK_RVA: usize = rva(0x7559A4); // dword_7559A4
 const CURSOR_ON_RVA: usize = rva(0x7559A8); // dword_7559A8
 const IDLE_RVA: usize = rva(0x755551); // dword_755551

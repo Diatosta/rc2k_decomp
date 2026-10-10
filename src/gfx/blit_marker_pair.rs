@@ -28,8 +28,8 @@ hook_asm!(
 
 // ---- game data ----
 
-const MARKER_X_RVA: usize = rva(0x755A18); // g_markerX
-const MARKER_Y_RVA: usize = rva(0x755A1C); // g_markerY
+pub const MARKER_X_RVA: usize = rva(0x755A18); // g_markerX
+pub const MARKER_Y_RVA: usize = rva(0x755A1C); // g_markerY
 const SPRITE_TABLE_PTR_RVA: usize = rva(0x755581); // g_spriteTable: pointer to a glyph table
 
 const FIRST_GLYPH: u32 = 0x9C;

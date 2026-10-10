@@ -77,7 +77,7 @@ pub unsafe fn measure_text_at(
 
 // ---- hook ----
 
-fn regs_match(m: &Measured, o: &Regs, before: &Regs) -> bool {
+pub fn regs_match(m: &Measured, o: &Regs, before: &Regs) -> bool {
     o.eax == 0
         && o.ebx == m.lines
         && o.ecx == m.width

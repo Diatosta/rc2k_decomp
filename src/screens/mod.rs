@@ -5,10 +5,21 @@ use crate::text::font::Font;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+pub mod buttons;
 pub mod draw_brake_balance_marker;
+pub mod draw_button;
+pub mod draw_button_alt;
+pub mod draw_button_highlighted;
 pub mod draw_empty_savegame;
 pub mod draw_inspection_status;
+pub mod draw_item_button;
+pub mod draw_item_button_centred;
+pub mod draw_item_button_centred_highlighted;
+pub mod draw_item_button_right;
+pub mod draw_item_button_right_highlighted;
 pub mod draw_load_setup_list;
+pub mod draw_menu_item_text;
+pub mod draw_menu_items;
 pub mod draw_menu_labels;
 pub mod draw_repair_times;
 pub mod draw_ride_height_installed_marker;
@@ -57,6 +68,16 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &draw_savegame_details::HOOK,
     &draw_savegame_preview::HOOK,
     &draw_menu_labels::HOOK,
+    &draw_button::HOOK,
+    &draw_button_highlighted::HOOK,
+    &draw_button_alt::HOOK,
+    &draw_item_button::HOOK,
+    &draw_item_button_right::HOOK,
+    &draw_item_button_centred::HOOK,
+    &draw_item_button_right_highlighted::HOOK,
+    &draw_item_button_centred_highlighted::HOOK,
+    &draw_menu_item_text::HOOK,
+    &draw_menu_items::HOOK,
 ];
 
 /// Console switch `blank on [prefix]` / `blank off`, kept for every hook in this module: a
