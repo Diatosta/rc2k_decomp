@@ -17,6 +17,7 @@ pub mod menu;
 pub mod records;
 pub mod redirect;
 mod registry;
+pub mod saves;
 pub mod screens;
 pub mod service;
 pub mod strings;

@@ -1,7 +1,7 @@
 use crate::framework::GameHook;
 use crate::{
-    fatal, files, gfx, input, logfile, math, menu, records, screens, service, strings, system,
-    text, threading,
+    fatal, files, gfx, input, logfile, math, menu, records, saves, screens, service, strings,
+    system, text, threading,
 };
 use std::sync::LazyLock;
 
@@ -18,6 +18,7 @@ pub static ALL: LazyLock<Vec<&'static dyn GameHook>> = LazyLock::new(|| {
         service::HOOKS,
         input::HOOKS,
         menu::HOOKS,
+        saves::HOOKS,
         system::HOOKS,
         fatal::HOOKS,
         files::HOOKS,

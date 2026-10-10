@@ -8,7 +8,7 @@
 //!   1 (Escape)    the name from before comes back, the entry ends;
 //!   0x1C (Enter)  an empty name is replaced by the one from before; the entry ends, the
 //!                 name is cut at its length and the game is saved in that slot
-//!                 (`sub_4AB558`, not ported: called with `call_game`);
+//!                 (`saves::write_savegame_slot`);
 //!   0x6E          the name is cleared;
 //!   0x0E          the last character goes (`backspace_savegame_name`);
 //!   any other     `key_to_char`; a character is appended unless the length is already above
@@ -42,6 +42,7 @@ use crate::menu::text_entry::{
     ENTERING_RVA, LENGTH_RVA, MAX_LENGTH_RVA, TEXT_LEN, backup, backup_region, length, set_length,
 };
 use crate::redirect::RedirectedCopy;
+use crate::saves::write_savegame_slot::write_savegame_slot;
 use crate::screens::harness::Left;
 use crate::screens::{font_at, font_is_loaded};
 use crate::service::harness::{
@@ -75,7 +76,7 @@ hook_asm!(
 
 // ---- game data ----
 
-const SAVE_GAME_RVA: usize = rva(0x4AB558); // sub_4AB558: ebx = slot
+const SAVE_GAME_RVA: usize = rva(0x4AB558); // saves::write_savegame_slot: ebx = slot
 const CURSOR_ON_RVA: usize = rva(0x7559A8); // dword_7559A8: 1 in the visible half of the cursor's blink
 
 const KEY_ESCAPE: u8 = 1;
@@ -100,13 +101,16 @@ fn highlighted_slot() -> u32 {
         .wrapping_sub(1)
 }
 
-/// The original's save function, for real.
+/// Saves the game in `slot`. Whether it worked is not looked at, as in the original. A slot
+/// or a state the Rust writer refuses goes to the original's.
 pub fn save_game(slot: u32) {
-    let mut regs = Regs {
-        ebx: slot,
-        ..Regs::default()
-    };
-    unsafe { call_game(&mut regs, game_addr(SAVE_GAME_RVA)) };
+    if unsafe { write_savegame_slot(slot) }.is_err() {
+        let mut regs = Regs {
+            ebx: slot,
+            ..Regs::default()
+        };
+        unsafe { call_game(&mut regs, game_addr(SAVE_GAME_RVA)) };
+    }
 }
 
 /// `save` is called with the slot when Enter ends the entry.
