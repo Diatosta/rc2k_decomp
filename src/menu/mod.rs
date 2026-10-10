@@ -24,6 +24,8 @@ pub mod restore_text;
 pub mod run_draw_list;
 pub mod run_item_action;
 pub mod run_list;
+pub mod screen_loop;
+pub mod stage_results_loop;
 pub mod text_entry;
 pub mod update_blink;
 pub mod update_frame_clock;
@@ -51,4 +53,5 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &move_highlight_right::HOOK,
     &move_highlight_left::HOOK,
     &handle_keys::HOOK,
+    &stage_results_loop::HOOK,
 ];

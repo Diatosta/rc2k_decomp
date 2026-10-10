@@ -24,6 +24,7 @@ pub mod next_setup_page;
 pub mod pages;
 pub mod read_setup_slot;
 pub mod reset_tyre_wear;
+pub mod service_area_loop;
 pub mod setup_values;
 pub mod state;
 pub mod step_brake_balance_down;
@@ -86,4 +87,5 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &next_setup_page::HOOK,
     &reset_tyre_wear::HOOK,
     &apply_repairs::HOOK,
+    &service_area_loop::HOOK,
 ];
