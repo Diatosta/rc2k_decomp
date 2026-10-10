@@ -37,9 +37,9 @@ use crate::screens::draw_service_time::draw_service_time;
 use crate::screens::harness::{Left, check_draw, dispatch_draw, drawing_unavailable, push_dwords};
 use crate::screens::setup_markers::draw_marker;
 use crate::screens::{
-    draw_brake_balance_marker, draw_ride_height_marker, draw_ride_height_previous_marker,
-    draw_steering_sensitivity_marker, draw_suspension_stiffness_marker,
-    draw_suspension_stiffness_previous_marker, font_at, font_is_loaded, line_buffer, set_line,
+    draw_brake_balance_marker, draw_ride_height_installed_marker, draw_ride_height_marker,
+    draw_steering_sensitivity_marker, draw_suspension_stiffness_installed_marker,
+    draw_suspension_stiffness_marker, font_at, font_is_loaded, line_buffer, set_line,
 };
 use crate::service::state::{CAR_INDEX_RVA, current_car};
 use crate::strings::append_string_by_id::push_string;
@@ -256,10 +256,10 @@ pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused
         for marker in [
             draw_brake_balance_marker::MARKER,
             draw_steering_sensitivity_marker::MARKER,
+            draw_ride_height_installed_marker::MARKER,
+            draw_suspension_stiffness_installed_marker::MARKER,
             draw_ride_height_marker::MARKER,
             draw_suspension_stiffness_marker::MARKER,
-            draw_ride_height_previous_marker::MARKER,
-            draw_suspension_stiffness_previous_marker::MARKER,
         ] {
             draw_marker(marker, &regs, canvas)?;
         }

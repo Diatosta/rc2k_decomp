@@ -2,6 +2,7 @@ pub mod errors;
 pub mod files;
 mod framework;
 pub mod gfx;
+pub mod input;
 pub mod logfile;
 pub mod math;
 pub mod records;

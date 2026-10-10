@@ -1,23 +1,22 @@
-//! `screens::draw_suspension_stiffness_previous_marker` (0x4A6FB0): draws the marker of the lower right setup bar (menu item 0x13), at the percentage
-//! in `dword_75ACB4`.
+//! `screens::draw_suspension_stiffness_installed_marker` (0x4A6EF8): draws the second marker (glyph 0x77) of the lower right setup bar, at the
+//! percentage in `dword_75ACB8`; always drawn.
 //!
 //! In:  ebx, passed on as the palette at 0 percent or less
-//! Out: eax = the percentage, or 0x13 if nothing was drawn; esi = the address of the item's
-//!      repair flag if that was looked at; everything else preserved
+//! Out: eax = the percentage; everything else preserved
 //! The conditions, the bars and how the screen was confirmed are in `setup_markers.rs`.
 
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::screens::harness::drawing_unavailable;
 use crate::screens::setup_markers::{
-    LOWER_RIGHT_EDITED_RVA, LOWER_RIGHT_SHOWN_RVA, Marker, RIGHT_X, check_marker, dispatch_marker,
+    LOWER_RIGHT_INSTALLED_RVA, Marker, RIGHT_X, check_marker, dispatch_marker,
 };
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
 pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_suspension_stiffness_previous_marker",
-    rva(0x4A6FB0),
+    "screens::draw_suspension_stiffness_installed_marker",
+    rva(0x4A6EF8),
     thunk,
     &ORIGINAL,
 )
@@ -32,11 +31,9 @@ hook_asm!(
 
 // ---- Rust version: `setup_markers::draw_marker` with this ----
 
-pub const MARKER: Marker = Marker::Lower {
-    item: 0x13,
+pub const MARKER: Marker = Marker::Always {
     x: RIGHT_X,
-    shown_rva: LOWER_RIGHT_SHOWN_RVA,
-    edited_rva: LOWER_RIGHT_EDITED_RVA,
+    percent_rva: LOWER_RIGHT_INSTALLED_RVA,
 };
 
 // ---- hook ----

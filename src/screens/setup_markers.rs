@@ -7,9 +7,11 @@
 //! Screen: seen in a screenshot of the championship's service area (2026-10-10), setup section: 0x10 is the
 //! steering sensitivity (slow .. fast), 0x11 the brake balance (front .. rear), 0x12 the ride
 //! height (low .. high), 0x13 the suspension stiffness (soft .. hard). The two lower bars
-//! have two markers each. The one always drawn (glyph 0x77, orange) is at the value in the
-//! edit variable; the other (0x76, yellow) only appears when the two values differ, so it is
-//! read as the value before the change: "previous" in the hook names is that reading.
+//! have two markers each. The one always drawn (glyph 0x77, orange) is at the value the car
+//! has now (`dword_75ACAC`, `dword_75ACB8`): the `_installed_marker` hooks. The other (0x76,
+//! yellow) is at the value being chosen (`dword_75ACA8`, `dword_75ACB4`, which the keys step)
+//! and only appears while it differs or its change is selected. The steering and brake
+//! values are changed in the car object directly, so those bars have one marker.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{EAX, ESI, RawHook, Regs, SelfTest, game_read, game_write, rva};
@@ -31,24 +33,24 @@ const BAR_WIDTH: i32 = 0xCC;
 pub const MARKER_GLYPH: u32 = 0x76;
 pub const SECOND_MARKER_GLYPH: u32 = 0x77;
 
-pub const LOWER_LEFT_SHOWN_RVA: usize = rva(0x75ACA8); // dword_75ACA8
-pub const LOWER_LEFT_EDITED_RVA: usize = rva(0x75ACAC); // dword_75ACAC
-pub const LOWER_RIGHT_SHOWN_RVA: usize = rva(0x75ACB4); // dword_75ACB4
-pub const LOWER_RIGHT_EDITED_RVA: usize = rva(0x75ACB8); // dword_75ACB8
+pub const LOWER_LEFT_CHOSEN_RVA: usize = rva(0x75ACA8); // dword_75ACA8
+pub const LOWER_LEFT_INSTALLED_RVA: usize = rva(0x75ACAC); // dword_75ACAC
+pub const LOWER_RIGHT_CHOSEN_RVA: usize = rva(0x75ACB4); // dword_75ACB4
+pub const LOWER_RIGHT_INSTALLED_RVA: usize = rva(0x75ACB8); // dword_75ACB8
 
 /// One of the six functions.
 #[derive(Clone, Copy)]
 pub enum Marker {
     /// Always drawn, at the percentage in a variable (glyph 0x77).
     Always { x: i32, percent_rva: usize },
-    /// Glyph 0x76 on a lower bar, at `shown`. While its item is being edited it blinks.
-    /// Otherwise it is drawn if `shown` differs from `edited`, or if the item's flag in the
-    /// repair flag table is 1.
+    /// Glyph 0x76 on a lower bar, at the chosen value. While its item is being edited it
+    /// blinks. Otherwise it is drawn if the chosen value differs from the installed one, or
+    /// if the item's flag in the repair flag table is 1.
     Lower {
         item: u32,
         x: i32,
-        shown_rva: usize,
-        edited_rva: usize,
+        chosen_rva: usize,
+        installed_rva: usize,
     },
     /// Glyph 0x76 on an upper bar, at the percentage in a field of the car object in edi.
     /// While its item is being edited it blinks.
@@ -100,23 +102,23 @@ pub unsafe fn draw_marker(
             Marker::Lower {
                 item,
                 x,
-                shown_rva,
-                edited_rva,
+                chosen_rva,
+                installed_rva,
             } => {
-                let shown: i32 = game_read(shown_rva);
+                let chosen: i32 = game_read(chosen_rva);
                 let mut left = Left::nothing();
                 if edit_mode() && menu_item() == item {
                     if !blink_on() {
                         return Ok(left.with(EAX, item));
                     }
-                } else if game_read::<i32>(edited_rva) == shown {
+                } else if game_read::<i32>(installed_rva) == chosen {
                     // The flag's address stays in esi whether the marker is drawn or not.
                     left = left.with(ESI, repair_flag_addr(item));
                     if repair_flag(item) != 1 {
                         return Ok(left.with(EAX, item));
                     }
                 }
-                place(canvas, r.ebx, (x, LOWER_Y, MARKER_GLYPH), shown, left)
+                place(canvas, r.ebx, (x, LOWER_Y, MARKER_GLYPH), chosen, left)
             }
             Marker::Upper {
                 item,
@@ -186,10 +188,10 @@ pub fn check_marker(t: &mut SelfTest, call_original: CallOriginal, marker: Marke
         Marker::Always { percent_rva, .. } => (0x12, vec![percent_rva]),
         Marker::Lower {
             item,
-            shown_rva,
-            edited_rva,
+            chosen_rva,
+            installed_rva,
             ..
-        } => (item, vec![shown_rva, edited_rva]),
+        } => (item, vec![chosen_rva, installed_rva]),
         Marker::Upper { item, .. } => (item, vec![]),
     };
     let saved_bar = Bar::read();

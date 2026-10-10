@@ -61,7 +61,7 @@ impl Left {
         self.regs.iter().fold(0, |mask, &(reg, _)| mask | reg)
     }
 
-    fn apply(&self, r: &mut Regs) {
+    pub fn apply(&self, r: &mut Regs) {
         for &(reg, value) in &self.regs {
             *field(r, reg) = value;
         }
@@ -72,7 +72,7 @@ impl Left {
     }
 
     /// True if `after` is what this says, starting from `before`.
-    fn matches(&self, before: &Regs, after: &Regs) -> bool {
+    pub fn matches(&self, before: &Regs, after: &Regs) -> bool {
         let mut copy = *after;
         self.regs
             .iter()
