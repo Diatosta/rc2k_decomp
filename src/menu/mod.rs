@@ -3,9 +3,12 @@
 use crate::framework::GameHook;
 
 pub mod add_text_length;
+pub mod backspace_savegame_name;
 pub mod backup_text;
 pub mod clear_text;
+pub mod edit_replay_name;
 pub mod go_back;
+pub mod name_lists;
 pub mod restore_text;
 pub mod text_entry;
 
@@ -15,4 +18,6 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &restore_text::HOOK,
     &clear_text::HOOK,
     &add_text_length::HOOK,
+    &backspace_savegame_name::HOOK,
+    &edit_replay_name::HOOK,
 ];

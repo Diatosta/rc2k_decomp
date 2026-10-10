@@ -7,13 +7,16 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 pub mod draw_brake_balance_marker;
 pub mod draw_inspection_status;
+pub mod draw_load_setup_list;
 pub mod draw_repair_times;
 pub mod draw_ride_height_installed_marker;
 pub mod draw_ride_height_marker;
+pub mod draw_save_setup_list;
 pub mod draw_selected_stage_menu;
 pub mod draw_service_area;
 pub mod draw_service_stage_info;
 pub mod draw_service_time;
+pub mod draw_setup_slot_names;
 pub mod draw_stage_heading;
 pub mod draw_stage_info;
 pub mod draw_stage_records;
@@ -42,6 +45,9 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &draw_ride_height_installed_marker::HOOK,
     &draw_suspension_stiffness_installed_marker::HOOK,
     &draw_service_area::HOOK,
+    &draw_setup_slot_names::HOOK,
+    &draw_save_setup_list::HOOK,
+    &draw_load_setup_list::HOOK,
 ];
 
 /// Console switch `blank on [prefix]` / `blank off`, kept for every hook in this module: a

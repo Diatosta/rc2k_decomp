@@ -365,6 +365,50 @@ impl Drop for GamePaused {
     }
 }
 
+/// Calls game code at `addr` with the registers in `regs`, and stores the registers and flags
+/// it returns with back into `regs`: `call_original` for any address. For Rust versions that
+/// have to call a game function that is not ported yet, and for self-tests that run a copy of
+/// an original. `esp` in `regs` is ignored.
+#[unsafe(naked)]
+pub unsafe extern "C" fn call_game(_regs: *mut Regs, _addr: usize) {
+    core::arch::naked_asm!(
+        "push ebx", "push esi", "push edi", "push ebp",
+        "mov eax, [esp + 20]",           // eax = regs
+        "push eax",                      // remember regs across the call
+        "mov ecx, [eax + {o_ecx}]",
+        "mov edx, [eax + {o_edx}]",
+        "mov ebx, [eax + {o_ebx}]",
+        "mov esi, [eax + {o_esi}]",
+        "mov edi, [eax + {o_edi}]",
+        "mov ebp, [eax + {o_ebp}]",
+        "mov eax, [eax + {o_eax}]",
+        "call dword ptr [esp + 28]",     // addr
+        "pushfd",                        // the flags it returned with
+        "cld",
+        "push eax",
+        "mov eax, [esp + 8]",            // eax = regs again
+        "mov [eax + {o_ecx}], ecx",
+        "mov [eax + {o_edx}], edx",
+        "mov [eax + {o_ebx}], ebx",
+        "mov [eax + {o_esi}], esi",
+        "mov [eax + {o_edi}], edi",
+        "mov [eax + {o_ebp}], ebp",
+        "pop dword ptr [eax + {o_eax}]",
+        "pop dword ptr [eax + {o_eflags}]",
+        "add esp, 4",
+        "pop ebp", "pop edi", "pop esi", "pop ebx",
+        "ret",
+        o_eax = const core::mem::offset_of!(Regs, eax),
+        o_eflags = const core::mem::offset_of!(Regs, eflags),
+        o_ecx = const core::mem::offset_of!(Regs, ecx),
+        o_edx = const core::mem::offset_of!(Regs, edx),
+        o_ebx = const core::mem::offset_of!(Regs, ebx),
+        o_esi = const core::mem::offset_of!(Regs, esi),
+        o_edi = const core::mem::offset_of!(Regs, edi),
+        o_ebp = const core::mem::offset_of!(Regs, ebp),
+    )
+}
+
 pub fn game_addr(rva: usize) -> usize {
     BASE.load(Ordering::Relaxed) + rva
 }

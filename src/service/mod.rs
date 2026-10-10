@@ -2,7 +2,9 @@
 
 use crate::framework::GameHook;
 
+pub mod apply_repairs;
 pub mod backspace_setup_name;
+pub mod begin_setup_name;
 pub mod choose_repair;
 pub mod choose_repair_marked;
 pub mod clear_repair_flags;
@@ -18,8 +20,10 @@ pub mod handle_edit_keys;
 pub mod harness;
 pub mod load_setup_slot;
 pub mod load_setup_values;
+pub mod next_setup_page;
 pub mod pages;
 pub mod read_setup_slot;
+pub mod reset_tyre_wear;
 pub mod setup_values;
 pub mod state;
 pub mod step_brake_balance_down;
@@ -78,4 +82,8 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &write_setup_slot::HOOK,
     &backspace_setup_name::HOOK,
     &edit_setup_name::HOOK,
+    &begin_setup_name::HOOK,
+    &next_setup_page::HOOK,
+    &reset_tyre_wear::HOOK,
+    &apply_repairs::HOOK,
 ];
