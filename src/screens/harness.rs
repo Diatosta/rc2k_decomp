@@ -122,15 +122,18 @@ pub fn dispatch_draw(
             Ok(left) => left.apply(r),
             // The original, run from the start, redraws the same things and meets the same
             // error.
-            Err(_) => unsafe { call_original(r) },
+            Err(e) => unsafe { crate::fatal::raise::refused(hook, e, r, call_original) },
         }
         return;
     }
 
     let mut canvas = RecordingCanvas::new(true);
-    let Ok(left) = rust(r, &mut canvas) else {
-        unsafe { call_original(r) };
-        return;
+    let left = match rust(r, &mut canvas) {
+        Ok(value) => value,
+        Err(e) => {
+            unsafe { crate::fatal::raise::refused(hook, e, r, call_original) };
+            return;
+        }
     };
     let state_r = state();
 

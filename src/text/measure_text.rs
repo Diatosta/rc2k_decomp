@@ -99,16 +99,19 @@ extern "C" fn dispatch(r: &mut Regs) {
                 r.set_zero(!m.outcome.too_wide);
             }
             // The blitter met a fatal error: the original, run from the start, meets it too.
-            Err(_) => unsafe { call_original(r) },
+            Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
         }
         return;
     }
 
     let mut predicted = unsafe { font.read_unaligned() };
     let mut canvas = RecordingCanvas::new(true);
-    let Ok(mine) = (unsafe { measure_text(&mut predicted, text, x, &mut canvas) }) else {
-        unsafe { call_original(r) };
-        return;
+    let mine = match unsafe { measure_text(&mut predicted, text, x, &mut canvas) } {
+        Ok(value) => value,
+        Err(e) => {
+            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
+            return;
+        }
     };
     let mut o = *r;
     let calls = record_calls(false, || unsafe { call_original(&mut o) });

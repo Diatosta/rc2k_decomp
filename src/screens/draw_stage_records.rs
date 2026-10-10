@@ -217,7 +217,7 @@ extern "C" fn dispatch(r: &mut Regs) {
             }
             // The original, run from the start, redraws the same things and meets the same
             // error.
-            Err(_) => unsafe { call_original(r) },
+            Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
         }
         return;
     }
@@ -225,9 +225,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     // Shadow: Rust goes through the motions in the line buffer and lists its blitter calls;
     // the original then does it again and really draws.
     let mut canvas = RecordingCanvas::new(true);
-    let Ok(too_wide) = (unsafe { draw_stage_records(entry, &mut canvas) }) else {
-        unsafe { call_original(r) };
-        return;
+    let too_wide = match unsafe { draw_stage_records(entry, &mut canvas) } {
+        Ok(value) => value,
+        Err(e) => {
+            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
+            return;
+        }
     };
     let area_r = unsafe { line_area() };
 

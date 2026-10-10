@@ -1,9 +1,10 @@
-//! How a Rust version says "not here": the two reasons a hook hands a call back to the
-//! original code. A build that runs without the game needs an answer for every use of these.
+//! How a Rust version says "not here". A fatal error is raised from Rust
+//! (`fatal::raise::refused`); a refused input is handed back to the original code, and a
+//! build that runs without the game needs an answer for every one of those.
 
 /// A condition the original reports through its fatal-error reporter at 0x40763C: it stores
 /// `code` in 0x4F52A4 and a pointer to `message` (or null) in 0x4F52A8, then jumps there.
-/// The reporter is not ported yet, so a hook lets the original take that path.
+/// A hook raises it through `fatal::raise`, which ends the game with the report.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FatalError {
     pub code: u32,

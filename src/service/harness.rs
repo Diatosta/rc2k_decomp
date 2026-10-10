@@ -51,16 +51,19 @@ pub fn dispatch_state(
     if !shadow() {
         match rust(r) {
             Ok(left) => left.apply(r),
-            Err(_) => unsafe { call_original(r) },
+            Err(e) => unsafe { crate::fatal::raise::refused(hook, e, r, call_original) },
         }
         return;
     }
 
     let before = capture(regions);
-    let Ok(left) = rust(r) else {
-        restore(regions, &before);
-        unsafe { call_original(r) };
-        return;
+    let left = match rust(r) {
+        Ok(left) => left,
+        Err(e) => {
+            restore(regions, &before);
+            unsafe { crate::fatal::raise::refused(hook, e, r, call_original) };
+            return;
+        }
     };
     let mine = capture(regions);
     restore(regions, &before);
@@ -113,6 +116,15 @@ pub fn dispatch_keyed_state(
     let mine = capture(regions);
     restore(regions, &theirs);
 
+    // The original has come back, so it met no fatal error.
+    if let Err(crate::errors::Refused::Fatal(error)) = result {
+        hook.mismatch(|| {
+            format!(
+                "the Rust version reported fatal error {:#x} {:?}; the original returned",
+                error.code, error.message
+            )
+        });
+    }
     if let Ok(left) = result
         && (theirs != mine || !left.matches(r, &o))
     {
@@ -155,6 +167,15 @@ pub fn dispatch_replayed_state(
     let mine = capture(regions);
     restore(regions, &theirs);
 
+    // The original has come back, so it met no fatal error.
+    if let Err(crate::errors::Refused::Fatal(error)) = result {
+        hook.mismatch(|| {
+            format!(
+                "the Rust version reported fatal error {:#x} {:?}; the original returned",
+                error.code, error.message
+            )
+        });
+    }
     if let Ok(left) = result
         && (theirs != mine || !left.matches(r, &o))
     {

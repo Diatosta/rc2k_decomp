@@ -43,12 +43,12 @@ hook_asm!(
 
 // ---- game data ----
 
-const LOG_LEVEL_RVA: usize = rva(0x4E0098); // g_logLevel
+pub const LOG_LEVEL_RVA: usize = rva(0x4E0098); // g_logLevel
 const LOG_LOCK_RVA: usize = rva(0x4E009C); // g_logLock
-const LOG_INDENT_RVA: usize = rva(0x4E00A0); // g_logIndent
-const LOG_LINE_START_RVA: usize = rva(0x4E00A4); // g_logAtLineStart: 1 after a CRLF-terminated line
+pub const LOG_INDENT_RVA: usize = rva(0x4E00A0); // g_logIndent
+pub const LOG_LINE_START_RVA: usize = rva(0x4E00A4); // g_logAtLineStart: 1 after a CRLF-terminated line
 const LAST_FILE_PATH_RVA: usize = rva(0x4F52B0); // g_lastFilePath
-const LINE_BUF_RVA: usize = rva(0x93E080);
+pub const LINE_BUF_RVA: usize = rva(0x93E080);
 const LINE_LIMIT: usize = 0x93E42C - 0x93E080; // bytes are stored while len <= this
 // File mode table: 16-byte stride, the log uses mode 4 (offset 0x40).
 const MODE_ACCESS_RVA: usize = rva(0x4E06EA) + 0x40;
@@ -57,7 +57,7 @@ const MODE_SHARE_RVA: usize = rva(0x4E06F2) + 0x40;
 
 static LOG_PATH: &[u8] = b"var\\logfile.txt\0"; // starts with "var\": resolve_path returns it unchanged
 
-fn lock() -> &'static AtomicU32 {
+pub fn lock() -> &'static AtomicU32 {
     unsafe { &*game_ptr::<AtomicU32>(LOG_LOCK_RVA) }
 }
 
@@ -162,7 +162,7 @@ pub unsafe fn write_line(msg: *const u8, newline: bool, level_m1: u8) -> Option<
 // ---- hook ----
 
 /// `write_line` with the original's registers in and out.
-unsafe fn write_line_regs(r: &mut Regs) {
+pub unsafe fn write_line_regs(r: &mut Regs) {
     let (newline, level_m1) = (r.edx as u8, (r.edx >> 8) as u8);
     r.edx = newline as u32;
     match unsafe { write_line(r.eax as *const u8, newline != 0, level_m1) } {
@@ -192,17 +192,17 @@ unsafe fn original_regs(r: &mut Regs) {
 }
 
 /// Takes the lock the way `log_lock_acquire` does.
-fn acquire() {
+pub fn acquire() {
     while lock().swap(1, Ordering::Acquire) != 0 {
         unsafe { Sleep(1) }
     }
 }
-fn file_len() -> u64 {
+pub fn file_len() -> u64 {
     std::fs::metadata("var\\logfile.txt")
         .map(|m| m.len())
         .unwrap_or(0)
 }
-fn file_bytes(start: u64, max: usize) -> Vec<u8> {
+pub fn file_bytes(start: u64, max: usize) -> Vec<u8> {
     let Ok(mut f) = std::fs::File::open("var\\logfile.txt") else {
         return Vec::new();
     };

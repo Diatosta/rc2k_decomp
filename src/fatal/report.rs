@@ -22,7 +22,8 @@
 //! The thunk is written by hand: the function is entered by a jump and may leave by one. It
 //! reserves a stack slot that `dispatch` fills with where to go, and ends in a `ret` through
 //! that slot: a stub that returns, the game's exit path, a thread routine, or the original.
-//! The log entry points and `request_quit` are not ported and are called with `call_game`.
+//! Everything it calls is ported; only its two ways out of a fatal error are jumps into
+//! original code.
 //! Refuses (the original then runs): a text that does not fit `Text`.
 //! Shadow mode cannot run both: the original runs, and what the Rust version would have
 //! written is put in hook.log beforehand, to compare with the game's log by eye. The
@@ -42,6 +43,7 @@ use crate::strings::bin_append::bin_append;
 use crate::strings::hex_append::hex_append;
 use crate::strings::utils::bytes_str;
 use crate::threading::find_thread_slot::find_thread_slot;
+use crate::threading::request_quit::request_quit;
 use std::ffi::{CStr, c_char};
 use std::sync::atomic::{AtomicU8, AtomicU32, AtomicUsize, Ordering};
 
@@ -296,15 +298,17 @@ extern "C" fn dispatch(r: &mut Regs) {
     let target = if shadow() {
         let text = unsafe { text_from_game(&context) };
         log(&format!(
-            "fatal::report: the original runs; the Rust version would write: {}",
-            bytes_str(&text)
+            "fatal::report: the original runs; the Rust version would write: {:?}",
+            String::from_utf8_lossy(&text)
         ));
         original
     } else {
         let mut outside = Outside {
             log: &mut |text| unsafe { log_l1(text, true) },
+            // If no shutdown thread can be created there is nothing more to report: a report
+            // is being made already, and the way out below ends the game anyway.
             quit: &mut || unsafe {
-                call_game(&mut Regs::default(), game_addr(QUIT_RVA));
+                let _ = request_quit();
             },
             thread_slot: &|| unsafe { find_thread_slot() as u32 },
         };
@@ -322,6 +326,11 @@ extern "C" fn dispatch(r: &mut Regs) {
             Err(_) => original,
         }
     };
+    if !shadow() {
+        log(&format!(
+            "fatal::report: the Rust version ran and continues at {target:#x} (the original reporter is at {original:#x})"
+        ));
+    }
     // The slot the thunk reserved sits right above the saved registers and flags.
     unsafe { (r as *mut Regs as *mut u32).add(9).write(target) };
 }

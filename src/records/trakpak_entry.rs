@@ -92,9 +92,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     };
     let loaded = loaded_pack_id();
 
-    let Ok(mine) = trakpak_entry(game_addr(HEADER_RVA) as u32, index, pack_id, loaded) else {
-        unsafe { call_original(r) };
-        return;
+    let mine = match trakpak_entry(game_addr(HEADER_RVA) as u32, index, pack_id, loaded) {
+        Ok(value) => value,
+        Err(e) => {
+            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
+            return;
+        }
     };
 
     if !shadow() {

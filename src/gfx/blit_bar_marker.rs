@@ -56,9 +56,9 @@ extern "C" fn dispatch(r: &mut Regs) {
         // The bar's x is only changed once the length is known to be valid, so on an error
         // the original still starts from the same globals.
         let before = Bar::read();
-        if unsafe { blit_bar_marker(r.ebx, &mut on_surface) }.is_err() {
+        if let Err(e) = unsafe { blit_bar_marker(r.ebx, &mut on_surface) } {
             before.write();
-            unsafe { call_original(r) };
+            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
         }
         return;
     }
@@ -69,8 +69,8 @@ extern "C" fn dispatch(r: &mut Regs) {
     let predicted = unsafe { blit_bar_marker(r.ebx, &mut checked_list(&mut mine)) };
     let x_r = Bar::read().x;
     before.write();
-    if predicted.is_err() {
-        unsafe { call_original(r) };
+    if let Err(e) = predicted {
+        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
         return;
     }
 

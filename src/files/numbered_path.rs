@@ -94,9 +94,12 @@ unsafe fn cstr<'a>(ptr: *const u8) -> &'a [u8] {
 extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
     let template = unsafe { cstr(r.eax as *const u8) };
-    let Ok(mine) = numbered_path(template, r.ebx) else {
-        unsafe { call_original(r) };
-        return;
+    let mine = match numbered_path(template, r.ebx) {
+        Ok(value) => value,
+        Err(e) => {
+            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
+            return;
+        }
     };
 
     if !shadow() {

@@ -166,15 +166,15 @@ extern "C" fn dispatch(r: &mut Regs) {
 
     if !shadow() {
         // A fatal error: the original, run from the start, meets the same one.
-        if unsafe { blit_bar(&mut on_surface) }.is_err() {
-            unsafe { call_original(r) };
+        if let Err(e) = unsafe { blit_bar(&mut on_surface) } {
+            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
         }
         return;
     }
 
     let mut mine = Vec::new();
-    if unsafe { blit_bar(&mut checked_list(&mut mine)) }.is_err() {
-        unsafe { call_original(r) };
+    if let Err(e) = unsafe { blit_bar(&mut checked_list(&mut mine)) } {
+        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
         return;
     }
     let (bar, clip_before) = (Bar::read(), clip().right);

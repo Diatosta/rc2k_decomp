@@ -4,8 +4,7 @@
 //!
 //! In:  nothing
 //! Out: every register preserved
-//! It writes "Backed up name=<the name>" to the game's log, through the original's unported
-//! log entry points (`call_game`). In six menu tables. Refuses a name past the list.
+//! It writes "Backed up name=<the name>" to the game's log (`logfile::log_write`). In six menu tables. Refuses a name past the list.
 //! Shadow mode runs the original first and then the Rust version without the log lines, so
 //! that nothing is logged twice. The self-test runs without pausing the game: the original
 //! logs (as does the Rust version there, so each test line appears twice in the game's log),

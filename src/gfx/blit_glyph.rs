@@ -694,9 +694,12 @@ extern "C" fn dispatch(r: &mut Regs) {
         return;
     }
 
-    let Ok(record) = (unsafe { glyph_record(&surface, table, glyph) }) else {
-        unsafe { call_original(r) };
-        return;
+    let record = match unsafe { glyph_record(&surface, table, glyph) } {
+        Ok(value) => value,
+        Err(e) => {
+            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
+            return;
+        }
     };
     let (x, y, palette) = (r.ecx as i32, r.edx as i32, r.ebx as *const u32);
     let clip = clip();

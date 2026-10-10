@@ -101,7 +101,7 @@ extern "C" fn dispatch(r: &mut Regs) {
             }
             // Refused text, or a fatal error in the blitter. Running the original from the
             // start is safe: it rebuilds the same text and redraws the same glyphs.
-            Err(_) => unsafe { call_original(r) },
+            Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
         }
         return;
     }
@@ -110,11 +110,14 @@ extern "C" fn dispatch(r: &mut Regs) {
     let mut private = vec![0u8; TEXT_LEN];
     let mut font_r = unsafe { font.read_unaligned() };
     let mut canvas = RecordingCanvas::new(true);
-    let Ok(out) =
-        (unsafe { draw_string_by_id(id, &mut font_r, x, y, private.as_mut_ptr(), &mut canvas) })
-    else {
-        unsafe { call_original(r) };
-        return;
+    let out = match unsafe {
+        draw_string_by_id(id, &mut font_r, x, y, private.as_mut_ptr(), &mut canvas)
+    } {
+        Ok(value) => value,
+        Err(e) => {
+            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
+            return;
+        }
     };
     let len = private.iter().position(|&b| b == 0).map_or(0, |n| n + 1);
 

@@ -387,14 +387,17 @@ extern "C" fn dispatch(r: &mut Regs) {
             }
             // The blitter met a fatal error. Running the original from the start is safe:
             // it redraws the same glyphs and resets the kerning table itself.
-            Err(_) => unsafe { call_original(r) },
+            Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
         }
         return;
     }
 
-    let Ok(mine) = (unsafe { Prediction::new(font, text, x, y, true) }) else {
-        unsafe { call_original(r) };
-        return;
+    let mine = match unsafe { Prediction::new(font, text, x, y, true) } {
+        Ok(value) => value,
+        Err(e) => {
+            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
+            return;
+        }
     };
     let mut o = *r;
     let calls = record_calls(false, || unsafe { call_original(&mut o) });

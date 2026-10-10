@@ -89,8 +89,8 @@ extern "C" fn dispatch(r: &mut Regs) {
 
     if !shadow() {
         // A fatal error in the blitter: the original, run from the start, meets the same one.
-        if unsafe { blit_marker_pair(object, palette) }.is_err() {
-            unsafe { call_original(r) };
+        if let Err(e) = unsafe { blit_marker_pair(object, palette) } {
+            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
         }
         return;
     }
@@ -98,11 +98,11 @@ extern "C" fn dispatch(r: &mut Regs) {
     let table = sprite_table();
     let mine = unsafe { marker_calls(object, palette, table) };
     let surface = surface();
-    if mine
+    if let Some(e) = mine
         .iter()
-        .any(|c| unsafe { glyph_record(&surface, c.table as *const u8, c.glyph) }.is_err())
+        .find_map(|c| unsafe { glyph_record(&surface, c.table as *const u8, c.glyph) }.err())
     {
-        unsafe { call_original(r) };
+        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
         return;
     }
 

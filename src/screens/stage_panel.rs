@@ -425,7 +425,7 @@ pub fn dispatch_panel(
             }
             // The original, run from the start, redraws the same things and meets the same
             // error.
-            Err(_) => unsafe { call_original(r) },
+            Err(e) => unsafe { crate::fatal::raise::refused(hook, e, r, call_original) },
         }
         return;
     }
@@ -433,9 +433,12 @@ pub fn dispatch_panel(
     // Shadow: Rust goes through the motions without drawing; the original then does it all
     // again and really draws.
     let mut canvas = RecordingCanvas::new(true);
-    let Ok(too_wide) = rust(&mut canvas) else {
-        unsafe { call_original(r) };
-        return;
+    let too_wide = match rust(&mut canvas) {
+        Ok(value) => value,
+        Err(e) => {
+            unsafe { crate::fatal::raise::refused(hook, e, r, call_original) };
+            return;
+        }
     };
     let left_r = unsafe { Leftovers::read() };
 

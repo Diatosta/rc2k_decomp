@@ -71,7 +71,7 @@ fn apply(pat: &str, on: bool, enabled: &mut [bool], out: &mut impl Write) {
 
 fn console_loop(input: File, mut out: File, mut enabled: Vec<bool>) {
     log(
-        "commands: list | on <name|prefix|all> | off <name|prefix|all> | shadow on|off | trace on|off | blank on|off [prefix] | stats | reload | selftest",
+        "commands: list | on <name|prefix|all> | off <name|prefix|all> | shadow on|off | trace on|off | blank on|off [prefix] | stats | reload | selftest | fatal",
     );
 
     for line in BufReader::new(input).lines().map_while(Result::ok) {
@@ -128,6 +128,12 @@ fn console_loop(input: File, mut out: File, mut enabled: Vec<bool>) {
                 log(&format!(
                     "blank = {v} for hooks starting with {prefix} (they draw nothing while on)"
                 ));
+            }
+            ["fatal"] => {
+                fatal::raise::arm_test();
+                log(
+                    "fatal test armed: the next key poll raises a test error and the game ends (shadow on: the original reporter runs; shadow off: the Rust one)",
+                );
             }
             ["trace", v] => {
                 TRACE.store(*v == "on", Ordering::Relaxed);

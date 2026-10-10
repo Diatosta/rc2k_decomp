@@ -96,7 +96,7 @@ extern "C" fn dispatch(r: &mut Regs) {
             }
             // A fatal error in the blitter. The original, run from the start, redraws the
             // same characters.
-            Err(_) => unsafe { call_original(r) },
+            Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
         }
         return;
     }
@@ -104,10 +104,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     // Shadow: Rust lists its blitter calls and builds the same cell the original will.
     let mut font_r = unsafe { font.read_unaligned() };
     let mut canvas = RecordingCanvas::new(true);
-    let Ok(too_wide) = (unsafe { draw_time_fixed_pitch(&mut font_r, text, x, y, &mut canvas) })
-    else {
-        unsafe { call_original(r) };
-        return;
+    let too_wide = match unsafe { draw_time_fixed_pitch(&mut font_r, text, x, y, &mut canvas) } {
+        Ok(value) => value,
+        Err(e) => {
+            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
+            return;
+        }
     };
     let cell_r = unsafe { [*text.add(CELL_OFFSET), *text.add(CELL_OFFSET + 1)] };
 

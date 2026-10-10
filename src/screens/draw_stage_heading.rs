@@ -104,7 +104,7 @@ extern "C" fn dispatch(r: &mut Regs) {
             }
             // A fatal error in the lookup or the blitter: the original, run from the start,
             // rebuilds the line and meets the same error.
-            Err(_) => unsafe { call_original(r) },
+            Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
         }
         return;
     }
@@ -112,9 +112,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     // Shadow: Rust builds the line and lists its blitter calls; the original then builds the
     // line again and really draws.
     let mut canvas = RecordingCanvas::new(true);
-    let Ok(too_wide) = (unsafe { draw_stage_heading(record, &mut canvas) }) else {
-        unsafe { call_original(r) };
-        return;
+    let too_wide = match unsafe { draw_stage_heading(record, &mut canvas) } {
+        Ok(value) => value,
+        Err(e) => {
+            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
+            return;
+        }
     };
     let line_r = unsafe { line_bytes() };
 

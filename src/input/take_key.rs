@@ -81,6 +81,8 @@ pub fn notes_taken_keys() -> bool {
 
 extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
+    // The console command `fatal` uses this hook to get onto the game's own thread.
+    crate::fatal::raise::raise_test_if_armed(r);
     if shadow() {
         unsafe { call_original(r) };
         LAST_TAKEN.set(Some(r.eax as u8));

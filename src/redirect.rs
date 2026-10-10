@@ -61,6 +61,12 @@ impl RedirectedCopy {
         }
     }
 
+    /// Replaces four bytes of the copy: the address operand of an instruction that reads or
+    /// writes a game variable, to point it at a test variable instead.
+    pub unsafe fn patch_u32(&self, offset: usize, value: u32) {
+        unsafe { (self.0.add(offset) as *mut u32).write_unaligned(value) };
+    }
+
     pub fn addr(&self) -> usize {
         self.0 as usize
     }
