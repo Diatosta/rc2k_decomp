@@ -104,6 +104,8 @@ fn console_loop(input: File, mut out: File, mut enabled: Vec<bool>) {
             }
             ["selftest"] => {
                 for h in ALL.iter() {
+                    // Game threads stay out of hooked functions while a test runs.
+                    let _paused = h.self_test_pauses_game().then(framework::pause_game);
                     if let Some((cases, bad)) = h.self_test() {
                         log(&format!("{:<30} cases={cases} failures={bad}", h.name()));
                     }

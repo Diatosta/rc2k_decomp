@@ -1,15 +1,19 @@
-//! `screens::draw_selected_stage` (0x487011): the stage panel for the stage the game has
-//! selected, with three lines above it: the group's title, the table's title and a heading
-//! built with string 0x482.
+//! `screens::draw_time_trial_stage_info` (0x487011): the stage panel opened from the service
+//! area of a time trial. It works from the stage the game has selected and draws three lines
+//! above the panel: the group's title, the table's title and a heading built with string
+//! 0x482.
 //!
 //! In:  nothing in registers; it works from the selection (`draw_stage_records::selection`)
 //! Out: carry as `draw_stage_records` leaves it, or clear if the record rows are skipped;
 //!      every register preserved
-//! Reached through the draw list at 0x758CFE of the screen loop `sub_48F1F4`, which the menu
-//! action `sub_47037E` starts when the event type `dword_755954` is 3. That action is the last
-//! of 22 items (all at 747, 551) of the menu at 0x74D24C, on the screen `sub_47284A`. So by the
-//! code this is "show the stage information" from that screen in an event of type 3. Not seen
-//! in the game, so the name is provisional.
+//! Reached through the draw list at 0x758CFE of the screen loop `sub_48F1F4`, which the
+//! service area's "stage details" action `sub_47037E` starts when the event type
+//! `dword_755954` is 3 (a time trial); in the other event types that action opens
+//! `draw_service_stage_info`.
+//!
+//! Screen: confirmed by the owner on 2026-10-10 with `blank on` for this hook: the stage
+//! details opened from the service area of a time trial. Named `draw_selected_stage` until
+//! then.
 //!
 //! The record rows come from one of two best-time tables and are skipped while a table is
 //! missing (see `stage_panel::draw_records_for_group`).
@@ -30,7 +34,7 @@ use std::sync::atomic::AtomicUsize;
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
 pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_selected_stage",
+    "screens::draw_time_trial_stage_info",
     rva(0x487011),
     thunk,
     &ORIGINAL,
@@ -56,7 +60,7 @@ const HEADING_Y: i32 = 0xB1;
 // ---- Rust version ----
 
 /// Returns the carry flag. Refuses a missing selection: the original reads through null.
-pub unsafe fn draw_selected_stage(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub unsafe fn draw_time_trial_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     unsafe {
         let Some(sel) = selection() else {
             return Err(
@@ -97,7 +101,7 @@ pub unsafe fn draw_selected_stage(canvas: &mut dyn Canvas) -> Result<bool, Refus
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_panel(&HOOK, r, call_original, &|canvas| unsafe {
-        draw_selected_stage(canvas)
+        draw_time_trial_stage_info(canvas)
     });
 }
 
@@ -127,7 +131,7 @@ fn self_test() -> (usize, usize) {
         return t.skip(why);
     }
     check_panel(&mut t, call_original, &|canvas| unsafe {
-        draw_selected_stage(canvas)
+        draw_time_trial_stage_info(canvas)
     });
     t.finish()
 }

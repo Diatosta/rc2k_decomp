@@ -1,16 +1,17 @@
-//! `screens::draw_stage_info_alt` (0x480064): the stage panel of `draw_stage_info` with two
-//! differences at the top: the stage heading is drawn only in mode 2 with `dword_755968` at 0,
-//! and a second heading text (string 0x482) is built in its own buffer without being drawn
-//! here.
+//! `screens::draw_service_stage_info` (0x480064): the stage panel opened from the service
+//! area. It is `draw_stage_info`'s panel with two differences at the top: the stage heading
+//! is drawn only in mode 2 with `dword_755968` at 0, and a second heading text (string 0x482)
+//! is built in its own buffer without being drawn here.
 //!
 //! In:  nothing in registers; it works from the section and index of the event's stage
 //! Out: carry as `draw_stage_records` leaves it; every register preserved
 //! Reached through the draw list at 0x758D86 of the screen loop `sub_47FD37`, which the menu
 //! action `sub_47037E` starts when the event type `dword_755954` is not 3. That action is the
-//! last of 22 items (all at 747, 551) of the menu at 0x74D24C, on the screen `sub_47284A`; in
-//! event types 4 and 5 that screen follows the stage details screen. So by the code this is
-//! "show the stage information again" from the screen after `draw_stage_info`'s. Not seen in
-//! the game, so the name is provisional.
+//! last of 22 items (all at 747, 551) of the service area's menu at 0x74D24C.
+//!
+//! Screen: confirmed by the owner on 2026-10-10: the stage details that can be opened from the
+//! service area of a championship, the screen after the first stage details where the car is
+//! set up and repaired before the stage. Named `draw_stage_info_alt` until then.
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, hook_asm, rva};
@@ -28,7 +29,7 @@ use std::sync::atomic::AtomicUsize;
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
 pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_stage_info_alt",
+    "screens::draw_service_stage_info",
     rva(0x480064),
     thunk,
     &ORIGINAL,
@@ -49,7 +50,7 @@ const HEADING_SWITCH_RVA: usize = rva(0x755968); // dword_755968: 0 lets mode 2 
 // ---- Rust version ----
 
 /// Returns the carry flag of `draw_stage_records`.
-pub unsafe fn draw_stage_info_alt(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub unsafe fn draw_service_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     unsafe {
         label(canvas, event_title(), TITLE_FONT, TITLE_X, TITLE_Y)?;
         let (record, section) = event_stage();
@@ -67,7 +68,7 @@ pub unsafe fn draw_stage_info_alt(canvas: &mut dyn Canvas) -> Result<bool, Refus
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_panel(&HOOK, r, call_original, &|canvas| unsafe {
-        draw_stage_info_alt(canvas)
+        draw_service_stage_info(canvas)
     });
 }
 
@@ -81,7 +82,7 @@ fn self_test() -> (usize, usize) {
         return t.skip(why);
     }
     check_panel(&mut t, call_original, &|canvas| unsafe {
-        draw_stage_info_alt(canvas)
+        draw_service_stage_info(canvas)
     });
     t.finish()
 }

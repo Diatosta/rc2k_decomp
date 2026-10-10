@@ -1,5 +1,5 @@
-//! What the four stage panel functions share: `draw_stage_info`, `draw_stage_info_alt`,
-//! `draw_selected_stage` and `draw_selected_stage_menu`. In the original each is a full copy of
+//! What the four stage panel functions share: `draw_stage_info`, `draw_service_stage_info`,
+//! `draw_time_trial_stage_info` and `draw_selected_stage_menu`. In the original each is a full copy of
 //! the same layout; they differ only in where the stage comes from, what goes above the panel
 //! and which best-time table the record rows use.
 
@@ -130,7 +130,7 @@ pub unsafe fn label(
 }
 
 /// Builds the second heading ("<string 0x482> n/6: name") in its own buffer. Three of the
-/// four panels build it; only `draw_selected_stage` also draws it.
+/// four panels build it; only `draw_time_trial_stage_info` also draws it.
 pub unsafe fn build_second_heading(record: u32) -> Result<(), FatalError> {
     unsafe {
         let bytes = heading_text(record as *const u8, SECOND_HEADING_STRING)?;

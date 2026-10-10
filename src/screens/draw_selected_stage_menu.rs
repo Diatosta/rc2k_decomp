@@ -19,8 +19,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_write, hook_asm, rva};
-use crate::screens::draw_selected_stage::{GROUP_TITLES_RVA, selected_stage_unusable};
 use crate::screens::draw_stage_records::selection;
+use crate::screens::draw_time_trial_stage_info::{GROUP_TITLES_RVA, selected_stage_unusable};
 use crate::screens::stage_panel::{
     GROUP_COPY_RVA, body_unavailable, build_second_heading, check_panel, dispatch_panel,
     draw_records_for_group, draw_stage_body, dword, menu_item_id, table_dword,

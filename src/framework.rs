@@ -1,15 +1,16 @@
 use detour::RawDetour;
+use std::cell::Cell;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
 use std::ptr::{copy_nonoverlapping, null, read_unaligned, write_unaligned};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 use std::sync::{Mutex, OnceLock};
 use windows_sys::Win32::System::Diagnostics::Debug::FlushInstructionCache;
 use windows_sys::Win32::System::Memory::{
     MEM_COMMIT, MEM_RESERVE, PAGE_EXECUTE_READWRITE, VirtualAlloc, VirtualProtect,
 };
-use windows_sys::Win32::System::Threading::GetCurrentProcess;
+use windows_sys::Win32::System::Threading::{GetCurrentProcess, GetCurrentThreadId, Sleep};
 
 pub static SHADOW_MODE: AtomicBool = AtomicBool::new(false);
 pub static BASE: AtomicUsize = AtomicUsize::new(0);
@@ -44,6 +45,11 @@ pub trait GameHook: Sync {
     fn self_test(&self) -> Option<(usize, usize)> {
         None
     }
+
+    /// False if the game must keep running while this hook's self-test runs.
+    fn self_test_pauses_game(&self) -> bool {
+        true
+    }
 }
 
 pub struct RawHook {
@@ -58,6 +64,7 @@ pub struct RawHook {
     detour: OnceLock<RawDetour>,
     relocs: &'static [usize],
     manual: bool,
+    unpaused_self_test: bool,
     saved: OnceLock<[u8; 5]>,
 }
 impl RawHook {
@@ -78,6 +85,7 @@ impl RawHook {
             detour: OnceLock::new(),
             relocs: &[],
             manual: false,
+            unpaused_self_test: false,
             saved: OnceLock::new(),
         }
     }
@@ -89,6 +97,13 @@ impl RawHook {
 
     pub const fn self_test(mut self, f: fn() -> (usize, usize)) -> Self {
         self.self_test_fn = Some(f);
+        self
+    }
+
+    /// Runs this hook's self-test without pausing the game. For a hook whose thunk is
+    /// `ungated` because the game enters it holding a lock that the test also needs.
+    pub const fn self_test_unpaused(mut self) -> Self {
+        self.unpaused_self_test = true;
         self
     }
 
@@ -250,6 +265,10 @@ impl GameHook for RawHook {
     fn self_test(&self) -> Option<(usize, usize)> {
         self.self_test_fn.map(|f| f())
     }
+
+    fn self_test_pauses_game(&self) -> bool {
+        !self.unpaused_self_test
+    }
 }
 
 pub struct HookStats {
@@ -267,6 +286,82 @@ impl HookStats {
             calls: AtomicUsize::new(0),
             mismatches: AtomicUsize::new(0),
         }
+    }
+}
+
+// ---- pausing the game while a self-test runs ----
+//
+// Self-tests and the game's own code share game memory (text buffers, the kerning table, work
+// variables), so a test must not run while a game thread is inside a hooked function, and the
+// game must not enter one while a test runs. Every thunk calls `hook_enter` and `hook_leave`.
+// A game thread holds nothing while it is inside a hook: it is only counted, so that
+// `pause_game` can wait for it to come out, and it waits at its next outermost hook entry for
+// as long as a test is running.
+
+/// Thread running a self-test that pauses the game; 0 when there is none.
+static TEST_THREAD: AtomicU32 = AtomicU32::new(0);
+/// Threads that are inside a hook right now.
+static THREADS_IN_HOOKS: AtomicUsize = AtomicUsize::new(0);
+
+thread_local! {
+    /// How many hooks this thread is inside: hooked functions call hooked functions.
+    static HOOK_DEPTH: Cell<u32> = const { Cell::new(0) };
+}
+
+fn other_thread_is_testing() -> bool {
+    let t = TEST_THREAD.load(Ordering::SeqCst);
+    t != 0 && t != unsafe { GetCurrentThreadId() }
+}
+
+/// Called by every gated thunk before `dispatch`.
+pub extern "C" fn hook_enter() {
+    let depth = HOOK_DEPTH.get();
+    HOOK_DEPTH.set(depth + 1);
+    if depth > 0 {
+        return; // already inside a hook: never wait half way through one
+    }
+    loop {
+        while other_thread_is_testing() {
+            unsafe { Sleep(1) };
+        }
+        THREADS_IN_HOOKS.fetch_add(1, Ordering::SeqCst);
+        if !other_thread_is_testing() {
+            return;
+        }
+        // A test started in between: step back out and wait for it.
+        THREADS_IN_HOOKS.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
+/// Called by every gated thunk after `dispatch`.
+pub extern "C" fn hook_leave() {
+    let depth = HOOK_DEPTH.get() - 1;
+    HOOK_DEPTH.set(depth);
+    if depth == 0 {
+        THREADS_IN_HOOKS.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
+/// While this exists, no other thread enters a hooked function.
+pub struct GamePaused(());
+
+/// Keeps game threads out of hooked functions until the result is dropped, after waiting for
+/// those already inside one to come out. The wait is limited: a thread that went into the
+/// fatal-error reporter never comes out.
+pub fn pause_game() -> GamePaused {
+    TEST_THREAD.store(unsafe { GetCurrentThreadId() }, Ordering::SeqCst);
+    for _ in 0..2000 {
+        if THREADS_IN_HOOKS.load(Ordering::SeqCst) == 0 {
+            break;
+        }
+        unsafe { Sleep(1) };
+    }
+    GamePaused(())
+}
+
+impl Drop for GamePaused {
+    fn drop(&mut self) {
+        TEST_THREAD.store(0, Ordering::SeqCst);
     }
 }
 
@@ -437,8 +532,9 @@ impl SelfTest {
 }
 
 macro_rules! hook_asm {
-    ($thunk:ident, $call_original:ident, dispatch = $dispatch:ident, original = $orig:ident
-     $(, epilogue = $epilogue:literal)?) => {
+    // For a hook the game enters while holding a lock its own self-test needs (the log tail):
+    // the thunk does not wait for self-tests. Pair it with `.self_test_unpaused()`.
+    ($thunk:ident, $call_original:ident, dispatch = $dispatch:ident, original = $orig:ident, ungated) => {
         /// Detour target: the game calls this believing it is the original function.
         #[unsafe(naked)]
         pub(crate) unsafe extern "C" fn $thunk() {
@@ -452,12 +548,43 @@ macro_rules! hook_asm {
                 "add esp, 4",
                 "popad",
                 "popfd",               // the caller's flags, or what dispatch set
-                $($epilogue,)?         // e.g. "test esi, esi" when the caller reads ZF
                 "ret",
                 dispatch = sym $dispatch,
             )
         }
 
+        $crate::framework::hook_asm!(@call_original $call_original, $orig);
+    };
+
+    ($thunk:ident, $call_original:ident, dispatch = $dispatch:ident, original = $orig:ident
+     $(, epilogue = $epilogue:literal)?) => {
+        /// Detour target: the game calls this believing it is the original function.
+        #[unsafe(naked)]
+        pub(crate) unsafe extern "C" fn $thunk() {
+            core::arch::naked_asm!(
+                "pushfd",              // Regs.eflags
+                "pushad",
+                "cld",                 // Rust code expects the direction flag clear
+                "call {enter}",        // waits here while a self-test runs
+                "mov eax, esp",
+                "push eax",            // arg: *mut Regs
+                "call {dispatch}",
+                "add esp, 4",
+                "call {leave}",
+                "popad",
+                "popfd",               // the caller's flags, or what dispatch set
+                $($epilogue,)?         // e.g. "test esi, esi" when the caller reads ZF
+                "ret",
+                dispatch = sym $dispatch,
+                enter = sym $crate::framework::hook_enter,
+                leave = sym $crate::framework::hook_leave,
+            )
+        }
+
+        $crate::framework::hook_asm!(@call_original $call_original, $orig);
+    };
+
+    (@call_original $call_original:ident, $orig:ident) => {
         /// Runs the original with the registers in `regs`; stores the resulting registers back.
         #[unsafe(naked)]
         pub(crate) unsafe extern "C" fn $call_original(_regs: *mut $crate::framework::Regs) {

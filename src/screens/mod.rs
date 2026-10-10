@@ -5,20 +5,20 @@ use crate::text::font::Font;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-pub mod draw_selected_stage;
 pub mod draw_selected_stage_menu;
+pub mod draw_service_stage_info;
 pub mod draw_stage_heading;
 pub mod draw_stage_info;
-pub mod draw_stage_info_alt;
 pub mod draw_stage_records;
+pub mod draw_time_trial_stage_info;
 pub mod stage_panel;
 
 pub static HOOKS: &[&dyn GameHook] = &[
     &draw_stage_heading::HOOK,
     &draw_stage_records::HOOK,
     &draw_stage_info::HOOK,
-    &draw_stage_info_alt::HOOK,
-    &draw_selected_stage::HOOK,
+    &draw_service_stage_info::HOOK,
+    &draw_time_trial_stage_info::HOOK,
     &draw_selected_stage_menu::HOOK,
 ];
 
@@ -40,7 +40,7 @@ pub fn set_blank(on: bool, prefix: &str) {
 }
 
 /// True if the hook called `name` is blanked at the moment. A prefix that is itself the full
-/// name of a hook selects only that hook (`screens::draw_selected_stage` is also how
+/// name of a hook selects only that hook (`screens::draw_time_trial_stage_info` is also how
 /// `screens::draw_selected_stage_menu` starts).
 pub fn blanked(name: &str) -> bool {
     BLANK.load(Ordering::Relaxed)
