@@ -1,5 +1,5 @@
 use crate::framework::GameHook;
-use crate::{files, gfx, logfile, math, records, screens, strings, text, threading};
+use crate::{files, gfx, logfile, math, records, screens, service, strings, text, threading};
 use std::sync::LazyLock;
 
 /// Whenever a hook module is registered, it is added to this list.
@@ -12,6 +12,7 @@ pub static ALL: LazyLock<Vec<&'static dyn GameHook>> = LazyLock::new(|| {
         text::HOOKS,
         gfx::HOOKS,
         screens::HOOKS,
+        service::HOOKS,
         files::HOOKS,
         logfile::HOOKS,
     ]

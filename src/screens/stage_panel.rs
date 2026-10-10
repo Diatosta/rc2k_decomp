@@ -366,13 +366,7 @@ impl Leftovers {
             game_write(FINISH_RVA, self.finish);
             game_write(ENTRY_34_RVA, self.entry_34);
             game_write(GROUP_COPY_RVA, self.group_copy);
-            set_marker_position(&BlitCall {
-                glyph: 0,
-                x: self.marker.0,
-                y: self.marker.1,
-                palette: 0,
-                table: 0,
-            });
+            set_marker_position(&BlitCall::new(0, self.marker.0, self.marker.1, 0, 0));
             for (n, id) in [(0, self.menu_ids.0), (1, self.menu_ids.1)] {
                 if let Some(at) = menu_item_id(n) {
                     (at as *mut u32).write_unaligned(id);

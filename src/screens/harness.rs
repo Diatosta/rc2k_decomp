@@ -1,0 +1,234 @@
+//! The hook and self-test machinery for functions that draw through the blitter and leave a
+//! few game variables behind: the service area's overlay functions use it. (The four stage
+//! panels have their own, older version of the same idea in `stage_panel.rs`.)
+
+use crate::errors::Refused;
+use crate::framework::{
+    EAX, EBP, EBX, ECX, EDI, EDX, ESI, GameHook, RawHook, Regs, SelfTest, shadow,
+};
+use crate::gfx::blit_glyph::{BlitCall, record_calls, recording_works};
+use crate::screens::blanked;
+use crate::text::draw_text::{Canvas, GameCanvas, Outcome, RecordingCanvas};
+use crate::text::glyph_kerning::state_ptr;
+
+/// `call_original` of a hook.
+pub type CallOriginal = unsafe extern "C" fn(*mut Regs);
+
+/// What a drawing function leaves in the registers and flags. Registers not listed are
+/// preserved.
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct Left {
+    /// The carry flag, where the function's callers could read it.
+    pub carry: Option<bool>,
+    /// (register, value): `EAX` and so on.
+    pub regs: Vec<(u8, u32)>,
+}
+
+impl Left {
+    /// Every register preserved, flags not meaningful.
+    pub fn nothing() -> Self {
+        Self::default()
+    }
+
+    /// Every register preserved, the carry flag as given.
+    pub fn carry(carry: bool) -> Self {
+        Self {
+            carry: Some(carry),
+            regs: Vec::new(),
+        }
+    }
+
+    /// What `draw_text` leaves: carry, eax = 0, ebx, ecx and edx.
+    pub fn of_text(out: &Outcome) -> Self {
+        Self {
+            carry: Some(out.too_wide),
+            regs: vec![
+                (EAX, 0),
+                (EBX, out.text as u32),
+                (ECX, out.x as u32),
+                (EDX, out.y as u32),
+            ],
+        }
+    }
+
+    pub fn with(mut self, reg: u8, value: u32) -> Self {
+        self.regs.retain(|&(r, _)| r != reg);
+        self.regs.push((reg, value));
+        self
+    }
+
+    fn changed(&self) -> u8 {
+        self.regs.iter().fold(0, |mask, &(reg, _)| mask | reg)
+    }
+
+    fn apply(&self, r: &mut Regs) {
+        for &(reg, value) in &self.regs {
+            *field(r, reg) = value;
+        }
+        if let Some(carry) = self.carry {
+            r.set_carry(carry);
+            r.set_zero(!carry);
+        }
+    }
+
+    /// True if `after` is what this says, starting from `before`.
+    fn matches(&self, before: &Regs, after: &Regs) -> bool {
+        let mut copy = *after;
+        self.regs
+            .iter()
+            .all(|&(reg, value)| *field(&mut copy, reg) == value)
+            && after.preserved_except(before, self.changed())
+            && self.carry.is_none_or(|c| after.carry() == c)
+    }
+}
+
+fn field(r: &mut Regs, reg: u8) -> &mut u32 {
+    match reg {
+        EAX => &mut r.eax,
+        ECX => &mut r.ecx,
+        EDX => &mut r.edx,
+        EBX => &mut r.ebx,
+        EBP => &mut r.ebp,
+        ESI => &mut r.esi,
+        EDI => &mut r.edi,
+        _ => unreachable!("not a register"),
+    }
+}
+
+/// The Rust version of a drawing function, as the harness runs it: it gets the registers at
+/// entry and a canvas, and says what it leaves in the registers.
+pub type Draw<'a> = &'a dyn Fn(&Regs, &mut dyn Canvas) -> Result<Left, Refused>;
+
+/// The game variables and buffers a function leaves behind, as bytes, for comparing.
+pub type State<'a> = &'a dyn Fn() -> Vec<u8>;
+
+/// The whole `dispatch` of such a hook: `blank`, the Rust version when shadow is off, and the
+/// shadow comparison. In shadow mode the Rust version runs first without drawing, so it must
+/// be a function whose second run (the original's) starts from the same inputs.
+pub fn dispatch_draw(
+    hook: &RawHook,
+    r: &mut Regs,
+    call_original: CallOriginal,
+    rust: Draw,
+    state: State,
+) {
+    hook.count_call();
+    if blanked(hook.name()) {
+        return;
+    }
+
+    if !shadow() {
+        match rust(r, &mut GameCanvas) {
+            Ok(left) => left.apply(r),
+            // The original, run from the start, redraws the same things and meets the same
+            // error.
+            Err(_) => unsafe { call_original(r) },
+        }
+        return;
+    }
+
+    let mut canvas = RecordingCanvas::new(true);
+    let Ok(left) = rust(r, &mut canvas) else {
+        unsafe { call_original(r) };
+        return;
+    };
+    let state_r = state();
+
+    let mut o = *r;
+    let calls = record_calls(false, || unsafe { call_original(&mut o) });
+    let state_o = state();
+
+    let ok = left.matches(r, &o)
+        && state_o == state_r
+        && unsafe { *state_ptr() } == canvas.state
+        && (!recording_works() || calls == canvas.calls);
+    if !ok {
+        hook.mismatch(|| {
+            format!(
+                "regs_ok={} same_state={} original calls={} rust calls={} first different call={:?}",
+                left.matches(r, &o),
+                state_o == state_r,
+                calls.len(),
+                canvas.calls.len(),
+                first_difference(&calls, &canvas.calls)
+            )
+        });
+    }
+    let esp = r.esp;
+    *r = o;
+    r.esp = esp;
+}
+
+fn first_difference(a: &[BlitCall], b: &[BlitCall]) -> Option<usize> {
+    if a == b {
+        return None;
+    }
+    Some(
+        a.iter()
+            .zip(b)
+            .position(|(x, y)| x != y)
+            .unwrap_or(a.len().min(b.len())),
+    )
+}
+
+/// One self-test case: `prepare` puts the inputs in place, the original runs with the blitter
+/// calls swallowed, `prepare` runs again, the Rust version runs the same way, and the two are
+/// compared. `what` names the case in a failure line.
+pub fn check_draw(
+    t: &mut SelfTest,
+    what: &str,
+    call_original: CallOriginal,
+    before: Regs,
+    prepare: &dyn Fn(),
+    rust: Draw,
+    state: State,
+) {
+    let saved_kerning = unsafe { *state_ptr() };
+
+    prepare();
+    let mut ro = before;
+    let calls_o = record_calls(true, || unsafe { call_original(&mut ro) });
+    let state_o = state();
+    let kerning_o = unsafe { *state_ptr() };
+
+    prepare();
+    let mut canvas = RecordingCanvas::new(false);
+    let mine = rust(&before, &mut canvas);
+    let state_r = state();
+
+    let regs_ok = mine.as_ref().is_ok_and(|left| left.matches(&before, &ro));
+    let ok = regs_ok && state_o == state_r && calls_o == canvas.calls && kerning_o == canvas.state;
+    t.check(ok, || {
+        format!(
+            "{what}: regs_ok={regs_ok} same_state={} same_kerning={} original eax={:#x} ebx={:#x} ecx={:#x} edx={:#x} esi={:#x} edi={:#x} carry={} calls={}; rust {mine:?} calls={} first different call={:?}",
+            state_o == state_r,
+            kerning_o == canvas.state,
+            ro.eax,
+            ro.ebx,
+            ro.ecx,
+            ro.edx,
+            ro.esi,
+            ro.edi,
+            ro.carry(),
+            calls_o.len(),
+            canvas.calls.len(),
+            first_difference(&calls_o, &canvas.calls)
+        )
+    });
+
+    unsafe { *state_ptr() = saved_kerning };
+}
+
+/// Why drawing functions cannot be self-tested right now, or None if they can.
+pub fn drawing_unavailable() -> Option<&'static str> {
+    (!recording_works())
+        .then_some("the gfx::blit_glyph hook is off, so the original would really draw")
+}
+
+/// Appends game variables to a state: each as four bytes.
+pub fn push_dwords(state: &mut Vec<u8>, rvas: &[usize]) {
+    for &at in rvas {
+        let v: u32 = unsafe { crate::framework::game_read(at) };
+        state.extend_from_slice(&v.to_le_bytes());
+    }
+}

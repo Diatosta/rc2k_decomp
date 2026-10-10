@@ -5,12 +5,24 @@ use crate::text::font::Font;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+pub mod draw_brake_balance_marker;
+pub mod draw_inspection_status;
+pub mod draw_repair_times;
+pub mod draw_ride_height_marker;
+pub mod draw_ride_height_previous_marker;
 pub mod draw_selected_stage_menu;
+pub mod draw_service_area;
 pub mod draw_service_stage_info;
+pub mod draw_service_time;
 pub mod draw_stage_heading;
 pub mod draw_stage_info;
 pub mod draw_stage_records;
+pub mod draw_steering_sensitivity_marker;
+pub mod draw_suspension_stiffness_marker;
+pub mod draw_suspension_stiffness_previous_marker;
 pub mod draw_time_trial_stage_info;
+pub mod harness;
+pub mod setup_markers;
 pub mod stage_panel;
 
 pub static HOOKS: &[&dyn GameHook] = &[
@@ -20,6 +32,16 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &draw_service_stage_info::HOOK,
     &draw_time_trial_stage_info::HOOK,
     &draw_selected_stage_menu::HOOK,
+    &draw_service_time::HOOK,
+    &draw_repair_times::HOOK,
+    &draw_inspection_status::HOOK,
+    &draw_steering_sensitivity_marker::HOOK,
+    &draw_brake_balance_marker::HOOK,
+    &draw_ride_height_previous_marker::HOOK,
+    &draw_suspension_stiffness_previous_marker::HOOK,
+    &draw_ride_height_marker::HOOK,
+    &draw_suspension_stiffness_marker::HOOK,
+    &draw_service_area::HOOK,
 ];
 
 /// Console switch `blank on [prefix]` / `blank off`, kept for every hook in this module: a

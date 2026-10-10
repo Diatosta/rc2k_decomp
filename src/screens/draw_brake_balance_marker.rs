@@ -1,0 +1,55 @@
+//! `screens::draw_brake_balance_marker` (0x4A707F): draws the marker of the upper right setup bar (menu item 0x11), at the percentage
+//! in the car object's field +0x110.
+//!
+//! In:  edi = car object; ebx, passed on as the palette at 0 percent or less
+//! Out: eax = the percentage, or 0x11 if nothing was drawn; everything else preserved
+//! The conditions, the bars and how the screen was confirmed are in `setup_markers.rs`.
+
+use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::screens::harness::drawing_unavailable;
+use crate::screens::setup_markers::{Marker, RIGHT_X, check_marker, dispatch_marker};
+use std::sync::atomic::AtomicUsize;
+
+static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
+
+pub static HOOK: RawHook = RawHook::new(
+    "screens::draw_brake_balance_marker",
+    rva(0x4A707F),
+    thunk,
+    &ORIGINAL,
+)
+.self_test(self_test);
+
+hook_asm!(
+    thunk,
+    call_original,
+    dispatch = dispatch,
+    original = ORIGINAL
+);
+
+// ---- Rust version: `setup_markers::draw_marker` with this ----
+
+pub const MARKER: Marker = Marker::Upper {
+    item: 0x11,
+    x: RIGHT_X,
+    car_offset: 0x110,
+};
+
+// ---- hook ----
+
+extern "C" fn dispatch(r: &mut Regs) {
+    dispatch_marker(&HOOK, r, call_original, MARKER);
+}
+
+// ---- self-test ----
+
+fn self_test() -> (usize, usize) {
+    let Some(mut t) = SelfTest::begin(&HOOK) else {
+        return (0, 0);
+    };
+    if let Some(why) = drawing_unavailable() {
+        return t.skip(why);
+    }
+    check_marker(&mut t, call_original, MARKER);
+    t.finish()
+}

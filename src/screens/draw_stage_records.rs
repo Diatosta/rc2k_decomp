@@ -156,13 +156,7 @@ pub unsafe fn draw_stage_records(entry: u32, canvas: &mut dyn Canvas) -> Result<
         };
         let sprites = sprite_table();
         let sprite = |canvas: &mut dyn Canvas, glyph: u32, x: i32, y: i32, palette: u32| {
-            canvas.blit_glyph(BlitCall {
-                glyph,
-                x,
-                y,
-                palette,
-                table: sprites,
-            })
+            canvas.blit_glyph(BlitCall::new(glyph, x, y, palette, sprites))
         };
         let label_font = font_at(LABEL_FONT);
         let text_font = font_at(TEXT_FONT);

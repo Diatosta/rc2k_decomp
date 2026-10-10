@@ -302,13 +302,7 @@ pub unsafe fn draw_text(
                 if kerning {
                     x = x.wrapping_sub(canvas.glyph_kerning(table, glyph) as i32);
                 }
-                canvas.blit_glyph(BlitCall {
-                    glyph,
-                    x,
-                    y,
-                    palette: font.palette,
-                    table: font.glyph_table,
-                })?;
+                canvas.blit_glyph(BlitCall::new(glyph, x, y, font.palette, font.glyph_table))?;
                 x = x.wrapping_add(advance(table, glyph)).wrapping_add(spacing);
             }
         }

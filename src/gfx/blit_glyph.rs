@@ -533,13 +533,7 @@ pub unsafe fn blit_glyph_on_surface(
     // Rust callers do not pass through the hook, so they report to the recording here. Without
     // this a swallowing self-test would really draw whenever a hooked caller runs its Rust
     // version (shadow off).
-    let swallowed = note_call(BlitCall {
-        glyph,
-        x,
-        y,
-        palette: palette as u32,
-        table: table as u32,
-    });
+    let swallowed = note_call(BlitCall::new(glyph, x, y, palette as u32, table as u32));
     if swallowed {
         return Ok(Exit {
             eax: 0,
@@ -581,6 +575,22 @@ pub struct BlitCall {
     pub y: i32,
     pub palette: u32,
     pub table: u32,
+    /// `g_clipRight` at the time of the call: one caller narrows it around a blit.
+    pub clip_right: i32,
+}
+
+impl BlitCall {
+    /// A call made now, with the clip rectangle as the game has it at this moment.
+    pub fn new(glyph: u32, x: i32, y: i32, palette: u32, table: u32) -> Self {
+        Self {
+            glyph,
+            x,
+            y,
+            palette,
+            table,
+            clip_right: clip().right,
+        }
+    }
 }
 
 struct Recorder {
@@ -673,13 +683,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     let surface = surface();
     let (glyph, table) = (r.eax, r.esi as *const u8);
 
-    let swallowed = note_call(BlitCall {
+    let swallowed = note_call(BlitCall::new(
         glyph,
-        x: r.ecx as i32,
-        y: r.edx as i32,
-        palette: r.ebx,
-        table: r.esi,
-    });
+        r.ecx as i32,
+        r.edx as i32,
+        r.ebx,
+        r.esi,
+    ));
     if swallowed {
         return;
     }

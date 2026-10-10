@@ -45,20 +45,8 @@ pub fn sprite_table() -> u32 {
 pub unsafe fn marker_calls(object: *const u8, palette: u32, table: u32) -> [BlitCall; 2] {
     let coord = |at: usize| unsafe { object.add(at).cast::<i32>().read_unaligned() };
     [
-        BlitCall {
-            glyph: FIRST_GLYPH,
-            x: coord(0x44),
-            y: coord(0x48),
-            palette,
-            table,
-        },
-        BlitCall {
-            glyph: SECOND_GLYPH,
-            x: coord(0x4C),
-            y: coord(0x50),
-            palette,
-            table,
-        },
+        BlitCall::new(FIRST_GLYPH, coord(0x44), coord(0x48), palette, table),
+        BlitCall::new(SECOND_GLYPH, coord(0x4C), coord(0x50), palette, table),
     ]
 }
 
