@@ -36,6 +36,7 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{
     RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
+use crate::redirect::RedirectedCopy;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, restore};
 use crate::service::pages::{GEAR_RATIO, RIDE_HEIGHT, SUSPENSION_STIFFNESS, TYRE};
@@ -46,9 +47,6 @@ use crate::service::state::{
 use crate::system::sleep::sleep;
 use crate::system::tick_count::tick_count;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
-use windows_sys::Win32::System::Memory::{
-    MEM_COMMIT, MEM_RELEASE, MEM_RESERVE, PAGE_EXECUTE_READWRITE, VirtualAlloc, VirtualFree,
-};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
@@ -370,53 +368,6 @@ impl Driver for TestDriver {
     }
 }
 
-/// An executable copy of the original with its calls redirected. Freed when dropped.
-struct RedirectedCopy(*mut u8);
-
-impl RedirectedCopy {
-    unsafe fn new(original: usize) -> Result<Self, &'static str> {
-        unsafe {
-            let copy = VirtualAlloc(
-                std::ptr::null(),
-                FUNCTION_LEN,
-                MEM_COMMIT | MEM_RESERVE,
-                PAGE_EXECUTE_READWRITE,
-            ) as *mut u8;
-            if copy.is_null() {
-                return Err("VirtualAlloc failed");
-            }
-            let this = Self(copy);
-            std::ptr::copy_nonoverlapping(original as *const u8, copy, FUNCTION_LEN);
-            // The hook's jump sits in the first bytes of the original: put the real ones back.
-            std::ptr::copy_nonoverlapping(ENTRY_BYTES.as_ptr(), copy, ENTRY_BYTES.len());
-            for offset in CALL_OFFSETS {
-                let at = copy.add(offset);
-                if at.read() != 0xE8 {
-                    return Err("the function is not what the call list was made from");
-                }
-                let rel = (at.add(1) as *const i32).read_unaligned();
-                let target = (original + offset + 5).wrapping_add(rel as usize);
-                let new_target = match target.wrapping_sub(game_addr(0)) {
-                    t if t == rva(0x411024) => fake_tick_count as *const () as usize,
-                    t if t == rva(0x405A71) => fake_frame as *const () as usize,
-                    t if t == rva(0x41100C) => fake_sleep as *const () as usize,
-                    t if t == rva(0x486EDD) => target,
-                    _ => return Err("a call goes somewhere unexpected"),
-                };
-                let new_rel = new_target.wrapping_sub(copy as usize + offset + 5) as i32;
-                (at.add(1) as *mut i32).write_unaligned(new_rel);
-            }
-            Ok(this)
-        }
-    }
-}
-
-impl Drop for RedirectedCopy {
-    fn drop(&mut self) {
-        unsafe { VirtualFree(self.0.cast(), 0, MEM_RELEASE) };
-    }
-}
-
 /// The original's first ten bytes: `pusha; mov dword_75AB38, 1`, with the address as it is
 /// in the image at its preferred base (the test checks the base before using them).
 const ENTRY_BYTES: [u8; 11] = [
@@ -434,7 +385,21 @@ fn self_test() -> (usize, usize) {
     if game_addr(0) != PREFERRED_BASE {
         return t.skip("the game is not loaded at its preferred base");
     }
-    let copy = match unsafe { RedirectedCopy::new(game_addr(rva(0x46C14D))) } {
+    let redirect = |target: usize| match target {
+        t if t == rva(0x411024) => Some(fake_tick_count as *const () as usize),
+        t if t == rva(0x405A71) => Some(fake_frame as *const () as usize),
+        t if t == rva(0x41100C) => Some(fake_sleep as *const () as usize),
+        _ => None, // `reset_tyre_wear`
+    };
+    let copy = match unsafe {
+        RedirectedCopy::new(
+            game_addr(rva(0x46C14D)),
+            FUNCTION_LEN,
+            &ENTRY_BYTES,
+            &CALL_OFFSETS,
+            &redirect,
+        )
+    } {
         Ok(copy) => copy,
         Err(why) => return t.skip(why),
     };
@@ -515,7 +480,7 @@ fn self_test() -> (usize, usize) {
         prepare();
         let before = Regs::SENTINEL;
         let mut ro = before;
-        unsafe { call_game(&mut ro, copy.0 as usize) };
+        unsafe { call_game(&mut ro, copy.addr()) };
         let theirs = (capture(&regions), observed());
 
         prepare();

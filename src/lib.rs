@@ -7,6 +7,7 @@ pub mod logfile;
 pub mod math;
 pub mod menu;
 pub mod records;
+pub mod redirect;
 mod registry;
 pub mod screens;
 pub mod service;

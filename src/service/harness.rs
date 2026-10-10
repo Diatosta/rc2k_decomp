@@ -128,6 +128,48 @@ pub fn dispatch_keyed_state(
     r.esp = esp;
 }
 
+/// `dispatch_state` for a function with an effect outside memory (a log line, a saved file)
+/// that must not happen twice. In shadow mode the original runs first, for real; the
+/// variables are put back; `replay`, the Rust version without that effect, runs; the results
+/// are compared and the original's are put in place. Outside shadow mode `rust` runs.
+pub fn dispatch_replayed_state(
+    hook: &RawHook,
+    r: &mut Regs,
+    call_original: CallOriginal,
+    regions: &[Region],
+    rust: Rust,
+    replay: Rust,
+) {
+    if !shadow() {
+        dispatch_state(hook, r, call_original, regions, rust);
+        return;
+    }
+    hook.count_call();
+    let before = capture(regions);
+    let mut o = *r;
+    unsafe { call_original(&mut o) };
+    let theirs = capture(regions);
+
+    restore(regions, &before);
+    let result = replay(r);
+    let mine = capture(regions);
+    restore(regions, &theirs);
+
+    if let Ok(left) = result
+        && (theirs != mine || !left.matches(r, &o))
+    {
+        hook.mismatch(|| {
+            format!(
+                "before {before:x?}: original {theirs:x?}; rust {mine:x?} regs_ok={}",
+                left.matches(r, &o)
+            )
+        });
+    }
+    let esp = r.esp;
+    *r = o;
+    r.esp = esp;
+}
+
 /// One self-test case: `prepare` puts the inputs in place, the original runs, `prepare` runs
 /// again, the Rust version runs, and what the two left in `regions` and the registers is
 /// compared. The caller saves and restores what `prepare` writes.

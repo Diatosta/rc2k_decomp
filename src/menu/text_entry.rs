@@ -2,7 +2,7 @@
 //! the length typed so far, the longest allowed, whether an entry is going on, and the copy
 //! of the text as it was before, which Escape brings back.
 
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, call_game, game_addr, game_read, game_write, rva};
 use crate::service::harness::Region;
 
 pub const LENGTH_RVA: usize = rva(0x75556D); // dword_75556D: characters typed so far
@@ -27,4 +27,36 @@ pub fn backup() -> *mut u8 {
 
 pub fn backup_region() -> Region {
     (backup() as u32, TEXT_LEN)
+}
+
+const LOG_L1_RVA: usize = rva(0x401427); // logfile::log_write_l1: level 1, no newline
+const LOG_L1_NL_RVA: usize = rva(0x40142B); // logfile::log_write_l1_nl: level 1, newline
+
+/// Writes a NUL-terminated text to the game's log through the original's own entry points,
+/// which are not ported.
+pub unsafe fn log_l1(text: *const u8, newline: bool) {
+    let mut regs = Regs {
+        eax: text as u32,
+        ..Regs::default()
+    };
+    let entry = if newline { LOG_L1_NL_RVA } else { LOG_L1_RVA };
+    unsafe { call_game(&mut regs, game_addr(entry)) };
+}
+
+const BACKED_UP_RVA: usize = rva(0x4DE1D2); // aBackedUpName: "Backed up name="
+
+/// Starts an entry on the text field `field`, as the saved game and replay screens do it:
+/// the text is copied to the backup, "Backed up name=<backup>" goes to the log if `log` is
+/// set, the field is cleared, the length is 0 and an entry is going on.
+pub unsafe fn begin_logged(field: *mut u8, log: bool) {
+    unsafe {
+        crate::menu::backup_text::backup_text(field);
+        if log {
+            log_l1(game_addr(BACKED_UP_RVA) as *const u8, false);
+            log_l1(backup(), true);
+        }
+        crate::menu::clear_text::clear_text(field);
+        game_write(ENTERING_RVA, 1u32);
+    }
+    set_length(0);
 }
