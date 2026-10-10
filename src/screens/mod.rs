@@ -6,12 +6,15 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 pub mod draw_brake_balance_marker;
+pub mod draw_empty_savegame;
 pub mod draw_inspection_status;
 pub mod draw_load_setup_list;
 pub mod draw_repair_times;
 pub mod draw_ride_height_installed_marker;
 pub mod draw_ride_height_marker;
 pub mod draw_save_setup_list;
+pub mod draw_savegame_details;
+pub mod draw_savegame_preview;
 pub mod draw_selected_stage_menu;
 pub mod draw_service_area;
 pub mod draw_service_stage_info;
@@ -25,6 +28,7 @@ pub mod draw_suspension_stiffness_installed_marker;
 pub mod draw_suspension_stiffness_marker;
 pub mod draw_time_trial_stage_info;
 pub mod harness;
+pub mod savegame_preview;
 pub mod setup_markers;
 pub mod stage_panel;
 
@@ -48,6 +52,9 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &draw_setup_slot_names::HOOK,
     &draw_save_setup_list::HOOK,
     &draw_load_setup_list::HOOK,
+    &draw_empty_savegame::HOOK,
+    &draw_savegame_details::HOOK,
+    &draw_savegame_preview::HOOK,
 ];
 
 /// Console switch `blank on [prefix]` / `blank off`, kept for every hook in this module: a

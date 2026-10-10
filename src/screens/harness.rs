@@ -8,6 +8,7 @@ use crate::framework::{
 };
 use crate::gfx::blit_glyph::{BlitCall, record_calls, recording_works};
 use crate::screens::blanked;
+use crate::service::harness::{Region, capture, restore};
 use crate::text::draw_text::{Canvas, GameCanvas, Outcome, RecordingCanvas};
 use crate::text::glyph_kerning::state_ptr;
 
@@ -112,6 +113,20 @@ pub fn dispatch_draw(
     rust: Draw,
     state: State,
 ) {
+    dispatch_draw_rewound(hook, r, call_original, rust, state, &[]);
+}
+
+/// `dispatch_draw` for a function that also changes what it decides by (a "last seen"
+/// variable, say): in shadow mode `rewind` is put back after the Rust run, so that the
+/// original decides from the same values.
+pub fn dispatch_draw_rewound(
+    hook: &RawHook,
+    r: &mut Regs,
+    call_original: CallOriginal,
+    rust: Draw,
+    state: State,
+    rewind: &[Region],
+) {
     hook.count_call();
     if blanked(hook.name()) {
         return;
@@ -127,6 +142,7 @@ pub fn dispatch_draw(
         return;
     }
 
+    let before = capture(rewind);
     let mut canvas = RecordingCanvas::new(true);
     let left = match rust(r, &mut canvas) {
         Ok(value) => value,
@@ -136,6 +152,7 @@ pub fn dispatch_draw(
         }
     };
     let state_r = state();
+    restore(rewind, &before);
 
     let mut o = *r;
     let calls = record_calls(false, || unsafe { call_original(&mut o) });
