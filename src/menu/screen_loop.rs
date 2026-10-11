@@ -9,7 +9,8 @@
 //! `prepare` steps; the menu and the function lists are put in place (a list marked `run`
 //! is run once, here); `dword_7556A4` = 0x6F and `dword_755561` = 0; the `background` steps;
 //! one frame is drawn (`menu::draw_frame`, `menu::update_blink`, then `screens::run_frame`
-//! with the screen's frame callback), with the time noted in `dword_5189A0`; the
+//! with the screen's frame callback, before which the lists are put in place again: the
+//! `first_frame_lists` if the screen has any), with the time noted in `dword_5189A0`; the
 //! `after_first_frame` steps.
 //!
 //! Every frame: `menu::update_blink`; leave if the game is quitting; `screens::run_frame`;
@@ -24,7 +25,8 @@
 //!   else leave
 //! The same action check is made at the top of a frame whose `dword_7556A4` is 0x14D.
 //!
-//! Leaving: on a screen that asks (`confirm`), if `dword_758806` is 1,
+//! Leaving: nothing more happens if the screen's `leave_at_once` variable is 1. On a screen
+//! that asks (`confirm`), if `dword_758806` is 1,
 //! `menu::confirm_leaving` puts the question; unless the answer (`g_yesNoAnswer`) is 1, the
 //! `on_refusal` steps run and the screen is set up again. Otherwise the highlight is saved
 //! and the `after` steps run.
@@ -89,6 +91,15 @@ const SETUP_TIME_RVA: usize = rva(0x5189A0); // dword_5189A0
 const ELAPSED_RVA: usize = rva(0x613830); // dword_613830
 const QUIT_RVA: usize = rva(0x51837C); // dword_51837C
 
+/// g_unreadList, g_drawList, g_overlayList, dword_755500, g_sceneList.
+const LIST_POINTERS: [usize; 5] = [
+    rva(0x7554F4),
+    rva(0x7554F8),
+    rva(0x7554FC),
+    rva(0x755500),
+    rva(0x755504),
+];
+
 const NO_SOUND: u32 = 0x6F;
 const ENTER_SOUND: u32 = 0x14D;
 
@@ -129,6 +140,10 @@ pub struct Screen {
     /// The variable the highlight is kept in between visits.
     pub saved_item: usize,
     pub lists: &'static [List],
+    /// The lists put in place before the first frame after set-up, where they are not the
+    /// same as before every other frame: 35 loops put their 3D list in `g_unreadList` at
+    /// set-up and before each frame, and a list of their own in `g_sceneList` only here.
+    pub first_frame_lists: Option<&'static [List]>,
     pub frame_callback: usize,
     pub before: &'static [Step],
     pub set_up_first: &'static [Step],
@@ -138,6 +153,9 @@ pub struct Screen {
     /// Some if leaving is asked about: what runs after a "no".
     pub confirm: Option<&'static [Step]>,
     pub after: &'static [Step],
+    /// A variable that, when it is 1 at the moment of leaving, makes the loop return at once:
+    /// no question, the highlight not saved, no `after` steps.
+    pub leave_at_once: Option<usize>,
     /// Variables a `Step::Do` writes, for the self-test to compare.
     pub also_writes: &'static [usize],
 }
@@ -171,6 +189,9 @@ impl Screen {
             ELAPSED_RVA,
             KEYS_MENU_RVA,
         ];
+        // All five list pointers, whatever the description says: a loop that writes one the
+        // description does not name must not pass its test.
+        rvas.extend(LIST_POINTERS);
         rvas.extend(self.lists.iter().map(|list| list.pointer));
         rvas.extend(self.also_writes);
         for step in self.steps() {
@@ -274,11 +295,11 @@ unsafe fn run(steps: &[Step], g: &mut Regs, env: &mut dyn Env) {
 }
 
 /// Puts the menu and the lists in place, as the original does before a frame.
-unsafe fn set_lists(screen: &Screen, g: &mut Regs) {
+unsafe fn set_lists(screen: &Screen, lists: &[List], g: &mut Regs) {
     unsafe {
         g.edi = game_addr(screen.menu) as u32;
         game_write(CURRENT_MENU_RVA, g.edi);
-        for list in screen.lists.iter().filter(|list| !list.run) {
+        for list in lists.iter().filter(|list| !list.run) {
             g.esi = game_addr(list.table) as u32;
             game_write(list.pointer, g.esi);
         }
@@ -324,7 +345,11 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Regs, env: &mut dyn Env) {
                     game_write(SETUP_TIME_RVA, g.eax);
                     game_write(ELAPSED_RVA, 0u32);
                     g.eax = callback;
-                    set_lists(screen, &mut g);
+                    set_lists(
+                        screen,
+                        screen.first_frame_lists.unwrap_or(screen.lists),
+                        &mut g,
+                    );
                     env.call(RUN_FRAME, &mut g);
                     run(screen.after_first_frame, &mut g, env);
                     Next::Frame
@@ -335,7 +360,7 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Regs, env: &mut dyn Env) {
                         Next::Leave
                     } else {
                         g.eax = callback;
-                        set_lists(screen, &mut g);
+                        set_lists(screen, screen.lists, &mut g);
                         env.call(RUN_FRAME, &mut g);
                         g.eax = game_read::<u32>(CLOCK_RVA).wrapping_sub(game_read(SETUP_TIME_RVA));
                         game_write(ELAPSED_RVA, g.eax);
@@ -382,6 +407,12 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Regs, env: &mut dyn Env) {
                     }
                 }
                 Next::Leave => {
+                    if screen
+                        .leave_at_once
+                        .is_some_and(|flag| game_read::<u32>(flag) == 1)
+                    {
+                        return;
+                    }
                     if let Some(on_refusal) = screen.confirm
                         && game_read::<u32>(LEAVING_RVA) == 1
                     {
@@ -437,6 +468,9 @@ struct Script {
     answers: Vec<u32>,
     /// The number of `update_blink` calls after which the game is quitting.
     quit_after: Option<u32>,
+    /// The first item action also sets the screen's leave-at-once variable, if it has one.
+    sets_leave_at_once: bool,
+    leave_at_once: Option<usize>,
     /// The screen's highlight variable.
     saved_item: usize,
     /// The functions the copy calls: a stand-in knows its place in this list.
@@ -484,6 +518,9 @@ fn step(function: usize, regs: &mut Regs) {
             RUN_ITEM_ACTION => {
                 for &(variable, value) in s.actions.get(s.used_actions).into_iter().flatten() {
                     unsafe { game_write(variable.unwrap_or(s.saved_item), value) };
+                }
+                if let (true, Some(flag)) = (s.sets_leave_at_once, s.leave_at_once) {
+                    unsafe { game_write(flag, 1u32) };
                 }
                 s.used_actions += 1;
             }
@@ -634,6 +671,15 @@ fn scripts() -> Vec<(&'static str, Script)> {
             action(&[(ESCAPED_RVA, 1)]),
         ),
         (
+            "an action that sets the leave-at-once flag and dword_755569",
+            Script {
+                keys: vec![(3, 0)],
+                actions: vec![vec![(Some(DONE_A_RVA), 1)]],
+                sets_leave_at_once: true,
+                ..Script::default()
+            },
+        ),
+        (
             "two actions",
             Script {
                 keys: vec![(3, 0), (1, 0), (3, 0)],
@@ -733,7 +779,7 @@ pub fn check_screen(
     }
 
     // The variables the loop reads without writing them, which the scripts set.
-    let inputs = [
+    let mut inputs = [
         ESCAPE_KEPT_RVA,
         DONE_A_RVA,
         DONE_B_RVA,
@@ -741,7 +787,9 @@ pub fn check_screen(
         ACTION_VALUE_RVA,
         ANSWER_RVA,
     ]
-    .map(at);
+    .map(at)
+    .to_vec();
+    inputs.extend(screen.leave_at_once.map(at));
     let regions = screen.regions();
     let saved = (capture(&regions), capture(&inputs));
     // A game thread that was between two hooks when the pause began gets to its next one
@@ -753,7 +801,7 @@ pub fn check_screen(
             for escaped in [0u32, 1] {
                 let prepare = || unsafe {
                     restore(&regions, &vec![0xA5; regions.len() * 4]);
-                    restore(&inputs, &[0; 24]);
+                    restore(&inputs, &vec![0; inputs.len() * 4]);
                     game_write(ESCAPE_KEPT_RVA, escape_kept);
                     game_write(ESCAPED_RVA, escaped);
                     game_write(screen.saved_item, 7u32);
@@ -762,6 +810,7 @@ pub fn check_screen(
                     TEST_QUIT.store(0, Ordering::SeqCst);
                     SCRIPT.set(Script {
                         saved_item: screen.saved_item,
+                        leave_at_once: screen.leave_at_once,
                         targets: targets.clone(),
                         ..script.clone()
                     });

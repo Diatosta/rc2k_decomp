@@ -206,13 +206,19 @@ impl GameHook for RawHook {
                 copy_nonoverlapping(addr as *const u8, mem, self.private_copy_len);
 
                 for &off in self.relocs {
-                    // 'off' is the offset of an E8 (call) / E9 (jmp) instruction
-                    assert!(matches!(*mem.add(off), 0xE8 | 0xE9));
+                    // 'off' is the offset of an E8 (call) or E9 (jmp) instruction, or of a
+                    // conditional near jump (0F 8x) out of the function, as the screen
+                    // loops have to their fatal-error stubs.
+                    let len = match (*mem.add(off), *mem.add(off + 1)) {
+                        (0xE8 | 0xE9, _) => 5,
+                        (0x0F, 0x80..=0x8F) => 6,
+                        _ => panic!("relocation at {off:#x} is not a call or a near jump"),
+                    };
 
-                    let p = mem.add(off + 1) as *mut i32;
+                    let p = mem.add(off + len - 4) as *mut i32;
                     let old = read_unaligned(p);
-                    let target = (addr + off + 5).wrapping_add(old as usize);
-                    let new = target.wrapping_sub(mem as usize + off + 5) as i32;
+                    let target = (addr + off + len).wrapping_add(old as usize);
+                    let new = target.wrapping_sub(mem as usize + off + len) as i32;
                     write_unaligned(p, new);
                 }
 

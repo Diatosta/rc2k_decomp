@@ -108,6 +108,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
+    first_frame_lists: None,
     frame_callback: FRAME_CALLBACK,
     // The key buffer is emptied first.
     before: &[
@@ -140,6 +141,7 @@ pub const SCREEN: Screen = Screen {
         Step::Call(SUB_40F826),
         Step::Write(SETUP_LOADED_RVA, 0),
     ],
+    leave_at_once: None,
     also_writes: &[],
 };
 
