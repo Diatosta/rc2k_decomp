@@ -1,4 +1,4 @@
-//! `menu::select_players_loop` (0x48BCDC): the loop of the screen where the number of players
+//! `menu::time_trial_select_players_loop` (0x48BCDC): the loop of the screen where the number of players
 //! is chosen.
 //!
 //! In:  nothing
@@ -7,8 +7,8 @@
 //! as extracted from the disassembly: background `arcade1.png`; leaving is not asked about; the
 //! steps that are more than a call or a store are the functions below, generated from the
 //! listing.
-//! The name is a reading from the title string of its menu, "ESCOLHA NÚMERO DE JOGADORES", not
-//! yet a visit.
+//! Screen: the player count of the time trial, "ESCOLHA NÚMERO DE JOGADORES" (the owner
+//! said so after Rust-run visits, 2026-10-11). Named `select_players_loop` until then.
 //! Callers: none in code: it is reached through a table. Ungated thunk; shadow mode runs the
 //! original alone; each real call writes a line to hook.log. Self-test:
 //! `screen_loop::check_screen`.
@@ -19,8 +19,13 @@ use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
-pub static HOOK: RawHook =
-    RawHook::new("menu::select_players_loop", rva(0x48BCDC), thunk, &ORIGINAL).self_test(self_test);
+pub static HOOK: RawHook = RawHook::new(
+    "menu::time_trial_select_players_loop",
+    rva(0x48BCDC),
+    thunk,
+    &ORIGINAL,
+)
+.self_test(self_test);
 
 hook_asm!(
     thunk,
@@ -74,14 +79,39 @@ pub const SCREEN: Screen = Screen {
     before: &[Step::Write(rva(0x755980), 0x0)],
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],
+    after_lists: &[],
     background: &[
         Step::EaxAddr(rva(0x73297D)),
         Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
     ],
     after_first_frame: &[],
     confirm: None,
+    ask_also_if: None,
+    confirmed: &[],
+    unasked_skips_save: false,
     after: &[Step::Write(rva(0x7556A4), 0x6F)],
+    escape_leaves: false,
+    each_frame: &[],
+    short_action_check: false,
     leave_at_once: None,
+    next_frame_repeats_first: false,
+    action_saved_item: None,
+    action_menu: None,
+    no_quit_check: false,
+    before_asking: &[],
+    ask_unless: None,
+    leaving: &[],
+    leave_saved_item: None,
+    keys_menu: None,
+    after_restored: &[],
+    result: None,
+    late_highlight: false,
+    before_first_frame: &[],
+    before_frame: &[],
+    after_blink: &[],
+    restart_action_check: false,
+    always_asks: false,
+    also_reads: &[],
     also_writes: &[
         rva(0x623FB0),
         rva(0x623FB4),

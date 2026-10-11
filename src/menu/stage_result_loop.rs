@@ -1,4 +1,4 @@
-//! `menu::screen_48558d_loop` (0x48558D): the loop of a results screen.
+//! `menu::stage_result_loop` (0x48558D): the loop of the stage result screen of a time trial.
 //!
 //! In:  nothing
 //! Out: every register preserved
@@ -6,7 +6,9 @@
 //! (`SCREEN`), as extracted from the disassembly: background `results1.png` through
 //! `menu::load_background` (carry afterwards = fatal error 0x80712345); leaving is asked about;
 //! its own 3D list goes to `g_sceneList` before the first frame only.
-//! Which screen it is has not been confirmed, hence the name. Its title string: "RESULTADOS".
+//! Screen: the one player's result after a time trial stage, "RESULTADOS": the rally and
+//! stage, then "piloto", "tempo" and "velocidade máxima" (owner's screenshot from a Rust-run
+//! visit, 2026-10-11). Named `screen_48558d_loop` until then.
 //! Callers: `sub_482382`, `sub_48AE39`. Ungated thunk; shadow mode runs the original alone;
 //! each real call
 //! writes a line to hook.log. Self-test: `screen_loop::check_screen`.
@@ -18,7 +20,7 @@ use std::sync::atomic::AtomicUsize;
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
 pub static HOOK: RawHook =
-    RawHook::new("menu::screen_48558d_loop", rva(0x48558D), thunk, &ORIGINAL).self_test(self_test);
+    RawHook::new("menu::stage_result_loop", rva(0x48558D), thunk, &ORIGINAL).self_test(self_test);
 
 hook_asm!(
     thunk,
@@ -72,14 +74,39 @@ pub const SCREEN: Screen = Screen {
     before: &[Step::Write(rva(0x755980), 0x0)],
     set_up_first: &[],
     prepare: &[],
+    after_lists: &[],
     background: &[
         Step::EaxAddr(rva(0x732A3A)),
         Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
     ],
     after_first_frame: &[],
     confirm: Some(&[]),
+    ask_also_if: None,
+    confirmed: &[],
+    unasked_skips_save: false,
     after: &[Step::Write(rva(0x7556A4), 0x6F)],
+    escape_leaves: false,
+    each_frame: &[],
+    short_action_check: false,
     leave_at_once: None,
+    next_frame_repeats_first: false,
+    action_saved_item: None,
+    action_menu: None,
+    no_quit_check: false,
+    before_asking: &[],
+    ask_unless: None,
+    leaving: &[],
+    leave_saved_item: None,
+    keys_menu: None,
+    after_restored: &[],
+    result: None,
+    late_highlight: false,
+    before_first_frame: &[],
+    before_frame: &[],
+    after_blink: &[],
+    restart_action_check: false,
+    always_asks: false,
+    also_reads: &[],
     also_writes: &[],
 };
 
