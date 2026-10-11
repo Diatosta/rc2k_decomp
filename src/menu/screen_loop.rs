@@ -145,6 +145,9 @@ pub struct Screen {
     /// set-up and before each frame, and a list of their own in `g_sceneList` only here.
     pub first_frame_lists: Option<&'static [List]>,
     pub frame_callback: usize,
+    /// The frame callback of every frame but the first after set-up, where it is another
+    /// one: the inspection area's loop is the only one.
+    pub later_frame_callback: Option<usize>,
     pub before: &'static [Step],
     pub set_up_first: &'static [Step],
     pub prepare: &'static [Step],
@@ -307,10 +310,14 @@ unsafe fn set_lists(screen: &Screen, lists: &[List], g: &mut Regs) {
 }
 
 /// `entry` are the registers at entry.
-pub unsafe fn screen_loop(screen: &Screen, entry: &Regs, env: &mut dyn Env) {
+/// Returns why the screen was left, for hook.log.
+pub unsafe fn screen_loop(screen: &Screen, entry: &Regs, env: &mut dyn Env) -> String {
     let menu = game_addr(screen.menu) as u32;
     let callback = game_addr(screen.frame_callback) as u32;
+    let later_callback =
+        game_addr(screen.later_frame_callback.unwrap_or(screen.frame_callback)) as u32;
     let mut g = *entry;
+    let (mut frames, mut actions, mut why) = (0u32, 0u32, String::new());
     unsafe {
         run(screen.before, &mut g, env);
 
@@ -356,10 +363,12 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Regs, env: &mut dyn Env) {
                 }
                 Next::Frame => {
                     env.call(UPDATE_BLINK, &mut g);
+                    frames += 1;
                     if env.quitting() {
+                        why = "the game is quitting".into();
                         Next::Leave
                     } else {
-                        g.eax = callback;
+                        g.eax = later_callback;
                         set_lists(screen, screen.lists, &mut g);
                         env.call(RUN_FRAME, &mut g);
                         g.eax = game_read::<u32>(CLOCK_RVA).wrapping_sub(game_read(SETUP_TIME_RVA));
@@ -373,12 +382,17 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Regs, env: &mut dyn Env) {
                     match g.eax {
                         1 => Next::Frame,
                         3 => Next::ActionCheck,
-                        _ => Next::Leave,
+                        other => {
+                            why = format!("handle_keys returned {other}");
+                            Next::Leave
+                        }
                     }
                 }
                 Next::ActionCheck => {
                     let elapsed = g.eax;
+                    actions += 1;
                     g.ecx = game_read(MENU_ITEM_RVA);
+                    let item = g.ecx;
                     game_write(screen.saved_item, g.ecx);
                     clear_escape();
                     g.edi = menu;
@@ -390,9 +404,15 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Regs, env: &mut dyn Env) {
                     clear_escape();
                     g.eax = elapsed;
                     if game_read::<u32>(DONE_A_RVA) == 1 || game_read::<u32>(DONE_B_RVA) == 1 {
+                        why = format!(
+                            "after the action of item {item}: dword_755569={} dword_755980={}",
+                            game_read::<u32>(DONE_A_RVA),
+                            game_read::<u32>(DONE_B_RVA)
+                        );
                         Next::Leave
                     } else if game_read::<u32>(BACK_RVA) == 1 {
                         game_write(BACK_RVA, 0u32);
+                        why = format!("after the action of item {item}: dword_755561 was 1");
                         Next::Leave
                     } else {
                         game_write(SOUND_RVA, NO_SOUND);
@@ -400,6 +420,7 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Regs, env: &mut dyn Env) {
                             Next::Frame
                         } else if game_read::<u32>(WENT_BACK_RVA) == 1 {
                             game_write(BACK_RVA, 0u32);
+                            why = format!("after the action of item {item}: dword_75555D is 1");
                             Next::Leave
                         } else {
                             Next::SetUp
@@ -411,7 +432,7 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Regs, env: &mut dyn Env) {
                         .leave_at_once
                         .is_some_and(|flag| game_read::<u32>(flag) == 1)
                     {
-                        return;
+                        return format!("{why}; {frames} frames, {actions} actions");
                     }
                     if let Some(on_refusal) = screen.confirm
                         && game_read::<u32>(LEAVING_RVA) == 1
@@ -427,7 +448,7 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Regs, env: &mut dyn Env) {
                     game_write(screen.saved_item, g.ecx);
                     clear_escape();
                     run(screen.after, &mut g, env);
-                    return;
+                    return format!("{why}; {frames} frames, {actions} actions");
                 }
             };
         }
@@ -447,8 +468,10 @@ pub fn dispatch_screen(hook: &RawHook, r: &mut Regs, call_original: CallOriginal
     }
     log(&format!("{name}: the Rust version runs"));
     let entry = *r;
-    unsafe { screen_loop(screen, &entry, &mut Real) };
-    log(&format!("{name}: the Rust version has left the screen"));
+    let why = unsafe { screen_loop(screen, &entry, &mut Real) };
+    log(&format!(
+        "{name}: the Rust version has left the screen ({why})"
+    ));
 }
 
 // ---- self-test: a copy of the original whose calls follow a script ----

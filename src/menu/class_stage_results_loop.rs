@@ -9,9 +9,9 @@
 //! In:  nothing
 //! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own
-//! (`SCREEN`): before the loop it sets the string of the menu's first item to 0x138 if
-//! `dword_75AADC` is 1 and to 0x139 otherwise (the four results screens all do; what that
-//! item is has not been worked out: it is not the title, which differs between them); its background comes from
+//! (`SCREEN`): before the loop it sets the string of the menu's first item, the button at
+//! the bottom right, to 0x138 ("voltar", back) if `dword_75AADC` is 1 and to 0x139
+//! ("continuar") otherwise, as all four results screens do; its background comes from
 //! `menu::load_background` (0x47EFFF), after which a set carry flag is fatal error
 //! 0x80712345 (the flag is whatever the last blit in there left); leaving is asked about,
 //! and a "no" sets the screen up again.
@@ -87,6 +87,7 @@ pub const SCREEN: Screen = Screen {
     ],
     first_frame_lists: None,
     frame_callback: FRAME_CALLBACK,
+    later_frame_callback: None,
     before: &[Step::Do(set_first_item)],
     set_up_first: &[],
     prepare: &[],

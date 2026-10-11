@@ -110,6 +110,7 @@ pub const SCREEN: Screen = Screen {
     ],
     first_frame_lists: None,
     frame_callback: FRAME_CALLBACK,
+    later_frame_callback: None,
     // The key buffer is emptied first.
     before: &[
         Step::Call(TAKE_KEY),

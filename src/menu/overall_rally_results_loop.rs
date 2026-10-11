@@ -86,6 +86,7 @@ pub const SCREEN: Screen = Screen {
     ],
     first_frame_lists: None,
     frame_callback: FRAME_CALLBACK,
+    later_frame_callback: None,
     before: &[Step::Do(set_first_item)],
     set_up_first: &[],
     prepare: &[],

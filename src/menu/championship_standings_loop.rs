@@ -102,6 +102,7 @@ pub const SCREEN: Screen = Screen {
         },
     ]),
     frame_callback: FRAME_CALLBACK,
+    later_frame_callback: None,
     before: &[],
     set_up_first: &[],
     prepare: &[],
