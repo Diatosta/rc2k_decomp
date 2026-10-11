@@ -21,7 +21,7 @@
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::menu::run_draw_list::DRAW_LIST_RVA;
 use crate::menu::screen_loop::{
-    FRAME_CALLBACK, List, Original, Screen, Step, check_screen, dispatch_screen,
+    Env, FRAME_CALLBACK, List, Original, Screen, Step, check_screen, dispatch_screen,
 };
 use std::sync::atomic::AtomicUsize;
 
@@ -53,7 +53,7 @@ const BACKGROUND_RVA: usize = rva(0x7324EE); // "files\g\graphics\screens\result
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn set_first_item(g: &mut Regs) {
+unsafe fn set_first_item(g: &mut Regs, _: &mut dyn Env) {
     unsafe {
         g.eax = if game_read::<u32>(WHICH_TITLE_RVA) == 1 {
             0x138

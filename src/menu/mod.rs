@@ -4,6 +4,7 @@ use crate::framework::GameHook;
 
 pub mod add_text_length;
 pub mod advanced_audio_loop;
+pub mod audio_setup_loop;
 pub mod backspace_savegame_name;
 pub mod backup_text;
 pub mod begin_replay_name;
@@ -30,6 +31,7 @@ pub mod move_highlight_right;
 pub mod move_highlight_up;
 pub mod name_lists;
 pub mod navigation;
+pub mod new_simulation_loop;
 pub mod overall_rally_results_loop;
 pub mod overall_stage_results_loop;
 pub mod rally_stages_loop;
@@ -49,11 +51,16 @@ pub mod screen_483163_loop;
 pub mod screen_48558d_loop;
 pub mod screen_488f4c_loop;
 pub mod screen_loop;
+pub mod select_players_loop;
 pub mod text_entry;
 pub mod time_trial_stage_details_loop;
 pub mod update_blink;
 pub mod update_frame_clock;
+pub mod view_best_scores_loop;
+pub mod view_best_times_loop;
+pub mod view_courses_loop;
 pub mod visual_options_loop;
+pub mod visual_preferences_loop;
 
 pub static HOOKS: &[&dyn GameHook] = &[
     &go_back::HOOK,
@@ -104,4 +111,11 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &class_championship_standings_loop::HOOK,
     &best_class_scores_loop::HOOK,
     &best_overall_scores_loop::HOOK,
+    &audio_setup_loop::HOOK,
+    &visual_preferences_loop::HOOK,
+    &select_players_loop::HOOK,
+    &view_best_times_loop::HOOK,
+    &view_courses_loop::HOOK,
+    &view_best_scores_loop::HOOK,
+    &new_simulation_loop::HOOK,
 ];

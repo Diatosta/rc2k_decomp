@@ -120,8 +120,9 @@ pub enum Step {
     /// Calls the game function at this RVA, and if it comes back with the carry flag set,
     /// that is the fatal error with this code (and no message).
     CallOrFatal(usize, u32),
-    /// Something only this screen does, written out in its file.
-    Do(unsafe fn(&mut Regs)),
+    /// Something only this screen does, written out in its file. What it calls in the game
+    /// goes through the `Env`, like the loop's own calls.
+    Do(unsafe fn(&mut Regs, &mut dyn Env)),
 }
 
 /// One of the screen's function lists: the table, and the variable that points at it.
@@ -273,6 +274,40 @@ unsafe fn clear_escape() {
     }
 }
 
+/// A call after which a set carry flag is the fatal error `code`.
+pub unsafe fn call_or_fatal(function: usize, code: u32, g: &mut Regs, env: &mut dyn Env) {
+    env.call(function, g);
+    if g.carry() {
+        log(&format!(
+            "a screen loop's Rust version raises fatal error {code:#x}"
+        ));
+        unsafe { crate::fatal::raise::raise(FatalError { code, message: "" }, g) };
+    }
+}
+
+// What the generated `Step::Do` functions use for the instructions that have no step.
+
+/// `pusha`: the registers, to be put back by `popa`.
+pub fn pusha(g: &Regs, stack: &mut Vec<Regs>) {
+    stack.push(*g);
+}
+
+/// `popa`: the registers as they were at the matching `pusha`; the flags stay.
+pub fn popa(g: &mut Regs, stack: &mut Vec<Regs>) {
+    let flags = g.eflags;
+    *g = stack.pop().expect("a popa without its pusha");
+    g.eflags = flags;
+}
+
+/// A dword of game memory by its address, for `mov [reg + n], reg`.
+pub unsafe fn write_at(address: u32, value: u32) {
+    unsafe { (address as *mut u32).write_unaligned(value) };
+}
+
+pub unsafe fn read_at(address: u32) -> u32 {
+    unsafe { (address as *const u32).read_unaligned() }
+}
+
 unsafe fn run(steps: &[Step], g: &mut Regs, env: &mut dyn Env) {
     for step in steps {
         unsafe {
@@ -282,16 +317,8 @@ unsafe fn run(steps: &[Step], g: &mut Regs, env: &mut dyn Env) {
                 Step::WriteF32(variable, value) => game_write(variable, value),
                 Step::Eax(value) => g.eax = value,
                 Step::EaxAddr(what) => g.eax = game_addr(what) as u32,
-                Step::CallOrFatal(function, code) => {
-                    env.call(function, g);
-                    if g.carry() {
-                        log(&format!(
-                            "a screen loop's Rust version raises fatal error {code:#x}"
-                        ));
-                        crate::fatal::raise::raise(FatalError { code, message: "" }, g);
-                    }
-                }
-                Step::Do(what) => what(g),
+                Step::CallOrFatal(function, code) => call_or_fatal(function, code, g, env),
+                Step::Do(what) => what(g, env),
             }
         }
     }
