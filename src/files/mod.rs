@@ -7,6 +7,7 @@ pub mod handle;
 pub mod numbered_path;
 pub mod open_stream;
 pub mod read_file;
+pub mod read_first_match;
 pub mod read_stream_block;
 pub mod read_stream_byte;
 pub mod resolve_path;
@@ -18,6 +19,7 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &resolve_path::HOOK,
     &numbered_path::HOOK,
     &read_file::HOOK,
+    &read_first_match::HOOK,
     &write_file::HOOK,
     &file_exists::HOOK,
     &file_size::HOOK,

@@ -10,9 +10,11 @@ pub mod append_temperature;
 pub mod append_time;
 pub mod append_u32;
 pub mod bin_append;
+pub mod compile_lexicon;
 pub mod expand_entry;
 pub mod format_u32;
 pub mod hex_append;
+pub mod lexicon;
 pub mod str_append;
 pub mod str_append_indexed;
 pub mod string_table;
@@ -23,6 +25,7 @@ pub mod utils;
 
 pub static HOOKS: &[&dyn GameHook] = &[
     &text_length::HOOK,
+    &compile_lexicon::HOOK,
     &str_append::HOOK,
     &hex_append::HOOK,
     &str_append_indexed::HOOK,

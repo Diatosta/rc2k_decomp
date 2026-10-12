@@ -5,6 +5,10 @@ pub mod blit_bar;
 pub mod blit_bar_marker;
 pub mod blit_glyph;
 pub mod blit_marker_pair;
+pub mod build_fonts;
+pub mod build_game_fonts;
+pub mod build_glyphs;
+pub mod build_menu_sprites;
 pub mod clear_picture;
 pub mod components_to_4444_rows;
 pub mod components_to_pixel;
@@ -13,6 +17,8 @@ pub mod copy_picture_to_surface;
 pub mod copy_pixel_rows;
 pub mod decode_png;
 pub mod fill_row_table;
+pub mod glyph_builder;
+pub mod glyph_tables;
 pub mod harness;
 pub mod install_converters;
 pub mod lay_out_pcx;
@@ -33,6 +39,7 @@ pub mod read_pcx_24bit;
 pub mod read_pcx_8bit;
 pub mod read_picture_file;
 pub mod read_png;
+pub mod read_sheet;
 pub mod rescale_picture;
 pub mod rgb_pixels_to_dwords;
 pub mod set_clip;
@@ -70,4 +77,8 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &set_clip::HOOK,
     &picture_as_surface::HOOK,
     &load_picture::HOOK,
+    &build_glyphs::HOOK,
+    &build_fonts::HOOK,
+    &build_menu_sprites::HOOK,
+    &build_game_fonts::HOOK,
 ];
