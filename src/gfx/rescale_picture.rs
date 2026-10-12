@@ -49,7 +49,7 @@ hook_asm!(
 // ---- game data ----
 
 const COPY_MEMORY_RVA: usize = rva(0x4F505C); // dword_4F505C: the list the copy's memory is on
-const STEP_X_RVA: usize = rva(0x4F509C); // dword_4F509C: whole pixels a step
+pub const STEP_X_RVA: usize = rva(0x4F509C); // dword_4F509C: whole pixels a step
 const STEP_X_FRACTION_RVA: usize = rva(0x4F50A0); // dword_4F50A0
 const STEP_Y_RVA: usize = rva(0x4F50A4); // dword_4F50A4
 const STEP_Y_FRACTION_RVA: usize = rva(0x4F50A8); // dword_4F50A8
@@ -62,12 +62,12 @@ const ROWS_LEFT_RVA: usize = rva(0x4F50B8); // dword_4F50B8
 
 /// One part towards another: `from + ((to - from) * weight >> 8)`, as the original computes
 /// it in 32 bits.
-fn blend(from: i32, to: i32, weight: i32) -> i32 {
+pub fn blend(from: i32, to: i32, weight: i32) -> i32 {
     from.wrapping_add(to.wrapping_sub(from).wrapping_mul(weight) >> 8)
 }
 
 /// (whole part, fraction as 32 bits) of `a / b`.
-fn step(a: u32, b: u32) -> (u32, u32) {
+pub fn step(a: u32, b: u32) -> (u32, u32) {
     (
         a / b,
         (((a % b) as u64) << 32).wrapping_div(b as u64) as u32,

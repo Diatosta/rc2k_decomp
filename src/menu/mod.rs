@@ -20,6 +20,7 @@ pub mod best_class_scores_loop;
 pub mod best_overall_scores_loop;
 pub mod best_scores_48a69e_loop;
 pub mod best_times_loop;
+pub mod build_notice;
 pub mod car_specification_loop;
 pub mod car_specs_47af4c_loop;
 pub mod championship_new_simulation_loop;
@@ -62,6 +63,7 @@ pub mod next_stage_loop;
 pub mod options_loop;
 pub mod overall_rally_results_loop;
 pub mod overall_stage_results_loop;
+pub mod play_films;
 pub mod player1_details_loop;
 pub mod player2_details_loop;
 pub mod player3_details_loop;
@@ -85,6 +87,7 @@ pub mod review_options_485f5e_loop;
 pub mod review_options_4882e2_loop;
 pub mod review_options_48861d_loop;
 pub mod run_draw_list;
+pub mod run_front_end;
 pub mod run_item_action;
 pub mod run_list;
 pub mod save_championship_loop;
@@ -103,6 +106,8 @@ pub mod screen_488f4c_loop;
 pub mod screen_loop;
 pub mod select_car_loop;
 pub mod select_stage_loop;
+pub mod set_up_front_end;
+pub mod show_loading_picture;
 pub mod simple_select_players_loop;
 pub mod slideshow_loop;
 pub mod stage_result_loop;
@@ -132,11 +137,16 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &go_back::HOOK,
     &remove_secret_cars::HOOK,
     &apply_cheats::HOOK,
+    &build_notice::HOOK,
     &add_clio_car::HOOK,
     &drop_missing_controllers::HOOK,
     &fit_player_names::HOOK,
     &link_player_names::HOOK,
     &store_player_names::HOOK,
+    &set_up_front_end::HOOK,
+    &show_loading_picture::HOOK,
+    &run_front_end::HOOK,
+    &play_films::HOOK,
     &backup_text::HOOK,
     &restore_text::HOOK,
     &clear_text::HOOK,

@@ -24,6 +24,7 @@ pub mod harness;
 pub mod install_converters;
 pub mod lay_out_pcx;
 pub mod lay_out_png;
+pub mod load_jade;
 pub mod load_picture;
 pub mod palette_pixels_to_dwords;
 pub mod palette_to_dwords;
@@ -42,8 +43,10 @@ pub mod read_picture_file;
 pub mod read_png;
 pub mod read_sheet;
 pub mod rescale_picture;
+pub mod rescale_to_surface;
 pub mod rgb_pixels_to_dwords;
 pub mod set_clip;
+pub mod show_picture_file;
 pub mod surface;
 
 pub static HOOKS: &[&dyn GameHook] = &[
@@ -75,6 +78,9 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &read_png::HOOK,
     &fill_row_table::HOOK,
     &rescale_picture::HOOK,
+    &rescale_to_surface::HOOK,
+    &load_jade::HOOK,
+    &show_picture_file::HOOK,
     &set_clip::HOOK,
     &picture_as_surface::HOOK,
     &load_picture::HOOK,

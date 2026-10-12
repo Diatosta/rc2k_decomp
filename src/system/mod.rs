@@ -5,6 +5,7 @@ use crate::framework::GameHook;
 pub mod check_developer_machine;
 pub mod find_entry;
 pub mod load_game_data;
+pub mod main_loop;
 pub mod next_argument;
 pub mod packed_local_time;
 pub mod read_command_line;
@@ -22,4 +23,5 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &read_command_line::HOOK,
     &check_developer_machine::HOOK,
     &load_game_data::HOOK,
+    &main_loop::HOOK,
 ];

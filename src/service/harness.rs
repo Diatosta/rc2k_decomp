@@ -73,7 +73,7 @@ pub fn dispatch_state(
     let theirs = capture(regions);
 
     if theirs != mine || !left.matches(r, &o) {
-        hook.mismatch(|| {
+        crate::screens::harness::mismatch_unless_disturbed(hook, || {
             format!(
                 "before {before:x?}: original {theirs:x?}; rust {mine:x?} regs_ok={}",
                 left.matches(r, &o)
@@ -118,7 +118,7 @@ pub fn dispatch_keyed_state(
 
     // The original has come back, so it met no fatal error.
     if let Err(crate::errors::Refused::Fatal(error)) = result {
-        hook.mismatch(|| {
+        crate::screens::harness::mismatch_unless_disturbed(hook, || {
             format!(
                 "the Rust version reported fatal error {:#x} {:?}; the original returned",
                 error.code, error.message
@@ -128,7 +128,7 @@ pub fn dispatch_keyed_state(
     if let Ok(left) = result
         && (theirs != mine || !left.matches(r, &o))
     {
-        hook.mismatch(|| {
+        crate::screens::harness::mismatch_unless_disturbed(hook, || {
             format!(
                 "key={key:x?} before {before:x?}: original {theirs:x?}; rust {mine:x?} regs_ok={}",
                 left.matches(r, &o)
@@ -169,7 +169,7 @@ pub fn dispatch_replayed_state(
 
     // The original has come back, so it met no fatal error.
     if let Err(crate::errors::Refused::Fatal(error)) = result {
-        hook.mismatch(|| {
+        crate::screens::harness::mismatch_unless_disturbed(hook, || {
             format!(
                 "the Rust version reported fatal error {:#x} {:?}; the original returned",
                 error.code, error.message
@@ -179,7 +179,7 @@ pub fn dispatch_replayed_state(
     if let Ok(left) = result
         && (theirs != mine || !left.matches(r, &o))
     {
-        hook.mismatch(|| {
+        crate::screens::harness::mismatch_unless_disturbed(hook, || {
             format!(
                 "before {before:x?}: original {theirs:x?}; rust {mine:x?} regs_ok={}",
                 left.matches(r, &o)

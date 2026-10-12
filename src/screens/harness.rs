@@ -30,7 +30,30 @@ impl Disturbing {
 
 impl Drop for Disturbing {
     fn drop(&mut self) {
+        LAST_DISTURBED.store(crate::system::tick_count::tick_count(), Ordering::SeqCst);
         DISTURBANCES.fetch_add(1, Ordering::SeqCst);
+    }
+}
+
+/// The clock when the last such test let go.
+static LAST_DISTURBED: AtomicU32 = AtomicU32::new(0);
+/// A comparison takes far less than this many milliseconds.
+const SETTLES_IN: u32 = 250;
+
+/// True while such a test holds the highlighted item changed, and for a moment after: a
+/// shadow comparison that ends then may have had one of its two runs fall into it.
+pub fn disturbed() -> bool {
+    DISTURBANCES.load(Ordering::SeqCst) % 2 == 1
+        || crate::system::tick_count::tick_count()
+            .wrapping_sub(LAST_DISTURBED.load(Ordering::SeqCst))
+            < SETTLES_IN
+}
+
+/// `hook.mismatch`, unless `disturbed()`: for the shadow comparisons of functions that
+/// read the highlighted item.
+pub fn mismatch_unless_disturbed(hook: &RawHook, detail: impl FnOnce() -> String) {
+    if !disturbed() {
+        hook.mismatch(detail);
     }
 }
 

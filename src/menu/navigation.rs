@@ -266,14 +266,16 @@ pub fn dispatch_outside(
     restore(regions, &theirs);
 
     match result {
-        Err(Refused::Fatal(error)) => hook.mismatch(|| {
-            format!(
-                "the Rust version reported fatal error {:#x} {:?}; the original returned",
-                error.code, error.message
-            )
-        }),
+        Err(Refused::Fatal(error)) => {
+            crate::screens::harness::mismatch_unless_disturbed(hook, || {
+                format!(
+                    "the Rust version reported fatal error {:#x} {:?}; the original returned",
+                    error.code, error.message
+                )
+            })
+        }
         Ok(left) if !silent.left_out && (theirs != mine || !left.matches(r, &o)) => {
-            hook.mismatch(|| {
+            crate::screens::harness::mismatch_unless_disturbed(hook, || {
                 format!(
                     "key={key:x?} before {before:x?}: original {theirs:x?} eax={:#x}; rust {mine:x?} {left:?}",
                     o.eax

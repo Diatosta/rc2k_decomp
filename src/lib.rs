@@ -24,6 +24,7 @@ pub mod saves;
 pub mod screens;
 pub mod service;
 pub mod settings;
+pub mod sound;
 pub mod strings;
 pub mod system;
 pub mod text;
