@@ -17,6 +17,7 @@ pub mod copy_picture_to_surface;
 pub mod copy_pixel_rows;
 pub mod decode_png;
 pub mod fill_row_table;
+pub mod free_fonts;
 pub mod glyph_builder;
 pub mod glyph_tables;
 pub mod harness;
@@ -79,6 +80,7 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &load_picture::HOOK,
     &build_glyphs::HOOK,
     &build_fonts::HOOK,
+    &free_fonts::HOOK,
     &build_menu_sprites::HOOK,
     &build_game_fonts::HOOK,
 ];

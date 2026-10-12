@@ -2,8 +2,10 @@
 
 use crate::framework::GameHook;
 
+pub mod add_clio_car;
 pub mod add_text_length;
 pub mod advanced_audio_loop;
+pub mod apply_cheats;
 pub mod arcade_best_times_loop;
 pub mod arcade_next_stage_loop;
 pub mod arcade_results_loop;
@@ -28,6 +30,7 @@ pub mod class_stage_results_loop;
 pub mod clear_text;
 pub mod draw_frame;
 pub mod draw_menu;
+pub mod drop_missing_controllers;
 pub mod edit_replay_name;
 pub mod edit_savegame_name;
 pub mod frame_callback;
@@ -40,6 +43,7 @@ pub mod information_loop;
 pub mod inspection_area_loop;
 pub mod item_at;
 pub mod leave_question_loop;
+pub mod link_player_names;
 pub mod load_background;
 pub mod load_championship_46e899_loop;
 pub mod load_championship_loop;
@@ -62,11 +66,13 @@ pub mod player2_details_loop;
 pub mod player3_details_loop;
 pub mod player4_details_loop;
 pub mod player_details_loop;
+pub mod player_names;
 pub mod rally_stages_loop;
 pub mod redefine_keys_player1_loop;
 pub mod redefine_keys_player2_loop;
 pub mod redefine_keys_player3_loop;
 pub mod redefine_keys_player4_loop;
+pub mod remove_secret_cars;
 pub mod restore_text;
 pub mod results_482e9b_loop;
 pub mod results_48584b_loop;
@@ -100,6 +106,7 @@ pub mod simple_select_players_loop;
 pub mod slideshow_loop;
 pub mod stage_result_loop;
 pub mod start_rally_loop;
+pub mod store_player_names;
 pub mod text_entry;
 pub mod time_trial_best_times_loop;
 pub mod time_trial_results_loop;
@@ -122,6 +129,12 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &draw_frame::HOOK,
     &frame_callback::HOOK,
     &go_back::HOOK,
+    &remove_secret_cars::HOOK,
+    &apply_cheats::HOOK,
+    &add_clio_car::HOOK,
+    &drop_missing_controllers::HOOK,
+    &link_player_names::HOOK,
+    &store_player_names::HOOK,
     &backup_text::HOOK,
     &restore_text::HOOK,
     &clear_text::HOOK,

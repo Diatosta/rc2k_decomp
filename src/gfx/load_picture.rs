@@ -174,6 +174,7 @@ impl LoaderTest {
             ],
         ]
         .concat();
+        crate::gfx::picture::IN_A_TEST.store(true, std::sync::atomic::Ordering::SeqCst);
         Ok(Self {
             saved: capture(&regions),
             regions,
@@ -211,6 +212,7 @@ impl LoaderTest {
 
     pub fn end(self) {
         restore(&self.regions, &self.saved);
+        crate::gfx::picture::IN_A_TEST.store(false, std::sync::atomic::Ordering::SeqCst);
         self.last_path.restore();
         let _ = std::fs::remove_file(TEST_PNG);
         let _ = std::fs::remove_file(TEST_PCX);

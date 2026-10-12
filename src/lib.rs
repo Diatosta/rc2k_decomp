@@ -16,6 +16,7 @@ pub mod logfile;
 pub mod math;
 pub mod memory;
 pub mod menu;
+pub mod physics;
 pub mod records;
 pub mod redirect;
 mod registry;

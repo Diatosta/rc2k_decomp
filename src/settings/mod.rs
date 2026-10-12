@@ -7,6 +7,7 @@ pub mod apply_feature_switches;
 pub mod copy_value;
 pub mod find_key;
 pub mod parse_number;
+pub mod read_driver_names;
 pub mod read_settings;
 pub mod read_text;
 
@@ -17,6 +18,7 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &parse_number::HOOK,
     &read_settings::HOOK,
     &apply_feature_switches::HOOK,
+    &read_driver_names::HOOK,
 ];
 
 /// The block a settings file is read into: 0x10000 bytes, up to `files::numbered_path`'s

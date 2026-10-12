@@ -58,9 +58,30 @@ acting_stand_in!(stand_in_2, 2);
 acting_stand_in!(stand_in_3, 3);
 acting_stand_in!(stand_in_4, 4);
 acting_stand_in!(stand_in_5, 5);
+acting_stand_in!(stand_in_6, 6);
+acting_stand_in!(stand_in_7, 7);
+acting_stand_in!(stand_in_8, 8);
+acting_stand_in!(stand_in_9, 9);
+acting_stand_in!(stand_in_10, 10);
+acting_stand_in!(stand_in_11, 11);
+acting_stand_in!(stand_in_12, 12);
+acting_stand_in!(stand_in_13, 13);
 
-const STAND_INS: [unsafe extern "C" fn(); 6] = [
-    stand_in_0, stand_in_1, stand_in_2, stand_in_3, stand_in_4, stand_in_5,
+const STAND_INS: [unsafe extern "C" fn(); 14] = [
+    stand_in_0,
+    stand_in_1,
+    stand_in_2,
+    stand_in_3,
+    stand_in_4,
+    stand_in_5,
+    stand_in_6,
+    stand_in_7,
+    stand_in_8,
+    stand_in_9,
+    stand_in_10,
+    stand_in_11,
+    stand_in_12,
+    stand_in_13,
 ];
 
 pub fn stand_in(place: u32) -> usize {

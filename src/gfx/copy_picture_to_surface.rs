@@ -166,6 +166,7 @@ extern "C" fn dispatch(r: &mut Regs) {
     // Unlocked again, the surface's memory is no longer ours to read.
     let surface = GameSurface;
     let comparable = was_locked
+        && !crate::gfx::picture::IN_A_TEST.load(Ordering::SeqCst)
         && surface.locked()
         && !surface.picture().is_null()
         && !surface.pixels().is_null();

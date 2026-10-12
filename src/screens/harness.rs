@@ -11,6 +11,28 @@ use crate::screens::blanked;
 use crate::service::harness::{Region, capture, restore};
 use crate::text::draw_text::{Canvas, GameCanvas, Outcome, RecordingCanvas};
 use crate::text::glyph_kerning::state_ptr;
+use std::sync::atomic::{AtomicU32, Ordering};
+
+/// Counts the starts and ends of self-tests that change, with the game running, what the
+/// game's menu drawing decides by (the highlighted item): odd while one is going on. A
+/// shadow comparison that such a test's writes may have fallen into is not reported.
+static DISTURBANCES: AtomicU32 = AtomicU32::new(0);
+
+/// Held by a self-test that runs unpaused while it has the highlighted item changed.
+pub struct Disturbing(());
+
+impl Disturbing {
+    pub fn begin() -> Self {
+        DISTURBANCES.fetch_add(1, Ordering::SeqCst);
+        Self(())
+    }
+}
+
+impl Drop for Disturbing {
+    fn drop(&mut self) {
+        DISTURBANCES.fetch_add(1, Ordering::SeqCst);
+    }
+}
 
 /// `call_original` of a hook.
 pub type CallOriginal = unsafe extern "C" fn(*mut Regs);
@@ -142,6 +164,7 @@ pub fn dispatch_draw_rewound(
         return;
     }
 
+    let disturbances = DISTURBANCES.load(Ordering::SeqCst);
     let before = capture(rewind);
     let mut canvas = RecordingCanvas::new(true);
     let left = match rust(r, &mut canvas) {
@@ -162,7 +185,8 @@ pub fn dispatch_draw_rewound(
         && state_o == state_r
         && unsafe { *state_ptr() } == canvas.state
         && (!recording_works() || calls == canvas.calls);
-    if !ok {
+    let disturbed = disturbances % 2 == 1 || DISTURBANCES.load(Ordering::SeqCst) != disturbances;
+    if !ok && !disturbed {
         hook.mismatch(|| {
             format!(
                 "regs_ok={} same_state={} original calls={} rust calls={} first different call={:?}",

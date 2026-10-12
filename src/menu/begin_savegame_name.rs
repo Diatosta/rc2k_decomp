@@ -16,7 +16,7 @@ use crate::menu::name_lists::{NAME_LEN, SAVEGAME_PAGE_RVA, savegame_name};
 use crate::menu::text_entry::{
     ENTERING_RVA, LENGTH_RVA, backup, backup_region, begin_logged, set_length,
 };
-use crate::screens::harness::Left;
+use crate::screens::harness::{Disturbing, Left};
 use crate::service::harness::{Region, at, capture, check_state, dispatch_replayed_state, restore};
 use crate::service::state::MENU_ITEM_RVA;
 use std::sync::atomic::AtomicUsize;
@@ -78,6 +78,8 @@ fn self_test() -> (usize, usize) {
     };
     let inputs = [at(SAVEGAME_PAGE_RVA), at(MENU_ITEM_RVA)];
     let saved_inputs = capture(&inputs);
+    // The game is running and its menus draw by the highlighted item.
+    let _disturbing = Disturbing::begin();
     unsafe {
         game_write(SAVEGAME_PAGE_RVA, 9u32);
         game_write(MENU_ITEM_RVA, 10u32);

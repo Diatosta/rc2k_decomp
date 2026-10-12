@@ -33,7 +33,7 @@ hook_asm!(
 
 // ---- game data ----
 
-const PATH_RVA: usize = rva(0x519102); // "files\d\gfx\sku"
+pub const PATH_RVA: usize = rva(0x519102); // "files\d\gfx\sku"
 const KEY_RVA: usize = rva(0x519112); // "sku"
 const NUMBER_RVA: usize = rva(0x5190F4); // dword_5190F4
 const OEM_RVA: usize = rva(0x5190F8); // dword_5190F8

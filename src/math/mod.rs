@@ -5,6 +5,8 @@ pub mod hhmm_to_minutes;
 pub mod miles_to_km;
 pub mod next_random;
 pub mod random_below;
+pub mod seed_random;
+pub mod stir_random;
 
 pub static HOOKS: &[&dyn GameHook] = &[
     &celsius_to_fahrenheit::HOOK,
@@ -12,4 +14,6 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &hhmm_to_minutes::HOOK,
     &next_random::HOOK,
     &random_below::HOOK,
+    &seed_random::HOOK,
+    &stir_random::HOOK,
 ];
