@@ -73,7 +73,7 @@ pub unsafe fn draw_menu_labels(menu: u32, canvas: &mut dyn Canvas) -> Result<(),
 
 // ---- hook ----
 
-fn state() -> Vec<u8> {
+pub fn state() -> Vec<u8> {
     unsafe { from_raw_parts(text(), TEXT_LEN) }.to_vec()
 }
 

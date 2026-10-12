@@ -201,7 +201,7 @@ fn rust(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
 
 /// Everything the function and the ones under it leave behind, but the font objects that
 /// measuring writes.
-fn regions() -> Vec<Region> {
+pub fn regions() -> Vec<Region> {
     [
         &[at(HIGHLIGHTED_RVA), at(MARKER_X_RVA), at(MARKER_Y_RVA)][..],
         &PLAIN.regions(),
@@ -212,7 +212,7 @@ fn regions() -> Vec<Region> {
     .concat()
 }
 
-fn state() -> Vec<u8> {
+pub fn state() -> Vec<u8> {
     capture(&regions())
 }
 

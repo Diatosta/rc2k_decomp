@@ -1,5 +1,5 @@
-//! `menu::car_specs_47ac0c_loop` (0x47AC0C): a screen over the car specification background
-//! that the starters of every kind of event call.
+//! `menu::select_car_loop` (0x47AC0C): the car selection screen, which the starters of
+//! every kind of event call.
 //!
 //! In:  nothing
 //! Out: every register preserved
@@ -7,7 +7,9 @@
 //! as extracted from the disassembly: background `cspecs.png`; leaving is not asked about; it
 //! has steps of its own first on leaving; the steps that are more than a call or a store are
 //! the functions below, generated from the listing.
-//! The name is a reading from its background and callers, not yet a visit.
+//! Screen: the car selection when an event is started (the owner called it the car select
+//! menu, 2026-10-12; it ran in the Rust version under each of the five start screens that
+//! day). Named `car_specs_47ac0c_loop` until then.
 //! Callers: `sub_4182FA`, `sub_482382`, `sub_4824C1`, `sub_4824C1`, `sub_4826A2`, `sub_4826A2`,
 //! `sub_4828B0`, `sub_4828B0`, `sub_4828B0`, `sub_482B7A`, `sub_482B7A`, `sub_482B7A`,
 //! `sub_482B7A`, `sub_487E2C`, `sub_48AE39`, `sub_48AFD0`, `sub_48AFD0`, `sub_48B23D`,
@@ -29,18 +31,14 @@ use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
-pub static HOOK: RawHook = RawHook::new(
-    "menu::car_specs_47ac0c_loop",
-    rva(0x47AC0C),
-    thunk,
-    &ORIGINAL,
-)
-.private_copy(0x340)
-.relocate_calls(&[
-    0x2B, 0x5E, 0x81, 0xF2, 0x123, 0x128, 0x134, 0x139, 0x188, 0x19A, 0x1E2, 0x240, 0x2E2, 0x307,
-])
-.manual_patch()
-.self_test(self_test);
+pub static HOOK: RawHook = RawHook::new("menu::select_car_loop", rva(0x47AC0C), thunk, &ORIGINAL)
+    .private_copy(0x340)
+    .relocate_calls(&[
+        0x2B, 0x5E, 0x81, 0xF2, 0x123, 0x128, 0x134, 0x139, 0x188, 0x19A, 0x1E2, 0x240, 0x2E2,
+        0x307,
+    ])
+    .manual_patch()
+    .self_test(self_test);
 
 hook_asm!(
     thunk,

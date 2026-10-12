@@ -13,6 +13,7 @@ pub mod gfx;
 pub mod input;
 pub mod logfile;
 pub mod math;
+pub mod memory;
 pub mod menu;
 pub mod records;
 pub mod redirect;

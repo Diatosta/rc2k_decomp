@@ -19,7 +19,6 @@ pub mod best_overall_scores_loop;
 pub mod best_scores_48a69e_loop;
 pub mod best_times_loop;
 pub mod car_specification_loop;
-pub mod car_specs_47ac0c_loop;
 pub mod car_specs_47af4c_loop;
 pub mod championship_new_simulation_loop;
 pub mod championship_standings_loop;
@@ -27,8 +26,12 @@ pub mod class_championship_standings_loop;
 pub mod class_rally_results_loop;
 pub mod class_stage_results_loop;
 pub mod clear_text;
+pub mod draw_frame;
+pub mod draw_menu;
 pub mod edit_replay_name;
 pub mod edit_savegame_name;
+pub mod frame_callback;
+pub mod frame_test;
 pub mod go_back;
 pub mod handle_keys;
 pub mod handle_yes_no;
@@ -37,6 +40,7 @@ pub mod information_loop;
 pub mod inspection_area_loop;
 pub mod item_at;
 pub mod leave_question_loop;
+pub mod load_background;
 pub mod load_championship_46e899_loop;
 pub mod load_championship_loop;
 pub mod load_replay_loop;
@@ -90,6 +94,7 @@ pub mod screen_479410_loop;
 pub mod screen_483163_loop;
 pub mod screen_488f4c_loop;
 pub mod screen_loop;
+pub mod select_car_loop;
 pub mod select_stage_loop;
 pub mod simple_select_players_loop;
 pub mod slideshow_loop;
@@ -112,6 +117,10 @@ pub mod visual_preferences_loop;
 pub mod welcome_loop;
 
 pub static HOOKS: &[&dyn GameHook] = &[
+    &draw_menu::HOOK,
+    &load_background::HOOK,
+    &draw_frame::HOOK,
+    &frame_callback::HOOK,
     &go_back::HOOK,
     &backup_text::HOOK,
     &restore_text::HOOK,
@@ -209,7 +218,7 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &redefine_keys_player3_loop::HOOK,
     &redefine_keys_player4_loop::HOOK,
     &car_specification_loop::HOOK,
-    &car_specs_47ac0c_loop::HOOK,
+    &select_car_loop::HOOK,
     &car_specs_47af4c_loop::HOOK,
     &load_replay_loop::HOOK,
     &save_replay_loop::HOOK,

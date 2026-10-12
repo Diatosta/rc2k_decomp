@@ -17,10 +17,12 @@ pub mod str_append;
 pub mod str_append_indexed;
 pub mod string_table;
 pub mod text_from_ids;
+pub mod text_length;
 pub mod units;
 pub mod utils;
 
 pub static HOOKS: &[&dyn GameHook] = &[
+    &text_length::HOOK,
     &str_append::HOOK,
     &hex_append::HOOK,
     &str_append_indexed::HOOK,
