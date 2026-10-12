@@ -3,6 +3,9 @@
 use crate::framework::GameHook;
 
 pub mod allocate_best_times;
+pub mod default_best_scores;
+pub mod default_class_times;
+pub mod drivers;
 pub mod gather_savegame;
 pub mod list_car_numbers;
 pub mod load_best_times;
@@ -24,4 +27,6 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &allocate_best_times::HOOK,
     &load_best_times::HOOK,
     &list_car_numbers::HOOK,
+    &default_best_scores::HOOK,
+    &default_class_times::HOOK,
 ];

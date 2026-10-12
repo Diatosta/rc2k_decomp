@@ -33,6 +33,7 @@ pub mod draw_menu;
 pub mod drop_missing_controllers;
 pub mod edit_replay_name;
 pub mod edit_savegame_name;
+pub mod fit_player_names;
 pub mod frame_callback;
 pub mod frame_test;
 pub mod go_back;
@@ -133,6 +134,7 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &apply_cheats::HOOK,
     &add_clio_car::HOOK,
     &drop_missing_controllers::HOOK,
+    &fit_player_names::HOOK,
     &link_player_names::HOOK,
     &store_player_names::HOOK,
     &backup_text::HOOK,
