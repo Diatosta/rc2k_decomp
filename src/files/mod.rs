@@ -1,6 +1,7 @@
 use crate::framework::GameHook;
 
 pub mod close_stream;
+pub mod drive_type;
 pub mod file_exists;
 pub mod file_size;
 pub mod handle;
@@ -20,6 +21,7 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &numbered_path::HOOK,
     &read_file::HOOK,
     &read_first_match::HOOK,
+    &drive_type::HOOK,
     &write_file::HOOK,
     &file_exists::HOOK,
     &file_size::HOOK,

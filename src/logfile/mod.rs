@@ -1,5 +1,6 @@
 use crate::framework::GameHook;
 
+pub mod date_text;
 pub mod log_float;
 pub mod log_hex2;
 pub mod log_hex4;
@@ -8,6 +9,7 @@ pub mod log_int;
 pub mod log_int_fmt;
 pub mod log_write;
 pub mod numeric;
+pub mod start_log;
 pub mod write_line;
 
 pub static HOOKS: &[&dyn GameHook] = &[
@@ -19,4 +21,6 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &log_hex8::HOOK,
     &log_hex2::HOOK,
     &log_hex4::HOOK,
+    &date_text::HOOK,
+    &start_log::HOOK,
 ];

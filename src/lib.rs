@@ -11,6 +11,7 @@ pub mod files;
 mod framework;
 pub mod gfx;
 pub mod input;
+pub mod install;
 pub mod logfile;
 pub mod math;
 pub mod memory;
@@ -21,6 +22,7 @@ mod registry;
 pub mod saves;
 pub mod screens;
 pub mod service;
+pub mod settings;
 pub mod strings;
 pub mod system;
 pub mod text;
@@ -182,7 +184,16 @@ fn install_all() -> Vec<bool> {
     installed
 }
 
-fn init() {
+/// Everything that has to be in place before the game's first instruction: the log file,
+/// the hooks and what `hook.toml` says about them. Runs in `DllMain`, so that no call of
+/// the game's start is missed and no code is patched while a thread is running it; only
+/// what is safe under the loader lock is done here (files, memory, patching code).
+///
+/// The console window is opened here too, before the game has a window: opened later, from
+/// its thread, it came up over the game's window on a fast start and took the focus, and
+/// the game waits at "Entering main loop..." for its window to be the active one
+/// (2026-10-12, the first start with `shadow = false` after the hooks moved here).
+fn install_now() -> (Vec<bool>, Option<(File, File)>) {
     if let Some(path) = dll_sibling("hook.log") {
         let _ = File::create(&path); // start each run with an empty log
         let _ = LOG_PATH.set(path);
@@ -191,9 +202,7 @@ fn init() {
     let mut enabled = install_all();
     let cfg = load_config().unwrap_or_default();
     apply_config(&cfg, &mut enabled);
-    if let Some((input, out)) = console {
-        console_loop(input, out, enabled);
-    }
+    (enabled, console)
 }
 
 /// # Safety
@@ -206,9 +215,13 @@ pub unsafe extern "system" fn DllMain(
 ) -> BOOL {
     if reason == DLL_PROCESS_ATTACH {
         unsafe { DisableThreadLibraryCalls(hinst) };
-        // Don't do real work under the loader lock; hop to a thread.
         DLL_HANDLE.store(hinst as usize, Ordering::Relaxed);
-        std::thread::spawn(init);
+        let (enabled, console) = install_now();
+        // The console waits for input: that is for a thread (which starts once the
+        // loader lock is free).
+        if let Some((input, out)) = console {
+            std::thread::spawn(move || console_loop(input, out, enabled));
+        }
     }
     TRUE
 }

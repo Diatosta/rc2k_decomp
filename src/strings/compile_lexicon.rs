@@ -280,9 +280,18 @@ fn self_test() -> (usize, usize) {
     }
     let mine = unsafe { compiled() };
     let empty_before: u32 = unsafe { game_read(EMPTY_MESSAGE_RVA + 4) };
+    // The lexicon in use is not what the compiler leaves: `strings::load_language` corrects
+    // it afterwards. Until 2026-10-12 this test left a freshly compiled one, without the
+    // corrections, in its place.
+    let in_use = [
+        (game_addr(TABLE_RVA) as u32, 0x4F07C8 - 0x4E07F8),
+        (game_addr(STRING_TABLE_RVA) as u32, 4),
+        (game_addr(WORK_RVA) as u32, WORK_LEN),
+    ];
+    let saved = crate::service::harness::capture(&in_use);
     let before = Regs::SENTINEL;
     let mut ro = before;
-    // The original writes the same table over the one in use.
+    // The original writes a fresh table over the one in use.
     unsafe { call_original(&mut ro) };
     let wrong = match &mine {
         Ok(compiled) => unsafe { difference(compiled, empty_before) },
@@ -307,5 +316,6 @@ fn self_test() -> (usize, usize) {
             "the game's language file, compiled and put in place by the rust version: {wrong:?}"
         )
     });
+    crate::service::harness::restore(&in_use, &saved);
     t.finish()
 }
