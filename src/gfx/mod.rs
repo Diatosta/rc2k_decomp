@@ -1,5 +1,6 @@
 use crate::framework::GameHook;
 
+pub mod allocate_picture_buffer;
 pub mod blend_palette;
 pub mod blit_bar;
 pub mod blit_bar_marker;
@@ -16,7 +17,9 @@ pub mod convert_picture;
 pub mod copy_picture_to_surface;
 pub mod copy_pixel_rows;
 pub mod decode_png;
+pub mod describe_format;
 pub mod fill_row_table;
+pub mod fill_thirds_table;
 pub mod free_fonts;
 pub mod glyph_builder;
 pub mod glyph_tables;
@@ -46,6 +49,7 @@ pub mod rescale_picture;
 pub mod rescale_to_surface;
 pub mod rgb_pixels_to_dwords;
 pub mod set_clip;
+pub mod set_component_format;
 pub mod show_picture_file;
 pub mod surface;
 
@@ -57,6 +61,10 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &pixel_to_components::HOOK,
     &components_to_pixel::HOOK,
     &blend_palette::HOOK,
+    &allocate_picture_buffer::HOOK,
+    &fill_thirds_table::HOOK,
+    &describe_format::HOOK,
+    &set_component_format::HOOK,
     &clear_picture::HOOK,
     &convert_picture::HOOK,
     &copy_picture_to_surface::HOOK,

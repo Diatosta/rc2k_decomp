@@ -57,7 +57,10 @@ pub unsafe fn refused(
     call_original: unsafe extern "C" fn(*mut Regs),
 ) {
     let error = match reason.into() {
-        Refused::BadInput(_) => {
+        Refused::BadInput(why) => {
+            if crate::framework::standalone() {
+                crate::framework::log(&format!("{}: refused: {}", hook.name(), why.0));
+            }
             unsafe { call_original(r) };
             return;
         }

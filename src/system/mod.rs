@@ -4,6 +4,7 @@ use crate::framework::GameHook;
 
 pub mod check_developer_machine;
 pub mod find_entry;
+pub mod keep_start_time;
 pub mod load_game_data;
 pub mod main_loop;
 pub mod next_argument;
@@ -14,6 +15,7 @@ pub mod tick_count;
 pub mod zero_memory;
 
 pub static HOOKS: &[&dyn GameHook] = &[
+    &keep_start_time::HOOK,
     &packed_local_time::HOOK,
     &tick_count::HOOK,
     &sleep::HOOK,

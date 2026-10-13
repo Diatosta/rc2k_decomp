@@ -112,6 +112,7 @@ pub mod simple_select_players_loop;
 pub mod slideshow_loop;
 pub mod stage_result_loop;
 pub mod start_rally_loop;
+pub mod step_carousel;
 pub mod store_player_names;
 pub mod text_entry;
 pub mod time_trial_best_times_loop;
@@ -130,6 +131,7 @@ pub mod visual_preferences_loop;
 pub mod welcome_loop;
 
 pub static HOOKS: &[&dyn GameHook] = &[
+    &step_carousel::HOOK,
     &draw_menu::HOOK,
     &load_background::HOOK,
     &draw_frame::HOOK,

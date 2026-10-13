@@ -6,11 +6,13 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 pub mod buttons;
+pub mod draw_background_band;
 pub mod draw_brake_balance_marker;
 pub mod draw_button;
 pub mod draw_button_alt;
 pub mod draw_button_highlighted;
 pub mod draw_empty_savegame;
+pub mod draw_highlighted_caption;
 pub mod draw_inspection_status;
 pub mod draw_item_button;
 pub mod draw_item_button_centred;
@@ -46,6 +48,8 @@ pub mod stage_panel;
 
 pub static HOOKS: &[&dyn GameHook] = &[
     &draw_stage_heading::HOOK,
+    &draw_background_band::HOOK,
+    &draw_highlighted_caption::HOOK,
     &draw_stage_records::HOOK,
     &draw_stage_info::HOOK,
     &draw_service_stage_info::HOOK,

@@ -17,6 +17,8 @@ pub mod math;
 pub mod memory;
 pub mod menu;
 pub mod physics;
+#[cfg(feature = "standalone")]
+pub mod platform;
 pub mod records;
 pub mod redirect;
 mod registry;
@@ -25,6 +27,8 @@ pub mod screens;
 pub mod service;
 pub mod settings;
 pub mod sound;
+#[cfg(feature = "standalone")]
+pub mod standalone;
 pub mod strings;
 pub mod system;
 pub mod text;
@@ -160,8 +164,9 @@ fn console_loop(input: File, mut out: File, mut enabled: Vec<bool>) {
     }
 }
 
-fn install_all() -> Vec<bool> {
-    let base = unsafe { GetModuleHandleW(std::ptr::null()) } as usize;
+/// Installs every hook on the game's code at `base`: the running game's own image, or
+/// the copy of it `standalone` has mapped.
+fn install_all(base: usize) -> Vec<bool> {
     BASE.store(base, Ordering::Relaxed);
     log(&format!("attached, exe base = {base:#x}"));
 
@@ -201,7 +206,7 @@ fn install_now() -> (Vec<bool>, Option<(File, File)>) {
         let _ = LOG_PATH.set(path);
     }
     let console = console_init();
-    let mut enabled = install_all();
+    let mut enabled = install_all(unsafe { GetModuleHandleW(std::ptr::null()) } as usize);
     let cfg = load_config().unwrap_or_default();
     apply_config(&cfg, &mut enabled);
     (enabled, console)

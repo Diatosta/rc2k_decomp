@@ -19,6 +19,15 @@ pub static TRACE: AtomicBool = AtomicBool::new(false);
 /// `hook.log` next to the DLL, set by `init`. Nothing is written to a file before that.
 pub static LOG_PATH: OnceLock<PathBuf> = OnceLock::new();
 pub const MAX_LOGGED: usize = 50;
+/// True in the program that runs the ported code without the game (`standalone.rs`).
+pub static STANDALONE: AtomicBool = AtomicBool::new(false);
+/// Set by `standalone.rs`: for a hook's address in the game's image, its thunk.
+/// `call_game` goes there straight away; the image itself cannot be executed there.
+pub static CALL_REDIRECT: OnceLock<std::collections::HashMap<usize, usize>> = OnceLock::new();
+
+pub fn standalone() -> bool {
+    STANDALONE.load(Ordering::Relaxed)
+}
 pub const IMAGE_BASE: usize = 0x400000;
 
 /// RVA of an address as IDA shows it.
@@ -40,6 +49,10 @@ pub trait GameHook: Sync {
     fn stats(&self) -> &HookStats;
     unsafe fn install(&self, addr: usize) -> Result<(), detour::Error>;
     unsafe fn set_enabled(&self, on: bool) -> Result<(), detour::Error>;
+
+    /// Makes `call_original` go to `addr` from now on. For `standalone.rs`, where there is
+    /// no original to run: it names an address that faults and tells which hook asked.
+    fn set_original(&self, addr: usize);
 
     /// (cases, mismatches). None = this hook has no self-test
     fn self_test(&self) -> Option<(usize, usize)> {
@@ -189,6 +202,9 @@ impl GameHook for RawHook {
     }
     fn stats(&self) -> &HookStats {
         &self.stats
+    }
+    fn set_original(&self, addr: usize) {
+        self.original.store(addr, Ordering::SeqCst);
     }
 
     unsafe fn install(&self, addr: usize) -> Result<(), detour::Error> {
@@ -375,8 +391,18 @@ impl Drop for GamePaused {
 /// it returns with back into `regs`: `call_original` for any address. For Rust versions that
 /// have to call a game function that is not ported yet, and for self-tests that run a copy of
 /// an original. `esp` in `regs` is ignored.
+/// In the standalone program a hook's address is exchanged for its thunk first.
+pub unsafe fn call_game(regs: *mut Regs, addr: usize) {
+    let addr = CALL_REDIRECT
+        .get()
+        .and_then(|thunks| thunks.get(&addr).copied())
+        .unwrap_or(addr);
+    unsafe { call_at(regs, addr) }
+}
+
+/// `call_game` without the exchange.
 #[unsafe(naked)]
-pub unsafe extern "C" fn call_game(_regs: *mut Regs, _addr: usize) {
+unsafe extern "C" fn call_at(_regs: *mut Regs, _addr: usize) {
     core::arch::naked_asm!(
         "push ebx", "push esi", "push edi", "push ebp",
         "mov eax, [esp + 20]",           // eax = regs
