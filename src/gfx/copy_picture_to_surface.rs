@@ -161,11 +161,14 @@ extern "C" fn dispatch(r: &mut Regs) {
         return;
     }
     let was_locked = GameSurface.locked();
+    // A test that ends while the original copies puts the picture back under it.
+    let in_a_test = crate::gfx::picture::IN_A_TEST.load(Ordering::SeqCst);
     let mut o = *r;
     unsafe { call_original(&mut o) };
     // Unlocked again, the surface's memory is no longer ours to read.
     let surface = GameSurface;
     let comparable = was_locked
+        && !in_a_test
         && !crate::gfx::picture::IN_A_TEST.load(Ordering::SeqCst)
         && surface.locked()
         && !surface.picture().is_null()

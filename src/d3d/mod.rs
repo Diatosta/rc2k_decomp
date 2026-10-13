@@ -1,0 +1,29 @@
+//! The game's Direct3D layer (0x418400 .. 0x41AE40): platform, so not ported, but the
+//! place where what the 3D code above it draws can be seen. The hooks here hand their
+//! call on to the original and note it for whoever is recording (`recorder.rs`), as
+//! `gfx::blit_glyph` does for the 2D code; a recording that swallows keeps the call
+//! from Direct3D altogether, so that a self-test can run original drawing code.
+//!
+//! Direct3D is used as a rasteriser only: every vertex comes transformed and lit
+//! (`Vertex`, the `D3DTLVERTEX` of DirectX 5). In the standalone program a renderer of
+//! ours will stand where the originals are; until then nothing is drawn there.
+
+use crate::framework::GameHook;
+
+pub mod draw_fan_unclipped;
+pub mod recorder;
+pub mod set_render_state;
+pub mod set_texture;
+
+/// A vertex as the game hands it over: x, y, z, 1/w (floats), colour, specular, u, v
+/// (floats), as their bits.
+pub type Vertex = [u32; 8];
+pub const VERTEX_LEN: usize = 0x20;
+/// The texture number that means "none".
+pub const NO_TEXTURE: u32 = 0xFFFF_FC43;
+
+pub static HOOKS: &[&dyn GameHook] = &[
+    &set_render_state::HOOK,
+    &set_texture::HOOK,
+    &draw_fan_unclipped::HOOK,
+];

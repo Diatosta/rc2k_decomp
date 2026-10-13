@@ -1,0 +1,285 @@
+//! `scene::reflection_coordinates` (0x45198C): where on the reflection's picture a
+//! vertex of a shiny surface looks.
+//!
+//! In:  nothing; `dword_6399A8` = the number of the vertex's normal, `dword_6399AC` =
+//!      the number of its point
+//! Out: `dword_6399B0`, `dword_6399B4` = the two texture coordinates as whole numbers;
+//!      eax, edx and esi as its parts leave them (eax of the second
+//!      `math::normalise_vector`, edx = the point's record, esi = the matrix of
+//!      `scene::reflect_vector`); everything else preserved
+//!
+//! The normal's place in the view (record 0x1000 + (number & 0xFFF), +0x10 .. +0x18)
+//! goes to `dword_5EA428` ..; the point's, negated, to the work vector, which is made
+//! one long and copied to `qword_5EA438` ..: the direction from the point to the eye.
+//! `scene::reflect_vector`; the result, with `flt_5C5D38` (1.0) added to its second
+//! part, is made one long; then each of its first and third parts, times
+//! `flt_5C5E40` (0.5) plus the same, times `flt_5C5D98` (65536) times `flt_5C5E2C`
+//! (256), rounded (`fistp`), is a coordinate.
+//! Callers: `scene::cached_reflection_coordinates`, by a call and by a jump.
+//! Refuses when there are no records and what `math::normalise_vector` refuses.
+
+use crate::errors::{BadInput, Refused};
+use crate::framework::{
+    EAX, EDX, ESI, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
+};
+use crate::math::normalise_vector::{LENGTH_RVA, VECTOR_RVA, normalise_vector};
+use crate::math::x87;
+use crate::scene::draw_polygon::CHECKED_RVA;
+use crate::scene::project_point::RECORDS_RVA;
+use crate::scene::reflect_vector::{
+    MATRIX_RVA, NORMAL_RVA, VECTOR_RVA as MIRRORED_RVA, reflect_vector,
+};
+use crate::screens::harness::Left;
+use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use std::sync::atomic::AtomicUsize;
+
+static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
+
+pub static HOOK: RawHook = RawHook::new(
+    "scene::reflection_coordinates",
+    rva(0x45198C),
+    thunk,
+    &ORIGINAL,
+)
+.self_test(self_test);
+
+hook_asm!(
+    thunk,
+    call_original,
+    dispatch = dispatch,
+    original = ORIGINAL
+);
+
+// ---- game data ----
+
+pub const NORMAL_NUMBER_RVA: usize = rva(0x6399A8); // dword_6399A8
+pub const POINT_NUMBER_RVA: usize = rva(0x6399AC); // dword_6399AC
+pub const COORDINATES_RVA: usize = rva(0x6399B0); // dword_6399B0, dword_6399B4
+const LIFT_RVA: usize = rva(0x5C5D38); // flt_5C5D38
+const HALF_RVA: usize = rva(0x5C5E40); // flt_5C5E40
+const SCALE_A_RVA: usize = rva(0x5C5D98); // flt_5C5D98
+const SCALE_B_RVA: usize = rva(0x5C5E2C); // flt_5C5E2C
+
+// ---- Rust version ----
+
+/// `fld a; fmul half; fadd half; fmul scale_a; fmul scale_b; fistp`.
+fn coordinate(a: u32, half: u32, scales: [u32; 2]) -> i32 {
+    let (v, mut out) = ([a, half, scales[0], scales[1]], 0i32);
+    unsafe {
+        core::arch::asm!(
+            "fld dword ptr [{v}]",
+            "fmul dword ptr [{v} + 4]",
+            "fadd dword ptr [{v} + 4]",
+            "fmul dword ptr [{v} + 8]",
+            "fmul dword ptr [{v} + 12]",
+            "fistp dword ptr [{o}]",
+            v = in(reg) v.as_ptr(),
+            o = in(reg) &raw mut out,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+        );
+    }
+    out
+}
+
+/// `fld a; fchs; fstp`.
+fn negated(a: u32) -> u32 {
+    let mut out = 0u32;
+    unsafe {
+        core::arch::asm!(
+            "fld dword ptr [{a}]",
+            "fchs",
+            "fstp dword ptr [{o}]",
+            a = in(reg) &raw const a,
+            o = in(reg) &raw mut out,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+        );
+    }
+    out
+}
+
+/// What the function leaves in registers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Leftovers {
+    pub eax: u32,
+    pub edx: u32,
+    pub esi: u32,
+}
+
+pub unsafe fn reflection_coordinates() -> Result<Leftovers, BadInput> {
+    unsafe {
+        let records: u32 = game_read(RECORDS_RVA);
+        if records == 0 {
+            return Err(BadInput("no records for the points"));
+        }
+        let record = |number: u32| records.wrapping_add(((number & 0xFFF) + 0x1000) << 5);
+        let place = |record: u32| ((record as usize + 0x10) as *const [u32; 3]).read_unaligned();
+        let normal = record(game_read(NORMAL_NUMBER_RVA));
+        game_write(MIRRORED_RVA, place(normal));
+        let point = record(game_read::<u32>(POINT_NUMBER_RVA).wrapping_neg());
+        game_write(VECTOR_RVA, place(point).map(negated));
+        normalise_vector()?;
+        let to_eye: [u32; 3] = game_read(VECTOR_RVA);
+        game_write(NORMAL_RVA, to_eye);
+        reflect_vector();
+        let mirrored: [u32; 3] = game_read(MIRRORED_RVA);
+        game_write(
+            VECTOR_RVA,
+            [
+                x87::loaded(mirrored[0]),
+                x87::add(mirrored[1], game_read(LIFT_RVA)),
+                x87::loaded(mirrored[2]),
+            ],
+        );
+        // Without the x87 way's sum eax is what was last loaded: the third part.
+        let eax = normalise_vector()?.unwrap_or(to_eye[2]);
+        let looks: [u32; 3] = game_read(VECTOR_RVA);
+        let half: u32 = game_read(HALF_RVA);
+        let scales = [game_read(SCALE_A_RVA), game_read(SCALE_B_RVA)];
+        game_write(
+            COORDINATES_RVA,
+            [
+                coordinate(looks[0], half, scales),
+                coordinate(looks[2], half, scales),
+            ],
+        );
+        Ok(Leftovers {
+            eax,
+            edx: point,
+            esi: game_addr(MATRIX_RVA) as u32,
+        })
+    }
+}
+
+// ---- hook ----
+
+/// What the function and its parts write.
+pub fn regions() -> Vec<Region> {
+    vec![
+        (game_addr(COORDINATES_RVA) as u32, 8),
+        (game_addr(MIRRORED_RVA) as u32, 12),
+        (game_addr(NORMAL_RVA) as u32, 12),
+        (game_addr(VECTOR_RVA) as u32, 32),
+        at(LENGTH_RVA),
+        at(CHECKED_RVA),
+    ]
+}
+
+fn rust(_: &Regs) -> Result<Left, Refused> {
+    let left = unsafe { reflection_coordinates() }?;
+    Ok(Left::nothing()
+        .with(EAX, left.eax)
+        .with(EDX, left.edx)
+        .with(ESI, left.esi))
+}
+
+extern "C" fn dispatch(r: &mut Regs) {
+    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+// ---- self-test ----
+
+/// Records of the test's for a few normals and points, and the matrix; `inputs()` is
+/// what a test that uses them puts back.
+pub struct Mirrors {
+    records: Vec<[u32; 8]>,
+}
+
+pub const TEST_NORMALS: u32 = 4;
+pub const TEST_POINTS: u32 = 4;
+
+impl Mirrors {
+    pub fn new() -> Self {
+        let f = |value: f32| value.to_bits();
+        let mut records = vec![[0u32; 8]; 0x2000];
+        let normals = [
+            [0.0f32, 0.0, -1.0],
+            [0.6, -0.8, 0.0],
+            [-0.577, 0.577, -0.577],
+            [0.1, 0.2, -0.97],
+        ];
+        let points = [
+            [0.0f32, 0.0, 9000.0],
+            [1200.5, -300.25, 8000.0],
+            [-4000.0, 2500.0, 12000.0],
+            [0.001, 0.002, 4096.0],
+        ];
+        for (n, normal) in normals.into_iter().enumerate() {
+            records[0x1000 + 0x10 + n][4..7].copy_from_slice(&normal.map(f));
+        }
+        for (n, point) in points.into_iter().enumerate() {
+            records[0x1000 + 0x20 + n][4..7].copy_from_slice(&point.map(f));
+        }
+        Self { records }
+    }
+
+    pub fn inputs() -> Vec<Region> {
+        vec![
+            at(RECORDS_RVA),
+            at(NORMAL_NUMBER_RVA),
+            at(POINT_NUMBER_RVA),
+            (game_addr(MATRIX_RVA) as u32, 0x40),
+        ]
+    }
+
+    /// Normal `normal` and point `point` (0 .. 3 each) as the function's inputs.
+    pub unsafe fn set(&self, normal: u32, point: u32, turned: bool) {
+        let matrix: [f32; 16] = if turned {
+            [
+                0.36, 0.48, -0.8, 0.0, -0.8, 0.6, 0.0, 0.0, 0.48, 0.64, 0.6, 0.0, 0.0, 0.0, 0.0,
+                0.0,
+            ]
+        } else {
+            [
+                1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+            ]
+        };
+        unsafe {
+            game_write(RECORDS_RVA, self.records.as_ptr() as u32);
+            // Numbers past 0xFFF, as an object's are taken: by their low twelve bits.
+            game_write(NORMAL_NUMBER_RVA, 0x5010 + normal);
+            game_write(POINT_NUMBER_RVA, (0x3020 + point).wrapping_neg());
+            game_write(MATRIX_RVA, matrix.map(f32::to_bits));
+        }
+    }
+}
+
+impl Default for Mirrors {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+fn self_test() -> (usize, usize) {
+    let Some(mut t) = SelfTest::begin(&HOOK) else {
+        return (0, 0);
+    };
+    let regions = regions();
+    let inputs = Mirrors::inputs();
+    let saved = (capture(&regions), capture(&inputs));
+    let mirrors = Mirrors::new();
+    for normal in 0..TEST_NORMALS {
+        for point in 0..TEST_POINTS {
+            for turned in [false, true] {
+                check_state(
+                    &mut t,
+                    &format!("normal {normal}, point {point}, turned {turned}"),
+                    call_original,
+                    Regs::SENTINEL,
+                    &|| unsafe {
+                        restore(&regions, &vec![0xAA; saved.0.len()]);
+                        mirrors.set(normal, point, turned);
+                    },
+                    &regions,
+                    &rust,
+                );
+            }
+        }
+    }
+    restore(&regions, &saved.0);
+    restore(&inputs, &saved.1);
+    t.finish()
+}

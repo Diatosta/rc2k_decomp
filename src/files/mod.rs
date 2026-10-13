@@ -11,6 +11,7 @@ pub mod read_file;
 pub mod read_first_match;
 pub mod read_stream_block;
 pub mod read_stream_byte;
+pub mod read_whole_file;
 pub mod resolve_path;
 pub mod stream;
 pub mod swap_missing_extension;
@@ -21,6 +22,7 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &numbered_path::HOOK,
     &read_file::HOOK,
     &read_first_match::HOOK,
+    &read_whole_file::HOOK,
     &drive_type::HOOK,
     &write_file::HOOK,
     &file_exists::HOOK,

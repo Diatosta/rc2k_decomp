@@ -18,6 +18,7 @@ use crate::framework::{
 };
 use crate::threading::find_thread_slot::find_thread_slot;
 use std::ffi::CString;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 const REPORTER_RVA: usize = rva(0x40763C); // fatal::report
@@ -60,6 +61,14 @@ pub unsafe fn refused(
         Refused::BadInput(why) => {
             if crate::framework::standalone() {
                 crate::framework::log(&format!("{}: refused: {}", hook.name(), why.0));
+            } else if first_refusal(hook.name(), why.0) {
+                // Once a hook and reason: a refusal in play is a case the Rust version
+                // leaves to the original, and should be known about.
+                crate::framework::log(&format!(
+                    "{}: refused (first time, the original runs): {}",
+                    hook.name(),
+                    why.0
+                ));
             }
             unsafe { call_original(r) };
             return;
@@ -87,6 +96,17 @@ pub unsafe fn refused(
         // Only a code without the fatal bit comes back, and no error has one.
         call_original(r);
     }
+}
+
+/// True the first time a hook refuses for a reason.
+fn first_refusal(hook: &'static str, why: &'static str) -> bool {
+    static SEEN: Mutex<Vec<(&'static str, &'static str)>> = Mutex::new(Vec::new());
+    let mut seen = SEEN.lock().unwrap();
+    if seen.contains(&(hook, why)) {
+        return false;
+    }
+    seen.push((hook, why));
+    true
 }
 
 // ---- the console command `fatal` ----

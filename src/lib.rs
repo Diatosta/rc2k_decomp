@@ -5,6 +5,7 @@
 // function's own doc comment and in the `Err(BadInput)` cases it checks.
 #![allow(clippy::missing_safety_doc)]
 
+pub mod d3d;
 pub mod errors;
 pub mod fatal;
 pub mod files;
@@ -23,6 +24,7 @@ pub mod records;
 pub mod redirect;
 mod registry;
 pub mod saves;
+pub mod scene;
 pub mod screens;
 pub mod service;
 pub mod settings;
