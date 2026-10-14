@@ -12,9 +12,11 @@ pub mod angle_between;
 pub mod approximate_distance;
 pub mod assign_kind_textures;
 pub mod assign_menu_textures;
+pub mod begin_scene;
 pub mod build_texture_catalogue;
 pub mod cached_reflection_coordinates;
 pub mod carousel_pictures;
+pub mod carousel_set_ups;
 pub mod choose_carousel_pictures;
 pub mod clear_depth_buffer;
 pub mod clear_fog;
@@ -28,9 +30,11 @@ pub mod clip_test;
 pub mod copy_matrix_with_place;
 pub mod count_texture_needs;
 pub mod cross_product;
+pub mod draw_car_object;
 pub mod draw_carousel;
 pub mod draw_carousel_entry;
 pub mod draw_clipped_polygon;
+pub mod draw_highlighted_object;
 pub mod draw_main_menu_carousel;
 pub mod draw_main_menu_objects;
 pub mod draw_marked_polygon;
@@ -42,6 +46,7 @@ pub mod draw_object_polygon;
 pub mod draw_polygon;
 pub mod draw_scene_object;
 pub mod draw_shown_object;
+pub mod end_scene;
 pub mod face_faces_away;
 pub mod face_sort_key;
 pub mod fill_engine_tables;
@@ -61,6 +66,7 @@ pub mod list_object_faces;
 pub mod list_object_textures;
 pub mod load_changed_texture_picture;
 pub mod load_front_end_objects;
+pub mod load_number_plates;
 pub mod load_object;
 pub mod load_slot_texture;
 pub mod load_slot_textures;
@@ -88,6 +94,7 @@ pub mod reset_objects;
 pub mod reset_texture_places;
 pub mod reset_texture_tables;
 pub mod scale_texture_coordinates;
+pub mod set_filters;
 pub mod set_fine_turn_x;
 pub mod set_fine_turn_y;
 pub mod set_light_direction;
@@ -96,9 +103,12 @@ pub mod set_object_file_names;
 pub mod set_object_light;
 pub mod set_object_material;
 pub mod set_place;
+pub mod set_render_state;
 pub mod set_turn_x;
 pub mod set_turn_y;
 pub mod set_turn_z;
+pub mod set_up_carousel;
+pub mod set_up_engine;
 pub mod set_up_front_end_scene;
 pub mod set_up_object_memory;
 pub mod set_up_textures;
@@ -114,6 +124,7 @@ pub mod textures;
 pub mod try_allocate_textures;
 pub mod unit_vector;
 pub mod update_carousel_pictures;
+pub mod upload_plate;
 pub mod vertex_light;
 pub mod view_matrix;
 
@@ -160,6 +171,7 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &angle_between::HOOK,
     &set_view_window::HOOK,
     &prepare_menu_scene::HOOK,
+    &set_up_carousel::HOOK,
     &draw_menu_object::HOOK,
     &draw_carousel_entry::HOOK,
     &draw_carousel::HOOK,
@@ -206,6 +218,15 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &load_changed_texture_picture::HOOK,
     &step_loading_bar::HOOK,
     &known_kind_plate::HOOK,
+    &set_up_engine::HOOK,
+    &draw_highlighted_object::HOOK,
+    &draw_car_object::HOOK,
+    &set_render_state::HOOK,
+    &set_filters::HOOK,
+    &begin_scene::HOOK,
+    &end_scene::HOOK,
+    &upload_plate::HOOK,
+    &load_number_plates::HOOK,
     &reload_system_textures::HOOK,
     &place_object_points::HOOK,
     &sort_listed_faces::HOOK,

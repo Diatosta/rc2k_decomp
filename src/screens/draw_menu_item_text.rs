@@ -8,8 +8,10 @@
 //! One caller, `draw_menu_items`.
 //! Manual patch with a private copy (0x57 bytes, four calls relocated): a conditional jump
 //! sits in the first bytes.
-//! Refuses, in the spaced-out way, an empty string (the original draws on from the bytes
-//! after its NUL) and one of 0x100 bytes or more (it would run into the one-character text).
+//! An empty string spaced out draws on from the bytes the line buffer held after its NUL,
+//! as the original does (seen on the load screen's empty slots in the standalone program,
+//! 2026-10-14). Refuses, in the spaced-out way, a string of 0x100 bytes or more (it would
+//! run into the one-character text).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_ptr, game_write, hook_asm, rva};
@@ -76,9 +78,6 @@ pub unsafe fn draw_menu_item_text(
             return Ok(());
         }
         let line = string_text(id)?;
-        if line.len() == 1 {
-            return Err(BadInput("an empty string, spaced out").into());
-        }
         if line.len() > LINE_LEN {
             return Err(BadInput("a string longer than the line buffer").into());
         }
@@ -86,10 +85,23 @@ pub unsafe fn draw_menu_item_text(
         set_line(&line);
         let one: *mut u8 = game_ptr(ONE_CHARACTER_RVA);
         let mut x = x.wrapping_sub(0x1A);
-        for &character in &line[..line.len() - 1] {
+        // One character, then on while the next byte is not a NUL: the first is drawn
+        // even when it is the NUL of an empty string, and then the loop goes on into
+        // what the line buffer held after it. It ends at the latest in the
+        // one-character text right after the buffer, which is cleared before it is read.
+        let mut place: *const u8 = game_ptr(LINE_BUFFER_RVA);
+        loop {
+            // The text is cleared before the byte is read: at the last place the byte
+            // is that text's own, so a NUL.
+            game_write(ONE_CHARACTER_RVA, 0u32);
+            let character = *place;
             game_write(ONE_CHARACTER_RVA, character as u32);
             draw_text_at(font, one, x, y, canvas)?;
             x = x.wrapping_add(0x12);
+            place = place.add(1);
+            if *place == 0 {
+                break;
+            }
         }
     }
     Ok(())
@@ -161,6 +173,37 @@ fn self_test() -> (usize, usize) {
                 call_original,
                 before,
                 &|| restore(&regions, &saved),
+                &rust,
+                &state,
+            );
+        }
+    }
+    // An empty string spaced out, over three things left in the line buffer: a short
+    // text after the first byte, nothing, and bytes to the buffer's end.
+    let empty = (0..0x757u32)
+        .find(|&id| is_table_id(id) && unsafe { string_text(id) }.is_ok_and(|s| s.len() == 1));
+    if let Some(id) = empty {
+        let mut full = vec![b'w'; LINE_LEN];
+        full[0] = 0;
+        let leftovers: [&[u8]; 3] = [b"\0xyz\0", b"\0\0", &full];
+        for (n, leftover) in leftovers.iter().enumerate() {
+            let before = Regs {
+                eax: id,
+                ebx: font_at(TEST_FONT) as u32,
+                ecx: 320,
+                edx: 140,
+                ebp: 1,
+                ..Regs::SENTINEL
+            };
+            check_draw(
+                &mut t,
+                &format!("empty string={id:#x} spaced, leftover {n}"),
+                call_original,
+                before,
+                &|| {
+                    restore(&regions, &saved);
+                    unsafe { set_line(leftover) };
+                },
                 &rust,
                 &state,
             );

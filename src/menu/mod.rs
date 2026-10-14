@@ -14,6 +14,7 @@ pub mod arcade_select_level_loop;
 pub mod audio_setup_loop;
 pub mod backspace_savegame_name;
 pub mod backup_text;
+pub mod begin_player_name;
 pub mod begin_replay_name;
 pub mod begin_savegame_name;
 pub mod best_class_scores_loop;
@@ -21,6 +22,8 @@ pub mod best_overall_scores_loop;
 pub mod best_scores_48a69e_loop;
 pub mod best_times_loop;
 pub mod build_notice;
+pub mod car_buttons;
+pub mod car_description;
 pub mod car_specification_loop;
 pub mod car_specs_47af4c_loop;
 pub mod championship_new_simulation_loop;
@@ -29,12 +32,18 @@ pub mod class_championship_standings_loop;
 pub mod class_rally_results_loop;
 pub mod class_stage_results_loop;
 pub mod clear_text;
+pub mod confirm_leaving;
+pub mod disable_item;
 pub mod draw_frame;
 pub mod draw_menu;
 pub mod drop_missing_controllers;
+pub mod edit_player_name;
 pub mod edit_replay_name;
 pub mod edit_savegame_name;
+pub mod enable_item;
 pub mod fit_player_names;
+pub mod flip_codriver;
+pub mod flip_yes_no;
 pub mod frame_callback;
 pub mod frame_test;
 pub mod go_back;
@@ -47,9 +56,12 @@ pub mod item_at;
 pub mod leave_question_loop;
 pub mod link_player_names;
 pub mod load_background;
+pub mod load_car_background;
 pub mod load_championship_46e899_loop;
 pub mod load_championship_loop;
 pub mod load_replay_loop;
+pub mod load_slideshow_picture;
+pub mod lower_sensitivity;
 pub mod main_menu_loop;
 pub mod move_highlight_down;
 pub mod move_highlight_left;
@@ -59,17 +71,36 @@ pub mod name_lists;
 pub mod navigation;
 pub mod network_rally_loop;
 pub mod new_simulation_loop;
+pub mod next_car;
+pub mod next_car_page;
+pub mod next_nationality;
+pub mod next_savegame_page;
+pub mod next_second_view;
+pub mod next_slideshow_car;
+pub mod next_slideshow_picture;
 pub mod next_stage_loop;
+pub mod next_view;
 pub mod options_loop;
 pub mod overall_rally_results_loop;
 pub mod overall_stage_results_loop;
 pub mod play_films;
+pub mod player;
 pub mod player1_details_loop;
 pub mod player2_details_loop;
 pub mod player3_details_loop;
 pub mod player4_details_loop;
 pub mod player_details_loop;
+pub mod player_name;
 pub mod player_names;
+pub mod player_settings;
+pub mod previous_car;
+pub mod previous_car_page;
+pub mod previous_nationality;
+pub mod previous_second_view;
+pub mod previous_slideshow_car;
+pub mod previous_slideshow_picture;
+pub mod previous_view;
+pub mod raise_sensitivity;
 pub mod rally_stages_loop;
 pub mod redefine_keys_player1_loop;
 pub mod redefine_keys_player2_loop;
@@ -239,6 +270,32 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &arcade_select_level_loop::HOOK,
     &welcome_loop::HOOK,
     &main_menu_loop::HOOK,
+    &confirm_leaving::HOOK,
+    &begin_player_name::HOOK,
+    &edit_player_name::HOOK,
+    &next_nationality::HOOK,
+    &previous_nationality::HOOK,
+    &next_view::HOOK,
+    &previous_view::HOOK,
+    &next_second_view::HOOK,
+    &previous_second_view::HOOK,
+    &raise_sensitivity::HOOK,
+    &lower_sensitivity::HOOK,
+    &flip_codriver::HOOK,
+    &disable_item::HOOK,
+    &enable_item::HOOK,
+    &load_car_background::HOOK,
+    &load_slideshow_picture::HOOK,
+    &next_car_page::HOOK,
+    &next_car::HOOK,
+    &previous_car::HOOK,
+    &previous_car_page::HOOK,
+    &next_slideshow_car::HOOK,
+    &previous_slideshow_car::HOOK,
+    &previous_slideshow_picture::HOOK,
+    &next_slideshow_picture::HOOK,
+    &flip_yes_no::HOOK,
+    &next_savegame_page::HOOK,
     &start_rally_loop::HOOK,
     &redefine_keys_player1_loop::HOOK,
     &redefine_keys_player2_loop::HOOK,

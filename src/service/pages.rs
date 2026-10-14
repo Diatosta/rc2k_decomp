@@ -29,7 +29,7 @@ use crate::service::harness::{
 use crate::service::setup_values::{Change, Stepper, step, toggle_change};
 use crate::service::state::{
     EDIT_MODE_RVA, EDIT_PAGE_RVA, MENU_ITEM_RVA, STATUS_RVA, TIME_BUDGET_RVA, chosen_repairs_time,
-    current_car, flagged_item, has_repair_time, leave_edit_mode, marks_ended, repair_flag,
+    current_player, flagged_item, has_repair_time, leave_edit_mode, marks_ended, repair_flag,
     set_repair_flag,
 };
 use crate::service::try_toggle_repair::try_toggle_repair;
@@ -55,7 +55,7 @@ const LAST_KEY_TIME_RVA: usize = rva(0x7556C4); // dword_7556C4: the clock at th
 pub struct SimplePage {
     pub down: Stepper,
     pub up: Stepper,
-    /// Offset of the value in the car object.
+    /// Offset of the value in the player.
     pub car_offset: u32,
 }
 
@@ -116,9 +116,9 @@ pub const SUSPENSION_STIFFNESS: ChangePage = ChangePage {
     item: 0x13,
 };
 
-fn car() -> Result<u32, BadInput> {
-    current_car().ok_or(BadInput(
-        "no current car object: the original reads through null",
+fn player() -> Result<u32, BadInput> {
+    current_player().ok_or(BadInput(
+        "no current player object: the original reads through null",
     ))
 }
 
@@ -142,7 +142,7 @@ unsafe fn key_and_step(down: Stepper, up: Stepper) -> Result<u8, Refused> {
 
 pub unsafe fn simple_page(page: SimplePage) -> Result<(), Refused> {
     // Nothing may be written before it is known that nothing will be refused.
-    car()?;
+    player()?;
     if unsafe { key_and_step(page.down, page.up) }? == KEY_CONFIRM {
         leave_edit_mode();
     }
@@ -163,7 +163,7 @@ pub unsafe fn change_page(page: ChangePage, confirm: bool) -> Result<(), Refused
         return Err(BadInput("the second flag table has lost its end mark").into());
     }
     let installed_in_car = match page.car_offset {
-        Some(offset) => Some((car()?.wrapping_add(offset)) as *const u32),
+        Some(offset) => Some((player()?.wrapping_add(offset)) as *const u32),
         None => None,
     };
 
@@ -218,11 +218,11 @@ pub fn page_regions(chosen_rvas: &[usize], car_offsets: &[u32]) -> Vec<Region> {
     let mut regions = vec![at(EDIT_MODE_RVA)];
     regions.extend(repair_regions());
     regions.extend(chosen_rvas.iter().map(|&rva| at(rva)));
-    if let Some(car) = current_car() {
+    if let Some(player) = current_player() {
         regions.extend(
             car_offsets
                 .iter()
-                .map(|&offset| (car.wrapping_add(offset), 4)),
+                .map(|&offset| (player.wrapping_add(offset), 4)),
         );
     }
     regions
@@ -261,9 +261,9 @@ pub struct PageTest {
 }
 
 impl PageTest {
-    /// None if there is no car object.
+    /// None if there is no player.
     pub fn begin() -> Option<Self> {
-        let car = current_car()?;
+        let player = current_player()?;
         let mut regions = vec![
             (game_addr(PENDING_KEY_RVA) as u32, 1),
             at(EDIT_MODE_RVA),
@@ -276,7 +276,7 @@ impl PageTest {
             regions.push(at(page.entry_rva));
         }
         for offset in [0x110, 0x114, 0x118, 0x11C] {
-            regions.push((car + offset, 4));
+            regions.push((player + offset, 4));
         }
         let repairs = RepairTest::begin();
         let saved = capture(&regions);
@@ -299,7 +299,7 @@ pub const SCENARIOS: [(&str, [u32; 4]); 4] = [
     ("untouched", [3, 3, 3, 3]),
     ("changed now", [3, 2, 2, 2]),
     ("changed before", [3, 3, 1, 1]),
-    ("back to the car's", [3, 2, 2, 3]),
+    ("back to the player's", [3, 2, 2, 3]),
 ];
 
 /// Budgets that give status 3, 1 and 2 with the known times.
@@ -318,8 +318,8 @@ pub fn prepare_change(page: ChangePage, key: u8, values: [u32; 4], flag: u32, bu
         game_write(page.change.chosen_rva, values[0]);
         game_write(page.entry_rva, values[1]);
         game_write(page.change.installed_rva, values[2]);
-        if let (Some(offset), Some(car)) = (page.car_offset, current_car()) {
-            ((car + offset) as *mut u32).write_unaligned(values[3]);
+        if let (Some(offset), Some(player)) = (page.car_offset, current_player()) {
+            ((player + offset) as *mut u32).write_unaligned(values[3]);
         }
     }
     pending_key().store(key, Ordering::SeqCst);
@@ -329,8 +329,8 @@ pub fn prepare_simple(page: SimplePage, key: u8, value: u32) {
     unsafe {
         game_write(EDIT_MODE_RVA, 1u32);
         game_write(LAST_KEY_TIME_RVA, UNSET);
-        if let Some(car) = current_car() {
-            ((car + page.car_offset) as *mut u32).write_unaligned(value);
+        if let Some(player) = current_player() {
+            ((player + page.car_offset) as *mut u32).write_unaligned(value);
         }
     }
     pending_key().store(key, Ordering::SeqCst);
@@ -404,9 +404,9 @@ pub fn check_simple_page(
 
 /// Why the pages cannot be tested now, or None.
 pub fn pages_unavailable() -> Option<&'static str> {
-    current_car()
+    current_player()
         .is_none()
-        .then_some("there is no current car object")
+        .then_some("there is no current player object")
 }
 
 /// The observer the dispatcher's test shares.

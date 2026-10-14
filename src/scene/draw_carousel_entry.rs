@@ -59,21 +59,21 @@ hook_asm!(
 
 // ---- game data ----
 
-const PLACE_RVA: usize = rva(0x63501C); // dword_63501C, dword_635020, dword_635024
-const SIZE_RVA: usize = rva(0x635038); // dword_635038
-const ANGLE_X_RVA: usize = rva(0x63503C); // dword_63503C
-const ANGLE_Y_RVA: usize = rva(0x635040); // dword_635040
+pub(crate) const PLACE_RVA: usize = rva(0x63501C); // dword_63501C, dword_635020, dword_635024
+pub(crate) const SIZE_RVA: usize = rva(0x635038); // dword_635038
+pub(crate) const ANGLE_X_RVA: usize = rva(0x63503C); // dword_63503C
+pub(crate) const ANGLE_Y_RVA: usize = rva(0x635040); // dword_635040
 const CLEARED_RVA: usize = rva(0x623FB0); // dword_623FB0, dword_623FB4
 const SPACING_RVA: usize = rva(0x75A664); // dword_75A664, then y, z and the way forward
-const KINDS_RVA: usize = rva(0x75A674); // dword_75A674
-const ENTRIES: u32 = 0x100;
-const KIND_RVA: usize = rva(0x75A658); // dword_75A658
-const OWN_RVA: usize = rva(0x75950E); // unk_75950E
-const OWN: u32 = 0x88;
+pub(crate) const KINDS_RVA: usize = rva(0x75A674); // dword_75A674
+pub(crate) const ENTRIES: u32 = 0x100;
+pub(crate) const KIND_RVA: usize = rva(0x75A658); // dword_75A658
+pub(crate) const OWN_RVA: usize = rva(0x75950E); // unk_75950E
+pub(crate) const OWN: u32 = 0x88;
 const ANGLE_RVA: usize = rva(0x75AA80); // g_carouselAngle
-const CLOCK_RVA: usize = rva(0x613830); // g_sceneClock
-const OBJECT_RVA: usize = rva(0x6214FC); // g_objectNumber
-const OBJECT_KINDS_RVA: usize = rva(0x5CD27C); // g_objectKinds
+pub(crate) const CLOCK_RVA: usize = rva(0x613830); // g_sceneClock
+pub(crate) const OBJECT_RVA: usize = rva(0x6214FC); // g_objectNumber
+pub(crate) const OBJECT_KINDS_RVA: usize = rva(0x5CD27C); // g_objectKinds
 
 // ---- Rust version ----
 
@@ -90,7 +90,7 @@ pub struct Settings {
 }
 
 /// `scene::find_object_of_kind` (0x422298).
-unsafe fn find_object_of_kind(kind: u32) -> u32 {
+pub(crate) unsafe fn find_object_of_kind(kind: u32) -> u32 {
     (1..0x100u32)
         .find(|&n| unsafe { game_read::<u32>(OBJECT_KINDS_RVA + n as usize * 4) } == kind)
         .unwrap_or(0)

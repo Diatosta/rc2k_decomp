@@ -2,10 +2,10 @@
 //!
 //! In:  nothing
 //! Out: every register preserved
-//! For each of the four car objects (`g_cars`): its +0x18 = the address of the player's
+//! For each of the four players (`g_cars`): its +0x18 = the address of the player's
 //! name in `g_playerNames`, and the name's 0x20 bytes copied to its +0x124.
 //! Callers: `saves::load_savegame` (twice) and the main menu's set-up `sub_47C63F`.
-//! Refuses a missing car object.
+//! Refuses a missing player.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
@@ -64,7 +64,7 @@ fn self_test() -> (usize, usize) {
         return (0, 0);
     };
     let Ok(cars) = (unsafe { cars() }) else {
-        return t.skip("a car object is missing");
+        return t.skip("a player is missing");
     };
     let regions = regions(&cars);
     let saved = capture(&regions);

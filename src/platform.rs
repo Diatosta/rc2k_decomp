@@ -15,7 +15,7 @@
 //!   taken as they are, 800 x 600 in 32 bits when there is none.
 //! - `gfx::set_screen_mode` (0x404B63, eax = the mode): the mode's size and pixel kind
 //!   looked up as the original does and its variables set; the surface made; its pixel
-//!   format described. The 3D device, the z-buffer and the textures are not there.
+//!   format described; the texture formats too (`platform_3d.rs`).
 //!   `gfx::set_menu_screen_mode` (0x404823) is it with the menus' mode.
 //! - `gfx::lock_surface` (0x4058AD), `gfx::unlock_surface` (0x405949),
 //!   `gfx::show_frame` (0x4057D1).
@@ -243,6 +243,7 @@ unsafe fn set_screen_mode(mode: u32) -> Result<(), String> {
             pixels,
         });
         game_write(MODE_SET_RVA, mode);
+        crate::platform_3d::describe_texture_formats(bits);
         log(&format!(
             "platform: screen mode {mode:#x}: {width} x {height}, {bits} bits"
         ));

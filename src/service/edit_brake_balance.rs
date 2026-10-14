@@ -3,7 +3,7 @@
 //!
 //! In:  nothing
 //! Out: every register preserved
-//! The value is changed in the car object as the keys come. Refuses a missing car object.
+//! The value is changed in the player as the keys come. Refuses a missing player.
 //! Manual patch with a private copy: a short jump or a call sits in the first bytes. The
 //! copy's calls are relocated.
 

@@ -5,13 +5,13 @@
 //! Out: every register preserved
 //! Three callers. The one in `sub_46C14D` saves and restores +0x108 around the call, so there
 //! only the five at +0x1F8 are cleared; what they hold has not been worked out, and "wear" is
-//! a reading. Refuses a missing car object.
+//! a reading. Refuses a missing player.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
-use crate::service::state::current_car;
+use crate::service::state::current_player;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -35,14 +35,14 @@ pub const TYRE_DAMAGE_OFFSET: u32 = 0x108;
 // ---- Rust version ----
 
 pub unsafe fn reset_tyre_wear() -> Result<(), BadInput> {
-    let car = current_car().ok_or(BadInput(
-        "no current car object: the original writes through null",
+    let player = current_player().ok_or(BadInput(
+        "no current player object: the original writes through null",
     ))?;
     unsafe {
         for i in 0..WEAR_DWORDS {
-            ((car + WEAR_OFFSET + 4 * i) as *mut u32).write_unaligned(0);
+            ((player + WEAR_OFFSET + 4 * i) as *mut u32).write_unaligned(0);
         }
-        ((car + TYRE_DAMAGE_OFFSET) as *mut u32).write_unaligned(0);
+        ((player + TYRE_DAMAGE_OFFSET) as *mut u32).write_unaligned(0);
     }
     Ok(())
 }
@@ -51,10 +51,10 @@ pub unsafe fn reset_tyre_wear() -> Result<(), BadInput> {
 
 /// From the tyre damage to the end of the wear values, with what lies between them.
 fn regions() -> Vec<Region> {
-    current_car()
-        .map(|car| {
+    current_player()
+        .map(|player| {
             vec![(
-                car + TYRE_DAMAGE_OFFSET - 4,
+                player + TYRE_DAMAGE_OFFSET - 4,
                 (WEAR_OFFSET + 4 * WEAR_DWORDS + 4 - TYRE_DAMAGE_OFFSET + 4) as usize,
             )]
         })
@@ -78,11 +78,11 @@ fn self_test() -> (usize, usize) {
     };
     let regions = regions();
     if regions.is_empty() {
-        return t.skip("there is no current car object");
+        return t.skip("there is no current player object");
     }
     let saved = capture(&regions);
     // Only the six dwords are given test values: the game may be reading the rest of the car.
-    let car = regions[0].0 + 4 - TYRE_DAMAGE_OFFSET;
+    let player = regions[0].0 + 4 - TYRE_DAMAGE_OFFSET;
     for fill in [0x1111_1111u32, 0xEEEE_EEEE] {
         check_state(
             &mut t,
@@ -91,9 +91,9 @@ fn self_test() -> (usize, usize) {
             Regs::SENTINEL,
             &|| unsafe {
                 for i in 0..WEAR_DWORDS {
-                    ((car + WEAR_OFFSET + 4 * i) as *mut u32).write_unaligned(fill);
+                    ((player + WEAR_OFFSET + 4 * i) as *mut u32).write_unaligned(fill);
                 }
-                ((car + TYRE_DAMAGE_OFFSET) as *mut u32).write_unaligned(fill);
+                ((player + TYRE_DAMAGE_OFFSET) as *mut u32).write_unaligned(fill);
             },
             &regions,
             &rust,

@@ -125,7 +125,7 @@ fn self_test() -> (usize, usize) {
     }
     .is_err()
     {
-        return t.skip("the car objects are not there");
+        return t.skip("the players are not there");
     }
     let old_file = std::fs::read(TEST_FILE).ok();
     let inputs = [(slot_name(TEST_SLOT) as u32, NAME_LEN)];

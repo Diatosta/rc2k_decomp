@@ -11,7 +11,7 @@
 //! has now (`dword_75ACAC`, `dword_75ACB8`): the `_installed_marker` hooks. The other (0x76,
 //! yellow) is at the value being chosen (`dword_75ACA8`, `dword_75ACB4`, which the keys step)
 //! and only appears while it differs or its change is selected. The steering and brake
-//! values are changed in the car object directly, so those bars have one marker.
+//! values are changed in the player directly, so those bars have one marker.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{EAX, ESI, RawHook, Regs, SelfTest, game_read, game_write, rva};
@@ -52,7 +52,7 @@ pub enum Marker {
         chosen_rva: usize,
         installed_rva: usize,
     },
-    /// Glyph 0x76 on an upper bar, at the percentage in a field of the car object in edi.
+    /// Glyph 0x76 on an upper bar, at the percentage in a field of the player in edi.
     /// While its item is being edited it blinks.
     Upper { item: u32, x: i32, car_offset: u32 },
 }
@@ -84,7 +84,7 @@ fn blinked_out(item: u32) -> bool {
 }
 
 /// `r` holds the registers at entry: ebx goes to the blitter as the palette when the
-/// percentage is 0 or less, and edi is the car object for the upper bars.
+/// percentage is 0 or less, and edi is the player for the upper bars.
 pub unsafe fn draw_marker(
     marker: Marker,
     r: &Regs,
@@ -130,7 +130,7 @@ pub unsafe fn draw_marker(
                 }
                 if r.edi == 0 {
                     return Err(
-                        BadInput("no car object in edi: the original reads through null").into(),
+                        BadInput("no player in edi: the original reads through null").into(),
                     );
                 }
                 let percent = (r.edi.wrapping_add(car_offset) as *const i32).read_unaligned();
@@ -177,7 +177,7 @@ pub fn dispatch_marker(hook: &RawHook, r: &mut Regs, call_original: CallOriginal
 
 // ---- self-test ----
 
-/// Size of the stand-in for the car object: the fields read are at +0x110 and +0x11C.
+/// Size of the stand-in for the player: the fields read are at +0x110 and +0x11C.
 const FAKE_CAR_DWORDS: usize = 0x50;
 
 /// Every combination of edit mode, highlighted item, blink, flag and a few percentages, with

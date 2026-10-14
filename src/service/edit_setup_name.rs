@@ -48,7 +48,7 @@ use crate::service::load_setup_slot::{SLOT_PAGE_RVA, highlighted_slot};
 use crate::service::read_setup_slot::{
     NAME_LEN, SETUP_FILE_LEN, SETUP_FILE_RVA, SLOT_COUNT, slot_name,
 };
-use crate::service::state::{MENU_ITEM_RVA, current_car};
+use crate::service::state::{MENU_ITEM_RVA, current_player};
 use crate::service::write_setup_slot::write_setup_slot;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::string_table::{blob, is_table_id};
@@ -110,8 +110,8 @@ pub unsafe fn edit_setup_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Everything that could be refused, before the key is taken.
     let (name, _) = entry()?;
     let slot = highlighted_slot();
-    if current_car().is_none() {
-        return Err(BadInput("no current car object").into());
+    if current_player().is_none() {
+        return Err(BadInput("no current player object").into());
     }
     if !has_layout() {
         return Err(BadInput("no keyboard layout").into());
@@ -226,13 +226,13 @@ fn self_test() -> (usize, usize) {
     if !recording_works() {
         return t.skip("the gfx::blit_glyph hook is off");
     }
-    if current_car().is_none()
+    if current_player().is_none()
         || blob().is_null()
         || !is_table_id(CURSOR_STRING)
         || !font_is_loaded(MEASURING_FONT)
         || !has_layout()
     {
-        return t.skip("no car object, strings, measuring font or keyboard layout");
+        return t.skip("no player object, strings, measuring font or keyboard layout");
     }
     let old_file = std::fs::read(TEST_FILE).ok();
     let font = font_at(MEASURING_FONT);

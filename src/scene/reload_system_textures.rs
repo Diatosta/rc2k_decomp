@@ -12,8 +12,8 @@
 //!   (`dword_609300`, `dword_609304`), or 256 x 256 for picture 0x3DE and pictures
 //!   0x706 .. 0x7CF; `scene::load_changed_texture_picture`;
 //!   `scene::step_loading_bar`.
-//! - `dword_4F4A24` = 0 and the size 256 x 256 again; `scene::load_number_plates`
-//!   (0x4255AA, not ported); two lines in the log.
+//! - `dword_4F4A24` = 0 and the size 256 x 256 again; `scene::load_number_plates`;
+//!   two lines in the log.
 //!
 //! Two callers.
 //! Refuses no system textures (the original goes through 2^32) or more than 0x400,
@@ -32,6 +32,7 @@ use crate::redirect::RedirectedCopy;
 use crate::scene::load_changed_texture_picture::{
     TEXTURES, WANTED_PICTURES_RVA, load_changed_texture_picture_in_game,
 };
+use crate::scene::load_number_plates::load_number_plates_in_game;
 use crate::scene::step_loading_bar::step_loading_bar;
 use crate::scene::textures::{KIND_TEXTURE_RVA, KINDS, test_table, write_table};
 use crate::service::harness::{Region, at, capture, restore};
@@ -152,7 +153,7 @@ extern "C" fn dispatch(r: &mut Regs) {
                         call_game(inner, show);
                     })?;
                 }
-                Call::Plates => call_game(r, game_addr(PLATES_RVA)),
+                Call::Plates => load_number_plates_in_game(r)?,
             }
             Ok(())
         })

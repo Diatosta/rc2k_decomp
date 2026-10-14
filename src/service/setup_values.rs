@@ -6,7 +6,7 @@ use crate::framework::{EDI, RawHook, Regs, SelfTest, game_addr, game_read, game_
 use crate::screens::harness::{CallOriginal, Left};
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
 use crate::service::state::{
-    FLAG_TABLE_LEN, MENU_ITEM_RVA, REPAIR_FLAGS_RVA, current_car, flagged_item, repair_flag,
+    FLAG_TABLE_LEN, MENU_ITEM_RVA, REPAIR_FLAGS_RVA, current_player, flagged_item, repair_flag,
     set_repair_flag,
 };
 
@@ -16,7 +16,7 @@ use crate::service::state::{
 pub enum Target {
     /// A game variable, by RVA.
     Global(usize),
-    /// A dword of the current car object, by offset. These functions leave the car in edi.
+    /// A dword of the current player, by offset. These functions leave the car in edi.
     CarField(u32),
 }
 
@@ -33,10 +33,13 @@ fn target(stepper: Stepper) -> Result<(u32, Left), BadInput> {
     match stepper.target {
         Target::Global(rva) => Ok((game_addr(rva) as u32, Left::nothing())),
         Target::CarField(offset) => {
-            let car = current_car().ok_or(BadInput(
-                "no current car object: the original reads through null",
+            let player = current_player().ok_or(BadInput(
+                "no current player object: the original reads through null",
             ))?;
-            Ok((car.wrapping_add(offset), Left::nothing().with(EDI, car)))
+            Ok((
+                player.wrapping_add(offset),
+                Left::nothing().with(EDI, player),
+            ))
         }
     }
 }
@@ -80,7 +83,7 @@ pub fn dispatch_stepper(
 pub fn stepper_unavailable(stepper: Stepper) -> Option<&'static str> {
     target(stepper)
         .is_err()
-        .then_some("there is no current car object")
+        .then_some("there is no current player object")
 }
 
 /// Values on both sides of both limits. The value is put back afterwards.

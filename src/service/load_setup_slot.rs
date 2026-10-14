@@ -13,7 +13,7 @@
 //! is run as if confirmed, with its menu item highlighted (so the change is selected if the
 //! service time allows); the highlighted item is put back, and `menu::go_back` leaves the
 //! menu.
-//! Refuses, before anything is written: no car object, a slot past 99, a flag table without
+//! Refuses, before anything is written: no player, a slot past 99, a flag table without
 //! its end mark.
 
 use crate::errors::{BadInput, Refused};
@@ -37,8 +37,8 @@ use crate::service::read_setup_slot::{
     SETUP_FILE_RVA, SLOT_COUNT, read_setup_slot, regions as slot_regions,
 };
 use crate::service::state::{
-    EDIT_MODE_RVA, ITEM_COUNT, MENU_ITEM_RVA, TIME_BUDGET_RVA, current_car, marks_ended, menu_item,
-    repair_flag,
+    EDIT_MODE_RVA, ITEM_COUNT, MENU_ITEM_RVA, TIME_BUDGET_RVA, current_player, marks_ended,
+    menu_item, repair_flag,
 };
 use std::sync::atomic::AtomicUsize;
 
@@ -76,8 +76,8 @@ pub fn highlighted_slot() -> u32 {
 
 pub unsafe fn load_setup_slot() -> Result<(), Refused> {
     let slot = highlighted_slot();
-    let Some(car) = current_car() else {
-        return Err(BadInput("no current car object: the original writes through null").into());
+    let Some(player) = current_player() else {
+        return Err(BadInput("no current player object: the original writes through null").into());
     };
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table").into());
@@ -93,7 +93,7 @@ pub unsafe fn load_setup_slot() -> Result<(), Refused> {
         clear_repair_flags()?;
 
         let value = |offset: usize| game_read::<u32>(SETUP_FILE_RVA + offset);
-        let in_car = |offset: u32| (car.wrapping_add(offset)) as *mut u32;
+        let in_car = |offset: u32| (player.wrapping_add(offset)) as *mut u32;
         game_write(TYRE.change.chosen_rva, value(0x30));
         in_car(BRAKE_BALANCE.car_offset).write_unaligned(value(0x34));
         game_write(RIDE_HEIGHT.change.chosen_rva, value(0x38));
@@ -143,9 +143,9 @@ fn regions() -> Vec<Region> {
     for page in [GEAR_RATIO, TYRE, RIDE_HEIGHT, SUSPENSION_STIFFNESS] {
         regions.push(at(page.change.chosen_rva));
     }
-    if let Some(car) = current_car() {
-        regions.push((car + BRAKE_BALANCE.car_offset, 4));
-        regions.push((car + STEERING_SENSITIVITY.car_offset, 4));
+    if let Some(player) = current_player() {
+        regions.push((player + BRAKE_BALANCE.car_offset, 4));
+        regions.push((player + STEERING_SENSITIVITY.car_offset, 4));
     }
     regions
 }
@@ -168,8 +168,8 @@ fn self_test() -> (usize, usize) {
     let Some(mut t) = SelfTest::begin(&HOOK) else {
         return (0, 0);
     };
-    if current_car().is_none() {
-        return t.skip("there is no current car object");
+    if current_player().is_none() {
+        return t.skip("there is no current player object");
     }
     let test = RepairTest::begin();
     RepairTest::set_known_times();

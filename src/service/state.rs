@@ -13,21 +13,21 @@ pub const REPAIR_TIME_PTRS_RVA: usize = rva(0x759C16); // unk_759C16[item]: poin
 pub const STATUS_RVA: usize = rva(0x75AAA4); // dword_75AAA4: result of the last attempt
 pub const TIME_BUDGET_RVA: usize = rva(0x75593C); // dword_75593C
 pub const REPAIR_TOTAL_RVA: usize = rva(0x75AC8C); // dword_75AC8C: time of the chosen repairs
-pub const CAR_INDEX_RVA: usize = rva(0x75598C); // dword_75598C
-pub const CARS_RVA: usize = rva(0x75647C); // off_75647C[car index]: car objects
+pub const PLAYER_INDEX_RVA: usize = rva(0x75598C); // dword_75598C: the current player
+pub const PLAYERS_RVA: usize = rva(0x75647C); // g_players[player index]
 
 /// The service time that is free: `budget - total` has to stay at or above this.
 pub const FREE_SERVICE_TIME: i32 = 900;
 
-/// The current car object, or None if the index or the pointer is not usable.
-pub fn current_car() -> Option<u32> {
+/// The current player (`Player`), or None if the index or the pointer is not usable.
+pub fn current_player() -> Option<u32> {
     unsafe {
-        let index: u32 = game_read(CAR_INDEX_RVA);
+        let index: u32 = game_read(PLAYER_INDEX_RVA);
         if index >= 64 {
             return None;
         }
-        let car = ((game_addr(CARS_RVA) as *const u32).add(index as usize)).read_unaligned();
-        (car != 0).then_some(car)
+        let player = ((game_addr(PLAYERS_RVA) as *const u32).add(index as usize)).read_unaligned();
+        (player != 0).then_some(player)
     }
 }
 

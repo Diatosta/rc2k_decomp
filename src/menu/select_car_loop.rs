@@ -191,7 +191,7 @@ fn self_test() -> (usize, usize) {
     };
     // The screen reads through this table's entries: without them the original would trap.
     if (0..4).any(|n| unsafe { game_read::<u32>(rva(0x75647C) + n * 4) } == 0) {
-        return t.skip("a car object is missing");
+        return t.skip("a player is missing");
     }
     if let Err(why) = check_screen(&mut t, &SCREEN, &THE_ORIGINAL) {
         return t.skip(why);

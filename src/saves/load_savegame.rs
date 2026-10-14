@@ -23,7 +23,7 @@
 //!
 //! The eight functions named `sub_...` here are not ported and are called with `call_game`,
 //! with the registers the original has at each call. Ten menu tables point at this function.
-//! Refuses, before anything is done: a slot past 99, a missing car object or a car without
+//! Refuses, before anything is done: a slot past 99, a missing player or a car without
 //! its pointer at +0x18.
 //! It runs the game, so shadow mode runs the original alone, and the thunk is not gated: a
 //! whole event runs inside this call, and a gated thunk would count the game's thread as
@@ -318,7 +318,7 @@ fn self_test() -> (usize, usize) {
         return (0, 0);
     };
     let Ok(cars) = cars() else {
-        return t.skip("the car objects are not there");
+        return t.skip("the players are not there");
     };
     let redirect = |target: usize| {
         let stand_in: unsafe extern "C" fn() = match target {

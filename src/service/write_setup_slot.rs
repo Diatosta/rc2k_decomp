@@ -7,7 +7,7 @@
 //! `byte_527880[slot * 0x20]`, then the chosen tyre, the car's brake balance, the chosen ride
 //! height and suspension stiffness, the car's steering sensitivity and the chosen gear ratio.
 //! The name is taken from the slot list, so the caller puts it there first; nothing takes it
-//! out again if the write fails. Refuses a slot past 99 and a missing car object.
+//! out again if the write fails. Refuses a slot past 99 and a missing player.
 //! Shadow mode writes the file twice; the time stamp is left out of the comparison.
 
 use crate::errors::{BadInput, Refused};
@@ -25,7 +25,7 @@ use crate::service::pages::{
 use crate::service::read_setup_slot::{
     MAGIC, NAME_LEN, SETUP_FILE_LEN, SETUP_FILE_RVA, SLOT_COUNT, TEMPLATE_RVA, VERSION, slot_name,
 };
-use crate::service::state::current_car;
+use crate::service::state::current_player;
 use crate::system::packed_local_time::packed_local_time;
 use std::ptr::copy_nonoverlapping;
 use std::sync::atomic::AtomicUsize;
@@ -49,12 +49,12 @@ pub unsafe fn write_setup_slot(slot: u32) -> Result<bool, Refused> {
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table").into());
     }
-    let Some(car) = current_car() else {
-        return Err(BadInput("no current car object: the original reads through null").into());
+    let Some(player) = current_player() else {
+        return Err(BadInput("no current player object: the original reads through null").into());
     };
     unsafe {
         let file: *mut u8 = game_ptr(SETUP_FILE_RVA);
-        let in_car = |offset: u32| (car.wrapping_add(offset) as *const u32).read_unaligned();
+        let in_car = |offset: u32| (player.wrapping_add(offset) as *const u32).read_unaligned();
         game_write(SETUP_FILE_RVA, MAGIC);
         game_write(SETUP_FILE_RVA + 4, 0u32);
         game_write(SETUP_FILE_RVA + 8, VERSION);
@@ -119,8 +119,8 @@ fn self_test() -> (usize, usize) {
     let Some(mut t) = SelfTest::begin(&HOOK) else {
         return (0, 0);
     };
-    if current_car().is_none() {
-        return t.skip("there is no current car object");
+    if current_player().is_none() {
+        return t.skip("there is no current player object");
     }
     let old_file = std::fs::read(TEST_FILE).ok();
     let inputs = [

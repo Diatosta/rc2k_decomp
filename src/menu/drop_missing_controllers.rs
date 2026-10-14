@@ -3,11 +3,11 @@
 //!
 //! In:  nothing
 //! Out: every register preserved
-//! For each of the four car objects, compared unsigned. A reading of what the two are:
+//! For each of the four players, compared unsigned. A reading of what the two are:
 //! `dword_4F78E0` is counted up by the function that lists the game controllers
 //! (`sub_408238`, at most 0x10), so +0x2C is the player's controller, 0 being none.
 //! Callers: `sub_47486C` (before the main menu) and `saves::load_savegame`.
-//! Refuses a missing car object.
+//! Refuses a missing player.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
@@ -81,7 +81,7 @@ fn self_test() -> (usize, usize) {
         return (0, 0);
     };
     let Ok(cars) = (unsafe { cars() }) else {
-        return t.skip("a car object is missing");
+        return t.skip("a player is missing");
     };
     let regions = regions(&cars);
     let inputs = [at(CONTROLLERS_RVA)];

@@ -18,7 +18,7 @@
 //! g being `dword_6235FC[car]`; with g at 3 or more and the file there, the picture
 //! is taken from `files\b\gravel` instead, and its second name logged.
 //!
-//! Then `gfx::load_picture_to_texture` (0x405313, not ported) with eax = the name,
+//! Then `gfx::load_picture_to_texture` with eax = the name,
 //! ecx = the second name, ebx = the texture.
 //! One caller, `scene::load_changed_texture_picture`.
 //! Shadow mode runs the original alone and compares the names it left with the Rust
@@ -31,6 +31,7 @@ use crate::framework::{
     RawHook, Regs, SelfTest, call_game, game_addr, game_ptr, game_read, game_write, hook_asm, rva,
     shadow,
 };
+use crate::gfx::load_picture_to_texture::load_picture_to_texture_in_game;
 use crate::install::stand_ins::{act, set_handler, stand_in};
 use crate::logfile::log_int::log_int;
 use crate::logfile::log_write::log_write;
@@ -165,22 +166,24 @@ pub unsafe fn load_texture_picture_in_game(number: u32, texture: u32) -> Result<
                 Call::Number(number) => log_int(number as i32, false, 1),
                 Call::Exists(path) => match file_exists(game_ptr(path)) {
                     Ok(exists) => return exists,
-                    Err(e) => refused = Some(e),
+                    Err(e) => {
+                        refused.get_or_insert(e.into());
+                    }
                 },
                 Call::Load(name, second, texture) => {
-                    let mut r = Regs {
-                        eax: game_addr(name) as u32,
-                        ecx: game_addr(second) as u32,
-                        ebx: texture,
-                        ..Regs::default()
-                    };
-                    call_game(&mut r, game_addr(LOAD_RVA));
+                    if let Err(e) = load_picture_to_texture_in_game(
+                        game_addr(name) as u32,
+                        game_addr(second) as u32,
+                        texture,
+                    ) {
+                        refused.get_or_insert(e);
+                    }
                 }
             }
             false
         });
     }
-    refused.map_or(Ok(()), |e| Err(e.into()))
+    refused.map_or(Ok(()), Err)
 }
 
 // ---- hook ----

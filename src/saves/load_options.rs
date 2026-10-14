@@ -5,7 +5,7 @@
 //! `g_optionsLoaded` (0x75557D) = 0. Up to 0x10000 bytes of the file into the scratch block
 //! at 0x93E8B0; it is taken if it starts "R5CI" and has 0x50004 at +8. From +0x10 on it is
 //! copied out piece by piece to the 69 places of `OPTIONS` (0xB656 bytes: the screen
-//! modes, the sound's and the network's settings, the four car objects, the record
+//! modes, the sound's and the network's settings, the four players, the record
 //! table, the players' names and much else). After the last piece the file must have
 //! "####", else fatal error 0x80ACFF01 "ral.dat out of date" (the pieces have been copied
 //! by then). Then `saves::rebuild_car_lists`, and `g_optionsLoaded` = 1.

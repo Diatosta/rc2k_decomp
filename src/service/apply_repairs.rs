@@ -25,7 +25,7 @@
 //! `sub_46CFD7`; neither is ported, so the Rust version calls them with `call_game`. The
 //! clock is `tick_count`. They come in through `Driver`, so that the logic can be run and
 //! compared without real frames.
-//! Called from `sub_48E0FD` and `sub_4A16AB`. Refuses a missing car object.
+//! Called from `sub_48E0FD` and `sub_4A16AB`. Refuses a missing player.
 //!
 //! Shadow mode cannot run both for real (it takes seconds and draws): the original runs, the
 //! variables are put back, the Rust version runs with a clock that jumps and no frames, the
@@ -43,7 +43,8 @@ use crate::service::harness::{Region, at, capture, restore};
 use crate::service::pages::{GEAR_RATIO, RIDE_HEIGHT, SUSPENSION_STIFFNESS, TYRE};
 use crate::service::reset_tyre_wear::{TYRE_DAMAGE_OFFSET, reset_tyre_wear};
 use crate::service::state::{
-    FLAG_TABLE_LEN, REPAIR_FLAGS_RVA, REPAIR_MARKS_RVA, current_car, repair_flag, set_repair_flag,
+    FLAG_TABLE_LEN, REPAIR_FLAGS_RVA, REPAIR_MARKS_RVA, current_player, repair_flag,
+    set_repair_flag,
 };
 use crate::system::sleep::sleep;
 use crate::system::tick_count::tick_count;
@@ -136,8 +137,8 @@ impl Driver for GameDriver {
     }
 }
 
-unsafe fn field(car: u32, offset: u32) -> *mut i32 {
-    car.wrapping_add(offset) as *mut i32
+unsafe fn field(player: u32, offset: u32) -> *mut i32 {
+    player.wrapping_add(offset) as *mut i32
 }
 
 /// Frames for 500 ms.
@@ -155,29 +156,29 @@ unsafe fn pause(driver: &mut dyn Driver) {
 }
 
 pub unsafe fn apply_repairs(driver: &mut dyn Driver) -> Result<(), Refused> {
-    let Some(car) = current_car() else {
-        return Err(BadInput("no current car object: the original writes through null").into());
+    let Some(player) = current_player() else {
+        return Err(BadInput("no current player object: the original writes through null").into());
     };
     unsafe {
         game_write(WORKING_RVA, 1u32);
         for (item, offset, dwords) in RESET_RUNS {
             if repair_flag(item) == 1 {
                 for i in 0..dwords {
-                    field(car, offset + 4 * i).write_unaligned(0);
+                    field(player, offset + 4 * i).write_unaligned(0);
                 }
             }
         }
         if repair_flag(TYRE_ITEM) == 1 {
-            let damage = field(car, TYRE_DAMAGE_OFFSET).read_unaligned();
+            let damage = field(player, TYRE_DAMAGE_OFFSET).read_unaligned();
             reset_tyre_wear()?;
-            field(car, TYRE_DAMAGE_OFFSET).write_unaligned(damage);
+            field(player, TYRE_DAMAGE_OFFSET).write_unaligned(damage);
         }
 
         for item in REPAIR_ORDER {
             if repair_flag(item) != 1 {
                 continue;
             }
-            let damage = field(car, DAMAGE_OFFSET + 4 * item);
+            let damage = field(player, DAMAGE_OFFSET + 4 * item);
             game_write(START_RVA, driver.clock());
             game_write(LAST_STEP_RVA, 0u32);
             loop {
@@ -199,12 +200,12 @@ pub unsafe fn apply_repairs(driver: &mut dyn Driver) -> Result<(), Refused> {
             if item == GEARBOX_ITEM {
                 let ratio: i32 = game_read(GEAR_RATIO.change.chosen_rva);
                 game_write(GEAR_RATIO.change.installed_rva, ratio);
-                field(car, 0x120).write_unaligned(ratio);
+                field(player, 0x120).write_unaligned(ratio);
             }
             if item == TYRE_ITEM {
                 let tyre: i32 = game_read(TYRE.change.chosen_rva);
                 game_write(TYRE.change.installed_rva, tyre);
-                field(car, 0x10C).write_unaligned(tyre);
+                field(player, 0x10C).write_unaligned(tyre);
             }
             pause(driver);
         }
@@ -216,18 +217,18 @@ pub unsafe fn apply_repairs(driver: &mut dyn Driver) -> Result<(), Refused> {
             set_repair_flag(page.item, 0);
             let chosen: i32 = game_read(page.change.chosen_rva);
             game_write(page.change.installed_rva, chosen);
-            field(car, offset).write_unaligned(chosen);
+            field(player, offset).write_unaligned(chosen);
             pause(driver);
         }
 
-        let bits = field(car, STATE_BITS_OFFSET) as *mut u32;
-        if field(car, TYRE_DAMAGE_OFFSET).read_unaligned() == 0 {
+        let bits = field(player, STATE_BITS_OFFSET) as *mut u32;
+        if field(player, TYRE_DAMAGE_OFFSET).read_unaligned() == 0 {
             bits.write_unaligned(bits.read_unaligned() | 0x1E);
         }
-        if field(car, DAMAGE_OFFSET + 4 * BODY_ITEM).read_unaligned() == 0 {
+        if field(player, DAMAGE_OFFSET + 4 * BODY_ITEM).read_unaligned() == 0 {
             bits.write_unaligned(bits.read_unaligned() | 0xFFFF_FFE1);
             for i in 0..8 {
-                field(car, BODY_STATE_OFFSET + 4 * i).write_unaligned(0);
+                field(player, BODY_STATE_OFFSET + 4 * i).write_unaligned(0);
             }
         }
         driver.sleep(1000);
@@ -239,10 +240,10 @@ pub unsafe fn apply_repairs(driver: &mut dyn Driver) -> Result<(), Refused> {
 
 /// What the function decides: the car from its damage values to its state bits, both flag
 /// tables, the "working" switch and the block of chosen and installed setup values.
-fn result_regions(car: u32) -> Vec<Region> {
+fn result_regions(player: u32) -> Vec<Region> {
     vec![
         (
-            car + DAMAGE_OFFSET,
+            player + DAMAGE_OFFSET,
             (STATE_BITS_OFFSET + 4 - DAMAGE_OFFSET) as usize,
         ),
         (game_addr(REPAIR_FLAGS_RVA) as u32, FLAG_TABLE_LEN),
@@ -271,7 +272,7 @@ impl Driver for InstantDriver {
 
 extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
-    let Some(car) = current_car() else {
+    let Some(player) = current_player() else {
         unsafe { call_original(r) };
         return;
     };
@@ -283,7 +284,7 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 
     // The original, for real; then the Rust logic on the same starting point, without frames.
-    let results = result_regions(car);
+    let results = result_regions(player);
     let timing = timing_regions();
     let before = capture(&results);
     let mut o = *r;
@@ -300,7 +301,7 @@ extern "C" fn dispatch(r: &mut Regs) {
         HOOK.mismatch(|| {
             let first = mine.iter().zip(&theirs.0).position(|(a, b)| a != b);
             format!(
-                "rust {outcome:?}; first different byte of the results: {first:x?} (0 = car +0xCC); flags before {:x?}",
+                "rust {outcome:?}; first different byte of the results: {first:x?} (0 = player +0xCC); flags before {:x?}",
                 &before[results[0].1..results[0].1 + FLAG_TABLE_LEN]
             )
         });
@@ -380,8 +381,8 @@ fn self_test() -> (usize, usize) {
     let Some(mut t) = SelfTest::begin(&HOOK) else {
         return (0, 0);
     };
-    let Some(car) = current_car() else {
-        return t.skip("there is no current car object");
+    let Some(player) = current_player() else {
+        return t.skip("there is no current player object");
     };
     if game_addr(0) != PREFERRED_BASE {
         return t.skip("the game is not loaded at its preferred base");
@@ -405,7 +406,7 @@ fn self_test() -> (usize, usize) {
         Err(why) => return t.skip(why),
     };
 
-    let mut regions = result_regions(car);
+    let mut regions = result_regions(player);
     regions.extend(timing_regions());
     let saved = capture(&regions);
     let observed = || [&FAKE_CLOCK, &FRAMES, &SLEPT].map(|counter| counter.load(Ordering::SeqCst));
@@ -454,16 +455,16 @@ fn self_test() -> (usize, usize) {
                 set_repair_flag(item, flag);
             }
             for item in 2..=0xF {
-                field(car, DAMAGE_OFFSET + 4 * item).write_unaligned(damage + item as i32 % 3);
+                field(player, DAMAGE_OFFSET + 4 * item).write_unaligned(damage + item as i32 % 3);
             }
             // Small numbers in what gets zeroed, so that the zeroing shows.
             for offset in (0x17C..0x20C)
                 .step_by(4)
                 .chain((BODY_STATE_OFFSET..0x26C).step_by(4))
             {
-                field(car, offset).write_unaligned(1);
+                field(player, offset).write_unaligned(1);
             }
-            (field(car, STATE_BITS_OFFSET) as *mut u32).write_unaligned(0x100);
+            (field(player, STATE_BITS_OFFSET) as *mut u32).write_unaligned(0x100);
             game_write(WORKING_RVA, 0u32);
             for (rva, value) in [
                 (GEAR_RATIO.change.chosen_rva, 3u32),
@@ -492,7 +493,7 @@ fn self_test() -> (usize, usize) {
         t.check(outcome.is_ok() && theirs == mine && preserved, || {
             let first = mine.0.iter().zip(&theirs.0).position(|(a, b)| a != b);
             format!(
-                "case {n}: preserved={preserved} original clock/frames/slept {:?}; rust {outcome:?} {:?}; first different byte: {first:x?} (0 = car +0xCC, the car part is {:#x} long)",
+                "case {n}: preserved={preserved} original clock/frames/slept {:?}; rust {outcome:?} {:?}; first different byte: {first:x?} (0 = player +0xCC, the player part is {:#x} long)",
                 theirs.1,
                 mine.1,
                 regions[0].1

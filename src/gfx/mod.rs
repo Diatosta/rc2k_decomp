@@ -1,9 +1,11 @@
 use crate::framework::GameHook;
 
 pub mod allocate_picture_buffer;
+pub mod alpha_from_kept;
 pub mod blend_palette;
 pub mod blit_bar;
 pub mod blit_bar_marker;
+pub mod blit_components;
 pub mod blit_glyph;
 pub mod blit_marker_pair;
 pub mod build_fonts;
@@ -23,12 +25,18 @@ pub mod fill_thirds_table;
 pub mod free_fonts;
 pub mod glyph_builder;
 pub mod glyph_tables;
+pub mod grade_texture;
+pub mod halve_texture;
 pub mod harness;
 pub mod install_converters;
+pub mod key_texture_colours;
 pub mod lay_out_pcx;
 pub mod lay_out_png;
+pub mod least_colour;
 pub mod load_jade;
 pub mod load_picture;
+pub mod load_picture_to_texture;
+pub mod load_picture_with_overlay;
 pub mod palette_pixels_to_dwords;
 pub mod palette_to_dwords;
 pub mod pcx;
@@ -45,6 +53,7 @@ pub mod read_pcx_8bit;
 pub mod read_picture_file;
 pub mod read_png;
 pub mod read_sheet;
+pub mod read_texture_picture;
 pub mod rescale_picture;
 pub mod rescale_to_surface;
 pub mod rgb_pixels_to_dwords;
@@ -52,6 +61,9 @@ pub mod set_clip;
 pub mod set_component_format;
 pub mod show_picture_file;
 pub mod surface;
+pub mod texture_pixels;
+pub mod texture_upload;
+pub mod upload_texture_picture;
 
 pub static HOOKS: &[&dyn GameHook] = &[
     &blit_glyph::HOOK,
@@ -97,4 +109,14 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &free_fonts::HOOK,
     &build_menu_sprites::HOOK,
     &build_game_fonts::HOOK,
+    &least_colour::HOOK,
+    &alpha_from_kept::HOOK,
+    &key_texture_colours::HOOK,
+    &grade_texture::HOOK,
+    &halve_texture::HOOK,
+    &read_texture_picture::HOOK,
+    &blit_components::HOOK,
+    &upload_texture_picture::HOOK,
+    &load_picture_to_texture::HOOK,
+    &load_picture_with_overlay::HOOK,
 ];

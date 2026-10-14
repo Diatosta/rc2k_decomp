@@ -137,7 +137,7 @@ def gen(r, name, what, note):
     if cars: uses.add('game_read')
     car_check = "".join(f'''    // The screen reads through this table's entries: without them the original would trap.
     if (0..4).any(|n| unsafe {{ game_read::<u32>(rva(0x{c:X}) + n * 4) }} == 0) {{
-        return t.skip("a car object is missing");
+        return t.skip("a player is missing");
     }}
 ''' for c in cars)
     if r.get('result_tail'):

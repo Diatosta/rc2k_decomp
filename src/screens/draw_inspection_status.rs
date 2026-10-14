@@ -4,7 +4,7 @@
 //!
 //! In:  ebx, passed on as the palette of the sprite at the bar's left
 //! Out: what the last `draw_string_by_id` leaves (carry, eax = 0, ebx, ecx = 652, edx);
-//!      edi = the car object; esi = the address of the repair flag of the last damaged part
+//!      edi = the player; esi = the address of the repair flag of the last damaged part
 //!      looked at, or unchanged; ebp preserved
 //! The percentage is 100 minus the weights of the parts that are damaged and not chosen for
 //! repair. For menu items 2, 3, 4, 5 and 7 .. 15: the part counts if the car's value at
@@ -27,7 +27,7 @@ use crate::gfx::blit_marker_pair::sprite_table;
 use crate::screens::font_is_loaded;
 use crate::screens::harness::{Left, check_draw, dispatch_draw, drawing_unavailable, push_dwords};
 use crate::screens::stage_panel::label;
-use crate::service::state::{current_car, repair_flag, repair_flag_addr};
+use crate::service::state::{current_player, repair_flag, repair_flag_addr};
 use crate::strings::string_table::{blob, is_table_id};
 use crate::strings::text_from_ids::{TEXT_LEN, text};
 use crate::text::draw_string_by_id::draw_string_by_id_at;
@@ -84,13 +84,13 @@ unsafe fn table(table_rva: usize, item: u32) -> i32 {
 
 /// The percentage and the item of the last damaged part looked at (its repair flag's address
 /// is what the original leaves in esi).
-pub unsafe fn inspection_status(car: u32) -> (i32, Option<u32>) {
+pub unsafe fn inspection_status(player: u32) -> (i32, Option<u32>) {
     let mut lost = 0i32;
     let mut last_damaged = None;
     for item in PARTS {
         unsafe {
             let damage =
-                (car.wrapping_add(CAR_DAMAGE_OFFSET + 4 * item) as *const i32).read_unaligned();
+                (player.wrapping_add(CAR_DAMAGE_OFFSET + 4 * item) as *const i32).read_unaligned();
             if damage < table(THRESHOLDS_RVA, item) {
                 continue;
             }
@@ -103,16 +103,18 @@ pub unsafe fn inspection_status(car: u32) -> (i32, Option<u32>) {
     (100i32.wrapping_sub(lost), last_damaged)
 }
 
-/// `icon_palette` is what the caller has in ebx. Refuses a missing car object.
+/// `icon_palette` is what the caller has in ebx. Refuses a missing player.
 pub unsafe fn draw_inspection_status(
     icon_palette: u32,
     canvas: &mut dyn Canvas,
 ) -> Result<Left, Refused> {
     unsafe {
-        let Some(car) = current_car() else {
-            return Err(BadInput("no current car object: the original reads through null").into());
+        let Some(player) = current_player() else {
+            return Err(
+                BadInput("no current player object: the original reads through null").into(),
+            );
         };
-        let (condition, last_damaged) = inspection_status(car);
+        let (condition, last_damaged) = inspection_status(player);
         game_write(WORK_RVA, 100i32.wrapping_sub(condition));
         game_write(CONDITION_RVA, condition);
 
@@ -138,7 +140,7 @@ pub unsafe fn draw_inspection_status(
             canvas,
         )?;
 
-        let mut left = Left::of_text(&out).with(EDI, car);
+        let mut left = Left::of_text(&out).with(EDI, player);
         if let Some(item) = last_damaged {
             left = left.with(ESI, repair_flag_addr(item));
         }
@@ -191,8 +193,8 @@ fn self_test() -> (usize, usize) {
     {
         return t.skip("the string table or the font is not loaded");
     }
-    if current_car().is_none() {
-        return t.skip("there is no current car object");
+    if current_player().is_none() {
+        return t.skip("there is no current player object");
     }
     let saved_bar = Bar::read();
     let saved_flags: Vec<u32> = PARTS.iter().map(|&item| repair_flag(item)).collect();

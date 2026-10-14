@@ -3,13 +3,13 @@
 //!
 //! In:  nothing
 //! Out: every register preserved
-//! For each of the four car objects: the 0x20 bytes of the player's name to its +0x124,
+//! For each of the four players: the 0x20 bytes of the player's name to its +0x124,
 //! and that copy as a line of the log (`logfile::log_write_l1_nl`). A name that fills its
-//! 0x20 bytes is logged with what follows it in the car object.
+//! 0x20 bytes is logged with what follows it in the player.
 //! One caller, `sub_47486C`, after the main menu is left.
 //! Shadow mode: the original first, then the Rust version without the log lines on the
 //! cars put back. Self-test: a redirected copy whose log calls note the text's address.
-//! Refuses a missing car object.
+//! Refuses a missing player.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
@@ -90,7 +90,7 @@ fn self_test() -> (usize, usize) {
         return (0, 0);
     };
     let Ok(cars) = (unsafe { cars() }) else {
-        return t.skip("a car object is missing");
+        return t.skip("a player is missing");
     };
     let copy = unsafe {
         RedirectedCopy::new(game_addr(rva(0x470649)), LEN, &ENTRY_BYTES, &CALLS, &|_| {

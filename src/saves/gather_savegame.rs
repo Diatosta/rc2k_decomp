@@ -5,14 +5,14 @@
 //! In this order:
 //!   - seven dwords: `dword_755984`, `dword_755950`, the event's stage index and section
 //!     (0x755958, 0x75595C), `dword_755988`, `dword_7556D0`, `dword_75AB40`;
-//!   - the four car objects `off_75647C[0 .. 4]`, 0x28C bytes each;
+//!   - the four players `off_75647C[0 .. 4]`, 0x28C bytes each;
 //!   - 180 records of 0x94 bytes from `unk_73B674`.
 //!
 //! Before the cars are copied it also changes them: car 0 gets `dword_7554C0` at +0x14 and
 //! `dword_7554C4` at +0x274, and every car gets the 0x20 bytes its pointer at +0x18 points to
 //! copied to +0x124 (a name, by its size; a reading), so that the saved copy carries them.
 //! What the seven dwords and the records are has not been worked out.
-//! Refuses, before anything is written: a missing car object or a car without that pointer.
+//! Refuses, before anything is written: a missing player or a car without that pointer.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, rva};
@@ -45,7 +45,7 @@ pub const HEAD_RVAS: [usize; 7] = [
     rva(0x7556D0), // dword_7556D0
     rva(0x75AB40), // dword_75AB40
 ];
-const CARS_RVA: usize = rva(0x75647C); // off_75647C[4]
+const PLAYERS_RVA: usize = rva(0x75647C); // g_players[4]
 pub const CARS: usize = 4;
 pub const CAR_LEN: usize = 0x28C;
 pub const CAR0_A_RVA: usize = rva(0x7554C0); // dword_7554C0 -> car 0 +0x14
@@ -59,14 +59,14 @@ pub const RECORDS_LEN: usize = 0xB4 * 0x94;
 /// Bytes written to the buffer.
 pub const GATHERED_LEN: usize = HEAD_RVAS.len() * 4 + CARS * CAR_LEN + RECORDS_LEN;
 
-/// The four car objects, if every one is there and has its pointer at +0x18.
+/// The four players, if every one is there and has its pointer at +0x18.
 pub fn cars() -> Result<[u32; CARS], BadInput> {
     let mut cars = [0u32; CARS];
     for (n, car) in cars.iter_mut().enumerate() {
-        *car = unsafe { ((game_addr(CARS_RVA) as *const u32).add(n)).read_unaligned() };
+        *car = unsafe { ((game_addr(PLAYERS_RVA) as *const u32).add(n)).read_unaligned() };
         if *car == 0 {
             return Err(BadInput(
-                "a car object is missing: the original reads through null",
+                "a player is missing: the original reads through null",
             ));
         }
         if unsafe { ((*car + NAME_PTR_OFFSET) as *const u32).read_unaligned() } == 0 {
@@ -132,7 +132,7 @@ fn self_test() -> (usize, usize) {
         return (0, 0);
     };
     let Ok(cars) = cars() else {
-        return t.skip("the car objects are not there");
+        return t.skip("the players are not there");
     };
     let mut buffer = vec![0u8; GATHERED_LEN + 0x10];
     let regions = regions(buffer.as_mut_ptr() as u32);

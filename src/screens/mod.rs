@@ -6,11 +6,14 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 pub mod buttons;
+pub mod car_caption;
+pub mod car_page_title;
 pub mod draw_background_band;
 pub mod draw_brake_balance_marker;
 pub mod draw_button;
 pub mod draw_button_alt;
 pub mod draw_button_highlighted;
+pub mod draw_car_figures;
 pub mod draw_empty_savegame;
 pub mod draw_highlighted_caption;
 pub mod draw_inspection_status;
@@ -19,15 +22,21 @@ pub mod draw_item_button_centred;
 pub mod draw_item_button_centred_highlighted;
 pub mod draw_item_button_right;
 pub mod draw_item_button_right_highlighted;
+pub mod draw_leave_question;
 pub mod draw_load_setup_list;
 pub mod draw_menu_item_text;
 pub mod draw_menu_items;
 pub mod draw_menu_labels;
+pub mod draw_name_cursor;
+pub mod draw_player2_details;
+pub mod draw_player34_details;
+pub mod draw_player_details;
 pub mod draw_repair_times;
 pub mod draw_ride_height_installed_marker;
 pub mod draw_ride_height_marker;
 pub mod draw_save_setup_list;
 pub mod draw_savegame_details;
+pub mod draw_savegame_names;
 pub mod draw_savegame_preview;
 pub mod draw_selected_stage_menu;
 pub mod draw_service_area;
@@ -42,9 +51,12 @@ pub mod draw_suspension_stiffness_installed_marker;
 pub mod draw_suspension_stiffness_marker;
 pub mod draw_time_trial_stage_info;
 pub mod harness;
+pub mod savegame_page_numbers;
 pub mod savegame_preview;
 pub mod setup_markers;
+pub mod slideshow_title;
 pub mod stage_panel;
+pub mod yes_no_caption;
 
 pub static HOOKS: &[&dyn GameHook] = &[
     &draw_stage_heading::HOOK,
@@ -82,6 +94,18 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &draw_item_button_centred_highlighted::HOOK,
     &draw_menu_item_text::HOOK,
     &draw_menu_items::HOOK,
+    &yes_no_caption::HOOK,
+    &draw_leave_question::HOOK,
+    &savegame_page_numbers::HOOK,
+    &draw_savegame_names::HOOK,
+    &car_caption::HOOK,
+    &car_page_title::HOOK,
+    &slideshow_title::HOOK,
+    &draw_car_figures::HOOK,
+    &draw_name_cursor::HOOK,
+    &draw_player_details::HOOK,
+    &draw_player2_details::HOOK,
+    &draw_player34_details::HOOK,
 ];
 
 /// Console switch `blank on [prefix]` / `blank off`, kept for every hook in this module: a

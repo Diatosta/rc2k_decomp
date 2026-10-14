@@ -12,7 +12,7 @@
 
 use crate::errors::BadInput;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
-use crate::service::state::current_car;
+use crate::service::state::current_player;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -60,18 +60,18 @@ fn set_edit_values(values: &[u32; 8]) {
 
 // ---- Rust version ----
 
-/// Refuses a missing car object: the original reads through a null pointer.
+/// Refuses a missing player: the original reads through a null pointer.
 pub unsafe fn load_setup_values() -> Result<(), BadInput> {
     unsafe {
         if game_read::<u32>(SKIP_RVA) == 1 {
             return Ok(());
         }
-        let Some(car) = current_car() else {
+        let Some(player) = current_player() else {
             return Err(BadInput(
-                "no current car object: the original reads through null",
+                "no current player object: the original reads through null",
             ));
         };
-        let field = |at: u32| (car.wrapping_add(at) as *const u32).read_unaligned();
+        let field = |at: u32| (player.wrapping_add(at) as *const u32).read_unaligned();
         for (from, first, second) in [
             (0x10C, 0x75ACA0, 0x75AC9C),
             (0x120, 0x75AC94, 0x75AC90),
@@ -120,8 +120,8 @@ fn self_test() -> (usize, usize) {
     let Some(mut t) = SelfTest::begin(&HOOK) else {
         return (0, 0);
     };
-    if current_car().is_none() {
-        return t.skip("there is no current car object");
+    if current_player().is_none() {
+        return t.skip("there is no current player object");
     }
     let saved_values = edit_values();
     let saved_skip: u32 = unsafe { game_read(SKIP_RVA) };

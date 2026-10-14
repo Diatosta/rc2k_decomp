@@ -4,6 +4,7 @@ use crate::framework::GameHook;
 
 pub mod apply_settings;
 pub mod load_race_sounds;
+pub mod play_car_stream;
 pub mod play_menu_sound;
 pub mod play_music;
 pub mod play_placed_sound;
@@ -24,6 +25,7 @@ pub mod set_music_volume;
 pub mod set_up_race_sounds;
 pub mod start_race_clock;
 pub mod start_stream;
+pub mod step_car_stream;
 pub mod step_race_clock;
 pub mod stop_music;
 pub mod stop_sound;
@@ -55,4 +57,6 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &stop_sound::HOOK,
     &start_race_clock::HOOK,
     &step_race_clock::HOOK,
+    &play_car_stream::HOOK,
+    &step_car_stream::HOOK,
 ];

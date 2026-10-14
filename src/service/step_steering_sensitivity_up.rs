@@ -2,7 +2,7 @@
 //! up, stopping at 100.
 //!
 //! In:  nothing
-//! Out: edi = the current car object; everything else preserved
+//! Out: edi = the current player; everything else preserved
 //! The exact rule at the limits is in `setup_values.rs` (`Stepper`).
 
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};

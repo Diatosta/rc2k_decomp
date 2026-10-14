@@ -41,7 +41,7 @@ use crate::screens::{
     draw_steering_sensitivity_marker, draw_suspension_stiffness_installed_marker,
     draw_suspension_stiffness_marker, font_at, font_is_loaded, line_buffer, set_line,
 };
-use crate::service::state::{CAR_INDEX_RVA, current_car};
+use crate::service::state::{PLAYER_INDEX_RVA, current_player};
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::append_u32::append_u32;
 use crate::strings::string_table::{blob, is_table_id};
@@ -92,9 +92,9 @@ const DAMAGE_BAR: Bar = Bar {
 enum Step {
     /// (string, font, x, y)
     Label(u32, usize, i32, i32),
-    /// (offset in the car object, string, font, x, y): drawn only if that dword is not 0.
+    /// (offset in the player, string, font, x, y): drawn only if that dword is not 0.
     LabelIf(u32, u32, usize, i32, i32),
-    /// (x, y, offset in the car object of the percentage)
+    /// (x, y, offset in the player of the percentage)
     DamageBar(i32, i32, u32),
     /// (glyph of the sprite table, x, y)
     Sprite(u32, i32, i32),
@@ -189,7 +189,7 @@ const STEPS: [Step; 83] = [
 
 // ---- Rust version ----
 
-/// Returns the carry flag of the last text drawn. Refuses a missing car object and a title
+/// Returns the carry flag of the last text drawn. Refuses a missing player and a title
 /// that does not fit the text buffer.
 pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     unsafe {
@@ -198,7 +198,9 @@ pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused
         let mut title = Vec::new();
         push_string(&mut title, TITLE_BEFORE);
         title.push(b' ');
-        title.extend(append_u32(game_read::<u32>(CAR_INDEX_RVA).wrapping_add(1)));
+        title.extend(append_u32(
+            game_read::<u32>(PLAYER_INDEX_RVA).wrapping_add(1),
+        ));
         title.push(b' ');
         push_string(&mut title, TITLE_AFTER);
         title.push(0);
@@ -210,10 +212,12 @@ pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused
 
         draw_service_time(canvas)?;
 
-        let Some(car) = current_car() else {
-            return Err(BadInput("no current car object: the original reads through null").into());
+        let Some(player) = current_player() else {
+            return Err(
+                BadInput("no current player object: the original reads through null").into(),
+            );
         };
-        let field = |at: u32| (car.wrapping_add(at) as *const i32).read_unaligned();
+        let field = |at: u32| (player.wrapping_add(at) as *const i32).read_unaligned();
         // ebx as the original has it: the sprites get it as their palette.
         let mut ebx = 0u32;
         for step in &STEPS {
@@ -250,7 +254,7 @@ pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused
         let times = draw_repair_times(canvas)?;
         let regs = Regs {
             ebx: times.text as u32,
-            edi: car,
+            edi: player,
             ..Regs::default()
         };
         for marker in [
@@ -316,8 +320,8 @@ unsafe fn unusable() -> Option<&'static str> {
         if sprite_table() == 0 {
             return Some("the sprite table is not loaded");
         }
-        let Some(car) = current_car() else {
-            return Some("there is no current car object");
+        let Some(player) = current_player() else {
+            return Some("there is no current player object");
         };
         let setting = game_read::<u32>(SETTING_RVA);
         if setting > 0x40 || !is_table_id(setting + SETTING_FIRST_STRING) {
@@ -326,13 +330,13 @@ unsafe fn unusable() -> Option<&'static str> {
         // A bar whose width * percent is 0 with a non-zero percent is a fatal error, so only
         // values that look like percentages are let through.
         let sane = |p: i32| (-1000..=1000).contains(&p);
-        let field = |at: u32| (car.wrapping_add(at) as *const i32).read_unaligned();
+        let field = |at: u32| (player.wrapping_add(at) as *const i32).read_unaligned();
         let bars = (0xD4..=0x108).step_by(4).chain([0x110, 0x11C]);
         let edits = [0x75ACA8, 0x75ACAC, 0x75ACB4, 0x75ACB8];
         if !bars.into_iter().all(|at| sane(field(at)))
             || !edits.iter().all(|&at| sane(game_read(rva(at))))
         {
-            return Some("the car's values are not percentages");
+            return Some("the player's values are not percentages");
         }
         None
     }

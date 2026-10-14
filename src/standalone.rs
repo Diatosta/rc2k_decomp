@@ -191,7 +191,10 @@ unsafe fn install_and_lock(image: &Image) -> Result<(), String> {
         .map(|(hook, _)| *hook)
         .collect();
     // The platform's functions take the places of the game's.
-    for hook in crate::platform::HOOKS {
+    for hook in crate::platform::HOOKS
+        .iter()
+        .chain(crate::platform_3d::HOOKS)
+    {
         match unsafe { hook.install(image.base + hook.rva()) } {
             Ok(()) => hooks.push(*hook),
             Err(e) => return Err(format!("the platform's {}: {e}", hook.name())),
@@ -220,7 +223,7 @@ unsafe fn install_and_lock(image: &Image) -> Result<(), String> {
     log(&format!(
         "standalone: {} hooks installed, {} of them the platform's; the game's image is data only",
         hooked.len(),
-        crate::platform::HOOKS.len()
+        crate::platform::HOOKS.len() + crate::platform_3d::HOOKS.len()
     ));
     let _ = HOOKED.set(hooked);
     Ok(())
@@ -334,10 +337,10 @@ unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {
         if !in_code(address) {
             finish(&format!("a jump into the game's data, {at:#x}"), 1);
         }
-        // Inside a hooked function: its trampoline has come back to the original.
-        let original = hooked
-            .iter()
-            .find(|&&(hook, _)| address > hook && address < hook + 0x10);
+        // A hook's "original" is the byte after its jump (`install_and_lock`): its
+        // Rust version refused and handed the call on. Only that byte: a function of
+        // its own can start a few bytes after a hooked one (0x47CEB4 after 0x47CEA8).
+        let original = hooked.iter().find(|&&(hook, _)| address == hook + 1);
         if let Some((_, name)) = original {
             finish(
                 &format!("the original of {name} was called (its Rust version refused, {at:#x})"),
