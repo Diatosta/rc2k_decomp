@@ -25,6 +25,19 @@ pub const CHANNELS_USED_RVA: usize = rva(0x506350); // g_channelsUsed
 pub const CHANNEL_COUNT_RVA: usize = rva(0x50634C); // g_channelCount
 pub const CHANNELS_RVA: usize = rva(0x506354); // g_channels
 pub const SOUND_MODE_RVA: usize = rva(0x4F82BC); // g_soundMode
+pub const A3D_RVA: usize = rva(0x506D60); // g_useA3d
+pub const PRIMARY_RVA: usize = rva(0x506A8C); // g_primaryBuffer
+pub const VOLUMES_RVA: usize = rva(0x506B4C); // g_volumeTable: 65 volumes, -10000 .. 0
+pub const MASTER_VOLUME_RVA: usize = rva(0x4F82D8); // g_masterVolume
+pub const LISTENER_RVA: usize = rva(0x506C58); // g_listener3d
+pub const EAX_RVA: usize = rva(0x506C74); // g_eaxProperties
+pub const EAX_ROOM_RVA: usize = rva(0x506C78); // g_eaxRoom: the room asked for
+pub const EAX_ROOM_SET_RVA: usize = rva(0x506C7C); // g_eaxRoomSet: the room set
+pub const BUFFER_LOST_RVA: usize = rva(0x4F82CC); // g_soundBufferLost
+pub const COMMIT_RVA: usize = rva(0x4F82D0); // g_commit3d: 3D settings to commit
+pub const SAMPLE_MEMORY_RVA: usize = rva(0x4F8300); // g_sampleMemory (a MemoryList)
+/// The mixer channels that are cleared (`audio::clear_channels`).
+pub const CHANNELS_CLEARED: u32 = 0x10;
 
 /// "As the sample record says" in a command.
 pub const DEFAULT: u32 = 0xFFFF_FF91;
@@ -56,7 +69,8 @@ pub struct SampleRecord {
     pub voice_kind: u32,
     /// How many voices to make for it.
     pub copies: i32,
-    pub field_1c: u32,
+    /// The sample's volume scale out of 0x40 (`audio::prepare_sample`).
+    pub scale: u32,
     /// Points at a volume factor (0: 0x40).
     pub volume_factor: u32,
     pub field_24: u32,
@@ -84,8 +98,10 @@ pub struct Voice {
     pub own_frequency: u32,
     /// Low four bits: the sample's shift.
     pub format: u32,
-    pub field_2c: u32,
-    pub field_30: u32,
+    /// The sample's frames.
+    pub frames: u32,
+    /// The record's `scale`.
+    pub scale: u32,
     pub priority: i32,
     /// 0 once, 1 looping, 3 restarted each time.
     pub kind: u32,
