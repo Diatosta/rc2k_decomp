@@ -17,7 +17,7 @@
 //! - The view `dword_7589BA[view]` at y 0x10A; the second view
 //!   `dword_7589DA[second_view]` at 0x125, a second view of 5 made 0 first (only on the
 //!   pages that have it; on the others the lines below are 0x1B higher).
-//! - `shown_number` as a number at 0x140; the co-driver's sex's string (0x18A + it, kept in
+//! - `race_number` as a number at 0x140; the co-driver's sex's string (0x18A + it, kept in
 //!   `dword_7559EC`) at 0x15B.
 //! - Sprite 4 at (0x1BA, 0x176) and sprite 6 at (0x1BA + 2 * `controller_sensitivity`,
 //!   0x176), the
@@ -160,7 +160,7 @@ pub unsafe fn draw_player_page(layout: Layout, canvas: &mut dyn Canvas) -> Resul
             draw_string_by_id_at(second, font, x, y, canvas)?;
             y += 0x1B;
         }
-        let mut line = format_u32(player.shown_number, 0);
+        let mut line = format_u32(player.race_number, 0);
         line.push(0);
         if line.len() > LINE_LEN {
             return Err(BadInput("a number longer than the line buffer").into());

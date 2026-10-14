@@ -5,6 +5,7 @@
 // function's own doc comment and in the `Err(BadInput)` cases it checks.
 #![allow(clippy::missing_safety_doc)]
 
+pub mod audio;
 pub mod d3d;
 pub mod errors;
 pub mod fatal;

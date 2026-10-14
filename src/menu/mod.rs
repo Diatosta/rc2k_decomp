@@ -28,6 +28,19 @@ pub mod car_specification_loop;
 pub mod car_specs_47af4c_loop;
 pub mod championship_new_simulation_loop;
 pub mod championship_standings_loop;
+pub mod choose_key;
+pub mod choose_key_0;
+pub mod choose_key_1;
+pub mod choose_key_10;
+pub mod choose_key_11;
+pub mod choose_key_2;
+pub mod choose_key_3;
+pub mod choose_key_4;
+pub mod choose_key_5;
+pub mod choose_key_6;
+pub mod choose_key_7;
+pub mod choose_key_8;
+pub mod choose_key_9;
 pub mod class_championship_standings_loop;
 pub mod class_rally_results_loop;
 pub mod class_stage_results_loop;
@@ -72,6 +85,7 @@ pub mod navigation;
 pub mod network_rally_loop;
 pub mod new_simulation_loop;
 pub mod next_car;
+pub mod next_car_number;
 pub mod next_car_page;
 pub mod next_nationality;
 pub mod next_savegame_page;
@@ -94,6 +108,7 @@ pub mod player_name;
 pub mod player_names;
 pub mod player_settings;
 pub mod previous_car;
+pub mod previous_car_number;
 pub mod previous_car_page;
 pub mod previous_nationality;
 pub mod previous_second_view;
@@ -102,10 +117,13 @@ pub mod previous_slideshow_picture;
 pub mod previous_view;
 pub mod raise_sensitivity;
 pub mod rally_stages_loop;
+pub mod redefine_key;
+pub mod redefine_keys;
 pub mod redefine_keys_player1_loop;
 pub mod redefine_keys_player2_loop;
 pub mod redefine_keys_player3_loop;
 pub mod redefine_keys_player4_loop;
+pub mod redefine_player1_key;
 pub mod remove_secret_cars;
 pub mod restore_text;
 pub mod results_482e9b_loop;
@@ -151,6 +169,15 @@ pub mod time_trial_results_loop;
 pub mod time_trial_select_players_loop;
 pub mod time_trial_select_stage_loop;
 pub mod time_trial_stage_details_loop;
+pub mod toggle_car_info;
+pub mod toggle_driver_info;
+pub mod toggle_map_area;
+pub mod toggle_message_display;
+pub mod toggle_metric_units;
+pub mod toggle_pace_notes;
+pub mod toggle_progress_bar;
+pub mod toggle_rear_mirror;
+pub mod toggle_rev_counter;
 pub mod update_blink;
 pub mod update_frame_clock;
 pub mod view_best_scores_loop;
@@ -281,6 +308,31 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &previous_second_view::HOOK,
     &raise_sensitivity::HOOK,
     &lower_sensitivity::HOOK,
+    &next_car_number::HOOK,
+    &previous_car_number::HOOK,
+    &choose_key_0::HOOK,
+    &choose_key_1::HOOK,
+    &choose_key_2::HOOK,
+    &choose_key_3::HOOK,
+    &choose_key_4::HOOK,
+    &choose_key_5::HOOK,
+    &choose_key_6::HOOK,
+    &choose_key_7::HOOK,
+    &choose_key_8::HOOK,
+    &choose_key_9::HOOK,
+    &choose_key_10::HOOK,
+    &choose_key_11::HOOK,
+    &redefine_player1_key::HOOK,
+    &redefine_key::HOOK,
+    &toggle_map_area::HOOK,
+    &toggle_rear_mirror::HOOK,
+    &toggle_rev_counter::HOOK,
+    &toggle_car_info::HOOK,
+    &toggle_message_display::HOOK,
+    &toggle_progress_bar::HOOK,
+    &toggle_driver_info::HOOK,
+    &toggle_pace_notes::HOOK,
+    &toggle_metric_units::HOOK,
     &flip_codriver::HOOK,
     &disable_item::HOOK,
     &enable_item::HOOK,

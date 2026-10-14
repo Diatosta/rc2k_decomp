@@ -31,6 +31,7 @@ pub mod draw_name_cursor;
 pub mod draw_player2_details;
 pub mod draw_player34_details;
 pub mod draw_player_details;
+pub mod draw_redefined_keys;
 pub mod draw_repair_times;
 pub mod draw_ride_height_installed_marker;
 pub mod draw_ride_height_marker;
@@ -50,6 +51,7 @@ pub mod draw_steering_sensitivity_marker;
 pub mod draw_suspension_stiffness_installed_marker;
 pub mod draw_suspension_stiffness_marker;
 pub mod draw_time_trial_stage_info;
+pub mod draw_visual_preferences;
 pub mod harness;
 pub mod savegame_page_numbers;
 pub mod savegame_preview;
@@ -106,6 +108,8 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &draw_player_details::HOOK,
     &draw_player2_details::HOOK,
     &draw_player34_details::HOOK,
+    &draw_redefined_keys::HOOK,
+    &draw_visual_preferences::HOOK,
 ];
 
 /// Console switch `blank on [prefix]` / `blank off`, kept for every hook in this module: a

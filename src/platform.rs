@@ -95,21 +95,90 @@ fn pump() {
             if event.r#type == SDL_EVENT_QUIT.0 {
                 log("platform: the window was closed: the quit switch is set");
                 game_write(QUIT_RVA, 1u32);
-            } else if event.r#type == SDL_EVENT_KEY_DOWN.0 {
-                let key = match event.key.scancode {
-                    SDL_SCANCODE_ESCAPE => 0x01u8,
-                    SDL_SCANCODE_RETURN | SDL_SCANCODE_KP_ENTER => 0x1C,
-                    SDL_SCANCODE_UP => 0x66,
-                    SDL_SCANCODE_DOWN => 0x6B,
-                    SDL_SCANCODE_LEFT => 0x68,
-                    SDL_SCANCODE_RIGHT => 0x69,
-                    _ => 0,
-                };
-                if key != 0 {
+            } else if event.r#type == SDL_EVENT_KEY_DOWN.0 || event.r#type == SDL_EVENT_KEY_UP.0 {
+                let key = game_key(event.key.scancode.0);
+                if key == 0 {
+                    continue;
+                }
+                // The key-down table starts at the pending key and is indexed by the
+                // game's key code (0xFF down, as `sar al, 7` leaves it); a key that goes
+                // down, or repeats, is the pending key, as the key thread makes it.
+                let state = (game_addr(PENDING_KEY_RVA) as *mut u8).add(key as usize);
+                if event.key.down {
+                    state.write_volatile(0xFF);
                     game_write(PENDING_KEY_RVA, key);
+                } else {
+                    state.write_volatile(0);
                 }
             }
         }
+    }
+}
+
+/// SDL's scan code (USB's numbering) as the game's key code: DirectInput's for
+/// 1 .. 0x58, and the key thread's (`sub_407AC2`) own numbers for the extended keys it
+/// looks at (0x9C .. 0xDD become 0x60 .. 0x7A). 0: a key the game does not know.
+fn game_key(scancode: i32) -> u8 {
+    const LETTERS: [u8; 26] = [
+        0x1E, 0x30, 0x2E, 0x20, 0x12, 0x21, 0x22, 0x23, 0x17, 0x24, 0x25, 0x26, 0x32, 0x31, 0x18,
+        0x19, 0x10, 0x13, 0x1F, 0x14, 0x16, 0x2F, 0x11, 0x2D, 0x15, 0x2C,
+    ];
+    const KEYPAD: [u8; 10] = [0x4F, 0x50, 0x51, 0x4B, 0x4C, 0x4D, 0x47, 0x48, 0x49, 0x52];
+    match scancode {
+        4..=29 => LETTERS[(scancode - 4) as usize],
+        30..=38 => (scancode - 30 + 2) as u8,    // 1 .. 9
+        39 => 0x0B,                              // 0
+        40 => 0x1C,                              // return
+        41 => 0x01,                              // escape
+        42 => 0x0E,                              // backspace
+        43 => 0x0F,                              // tab
+        44 => 0x39,                              // space
+        45 => 0x0C,                              // minus
+        46 => 0x0D,                              // equals
+        47 => 0x1A,                              // [
+        48 => 0x1B,                              // ]
+        49 | 50 => 0x2B,                         // backslash
+        51 => 0x27,                              // ;
+        52 => 0x28,                              // '
+        53 => 0x29,                              // `
+        54 => 0x33,                              // ,
+        55 => 0x34,                              // .
+        56 => 0x35,                              // /
+        57 => 0x3A,                              // caps lock
+        58..=67 => (scancode - 58 + 0x3B) as u8, // F1 .. F10
+        68 => 0x57,                              // F11
+        69 => 0x58,                              // F12
+        71 => 0x46,                              // scroll lock
+        73 => 0x6D,                              // insert
+        74 => 0x65,                              // home
+        75 => 0x67,                              // page up
+        76 => 0x6E,                              // delete
+        77 => 0x6A,                              // end
+        78 => 0x6C,                              // page down
+        79 => 0x69,                              // right
+        80 => 0x68,                              // left
+        81 => 0x6B,                              // down
+        82 => 0x66,                              // up
+        83 => 0x45,                              // num lock
+        84 => 0x62,                              // keypad /
+        85 => 0x37,                              // keypad *
+        86 => 0x4A,                              // keypad -
+        87 => 0x4E,                              // keypad +
+        88 => 0x60,                              // keypad enter
+        89..=97 => KEYPAD[(scancode - 89) as usize],
+        98 => 0x52,  // keypad 0
+        99 => 0x53,  // keypad .
+        100 => 0x56, // the key beside left shift
+        101 => 0x7A, // menu
+        224 => 0x1D, // left ctrl
+        225 => 0x2A, // left shift
+        226 => 0x38, // left alt
+        227 => 0x78, // left windows
+        228 => 0x61, // right ctrl
+        229 => 0x36, // right shift
+        230 => 0x64, // right alt (AltGr)
+        231 => 0x79, // right windows
+        _ => 0,
     }
 }
 

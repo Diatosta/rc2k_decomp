@@ -26,8 +26,8 @@ pub struct Player {
     /// The player's name (a place in `g_playerNames`).
     pub name: u32,
     pub keys: [u8; 12],
-    /// A number the player details screen shows.
-    pub shown_number: u32,
+    /// The number on the player's car, 1 .. 90, chosen on the player details page.
+    pub race_number: u32,
     pub gap_2c: u32,
     pub field_30: u32,
     pub gap_34: [u8; 92],
@@ -48,7 +48,26 @@ pub struct Player {
     /// The co-driver's sex, from the player details page: 0 male, 1 female (strings
     /// 0x18A, 0x18B).
     pub codriver_sex: u32,
-    pub gap_158: [u8; 36],
+    // The visual preferences (the page of `menu::visual_preferences_loop`), each 0 or 1,
+    // flipped by `menu::toggle_*`.
+    /// "mapa local".
+    pub map_area: u32,
+    /// "retrovisor".
+    pub rear_mirror: u32,
+    /// "contador de rotações".
+    pub rev_counter: u32,
+    /// "informação do carro".
+    pub car_info: u32,
+    /// "barra de mensagens".
+    pub message_display: u32,
+    /// "barra de progresso".
+    pub progress_bar: u32,
+    /// "informação do piloto".
+    pub driver_info: u32,
+    /// "notas informativas".
+    pub pace_notes: u32,
+    /// "indicador de unidades": 0 imperial, 1 metric.
+    pub metric_units: u32,
     pub wear_17c: [u32; 31],
     pub tyre_wear: [u32; 5],
     pub gap_20c: [u8; 64],
