@@ -30,7 +30,12 @@ pub struct Player {
     pub race_number: u32,
     pub gap_2c: u32,
     pub field_30: u32,
-    pub gap_34: [u8; 92],
+    pub gap_34: [u8; 80],
+    /// Zeroed for each player by `menu::begin_event`.
+    pub field_84: u32,
+    pub gap_88: u32,
+    /// Zeroed for each player by `menu::begin_event`.
+    pub field_8c: u32,
     pub no_turbo: u32,
     pub gap_94: [u8; 56],
     pub damage: [u32; 16],
@@ -79,7 +84,10 @@ pub struct Player {
     /// The controller's steering sensitivity, 0 .. 100 ("sensibilidade da direcção"; the
     /// player details page shows it as a marker at x + 2 * it).
     pub controller_sensitivity: u32,
-    pub gap_284: [u8; 8],
+    /// Set to -1 for every player by `menu::clear_players_284` at an event's start, and kept
+    /// over a race by `sub_4843EC` (`dword_75B010`); meaning not read.
+    pub field_284: i32,
+    pub gap_288: u32,
 }
 
 const _: () = assert!(std::mem::size_of::<Player>() == 0x28C);
@@ -90,4 +98,13 @@ pub fn player_at(index: u32) -> u32 {
         return 0;
     }
     unsafe { game_read(PLAYERS_RVA + index as usize * 4) }
+}
+
+/// The four players, as harness regions (for self-tests and shadow snapshots).
+pub fn player_regions() -> Vec<crate::service::harness::Region> {
+    (0..PLAYERS)
+        .map(player_at)
+        .filter(|&p| p != 0)
+        .map(|p| (p, std::mem::size_of::<Player>()))
+        .collect()
 }

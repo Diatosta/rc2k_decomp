@@ -8,7 +8,7 @@
 //! `sub_40B963`), then its 3D buffer and the buffer released (`Release`, +8) and cleared.
 //! Then the voice: `flags`, `data_key` .. `length`, `format`, `frames`, `priority`,
 //! `kind`, `state`, `dirty`, `channel`, `next` 0; `own_frequency` 44100, `scale` and
-//! `volume_factor` 0x40, `field_50` 1.0. Callers: `audio::start` (0x40A0DB) and
+//! `volume_factor` 0x40, `min_distance` 1.0. Callers: `audio::start` (0x40A0DB) and
 //! `audio::free_voices`.
 //! Shadow mode runs the original alone (a buffer is released once). Self-test: a
 //! redirected copy whose A3D switch is the test's, voices with test objects, 12 cases.
@@ -74,7 +74,7 @@ pub unsafe fn release_voice(at: u32, a3d: bool) {
         v.channel = 0;
         v.next = 0;
         v.volume_factor = 0x40;
-        v.field_50 = 1.0f32.to_bits();
+        v.min_distance = 1.0f32.to_bits();
     }
 }
 

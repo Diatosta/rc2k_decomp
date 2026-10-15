@@ -475,8 +475,8 @@ pub fn run(game: &Path, log_file: &Path, frames: u32) -> ! {
             AddVectoredExceptionHandler(1, Some(on_exception)) as usize,
             Ordering::SeqCst,
         );
-        // There is no audio thread to take the commands yet.
-        stand_in("no audio", 0x4F82B4, 1);
+        // The audio thread runs (its Rust version), on DirectSound over SDL
+        // (`platform_sound`).
         start();
     }
     finish("start came to its end", 0)

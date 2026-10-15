@@ -29,7 +29,7 @@ pub const A3D_RVA: usize = rva(0x506D60); // g_useA3d
 pub const PRIMARY_RVA: usize = rva(0x506A8C); // g_primaryBuffer
 pub const VOLUMES_RVA: usize = rva(0x506B4C); // g_volumeTable: 65 volumes, -10000 .. 0
 pub const MASTER_VOLUME_RVA: usize = rva(0x4F82D8); // g_masterVolume
-pub const LISTENER_RVA: usize = rva(0x506C58); // g_listener3d
+pub const VOICE_MANAGER_RVA: usize = rva(0x506C58); // g_voiceManager: the voice manager's IKsPropertySet
 pub const EAX_RVA: usize = rva(0x506C74); // g_eaxProperties
 pub const EAX_ROOM_RVA: usize = rva(0x506C78); // g_eaxRoom: the room asked for
 pub const EAX_ROOM_SET_RVA: usize = rva(0x506C7C); // g_eaxRoomSet: the room set
@@ -73,7 +73,8 @@ pub struct SampleRecord {
     pub scale: u32,
     /// Points at a volume factor (0: 0x40).
     pub volume_factor: u32,
-    pub field_24: u32,
+    /// Its voices' 3D minimum distance (an f32).
+    pub min_distance: u32,
     pub volume: u32,
     pub pan: u32,
     pub frequency: u32,
@@ -113,7 +114,8 @@ pub struct Voice {
     /// The playing or stopping list's link.
     pub next: u32,
     pub volume_factor: u32,
-    pub field_50: u32,
+    /// The 3D buffer's minimum distance (an f32).
+    pub min_distance: u32,
     pub volume: u32,
     pub pan: i32,
     pub pan_sign: i32,

@@ -547,6 +547,9 @@ fn self_test() -> (usize, usize) {
     let Some(mut t) = SelfTest::begin(&HOOK) else {
         return (0, 0);
     };
+    // Unpaused, and it changes what the game's frames blit with: their comparisons in the
+    // meantime are not to be trusted (a `blit_glyph` mismatch on 2026-10-15).
+    let _disturbing = crate::screens::harness::Disturbing::begin();
     let work = game_addr(WORK_MEMORY_RVA) as *mut MemoryList;
     if unsafe { work.read_unaligned() } != MemoryList::default() {
         return t.skip("the builder's work memory is in use");

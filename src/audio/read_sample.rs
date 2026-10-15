@@ -59,7 +59,7 @@ extern "C" fn dispatch(r: &mut Regs) {
 // ---- self-test ----
 
 /// A RIFF file of the given chunks.
-fn riff(form: &[u8; 4], chunks: &[(&[u8; 4], &[u8])]) -> Vec<u8> {
+pub(crate) fn riff(form: &[u8; 4], chunks: &[(&[u8; 4], &[u8])]) -> Vec<u8> {
     let mut body = form.to_vec();
     for (id, data) in chunks {
         body.extend_from_slice(*id);
@@ -72,7 +72,7 @@ fn riff(form: &[u8; 4], chunks: &[(&[u8; 4], &[u8])]) -> Vec<u8> {
     file
 }
 
-fn fmt(tag: u16, channels: u16, rate: u32, bits: u16) -> Vec<u8> {
+pub(crate) fn fmt(tag: u16, channels: u16, rate: u32, bits: u16) -> Vec<u8> {
     let mut f = Vec::new();
     f.extend_from_slice(&tag.to_le_bytes());
     f.extend_from_slice(&channels.to_le_bytes());

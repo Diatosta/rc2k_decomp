@@ -22,6 +22,21 @@ pub struct Results {
     /// What `GetCurrentPosition` gives as the play cursor, and its result.
     pub cursor: u32,
     pub position: i32,
+    /// `GetCaps`' result (0: the caps filled with a pattern).
+    pub caps: i32,
+    /// What a buffer's `GetVolume` gives, and `SetFormat`'s result.
+    pub volume: u32,
+    pub format: i32,
+    /// A buffer's `Restore` result.
+    pub restore: i32,
+    /// `SetCooperativeLevel`'s result; the bytes a buffer's `GetCaps` gives (its result is
+    /// `caps`).
+    pub cooperative: i32,
+    pub bytes: u32,
+    /// The property set's `QuerySupport`: what it gives and its result; `Set`'s result.
+    pub support: u32,
+    pub query_support: i32,
+    pub set: i32,
 }
 
 struct State {
@@ -31,7 +46,7 @@ struct State {
 }
 
 thread_local!(static STATE: RefCell<State> = const {
-    RefCell::new(State { noted: Vec::new(), results: Results { create: 0, duplicate: 0, query: 0, lock: 0, unlock: 0, parts: (0, 0), status: 0, play: 0, cursor: 0, position: 0 }, next_buffer: 0 })
+    RefCell::new(State { noted: Vec::new(), results: Results { create: 0, duplicate: 0, query: 0, lock: 0, unlock: 0, parts: (0, 0), status: 0, play: 0, cursor: 0, position: 0, caps: 0, volume: 0, format: 0, restore: 0, cooperative: 0, bytes: 0, support: 0, query_support: 0, set: 0 }, next_buffer: 0 })
 });
 
 fn note(this: u32, offset: u32, args: Vec<u32>) {
@@ -47,8 +62,9 @@ pub struct TestSound {
     listener: Box<[u32; 2]>,
     buffers: Box<[[u32; 2]; 4]>,
     three_d: Box<[[u32; 2]; 2]>,
+    property_set: Box<[u32; 2]>,
     pub memory: Box<[u8; 0x400]>,
-    _tables: Box<[[u32; 0x14]; 4]>,
+    _tables: Box<[[u32; 0x20]; 5]>,
 }
 
 unsafe fn words(at: u32, n: usize) -> Vec<u32> {
@@ -61,8 +77,11 @@ unsafe extern "system" fn create(this: u32, desc: u32, out: u32, outer: u32) -> 
     let mut args = vec![outer];
     unsafe {
         args.extend(words(desc, 5));
-        let format = (desc + 0x10) as *const u32;
-        args.extend(words(format.read_unaligned(), 5));
+        // A primary buffer's description has no format (0).
+        let format = ((desc + 0x10) as *const u32).read_unaligned();
+        if format != 0 {
+            args.extend(words(format, 5));
+        }
     }
     note(this, 0x0C, args);
     let r = results().create;
@@ -81,14 +100,56 @@ unsafe extern "system" fn duplicate(this: u32, source: u32, out: u32) -> i32 {
     r
 }
 
+/// `IKsPropertySet`'s first dword.
+const IID_PROPERTY_SET: u32 = 0x31EF_AC30;
+
 unsafe extern "system" fn query(this: u32, iid: u32, out: u32) -> i32 {
-    note(this, 0x00, unsafe { words(iid, 4) });
+    let asked = unsafe { words(iid, 4) };
+    let property_set = asked[0] == IID_PROPERTY_SET;
+    note(this, 0x00, asked);
     let r = results().query;
     if r == 0 {
         let n = unsafe { (this as *const u32).add(1).read() };
-        unsafe { (out as *mut u32).write_unaligned(THREE_D.with(|t| t.borrow()[n as usize % 2])) };
+        let object = if property_set {
+            PROPERTY_SET.with(|p| *p.borrow())
+        } else {
+            THREE_D.with(|t| t.borrow()[n as usize % 2])
+        };
+        unsafe { (out as *mut u32).write_unaligned(object) };
     }
     r
+}
+
+/// `IKsPropertySet::Set`: the set's first dword, the id, the instance, the data's dwords.
+#[allow(clippy::too_many_arguments)] // the method's own arguments
+unsafe extern "system" fn property_set(
+    this: u32,
+    set: u32,
+    id: u32,
+    instance: u32,
+    instance_bytes: u32,
+    data: u32,
+    bytes: u32,
+) -> i32 {
+    let mut args = vec![
+        unsafe { words(set, 1)[0] },
+        id,
+        instance,
+        instance_bytes,
+        bytes,
+    ];
+    args.extend(unsafe { words(data, bytes as usize / 4) });
+    note(this, 0x10, args);
+    results().set
+}
+
+unsafe extern "system" fn query_support(this: u32, set: u32, id: u32, support: u32) -> i32 {
+    note(this, 0x14, vec![unsafe { words(set, 1)[0] }, id]);
+    let r = results();
+    if r.query_support == 0 {
+        unsafe { (support as *mut u32).write_unaligned(r.support) };
+    }
+    r.query_support
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -146,6 +207,45 @@ unsafe extern "system" fn stop(this: u32) -> i32 {
     note(this, 0x48, vec![]);
     0
 }
+unsafe extern "system" fn get_caps(this: u32, caps: u32) -> i32 {
+    note(this, 0x10, unsafe { words(caps, 1) });
+    let r = results().caps;
+    if r == 0 {
+        for n in 1..0x18u32 {
+            unsafe { ((caps + n * 4) as *mut u32).write_unaligned(0x1000 + n * 0x11) };
+        }
+    }
+    r
+}
+unsafe extern "system" fn get_volume(this: u32, volume: u32) -> i32 {
+    note(this, 0x18, vec![]);
+    unsafe { (volume as *mut u32).write_unaligned(results().volume) };
+    0
+}
+unsafe extern "system" fn set_format(this: u32, format: u32) -> i32 {
+    note(this, 0x38, unsafe { words(format, 5) });
+    results().format
+}
+unsafe extern "system" fn restore(this: u32) -> i32 {
+    note(this, 0x50, vec![]);
+    results().restore
+}
+unsafe extern "system" fn cooperative_level(this: u32, window: u32, level: u32) -> i32 {
+    note(this, 0x18, vec![window, level]);
+    results().cooperative
+}
+unsafe extern "system" fn buffer_caps(this: u32, caps: u32) -> i32 {
+    note(this, 0x0C, unsafe { words(caps, 1) });
+    let r = results();
+    if r.caps == 0 {
+        unsafe { ((caps + 8) as *mut u32).write_unaligned(r.bytes) };
+    }
+    r.caps
+}
+unsafe extern "system" fn release(this: u32) -> i32 {
+    note(this, 0x08, vec![]);
+    0
+}
 unsafe extern "system" fn commit(this: u32) -> i32 {
     note(this, 0x44, vec![]);
     0
@@ -173,6 +273,7 @@ unsafe extern "system" fn position(this: u32, a: u32, b: u32, c: u32, d: u32) ->
 
 thread_local!(static BUFFERS: RefCell<[u32; 4]> = const { RefCell::new([0; 4]) });
 thread_local!(static THREE_D: RefCell<[u32; 2]> = const { RefCell::new([0; 2]) });
+thread_local!(static PROPERTY_SET: RefCell<u32> = const { RefCell::new(0) });
 thread_local!(static MEMORY: RefCell<u32> = const { RefCell::new(0) });
 
 fn next_buffer() -> u32 {
@@ -192,10 +293,18 @@ impl Default for TestSound {
 
 impl TestSound {
     pub fn new() -> Self {
-        let mut tables = Box::new([[0u32; 0x14]; 4]);
+        let mut tables = Box::new([[0u32; 0x20]; 5]);
         tables[0][0x0C / 4] = create as *const () as u32;
         tables[0][0x14 / 4] = duplicate as *const () as u32;
+        tables[0][0x08 / 4] = release as *const () as u32;
+        tables[0][0x10 / 4] = get_caps as *const () as u32;
+        tables[0][0x18 / 4] = cooperative_level as *const () as u32;
         tables[1][0] = query as *const () as u32;
+        tables[1][0x08 / 4] = release as *const () as u32;
+        tables[1][0x18 / 4] = get_volume as *const () as u32;
+        tables[1][0x38 / 4] = set_format as *const () as u32;
+        tables[1][0x50 / 4] = restore as *const () as u32;
+        tables[1][0x0C / 4] = buffer_caps as *const () as u32;
         tables[1][0x2C / 4] = lock as *const () as u32;
         tables[1][0x3C / 4] = one as *const () as u32;
         tables[1][0x40 / 4] = pan as *const () as u32;
@@ -207,22 +316,28 @@ impl TestSound {
         tables[1][0x34 / 4] = set_position as *const () as u32;
         tables[1][0x48 / 4] = stop as *const () as u32;
         tables[3][0x44 / 4] = commit as *const () as u32;
+        tables[2][0] = query as *const () as u32;
         tables[2][0x44 / 4] = min_distance as *const () as u32;
+        tables[4][0x10 / 4] = property_set as *const () as u32;
+        tables[4][0x14 / 4] = query_support as *const () as u32;
         tables[2][0x4C / 4] = position as *const () as u32;
         let t = |n: usize| tables[n].as_ptr() as u32;
         let sound = Box::new([t(0), 0]);
         let listener = Box::new([t(3), 0]);
         let buffers = Box::new([[t(1), 0], [t(1), 1], [t(1), 2], [t(1), 3]]);
         let three_d = Box::new([[t(2), 0], [t(2), 1]]);
+        let property_set = Box::new([t(4), 0]);
         let mut memory = Box::new([0u8; 0x400]);
         BUFFERS.with(|b| *b.borrow_mut() = [0, 1, 2, 3].map(|n| buffers[n].as_ptr() as u32));
         THREE_D.with(|b| *b.borrow_mut() = [0, 1].map(|n| three_d[n].as_ptr() as u32));
         MEMORY.with(|m| *m.borrow_mut() = memory.as_mut_ptr() as u32);
+        PROPERTY_SET.with(|p| *p.borrow_mut() = property_set.as_ptr() as u32);
         Self {
             sound,
             listener,
             buffers,
             three_d,
+            property_set,
             memory,
             _tables: tables,
         }
@@ -243,6 +358,12 @@ impl TestSound {
 
     pub fn three_d(&self, n: usize) -> u32 {
         self.three_d[n].as_ptr() as u32
+    }
+
+    /// An `IKsPropertySet` (what a 3D buffer hands out for it): `Set` (+0x10),
+    /// `QuerySupport` (+0x14).
+    pub fn property_set(&self) -> u32 {
+        self.property_set.as_ptr() as u32
     }
 
     /// Begins a run: the results chosen, the notes and the handing out started anew.

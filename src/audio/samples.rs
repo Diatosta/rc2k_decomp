@@ -221,7 +221,7 @@ pub unsafe fn fill_voice(
             record.frequency
         };
         v.place = record.place;
-        v.field_50 = record.field_24;
+        v.min_distance = record.min_distance;
         v.volume_factor = if record.volume_factor != 0 {
             dword(record.volume_factor)
         } else {

@@ -13,11 +13,11 @@
 //! result to the game's log, carry. Then the volume, pan and frequency
 //! (`audio::set_buffer_*`). In 3D: the 3D interface (`QueryInterface` with
 //! `g_iidSound3dBuffer`; failing: "AUD: 1-DSBQuery3D failed" logged, carry), the place,
-//! the minimum distance (`sub_40C69A`), `g_commit3d` 1, `sub_40C6B5` with bit 0x800000,
-//! with EAX (bit 0x1000000) `sub_40D27F` and, unless that sets the carry, `sub_40D26B`
-//! (the last four through the game's addresses; the EAX two and `sub_40C6B5` read
-//! through ebx, which is the caller's, the frequency after the create path, or the 3D
-//! buffer's place after `sub_40C6B5`'s call, as the original leaves it). Callers:
+//! `audio::set_buffer_min_distance`, `g_commit3d` 1, `audio::open_voice_manager` with bit
+//! 0x800000, with EAX (bit 0x1000000) `audio::open_eax` and, unless that sets the carry,
+//! `audio::set_eax_room` (the openings read through ebx, which is the caller's, the
+//! frequency after the create path, or the 3D buffer's place after the voice manager's
+//! call, as the original leaves it; `open_eax` refuses one that is no pointer). Callers:
 //! command 3 and `audio::start`.
 //! Refuses A3D (the chunk at 0x40CC88), and what the settings refuse, checked first.
 //! Shadow mode runs the original alone. Self-test: a redirected copy on a DirectSound of
@@ -87,7 +87,7 @@ impl Vars {
 /// The parts it calls by the game's addresses: 0 the place, 1 the minimum distance,
 /// 2 `sub_40C6B5`, 3 `sub_40D27F` (true: carry), 4 `sub_40D26B`; 5 a text to the log,
 /// 6 a number to the log with a line's end.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> bool;
+pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<bool, Refused>;
 
 /// True for the carry clear. `ebx`: the caller's, which the original leaves in ebx (or
 /// replaces, as below) when it calls the EAX parts: they read through it.
@@ -151,7 +151,7 @@ pub unsafe fn make_buffer(at: u32, ebx: u32, vars: &Vars, part: Part) -> Result<
                 std::mem::transmute(crate::audio::com::method(ds, 0x0C));
             let r = f(ds, vars.description, &mut v.buffer as *mut u32 as u32, 0);
             if r != 0 {
-                return Ok(log_failure(part, CREATE_FAILED_RVA, r));
+                return log_failure(part, CREATE_FAILED_RVA, r);
             }
         }
         set_buffer_volume(v)?;
@@ -166,21 +166,21 @@ pub unsafe fn make_buffer(at: u32, ebx: u32, vars: &Vars, part: Part) -> Result<
                 &mut v.buffer_3d as *mut u32 as u32,
             );
             if r != 0 {
-                return Ok(log_failure(part, QUERY_FAILED_RVA, r));
+                return log_failure(part, QUERY_FAILED_RVA, r);
             }
-            part(0, &mut regs);
-            part(1, &mut regs);
+            part(0, &mut regs)?;
+            part(1, &mut regs)?;
             write(vars.commit, 1);
             if mode & MODE_HARDWARE_3D != 0 {
                 regs.ebx = &mut v.buffer_3d as *mut u32 as u32;
                 let mut r = regs;
-                part(2, &mut r);
+                part(2, &mut r)?;
             }
             if mode & MODE_EAX != 0 {
                 let mut r = regs;
-                if !part(3, &mut r) {
+                if !part(3, &mut r)? {
                     let mut r = regs;
-                    part(4, &mut r);
+                    part(4, &mut r)?;
                 }
             }
         }
@@ -188,38 +188,47 @@ pub unsafe fn make_buffer(at: u32, ebx: u32, vars: &Vars, part: Part) -> Result<
     }
 }
 
-fn log_failure(part: Part, text: usize, result: i32) -> bool {
+fn log_failure(part: Part, text: usize, result: i32) -> Result<bool, Refused> {
     let mut r = Regs {
         eax: game_addr(text) as u32,
         ..Regs::default()
     };
-    part(5, &mut r);
+    part(5, &mut r)?;
     let mut r = Regs {
         eax: result as u32,
         ..Regs::default()
     };
-    part(6, &mut r);
-    false
+    part(6, &mut r)?;
+    Ok(false)
 }
 
+/// The parts' addresses, for the self-test's stand-ins: `set_buffer_place`,
+/// `set_buffer_min_distance`, `open_voice_manager`, `open_eax`, `set_eax_room`, the two logs.
 const PARTS: [usize; 7] = [
     0x40C676, 0x40C69A, 0x40C6B5, 0x40D27F, 0x40D26B, 0x401427, 0x401626,
 ];
 
-/// The game's parts: the Rust place, the others at the game's addresses (the log through
-/// the Rust log functions).
-pub fn game_part(which: u32, r: &mut Regs) -> bool {
+/// The game's parts: the Rust versions (the carry of 3 returned).
+pub fn game_part(which: u32, r: &mut Regs) -> Result<bool, Refused> {
     unsafe {
         match which {
             0 => {
-                let _ = crate::audio::buffer_settings::set_buffer_place(voice(r.esi));
+                crate::audio::buffer_settings::set_buffer_place(voice(r.esi))?;
             }
+            1 => {
+                let v = &*(r.esi as *const Voice);
+                r.eax = crate::audio::set_buffer_min_distance::set_buffer_min_distance(v)? as u32;
+            }
+            2 => {
+                crate::audio::open_voice_manager::open_voice_manager(r.ebx)?;
+            }
+            3 => return Ok(!crate::audio::open_eax::open_eax(r.ebx)?),
+            4 => r.eax = crate::audio::set_eax_room::in_game()?,
             5 => crate::logfile::log_write::log_write(r.eax as *const u8, false, 1),
-            6 => crate::logfile::log_hex8::log_hex8(r.eax, true, 1),
-            _ => call_game(r, game_addr(rva(PARTS[which as usize]))),
+            _ => crate::logfile::log_hex8::log_hex8(r.eax, true, 1),
         }
     }
-    r.carry()
+    Ok(false)
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
@@ -329,7 +338,7 @@ fn self_test() -> (usize, usize) {
                         0
                     },
                     place: [1, 2, 3],
-                    field_50: 0x3F80_0000,
+                    min_distance: 0x3F80_0000,
                     ..Voice::default()
                 };
                 let results = crate::audio::test_sound::Results {
@@ -353,7 +362,7 @@ fn self_test() -> (usize, usize) {
                         unsafe {
                             make_buffer(before.esi, before.ebx, &v_vars, &mut |p, r| {
                                 handler(p, r);
-                                r.carry()
+                                Ok(r.carry())
                             })
                         }
                         .map(|m| (m, true))

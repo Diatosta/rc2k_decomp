@@ -37,10 +37,10 @@ hook_asm!(
 const CLOCK_RVA: usize = rva(0x613830); // dword_613830
 const LAST_RVA: usize = rva(0x75AA84); // dword_75AA84
 const PASSED_RVA: usize = rva(0x75AA88); // dword_75AA88
-const DIRECTION_RVA: usize = rva(0x75A660); // dword_75A660
-const ANGLE_RVA: usize = rva(0x75AA80); // dword_75AA80
-const FRONT_RVA: usize = rva(0x75AA7C); // dword_75AA7C
-const COUNT_RVA: usize = rva(0x75AA78); // dword_75AA78
+pub const DIRECTION_RVA: usize = rva(0x75A660); // dword_75A660
+pub const ANGLE_RVA: usize = rva(0x75AA80); // dword_75AA80
+pub const FRONT_RVA: usize = rva(0x75AA7C); // dword_75AA7C
+pub const COUNT_RVA: usize = rva(0x75AA78); // dword_75AA78
 const LONGEST: u32 = 100;
 
 // ---- Rust version ----

@@ -765,7 +765,7 @@ extern "C" fn dispatch(r: &mut Regs) {
     };
     let original_scratch = read_scratch();
     if stray || !pixels_ok || original_exit != exit || original_scratch != scratch {
-        HOOK.mismatch(|| {
+        crate::screens::harness::mismatch_unless_disturbed(&HOOK, || {
             format!(
                 "glyph={glyph} x={x} y={y} bits={}: pixels_ok={pixels_ok} stray_write={stray} original {original_exit:x?} {original_scratch:?} rust {exit:x?} {scratch:?}",
                 surface.bits_per_pixel

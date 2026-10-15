@@ -7,6 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 pub mod buttons;
 pub mod car_caption;
+pub mod car_caption_2;
 pub mod car_page_title;
 pub mod draw_background_band;
 pub mod draw_brake_balance_marker;
@@ -53,8 +54,11 @@ pub mod draw_suspension_stiffness_marker;
 pub mod draw_time_trial_stage_info;
 pub mod draw_visual_preferences;
 pub mod harness;
+pub mod player_30_text;
+pub mod player_number_text;
 pub mod savegame_page_numbers;
 pub mod savegame_preview;
+pub mod set_stage_choice_titles;
 pub mod setup_markers;
 pub mod slideshow_title;
 pub mod stage_panel;
@@ -101,6 +105,10 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &savegame_page_numbers::HOOK,
     &draw_savegame_names::HOOK,
     &car_caption::HOOK,
+    &car_caption_2::HOOK,
+    &player_30_text::HOOK,
+    &player_number_text::HOOK,
+    &set_stage_choice_titles::HOOK,
     &car_page_title::HOOK,
     &slideshow_title::HOOK,
     &draw_car_figures::HOOK,

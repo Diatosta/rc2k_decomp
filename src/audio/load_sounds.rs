@@ -159,7 +159,7 @@ pub unsafe fn load_sounds(list: u32, v: &Vars, part: Part) -> Result<(), Refused
 }
 
 /// The game's callees: the Rust versions.
-fn game_part(which: u32, r: &mut Regs) -> Result<bool, Refused> {
+pub fn game_part(which: u32, r: &mut Regs) -> Result<bool, Refused> {
     use crate::audio::*;
     unsafe {
         let record = r.ebx;
@@ -366,7 +366,14 @@ fn self_test() -> (usize, usize) {
                         Ok(ro.preserved_except(&before, 0))
                     };
                     let noted = std::mem::take(&mut *NOTED.lock().unwrap());
-                    (done, records.clone(), voices.clone(), *vars, noted)
+                    (
+                        done,
+                        records.clone(),
+                        voices.clone(),
+                        // Volatile: the code under test wrote it behind the reference.
+                        unsafe { std::ptr::from_mut(vars).read_volatile() },
+                        noted,
+                    )
                 };
                 let theirs = run(false, &mut records, &mut voices, &mut vars);
                 let mine = run(true, &mut records, &mut voices, &mut vars);

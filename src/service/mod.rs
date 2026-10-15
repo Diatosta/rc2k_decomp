@@ -23,6 +23,13 @@ pub mod load_setup_values;
 pub mod next_setup_page;
 pub mod pages;
 pub mod read_setup_slot;
+pub mod repair_body;
+pub mod repair_brakes;
+pub mod repair_car;
+pub mod repair_gearbox;
+pub mod repair_lights;
+pub mod repair_parts;
+pub mod repair_suspension;
 pub mod reset_tyre_wear;
 pub mod service_area_loop;
 pub mod setup_values;
@@ -86,6 +93,12 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &begin_setup_name::HOOK,
     &next_setup_page::HOOK,
     &reset_tyre_wear::HOOK,
+    &repair_body::HOOK,
+    &repair_gearbox::HOOK,
+    &repair_brakes::HOOK,
+    &repair_lights::HOOK,
+    &repair_suspension::HOOK,
+    &repair_car::HOOK,
     &apply_repairs::HOOK,
     &service_area_loop::HOOK,
 ];

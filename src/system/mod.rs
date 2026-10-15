@@ -10,6 +10,7 @@ pub mod main_loop;
 pub mod next_argument;
 pub mod packed_local_time;
 pub mod read_command_line;
+pub mod restore_window;
 pub mod sleep;
 pub mod tick_count;
 pub mod zero_memory;

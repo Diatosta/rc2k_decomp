@@ -19,7 +19,7 @@
 //!   stopping list's front, and `g_channelsUsed` is one less;
 //! - the stopping list again (so a voice that just ended is stopped the same turn).
 //!
-//! Then in 3D: with EAX (bit 0x1000000) the room is set (`sub_40D26B`, the game's) when the
+//! Then in 3D: with EAX (bit 0x1000000) the room is set (`audio::set_eax_room`) when the
 //! room asked (`g_eaxRoom`) is not the one set, or `dword_6D1DD4` is not the one kept
 //! (`dword_506C80`), each then kept; and with `g_commit3d` 1, `audio::commit_3d` and the flag 0.
 //! Refuses, before anything: a list that does not end within 0x200 voices; a playing voice
@@ -257,9 +257,8 @@ pub unsafe fn update_voices(v: &Vars, part: Part) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The game's callees: the Rust versions, the room and the two other ways at the game's
-/// addresses.
-fn game_part(which: u32, r: &mut Regs) -> Result<(), Refused> {
+/// The game's callees: the Rust versions, the two other ways at the game's addresses.
+pub fn game_part(which: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::audio::{buffer_play as play, buffer_settings as set};
     unsafe {
         let v = || voice(r.esi);
@@ -268,7 +267,7 @@ fn game_part(which: u32, r: &mut Regs) -> Result<(), Refused> {
                 let status = play::is_playing(v())?;
                 r.set_zero(status & play::PLAYING == 0);
             }
-            1 => call_game(r, game_addr(rva(0x40D26B))),
+            1 => r.eax = crate::audio::set_eax_room::in_game()?,
             2 => {
                 play::commit_3d(game_addr(play::LISTENER_3D_RVA) as u32)?;
             }

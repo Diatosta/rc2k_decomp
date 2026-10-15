@@ -254,7 +254,8 @@ fn self_test() -> (usize, usize) {
                 };
                 (
                     done,
-                    *vars,
+                    // Volatile: the code under test wrote it behind the reference.
+                    unsafe { std::ptr::from_mut(vars).read_volatile() },
                     sound.noted(),
                     std::mem::take(&mut *NOTED.lock().unwrap()),
                 )

@@ -1,0 +1,768 @@
+//! DirectSound for the standalone program, on one SDL3 audio stream (the owner chose it,
+//! 2026-10-15: "Emulate DirectSound").
+//!
+//! The ported audio code calls DirectSound only through COM method tables. Here those are
+//! Rust functions: a device, its buffers (the primary one and the secondary ones, with
+//! duplicates sharing their data), the buffers' 3D interfaces and the 3D listener. A small
+//! software mixer in SDL's audio callback plays every playing buffer: its data (8 or 16
+//! bits, mono or stereo) at its frequency, with its volume and pan, into 44100 Hz 16-bit
+//! stereo; the primary buffer too, which in the Dolby mode is where the game's own mixer
+//! writes, so the music (a secondary buffer) is heard there as well (section 16's Dolby
+//! bug does not happen here). The primary buffer's volume is the whole output's.
+//! Not done (yet): 3D placing (the 3D calls are taken and do nothing), EAX (its set-up is
+//! unported game code, which the standalone passes by).
+//! Every method has the arity of DirectSound's: these are `stdcall`, the callee takes the
+//! arguments off the stack.
+
+use sdl3_sys::everything::*;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+
+const OUT_RATE: u32 = 44100;
+const OK: i32 = 0;
+const E_NOINTERFACE: i32 = 0x8000_4002u32 as i32;
+const E_INVALIDARG: i32 = 0x8007_0057u32 as i32;
+const IID_3D_BUFFER: u32 = 0x279A_FA86;
+const IID_3D_LISTENER: u32 = 0x279A_FA84;
+/// `DSBCAPS_PRIMARYBUFFER`, `DSBPLAY_LOOPING`, `DSBSTATUS_PLAYING` / `_LOOPING`.
+const PRIMARY: u32 = 1;
+const LOOPING: u32 = 1;
+const STATUS_PLAYING: u32 = 1;
+const STATUS_LOOPING: u32 = 4;
+/// What `GetCaps` says of the device (as Wine's does: no hardware buffers).
+const CAPS_FLAGS: u32 = 0xF5F;
+
+/// A method table: the methods' addresses, shared by every thread.
+struct Table<const N: usize>([*const (); N]);
+unsafe impl<const N: usize> Sync for Table<N> {}
+
+impl<const N: usize> Table<N> {
+    fn start(&'static self) -> *const usize {
+        self.0.as_ptr().cast()
+    }
+}
+
+/// What the game holds: its method table first, as for any COM object.
+#[repr(C)]
+struct Object {
+    table: *const usize,
+    id: u32,
+}
+
+#[derive(Clone, Copy)]
+struct Format {
+    channels: u32,
+    bits: u32,
+    rate: u32,
+}
+
+impl Format {
+    fn block(&self) -> u32 {
+        (self.channels * self.bits / 8).max(1)
+    }
+}
+
+struct Buffer {
+    data: Arc<Vec<u8>>,
+    bytes: u32,
+    flags: u32,
+    format: Format,
+    /// 0: the format's.
+    frequency: u32,
+    /// In frames, with the fraction the stepping leaves.
+    position: f64,
+    playing: bool,
+    looping: bool,
+    volume: i32,
+    pan: i32,
+}
+
+enum Kind {
+    Device,
+    Buffer(Buffer),
+    /// A buffer's 3D interface, or the listener: they take their calls and do nothing.
+    Quiet,
+}
+
+struct Entry {
+    object: Box<Object>,
+    refs: u32,
+    kind: Kind,
+}
+
+struct State {
+    entries: HashMap<u32, Entry>,
+    next: u32,
+    primary: Option<u32>,
+}
+
+// The raw pointers in it are the game's to use; every access goes through the mutex.
+unsafe impl Send for State {}
+
+static STATE: Mutex<Option<State>> = Mutex::new(None);
+
+fn with<R>(f: impl FnOnce(&mut State) -> R) -> R {
+    let mut s = STATE.lock().unwrap();
+    f(s.get_or_insert_with(|| State {
+        entries: HashMap::new(),
+        next: 1,
+        primary: None,
+    }))
+}
+
+fn id_of(this: u32) -> u32 {
+    unsafe { (*(this as *const Object)).id }
+}
+
+unsafe fn put(at: u32, value: u32) {
+    if at != 0 {
+        unsafe { (at as *mut u32).write_unaligned(value) };
+    }
+}
+
+unsafe fn get(at: u32) -> u32 {
+    unsafe { (at as *const u32).read_unaligned() }
+}
+
+fn new_object(s: &mut State, table: *const usize, kind: Kind) -> u32 {
+    let id = s.next;
+    s.next += 1;
+    let object = Box::new(Object { table, id });
+    let at = &*object as *const Object as u32;
+    s.entries.insert(
+        id,
+        Entry {
+            object,
+            refs: 1,
+            kind,
+        },
+    );
+    at
+}
+
+fn buffer(s: &mut State, this: u32) -> Option<&mut Buffer> {
+    match &mut s.entries.get_mut(&id_of(this))?.kind {
+        Kind::Buffer(b) => Some(b),
+        _ => None,
+    }
+}
+
+unsafe fn read_format(at: u32) -> Format {
+    unsafe {
+        Format {
+            channels: (at as *const u16).add(1).read_unaligned() as u32,
+            rate: get(at + 4),
+            bits: ((at + 0xE) as *const u16).read_unaligned() as u32,
+        }
+    }
+}
+
+/// A primary buffer's size for a format: a quarter of a second, whole frames.
+fn primary_bytes(f: &Format) -> u32 {
+    (f.rate * f.block() / 4) / f.block() * f.block()
+}
+
+// ---- the methods every object has ----
+
+unsafe extern "system" fn add_ref(this: u32) -> u32 {
+    with(|s| {
+        s.entries.get_mut(&id_of(this)).map_or(0, |e| {
+            e.refs += 1;
+            e.refs
+        })
+    })
+}
+
+unsafe extern "system" fn release(this: u32) -> u32 {
+    with(|s| {
+        let id = id_of(this);
+        let Some(e) = s.entries.get_mut(&id) else {
+            return 0;
+        };
+        e.refs -= 1;
+        let left = e.refs;
+        if left == 0 {
+            // The object's memory goes too: the game must not use it again (it does not).
+            let _ = &e.object;
+            s.entries.remove(&id);
+            if s.primary == Some(id) {
+                s.primary = None;
+            }
+        }
+        left
+    })
+}
+
+unsafe extern "system" fn no_interface(_: u32, _: u32, out: u32) -> i32 {
+    unsafe { put(out, 0) };
+    E_NOINTERFACE
+}
+
+unsafe extern "system" fn ok0(_: u32) -> i32 {
+    OK
+}
+unsafe extern "system" fn ok1(_: u32, _: u32) -> i32 {
+    OK
+}
+unsafe extern "system" fn ok2(_: u32, _: u32, _: u32) -> i32 {
+    OK
+}
+unsafe extern "system" fn ok3(_: u32, _: u32, _: u32, _: u32) -> i32 {
+    OK
+}
+unsafe extern "system" fn ok4(_: u32, _: u32, _: u32, _: u32, _: u32) -> i32 {
+    OK
+}
+#[allow(clippy::too_many_arguments)] // IDirectSound3DListener::SetOrientation's arity
+unsafe extern "system" fn ok7(
+    _: u32,
+    _: u32,
+    _: u32,
+    _: u32,
+    _: u32,
+    _: u32,
+    _: u32,
+    _: u32,
+) -> i32 {
+    OK
+}
+/// A `Get..` whose answer is not looked at by the game: a 0 written.
+unsafe extern "system" fn zero1(_: u32, out: u32) -> i32 {
+    unsafe { put(out, 0) };
+    OK
+}
+unsafe extern "system" fn zero2(_: u32, a: u32, b: u32) -> i32 {
+    unsafe {
+        put(a, 0);
+        put(b, 0);
+    }
+    OK
+}
+
+// ---- the device (IDirectSound) ----
+
+unsafe extern "system" fn create_buffer(_: u32, desc: u32, out: u32, _outer: u32) -> i32 {
+    unsafe {
+        if desc == 0 || out == 0 {
+            return E_INVALIDARG;
+        }
+        let flags = get(desc + 4);
+        let format_at = get(desc + 0x10);
+        let primary = flags & PRIMARY != 0;
+        let format = if format_at != 0 {
+            read_format(format_at)
+        } else {
+            Format {
+                channels: 2,
+                bits: 8,
+                rate: 22050,
+            }
+        };
+        let bytes = if primary {
+            primary_bytes(&format)
+        } else {
+            get(desc + 8)
+        };
+        // A primary buffer's memory is the largest it can be, its formats changing.
+        let room = if primary { 48000 * 4 } else { bytes as usize };
+        let at = with(|s| {
+            let at = new_object(
+                s,
+                BUFFER.start(),
+                Kind::Buffer(Buffer {
+                    data: Arc::new(vec![if format.bits == 8 { 0x80 } else { 0 }; room.max(4)]),
+                    bytes,
+                    flags,
+                    format,
+                    frequency: 0,
+                    position: 0.0,
+                    playing: false,
+                    looping: false,
+                    volume: 0,
+                    pan: 0,
+                }),
+            );
+            if primary {
+                s.primary = Some(id_of(at));
+            }
+            at
+        });
+        put(out, at);
+    }
+    OK
+}
+
+unsafe extern "system" fn device_caps(_: u32, caps: u32) -> i32 {
+    unsafe {
+        for n in 1..0x18 {
+            put(caps + n * 4, 0);
+        }
+        put(caps + 4, CAPS_FLAGS);
+        put(caps + 8, 100);
+        put(caps + 0xC, 200_000);
+        put(caps + 0x10, 1);
+    }
+    OK
+}
+
+unsafe extern "system" fn duplicate(_: u32, source: u32, out: u32) -> i32 {
+    with(|s| {
+        let Some(b) = buffer(s, source) else {
+            return E_INVALIDARG;
+        };
+        let copy = Buffer {
+            data: Arc::clone(&b.data),
+            position: 0.0,
+            playing: false,
+            looping: false,
+            ..*b
+        };
+        let at = new_object(s, BUFFER.start(), Kind::Buffer(copy));
+        unsafe { put(out, at) };
+        OK
+    })
+}
+
+static DEVICE: Table<11> = Table([
+    no_interface as *const (),
+    add_ref as *const (),
+    release as *const (),
+    create_buffer as *const (),
+    device_caps as *const (),
+    duplicate as *const (),
+    ok2 as *const (),   // SetCooperativeLevel
+    ok0 as *const (),   // Compact
+    zero1 as *const (), // GetSpeakerConfig
+    ok1 as *const (),   // SetSpeakerConfig
+    ok1 as *const (),   // Initialize
+]);
+
+// ---- a buffer (IDirectSoundBuffer) ----
+
+unsafe extern "system" fn buffer_query(this: u32, iid: u32, out: u32) -> i32 {
+    let first = unsafe { get(iid) };
+    with(|s| {
+        let primary = buffer(s, this).is_some_and(|b| b.flags & PRIMARY != 0);
+        let table = match (first, primary) {
+            (IID_3D_BUFFER, false) => BUFFER_3D.start(),
+            (IID_3D_LISTENER, true) => LISTENER.start(),
+            _ => {
+                unsafe { put(out, 0) };
+                return E_NOINTERFACE;
+            }
+        };
+        let at = new_object(s, table, Kind::Quiet);
+        unsafe { put(out, at) };
+        OK
+    })
+}
+
+unsafe extern "system" fn buffer_caps(this: u32, caps: u32) -> i32 {
+    with(|s| {
+        let Some(b) = buffer(s, this) else {
+            return E_INVALIDARG;
+        };
+        unsafe {
+            put(caps + 4, b.flags);
+            put(caps + 8, b.bytes);
+            put(caps + 0xC, 0);
+            put(caps + 0x10, 0);
+        }
+        OK
+    })
+}
+
+unsafe extern "system" fn position(this: u32, play: u32, write: u32) -> i32 {
+    with(|s| {
+        let Some(b) = buffer(s, this) else {
+            return E_INVALIDARG;
+        };
+        let at = (b.position as u32 * b.format.block()) % b.bytes.max(1);
+        unsafe {
+            put(play, at);
+            put(write, at);
+        }
+        OK
+    })
+}
+
+unsafe extern "system" fn get_format(this: u32, format: u32, size: u32, written: u32) -> i32 {
+    with(|s| {
+        let Some(b) = buffer(s, this) else {
+            return E_INVALIDARG;
+        };
+        let f = b.format;
+        unsafe {
+            if format != 0 && size >= 0x10 {
+                let w = format as *mut u16;
+                w.write_unaligned(1);
+                w.add(1).write_unaligned(f.channels as u16);
+                put(format + 4, f.rate);
+                put(format + 8, f.rate * f.block());
+                w.add(6).write_unaligned(f.block() as u16);
+                w.add(7).write_unaligned(f.bits as u16);
+            }
+            put(written, 0x10);
+        }
+        OK
+    })
+}
+
+macro_rules! getter {
+    ($name:ident, $field:ident) => {
+        unsafe extern "system" fn $name(this: u32, out: u32) -> i32 {
+            with(|s| match buffer(s, this) {
+                Some(b) => {
+                    unsafe { put(out, b.$field as u32) };
+                    OK
+                }
+                None => E_INVALIDARG,
+            })
+        }
+    };
+}
+getter!(get_volume, volume);
+getter!(get_pan, pan);
+getter!(get_frequency, frequency);
+
+unsafe extern "system" fn status(this: u32, out: u32) -> i32 {
+    with(|s| match buffer(s, this) {
+        Some(b) => {
+            let st = if b.playing {
+                STATUS_PLAYING | if b.looping { STATUS_LOOPING } else { 0 }
+            } else {
+                0
+            };
+            unsafe { put(out, st) };
+            OK
+        }
+        None => E_INVALIDARG,
+    })
+}
+
+#[allow(clippy::too_many_arguments)] // IDirectSoundBuffer::Lock's arity
+unsafe extern "system" fn lock(
+    this: u32,
+    offset: u32,
+    bytes: u32,
+    p1: u32,
+    n1: u32,
+    p2: u32,
+    n2: u32,
+    flags: u32,
+) -> i32 {
+    with(|s| {
+        let Some(b) = buffer(s, this) else {
+            return E_INVALIDARG;
+        };
+        let size = b.bytes.max(1);
+        let bytes = if flags & 2 != 0 {
+            size
+        } else {
+            bytes.min(size)
+        };
+        let offset = if flags & 1 != 0 {
+            (b.position as u32 * b.format.block()) % size
+        } else {
+            offset % size
+        };
+        let first = bytes.min(size - offset);
+        let base = b.data.as_ptr() as u32;
+        unsafe {
+            put(p1, base + offset);
+            put(n1, first);
+            put(p2, if bytes > first { base } else { 0 });
+            put(n2, bytes - first);
+        }
+        OK
+    })
+}
+
+unsafe extern "system" fn play(this: u32, _: u32, _: u32, flags: u32) -> i32 {
+    with(|s| match buffer(s, this) {
+        Some(b) => {
+            b.playing = true;
+            b.looping = flags & LOOPING != 0 || b.flags & PRIMARY != 0;
+            OK
+        }
+        None => E_INVALIDARG,
+    })
+}
+
+unsafe extern "system" fn set_position(this: u32, at: u32) -> i32 {
+    with(|s| match buffer(s, this) {
+        Some(b) => {
+            b.position = (at / b.format.block()) as f64;
+            OK
+        }
+        None => E_INVALIDARG,
+    })
+}
+
+unsafe extern "system" fn set_format(this: u32, format: u32) -> i32 {
+    with(|s| match buffer(s, this) {
+        Some(b) if b.flags & PRIMARY != 0 && format != 0 => {
+            let f = unsafe { read_format(format) };
+            if f.rate == 0
+                || f.rate > 48000
+                || !matches!(f.bits, 8 | 16)
+                || !matches!(f.channels, 1 | 2)
+            {
+                return E_INVALIDARG;
+            }
+            // Silence in the new format: the 8-bit one's 0x80 bytes read as 16-bit are
+            // -32640, a jump to near full scale (the clicks at the opening, 2026-10-15).
+            let silence = if f.bits == 8 { 0x80 } else { 0 };
+            unsafe { std::ptr::write_bytes(b.data.as_ptr() as *mut u8, silence, b.data.len()) };
+            b.format = f;
+            b.bytes = primary_bytes(&f);
+            b.position = 0.0;
+            OK
+        }
+        _ => E_INVALIDARG,
+    })
+}
+
+macro_rules! setter {
+    ($name:ident, $field:ident, $ty:ty) => {
+        unsafe extern "system" fn $name(this: u32, value: u32) -> i32 {
+            with(|s| match buffer(s, this) {
+                Some(b) => {
+                    b.$field = value as $ty;
+                    OK
+                }
+                None => E_INVALIDARG,
+            })
+        }
+    };
+}
+setter!(set_volume, volume, i32);
+setter!(set_pan, pan, i32);
+setter!(set_frequency, frequency, u32);
+
+unsafe extern "system" fn stop(this: u32) -> i32 {
+    with(|s| match buffer(s, this) {
+        Some(b) => {
+            b.playing = false;
+            OK
+        }
+        None => E_INVALIDARG,
+    })
+}
+
+static BUFFER: Table<21> = Table([
+    buffer_query as *const (),
+    add_ref as *const (),
+    release as *const (),
+    buffer_caps as *const (),
+    position as *const (),
+    get_format as *const (),
+    get_volume as *const (),
+    get_pan as *const (),
+    get_frequency as *const (),
+    status as *const (),
+    ok2 as *const (), // Initialize
+    lock as *const (),
+    play as *const (),
+    set_position as *const (),
+    set_format as *const (),
+    set_volume as *const (),
+    set_pan as *const (),
+    set_frequency as *const (),
+    stop as *const (),
+    ok4 as *const (), // Unlock
+    ok0 as *const (), // Restore
+]);
+
+// ---- 3D (IDirectSound3DBuffer, IDirectSound3DListener): taken, not done ----
+
+static BUFFER_3D: Table<21> = Table([
+    no_interface as *const (),
+    add_ref as *const (),
+    release as *const (),
+    zero1 as *const (), // GetAllParameters
+    zero2 as *const (), // GetConeAngles
+    zero1 as *const (), // GetConeOrientation
+    zero1 as *const (), // GetConeOutsideVolume
+    zero1 as *const (), // GetMaxDistance
+    zero1 as *const (), // GetMinDistance
+    zero1 as *const (), // GetMode
+    zero1 as *const (), // GetPosition
+    zero1 as *const (), // GetVelocity
+    ok2 as *const (),   // SetAllParameters
+    ok3 as *const (),   // SetConeAngles
+    ok4 as *const (),   // SetConeOrientation
+    ok2 as *const (),   // SetConeOutsideVolume
+    ok2 as *const (),   // SetMaxDistance
+    ok2 as *const (),   // SetMinDistance
+    ok2 as *const (),   // SetMode
+    ok4 as *const (),   // SetPosition
+    ok4 as *const (),   // SetVelocity
+]);
+
+static LISTENER: Table<18> = Table([
+    no_interface as *const (),
+    add_ref as *const (),
+    release as *const (),
+    zero1 as *const (), // GetAllParameters
+    zero1 as *const (), // GetDistanceFactor
+    zero1 as *const (), // GetDopplerFactor
+    zero2 as *const (), // GetOrientation
+    zero1 as *const (), // GetPosition
+    zero1 as *const (), // GetRolloffFactor
+    zero1 as *const (), // GetVelocity
+    ok2 as *const (),   // SetAllParameters
+    ok2 as *const (),   // SetDistanceFactor
+    ok2 as *const (),   // SetDopplerFactor
+    ok7 as *const (),   // SetOrientation
+    ok4 as *const (),   // SetPosition
+    ok2 as *const (),   // SetRolloffFactor
+    ok4 as *const (),   // SetVelocity
+    ok0 as *const (),   // CommitDeferredSettings
+]);
+
+// ---- the mixer ----
+
+/// Hundredths of a decibel to a gain.
+fn gain(centibels: i32) -> f32 {
+    10f32.powf(centibels.clamp(-10000, 0) as f32 / 2000.0)
+}
+
+/// One buffer added into `out` (stereo frames at `OUT_RATE`), its position moved on.
+fn mix_into(b: &mut Buffer, master: f32, out: &mut [f32]) {
+    let f = b.format;
+    let block = f.block() as usize;
+    let frames = (b.bytes as usize / block).max(1);
+    let rate = if b.frequency != 0 {
+        b.frequency
+    } else {
+        f.rate
+    };
+    let step = rate as f64 / OUT_RATE as f64;
+    let g = gain(b.volume) * master;
+    let (left, right) = if b.pan < 0 {
+        (g, g * gain(b.pan))
+    } else {
+        (g * gain(-b.pan), g)
+    };
+    let data = b.data.as_ptr();
+    let sample = |at: usize| -> f32 {
+        unsafe {
+            if f.bits == 8 {
+                (*data.add(at) as f32 - 128.0) / 128.0
+            } else {
+                (data.add(at) as *const i16).read_unaligned() as f32 / 32768.0
+            }
+        }
+    };
+    let bytes = (f.bits / 8) as usize;
+    for frame in out.as_chunks_mut::<2>().0 {
+        let mut at = b.position as usize;
+        if at >= frames {
+            if !b.looping {
+                b.playing = false;
+                b.position = 0.0;
+                return;
+            }
+            b.position -= frames as f64 * (b.position / frames as f64).floor();
+            at = b.position as usize;
+        }
+        // Linear between this frame and the next (the first again when looping, this
+        // one at the end), as DirectSound's resampling.
+        let next = if at + 1 < frames {
+            at + 1
+        } else if b.looping {
+            0
+        } else {
+            at
+        };
+        let t = (b.position - at as f64) as f32;
+        let both = |n: usize| {
+            let first = n * block;
+            let l = sample(first);
+            let r = if f.channels == 2 {
+                sample(first + bytes)
+            } else {
+                l
+            };
+            (l, r)
+        };
+        let ((l0, r0), (l1, r1)) = (both(at), both(next));
+        frame[0] += (l0 + (l1 - l0) * t) * left;
+        frame[1] += (r0 + (r1 - r0) * t) * right;
+        b.position += step;
+    }
+}
+
+unsafe extern "C" fn feed(
+    _: *mut core::ffi::c_void,
+    stream: *mut SDL_AudioStream,
+    wanted: i32,
+    _: i32,
+) {
+    let frames = (wanted.max(0) / 4) as usize;
+    if frames == 0 {
+        return;
+    }
+    let mut out = vec![0f32; frames * 2];
+    with(|s| {
+        let master = s
+            .primary
+            .and_then(|p| match &s.entries.get(&p)?.kind {
+                Kind::Buffer(b) => Some(gain(b.volume)),
+                _ => None,
+            })
+            .unwrap_or(1.0);
+        for e in s.entries.values_mut() {
+            if let Kind::Buffer(b) = &mut e.kind
+                && b.playing
+            {
+                // The primary buffer's own volume is the master's; its data is not
+                // scaled twice.
+                let m = if b.flags & PRIMARY != 0 { 1.0 } else { master };
+                mix_into(b, m, &mut out);
+            }
+        }
+    });
+    let pcm: Vec<i16> = out
+        .iter()
+        .map(|x| (x * 32767.0).clamp(-32768.0, 32767.0) as i16)
+        .collect();
+    unsafe { SDL_PutAudioStreamData(stream, pcm.as_ptr().cast(), (pcm.len() * 2) as i32) };
+}
+
+static OPENED: Mutex<bool> = Mutex::new(false);
+
+/// `DirectSoundCreate` for the standalone: the device object into `out`, SDL's audio
+/// opened the first time. Fails (as `DirectSoundCreate` can) when SDL cannot.
+pub fn direct_sound_create(out: u32) -> i32 {
+    let mut opened = OPENED.lock().unwrap();
+    if !*opened {
+        unsafe {
+            if !SDL_InitSubSystem(SDL_INIT_AUDIO) {
+                crate::framework::log("platform_sound: SDL audio cannot be started");
+                return 0x8878_0078u32 as i32; // DSERR_NODRIVER
+            }
+            let spec = SDL_AudioSpec {
+                format: SDL_AUDIO_S16LE,
+                channels: 2,
+                freq: OUT_RATE as i32,
+            };
+            let stream = SDL_OpenAudioDeviceStream(
+                SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
+                &spec,
+                Some(feed),
+                std::ptr::null_mut(),
+            );
+            if stream.is_null() {
+                crate::framework::log("platform_sound: no SDL audio device");
+                return 0x8878_0078u32 as i32;
+            }
+            SDL_ResumeAudioStreamDevice(stream);
+        }
+        *opened = true;
+    }
+    let at = with(|s| new_object(s, DEVICE.start(), Kind::Device));
+    unsafe { put(out, at) };
+    OK
+}

@@ -9,7 +9,7 @@
 //! already), no next copy and no `data_key`. Then from the record: flags 1 with
 //! DirectSound's buffers (`g_soundMode` bit 0x10000) else 2, sound, kind, scale,
 //! priority, volume, the pan's low byte (signed), pan sign 0, the frequency (or the
-//! voice's own for `OWN_FREQUENCY`), the place, `field_50` from its `field_24`, the volume
+//! voice's own for `OWN_FREQUENCY`), the place, the minimum distance from its own, the volume
 //! factor (0x40, or what the record's points at); state 0, dirty bits 0xF more, no
 //! channel, no list link. One caller, command 3 (`sub_40AEB9`).
 //! Refuses a shared voice for a record without voices, a chain without its end.
@@ -116,7 +116,7 @@ fn self_test() -> (usize, usize) {
                         copies: 2,
                         scale: 0x30,
                         volume_factor: if with_factor { factor_at } else { 0 },
-                        field_24: 0x3F00_0000,
+                        min_distance: 0x3F00_0000,
                         volume: 0x41,
                         pan: 0x1C0,
                         frequency,

@@ -1,9 +1,9 @@
-//! `audio::release_listener` (0x40C74C): the 3D listener released.
+//! `audio::release_voice_manager` (0x40C74C): DirectSound's voice manager (its `IKsPropertySet`) released.
 //!
 //! In:  nothing
 //! Out: every register preserved
 //!
-//! If `g_listener3d` holds an object, its `Release` (+8), and the variable 0. Callers:
+//! If `g_voiceManager` holds an object, its `Release` (+8), and the variable 0. Callers:
 //! `audio::start` (0x40A0D6) and `audio::free_voices`.
 //! Shadow mode runs the original alone. Self-test: a redirected copy whose variable is the
 //! test's, with and without a test object.
@@ -15,8 +15,13 @@ use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
-pub static HOOK: RawHook =
-    RawHook::new("audio::release_listener", rva(0x40C74C), thunk, &ORIGINAL).self_test(self_test);
+pub static HOOK: RawHook = RawHook::new(
+    "audio::release_voice_manager",
+    rva(0x40C74C),
+    thunk,
+    &ORIGINAL,
+)
+.self_test(self_test);
 
 hook_asm!(
     thunk,
@@ -27,12 +32,12 @@ hook_asm!(
 
 // ---- Rust version ----
 
-pub unsafe fn release_listener(listener: u32) {
+pub unsafe fn release_voice_manager(at: u32) {
     unsafe {
-        let object = read(listener);
+        let object = read(at);
         if object != 0 {
             com::call(object, RELEASE);
-            write(listener, 0);
+            write(at, 0);
         }
     }
 }
@@ -45,7 +50,7 @@ extern "C" fn dispatch(r: &mut Regs) {
         unsafe { call_original(r) };
         return;
     }
-    unsafe { release_listener(game_addr(LISTENER_RVA) as u32) };
+    unsafe { release_voice_manager(game_addr(VOICE_MANAGER_RVA) as u32) };
 }
 
 // ---- self-test ----
@@ -79,7 +84,7 @@ fn self_test() -> (usize, usize) {
         unsafe { call_game(&mut ro, copy.addr()) };
         let theirs = (*var, take_noted());
         *var = object;
-        unsafe { release_listener(at) };
+        unsafe { release_voice_manager(at) };
         let mine = (*var, take_noted());
         t.check(
             theirs == mine && ro.preserved_except(&Regs::SENTINEL, 0),

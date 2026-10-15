@@ -24,6 +24,8 @@ pub mod platform;
 #[cfg(feature = "standalone")]
 pub mod platform_3d;
 #[cfg(feature = "standalone")]
+pub mod platform_sound;
+#[cfg(feature = "standalone")]
 pub mod rasteriser;
 pub mod records;
 pub mod redirect;

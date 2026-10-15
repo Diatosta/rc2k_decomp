@@ -301,7 +301,7 @@ pub unsafe fn start_voice(w: &World, sound: i32, cmd: &[u32; 8]) -> Result<(), R
 
 // ---- hook ----
 
-fn command(at: u32) -> [u32; 8] {
+pub fn command(at: u32) -> [u32; 8] {
     unsafe { (at as *const [u32; 8]).read_unaligned() }
 }
 
