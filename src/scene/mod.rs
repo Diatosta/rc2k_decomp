@@ -9,6 +9,7 @@ pub mod add_point_lights;
 pub mod allocate_object_memory;
 pub mod allocate_point_records;
 pub mod angle_between;
+pub mod angle_between_vectors;
 pub mod approximate_distance;
 pub mod assign_kind_textures;
 pub mod assign_menu_textures;
@@ -30,6 +31,7 @@ pub mod clip_test;
 pub mod copy_matrix_with_place;
 pub mod count_texture_needs;
 pub mod cross_product;
+pub mod dot_product3;
 pub mod draw_car_object;
 pub mod draw_carousel;
 pub mod draw_carousel_entry;
@@ -56,6 +58,7 @@ pub mod fill_light_tables;
 pub mod fill_scene_light_tables;
 pub mod find_object_of_kind;
 pub mod fog_polygon;
+pub mod identity_matrix3;
 pub mod init_texture_levels;
 pub mod invert_turn;
 pub mod known_kind;
@@ -77,9 +80,12 @@ pub mod load_wanted_textures;
 pub mod make_object_matrix;
 pub mod map_texture_places;
 pub mod matrix;
+pub mod matrix3;
 pub mod measure_object;
 pub mod multiply_matrices;
+pub mod multiply_matrices3;
 pub mod next_noise;
+pub mod normalise_vector3;
 pub mod objects;
 pub mod place_object_points;
 pub mod polygon;
@@ -127,10 +133,15 @@ pub mod texture_levels;
 pub mod texture_needs;
 pub mod texture_steps;
 pub mod textures;
+pub mod transform_int_points;
 pub mod try_allocate_textures;
+pub mod turn_matrix3_x;
+pub mod turn_matrix3_y;
+pub mod turn_matrix3_z;
 pub mod unit_vector;
 pub mod update_carousel_pictures;
 pub mod upload_plate;
+pub mod vector3;
 pub mod vertex_light;
 pub mod view_matrix;
 
@@ -252,4 +263,13 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &set_texture_levels::HOOK,
     &init_texture_levels::HOOK,
     &find_object_of_kind::HOOK,
+    &identity_matrix3::HOOK,
+    &multiply_matrices3::HOOK,
+    &transform_int_points::HOOK,
+    &turn_matrix3_x::HOOK,
+    &turn_matrix3_y::HOOK,
+    &turn_matrix3_z::HOOK,
+    &normalise_vector3::HOOK,
+    &dot_product3::HOOK,
+    &angle_between_vectors::HOOK,
 ];

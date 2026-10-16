@@ -16,6 +16,7 @@ macro_rules! x87 {
         }
     };
 }
+pub(crate) use x87;
 
 /// `fld a; fadd b; fstp`.
 pub fn add(a: u32, b: u32) -> u32 {
@@ -719,4 +720,42 @@ pub fn control_word() -> u16 {
 /// `fldcw`: for the tests, the control word put back between the two runs.
 pub fn set_control_word(w: u16) {
     unsafe { core::arch::asm!("fldcw word ptr [{w}]", w = in(reg) &raw const w, options(nostack)) };
+}
+
+/// `row_times_column` for 3 x 3 matrices: `b`'s column read 12 bytes apart.
+pub unsafe fn row_times_column_3(a: *const u32, b: *const u32, out: *mut u32) {
+    x87!(
+        "fld dword ptr [{a}]", "fld dword ptr [{b}]", ".byte 0xDE, 0xC9",
+        "fld dword ptr [{a} + 4]", "fld dword ptr [{b} + 0xC]", ".byte 0xDE, 0xC9",
+        "fld dword ptr [{a} + 8]", "fld dword ptr [{b} + 0x18]", ".byte 0xDE, 0xC9",
+        ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1",
+        "fstp dword ptr [{o}]";
+        a = a, b = b, o = out
+    );
+}
+
+/// `fild z; fild y; fild x`, then x m0 + (y m1 + z m2) and x m3 + (y m4 + z m5) rounded
+/// to `out` and `out + 4`, and y m7 + (x m6 + z m8) to `out + 8` (the original's order:
+/// `fmul; fxch; fmul; fxch; fmul; faddp; faddp`). A point of three whole numbers turned
+/// by a 3 x 3 matrix; `out` may be `p`.
+pub unsafe fn turn_int_point(p: *const i32, m: *const u32, out: *mut i32) {
+    x87!(
+        "fild dword ptr [{p} + 8]", "fild dword ptr [{p} + 4]", "fild dword ptr [{p}]",
+        "fld st(0)", "fmul dword ptr [{m}]",
+        "fld st(2)", "fmul dword ptr [{m} + 4]",
+        "fld st(4)", "fmul dword ptr [{m} + 8]",
+        ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1",
+        "fistp dword ptr [{o}]",
+        "fld st(0)", "fmul dword ptr [{m} + 0xC]",
+        "fld st(2)", "fmul dword ptr [{m} + 0x10]",
+        "fld st(4)", "fmul dword ptr [{m} + 0x14]",
+        ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1",
+        "fistp dword ptr [{o} + 4]",
+        "fmul dword ptr [{m} + 0x18]",
+        "fxch st(1)", "fmul dword ptr [{m} + 0x1C]",
+        "fxch st(2)", "fmul dword ptr [{m} + 0x20]",
+        ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1",
+        "fistp dword ptr [{o} + 8]";
+        p = p, m = m, o = out
+    );
 }
