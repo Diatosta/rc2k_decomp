@@ -15,6 +15,7 @@ pub mod gfx;
 pub mod input;
 pub mod install;
 pub mod logfile;
+pub mod marks;
 pub mod math;
 pub mod memory;
 pub mod menu;
@@ -25,6 +26,7 @@ pub mod platform;
 pub mod platform_3d;
 #[cfg(feature = "standalone")]
 pub mod platform_sound;
+pub mod race;
 #[cfg(feature = "standalone")]
 pub mod rasteriser;
 pub mod records;

@@ -1,0 +1,311 @@
+//! `race::init_overlay` (0x45A9DE): the overlay's stage parts (`initoverlay`).
+//!
+//! In:  nothing
+//! Out: edx 8, ecx 8, esi the eighth car's block; with the parts made, ebp their count,
+//!      eax the last part's difference, ebx its first checkpoint; with two kinds or more but
+//!      no parts, ebp `dword_601830`; the rest preserved
+//!
+//! The parts are the stretches between the checkpoints `race::init_checkpoints` listed
+//! (`dword_60102C`, `dword_601830` of them): each one's length, the difference of its two
+//! checkpoints' `g_checkpointDistances` halved (`shr`, so a negative one comes out huge) /
+//! 65536 / 1609.344 (metres in a mile) and doubled, into `g_overlayPartMiles` (floats, 0x40),
+//! their sum into `g_overlayMiles`, `g_overlayParts` their count, the two dwords of each
+//! part at `dword_6D160C` and `dword_6D170C` 0. With fewer than two checkpoint kinds or no
+//! parts, one part of 1.0. Then six sizes (0x40, 0x80, 0x50, twice), each car block's
+//! +0xF78 .. +0xF98 and +0xFA0 0, `flt_6D146A` and `flt_6D146E` 0. The x87 steps through
+//! `math::x87`; `dword_62400C` left as the original's `fild` leaves it.
+//!
+//! One caller, `sub_44426F` ("loadlevel_init : initoverlay"; no `pusha`). Refuses more
+//! than 0x40 parts (the original writes past its three lists). Shadow mode compares the
+//! overlay's variables, `dword_62400C` and the car blocks' dwords. Self-test: a copy of the
+//! original whose variables (32 references) are the test's, against the Rust version on
+//! the same test variables.
+
+use crate::errors::{BadInput, Refused};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, rva};
+use crate::math::x87;
+use crate::screens::harness::Left;
+use crate::service::harness::{Region, at, capture, dispatch_state};
+use std::sync::atomic::AtomicUsize;
+
+static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
+
+pub static HOOK: RawHook =
+    RawHook::new("race::init_overlay", rva(0x45A9DE), thunk, &ORIGINAL).self_test(self_test);
+
+hook_asm!(
+    thunk,
+    call_original,
+    dispatch = dispatch,
+    original = ORIGINAL
+);
+
+/// The overlay's variables: 0x6D1460 .. 0x6D180C (unaligned, packed).
+const BLOCK: usize = 0x6D1460;
+const BLOCK_LEN: usize = 0x3AC;
+const MILES: usize = 0x6D1466; // g_overlayMiles
+const PARTS: usize = 0x6D1472; // g_overlayParts
+const PART_MILES: usize = 0x6D150C; // g_overlayPartMiles
+const PART_A: usize = 0x6D160C; // dword_6D160C
+const PART_B: usize = 0x6D170C; // dword_6D170C
+const CLEARED: [usize; 2] = [0x6D146A, 0x6D146E]; // flt_6D146A, flt_6D146E
+/// The sizes and their values: dword_6D1486 .. dword_6D149E.
+const SIZES: [(usize, u32); 6] = [
+    (0x6D1486, 0x40),
+    (0x6D148A, 0x80),
+    (0x6D148E, 0x50),
+    (0x6D1496, 0x40),
+    (0x6D149A, 0x80),
+    (0x6D149E, 0x50),
+];
+const SCALE_RVA: usize = rva(0x5C5D98); // flt_5C5D98, 65536.0
+const MILE_RVA: usize = rva(0x5C5CF0); // g_metresInMile, 1609.344
+const MOST_PARTS: u32 = 0x40;
+const CARS: u32 = 8;
+const ONE: u32 = 0x3F80_0000;
+
+/// Where the variables are: the game's, or a test's (the overlay's block as one piece).
+pub struct OverlayVars {
+    pub kinds: u32,
+    pub found: u32,
+    pub list: u32,
+    pub distances: u32,
+    pub scratch: u32,
+    pub block: u32,
+    pub car_blocks: u32,
+}
+
+impl OverlayVars {
+    pub fn game() -> Self {
+        let a = |v: usize| game_addr(rva(v)) as u32;
+        Self {
+            kinds: a(0x623640),
+            found: a(0x601830),
+            list: a(0x60102C),
+            distances: a(0x9F78D8),
+            scratch: a(0x62400C),
+            block: a(BLOCK),
+            car_blocks: a(0x71B3B8),
+        }
+    }
+
+    fn of(&self, variable: usize) -> u32 {
+        self.block + (variable - BLOCK) as u32
+    }
+}
+
+unsafe fn get(at: u32) -> u32 {
+    unsafe { (at as *const u32).read_unaligned() }
+}
+
+unsafe fn put(at: u32, value: u32) {
+    unsafe { (at as *mut u32).write_unaligned(value) };
+}
+
+/// `race::init_overlay` (see the header).
+pub unsafe fn init_overlay(entry: &Regs, v: &OverlayVars) -> Result<Regs, Refused> {
+    let mut g = *entry;
+    unsafe {
+        let kinds = get(v.kinds);
+        let mut parts = None;
+        if (kinds.wrapping_sub(2) as i32) >= 0 {
+            let count = get(v.found);
+            if (count.wrapping_sub(1) as i32) >= 0 {
+                if count > MOST_PARTS {
+                    return Err(BadInput(
+                        "more than 0x40 parts: the original writes past its lists",
+                    )
+                    .into());
+                }
+                parts = Some(count);
+            }
+            g.ebp = count;
+            put(v.of(PARTS), count);
+        }
+        match parts {
+            Some(count) => {
+                put(v.of(MILES), 0);
+                let (scale, mile): (u32, u32) = (game_read(SCALE_RVA), game_read(MILE_RVA));
+                for n in 0..count {
+                    g.ebx = get(v.list + 4 * n + 4);
+                    g.eax = get(v.distances.wrapping_add(g.ebx.wrapping_mul(4)));
+                    g.ebx = get(v.list + 4 * n);
+                    g.eax = g
+                        .eax
+                        .wrapping_sub(get(v.distances.wrapping_add(g.ebx.wrapping_mul(4))));
+                    let half = g.eax >> 1;
+                    put(v.scratch, half);
+                    let miles = x87::int_div_div_doubled(half as i32, scale, mile);
+                    put(v.of(PART_MILES) + 4 * n, miles);
+                    put(v.of(MILES), x87::add(miles, get(v.of(MILES))));
+                    put(v.of(PART_A) + 4 * n, 0);
+                    put(v.of(PART_B) + 4 * n, 0);
+                }
+            }
+            None => {
+                put(v.of(PARTS), 1);
+                put(v.of(PART_MILES), ONE);
+                put(v.of(MILES), ONE);
+                put(v.of(PART_A), 0);
+                put(v.of(PART_B), 0);
+            }
+        }
+        for (variable, value) in SIZES {
+            put(v.of(variable), value);
+        }
+        for n in 0..CARS {
+            g.esi = get(v.car_blocks + 4 * n);
+            for k in 0..8 {
+                put(g.esi + 0xF78 + 4 * k, 0);
+            }
+            put(g.esi + 0xF98, 0);
+            put(g.esi + 0xFA0, 0);
+        }
+        g.ecx = 8;
+        g.edx = CARS;
+        for variable in CLEARED {
+            put(v.of(variable), 0);
+        }
+    }
+    Ok(g)
+}
+
+fn regions() -> Vec<Region> {
+    let v = OverlayVars::game();
+    let mut r = vec![(v.block, BLOCK_LEN), at(rva(0x62400C))];
+    for n in 0..CARS {
+        let block = unsafe { get(v.car_blocks + 4 * n) };
+        r.push((block + 0xF78, 0x2C));
+    }
+    r
+}
+
+fn rust(r: &Regs) -> Result<Left, Refused> {
+    Ok(crate::race::stage_prefs::left_of(&unsafe {
+        init_overlay(r, &OverlayVars::game())
+    }?))
+}
+
+extern "C" fn dispatch(r: &mut Regs) {
+    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+const DISTANCES: usize = 0x100;
+
+fn self_test() -> (usize, usize) {
+    use crate::audio::test_copy::{Copy, make};
+    let Some(mut t) = SelfTest::begin(&HOOK) else {
+        return (0, 0);
+    };
+    let mut words = [0u32; 3]; // kinds, found, the x87's way in
+    let mut list = vec![0u32; 0x48];
+    let mut distances = vec![0u32; DISTANCES];
+    let mut block = vec![0u8; BLOCK_LEN];
+    let mut cars = vec![0u8; 0x1000 * CARS as usize];
+    let mut car_blocks = [0u32; CARS as usize];
+    for (n, b) in car_blocks.iter_mut().enumerate() {
+        *b = cars.as_mut_ptr() as u32 + 0x1000 * n as u32;
+    }
+    let w = words.as_mut_ptr() as u32;
+    let v = OverlayVars {
+        kinds: w,
+        found: w + 4,
+        list: list.as_mut_ptr() as u32,
+        distances: distances.as_mut_ptr() as u32,
+        scratch: w + 8,
+        block: block.as_mut_ptr() as u32,
+        car_blocks: car_blocks.as_mut_ptr() as u32,
+    };
+    let mut variables = vec![
+        (0x623640, v.kinds),
+        (0x601830, v.found),
+        (0x60102C, v.list),
+        (0x601030, v.list + 4),
+        (0x9F78D8, v.distances),
+        (0x62400C, v.scratch),
+        (0x71B3B8, v.car_blocks),
+        (MILES, v.of(MILES)),
+        (PARTS, v.of(PARTS)),
+        (PART_MILES, v.of(PART_MILES)),
+        (PART_A, v.of(PART_A)),
+        (PART_B, v.of(PART_B)),
+    ];
+    variables.extend(CLEARED.map(|c| (c, v.of(c))));
+    variables.extend(SIZES.map(|(s, _)| (s, v.of(s))));
+    let copy = match make(
+        &HOOK,
+        &Copy {
+            address: 0x45A9DE,
+            len: 0x158,
+            entry: &[0x83, 0x3D, 0x40, 0x36, 0x62, 0x00, 0x02],
+            calls: &[],
+            jumps_out: &[],
+        },
+        &|_| None,
+        &variables,
+        32,
+    ) {
+        Ok(c) => c,
+        Err(why) => return t.skip(&why),
+    };
+    let compared: [Region; 3] = [
+        (v.block, BLOCK_LEN),
+        (v.scratch, 4),
+        (cars.as_ptr() as u32, cars.len()),
+    ];
+    let mut s = 0x5EED_1234u32;
+    let mut next = move || {
+        s = s.wrapping_mul(1_103_515_245).wrapping_add(12345);
+        s >> 4
+    };
+    for (kinds, found) in [
+        (1u32, 5u32),
+        (0x8000_0001, 5),
+        (2, 0),
+        (2, u32::MAX),
+        (2, 1),
+        (3, 2),
+        (5, 7),
+        (2, 0x40),
+        (2, 0x8000_0001),
+    ] {
+        let points: Vec<u32> = (0..DISTANCES).map(|_| next() % 0x4000_0000).collect();
+        let entries: Vec<u32> = (0..0x48).map(|_| next() % DISTANCES as u32).collect();
+        let prepare = || unsafe {
+            std::ptr::copy_nonoverlapping(points.as_ptr(), v.distances as *mut u32, DISTANCES);
+            std::ptr::copy_nonoverlapping(entries.as_ptr(), v.list as *mut u32, 0x48);
+            for n in 0..BLOCK_LEN as u32 {
+                *((v.block + n) as *mut u8) = (n * 7) as u8 ^ 0xA5;
+            }
+            std::ptr::write_bytes(cars.as_ptr() as *mut u8, 0xAA, cars.len());
+            (w as *mut [u32; 3]).write_volatile([kinds, found, 0x1234_5678]);
+        };
+        let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
+        prepare();
+        let mut ro = Regs::SENTINEL;
+        unsafe { crate::framework::call_game(&mut ro, copy.addr()) };
+        let theirs = (Some(regs(&ro)), capture(&compared));
+        prepare();
+        let mine = unsafe { init_overlay(&Regs::SENTINEL, &v) };
+        let mine = (mine.as_ref().ok().map(regs), capture(&compared));
+        t.check(theirs == mine, || {
+            let at = theirs.1.iter().zip(&mine.1).position(|(a, b)| a != b);
+            format!(
+                "kinds {kinds:#x}, {found:#x} parts: original {:x?}; rust {:x?}; first difference at {at:x?}",
+                theirs.0, mine.0
+            )
+        });
+    }
+    // More parts than the lists hold: refused, nothing written.
+    unsafe { (w as *mut [u32; 2]).write_volatile([2, MOST_PARTS + 1]) };
+    let before = capture(&compared);
+    let refused = unsafe { init_overlay(&Regs::SENTINEL, &v) }.is_err();
+    t.check(refused && capture(&compared) == before, || {
+        format!(
+            "0x41 parts: refused {refused}, wrote nothing {}",
+            capture(&compared) == before
+        )
+    });
+    drop((list, distances, block, cars));
+    t.finish()
+}

@@ -30,7 +30,7 @@ pub fn play_tune_5(entry: &Regs) -> Option<Regs> {
     Some(music(entry, 5, 0, variable(0x5180FC)))
 }
 
-const SENDER: Sender = Sender {
+pub const SENDER: Sender = Sender {
     address: 0x40F7B6,
     len: 0x12,
     entry: [0x60, 0xB0, 0x05, 0x32, 0xE4, 0x8B, 0x0D, 0xFC],

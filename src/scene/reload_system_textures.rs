@@ -132,16 +132,10 @@ pub unsafe fn reload_system_textures(
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    let entry = *r;
-    let done = unsafe {
+/// With the Rust versions of what it calls (the loading bar's showing a call into the
+/// game).
+pub unsafe fn reload_system_textures_in_game(r: &mut Regs) -> Result<(), Refused> {
+    unsafe {
         reload_system_textures(r, &mut |call, r| {
             match call {
                 Call::Log(n) => log_write(game_ptr(TEXTS[n]), true, 1),
@@ -157,7 +151,19 @@ extern "C" fn dispatch(r: &mut Regs) {
             }
             Ok(())
         })
-    };
+    }
+}
+
+// ---- hook ----
+
+extern "C" fn dispatch(r: &mut Regs) {
+    HOOK.count_call();
+    if shadow() {
+        unsafe { call_original(r) };
+        return;
+    }
+    let entry = *r;
+    let done = unsafe { reload_system_textures_in_game(r) };
     if let Err(e) = done {
         *r = entry;
         unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) }

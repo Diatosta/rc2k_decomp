@@ -88,6 +88,20 @@ pub unsafe fn load_front_end_objects(
 
 // ---- hook ----
 
+/// With the Rust versions of its two callees, for Rust callers.
+pub unsafe fn load_front_end_objects_in_game(r: &mut Regs) -> Result<(), Refused> {
+    unsafe {
+        load_front_end_objects(
+            r,
+            &mut |r| {
+                reset_objects()?.apply(r);
+                Ok(())
+            },
+            &mut |r| load_object_in_game(r),
+        )
+    }
+}
+
 extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
     if shadow() {

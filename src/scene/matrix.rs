@@ -83,6 +83,19 @@ pub unsafe fn set_turn_y(angle: u32) -> Left {
     }
 }
 
+/// `scene::set_turn_z_16` (0x427072): as `set_turn_x`, about the z axis (the matrix and
+/// the work of `scene::set_turn_z`, whose angle is 32 bits a turn).
+pub unsafe fn set_turn_z_16(angle: u32) -> Left {
+    use crate::scene::view_matrix::{TURN_Z_RVA, TURN_Z_WORK_RVA};
+    unsafe {
+        let (sine, cosine) = sine_cosine(angle);
+        game_write(TURN_Z_WORK_RVA, [sine, cosine]);
+        game_write(TURN_Z_RVA, [cosine, sine]);
+        game_write(TURN_Z_RVA + 0x10, [sine ^ 0x8000_0000, cosine]);
+        turned(sine, cosine, TURN_Z_RVA)
+    }
+}
+
 /// `scene::set_place` (0x4271AE).
 pub unsafe fn set_place(place: [u32; 3]) {
     unsafe {

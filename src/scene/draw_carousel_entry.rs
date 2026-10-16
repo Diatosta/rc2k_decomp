@@ -89,12 +89,7 @@ pub struct Settings {
     object: u32,
 }
 
-/// `scene::find_object_of_kind` (0x422298).
-pub(crate) unsafe fn find_object_of_kind(kind: u32) -> u32 {
-    (1..0x100u32)
-        .find(|&n| unsafe { game_read::<u32>(OBJECT_KINDS_RVA + n as usize * 4) } == kind)
-        .unwrap_or(0)
-}
+pub(crate) use crate::scene::find_object_of_kind::find_object_of_kind;
 
 /// Reads only.
 unsafe fn settings(entry: u32, row: u32) -> Result<Settings, BadInput> {

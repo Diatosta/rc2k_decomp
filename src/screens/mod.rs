@@ -53,8 +53,8 @@ pub mod draw_suspension_stiffness_installed_marker;
 pub mod draw_suspension_stiffness_marker;
 pub mod draw_time_trial_stage_info;
 pub mod draw_visual_preferences;
+pub mod gearing_text;
 pub mod harness;
-pub mod player_30_text;
 pub mod player_number_text;
 pub mod savegame_page_numbers;
 pub mod savegame_preview;
@@ -106,7 +106,7 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &draw_savegame_names::HOOK,
     &car_caption::HOOK,
     &car_caption_2::HOOK,
-    &player_30_text::HOOK,
+    &gearing_text::HOOK,
     &player_number_text::HOOK,
     &set_stage_choice_titles::HOOK,
     &car_page_title::HOOK,

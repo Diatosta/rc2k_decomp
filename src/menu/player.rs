@@ -29,7 +29,9 @@ pub struct Player {
     /// The number on the player's car, 1 .. 90, chosen on the player details page.
     pub race_number: u32,
     pub gap_2c: u32,
-    pub field_30: u32,
+    /// The gearing chosen on the car choice, 0 .. 2 (its name string 0x21F + it;
+    /// `menu::next_gearing`, `menu::previous_gearing`).
+    pub gearing: u32,
     pub gap_34: [u8; 80],
     /// Zeroed for each player by `menu::begin_event`.
     pub field_84: u32,

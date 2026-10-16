@@ -54,7 +54,9 @@ pub mod fill_light_ramp;
 pub mod fill_light_scale;
 pub mod fill_light_tables;
 pub mod fill_scene_light_tables;
+pub mod find_object_of_kind;
 pub mod fog_polygon;
+pub mod init_texture_levels;
 pub mod invert_turn;
 pub mod known_kind;
 pub mod known_kind_picture;
@@ -93,6 +95,7 @@ pub mod reload_system_textures;
 pub mod reset_objects;
 pub mod reset_texture_places;
 pub mod reset_texture_tables;
+pub mod restart_clock;
 pub mod scale_texture_coordinates;
 pub mod set_filters;
 pub mod set_fine_turn_x;
@@ -104,9 +107,11 @@ pub mod set_object_light;
 pub mod set_object_material;
 pub mod set_place;
 pub mod set_render_state;
+pub mod set_texture_levels;
 pub mod set_turn_x;
 pub mod set_turn_y;
 pub mod set_turn_z;
+pub mod set_turn_z_16;
 pub mod set_up_carousel;
 pub mod set_up_engine;
 pub mod set_up_front_end_scene;
@@ -118,6 +123,7 @@ pub mod sort_listed_faces;
 pub mod square_matrix;
 pub mod step_loading_bar;
 pub mod submit_polygon;
+pub mod texture_levels;
 pub mod texture_needs;
 pub mod texture_steps;
 pub mod textures;
@@ -160,6 +166,7 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &set_fine_turn_x::HOOK,
     &set_fine_turn_y::HOOK,
     &set_turn_z::HOOK,
+    &set_turn_z_16::HOOK,
     &unit_vector::HOOK,
     &cross_product::HOOK,
     &square_matrix::HOOK,
@@ -241,4 +248,8 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &add_car_light::HOOK,
     &add_car_lights::HOOK,
     &set_object_light::HOOK,
+    &restart_clock::HOOK,
+    &set_texture_levels::HOOK,
+    &init_texture_levels::HOOK,
+    &find_object_of_kind::HOOK,
 ];

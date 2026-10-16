@@ -51,6 +51,7 @@ pub mod read_pcx;
 pub mod read_pcx_24bit;
 pub mod read_pcx_8bit;
 pub mod read_picture_file;
+pub mod read_pixel;
 pub mod read_png;
 pub mod read_sheet;
 pub mod read_texture_picture;
@@ -71,6 +72,7 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &blit_bar::HOOK,
     &blit_bar_marker::HOOK,
     &pixel_to_components::HOOK,
+    &read_pixel::HOOK,
     &components_to_pixel::HOOK,
     &blend_palette::HOOK,
     &allocate_picture_buffer::HOOK,

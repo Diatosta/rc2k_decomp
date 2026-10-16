@@ -55,6 +55,15 @@ pub fn dispatch_sender(hook: &RawHook, r: &mut Regs, call_original: CallOriginal
     }
 }
 
+/// For Rust callers: what one of the senders' Rust versions gives, sent and waited for, as
+/// its hook does outside shadow mode.
+pub fn send_in_game(sender: &Sender, entry: &Regs) {
+    if let Some(with) = (sender.sends)(entry) {
+        unsafe { send_command(&Queue::game(), sender.command, sent(&with)) };
+        wait_for_commands(&mut Game(sent(&with)));
+    }
+}
+
 /// Each call of a run: its place (0 command 0xB, 1 the wait, 2 command 9) and the seven
 /// registers a command holds.
 static CALLED: Mutex<Vec<(u32, [u32; 7])>> = Mutex::new(Vec::new());

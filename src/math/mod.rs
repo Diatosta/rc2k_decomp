@@ -8,6 +8,8 @@ pub mod normalise_vector;
 pub mod random_below;
 pub mod seed_random;
 pub mod stir_random;
+pub mod turn_point_xz;
+pub mod turn_scratch_xz;
 pub mod x87;
 
 pub static HOOKS: &[&dyn GameHook] = &[
@@ -19,4 +21,6 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &random_below::HOOK,
     &seed_random::HOOK,
     &stir_random::HOOK,
+    &turn_scratch_xz::HOOK,
+    &turn_point_xz::HOOK,
 ];

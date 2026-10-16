@@ -39,7 +39,7 @@ pub fn play_tune_8(entry: &Regs) -> Option<Regs> {
     })
 }
 
-const SENDER: Sender = Sender {
+pub const SENDER: Sender = Sender {
     address: 0x40F7EC,
     len: 0x22,
     entry: [0x60, 0x83, 0x3D, 0xF4, 0x80, 0x51, 0x00, 0x01],

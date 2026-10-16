@@ -98,6 +98,7 @@ pub mod next_car;
 pub mod next_car_number;
 pub mod next_car_page;
 pub mod next_choice_car;
+pub mod next_gearing;
 pub mod next_nationality;
 pub mod next_savegame_page;
 pub mod next_second_view;
@@ -124,6 +125,7 @@ pub mod previous_car;
 pub mod previous_car_number;
 pub mod previous_car_page;
 pub mod previous_choice_car;
+pub mod previous_gearing;
 pub mod previous_nationality;
 pub mod previous_second_view;
 pub mod previous_slideshow_car;
@@ -374,6 +376,8 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &previous_stage_sub::HOOK,
     &next_stage_number::HOOK,
     &mark_stage_choice::HOOK,
+    &next_gearing::HOOK,
+    &previous_gearing::HOOK,
     &enable_item::HOOK,
     &load_car_background::HOOK,
     &load_slideshow_picture::HOOK,
