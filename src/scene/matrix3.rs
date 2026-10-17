@@ -172,11 +172,11 @@ pub enum Axis {
     Z,
 }
 
-/// Refuses an angle `fsincos` leaves alone (2^63 and more, infinities, NaNs): the
-/// original's stack would then come out one short.
+/// Refuses an angle `fsincos` leaves alone (finite, 2^63 or more): the original's stack
+/// would then come out one short. Infinities and NaNs give NaNs, pushed as usual.
 pub fn turnable(angle: &[u8; 10]) -> Result<(), Refused> {
     let exponent = u16::from_le_bytes([angle[8], angle[9]]) & 0x7FFF;
-    if exponent >= 0x3FFF + 63 {
+    if (0x3FFF + 63..0x7FFF).contains(&exponent) {
         return Err(BadInput("an angle fsincos cannot take").into());
     }
     Ok(())

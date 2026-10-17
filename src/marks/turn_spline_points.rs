@@ -76,9 +76,9 @@ fn self_test() -> (usize, usize) {
         "0x81 points: the Rust version went on".into()
     });
     spline.fill(3, 4);
-    unsafe { ((spline.addr() + 0x24) as *mut u32).write_unaligned(0x7F80_0000) };
+    unsafe { ((spline.addr() + 0x24) as *mut u32).write_unaligned(1.0e19f32.to_bits()) };
     t.check(unsafe { turn_spline_points(&r) }.is_err(), || {
-        "an infinite angle: the Rust version went on".into()
+        "an angle of 1e19: the Rust version went on".into()
     });
     restore(&regions, &saved);
     t.finish()

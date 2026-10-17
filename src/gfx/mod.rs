@@ -47,6 +47,7 @@ pub mod pixel_format;
 pub mod pixel_to_components;
 pub mod pixels_to_dwords;
 pub mod png;
+pub mod put_surface_pixel;
 pub mod read_pcx;
 pub mod read_pcx_24bit;
 pub mod read_pcx_8bit;
@@ -121,4 +122,5 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &upload_texture_picture::HOOK,
     &load_picture_to_texture::HOOK,
     &load_picture_with_overlay::HOOK,
+    &put_surface_pixel::HOOK,
 ];

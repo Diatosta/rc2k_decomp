@@ -759,3 +759,365 @@ pub unsafe fn turn_int_point(p: *const i32, m: *const u32, out: *mut i32) {
         p = p, m = m, o = out
     );
 }
+
+/// `fld a; fmul b; fmul c; fstp`.
+pub fn mul2(a: u32, b: u32, c: u32) -> u32 {
+    let mut out = 0u32;
+    x87!(
+        "fld dword ptr [{a}]", "fmul dword ptr [{b}]", "fmul dword ptr [{c}]",
+        "fstp dword ptr [{o}]";
+        a = &a, b = &b, c = &c, o = &mut out
+    );
+    out
+}
+
+/// `fld1; fild i; fsub a; fmul b; fmul st, st; fsubr st, st(1); fsqrt; fsubp st(1), st`,
+/// negated (`fchs`) when `negate`: 1 - sqrt(1 - ((i - a) b)^2), a quarter circle's curve.
+pub fn circle_curve(i: i32, a: u32, b: u32, negate: bool) -> u32 {
+    let mut out = 0u32;
+    let n = negate as u32;
+    unsafe {
+        core::arch::asm!(
+            "fld1", "fild dword ptr [{i}]", "fsub dword ptr [{a}]", "fmul dword ptr [{b}]",
+            ".byte 0xD8, 0xC8", ".byte 0xD8, 0xE9", "fsqrt", ".byte 0xDE, 0xE9",
+            "test {n}, {n}", "jz 2f", "fchs", "2:",
+            "fstp dword ptr [{o}]",
+            i = in(reg) &i, a = in(reg) &a, b = in(reg) &b, n = in(reg) n, o = in(reg) &mut out,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+        );
+    }
+    out
+}
+
+/// `fldz`, then `count` times `fld st; fsincos; fmul r; fxch; fmul r; fxch; fstp [out+4];
+/// fstp [out]; fldpi; fidiv c; fmul d; faddp` (out 12 on each time), then `ffree st;
+/// fincstp`: points round a circle of radius `r`, the angle added up in the registers.
+/// `count` at least 1.
+pub unsafe fn circle_points(
+    r: *const u32,
+    out: *mut u32,
+    count: u32,
+    c: *const i32,
+    d: *const u32,
+) {
+    unsafe {
+        core::arch::asm!(
+            "fldz",
+            "2:",
+            "fld st(0)", "fsincos",
+            "fmul dword ptr [{r}]", "fxch st(1)", "fmul dword ptr [{r}]", "fxch st(1)",
+            "fstp dword ptr [{o} + 4]", "fstp dword ptr [{o}]",
+            "fldpi", "fidiv dword ptr [{c}]", "fmul dword ptr [{d}]", ".byte 0xDE, 0xC1",
+            "add {o}, 12", "dec {n}", "jnz 2b",
+            "ffree st(0)", "fincstp",
+            r = in(reg) r, o = inout(reg) out => _, n = inout(reg) count => _,
+            c = in(reg) c, d = in(reg) d,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+        );
+    }
+}
+
+/// `fld a; fchs; fstp`.
+pub fn negated(a: u32) -> u32 {
+    let mut out = 0u32;
+    x87!("fld dword ptr [{a}]", "fchs", "fstp dword ptr [{o}]"; a = &a, o = &mut out);
+    out
+}
+
+/// `fld b; fld a; fsubp st(1), st; fmul k; fstp`: (b - a) k.
+pub fn sub_mul(b: u32, a: u32, k: u32) -> u32 {
+    let mut out = 0u32;
+    x87!(
+        "fld dword ptr [{b}]", "fld dword ptr [{a}]", ".byte 0xDE, 0xE9",
+        "fmul dword ptr [{k}]", "fstp dword ptr [{o}]";
+        b = &b, a = &a, k = &k, o = &mut out
+    );
+    out
+}
+
+/// `fldpi; fidiv c; fimul m; fcos; fchs; fmul t; fadd a; fadd t; fstp`:
+/// a + t - t cos(pi m / c).
+pub fn cosine_step(c: i32, m: i32, t: u32, a: u32) -> u32 {
+    let mut out = 0u32;
+    x87!(
+        "fldpi", "fidiv dword ptr [{c}]", "fimul dword ptr [{m}]", "fcos", "fchs",
+        "fmul dword ptr [{t}]", "fadd dword ptr [{a}]", "fadd dword ptr [{t}]",
+        "fstp dword ptr [{o}]";
+        c = &c, m = &m, t = &t, a = &a, o = &mut out
+    );
+    out
+}
+
+/// Three floats at `row` each times `c` over their length (`fsqrt`, the last two squares
+/// added first; `fdivr c`; `fld st` twice, each multiplied and stored in turn).
+pub unsafe fn scale_row(row: *mut u32, c: u32) {
+    x87!(
+        "fld dword ptr [{r}]", ".byte 0xD8, 0xC8",
+        "fld dword ptr [{r} + 4]", ".byte 0xD8, 0xC8",
+        "fld dword ptr [{r} + 8]", ".byte 0xD8, 0xC8",
+        ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1",
+        "fsqrt", "fdivr dword ptr [{c}]",
+        "fld st(0)", "fld st(0)",
+        "fmul dword ptr [{r}]", "fstp dword ptr [{r}]",
+        "fmul dword ptr [{r} + 4]", "fstp dword ptr [{r} + 4]",
+        "fmul dword ptr [{r} + 8]", "fstp dword ptr [{r} + 8]";
+        r = row, c = &c
+    );
+}
+
+/// `fld y; fist n; fisub n; fsubr k; fmul s; fadd x; fstp`: x + (k - (y - n)) s, n the
+/// whole number y rounds to (as the x87 is set), which is given back too.
+pub fn frac_step(y: u32, k: u32, s: u32, x: u32) -> (i32, u32) {
+    let (mut n, mut out) = (0i32, 0u32);
+    x87!(
+        "fld dword ptr [{y}]", "fist dword ptr [{n}]", "fisub dword ptr [{n}]",
+        "fsubr dword ptr [{k}]", "fmul dword ptr [{s}]", "fadd dword ptr [{x}]",
+        "fstp dword ptr [{o}]";
+        y = &y, n = &mut n, k = &k, s = &s, x = &x, o = &mut out
+    );
+    (n, out)
+}
+
+/// `fld a; frndint; fstp`.
+pub fn round_float(a: u32) -> u32 {
+    let mut out = 0u32;
+    x87!("fld dword ptr [{a}]", "frndint", "fstp dword ptr [{o}]"; a = &a, o = &mut out);
+    out
+}
+
+/// `fld a; fcomp b; fstsw`: the status word's C0 .. C2 (0x700).
+pub fn compare_status(a: u32, b: u32) -> u16 {
+    let mut status: u16 = 0;
+    x87!(
+        "fld dword ptr [{a}]", "fcomp dword ptr [{b}]", "fstsw word ptr [{s}]";
+        a = &a, b = &b, s = &mut status
+    );
+    status & 0x700
+}
+
+/// `fld a; fisub n; fistp`.
+pub fn float_less_int_to_int(a: u32, n: i32) -> i32 {
+    let mut out = 0i32;
+    x87!(
+        "fld dword ptr [{a}]", "fisub dword ptr [{n}]", "fistp dword ptr [{o}]";
+        a = &a, n = &n, o = &mut out
+    );
+    out
+}
+
+/// `fld1; fld c; fsub a; fdivp st(1), st; fld b; fsub a; fmulp; fld x2; fsub x0; fmulp;
+/// fadd x0; fstp`: x0 + ((1 / (c - a)) (b - a)) (x2 - x0), where the long edge is at b.
+pub fn split_x(a: u32, b: u32, c: u32, x0: u32, x2: u32) -> u32 {
+    let mut out = 0u32;
+    x87!(
+        "fld1", "fld dword ptr [{c}]", "fsub dword ptr [{a}]", ".byte 0xDE, 0xF9",
+        "fld dword ptr [{b}]", "fsub dword ptr [{a}]", ".byte 0xDE, 0xC9",
+        "fld dword ptr [{x2}]", "fsub dword ptr [{x0}]", ".byte 0xDE, 0xC9",
+        "fadd dword ptr [{x0}]", "fstp dword ptr [{o}]";
+        a = &a, b = &b, c = &c, x0 = &x0, x2 = &x2, o = &mut out
+    );
+    out
+}
+
+/// `fld b; fsub a; fmul k; fst h; fadd a; fstp m`: the half (b - a) k as a float, and a plus
+/// it unrounded, then as a float.
+pub fn half_and_middle(b: u32, a: u32, k: u32) -> (u32, u32) {
+    let (mut h, mut m) = (0u32, 0u32);
+    x87!(
+        "fld dword ptr [{b}]", "fsub dword ptr [{a}]", "fmul dword ptr [{k}]",
+        "fst dword ptr [{h}]", "fadd dword ptr [{a}]", "fstp dword ptr [{m}]";
+        b = &b, a = &a, k = &k, h = &mut h, m = &mut m
+    );
+    (h, m)
+}
+
+/// `fldpi; fidiv n; fstp`.
+pub fn pi_over(n: i32) -> u32 {
+    let mut out = 0u32;
+    x87!("fldpi", "fidiv dword ptr [{n}]", "fstp dword ptr [{o}]"; n = &n, o = &mut out);
+    out
+}
+
+/// `fld a; [fadd s;] fcos; fchs; fmul h; fadd m; fstp`: m - h cos(a [+ s]).
+pub fn less_cosine(a: u32, s: Option<u32>, h: u32, m: u32) -> u32 {
+    let mut out = 0u32;
+    match s {
+        Some(s) => x87!(
+            "fld dword ptr [{a}]", "fadd dword ptr [{s}]", "fcos", "fchs",
+            "fmul dword ptr [{h}]", "fadd dword ptr [{m}]", "fstp dword ptr [{o}]";
+            a = &a, s = &s, h = &h, m = &m, o = &mut out
+        ),
+        None => x87!(
+            "fld dword ptr [{a}]", "fcos", "fchs",
+            "fmul dword ptr [{h}]", "fadd dword ptr [{m}]", "fstp dword ptr [{o}]";
+            a = &a, h = &h, m = &m, o = &mut out
+        ),
+    }
+    out
+}
+
+/// `fld a; fsin; fstp`.
+pub fn sine(a: u32) -> u32 {
+    let mut out = 0u32;
+    x87!("fld dword ptr [{a}]", "fsin", "fstp dword ptr [{o}]"; a = &a, o = &mut out);
+    out
+}
+
+/// `fld a; fcos; fstp`, and with `negate` an `fchs` before the store.
+pub fn cosine(a: u32, negate: bool) -> u32 {
+    let mut out = 0u32;
+    if negate {
+        x87!("fld dword ptr [{a}]", "fcos", "fchs", "fstp dword ptr [{o}]"; a = &a, o = &mut out);
+    } else {
+        x87!("fld dword ptr [{a}]", "fcos", "fstp dword ptr [{o}]"; a = &a, o = &mut out);
+    }
+    out
+}
+
+/// `fld a; fmul b; fadd c; fstp`.
+pub fn mul_add(a: u32, b: u32, c: u32) -> u32 {
+    let mut out = 0u32;
+    x87!(
+        "fld dword ptr [{a}]", "fmul dword ptr [{b}]", "fadd dword ptr [{c}]",
+        "fstp dword ptr [{o}]";
+        a = &a, b = &b, c = &c, o = &mut out
+    );
+    out
+}
+
+/// `fild a; fmul st, st; fild b; fmul st, st; fild c; fmul st, st; faddp; faddp; fsqrt;
+/// fistp`: the length of (a, b, c), the last two squares added first, rounded.
+pub fn int_length3(a: i32, b: i32, c: i32) -> i32 {
+    let (v, mut out) = ([a, b, c], 0i32);
+    x87!(
+        "fild dword ptr [{v}]", ".byte 0xD8, 0xC8",
+        "fild dword ptr [{v} + 4]", ".byte 0xD8, 0xC8",
+        "fild dword ptr [{v} + 8]", ".byte 0xD8, 0xC8",
+        ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1", "fsqrt", "fistp dword ptr [{o}]";
+        v = v.as_ptr(), o = &mut out
+    );
+    out
+}
+
+/// `fild a; fiadd b; fistp`: the sum, or 0x80000000 when it does not fit.
+pub fn int_sum(a: i32, b: i32) -> i32 {
+    let mut out = 0i32;
+    x87!(
+        "fild dword ptr [{a}]", "fiadd dword ptr [{b}]", "fistp dword ptr [{o}]";
+        a = &a, b = &b, o = &mut out
+    );
+    out
+}
+
+/// `fild x0; fmul st, st; fild y0; fmul st, st; faddp; fild x1; .. faddp; fcompp; fstsw`:
+/// x1² + y1² against x0² + y0², the status word's C0 .. C2.
+pub fn compare_squares(x0: i32, y0: i32, x1: i32, y1: i32) -> u16 {
+    let (v, mut status) = ([x0, y0, x1, y1], 0u16);
+    x87!(
+        "fild dword ptr [{v}]", ".byte 0xD8, 0xC8", "fild dword ptr [{v} + 4]", ".byte 0xD8, 0xC8",
+        ".byte 0xDE, 0xC1",
+        "fild dword ptr [{v} + 8]", ".byte 0xD8, 0xC8", "fild dword ptr [{v} + 12]", ".byte 0xD8, 0xC8",
+        ".byte 0xDE, 0xC1",
+        "fcompp", "fstsw word ptr [{s}]";
+        v = v.as_ptr(), s = &mut status
+    );
+    status & 0x700
+}
+
+/// `fild a; fidiv n; fstp`.
+pub fn int_div_int(a: i32, n: i32) -> u32 {
+    let mut out = 0u32;
+    x87!("fild dword ptr [{a}]", "fidiv dword ptr [{n}]", "fstp dword ptr [{o}]"; a = &a, n = &n, o = &mut out);
+    out
+}
+
+/// `fld a; fsub b`, kept as an 80-bit value.
+pub fn sub_80(a: u32, b: u32) -> [u8; 10] {
+    let mut out = [0u8; 10];
+    x87!("fld dword ptr [{a}]", "fsub dword ptr [{b}]", "fstp tbyte ptr [{o}]"; a = &a, b = &b, o = out.as_mut_ptr());
+    out
+}
+
+/// `fild a; fsub b`, kept as an 80-bit value.
+pub fn int_sub_80(a: i32, b: u32) -> [u8; 10] {
+    let mut out = [0u8; 10];
+    x87!("fild dword ptr [{a}]", "fsub dword ptr [{b}]", "fstp tbyte ptr [{o}]"; a = &a, b = &b, o = out.as_mut_ptr());
+    out
+}
+
+/// `fld a; fadd b; fistp`.
+pub fn add_to_int(a: u32, b: u32) -> i32 {
+    let mut out = 0i32;
+    x87!("fld dword ptr [{a}]", "fadd dword ptr [{b}]", "fistp dword ptr [{o}]"; a = &a, b = &b, o = &mut out);
+    out
+}
+
+/// `fld a; fsub b; [fchs;] fcomp c; fstsw`: the status word's C0 .. C2.
+pub fn sub_compare(a: u32, b: u32, negate: bool, c: u32) -> u16 {
+    let mut status: u16 = 0;
+    if negate {
+        x87!(
+            "fld dword ptr [{a}]", "fsub dword ptr [{b}]", "fchs", "fcomp dword ptr [{c}]",
+            "fstsw word ptr [{s}]";
+            a = &a, b = &b, c = &c, s = &mut status
+        );
+    } else {
+        x87!(
+            "fld dword ptr [{a}]", "fsub dword ptr [{b}]", "fcomp dword ptr [{c}]",
+            "fstsw word ptr [{s}]";
+            a = &a, b = &b, c = &c, s = &mut status
+        );
+    }
+    status & 0x700
+}
+
+/// `fild r; fmul m; fadd c; fld a; fsub b; fmul s; fadd e; fmul k; fmulp; fstp` with `v`
+/// [m, c, a, b, s, e, k]: (r m + c) ((a - b) s + e) k, the factors unrounded.
+pub fn random_step(r: i32, v: [u32; 7]) -> u32 {
+    let mut out = 0u32;
+    x87!(
+        "fild dword ptr [{r}]", "fmul dword ptr [{v}]", "fadd dword ptr [{v} + 4]",
+        "fld dword ptr [{v} + 8]", "fsub dword ptr [{v} + 12]", "fmul dword ptr [{v} + 16]",
+        "fadd dword ptr [{v} + 20]", "fmul dword ptr [{v} + 24]", ".byte 0xDE, 0xC9",
+        "fstp dword ptr [{o}]";
+        r = &r, v = v.as_ptr(), o = &mut out
+    );
+    out
+}
+
+/// `fild y; fadd a; fsub b; fmul st, st; fstp`.
+pub fn int_plus_less_squared(y: i32, a: u32, b: u32) -> u32 {
+    let mut out = 0u32;
+    x87!(
+        "fild dword ptr [{y}]", "fadd dword ptr [{a}]", "fsub dword ptr [{b}]",
+        ".byte 0xD8, 0xC8", "fstp dword ptr [{o}]";
+        y = &y, a = &a, b = &b, o = &mut out
+    );
+    out
+}
+
+/// One of the marks' kind records (0x30 bytes, 12 floats): +0xC and +0x24 negated in
+/// place, then each of the twelve times a / b (kept unrounded) rounded to a whole number in
+/// place (`fmul st, st(1)`; the last `fmulp`).
+pub unsafe fn scale_record(r: *mut u32, a: u32, b: u32) {
+    x87!(
+        "fld dword ptr [{r} + 0xC]", "fchs", "fstp dword ptr [{r} + 0xC]",
+        "fld dword ptr [{r} + 0x24]", "fchs", "fstp dword ptr [{r} + 0x24]",
+        "fld dword ptr [{a}]", "fdiv dword ptr [{b}]",
+        "fld dword ptr [{r}]", ".byte 0xD8, 0xC9", "fistp dword ptr [{r}]",
+        "fld dword ptr [{r} + 4]", ".byte 0xD8, 0xC9", "fistp dword ptr [{r} + 4]",
+        "fld dword ptr [{r} + 8]", ".byte 0xD8, 0xC9", "fistp dword ptr [{r} + 8]",
+        "fld dword ptr [{r} + 0xC]", ".byte 0xD8, 0xC9", "fistp dword ptr [{r} + 0xC]",
+        "fld dword ptr [{r} + 0x10]", ".byte 0xD8, 0xC9", "fistp dword ptr [{r} + 0x10]",
+        "fld dword ptr [{r} + 0x14]", ".byte 0xD8, 0xC9", "fistp dword ptr [{r} + 0x14]",
+        "fld dword ptr [{r} + 0x18]", ".byte 0xD8, 0xC9", "fistp dword ptr [{r} + 0x18]",
+        "fld dword ptr [{r} + 0x1C]", ".byte 0xD8, 0xC9", "fistp dword ptr [{r} + 0x1C]",
+        "fld dword ptr [{r} + 0x20]", ".byte 0xD8, 0xC9", "fistp dword ptr [{r} + 0x20]",
+        "fld dword ptr [{r} + 0x24]", ".byte 0xD8, 0xC9", "fistp dword ptr [{r} + 0x24]",
+        "fld dword ptr [{r} + 0x28]", ".byte 0xD8, 0xC9", "fistp dword ptr [{r} + 0x28]",
+        "fld dword ptr [{r} + 0x2C]", ".byte 0xDE, 0xC9", "fistp dword ptr [{r} + 0x2C]";
+        r = r, a = &a, b = &b
+    );
+}

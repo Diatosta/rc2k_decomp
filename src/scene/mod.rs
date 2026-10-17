@@ -58,6 +58,7 @@ pub mod fill_light_tables;
 pub mod fill_scene_light_tables;
 pub mod find_object_of_kind;
 pub mod fog_polygon;
+pub mod forget_slot_texture;
 pub mod identity_matrix3;
 pub mod init_texture_levels;
 pub mod invert_turn;
@@ -272,4 +273,5 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &normalise_vector3::HOOK,
     &dot_product3::HOOK,
     &angle_between_vectors::HOOK,
+    &forget_slot_texture::HOOK,
 ];

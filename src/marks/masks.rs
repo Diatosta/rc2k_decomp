@@ -1,0 +1,360 @@
+//! `sub_4C0F2E`'s `sub_4BDE9A` (IDA, 2026-10-17): the marks' masks. In a work block of
+//! 0x80000 bytes it gathers the points of faces and makes shapes of them; each shape's
+//! rows of spans are filled into a mask of 0x8000 bytes (rows of 0x100) with the shape's
+//! number, 0xFF elsewhere. These are the leaves.
+
+use crate::errors::{BadInput, Refused};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::service::harness::{Region, at};
+
+pub const WORK_RVA: usize = rva(0x82E386); // g_marksMaskWork: the 0x80000-byte block
+pub const CURSOR_RVA: usize = rva(0x82FD0E); // g_marksMaskCursor
+pub const RUNS_RVA: usize = rva(0x82FD12); // g_marksMaskRuns: where the next run goes
+const RUNS_START_RVA: usize = rva(0x831D2E); // unk_831D2E
+pub const RUN_COUNT_RVA: usize = rva(0x833D7E); // g_marksMaskRunCount
+pub const MASK_RVA: usize = rva(0x844E14); // g_marksMask: the mask being drawn
+pub const SHAPES_RVA: usize = rva(0x844E10); // g_marksMaskShapes: its shapes
+pub const VALUE_RVA: usize = rva(0x833DBA); // g_marksMaskValue: the shape's number
+pub const MASK_LEN: u32 = 0x8000;
+const ROW: u32 = 0x100;
+
+/// The two point lists `collect_points_a` and `_b` fill: count, ids, faces.
+pub struct PointList {
+    pub count: usize,
+    pub ids: usize,
+    pub faces: usize,
+}
+
+pub const POINTS_A: PointList = PointList {
+    count: rva(0x884FEC), // g_marksPointsACount
+    ids: rva(0x884FF4),   // g_marksPointsA
+    faces: rva(0x8851F4), // g_marksPointsAFaces
+};
+pub const POINTS_B: PointList = PointList {
+    count: rva(0x884FF0), // g_marksPointsBCount
+    ids: rva(0x8850F4),   // g_marksPointsB
+    faces: rva(0x8852F4), // g_marksPointsBFaces
+};
+pub const MOST_POINTS: u32 = 0x40;
+
+unsafe fn get(at: u32) -> u32 {
+    unsafe { (at as *const u32).read_unaligned() }
+}
+
+impl PointList {
+    pub fn regions(&self) -> Vec<Region> {
+        let a = |r: usize| game_addr(r) as u32;
+        vec![
+            at(self.count),
+            (a(self.ids), 4 * MOST_POINTS as usize),
+            (a(self.faces), 4 * MOST_POINTS as usize),
+        ]
+    }
+}
+
+/// `marks::collect_points_a` (0x4BD551) and `_b` (0x4BD59F): face edi's points (+0 the
+/// count, from +0x10, 16 bytes apart) added to the list unless there already, up to 0x40,
+/// each with the face. Leaves eax the count, ebx the last point read (the face's count
+/// with none), ecx where the last search stopped, ebp past the last point taken in.
+/// Refuses a list of more than 0x40.
+pub unsafe fn collect_points(entry: &Regs, list: &PointList) -> Result<Regs, Refused> {
+    let mut g = *entry;
+    unsafe {
+        g.eax = game_read(list.count);
+        if g.eax > MOST_POINTS {
+            return Err(BadInput("a points list of more than 0x40").into());
+        }
+        let ids = game_addr(list.ids) as u32;
+        let faces = game_addr(list.faces) as u32;
+        g.ebp = g.edi.wrapping_add(0x10);
+        g.ebx = get(g.edi);
+        for _ in 0..(g.ebx as i32).max(0) {
+            if g.eax == MOST_POINTS {
+                continue;
+            }
+            g.ebx = get(g.ebp);
+            g.ecx = 0;
+            while g.ecx != g.eax && get(ids + 4 * g.ecx) != g.ebx {
+                g.ecx += 1;
+            }
+            if g.ecx == g.eax {
+                ((faces + 4 * g.eax) as *mut u32).write_unaligned(g.edi);
+                ((ids + 4 * g.eax) as *mut u32).write_unaligned(g.ebx);
+                g.eax += 1;
+            }
+            g.ebp = g.ebp.wrapping_add(0x10);
+        }
+        game_write(list.count, g.eax);
+    }
+    Ok(g)
+}
+
+/// `marks::reset_mask_cursor` (0x4BE0A3): `g_marksMaskCursor` the work block, the runs
+/// from 0x831D2E, `g_marksMaskRunCount` 0. Every register kept.
+pub unsafe fn reset_mask_cursor() {
+    unsafe {
+        game_write(CURSOR_RVA, game_read::<u32>(WORK_RVA));
+        game_write(RUNS_RVA, game_addr(RUNS_START_RVA) as u32);
+        game_write(RUN_COUNT_RVA, 0u32);
+    }
+}
+
+/// A list of shapes' rows (`ebp` +8): 16 bytes each, +0 the spans (x, length; 8 bytes
+/// each), +4 the first row, +8 the count.
+unsafe fn spans_fit(entries: u32, index: u32) -> Result<(), Refused> {
+    unsafe {
+        let entry = entries.wrapping_add(index.wrapping_mul(16));
+        let (spans, row, count) = (get(entry), get(entry + 4), get(entry + 8));
+        for i in 0..(count as i32).max(0) as u32 {
+            let x = get(spans.wrapping_add(8 * i)) as i32 as i64;
+            let len = get(spans.wrapping_add(8 * i + 4)) as u64;
+            let at = x + (row.wrapping_add(i) as i32 as i64) * ROW as i64;
+            if at < 0 || at as u64 + len > MASK_LEN as u64 {
+                return Err(BadInput("a mask span outside the mask").into());
+            }
+        }
+    }
+    Ok(())
+}
+
+/// `marks::fill_mask_spans` (0x4BE712): entry esi of the list at edi, each of its spans
+/// filled with `g_marksMaskValue`'s low byte into `g_marksMask`, a row (0x100) further each
+/// time. Every register kept. Refuses a span outside the mask, before writing.
+pub unsafe fn fill_mask_spans(entry: &Regs) -> Result<Regs, Refused> {
+    unsafe {
+        spans_fit(entry.edi, entry.esi)?;
+        let e = entry.edi.wrapping_add(entry.esi.wrapping_mul(16));
+        let (spans, row, count) = (get(e), get(e + 4), get(e + 8));
+        let mask: u32 = game_read(MASK_RVA);
+        let value = game_read::<u32>(VALUE_RVA) as u8;
+        for i in 0..(count as i32).max(0) as u32 {
+            let x = get(spans.wrapping_add(8 * i));
+            let len = get(spans.wrapping_add(8 * i + 4));
+            let at = x
+                .wrapping_add(row.wrapping_add(i).wrapping_mul(ROW))
+                .wrapping_add(mask);
+            std::ptr::write_bytes(at as *mut u8, value, len as usize);
+        }
+    }
+    Ok(*entry)
+}
+
+/// `marks::draw_mask_shape` (0x4BE6FB): shape esi of the shapes at ebp: `g_marksMaskValue`
+/// esi, its two entries (2 esi, 2 esi + 1) of the rows at +8 filled. Leaves esi 2 esi + 1,
+/// edi +8's list. Refuses a span outside the mask, before writing.
+pub unsafe fn draw_mask_shape(entry: &Regs) -> Result<Regs, Refused> {
+    let mut g = *entry;
+    unsafe {
+        let entries = get(g.ebp.wrapping_add(8));
+        let first = g.esi.wrapping_add(g.esi);
+        spans_fit(entries, first)?;
+        spans_fit(entries, first.wrapping_add(1))?;
+        game_write(VALUE_RVA, g.esi);
+        g.edi = entries;
+        g.esi = first;
+        g = fill_mask_spans(&g)?;
+        g.esi = g.esi.wrapping_add(1);
+        g = fill_mask_spans(&g)?;
+    }
+    Ok(g)
+}
+
+/// `marks::draw_mask` (0x4BE6C2): the mask esi (into `g_marksMask`) all 0xFF, then each of
+/// the +4 shapes at ebp (`g_marksMaskShapes`) drawn (`draw_mask_shape`). Leaves eax the
+/// count, ecx 0, esi and edi as the last shape leaves them. Refuses a count of 0 or less
+/// (the original's loop tests after counting and would run round) or a span outside the
+/// mask, before writing.
+pub unsafe fn draw_mask(entry: &Regs) -> Result<Regs, Refused> {
+    let mut g = *entry;
+    unsafe {
+        let count = get(g.ebp.wrapping_add(4)) as i32;
+        if count <= 0 {
+            return Err(BadInput("a mask of no shapes: the loop would run round").into());
+        }
+        let entries = get(g.ebp.wrapping_add(8));
+        for k in 0..2 * count as u32 {
+            spans_fit(entries, k)?;
+        }
+        game_write(MASK_RVA, g.esi);
+        game_write(SHAPES_RVA, g.ebp);
+        std::ptr::write_bytes(g.esi as *mut u8, 0xFF, MASK_LEN as usize);
+        g.ecx = 0;
+        for k in 0..count as u32 {
+            g.esi = k;
+            g = draw_mask_shape(&g)?;
+            g.eax = k + 1;
+        }
+    }
+    Ok(g)
+}
+
+/// What the mask functions write besides the mask.
+pub fn mask_regions() -> Vec<Region> {
+    vec![at(MASK_RVA), at(SHAPES_RVA), at(VALUE_RVA)]
+}
+
+/// What `reset_mask_cursor` writes.
+pub fn cursor_regions() -> Vec<Region> {
+    vec![at(CURSOR_RVA), at(RUNS_RVA), at(RUN_COUNT_RVA)]
+}
+
+// ---- for the self-tests ----
+
+/// Shapes of the test's: `shapes` shapes, each two entries of a few rows of spans by lot
+/// (inside the mask unless `outside`), and a mask buffer.
+pub struct TestShapes {
+    pub header: Vec<u32>,
+    pub entries: Vec<u32>,
+    pub spans: Vec<u32>,
+    pub mask: Vec<u8>,
+}
+
+const ROWS: u32 = 5;
+
+impl TestShapes {
+    pub fn new(shapes: u32, seed: u32, outside: bool) -> Self {
+        let mut s = seed;
+        let mut next = move || {
+            s = s.wrapping_mul(1_103_515_245).wrapping_add(12345);
+            s >> 8
+        };
+        let n = 2 * shapes.max(1);
+        let mut t = Self {
+            header: vec![0; 9],
+            entries: vec![0; 4 * n as usize],
+            spans: vec![0; (2 * ROWS * n) as usize],
+            mask: vec![0xAA; MASK_LEN as usize],
+        };
+        for e in 0..n {
+            let row = next() % (MASK_LEN / ROW - ROWS);
+            let rows = next() % (ROWS + 1);
+            for i in 0..rows {
+                let x = next() % 0xF0;
+                let len = next() % (ROW - x);
+                let k = (2 * (ROWS * e + i)) as usize;
+                t.spans[k] = x;
+                t.spans[k + 1] = len;
+            }
+            let spans = t.spans.as_ptr() as u32 + 8 * ROWS * e;
+            t.entries[4 * e as usize..4 * e as usize + 3].copy_from_slice(&[spans, row, rows]);
+        }
+        if outside {
+            t.entries[1] = MASK_LEN / ROW;
+            t.entries[2] = 1;
+            t.spans[1] = 1;
+        }
+        t.header[1] = shapes;
+        t.header[2] = t.entries.as_ptr() as u32;
+        t
+    }
+
+    pub fn shapes(&self) -> u32 {
+        self.header.as_ptr() as u32
+    }
+
+    pub fn regions(&self) -> Vec<Region> {
+        vec![(self.mask.as_ptr() as u32, MASK_LEN as usize)]
+    }
+}
+
+const LIST_RVA: usize = rva(0x82E346); // stru_82E346: the work block's list
+const WORK_LEN: u32 = 0x8_0000;
+/// The two shapes' ring-angle tables, masks and pixel tables.
+const SHAPES: [usize; 2] = [rva(0x82FC56), rva(0x82FC7A)];
+const RING_ANGLES: [usize; 2] = [rva(0x843DC2), rva(0x8441CA)];
+const MASKS: [usize; 2] = [rva(0x833DC2), rva(0x83BDC2)];
+const PIXEL_TABLES: [usize; 2] = [rva(0x844E58), rva(0x864E58)];
+
+/// `marks::make_masks` (0x4BDE9A), in `sub_4C0F2E`: the 0x80000-byte work block taken on
+/// its list (place 0 of the part); `make_shape_sets` (1), `make_corners` (2),
+/// `reset_mask_cursor` (3); each shape's ring (`span_ring`, 4, its corner table in
+/// `g_marksRingCorners`), mask (`draw_mask`, 5) and pixels (`map_shapes`, 6); the spans
+/// made counted into eax and the list freed (`memory::free_list`, 7). Leaves eax that
+/// count, ebx the list, the rest as the last step. Refuses as its steps do, mid-way (the
+/// work block is on the list, which the original's run frees with its own).
+pub unsafe fn make_masks(
+    entry: &Regs,
+    part: crate::race::level_init::Part,
+) -> Result<Regs, Refused> {
+    use crate::marks::corners::CORNERS_RVA;
+    use crate::marks::rings::CORNERS_RVA as RING_CORNERS_RVA;
+    let mut g = *entry;
+    let a = |r: usize| game_addr(r) as u32;
+    unsafe {
+        g.eax = WORK_LEN;
+        g.ebx = a(LIST_RVA);
+        part(0, &mut g)?;
+        game_write(WORK_RVA, g.eax);
+        part(1, &mut g)?;
+        part(2, &mut g)?;
+        part(3, &mut g)?;
+        for n in 0..2 {
+            g.ebp = a(SHAPES[n]);
+            g.esi = a(RING_ANGLES[n]);
+            game_write(RING_CORNERS_RVA, a(CORNERS_RVA[n]));
+            part(4, &mut g)?;
+        }
+        for n in 0..2 {
+            g.ebp = a(SHAPES[n]);
+            g.esi = a(MASKS[n]);
+            part(5, &mut g)?;
+        }
+        for n in 0..2 {
+            g.ebp = a(SHAPES[n]);
+            g.esi = a(PIXEL_TABLES[n]);
+            g.edi = a(CORNERS_RVA[n]);
+            part(6, &mut g)?;
+        }
+        g.eax = game_read::<u32>(CURSOR_RVA).wrapping_sub(game_read(WORK_RVA)) >> 3;
+        g.ebx = a(LIST_RVA);
+        part(7, &mut g)?;
+    }
+    Ok(g)
+}
+
+/// In the game: the steps' Rust versions (place 0 `memory::allocate`, 7
+/// `memory::free_list`).
+pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
+    unsafe {
+        let keep = |r: &mut Regs, left: Regs| {
+            *r = Regs {
+                esp: r.esp,
+                eflags: r.eflags,
+                ..left
+            }
+        };
+        match place {
+            0 => return crate::race::level_init::game_part(0, r),
+            1 => keep(r, crate::marks::shape_points::make_shape_sets(r)?),
+            2 => keep(r, crate::marks::corners::make_corners(r)?),
+            3 => reset_mask_cursor(),
+            4 => keep(r, crate::marks::rings::span_ring(r)?),
+            5 => keep(r, draw_mask(r)?),
+            6 => keep(r, crate::marks::pixels::map_shapes(r)?),
+            _ => crate::memory::free_list::free_list(r.ebx as *mut crate::memory::MemoryList)?,
+        }
+    }
+    Ok(())
+}
+
+/// The calls a test copy and the Rust version make, with every register but esp.
+pub static NOTED: std::sync::Mutex<Vec<(u32, [u32; 7])>> = std::sync::Mutex::new(Vec::new());
+
+/// A stand-in handler for `make_masks`' test: each call noted; place 0 gives `GIVES` with
+/// the carry clear.
+pub fn note_step(place: u32, r: &mut Regs) {
+    NOTED
+        .lock()
+        .unwrap()
+        .push((place, [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp]));
+    if place == 0 {
+        r.eax = crate::race::level_init::GIVES.load(std::sync::atomic::Ordering::SeqCst);
+        r.set_carry(false);
+    }
+}
+
+/// The same as a part, for the Rust side.
+pub fn test_step(place: u32, r: &mut Regs) -> Result<(), Refused> {
+    note_step(place, r);
+    Ok(())
+}

@@ -5,8 +5,8 @@
 //! Out: every register kept, the angle popped
 //!
 //! See `scene/matrix3.rs`. Thunk by `angle_hook!`: the angle is kept for the Rust version
-//! and loaded again for the original. Refuses an angle `fsincos` cannot take (2^63 and
-//! more, infinities, NaNs). Self-test: the original and the Rust version on angles from
+//! and loaded again for the original. Refuses an angle `fsincos` cannot take (finite, 2^63
+//! and more). Self-test: the original and the Rust version on angles from
 //! floats and on 80-bit ones, the refusal.
 
 use crate::errors::Refused;
@@ -49,7 +49,7 @@ fn self_test() -> (usize, usize) {
     let mut buffer = [0xAAu8; 0x28];
     let len = buffer.len();
     let b = buffer.as_mut_ptr() as u32;
-    let floats: [f32; 8] = [
+    let floats: [f32; 10] = [
         0.0,
         -0.0,
         0.25,
@@ -58,6 +58,8 @@ fn self_test() -> (usize, usize) {
         -4.5,
         100.0,
         1.0e5,
+        f32::INFINITY,
+        f32::NAN,
     ];
     let angles = floats
         .iter()

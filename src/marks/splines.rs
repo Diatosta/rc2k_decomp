@@ -29,6 +29,21 @@ const OUTLINE_TO: [usize; 8] = [
 pub const OUTLINE_COUNT_RVA: usize = rva(0x768700); // dword_768700
 pub const OUTLINE_MARK_RVA: usize = rva(0x7687D0); // dword_7687D0
 pub const FOUND_RVA: usize = rva(0x7695B2); // g_marksSplineFaces: faces of the kind found
+/// The four tables of 8 records (`g_marksSplinesA` .. `D`).
+pub const TABLES: [usize; 4] = [0x76B9B2, 0x772E32, 0x77A2B2, 0x781732];
+pub const TABLE_LEN: u32 = 8 * SPLINE_LEN;
+pub const OBJECT_RVA: usize = rva(0x76A202); // g_marksSplineObject
+pub const PLACE_RVA: usize = rva(0x76A206); // g_marksSplinePlace: the next of 8
+pub const OFFSET_RVA: usize = rva(0x76A20A); // g_marksSplineOffset: the place times 0xE90
+/// Each table's face kind (`sub_4B96CD` sets them by `g_marksKind`).
+pub const KINDS_RVA: usize = rva(0x788BB6); // g_marksSplineKinds
+/// Each table's +0x24, +0x2C, +0x28 (in that order).
+pub const ANGLES_RVA: usize = rva(0x788F39); // g_marksSplineAngles
+/// Added to the third table's highest point for its +0x44.
+pub const SHIFT_RVA: usize = rva(0x7695BE); // g_marksSplineShift
+/// `bound_spline_points`' two vectors: the one the angle is measured from, and the size.
+pub const UP_RVA: usize = rva(0x76A216); // g_marksSplineUp
+pub const SIZE_RVA: usize = rva(0x76A222); // g_marksSplineSize
 /// `turn_spline_points`' matrices: the three turns, then X x Y, then all three.
 pub const TURN_X_RVA: usize = rva(0x76A28E); // g_marksTurnX
 pub const TURN_Y_RVA: usize = rva(0x76A2BE); // g_marksTurnY
@@ -382,14 +397,247 @@ pub unsafe fn order_spline_points(entry: &Regs) -> Result<Regs, Refused> {
     Ok(g)
 }
 
-/// What `turn_spline_points` and `order_spline_points` write besides the record.
+/// `marks::bound_spline_points` (0x4B9E7D): record ebp's points' smallest and largest in
+/// each part; the y and z sizes as floats into `g_marksSplineSize` + 4, + 8 (its x is
+/// left as it was: section 16); the box's middle (half the size, `sar`, plus the smallest)
+/// into the centre (+0xC54); the angle between `g_marksSplineUp` and the size
+/// (`scene::angle_between_vectors`, both normalised) into +0x20. Leaves eax, ebx, ecx the
+/// middle, esi `g_marksSplineUp`, edi `g_marksSplineSize`. Refuses more than 0x80 points.
+pub unsafe fn bound_spline_points(entry: &Regs) -> Result<Regs, Refused> {
+    let mut g = *entry;
+    unsafe {
+        let s = g.ebp;
+        let n = count(s)?;
+        let mut low = [i32::MAX; 3];
+        let mut high = [0x8000_0001u32 as i32; 3];
+        for k in (0..n).rev() {
+            g.edi = k * 12;
+            for c in 0..3 {
+                let v = get(s + COORDS + g.edi + 4 * c as u32) as i32;
+                if v < low[c] {
+                    low[c] = v;
+                }
+                if v > high[c] {
+                    high[c] = v;
+                }
+            }
+        }
+        let size: [i32; 3] = std::array::from_fn(|c| high[c].wrapping_sub(low[c]));
+        g.esi = game_addr(UP_RVA) as u32;
+        g.edi = game_addr(SIZE_RVA) as u32;
+        put(g.edi + 4, x87::from_int(size[1]));
+        put(g.edi + 8, x87::from_int(size[2]));
+        let middle: [u32; 3] = std::array::from_fn(|c| (size[c] >> 1).wrapping_add(low[c]) as u32);
+        for (c, &m) in middle.iter().enumerate() {
+            put(s + CENTRE + 4 * c as u32, m);
+        }
+        [g.eax, g.ebx, g.ecx] = middle;
+        let angle = crate::scene::vector3::angle_between_vectors(g.esi, g.edi);
+        put(s + 0x20, crate::scene::matrix3::rounded(angle));
+    }
+    Ok(g)
+}
+
+/// What `make_spline` refuses for an object: past 0xFF, a negative face count or faces past
+/// `g_faces`, an angle of its tables `fsincos` cannot take.
+unsafe fn spline_checks(object: u32) -> Result<(), Refused> {
+    use crate::scene::objects::{FACE_COUNTS_RVA, FACES, FIRST_FACE_RVA};
+    unsafe {
+        if object >= 0x100 {
+            return Err(BadInput("an object past 0xFF").into());
+        }
+        let first: u32 = game_read(FIRST_FACE_RVA + 4 * object as usize);
+        let faces: u32 = game_read(FACE_COUNTS_RVA + 4 * object as usize);
+        if (faces as i32) < 0 || first.checked_add(faces).is_none_or(|end| end > FACES) {
+            return Err(BadInput("an object's faces past g_faces").into());
+        }
+        for n in 0..12 {
+            crate::scene::matrix3::turnable(&negated(game_read(ANGLES_RVA + 4 * n)))?;
+        }
+    }
+    Ok(())
+}
+
+/// `marks::make_spline` (0x4B9A32): object eax into `g_marksSplineObject`; unless 8 are
+/// made (`g_marksSplinePlace`), the next record of each table for it: of the faces of that
+/// table's kind gathered, bounded, centred, given the table's angles and turned; the second
+/// and third also given the first table's record 0's centre and +0x20 first (record 0's
+/// whatever the place: section 16) and then graded (+0x18, +0x1C 0x58F0, 0x6F78), ordered
+/// and their ends found; the third's +0x44 .. the highest point plus `g_marksSplineShift`.
+/// Then the place counted. Leaves the registers as the last steps do (ebp the first
+/// table's record). Refuses a negative place, an object past 0xFF or faces past `g_faces`,
+/// an angle `fsincos` cannot take, before writing anything else.
+pub unsafe fn make_spline(entry: &Regs) -> Result<Regs, Refused> {
+    let mut g = *entry;
+    unsafe {
+        game_write(OBJECT_RVA, g.eax);
+        let place = game_read::<u32>(PLACE_RVA) as i32;
+        if place >= 8 {
+            return Ok(g);
+        }
+        if place < 0 {
+            return Err(BadInput("a negative spline place").into());
+        }
+        let object = g.eax;
+        spline_checks(object)?;
+        let offset = place as u32 * SPLINE_LEN;
+        game_write(OFFSET_RVA, offset);
+        let table = |t: usize| game_addr(rva(TABLES[t])) as u32;
+        for t in 0..4 {
+            let record = table(t) + offset;
+            g.eax = object;
+            g.ebx = game_read(KINDS_RVA + 4 * t);
+            g.ebp = record;
+            g = gather_spline_points(&g)?;
+            g.ebp = record;
+            g = bound_spline_points(&g)?;
+            if t == 1 || t == 2 {
+                g.esi = table(0);
+                g.edi = table(t);
+                for o in [CENTRE, CENTRE + 4, CENTRE + 8, 0x20] {
+                    put(g.edi + o, get(g.esi + o));
+                }
+            }
+            g.ebp = record;
+            g = centre_spline_points(&g)?;
+            g.ebp = record;
+            for (k, o) in [0x24u32, 0x2C, 0x28].into_iter().enumerate() {
+                put(
+                    record + o,
+                    x87::loaded(game_read(ANGLES_RVA + 4 * (3 * t + k))),
+                );
+            }
+            g = turn_spline_points(&g)?;
+            if t == 1 || t == 2 {
+                g.ebp = record;
+                put(record + 0x18, 0x58F0);
+                put(record + 0x1C, 0x6F78);
+                g = grade_spline_points(&g)?;
+                g.ebp = record;
+                g = order_spline_points(&g)?;
+                g.ebp = record;
+                g = find_spline_ends(&g)?;
+            }
+            if t == 2 {
+                g.ebp = record;
+                g.esi = get(record + 0x30).wrapping_mul(12);
+                let shift: [u32; 3] = game_read(SHIFT_RVA);
+                let p = record.wrapping_add(COORDS).wrapping_add(g.esi);
+                g.eax = shift[0].wrapping_add(get(p));
+                g.ebx = shift[1].wrapping_add(get(p + 4));
+                g.ecx = shift[2].wrapping_add(get(p + 8));
+                put(record + 0x44, g.eax);
+                put(record + 0x48, g.ebx);
+                put(record + 0x4C, g.ecx);
+            }
+        }
+        g.ebp = table(0) + offset;
+        for k in (0..(get(g.ebp + COUNT) as i32).max(0) as u32).rev() {
+            g.ebx = k;
+            g.ecx = get(g.ebp + IDS + 4 * k);
+        }
+        game_write(PLACE_RVA, place as u32 + 1);
+    }
+    Ok(g)
+}
+
+pub const LOADED_RVA: usize = rva(0x788EF6); // g_marksSplinesLoaded: 0, or where to go on
+pub const RESUME_RVA: usize = rva(0x4B9706); // loc_4B9706
+const PATH_RVA: usize = rva(0x788EFA); // "files\m\spline.dat"
+pub const FILE_RVA: usize = rva(0x7695D2); // g_marksSplineFile
+pub const FILE_LEN: u32 = 0xC00;
+/// The five values by kind (`dword_788BC6` .. `dword_788DE6`, 0x22 each) and where they go.
+const BY_KIND_RVA: usize = rva(0x788BC6);
+pub const CHOSEN_RVA: usize = rva(0x788BB2); // dword_788BB2, then `g_marksSplineKinds`
+const KINDS: u32 = 0x22;
+pub const MADE_RVA: usize = rva(0x7695CE); // dword_7695CE
+/// The settings' objects: a count at +0x26B8, then the objects.
+const OBJECTS_AT: u32 = 0x26B8;
+const MOST_OBJECTS: u32 = (0x2708 - 0x26BC) / 4;
+
+/// `marks::load_splines` (0x4B96CD), in step 1: once (`g_marksSplinesLoaded`, then
+/// `resume`) `files\m\spline.dat` (0xC00 bytes at most, place 1 of the part, inside
+/// `pusha`) into `g_marksSplineFile`; the five values of `g_marksKind` into 0x788BB2 ..;
+/// `g_marksSplinePlace` 0; `make_spline` for each of the settings' objects (+0x26BC, the last
+/// first); `dword_7695CE` 0. Leaves esi the settings, the rest as the last `make_spline`
+/// (eax the kind with none). Refuses a mark neither 0 nor `resume`, a kind of 0x22 or
+/// more, more than 19 objects, and what `make_spline` would refuse for any of them, before
+/// writing anything.
+pub unsafe fn load_splines(
+    entry: &Regs,
+    resume: u32,
+    part: crate::race::level_init::Part,
+) -> Result<Regs, Refused> {
+    let mut g = *entry;
+    unsafe {
+        let loaded: u32 = game_read(LOADED_RVA);
+        if loaded != 0 && loaded != resume {
+            return Err(BadInput("the splines' mark is neither 0 nor loc_4B9706").into());
+        }
+        let kind: u32 = game_read(crate::marks::kind_values::KIND_RVA);
+        if kind >= KINDS {
+            return Err(BadInput("a marks' kind of 0x22 or more").into());
+        }
+        let settings: u32 = game_read(crate::marks::lines::SETTINGS_RVA);
+        let count = get(settings + OBJECTS_AT) as i32;
+        if count > MOST_OBJECTS as i32 {
+            return Err(BadInput("more than 19 spline objects").into());
+        }
+        let objects: Vec<u32> = (0..count.max(0) as u32)
+            .rev()
+            .map(|k| get(settings + OBJECTS_AT + 4 + 4 * k))
+            .collect();
+        // The place starts at 0: the first eight are made, the rest only noted.
+        for &o in objects.iter().take(8) {
+            spline_checks(o)?;
+        }
+        if loaded == 0 {
+            let mut r = Regs {
+                eax: game_addr(PATH_RVA) as u32,
+                ebx: game_addr(FILE_RVA) as u32,
+                ecx: FILE_LEN,
+                ..g
+            };
+            part(1, &mut r)?;
+            g.eax = game_addr(LOADED_RVA) as u32;
+            game_write(LOADED_RVA, resume);
+        }
+        g.eax = kind;
+        for n in 0..5 {
+            let v: u32 = game_read(BY_KIND_RVA + 4 * (n * KINDS + kind) as usize);
+            game_write(CHOSEN_RVA + 4 * n as usize, v);
+        }
+        game_write(PLACE_RVA, 0u32);
+        g.esi = settings;
+        for o in objects {
+            g.eax = o;
+            g = make_spline(&g)?;
+            g.esi = settings;
+        }
+        game_write(MADE_RVA, 0u32);
+    }
+    Ok(g)
+}
+
+/// The four tables, whole.
+pub fn table_regions() -> Vec<crate::service::harness::Region> {
+    TABLES
+        .iter()
+        .map(|&t| (game_addr(rva(t)) as u32, TABLE_LEN as usize))
+        .collect()
+}
+
+/// What the record's functions write besides the record.
 pub fn work_regions() -> Vec<crate::service::harness::Region> {
+    use crate::service::harness::at;
     let a = |r: usize| game_addr(r) as u32;
     vec![
         (a(TURN_XY_RVA), 0xF0),
+        (a(UP_RVA), 24),
+        at(crate::scene::vector3::STATUS_RVA),
         (a(ORDERED_IDS_RVA), 4 * MOST_POINTS as usize),
         (a(ORDERED_COORDS_RVA), 12 * MOST_POINTS as usize),
-        crate::service::harness::at(FOUND_RVA),
+        at(FOUND_RVA),
     ]
 }
 
