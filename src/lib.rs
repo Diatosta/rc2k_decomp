@@ -7,6 +7,7 @@
 
 pub mod audio;
 pub mod d3d;
+pub mod drive;
 pub mod errors;
 pub mod fatal;
 pub mod files;

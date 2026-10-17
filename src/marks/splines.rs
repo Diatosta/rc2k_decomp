@@ -340,6 +340,119 @@ pub unsafe fn turn_spline_points(entry: &Regs) -> Result<Regs, Refused> {
     Ok(g)
 }
 
+/// `marks::place_shape_points` (0x4BA0AE): the turns about X, Y, Z by record ebp's +0x20,
+/// +0x24, +0x28 (not negated, as `turn_spline_points` does) into `g_marksTurnX` .. `Z`, X x
+/// Y into `g_marksTurnXY`, that x Z into `g_marksTurn`; the record's points turned by it
+/// into `g_marksOrderedCoords`; then, from the last, each written plus the record's +0xC54
+/// .. through the record's pointer at +0x454. Leaves ebp the record; with points, esi the
+/// first point's pointer, edi 0, eax .. ecx what was written there; without, as
+/// `transform_int_points` leaves them. Refuses more than 0x80 points, an angle `fsincos`
+/// cannot take, and a null pointer among the points', before writing anything.
+pub unsafe fn place_shape_points(entry: &Regs) -> Result<Regs, Refused> {
+    let mut g = *entry;
+    unsafe {
+        let s = g.ebp;
+        let n = count(s)?;
+        turnable_record(s, [0x20, 0x24, 0x28])?;
+        if (0..n).any(|k| get(s + IDS + 4 * k) == 0) {
+            return Err(BadInput("a null point pointer").into());
+        }
+        g = turn_record(&g, s, [0x20, 0x24, 0x28])?;
+        g = transform_int_points_from(&g, s + COORDS, get(s + COUNT))?;
+        g.ebp = s;
+        for k in (0..n).rev() {
+            g = write_point(&g, s, k, k);
+        }
+    }
+    Ok(g)
+}
+
+/// Whether the record's three angles (at `offsets`, not negated) can be turned by.
+pub unsafe fn turnable_record(s: u32, offsets: [u32; 3]) -> Result<(), Refused> {
+    use crate::scene::matrix3::{extended, turnable};
+    for o in offsets {
+        unsafe { turnable(&extended(get(s + o)))? };
+    }
+    Ok(())
+}
+
+/// The turns about X, Y, Z by the record's floats at `offsets` (not negated) into
+/// `g_marksTurnX` .. `Z`, X x Y into `g_marksTurnXY`, that x Z into `g_marksTurn`, as
+/// `sub_4BA0AE` and `sub_4BA16C` do (ebp pushed round the products: left as it was).
+pub unsafe fn turn_record(entry: &Regs, s: u32, offsets: [u32; 3]) -> Result<Regs, Refused> {
+    use crate::scene::matrix3::{Axis, extended, multiply_matrices3, turn_matrix3};
+    let mut g = *entry;
+    unsafe {
+        let at = |r: usize| game_addr(r) as u32;
+        for ((axis, to), o) in [
+            (Axis::X, TURN_X_RVA),
+            (Axis::Y, TURN_Y_RVA),
+            (Axis::Z, TURN_Z_RVA),
+        ]
+        .into_iter()
+        .zip(offsets)
+        {
+            g.esi = at(to);
+            turn_matrix3(axis, at(to), extended(get(s + o)))?;
+        }
+        let ebp = g.ebp;
+        for (a, b, out) in [
+            (TURN_X_RVA, TURN_Y_RVA, TURN_XY_RVA),
+            (TURN_XY_RVA, TURN_Z_RVA, TURN_RVA),
+        ] {
+            g = multiply_matrices3(&Regs {
+                esi: at(a),
+                edi: at(b),
+                ebp: at(out),
+                ..g
+            });
+        }
+        g.ebp = ebp;
+    }
+    Ok(g)
+}
+
+/// `count` points from `from` turned by `g_marksTurn` into `g_marksOrderedCoords`
+/// (`scene::transform_int_points`; ebp left as it was).
+pub unsafe fn transform_int_points_from(
+    entry: &Regs,
+    from: u32,
+    count: u32,
+) -> Result<Regs, Refused> {
+    use crate::scene::matrix3::transform_int_points;
+    let at = |r: usize| game_addr(r) as u32;
+    let mut g = unsafe {
+        transform_int_points(&Regs {
+            esi: from,
+            edi: at(ORDERED_COORDS_RVA),
+            ecx: count,
+            ebp: at(TURN_RVA),
+            ..*entry
+        })?
+    };
+    g.ebp = entry.ebp;
+    Ok(g)
+}
+
+/// Ordered point `k` plus the record's +0xC54 .. written through the record's pointer
+/// `pointer` (at +0x454); esi that pointer, edi `k` times 12, eax .. ecx the values.
+pub unsafe fn write_point(entry: &Regs, s: u32, k: u32, pointer: u32) -> Regs {
+    let mut g = *entry;
+    unsafe {
+        g.esi = get(s + IDS + 4 * pointer);
+        g.edi = 12 * k;
+        let from = game_addr(ORDERED_COORDS_RVA) as u32 + 12 * k;
+        let v: [u32; 3] = std::array::from_fn(|c| {
+            get(from + 4 * c as u32).wrapping_add(get(s + CENTRE + 4 * c as u32))
+        });
+        for (c, x) in v.iter().enumerate() {
+            put(g.esi + 4 * c as u32, *x);
+        }
+        [g.eax, g.ebx, g.ecx] = v;
+    }
+    g
+}
+
 /// `marks::order_spline_points` (0x4BA388): record ebp's ids and points put in grade order
 /// (each grade's the last first) through `g_marksOrderedIds` and `g_marksOrderedCoords`;
 /// +0 .. +8 each grade's start, +0xC .. +0x14 its count; then the count's ids and points

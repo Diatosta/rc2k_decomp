@@ -1,7 +1,8 @@
 //! `math::next_random` (0x4018B4): the game's random numbers.
 //!
 //! In:  nothing
-//! Out: eax = the next number; everything else preserved
+//! Out: eax = the next number, ZF set when it is 0 (read by `race::nonzero_random`);
+//!      everything else preserved
 //! One step of the generator on its state `dword_4E0140` (`math::random_step`, 0x4018C8,
 //! with 0 mixed in): the low byte is changed by three bits of the number (bit 22, then
 //! bit 2 and bit 1 of the byte as it then is, each flipping bit 0), the whole is turned
@@ -58,6 +59,9 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &[at(STATE_RVA)], &rust);
+    // `random_step` ends in `xor eax, ebx` (ebx 0): its caller `race::nonzero_random`
+    // (0x444C14) reads the zero flag (`jnz`).
+    r.set_zero(r.eax == 0);
 }
 
 // ---- self-test ----

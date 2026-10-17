@@ -1,7 +1,7 @@
 //! `memory::free_list` (0x4028F5): gives back every block of a list.
 //!
 //! In:  ebx = the list (`MemoryList`), or 0
-//! Out: every register preserved
+//! Out: every register preserved; CF clear (read by `sub_4D06F3`'s `jb`)
 //! Nothing happens without a list. The bytes held now are counted down by the list's total
 //! (also when it has no block). Then, if it has one: the list is emptied (head, total, and
 //! through `sub_402941` the cursor and what remains, all 0) and each block is given back
@@ -70,8 +70,11 @@ extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
     let list = r.ebx as *mut MemoryList;
     if !shadow() {
-        if let Err(e) = unsafe { free_list(list) } {
-            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
+        match unsafe { free_list(list) } {
+            // The original ends in a `test`: the carry is clear (`marks::tidy_marks`'
+            // `sub_4D06F3` reads it with `jb`).
+            Ok(()) => r.set_carry(false),
+            Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
         }
         return;
     }

@@ -263,3 +263,277 @@ macro_rules! pair_hook {
     };
 }
 pub(crate) use pair_hook;
+
+/// Three 80-bit values in (st(0) .. st(2)) and three out, for `triple_hook!`.
+#[repr(C)]
+pub struct Triple80 {
+    pub inputs: UnsafeCell<[[u8; 10]; 3]>,
+    pub outputs: UnsafeCell<[[u8; 10]; 3]>,
+}
+
+unsafe impl Sync for Triple80 {}
+
+impl Triple80 {
+    pub const fn new() -> Self {
+        Self {
+            inputs: UnsafeCell::new([[0; 10]; 3]),
+            outputs: UnsafeCell::new([[0; 10]; 3]),
+        }
+    }
+
+    pub fn inputs(&self) -> [[u8; 10]; 3] {
+        unsafe { *self.inputs.get() }
+    }
+
+    pub fn set_inputs(&self, v: [[u8; 10]; 3]) {
+        unsafe { *self.inputs.get() = v };
+    }
+
+    pub fn outputs(&self) -> [[u8; 10]; 3] {
+        unsafe { *self.outputs.get() }
+    }
+
+    pub fn set_outputs(&self, v: [[u8; 10]; 3]) {
+        unsafe { *self.outputs.get() = v };
+    }
+
+    pub fn output_region(&self) -> crate::service::harness::Region {
+        (self.outputs.get() as u32, 30)
+    }
+}
+
+impl Default for Triple80 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// For a hook whose function takes st(0) .. st(2) and leaves three values there: as
+/// `pair_hook!` with three (inputs at +0, +10, +20, outputs at +30, +40, +50).
+macro_rules! triple_hook {
+    ($thunk:ident, $call_original:ident, $with_triple:ident, dispatch = $dispatch:ident,
+     original = $orig:ident, triple = $triple:ident) => {
+        #[unsafe(naked)]
+        pub(crate) unsafe extern "C" fn $thunk() {
+            core::arch::naked_asm!(
+                "lea esp, [esp - 30]",
+                "fstp tbyte ptr [esp]",
+                "fstp tbyte ptr [esp + 10]",
+                "fstp tbyte ptr [esp + 20]",
+                "pushfd",
+                "pushad",
+                "cld",
+                "call {enter}",
+                "push esp",             // arg: *mut Regs
+                "lea eax, [esp + 40]",
+                "push eax",
+                "call {keep}",
+                "add esp, 4",
+                "call {dispatch}",
+                "add esp, 4",
+                "call {leave}",
+                "popad",
+                "popfd",
+                "lea esp, [esp + 30]",  // no flags touched from here
+                "fld tbyte ptr [{p} + 50]",
+                "fld tbyte ptr [{p} + 40]",
+                "fld tbyte ptr [{p} + 30]",
+                "ret",
+                enter = sym $crate::framework::hook_enter,
+                leave = sym $crate::framework::hook_leave,
+                keep = sym keep_triple,
+                dispatch = sym $dispatch,
+                p = sym $triple,
+            )
+        }
+
+        extern "C" fn keep_triple(at: *const [[u8; 10]; 3]) {
+            $triple.set_inputs(unsafe { at.read_unaligned() });
+        }
+
+        /// The original with the inputs in st(0) .. st(2); its three taken off into the
+        /// outputs.
+        #[unsafe(naked)]
+        pub(crate) unsafe extern "C" fn $with_triple(_regs: *mut $crate::framework::Regs) {
+            core::arch::naked_asm!(
+                "push dword ptr [esp + 4]",
+                "fld tbyte ptr [{p} + 20]",
+                "fld tbyte ptr [{p} + 10]",
+                "fld tbyte ptr [{p}]",
+                "call {co}",
+                "add esp, 4",
+                "fstp tbyte ptr [{p} + 30]",
+                "fstp tbyte ptr [{p} + 40]",
+                "fstp tbyte ptr [{p} + 50]",
+                "ret",
+                co = sym $call_original,
+                p = sym $triple,
+            )
+        }
+
+        $crate::framework::hook_asm!(@call_original $call_original, $orig);
+    };
+}
+pub(crate) use triple_hook;
+
+/// Four 80-bit values in (st(0) .. st(3)) and three out, for `quad_triple_hook!`.
+#[repr(C)]
+pub struct Quad80 {
+    pub inputs: UnsafeCell<[[u8; 10]; 4]>,
+    pub outputs: UnsafeCell<[[u8; 10]; 3]>,
+}
+
+unsafe impl Sync for Quad80 {}
+
+impl Quad80 {
+    pub const fn new() -> Self {
+        Self {
+            inputs: UnsafeCell::new([[0; 10]; 4]),
+            outputs: UnsafeCell::new([[0; 10]; 3]),
+        }
+    }
+
+    pub fn inputs(&self) -> [[u8; 10]; 4] {
+        unsafe { *self.inputs.get() }
+    }
+
+    pub fn set_inputs(&self, v: [[u8; 10]; 4]) {
+        unsafe { *self.inputs.get() = v };
+    }
+
+    pub fn set_outputs(&self, v: [[u8; 10]; 3]) {
+        unsafe { *self.outputs.get() = v };
+    }
+
+    pub fn output_region(&self) -> crate::service::harness::Region {
+        (self.outputs.get() as u32, 30)
+    }
+}
+
+impl Default for Quad80 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// For a hook whose function takes st(0) .. st(3) and leaves three values: as
+/// `triple_hook!` with four in (inputs at +0 .. +30, outputs at +40, +50, +60).
+macro_rules! quad_triple_hook {
+    ($thunk:ident, $call_original:ident, $with_quad:ident, dispatch = $dispatch:ident,
+     original = $orig:ident, quad = $quad:ident) => {
+        #[unsafe(naked)]
+        pub(crate) unsafe extern "C" fn $thunk() {
+            core::arch::naked_asm!(
+                "lea esp, [esp - 40]",
+                "fstp tbyte ptr [esp]",
+                "fstp tbyte ptr [esp + 10]",
+                "fstp tbyte ptr [esp + 20]",
+                "fstp tbyte ptr [esp + 30]",
+                "pushfd",
+                "pushad",
+                "cld",
+                "call {enter}",
+                "push esp",             // arg: *mut Regs
+                "lea eax, [esp + 40]",
+                "push eax",
+                "call {keep}",
+                "add esp, 4",
+                "call {dispatch}",
+                "add esp, 4",
+                "call {leave}",
+                "popad",
+                "popfd",
+                "lea esp, [esp + 40]",  // no flags touched from here
+                "fld tbyte ptr [{p} + 60]",
+                "fld tbyte ptr [{p} + 50]",
+                "fld tbyte ptr [{p} + 40]",
+                "ret",
+                enter = sym $crate::framework::hook_enter,
+                leave = sym $crate::framework::hook_leave,
+                keep = sym keep_quad,
+                dispatch = sym $dispatch,
+                p = sym $quad,
+            )
+        }
+
+        extern "C" fn keep_quad(at: *const [[u8; 10]; 4]) {
+            $quad.set_inputs(unsafe { at.read_unaligned() });
+        }
+
+        /// The original with the inputs in st(0) .. st(3); its three taken off into the
+        /// outputs.
+        #[unsafe(naked)]
+        pub(crate) unsafe extern "C" fn $with_quad(_regs: *mut $crate::framework::Regs) {
+            core::arch::naked_asm!(
+                "push dword ptr [esp + 4]",
+                "fld tbyte ptr [{p} + 30]",
+                "fld tbyte ptr [{p} + 20]",
+                "fld tbyte ptr [{p} + 10]",
+                "fld tbyte ptr [{p}]",
+                "call {co}",
+                "add esp, 4",
+                "fstp tbyte ptr [{p} + 40]",
+                "fstp tbyte ptr [{p} + 50]",
+                "fstp tbyte ptr [{p} + 60]",
+                "ret",
+                co = sym $call_original,
+                p = sym $quad,
+            )
+        }
+
+        $crate::framework::hook_asm!(@call_original $call_original, $orig);
+    };
+}
+pub(crate) use quad_triple_hook;
+
+/// For a hook whose function takes nothing on the x87 stack and leaves three values there
+/// (st(0) .. st(2)): `$thunk` calls `$dispatch(regs)` (gated as `hook_asm!`'s) and loads
+/// `$triple.outputs` (the third first); `$with_out3(regs)` runs `$call_original` and pops
+/// its three into the outputs. `Triple80`'s inputs are not used.
+macro_rules! out3_hook {
+    ($thunk:ident, $call_original:ident, $with_out3:ident, dispatch = $dispatch:ident,
+     original = $orig:ident, triple = $triple:ident) => {
+        #[unsafe(naked)]
+        pub(crate) unsafe extern "C" fn $thunk() {
+            core::arch::naked_asm!(
+                "pushfd",
+                "pushad",
+                "cld",
+                "call {enter}",
+                "push esp", // arg: *mut Regs
+                "call {dispatch}",
+                "add esp, 4",
+                "call {leave}",
+                "popad",
+                "popfd", // no flags touched from here
+                "fld tbyte ptr [{p} + 50]",
+                "fld tbyte ptr [{p} + 40]",
+                "fld tbyte ptr [{p} + 30]",
+                "ret",
+                enter = sym $crate::framework::hook_enter,
+                leave = sym $crate::framework::hook_leave,
+                dispatch = sym $dispatch,
+                p = sym $triple,
+            )
+        }
+
+        /// The original; its three taken off into the outputs.
+        #[unsafe(naked)]
+        pub(crate) unsafe extern "C" fn $with_out3(_regs: *mut $crate::framework::Regs) {
+            core::arch::naked_asm!(
+                "push dword ptr [esp + 4]",
+                "call {co}",
+                "add esp, 4",
+                "fstp tbyte ptr [{p} + 30]",
+                "fstp tbyte ptr [{p} + 40]",
+                "fstp tbyte ptr [{p} + 50]",
+                "ret",
+                co = sym $call_original,
+                p = sym $triple,
+            )
+        }
+
+        $crate::framework::hook_asm!(@call_original $call_original, $orig);
+    };
+}
+pub(crate) use out3_hook;

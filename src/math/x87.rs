@@ -1121,3 +1121,662 @@ pub unsafe fn scale_record(r: *mut u32, a: u32, b: u32) {
         r = r, a = &a, b = &b
     );
 }
+
+/// `fild a; fmul m; fadd c; fst` (the first), then `fadd d; fsub e; fstp` (the second).
+pub fn int_times_plus_on(a: i32, m: u32, c: u32, d: u32, e: u32) -> (u32, u32) {
+    let (v, mut out) = ([a as u32, m, c, d, e], [0u32; 2]);
+    x87!("fild dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fadd dword ptr [{v} + 8]",
+        "fst dword ptr [{o}]", "fadd dword ptr [{v} + 12]", "fsub dword ptr [{v} + 16]",
+        "fstp dword ptr [{o} + 4]";
+        v = v.as_ptr(), o = out.as_mut_ptr());
+    (out[0], out[1])
+}
+
+/// `fld a; fsub b; fsub b; fsub b; fstp`.
+pub fn sub_thrice(a: u32, b: u32) -> u32 {
+    let (v, mut out) = ([a, b], 0u32);
+    x87!("fld dword ptr [{v}]", "fsub dword ptr [{v} + 4]", "fsub dword ptr [{v} + 4]",
+        "fsub dword ptr [{v} + 4]", "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fild a; fadd b; fstp`.
+pub fn int_plus(a: i32, b: u32) -> u32 {
+    let (v, mut out) = ([a as u32, b], 0u32);
+    x87!("fild dword ptr [{v}]", "fadd dword ptr [{v} + 4]", "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld t; fsub c; fmul k; fadd c; fstp`: c eased toward t by k.
+pub fn ease(t: u32, c: u32, k: u32) -> u32 {
+    let (v, mut out) = ([t, c, k], 0u32);
+    x87!("fld dword ptr [{v}]", "fsub dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]",
+        "fadd dword ptr [{v} + 4]", "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fild a; fadd b; fistp`.
+pub fn int_plus_to_int(a: i32, b: u32) -> i32 {
+    let (v, mut out) = ([a as u32, b], 0i32);
+    x87!("fild dword ptr [{v}]", "fadd dword ptr [{v} + 4]", "fistp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fldz; fisub a; fiadd b; fistp`.
+pub fn zero_less_int_plus_int(a: i32, b: i32) -> i32 {
+    let (v, mut out) = ([a, b], 0i32);
+    x87!("fldz", "fisub dword ptr [{v}]", "fiadd dword ptr [{v} + 4]", "fistp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld f; fisub a; fiadd b; fistp`.
+pub fn less_int_plus_int(f: u32, a: i32, b: i32) -> i32 {
+    let (v, mut out) = ([f, a as u32, b as u32], 0i32);
+    x87!("fld dword ptr [{v}]", "fisub dword ptr [{v} + 4]", "fiadd dword ptr [{v} + 8]",
+        "fistp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fldpi; fadd st, st; fsub a; fstp`: 2 pi less a.
+pub fn two_pi_less(a: u32) -> u32 {
+    let mut out = 0u32;
+    x87!("fldpi", ".byte 0xD8, 0xC0", "fsub dword ptr [{a}]", "fstp dword ptr [{o}]";
+        a = &a, o = &raw mut out);
+    out
+}
+
+/// `fild a; fmul m; fadd c; fmul k; fstp`.
+pub fn int_times_plus_times(a: i32, m: u32, c: u32, k: u32) -> u32 {
+    let (v, mut out) = ([a as u32, m, c, k], 0u32);
+    x87!("fild dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fadd dword ptr [{v} + 8]",
+        "fmul dword ptr [{v} + 12]", "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld a; fidiv n; fstp`.
+pub fn over_int(a: u32, n: i32) -> u32 {
+    let (v, mut out) = ([a, n as u32], 0u32);
+    x87!("fld dword ptr [{v}]", "fidiv dword ptr [{v} + 4]", "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld a; fldz; [fchs;] fmul b; fxch st(1); fmul c; faddp st(1), st; fmul k; fstp`:
+/// (±0 b + a c) k, the zero's product kept.
+pub fn zero_times_plus_times(a: u32, b: u32, c: u32, k: u32, negative: bool) -> u32 {
+    let (v, mut out) = ([a, b, c, k], 0u32);
+    if negative {
+        x87!("fld dword ptr [{v}]", "fldz", "fchs", "fmul dword ptr [{v} + 4]",
+            ".byte 0xD9, 0xC9", "fmul dword ptr [{v} + 8]", ".byte 0xDE, 0xC1",
+            "fmul dword ptr [{v} + 12]", "fstp dword ptr [{o}]";
+            v = v.as_ptr(), o = &raw mut out);
+    } else {
+        x87!("fld dword ptr [{v}]", "fldz", "fmul dword ptr [{v} + 4]",
+            ".byte 0xD9, 0xC9", "fmul dword ptr [{v} + 8]", ".byte 0xDE, 0xC1",
+            "fmul dword ptr [{v} + 12]", "fstp dword ptr [{o}]";
+            v = v.as_ptr(), o = &raw mut out);
+    }
+    out
+}
+
+/// `fld m; fild r; fprem; fadd v; fstp`: v plus the remainder of r by m.
+pub fn prem_plus(r: i32, m: u32, v: u32) -> u32 {
+    let (w, mut out) = ([m, r as u32, v], 0u32);
+    x87!("fld dword ptr [{w}]", "fild dword ptr [{w} + 4]", "fprem", "fadd dword ptr [{w} + 8]",
+        "fstp dword ptr [{o}]", "fstp st(0)";
+        w = w.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fild r; fmul qword k; fld v; fmul a; fmulp st(1), st; fadd v; fstp`: v grown by
+/// v a r k.
+pub fn grown(r: i32, k: u64, v: u32, a: u32) -> u32 {
+    let (w, mut out) = ([r as u32, v, a], 0u32);
+    x87!("fild dword ptr [{w}]", "fmul qword ptr [{k}]", "fld dword ptr [{w} + 4]",
+        "fmul dword ptr [{w} + 8]", ".byte 0xDE, 0xC9", "fadd dword ptr [{w} + 4]",
+        "fstp dword ptr [{o}]";
+        w = w.as_ptr(), k = &raw const k, o = &raw mut out);
+    out
+}
+
+/// `fld a; fsub b; fabs; fmul k1; fmul k2; fadd k3; fdivr one; fsubr one; fmul k4;
+/// fistp`: a rate by the difference of a and b.
+pub fn rate_to_int(a: u32, b: u32, k1: u32, k2: u32, k3: u32, one: u32, k4: u32) -> i32 {
+    let (v, mut out) = ([a, b, k1, k2, k3, one, k4], 0i32);
+    x87!("fld dword ptr [{v}]", "fsub dword ptr [{v} + 4]", "fabs",
+        "fmul dword ptr [{v} + 8]", "fmul dword ptr [{v} + 12]", "fadd dword ptr [{v} + 16]",
+        "fdivr dword ptr [{v} + 20]", "fsubr dword ptr [{v} + 20]", "fmul dword ptr [{v} + 24]",
+        "fistp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fild a; fmul m1; fild b; fmul m2; faddp st(1), st; fadd d`, kept as 80 bits.
+pub fn pair_sum_80(a: i32, m1: u32, b: i32, m2: u32, d: u32) -> [u8; 10] {
+    let (v, mut out) = ([a as u32, m1, b as u32, m2, d], [0u8; 10]);
+    x87!("fild dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fild dword ptr [{v} + 8]",
+        "fmul dword ptr [{v} + 12]", ".byte 0xDE, 0xC1", "fadd dword ptr [{v} + 16]",
+        "fstp tbyte ptr [{o}]";
+        v = v.as_ptr(), o = out.as_mut_ptr());
+    out
+}
+
+/// `fld tbyte e; fsub f; fstp`.
+pub fn ext_less(e: [u8; 10], f: u32) -> u32 {
+    let mut out = 0u32;
+    x87!("fld tbyte ptr [{e}]", "fsub dword ptr [{f}]", "fstp dword ptr [{o}]";
+        e = e.as_ptr(), f = &f, o = &raw mut out);
+    out
+}
+
+/// Three products of three, `fld; fmul; fmul` each, summed by `faddp st(1), st` in
+/// order: (p0 + p1) + p2.
+pub fn three_products(p: [[u32; 3]; 3]) -> u32 {
+    let mut out = 0u32;
+    x87!("fld dword ptr [{p}]", "fmul dword ptr [{p} + 4]", "fmul dword ptr [{p} + 8]",
+        "fld dword ptr [{p} + 12]", "fmul dword ptr [{p} + 16]", "fmul dword ptr [{p} + 20]",
+        ".byte 0xDE, 0xC1",
+        "fld dword ptr [{p} + 24]", "fmul dword ptr [{p} + 28]", "fmul dword ptr [{p} + 32]",
+        ".byte 0xDE, 0xC1", "fstp dword ptr [{o}]";
+        p = p.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld a; fmul b; fst` (the first), `fabs; fmul c; fistp` (the second).
+pub fn times_kept_abs_to_int(a: u32, b: u32, c: u32) -> (u32, i32) {
+    let (v, mut kept, mut out) = ([a, b, c], 0u32, 0i32);
+    x87!("fld dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fst dword ptr [{k}]", "fabs",
+        "fmul dword ptr [{v} + 8]", "fistp dword ptr [{o}]";
+        v = v.as_ptr(), k = &raw mut kept, o = &raw mut out);
+    (kept, out)
+}
+
+/// `fld a; fsub b; fmul k1; fld b; fmul k2; faddp st(1), st; fst` (the first), `fabs;
+/// fmul c; fistp` (the second).
+pub fn blend_kept_abs_to_int(a: u32, b: u32, k1: u32, k2: u32, c: u32) -> (u32, i32) {
+    let (v, mut kept, mut out) = ([a, b, k1, k2, c], 0u32, 0i32);
+    x87!("fld dword ptr [{v}]", "fsub dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]",
+        "fld dword ptr [{v} + 4]", "fmul dword ptr [{v} + 12]", ".byte 0xDE, 0xC1",
+        "fst dword ptr [{k}]", "fabs", "fmul dword ptr [{v} + 16]", "fistp dword ptr [{o}]";
+        v = v.as_ptr(), k = &raw mut kept, o = &raw mut out);
+    (kept, out)
+}
+
+/// `fld f; fmul s; fld s; fabs; [fmul m;] fsubp st(1), st; fmul k; fstp`: (f s - |s| [m]) k.
+pub fn times_less_abs_times(f: u32, s: u32, m: Option<u32>, k: u32) -> u32 {
+    let (v, mut out) = ([f, s, m.unwrap_or(0), k], 0u32);
+    if m.is_some() {
+        x87!("fld dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fld dword ptr [{v} + 4]",
+            "fabs", "fmul dword ptr [{v} + 8]", ".byte 0xDE, 0xE9", "fmul dword ptr [{v} + 12]",
+            "fstp dword ptr [{o}]";
+            v = v.as_ptr(), o = &raw mut out);
+    } else {
+        x87!("fld dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fld dword ptr [{v} + 4]",
+            "fabs", ".byte 0xDE, 0xE9", "fmul dword ptr [{v} + 12]", "fstp dword ptr [{o}]";
+            v = v.as_ptr(), o = &raw mut out);
+    }
+    out
+}
+
+/// `fld d; fsub m; fld f; fimul i; faddp st(1), st; fstp`: d less m plus f i.
+pub fn less_plus_int_times(d: u32, m: u32, f: u32, i: i32) -> u32 {
+    let (v, mut out) = ([d, m, f, i as u32], 0u32);
+    x87!("fld dword ptr [{v}]", "fsub dword ptr [{v} + 4]", "fld dword ptr [{v} + 8]",
+        "fimul dword ptr [{v} + 12]", ".byte 0xDE, 0xC1", "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld a; fmul b; fimul i; [fadd c;] fmul s`, kept as 80 bits.
+pub fn times_int_plus_times_80(a: u32, b: u32, i: i32, c: Option<u32>, s: u32) -> [u8; 10] {
+    let (v, mut out) = ([a, b, i as u32, c.unwrap_or(0), s], [0u8; 10]);
+    if c.is_some() {
+        x87!("fld dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fimul dword ptr [{v} + 8]",
+            "fadd dword ptr [{v} + 12]", "fmul dword ptr [{v} + 16]", "fstp tbyte ptr [{o}]";
+            v = v.as_ptr(), o = out.as_mut_ptr());
+    } else {
+        x87!("fld dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fimul dword ptr [{v} + 8]",
+            "fmul dword ptr [{v} + 16]", "fstp tbyte ptr [{o}]";
+            v = v.as_ptr(), o = out.as_mut_ptr());
+    }
+    out
+}
+
+/// `fild a; fmul m1; fild b; fmul m2; faddp st(1), st; fadd d; fsub e; fstp`.
+pub fn pair_sum_less(a: i32, m1: u32, b: i32, m2: u32, d: u32, e: u32) -> u32 {
+    let (v, mut out) = ([a as u32, m1, b as u32, m2, d, e], 0u32);
+    x87!("fild dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fild dword ptr [{v} + 8]",
+        "fmul dword ptr [{v} + 12]", ".byte 0xDE, 0xC1", "fadd dword ptr [{v} + 16]",
+        "fsub dword ptr [{v} + 20]", "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld a; fmul b; fmul c; faddp st(1), st` onto the float d, then `fstp`.
+pub fn product_plus(a: u32, b: u32, c: u32, d: u32) -> u32 {
+    let (v, mut out) = ([d, a, b, c], 0u32);
+    x87!("fld dword ptr [{v}]", "fld dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]",
+        "fmul dword ptr [{v} + 12]", ".byte 0xDE, 0xC1", "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld f; fimul i; fistp`.
+pub fn float_times_int_to_int(f: u32, i: i32) -> i32 {
+    let (v, mut out) = ([f, i as u32], 0i32);
+    x87!("fld dword ptr [{v}]", "fimul dword ptr [{v} + 4]", "fistp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld a; fmul k1; fmul k2; fadd k3; fdivr one; fsubr one; fmul k4; fistp`: a rate by a.
+pub fn speed_rate_to_int(a: u32, k1: u32, k2: u32, k3: u32, one: u32, k4: u32) -> i32 {
+    let (v, mut out) = ([a, k1, k2, k3, one, k4], 0i32);
+    x87!("fld dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]",
+        "fadd dword ptr [{v} + 12]", "fdivr dword ptr [{v} + 16]", "fsubr dword ptr [{v} + 16]",
+        "fmul dword ptr [{v} + 20]", "fistp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld a; fabs; fld b; fabs; faddp; fld a; fsub c; fabs; faddp; fadd d; fist` (the
+/// first), `fstp` (the second): |a| + |b| + |a - c| + d.
+pub fn abs_sum_to_int_kept(a: u32, b: u32, c: u32, d: u32) -> (i32, u32) {
+    let (v, mut n, mut kept) = ([a, b, c, d], 0i32, 0u32);
+    x87!("fld dword ptr [{v}]", "fabs", "fld dword ptr [{v} + 4]", "fabs", ".byte 0xDE, 0xC1",
+        "fld dword ptr [{v}]", "fsub dword ptr [{v} + 8]", "fabs", ".byte 0xDE, 0xC1",
+        "fadd dword ptr [{v} + 12]", "fist dword ptr [{n}]", "fstp dword ptr [{k}]";
+        v = v.as_ptr(), n = &raw mut n, k = &raw mut kept);
+    (n, kept)
+}
+
+/// `fld a; fabs; fmul k1; fld b; fsub c; fabs; faddp; fmul k2; fst` (the first), `fcomp
+/// k3; fstsw ax` (the second, the status word).
+pub fn abs_blend_compare(a: u32, k1: u32, b: u32, c: u32, k2: u32, k3: u32) -> (u32, u16) {
+    let (v, mut kept, mut status) = ([a, k1, b, c, k2, k3], 0u32, 0u16);
+    x87!("fld dword ptr [{v}]", "fabs", "fmul dword ptr [{v} + 4]", "fld dword ptr [{v} + 8]",
+        "fsub dword ptr [{v} + 12]", "fabs", ".byte 0xDE, 0xC1", "fmul dword ptr [{v} + 16]",
+        "fst dword ptr [{k}]", "fcomp dword ptr [{v} + 20]", "fnstsw word ptr [{s}]";
+        v = v.as_ptr(), k = &raw mut kept, s = &raw mut status);
+    (kept, status)
+}
+
+/// `fld v; fmul a; fadd b; fistp`.
+pub fn times_plus_to_int(v: u32, a: u32, b: u32) -> i32 {
+    let (x, mut out) = ([v, a, b], 0i32);
+    x87!("fld dword ptr [{x}]", "fmul dword ptr [{x} + 4]", "fadd dword ptr [{x} + 8]",
+        "fistp dword ptr [{o}]";
+        x = x.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld d; fld f; fimul i; faddp st(1), st`, kept as 80 bits.
+pub fn plus_int_times_80(d: u32, f: u32, i: i32) -> [u8; 10] {
+    let (v, mut out) = ([d, f, i as u32], [0u8; 10]);
+    x87!("fld dword ptr [{v}]", "fld dword ptr [{v} + 4]", "fimul dword ptr [{v} + 8]",
+        ".byte 0xDE, 0xC1", "fstp tbyte ptr [{o}]";
+        v = v.as_ptr(), o = out.as_mut_ptr());
+    out
+}
+
+/// `three_products` kept as 80 bits.
+pub fn three_products_80(p: [[u32; 3]; 3]) -> [u8; 10] {
+    let mut out = [0u8; 10];
+    x87!("fld dword ptr [{p}]", "fmul dword ptr [{p} + 4]", "fmul dword ptr [{p} + 8]",
+        "fld dword ptr [{p} + 12]", "fmul dword ptr [{p} + 16]", "fmul dword ptr [{p} + 20]",
+        ".byte 0xDE, 0xC1",
+        "fld dword ptr [{p} + 24]", "fmul dword ptr [{p} + 28]", "fmul dword ptr [{p} + 32]",
+        ".byte 0xDE, 0xC1", "fstp tbyte ptr [{o}]";
+        p = p.as_ptr(), o = out.as_mut_ptr());
+    out
+}
+
+/// `fld a; fmul k; fcom c; fstsw ax` (then dropped): the status word.
+pub fn times_compare(a: u32, k: u32, c: u32) -> u16 {
+    let (v, mut status) = ([a, k, c], 0u16);
+    x87!("fld dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fcom dword ptr [{v} + 8]",
+        "fnstsw word ptr [{s}]", "fstp st(0)";
+        v = v.as_ptr(), s = &raw mut status);
+    status
+}
+
+/// `fld a; fmul k; fimul n; fistp`.
+pub fn times_int_to_int(a: u32, k: u32, n: i32) -> i32 {
+    let (v, mut out) = ([a, k, n as u32], 0i32);
+    x87!("fld dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fimul dword ptr [{v} + 8]",
+        "fistp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fild a; fmul b; fadd c; fst` (the first), `fchs; fst` (the second).
+pub fn int_times_plus_and_negated(a: i32, b: u32, c: u32) -> (u32, u32) {
+    let (v, mut kept, mut negated) = ([a as u32, b, c], 0u32, 0u32);
+    x87!("fild dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fadd dword ptr [{v} + 8]",
+        "fst dword ptr [{k}]", "fchs", "fstp dword ptr [{n}]";
+        v = v.as_ptr(), k = &raw mut kept, n = &raw mut negated);
+    (kept, negated)
+}
+
+/// `fild a; fmul b; fsub c; fsub d; fstp`.
+pub fn int_times_less_less(a: i32, b: u32, c: u32, d: u32) -> u32 {
+    let (v, mut out) = ([a as u32, b, c, d], 0u32);
+    x87!("fild dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fsub dword ptr [{v} + 8]",
+        "fsub dword ptr [{v} + 12]", "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld a; fabs; fld b; fabs; faddp; fmul k; fistp`.
+pub fn abs_sum_times_to_int(a: u32, b: u32, k: u32) -> i32 {
+    let (v, mut out) = ([a, b, k], 0i32);
+    x87!("fld dword ptr [{v}]", "fabs", "fld dword ptr [{v} + 4]", "fabs", ".byte 0xDE, 0xC1",
+        "fmul dword ptr [{v} + 8]", "fistp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `sub_4CE05E`'s point: (-t0 k, (t1 - d) k, t2 k) turned by the matrix at `m` (its rows
+/// 0x10 apart), placed by +0x30 .. and the place taken off again, all on the x87 stack as
+/// the original does (`fxch`, register forms as bytes); then x, y, y less `lift`, z.
+pub unsafe fn turned_place_less(t: [u32; 3], k: u32, d: u32, lift: u32, m: u32) -> [u32; 4] {
+    let (v, mut out) = ([t[0], t[1], t[2], k, d, lift], [0u32; 4]);
+    x87!(
+        "fld dword ptr [{v}]", "fchs", "fmul dword ptr [{v} + 12]",
+        "fld dword ptr [{v} + 4]", "fsub dword ptr [{v} + 16]", "fmul dword ptr [{v} + 12]",
+        "fld dword ptr [{v} + 8]", "fmul dword ptr [{v} + 12]",
+        "fld dword ptr [{m}]", ".byte 0xD8, 0xC9",
+        "fld dword ptr [{m} + 0x10]", ".byte 0xD8, 0xCB",
+        "fld dword ptr [{m} + 0x20]", ".byte 0xD8, 0xCD",
+        ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1", "fadd dword ptr [{m} + 0x30]",
+        ".byte 0xD9, 0xCB",
+        "fld dword ptr [{m} + 4]", ".byte 0xD8, 0xCA",
+        "fld dword ptr [{m} + 0x14]", ".byte 0xD8, 0xCC",
+        "fld dword ptr [{m} + 0x24]", ".byte 0xD8, 0xCB",
+        ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1", "fadd dword ptr [{m} + 0x34]",
+        ".byte 0xD9, 0xCB",
+        "fld dword ptr [{m} + 8]", ".byte 0xDE, 0xCB",
+        "fld dword ptr [{m} + 0x18]", ".byte 0xDE, 0xC9",
+        "fld dword ptr [{m} + 0x28]", ".byte 0xDE, 0xCA",
+        ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1", "fadd dword ptr [{m} + 0x38]",
+        ".byte 0xD9, 0xCA",
+        "fsub dword ptr [{m} + 0x30]", "fstp dword ptr [{o}]",
+        "fsub dword ptr [{m} + 0x34]", "fst dword ptr [{o} + 4]",
+        "fsub dword ptr [{v} + 20]", "fstp dword ptr [{o} + 8]",
+        "fsub dword ptr [{m} + 0x38]", "fstp dword ptr [{o} + 12]";
+        v = v.as_ptr(), m = m, o = out.as_mut_ptr()
+    );
+    out
+}
+
+/// `fild r; fmul k` kept, then for each of three: `fld p; fmul st, st(1); fimul ticks;
+/// fadd at; fstp` (the last `fmulp`).
+pub fn drifted(r: i32, k: u32, p: [u32; 3], ticks: i32, at: [u32; 3]) -> [u32; 3] {
+    let v = [
+        r as u32,
+        k,
+        p[0],
+        p[1],
+        p[2],
+        ticks as u32,
+        at[0],
+        at[1],
+        at[2],
+    ];
+    let mut out = [0u32; 3];
+    x87!(
+        "fild dword ptr [{v}]", "fmul dword ptr [{v} + 4]",
+        "fld dword ptr [{v} + 8]", ".byte 0xD8, 0xC9", "fimul dword ptr [{v} + 20]",
+        "fadd dword ptr [{v} + 24]", "fstp dword ptr [{o}]",
+        "fld dword ptr [{v} + 12]", ".byte 0xD8, 0xC9", "fimul dword ptr [{v} + 20]",
+        "fadd dword ptr [{v} + 28]", "fstp dword ptr [{o} + 4]",
+        "fld dword ptr [{v} + 16]", ".byte 0xDE, 0xC9", "fimul dword ptr [{v} + 20]",
+        "fadd dword ptr [{v} + 32]", "fstp dword ptr [{o} + 8]";
+        v = v.as_ptr(), o = out.as_mut_ptr()
+    );
+    out
+}
+
+/// `fld a; fmul k; fadd one; fdivr one; fsubr one; fstp`: 1 - 1 / (a k + 1).
+pub fn one_less_inverse(a: u32, k: u32, one: u32) -> u32 {
+    let (v, mut out) = ([a, k, one], 0u32);
+    x87!("fld dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fadd dword ptr [{v} + 8]",
+        "fdivr dword ptr [{v} + 8]", "fsubr dword ptr [{v} + 8]", "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld a; fmul k; fidiv n; fstp`.
+pub fn times_over_int(a: u32, k: u32, n: i32) -> u32 {
+    let (v, mut out) = ([a, k, n as u32], 0u32);
+    x87!("fld dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fidiv dword ptr [{v} + 8]",
+        "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld a; fmul b`, kept as 80 bits.
+pub fn mul_80(a: u32, b: u32) -> [u8; 10] {
+    let (v, mut out) = ([a, b], [0u8; 10]);
+    x87!("fld dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fstp tbyte ptr [{o}]";
+        v = v.as_ptr(), o = out.as_mut_ptr());
+    out
+}
+
+/// The point (st(0) p0, st(1) p1, st(2) p2) turned and placed by the matrix at `m` on the
+/// x87 stack as `sub_4CE283` does (`fxch`, register forms as bytes); then x, y, y less
+/// `lift`, z.
+pub unsafe fn turned_place(p: [u32; 3], lift: u32, m: u32) -> [u32; 4] {
+    let (v, mut out) = ([p[0], p[1], p[2], lift], [0u32; 4]);
+    x87!(
+        "fld dword ptr [{v} + 8]", "fld dword ptr [{v} + 4]", "fld dword ptr [{v}]",
+        "fld dword ptr [{m}]", ".byte 0xD8, 0xC9",
+        "fld dword ptr [{m} + 0x10]", ".byte 0xD8, 0xCB",
+        "fld dword ptr [{m} + 0x20]", ".byte 0xD8, 0xCD",
+        ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1", "fadd dword ptr [{m} + 0x30]",
+        ".byte 0xD9, 0xCB",
+        "fld dword ptr [{m} + 4]", ".byte 0xD8, 0xCA",
+        "fld dword ptr [{m} + 0x14]", ".byte 0xD8, 0xCC",
+        "fld dword ptr [{m} + 0x24]", ".byte 0xD8, 0xCB",
+        ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1", "fadd dword ptr [{m} + 0x34]",
+        ".byte 0xD9, 0xCB",
+        "fld dword ptr [{m} + 8]", ".byte 0xDE, 0xCB",
+        "fld dword ptr [{m} + 0x18]", ".byte 0xDE, 0xC9",
+        "fld dword ptr [{m} + 0x28]", ".byte 0xDE, 0xCA",
+        ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1", "fadd dword ptr [{m} + 0x38]",
+        ".byte 0xD9, 0xCA",
+        "fstp dword ptr [{o}]", "fst dword ptr [{o} + 4]",
+        "fsub dword ptr [{v} + 12]", "fstp dword ptr [{o} + 8]",
+        "fstp dword ptr [{o} + 12]";
+        v = v.as_ptr(), m = m, o = out.as_mut_ptr()
+    );
+    out
+}
+
+/// `fild a; fimul b; fistp`.
+pub fn int_times_int_to_int(a: i32, b: i32) -> i32 {
+    let (v, mut out) = ([a as u32, b as u32], 0i32);
+    x87!("fild dword ptr [{v}]", "fimul dword ptr [{v} + 4]", "fistp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld a; fadd b; fadd c; fadd d; fmul k; fstp`.
+pub fn sum4_times(a: u32, b: u32, c: u32, d: u32, k: u32) -> u32 {
+    let (v, mut out) = ([a, b, c, d, k], 0u32);
+    x87!("fld dword ptr [{v}]", "fadd dword ptr [{v} + 4]", "fadd dword ptr [{v} + 8]",
+        "fadd dword ptr [{v} + 12]", "fmul dword ptr [{v} + 16]", "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// The length of (a, b, c) (`fmul st, st` each, `faddp` twice, `fsqrt`) `fist` (the
+/// first); then `fmul k1; fadd k2; fdivr one; fsubr one; fmul k3; fistp` (the second).
+pub fn length_and_rate(p: [u32; 3], k1: u32, k2: u32, one: u32, k3: u32) -> (i32, i32) {
+    let (v, mut length, mut rate) = ([p[0], p[1], p[2], k1, k2, one, k3], 0i32, 0i32);
+    x87!(
+        "fld dword ptr [{v}]", ".byte 0xD8, 0xC8", "fld dword ptr [{v} + 4]", ".byte 0xD8, 0xC8",
+        "fld dword ptr [{v} + 8]", ".byte 0xD8, 0xC8", ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1",
+        "fsqrt", "fist dword ptr [{l}]", "fmul dword ptr [{v} + 12]", "fadd dword ptr [{v} + 16]",
+        "fdivr dword ptr [{v} + 20]", "fsubr dword ptr [{v} + 20]", "fmul dword ptr [{v} + 24]",
+        "fistp dword ptr [{r}]";
+        v = v.as_ptr(), l = &raw mut length, r = &raw mut rate
+    );
+    (length, rate)
+}
+
+/// (a, b, c) by one over its length, the factor kept unrounded (`fld st; fmul; fstp`
+/// twice, the last `fmul; fstp`).
+pub fn normalised3(p: [u32; 3], one: u32) -> [u32; 3] {
+    let (v, mut out) = ([p[0], p[1], p[2], one], [0u32; 3]);
+    x87!(
+        "fld dword ptr [{v}]", ".byte 0xD8, 0xC8", "fld dword ptr [{v} + 4]", ".byte 0xD8, 0xC8",
+        "fld dword ptr [{v} + 8]", ".byte 0xD8, 0xC8", ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1",
+        "fsqrt", "fdivr dword ptr [{v} + 12]",
+        ".byte 0xD9, 0xC0", "fmul dword ptr [{v}]", "fstp dword ptr [{o}]",
+        ".byte 0xD9, 0xC0", "fmul dword ptr [{v} + 4]", "fstp dword ptr [{o} + 4]",
+        "fmul dword ptr [{v} + 8]", "fstp dword ptr [{o} + 8]";
+        v = v.as_ptr(), o = out.as_mut_ptr()
+    );
+    out
+}
+
+/// `sub_4C9AF6`'s third side: the cross product of (p0, p1, p2) and the vector at `w`
+/// (unrounded) turned by the transposed matrix at `m` (rows 0x10 apart), as the original
+/// does it on the x87 stack (`fxch`, register forms as bytes).
+pub unsafe fn crossed_turned(p: [u32; 3], w: u32, m: u32) -> [u32; 3] {
+    let mut out = [0u32; 3];
+    x87!(
+        "fld dword ptr [{p}]", "fmul dword ptr [{w} + 4]",
+        "fld dword ptr [{p} + 4]", "fmul dword ptr [{w}]", ".byte 0xDE, 0xE9",
+        "fld dword ptr [{p} + 8]", "fmul dword ptr [{w}]",
+        "fld dword ptr [{p}]", "fmul dword ptr [{w} + 8]", ".byte 0xDE, 0xE9",
+        "fld dword ptr [{p} + 4]", "fmul dword ptr [{w} + 8]",
+        "fld dword ptr [{p} + 8]", "fmul dword ptr [{w} + 4]", ".byte 0xDE, 0xE9",
+        "fld dword ptr [{m}]", ".byte 0xD8, 0xC9",
+        "fld dword ptr [{m} + 0x10]", ".byte 0xD8, 0xCB",
+        "fld dword ptr [{m} + 0x20]", ".byte 0xD8, 0xCD",
+        ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1",
+        ".byte 0xD9, 0xCB",
+        "fld dword ptr [{m} + 4]", ".byte 0xD8, 0xCA",
+        "fld dword ptr [{m} + 0x14]", ".byte 0xD8, 0xCC",
+        "fld dword ptr [{m} + 0x24]", ".byte 0xD8, 0xCB",
+        ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1",
+        ".byte 0xD9, 0xCB",
+        "fld dword ptr [{m} + 8]", ".byte 0xDE, 0xCB",
+        "fld dword ptr [{m} + 0x18]", ".byte 0xDE, 0xC9",
+        "fld dword ptr [{m} + 0x28]", ".byte 0xDE, 0xCA",
+        ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1",
+        ".byte 0xD9, 0xCA",
+        "fstp dword ptr [{o}]", "fstp dword ptr [{o} + 4]", "fstp dword ptr [{o} + 8]";
+        p = p.as_ptr(), w = w, m = m, o = out.as_mut_ptr()
+    );
+    out
+}
+
+/// The vector at `p` made of length 1 as `sub_4C1294` does it: the length (`fmul st, st`
+/// each, `faddp` twice, `fsqrt`) `fst` (the second), `fld1; fdivrp`, each by it, stored z
+/// first, the factor dropped (`ffree st; fincstp`).
+pub fn unit_and_length(p: [u32; 3]) -> ([u32; 3], u32) {
+    let (mut out, mut length) = ([0u32; 3], 0u32);
+    x87!(
+        "fld dword ptr [{p}]", ".byte 0xD8, 0xC8", "fld dword ptr [{p} + 4]", ".byte 0xD8, 0xC8",
+        "fld dword ptr [{p} + 8]", ".byte 0xD8, 0xC8", ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1",
+        "fsqrt", "fst dword ptr [{l}]", "fld1", ".byte 0xDE, 0xF1",
+        "fld dword ptr [{p}]", ".byte 0xD8, 0xC9", "fld dword ptr [{p} + 4]", ".byte 0xD8, 0xCA",
+        "fld dword ptr [{p} + 8]", ".byte 0xD8, 0xCB",
+        "fstp dword ptr [{o} + 8]", "fstp dword ptr [{o} + 4]", "fstp dword ptr [{o}]",
+        ".byte 0xDD, 0xC0", ".byte 0xD9, 0xF7";
+        p = p.as_ptr(), l = &raw mut length, o = out.as_mut_ptr()
+    );
+    (out, length)
+}
+
+/// `fld a; fchs; fsub b; fadd c; fadd d; fstp`.
+pub fn negated_less_plus_plus(a: u32, b: u32, c: u32, d: u32) -> u32 {
+    let (v, mut out) = ([a, b, c, d], 0u32);
+    x87!("fld dword ptr [{v}]", "fchs", "fsub dword ptr [{v} + 4]", "fadd dword ptr [{v} + 8]",
+        "fadd dword ptr [{v} + 12]", "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld t; fsin; fld t; fcos; fstp` (the cosine), `fstp` (the sine).
+pub fn sine_and_cosine(t: u32) -> (u32, u32) {
+    let (mut s, mut c) = (0u32, 0u32);
+    x87!("fld dword ptr [{t}]", "fsin", "fld dword ptr [{t}]", "fcos",
+        "fstp dword ptr [{c}]", "fstp dword ptr [{s}]";
+        t = &raw const t, c = &raw mut c, s = &raw mut s);
+    (s, c)
+}
+
+/// `sub_4C1194`'s turn of (y, z) by the stored sine and cosine: z c - y s and z s + y c
+/// (`fsubp`, `faddp` on the stack), returned as (new y, new z).
+pub fn turn_yz(y: u32, z: u32, s: u32, c: u32) -> (u32, u32) {
+    let (v, mut out) = ([y, z, s, c], [0u32; 2]);
+    x87!(
+        "fld dword ptr [{v} + 4]", "fmul dword ptr [{v} + 12]",
+        "fld dword ptr [{v}]", "fmul dword ptr [{v} + 8]", ".byte 0xDE, 0xE9",
+        "fld dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]",
+        "fld dword ptr [{v}]", "fmul dword ptr [{v} + 12]", ".byte 0xDE, 0xC1",
+        "fstp dword ptr [{o}]", "fstp dword ptr [{o} + 4]";
+        v = v.as_ptr(), o = out.as_mut_ptr()
+    );
+    (out[0], out[1])
+}
+
+/// `fild a; fmul k; fiadd b; fistp`.
+pub fn int_times_plus_int_to_int(a: i32, k: u32, b: i32) -> i32 {
+    let (v, mut out) = ([a as u32, k, b as u32], 0i32);
+    x87!("fild dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fiadd dword ptr [{v} + 8]",
+        "fistp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fild a; fmul ka; fild b; fmul kb; fild c; fmul kc; faddp; faddp`, kept as 80 bits:
+/// a ka + (b kb + c kc).
+pub fn blend3_80(a: i32, b: i32, c: i32, k: [u32; 3]) -> [u8; 10] {
+    let (v, mut out) = ([a as u32, k[0], b as u32, k[1], c as u32, k[2]], [0u8; 10]);
+    x87!("fild dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fild dword ptr [{v} + 8]",
+        "fmul dword ptr [{v} + 12]", "fild dword ptr [{v} + 16]", "fmul dword ptr [{v} + 20]",
+        ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1", "fstp tbyte ptr [{o}]";
+        v = v.as_ptr(), o = out.as_mut_ptr());
+    out
+}
+
+/// `fld a; fild v; fdiv kd; fmul km; faddp; fst` (the first), `fsin; fmul ks; fstp` (the
+/// second).
+pub fn angle_and_wave(a: u32, v: i32, kd: u32, km: u32, ks: u32) -> (u32, u32) {
+    let (x, mut angle, mut wave) = ([a, v as u32, kd, km, ks], 0u32, 0u32);
+    x87!("fld dword ptr [{x}]", "fild dword ptr [{x} + 4]", "fdiv dword ptr [{x} + 8]",
+        "fmul dword ptr [{x} + 12]", ".byte 0xDE, 0xC1", "fst dword ptr [{a}]", "fsin",
+        "fmul dword ptr [{x} + 16]", "fstp dword ptr [{w}]";
+        x = x.as_ptr(), a = &raw mut angle, w = &raw mut wave);
+    (angle, wave)
+}
+
+/// `fild a; fisub b; fmul f; fiadd b; fistp`: b + (a - b) f, rounded.
+pub fn int_lerp_to_int(a: i32, b: i32, f: u32) -> i32 {
+    let (v, mut out) = ([a as u32, b as u32, f], 0i32);
+    x87!("fild dword ptr [{v}]", "fisub dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]",
+        "fiadd dword ptr [{v} + 4]", "fistp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fild a; fidiv b; fmul k; fstp`.
+pub fn int_over_int_times(a: i32, b: i32, k: u32) -> u32 {
+    let (v, mut out) = ([a as u32, b as u32, k], 0u32);
+    x87!("fild dword ptr [{v}]", "fidiv dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]",
+        "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}

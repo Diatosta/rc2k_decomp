@@ -30,7 +30,7 @@ hook_asm!(
     original = ORIGINAL
 );
 
-fn regions() -> Vec<Region> {
+pub fn regions() -> Vec<Region> {
     let mut r = turn_regions();
     r.extend(unsafe { target_regions() });
     r.extend(crate::marks::turns::step_regions());

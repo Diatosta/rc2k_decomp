@@ -6,6 +6,7 @@ pub mod add_car_light;
 pub mod add_car_lights;
 pub mod add_object_shape;
 pub mod add_point_lights;
+pub mod adjugate_matrix;
 pub mod allocate_object_memory;
 pub mod allocate_point_records;
 pub mod angle_between;
@@ -31,6 +32,10 @@ pub mod clip_test;
 pub mod copy_matrix_with_place;
 pub mod count_texture_needs;
 pub mod cross_product;
+pub mod depth_buffer_off;
+pub mod depth_buffer_on;
+pub mod depth_test_off;
+pub mod depth_test_on;
 pub mod dot_product3;
 pub mod draw_car_object;
 pub mod draw_carousel;
@@ -103,6 +108,7 @@ pub mod reset_objects;
 pub mod reset_texture_places;
 pub mod reset_texture_tables;
 pub mod restart_clock;
+pub mod rotate_point;
 pub mod scale_texture_coordinates;
 pub mod set_filters;
 pub mod set_fine_turn_x;
@@ -147,7 +153,13 @@ pub mod vertex_light;
 pub mod view_matrix;
 
 pub static HOOKS: &[&dyn GameHook] = &[
+    &adjugate_matrix::HOOK,
+    &depth_buffer_off::HOOK,
+    &depth_buffer_on::HOOK,
+    &depth_test_off::HOOK,
+    &depth_test_on::HOOK,
     &draw_polygon::HOOK,
+    &rotate_point::HOOK,
     &submit_polygon::HOOK,
     &draw_marked_polygon::HOOK,
     &project_point::HOOK,

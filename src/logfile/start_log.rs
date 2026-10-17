@@ -204,6 +204,11 @@ fn self_test() -> (usize, usize) {
     if unsafe { game_read::<u32>(LOG_LEVEL_RVA) } == 0 {
         return t.skip("the game's log is off");
     }
+    // Inside a race the game turns `g_logEnabled` off round its steps: then neither
+    // version writes the head (both runs add nothing), which says nothing about either.
+    if unsafe { game_read::<i32>(rva(0x4E0094)) } <= 0 {
+        return t.skip("the game's log is held off (g_logEnabled)");
+    }
     let copy = unsafe {
         RedirectedCopy::new(
             game_addr(rva(0x401135)),

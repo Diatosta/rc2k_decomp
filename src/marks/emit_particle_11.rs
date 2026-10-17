@@ -1,0 +1,64 @@
+//! `marks::emit_particle_11` (0x4CC35A, a chunk of `marks::emit_wheel_particles` entered
+//! by `jz` from it and from 0x4CA215, left by `popa; retn`): one ring entry of kind 0xB;
+//! `marks::emit_particle_5`'s code on its own variables (`dword_93A262`, `flt_93A266` ..
+//! `flt_93A286`), a life of 2000, and made only when the wheel's |+0x18| rounded to an
+//! integer (`fist`, the x87's rounding) is over 1 (kind 5: when it is not 0).
+//!
+//! In:  edi the wheel record, esi the car object
+//! Out: every register kept
+//!
+//! Refuses as `emit_particle_5`. Self-test: as `emit_particle_5`'s.
+
+use crate::errors::Refused;
+use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::marks::emit_particle_5::{JitterSet, emit_particle_5_with, regions, test_with};
+use crate::screens::harness::Left;
+use crate::service::harness::dispatch_state;
+use std::sync::atomic::AtomicUsize;
+
+static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
+
+pub static HOOK: RawHook =
+    RawHook::new("marks::emit_particle_11", rva(0x4CC35A), thunk, &ORIGINAL).self_test(self_test);
+
+hook_asm!(
+    thunk,
+    call_original,
+    dispatch = dispatch,
+    original = ORIGINAL
+);
+
+/// Kind 0xB's variables.
+pub const ELEVENTH: JitterSet = JitterSet {
+    kind: 0xB,
+    over_one: true,
+    place_random: rva(0x93A262),
+    motion_k: [rva(0x93A266), rva(0x93A26A), rva(0x93A272)],
+    lift: rva(0x93A26E),
+    spread: rva(0x93A276),
+    roll_k: [rva(0x93A27A), rva(0x93A27E), rva(0x93A282)],
+    spin: rva(0x93A286),
+    life: 0x7D0,
+};
+
+/// The Rust version (see the header).
+pub unsafe fn emit_particle_11(wheel: u32, object: u32) -> Result<(), Refused> {
+    unsafe { emit_particle_5_with(&ELEVENTH, wheel, object) }
+}
+
+fn rust(r: &Regs) -> Result<Left, Refused> {
+    unsafe { emit_particle_11(r.edi, r.esi) }?;
+    Ok(Left::nothing())
+}
+
+extern "C" fn dispatch(r: &mut Regs) {
+    dispatch_state(&HOOK, r, call_original, &regions(&ELEVENTH), &rust);
+}
+
+fn self_test() -> (usize, usize) {
+    let Some(mut t) = SelfTest::begin(&HOOK) else {
+        return (0, 0);
+    };
+    test_with(&mut t, &ELEVENTH, call_original, &rust);
+    t.finish()
+}

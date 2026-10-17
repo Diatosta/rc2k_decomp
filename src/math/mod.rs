@@ -11,6 +11,8 @@ pub mod stir_random;
 pub mod turn_point_xz;
 pub mod turn_scratch_xz;
 pub mod x87;
+pub mod x87_load;
+pub mod x87_run;
 
 pub static HOOKS: &[&dyn GameHook] = &[
     &celsius_to_fahrenheit::HOOK,
