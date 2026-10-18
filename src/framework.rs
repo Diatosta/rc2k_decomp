@@ -324,6 +324,7 @@ impl HookStats {
 static TEST_THREAD: AtomicU32 = AtomicU32::new(0);
 /// Threads that are inside a hook right now.
 static THREADS_IN_HOOKS: AtomicUsize = AtomicUsize::new(0);
+static PAUSE_TIMEOUTS: AtomicUsize = AtomicUsize::new(0);
 
 thread_local! {
     /// How many hooks this thread is inside: hooked functions call hooked functions.
@@ -374,9 +375,16 @@ pub fn pause_game() -> GamePaused {
     TEST_THREAD.store(unsafe { GetCurrentThreadId() }, Ordering::SeqCst);
     for _ in 0..2000 {
         if THREADS_IN_HOOKS.load(Ordering::SeqCst) == 0 {
-            break;
+            return GamePaused(());
         }
         unsafe { Sleep(1) };
+    }
+    // A thread stayed inside a gated hook (one that runs for long wants `ungated`): the
+    // tests run with it going on (2026-10-18: the race's hooks, slow tests and a crash).
+    if PAUSE_TIMEOUTS.fetch_add(1, Ordering::SeqCst) < 5 {
+        log(
+            "PAUSE TIMEOUT: a game thread stayed inside a gated hook for 2 s; the test runs unpaused",
+        );
     }
     GamePaused(())
 }

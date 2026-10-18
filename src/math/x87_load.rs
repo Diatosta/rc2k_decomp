@@ -31,3 +31,46 @@ pub fn sine_times_plus(a: u32, k: u32, one: u32) -> u32 {
     );
     out
 }
+
+/// `fild a; fdiv b; fdiv c; fadd st, st; fstp`: twice a whole number over two floats.
+pub fn int_over_two_doubled(a: i32, b: u32, c: u32) -> u32 {
+    let (v, mut out) = ([a as u32, b, c], 0u32);
+    x87!(
+        "fild dword ptr [{v}]",
+        "fdiv dword ptr [{v} + 4]",
+        "fdiv dword ptr [{v} + 8]",
+        "fadd st, st",
+        "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out
+    );
+    out
+}
+
+/// `fild a; fmul b; fmul c; fstp`: a whole number times two floats.
+pub fn int_times_two(a: i32, b: u32, c: u32) -> u32 {
+    let (v, mut out) = ([a as u32, b, c], 0u32);
+    x87!(
+        "fild dword ptr [{v}]",
+        "fmul dword ptr [{v} + 4]",
+        "fmul dword ptr [{v} + 8]",
+        "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out
+    );
+    out
+}
+
+/// `fild a; fldpi; fmulp st(1), st; fmul b; fdiv c; fstp`: a whole number times pi times
+/// b over c.
+pub fn int_pi_times_over(a: i32, b: u32, c: u32) -> u32 {
+    let (v, mut out) = ([a as u32, b, c], 0u32);
+    x87!(
+        "fild dword ptr [{v}]",
+        "fldpi",
+        "fmulp st(1), st",
+        "fmul dword ptr [{v} + 4]",
+        "fdiv dword ptr [{v} + 8]",
+        "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out
+    );
+    out
+}

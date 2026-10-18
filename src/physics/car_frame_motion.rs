@@ -23,8 +23,7 @@ use std::sync::atomic::AtomicUsize;
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
 pub static HOOK: RawHook =
-    RawHook::new("physics::car_frame_motion", rva(0x43DB71), thunk, &ORIGINAL)
-        .self_test(self_test);
+    RawHook::new("physics::car_frame_motion", rva(0x43DB71), thunk, &ORIGINAL).self_test(self_test);
 
 hook_asm!(
     thunk,
@@ -79,16 +78,9 @@ extern "C" fn dispatch(r: &mut Regs) {
     );
 }
 
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // The matrix (16), the motion (3), the result (3).
-    let mut cells = vec![0u32; 22];
-    let m = cells.as_mut_ptr() as u32;
-    let from = m + 0x40;
-    let to = from + 12;
-    let copy = match crate::audio::test_copy::make(
+/// A copy of the original whose motion, result and matrix are at `from`, `to`, `m`.
+pub fn test_copy(from: u32, to: u32, m: u32) -> Result<crate::redirect::RedirectedCopy, String> {
+    crate::audio::test_copy::make(
         &HOOK,
         &crate::audio::test_copy::Copy {
             address: 0x43DB71,
@@ -108,7 +100,19 @@ fn self_test() -> (usize, usize) {
             (0x71A9A4, m),
         ],
         7,
-    ) {
+    )
+}
+
+fn self_test() -> (usize, usize) {
+    let Some(mut t) = SelfTest::begin(&HOOK) else {
+        return (0, 0);
+    };
+    // The matrix (16), the motion (3), the result (3).
+    let mut cells = vec![0u32; 22];
+    let m = cells.as_mut_ptr() as u32;
+    let from = m + 0x40;
+    let to = from + 12;
+    let copy = match test_copy(from, to, m) {
         Ok(c) => c,
         Err(why) => return t.skip(&why),
     };

@@ -29,7 +29,7 @@
 //! not).
 //! Shadow mode runs the original alone (`drive::start_car_on_line` does, for
 //! `race::reset_car_motion`'s calls into the game).
-//! Self-test: a copy whose 25 calls go to stand-ins (`install::stand_ins`), against the
+//! Self-test: a copy whose 24 calls go to stand-ins (`install::stand_ins`), against the
 //! Rust version with the same stand-ins: every call with its registers, the registers
 //! left and the cars' and starts' memory compared; all put back.
 
@@ -419,17 +419,20 @@ fn self_test() -> (usize, usize) {
     let Some(mut t) = SelfTest::begin(&HOOK) else {
         return (0, 0);
     };
-    const CALL_OFFSETS: [usize; 25] = [
+    const CALL_OFFSETS: [usize; 24] = [
         0x5A, 0x6F, 0x74, 0x9C, 0xB1, 0xB6, 0x168, 0x179, 0x17E, 0x183, 0x1C5, 0x1DE, 0x1E3, 0x24B,
-        0x258, 0x25D, 0x262, 0x2A7, 0x2BE, 0x2C3, 0x326, 0x32D, 0x352, 0x359, 0x359,
+        0x258, 0x25D, 0x262, 0x2A7, 0x2BE, 0x2C3, 0x326, 0x32D, 0x352, 0x359,
     ];
     crate::install::stand_ins::set_handler(note);
     let copy = match unsafe {
         crate::redirect::RedirectedCopy::new(
             game_addr(rva(0x43703E)),
-            0x366,
+            // Through its second chunk (0x4373DC .. 0x4375A5, past `note_gap_ahead` /
+            // `behind`): 0x366, IDA's first chunk, left its jumps there going off the copy
+            // (the selftest crash of 2026-10-18).
+            0x567,
             &[0x83, 0x3D, 0x58, 0xFA, 0x70, 0x00, 0x00],
-            &CALL_OFFSETS[..24],
+            &CALL_OFFSETS,
             &|c| {
                 PLACES
                     .iter()

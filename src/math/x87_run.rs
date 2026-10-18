@@ -512,3 +512,164 @@ pub fn neg_product2_plus(a: u32, b: u32, c: u32, d: u32) -> u32 {
         v = v.as_ptr(), o = &raw mut out);
     out
 }
+
+/// `physics::clamped_asin`'s body (0x42120B) on the 80-bit `x`, its scratch float at `s`
+/// and its limit at `l` (negated and put back on the way, as the original does): the
+/// angle whose sine is `x`, by `fpatan` of `x` over the root of 1 less the square of `x`
+/// stored as a float and held to -limit ..= limit.
+pub unsafe fn clamped_asin_80(x: [u8; 10], s: *mut u32, l: *mut u32) -> [u8; 10] {
+    let mut out = [0u8; 10];
+    let io = [x.as_ptr() as u32, out.as_mut_ptr() as u32];
+    unsafe {
+        core::arch::asm!(
+            "mov eax, [{io}]",
+            "fld tbyte ptr [eax]",
+            "fst dword ptr [{s}]",
+            "fld dword ptr [{l}]",
+            "fld dword ptr [{s}]",
+            "fcompp",
+            "fnstsw ax",
+            "shr ah, 1",
+            "jb 2f",
+            "fld dword ptr [{l}]",
+            "fstp dword ptr [{s}]",
+            "2:",
+            "fld dword ptr [{l}]",
+            "fchs",
+            "fstp dword ptr [{l}]",
+            "fld dword ptr [{l}]",
+            "fld dword ptr [{s}]",
+            "fcompp",
+            "fnstsw ax",
+            "shr ah, 1",
+            "jnb 3f",
+            "fld dword ptr [{l}]",
+            "fstp dword ptr [{s}]",
+            "3:",
+            "fld dword ptr [{l}]",
+            "fchs",
+            "fstp dword ptr [{l}]",
+            "fld dword ptr [{s}]",
+            ".byte 0xD8, 0xC8", // fmul st, st
+            "fld1",
+            ".byte 0xDE, 0xE1", // fsubrp st(1), st: 1 less the square
+            "fsqrt",
+            "fpatan",
+            "mov eax, [{io} + 4]",
+            "fstp tbyte ptr [eax]",
+            io = in(reg) io.as_ptr(),
+            s = in(reg) s,
+            l = in(reg) l,
+            out("eax") _,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+        );
+    }
+    out
+}
+
+/// `fld y; fld x; fpatan; fstp`: the angle of (x, y), as a float.
+pub fn patan(y: u32, x: u32) -> u32 {
+    let (v, mut out) = ([y, x], 0u32);
+    x87!("fld dword ptr [{v}]", "fld dword ptr [{v} + 4]", "fpatan", "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld a; fld b; fcos; fdivp st(1), st`: a over the cosine of b, unrounded.
+pub fn over_cos_80(a: u32, b: u32) -> [u8; 10] {
+    let (v, mut out) = ([a, b], [0u8; 10]);
+    x87!("fld dword ptr [{v}]", "fld dword ptr [{v} + 4]", "fcos", ".byte 0xDE, 0xF9",
+        "fstp tbyte ptr [{o}]";
+        v = v.as_ptr(), o = out.as_mut_ptr());
+    out
+}
+
+/// `fld a; fmul b; fmul c; fmul d; fistp`.
+pub fn mul3_to_int(a: u32, b: u32, c: u32, d: u32) -> i32 {
+    let (v, mut out) = ([a, b, c, d], 0i32);
+    x87!("fld dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]",
+        "fmul dword ptr [{v} + 12]", "fistp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld tbyte x; fchs; fstp dword`.
+pub fn neg_rounded(x: [u8; 10]) -> u32 {
+    let mut out = 0u32;
+    x87!("fld tbyte ptr [{x}]", "fchs", "fstp dword ptr [{o}]"; x = x.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `physics::lever_pushes`' share (0x43DE23 .. 0x43DEAC): A = |a| + |d|, B = |b| + |c|
+/// (each `fld; fabs; fld; fabs; faddp`), their sum B + A compared with `zero` (`fcom`);
+/// equal or unordered: the sum stored, then A over it (the second wins): returns A
+/// rounded and true; else A / (B + A) rounded and false.
+pub fn lever_share(a: u32, d: u32, b: u32, c: u32, zero: u32) -> (u32, bool) {
+    let v = [a, d, b, c, zero];
+    let mut out = [0u32; 2];
+    unsafe {
+        core::arch::asm!(
+            "fld dword ptr [{v}]",
+            "fabs",
+            "fld dword ptr [{v} + 4]",
+            "fabs",
+            ".byte 0xDE, 0xC1", // faddp st(1), st
+            "fld dword ptr [{v} + 8]",
+            "fabs",
+            "fld dword ptr [{v} + 12]",
+            "fabs",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xD8, 0xC1", // fadd st, st(1)
+            "fcom dword ptr [{v} + 16]",
+            "fnstsw ax",
+            "and ah, 0x40",
+            "jnz 2f",
+            ".byte 0xDE, 0xF9", // fdivp st(1), st
+            "fstp dword ptr [{o}]",
+            "jmp 3f",
+            "2:",
+            "fstp dword ptr [{o}]",
+            "fstp dword ptr [{o}]",
+            "mov dword ptr [{o} + 4], 1",
+            "3:",
+            v = in(reg) v.as_ptr(),
+            o = in(reg) out.as_mut_ptr(),
+            out("eax") _,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+        );
+    }
+    (out[0], out[1] != 0)
+}
+
+/// `fld a; fmul b; fmul c; fchs; fstp`.
+pub fn neg_mul2(a: u32, b: u32, c: u32) -> u32 {
+    let (v, mut out) = ([a, b, c], 0u32);
+    x87!("fld dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]", "fchs",
+        "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld a; fsub b; fmul c; fstp`.
+pub fn sub_mul(a: u32, b: u32, c: u32) -> u32 {
+    let (v, mut out) = ([a, b, c], 0u32);
+    x87!("fld dword ptr [{v}]", "fsub dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]",
+        "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld a; fsub b; fadd c; fld x; fsub d; fmul e; faddp st(1), st; fmul f; fistp`:
+/// ((a - b + c) + (x - d) e) f as a whole number.
+pub fn wheel_int(v: [u32; 7]) -> i32 {
+    let mut out = 0i32;
+    x87!("fld dword ptr [{v}]", "fsub dword ptr [{v} + 4]", "fadd dword ptr [{v} + 8]",
+        "fld dword ptr [{v} + 12]", "fsub dword ptr [{v} + 16]", "fmul dword ptr [{v} + 20]",
+        ".byte 0xDE, 0xC1", "fmul dword ptr [{v} + 24]", "fistp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}

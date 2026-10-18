@@ -19,7 +19,7 @@ static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
 pub static HOOK: RawHook =
     RawHook::new("race::restart_race_sounds", rva(0x40D34A), thunk, &ORIGINAL)
-        .private_copy(0x12)
+        .private_copy(0x1C)
         .relocate_calls(&[0x1, 0x6, 0xB])
         .manual_patch()
         .self_test(self_test);
@@ -58,7 +58,9 @@ fn self_test() -> (usize, usize) {
     };
     let copy = match copy(
         0x40D34A,
-        0x12,
+        // The whole function: its `mov dword_5124E4, 1` at +0x10 ends at +0x1A (a length of
+        // 0x12 cut it; the copy wrote to address 0 and ended the game, 2026-10-17).
+        0x1C,
         &[0x60, 0xE8, 0xCE, 0xC8, 0xFF, 0xFF],
         &[0x1, 0x6, 0xB],
         &CALLEES[..4],

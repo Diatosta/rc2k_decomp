@@ -27,7 +27,10 @@ hook_asm!(
     thunk,
     call_original,
     dispatch = dispatch,
-    original = ORIGINAL
+    original = ORIGINAL,
+    // It runs a whole race: a gated thunk would count the game's thread as inside a
+    // hook throughout, and every test's pause wait out its 2 s (2026-10-18).
+    ungated
 );
 
 extern "C" fn dispatch(r: &mut Regs) {

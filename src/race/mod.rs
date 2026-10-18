@@ -4,23 +4,29 @@
 use crate::framework::GameHook;
 
 pub mod add_replay_frame;
+pub mod add_sort_entry;
 pub mod add_surface_share;
 pub mod allocate_course_memory;
 pub mod auto_set_up_car;
 pub mod best_line;
+pub mod both_countdown_lights;
+pub mod both_split_colours;
 pub mod build_best_line;
 pub mod build_texture_infos;
 pub mod car_file_number;
 pub mod car_grades;
 pub mod car_kind_10;
 pub mod car_kind_11;
+pub mod car_label;
 pub mod car_starts;
 pub mod checkpoint_angles;
+pub mod checkpoint_colours;
 pub mod checkpoint_distances;
 pub mod choose_arcade_opponents;
 pub mod clear_lit_faces;
 pub mod clear_mud_state;
 pub mod clear_player_absences;
+pub mod clear_point_records;
 pub mod clear_prefs_qword;
 pub mod clear_race_slots;
 pub mod clear_race_sound_objects;
@@ -34,13 +40,16 @@ pub mod copy_settings_in;
 pub mod copy_settings_out;
 pub mod copy_texture_info_tail;
 pub mod count_checks;
+pub mod countdown_lights;
 pub mod course_data;
 pub mod create_controls;
 pub mod distance_to_checkpoint;
 pub mod drop_absent_player;
 pub mod face_normal;
+pub mod fetch_view_value;
 pub mod first_check_checkpoint;
 pub mod frame;
+pub mod frame_draw;
 pub mod free_course_list_2;
 pub mod free_course_memory;
 pub mod free_game_fonts;
@@ -55,6 +64,7 @@ pub mod get_mat_crash;
 pub mod grade_all_cars;
 pub mod grade_car_values;
 pub mod group_records_by_kind;
+pub mod hold_to_limit;
 pub mod index_of_kind;
 pub mod init_checkpoints;
 pub mod init_mud;
@@ -63,6 +73,7 @@ pub mod init_skidmarks;
 pub mod invert_car_matrix;
 pub mod kind_past_table;
 pub mod kind_unusable;
+pub mod lamps_wanted;
 pub mod lay_out_course;
 pub mod level_init;
 pub mod load_car_a;
@@ -91,10 +102,16 @@ pub mod next_map_anchor;
 pub mod nonzero_random;
 pub mod normalise_work_vector;
 pub mod norms;
+pub mod object_bytes;
 pub mod objects;
 pub mod objects_tidy;
 pub mod open_replay;
 pub mod pack_runs;
+pub mod panel_marks;
+pub mod panel_motion;
+pub mod panel_neighbours;
+pub mod panel_players;
+pub mod panel_values;
 pub mod parse_2_digits;
 pub mod parse_3_digits;
 pub mod permute_bits;
@@ -105,6 +122,7 @@ pub mod race_cars;
 pub mod race_end;
 pub mod race_from_menu;
 pub mod race_init;
+pub mod race_keys;
 pub mod race_shell;
 pub mod rally;
 pub mod read_stage_car_numbers;
@@ -123,6 +141,7 @@ pub mod reset_car_motion;
 pub mod reset_car_race_state;
 pub mod reset_car_starts;
 pub mod reset_face_lights;
+pub mod reset_lamps;
 pub mod reset_race_sounds;
 pub mod reset_refresh;
 pub mod reset_skid_slots;
@@ -152,10 +171,12 @@ pub mod set_up_mode_0_cars;
 pub mod set_up_mode_1_cars;
 pub mod set_up_mode_2_cars;
 pub mod set_up_mode_4_cars;
+pub mod set_up_panel;
 pub mod set_up_race_cars;
 pub mod set_up_race_sound_objects;
 pub mod settings_copy;
 pub mod settle_car;
+pub mod share_sound_spots;
 pub mod silence_race_sounds;
 pub mod single_rally;
 pub mod single_rally_race;
@@ -168,6 +189,7 @@ pub mod sound_row;
 pub mod sound_span;
 pub mod sound_tables;
 pub mod sounds;
+pub mod split_colours;
 pub mod stage_free;
 pub mod stage_loading;
 pub mod stage_prefs;
@@ -177,16 +199,22 @@ pub mod start_place;
 pub mod start_race;
 pub mod start_race_sounds;
 pub mod stop_race_sounds;
+pub mod store_car_a;
+pub mod store_car_b;
+pub mod store_car_c;
 pub mod store_face_normal;
 pub mod store_norms;
 pub mod store_results_by_mode;
+pub mod store_view_value;
 pub mod surface_shares;
 pub mod swap_stage_texture;
 pub mod tidy_everything;
 pub mod tidy_game_mode;
 pub mod tidy_stage;
 pub mod tweak_stage;
+pub mod tyre_change;
 pub mod wake_car_sounds;
+pub mod wake_part_sounds;
 pub mod whole_to_float;
 pub mod write_replay_block;
 pub mod write_replay_chunk;
@@ -352,4 +380,31 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &load_car_a::HOOK,
     &load_car_b::HOOK,
     &load_car_c::HOOK,
+    &store_car_a::HOOK,
+    &store_car_b::HOOK,
+    &store_car_c::HOOK,
+    &race_keys::HOOK,
+    &tyre_change::HOOK,
+    &car_label::HOOK,
+    &split_colours::HOOK,
+    &panel_players::HOOK,
+    &lamps_wanted::HOOK,
+    &store_view_value::HOOK,
+    &fetch_view_value::HOOK,
+    &share_sound_spots::HOOK,
+    &clear_point_records::HOOK,
+    &object_bytes::HOOK,
+    &panel_values::HOOK,
+    &wake_part_sounds::HOOK,
+    &panel_neighbours::HOOK,
+    &panel_motion::HOOK,
+    &panel_marks::HOOK,
+    &countdown_lights::HOOK,
+    &both_countdown_lights::HOOK,
+    &both_split_colours::HOOK,
+    &set_up_panel::HOOK,
+    &reset_lamps::HOOK,
+    &hold_to_limit::HOOK,
+    &add_sort_entry::HOOK,
+    &checkpoint_colours::HOOK,
 ];

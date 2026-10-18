@@ -66,7 +66,10 @@ pub unsafe fn apply_torque_at(rec: u32, car: u32, work: u32, cross: u32) {
         for k in 0..3 {
             let inertia = game_read::<u32>(INERTIA_RVA + 4 * k as usize);
             let w = work + 4 * k;
-            put(w, neg_product2_plus(at(cross + 4 * k), step, inertia, at(w)));
+            put(
+                w,
+                neg_product2_plus(at(cross + 4 * k), step, inertia, at(w)),
+            );
         }
         turn_by_matrix_at(work, car);
         for k in 0..3 {

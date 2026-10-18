@@ -54,7 +54,7 @@ pub unsafe fn view_heading(entry: &Regs) -> Regs {
     g
 }
 
-fn regions() -> Vec<Region> {
+pub fn regions() -> Vec<Region> {
     vec![
         (game_addr(LEVEL_RVA) as u32, 0x18),
         at(HEADING_RVA),

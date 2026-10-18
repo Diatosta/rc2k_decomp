@@ -78,8 +78,10 @@ pub unsafe fn copy_rally_times(entry: &Regs, part: Part) -> Result<Regs, Refused
             put(edi, eax);
             std::ptr::copy((esi + 0x5C) as *const u8, (edi + 0x10) as *mut u8, 0x40);
             // The registers inside each `pusha`: the loop's, eax as last loaded.
+            // ebx `dword_7558D0` from the way in (the times' place).
             let regs = Regs {
                 eax,
+                ebx: get(at(0x7558D0)),
                 ecx,
                 esi,
                 edi,

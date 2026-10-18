@@ -237,7 +237,7 @@ fn globals() -> Vec<Region> {
 
 /// What it may write: the globals, the cars' fields and records, and as many ring entries
 /// as all the cars' records (and three a car) take at most.
-fn regions(settings: u32) -> Vec<Region> {
+pub fn regions(settings: u32) -> Vec<Region> {
     let mut r = globals();
     if settings == 0 {
         return r;

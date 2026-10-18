@@ -145,6 +145,20 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(r.edi, r.esi), &rust);
 }
 
+/// For the test's failure of 2026-10-17/18 (case 1 only: the original's side showed the fill
+/// over globals the original itself writes): the state just before the original ran.
+static BEFORE: std::sync::Mutex<(Vec<Region>, Vec<u8>)> =
+    std::sync::Mutex::new((Vec::new(), Vec::new()));
+
+/// The original, the watched state captured first (see `BEFORE`).
+unsafe extern "C" fn original_noted(r: *mut Regs) {
+    {
+        let mut b = BEFORE.lock().unwrap();
+        b.1 = capture(&b.0);
+    }
+    unsafe { call_original(r) };
+}
+
 fn self_test() -> (usize, usize) {
     let Some(mut t) = SelfTest::begin(&HOOK) else {
         return (0, 0);
@@ -178,10 +192,11 @@ fn self_test() -> (usize, usize) {
         );
         let seed = case.wrapping_mul(0x2545_F491);
         test.prepare(case % 3);
+        BEFORE.lock().unwrap().0 = regions.clone();
         check_state(
             &mut t,
             &format!("kind {now:#x}, surface {surface:#x}, chance {chance}, +0 {bit}"),
-            call_original,
+            original_noted,
             Regs {
                 edi: ptrs.0 as u32,
                 esi: ptrs.1 as u32,
@@ -236,6 +251,13 @@ fn self_test() -> (usize, usize) {
             &regions,
             &rust,
         );
+        if case == 1 {
+            let b = BEFORE.lock().unwrap();
+            crate::framework::log(&format!(
+                "marks::emit_body_particles: case {case} before the original: {:x?}",
+                &b.1[..b.1.len().min(0xD0)]
+            ));
+        }
     }
     drop(test);
     t.finish()

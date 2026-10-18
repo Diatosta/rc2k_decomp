@@ -17,7 +17,7 @@
 //!   (`system::computer_name`, 0x40 bytes) the same way, else string 0x14D;
 //! - the name at `dword_5BEC08`, if empty: a random one of the 180 strings from 0x5A5 on
 //!   (`math::random_below`), drawn again while what is there starts "andr", and
-//!   `dword_5BEC28` = 0x5208;
+//!   `g_tyreChangeRecord` = 0x5208 (210.00 s, the tyre change's best time);
 //! - all 100 saved games are read (`saves::read_savegame_slot`) and every slot's name
 //!   that is empty becomes string 0x4E0 and the slot's number in two digits; the same for
 //!   the replays (string 0x4E2) and the car setups (string 0x4E1).
@@ -70,7 +70,7 @@ const MACHINE_NAME_RVA: usize = rva(0x52AB90); // byte_52AB90
 const MACHINE_NAME_ROOM: usize = 0x40;
 const MACHINE_NAME_ID: u32 = 0x14D;
 const DRIVER_NAME_RVA: usize = rva(0x5BEC08); // dword_5BEC08
-const DRIVER_NUMBER_RVA: usize = rva(0x5BEC28); // dword_5BEC28
+const TYRE_CHANGE_RECORD_RVA: usize = rva(0x5BEC28); // g_tyreChangeRecord (hundredths)
 const DRIVER_NAME_IDS: (u32, u32) = (0x5A5, 0xB4);
 const SETUP_NAMES_RVA: usize = rva(0x527880); // byte_527880
 const SLOTS: u32 = 100;
@@ -200,7 +200,7 @@ pub unsafe fn load_game_data(outside: Outside) -> Result<(), Refused> {
                 }
             };
             game_write(DRIVER_NAME_RVA + end, 0u8);
-            game_write(DRIVER_NUMBER_RVA, 0x5208u32);
+            game_write(TYRE_CHANGE_RECORD_RVA, 0x5208u32);
         }
 
         for slot in 0..SLOTS {

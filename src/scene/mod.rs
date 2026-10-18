@@ -41,6 +41,7 @@ pub mod draw_car_object;
 pub mod draw_carousel;
 pub mod draw_carousel_entry;
 pub mod draw_clipped_polygon;
+pub mod draw_fan;
 pub mod draw_highlighted_object;
 pub mod draw_main_menu_carousel;
 pub mod draw_main_menu_objects;
@@ -120,6 +121,7 @@ pub mod set_object_light;
 pub mod set_object_material;
 pub mod set_place;
 pub mod set_render_state;
+pub mod set_texture;
 pub mod set_texture_levels;
 pub mod set_turn_x;
 pub mod set_turn_y;
@@ -158,8 +160,10 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &depth_buffer_on::HOOK,
     &depth_test_off::HOOK,
     &depth_test_on::HOOK,
+    &draw_fan::HOOK,
     &draw_polygon::HOOK,
     &rotate_point::HOOK,
+    &set_texture::HOOK,
     &submit_polygon::HOOK,
     &draw_marked_polygon::HOOK,
     &project_point::HOOK,

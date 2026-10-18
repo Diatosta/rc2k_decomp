@@ -10,6 +10,7 @@ pub mod aim_vector;
 pub mod allocate_links;
 pub mod allocate_places;
 pub mod allocate_ring;
+pub mod begin_quads;
 pub mod bend_points;
 pub mod blend_corner;
 pub mod blend_points;
@@ -20,11 +21,13 @@ pub mod cars_particles;
 pub mod centre_spline_points;
 pub mod clamp_pair;
 pub mod clear_slots;
+pub mod clip_quad;
 pub mod collect_points_a;
 pub mod collect_points_b;
 pub mod copy_block_points;
 pub mod copy_first_point;
 pub mod corners;
+pub mod draw_frame;
 pub mod draw_mask;
 pub mod draw_mask_shape;
 pub mod drift_offsets;
@@ -137,6 +140,7 @@ pub mod turn_spline_points;
 pub mod turns;
 pub mod view_frame;
 pub mod view_heading;
+pub mod view_motion;
 pub mod view_step;
 
 pub static HOOKS: &[&dyn GameHook] = &[
@@ -146,6 +150,7 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &allocate_links::HOOK,
     &allocate_places::HOOK,
     &allocate_ring::HOOK,
+    &begin_quads::HOOK,
     &bend_points::HOOK,
     &blend_corner::HOOK,
     &blend_points::HOOK,
@@ -155,10 +160,12 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &centre_spline_points::HOOK,
     &clamp_pair::HOOK,
     &clear_slots::HOOK,
+    &clip_quad::HOOK,
     &collect_points_a::HOOK,
     &collect_points_b::HOOK,
     &copy_block_points::HOOK,
     &copy_first_point::HOOK,
+    &draw_frame::HOOK,
     &draw_mask::HOOK,
     &draw_mask_shape::HOOK,
     &drift_offsets::HOOK,
@@ -255,5 +262,6 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &turn_spline_points::HOOK,
     &view_frame::HOOK,
     &view_heading::HOOK,
+    &view_motion::HOOK,
     &view_step::HOOK,
 ];

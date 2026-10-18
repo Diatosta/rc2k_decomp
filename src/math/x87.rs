@@ -1780,3 +1780,33 @@ pub fn int_over_int_times(a: i32, b: i32, k: u32) -> u32 {
         v = v.as_ptr(), o = &raw mut out);
     out
 }
+
+/// `sub_4B8A0B`'s crossing: t = (m - fc) / (fs - fc) (`fld m; fsub fc; fld fs; fsub fc;
+/// fdivp st(1), st`), then for each (s, c) pair (s - c) t + c (`fld s; fsub c; fmul st,
+/// st(1)`, the last `fmulp`; `fadd c; fstp`), t kept unrounded.
+pub fn clip_lerp3(m: u32, fc: u32, fs: u32, pairs: [[u32; 2]; 3]) -> [u32; 3] {
+    let v = [
+        m,
+        fc,
+        fs,
+        pairs[0][0],
+        pairs[0][1],
+        pairs[1][0],
+        pairs[1][1],
+        pairs[2][0],
+        pairs[2][1],
+    ];
+    let mut out = [0u32; 3];
+    x87!(
+        "fld dword ptr [{v}]", "fsub dword ptr [{v} + 4]", "fld dword ptr [{v} + 8]",
+        "fsub dword ptr [{v} + 4]", ".byte 0xDE, 0xF9",
+        "fld dword ptr [{v} + 12]", "fsub dword ptr [{v} + 16]", ".byte 0xD8, 0xC9",
+        "fadd dword ptr [{v} + 16]", "fstp dword ptr [{o}]",
+        "fld dword ptr [{v} + 20]", "fsub dword ptr [{v} + 24]", ".byte 0xD8, 0xC9",
+        "fadd dword ptr [{v} + 24]", "fstp dword ptr [{o} + 4]",
+        "fld dword ptr [{v} + 28]", "fsub dword ptr [{v} + 32]", ".byte 0xDE, 0xC9",
+        "fadd dword ptr [{v} + 32]", "fstp dword ptr [{o} + 8]";
+        v = v.as_ptr(), o = out.as_mut_ptr()
+    );
+    out
+}
