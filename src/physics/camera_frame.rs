@@ -36,7 +36,11 @@ fn steps(r: &mut Regs, part: Part) -> Result<(), Refused> {
     for x in [0x637644, 0x637638, 0x63763C, 0x637640] {
         p(x, 0);
     }
-    if matches!(g(0x71A65C), 1..=3) && g(0x71A22C) == 0 {
+    // The carry `update_camera` gets (and leaves, on its paths that set none): the last
+    // compare's, `cmp mode, 3` when the mode is not 1 .. 3, else a `cmp x, 0` (clear).
+    let mode = g(0x71A65C);
+    r.set_carry(!matches!(mode, 1..=3) && mode < 3);
+    if matches!(mode, 1..=3) && g(0x71A22C) == 0 {
         x87_run!(
             "fld dword ptr [{b} + 0x31A8E4]",
             "fmul dword ptr [{b} + 0x214098]",

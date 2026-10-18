@@ -22,7 +22,7 @@
 //! Callers: `sub_48E093`, `sub_4A15E3`, `sub_4A8556`. Logs through the `logfile::` Rust
 //! versions (level 1). Refuses a current player past 3 or missing, a car past 0xFF or
 //! without its table, before anything. Shadow mode runs the original alone (it logs).
-//! Self-test (unpaused: it logs): the original and the Rust version on the game's player
+//! Self-test: the original and the Rust version on the game's player
 //! and cars, wear and switches by lot; put back.
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
@@ -34,9 +34,8 @@ use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
-pub static HOOK: RawHook = RawHook::new("menu::driver_stats", rva(0x4A73D8), thunk, &ORIGINAL)
-    .self_test(self_test)
-    .self_test_unpaused();
+pub static HOOK: RawHook =
+    RawHook::new("menu::driver_stats", rva(0x4A73D8), thunk, &ORIGINAL).self_test(self_test);
 
 hook_asm!(
     thunk,

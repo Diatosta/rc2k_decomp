@@ -21,7 +21,7 @@
 //! game their Rust versions (the repairs through their hook). Ungated (the pages wait for
 //! the player). Refuses a player count of 0 or past 4, a player missing, a taking-part
 //! player's car without its table, before anything. Shadow mode runs the original alone.
-//! Self-test (unpaused: `driver_stats` logs): a copy whose screen, sleep, fade, key, page
+//! Self-test: a copy whose screen, sleep, fade, key, page
 //! and repair calls go to stand-ins, against the Rust version, by lot.
 
 use crate::errors::Refused;
@@ -34,9 +34,8 @@ use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
-pub static HOOK: RawHook = RawHook::new("menu::service_pass", rva(0x4A15E3), thunk, &ORIGINAL)
-    .self_test(self_test)
-    .self_test_unpaused();
+pub static HOOK: RawHook =
+    RawHook::new("menu::service_pass", rva(0x4A15E3), thunk, &ORIGINAL).self_test(self_test);
 
 hook_asm!(
     thunk,

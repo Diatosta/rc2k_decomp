@@ -219,7 +219,14 @@ fn self_test() -> (usize, usize) {
         return t.skip("the fonts, the sprites or the caption's string are not there");
     }
     let regions = regions();
-    let inputs = [at(MENU_RVA), at(MENU_ITEM_RVA)];
+    // The measuring leaves the widest line in the measuring font's box width, which the
+    // menus' buttons are measured with: left changed, the stage selection's selectors were
+    // drawn white (2026-10-18, found with `selftest screens:: leftovers`).
+    let inputs = [
+        at(MENU_RVA),
+        at(MENU_ITEM_RVA),
+        (font_at(MEASURING_FONT) as u32, size_of::<Font>()),
+    ];
     let saved = (capture(&regions), capture(&inputs));
     for (menu, item) in [
         (0u32, 1u32),
@@ -243,6 +250,7 @@ fn self_test() -> (usize, usize) {
             Regs::SENTINEL,
             &|| unsafe {
                 restore(&regions, &saved.0);
+                restore(&inputs, &saved.1);
                 game_write(MENU_RVA, menu);
                 game_write(MENU_ITEM_RVA, item);
             },

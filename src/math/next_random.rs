@@ -43,9 +43,9 @@ pub fn random_step(state: u32, mixed_in: u32) -> u32 {
     (state & !0xFF | low as u32).rotate_right(1) ^ mixed_in
 }
 
-/// The thread that owns the generator during an unpaused self-test (0: none). Another
-/// thread asking for a number meanwhile waits: the game's thread keeps running during
-/// such a test, and its draws would put the test's two sides on different numbers.
+/// The thread that owns the generator during a self-test that draws (0: none). Another
+/// thread asking for a number meanwhile waits: a thread let through the pause (the log
+/// writer, a pause timeout) would put the test's two sides on different numbers.
 static OWNER: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
 fn this_thread() -> u32 {

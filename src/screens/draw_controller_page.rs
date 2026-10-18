@@ -70,13 +70,17 @@ fn self_test() -> (usize, usize) {
     if let Some(why) = text_unavailable() {
         return t.skip(why);
     }
-    if crate::menu::enable_item::enable_item(3).is_err() {
+    // Only looked up: enabling it here, before the capture, left the current menu changed
+    // (the stage selection's items, 2026-10-18).
+    if crate::menu::item_at::item_at(3).is_err() {
         return t.skip("no current menu");
     }
     if unsafe { game_read::<u32>(rva(0x4F6EE8)) } == 0 {
         return t.skip("no input device");
     }
-    let mut regions: Vec<Region> = vec![at(rva(0x75598C))];
+    // `dword_755A0C` (the page leaves its pointer there; `saves::default_time_entry` reads
+    // it) put back too (left changed until 2026-10-18).
+    let mut regions: Vec<Region> = vec![at(rva(0x75598C)), at(rva(0x755A0C))];
     for n in 3..=8 {
         regions.extend(item_region(n));
     }

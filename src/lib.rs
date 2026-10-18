@@ -16,6 +16,7 @@ pub mod gfx;
 pub mod hud;
 pub mod input;
 pub mod install;
+mod leftovers;
 pub mod logfile;
 pub mod marks;
 pub mod math;
@@ -76,6 +77,24 @@ fn console_init() -> Option<(File, File)> {
 static DLL_HANDLE: AtomicUsize = AtomicUsize::new(0);
 static INSTALLED: OnceLock<Vec<bool>> = OnceLock::new();
 
+/// The self-tests of the hooks `pat` selects (as `on`/`off` do), each with the game paused;
+/// with `leftovers`, each also logs what it left changed in the game's writable sections.
+fn run_self_tests(pat: &str, leftovers: bool) {
+    for h in ALL.iter().filter(|h| registry::selects(pat, h.name())) {
+        let _paused = framework::pause_game();
+        let before = leftovers.then(leftovers::Snapshot::take);
+        framework::set_running_test(Some(h.name()));
+        let result = h.self_test();
+        framework::set_running_test(None);
+        if let Some((cases, bad)) = result {
+            log(&format!("{:<30} cases={cases} failures={bad}", h.name()));
+        }
+        if let Some(before) = &before {
+            leftovers::report(h.name(), before);
+        }
+    }
+}
+
 fn apply(pat: &str, on: bool, enabled: &mut [bool], out: &mut impl Write) {
     let mut changed = 0;
     for (i, h) in ALL.iter().enumerate() {
@@ -101,7 +120,7 @@ fn apply(pat: &str, on: bool, enabled: &mut [bool], out: &mut impl Write) {
 
 fn console_loop(input: File, mut out: File, mut enabled: Vec<bool>) {
     log(
-        "commands: list | on <name|prefix|all> | off <name|prefix|all> | shadow on|off | trace on|off | blank on|off [prefix] | stats | reload | selftest | fatal",
+        "commands: list | on <name|prefix|all> | off <name|prefix|all> | shadow on|off | trace on|off | blank on|off [prefix] | stats | reload | selftest [name|prefix [leftovers]] | fatal",
     );
 
     for line in BufReader::new(input).lines().map_while(Result::ok) {
@@ -138,15 +157,9 @@ fn console_loop(input: File, mut out: File, mut enabled: Vec<bool>) {
                 }
                 log("reload done");
             }
-            ["selftest"] => {
-                for h in ALL.iter() {
-                    // Game threads stay out of hooked functions while a test runs.
-                    let _paused = h.self_test_pauses_game().then(framework::pause_game);
-                    if let Some((cases, bad)) = h.self_test() {
-                        log(&format!("{:<30} cases={cases} failures={bad}", h.name()));
-                    }
-                }
-            }
+            ["selftest"] => run_self_tests("all", false),
+            ["selftest", pat] => run_self_tests(pat, false),
+            ["selftest", pat, "leftovers"] => run_self_tests(pat, true),
             ["blank", v] => {
                 screens::set_blank(*v == "on", "");
                 log(&format!(
@@ -181,7 +194,10 @@ fn console_loop(input: File, mut out: File, mut enabled: Vec<bool>) {
 /// the copy of it `standalone` has mapped.
 fn install_all(base: usize) -> Vec<bool> {
     BASE.store(base, Ordering::Relaxed);
-    log(&format!("attached, exe base = {base:#x}"));
+    log(&format!(
+        "attached, exe base = {base:#x}, DLL base = {:#x}",
+        framework::dll_base()
+    ));
 
     let installed: Vec<bool> = ALL
         .iter()

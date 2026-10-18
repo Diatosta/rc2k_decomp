@@ -106,6 +106,13 @@ fn self_test() -> (usize, usize) {
     }
     let mut vars = regions.clone();
     vars.extend(EXTRA.map(at));
+    // `prepare` writes the players' +0x88: put back too (left changed until 2026-10-18).
+    vars.extend(
+        (0..4u32)
+            .map(player)
+            .filter(|&p| p != 0)
+            .map(|p| (p + 0x88, 4)),
+    );
     let saved = capture(&vars);
     let refused = unsafe { sealed_player_time(&test_entry(0)) }.is_err();
     restore(&vars, &saved);

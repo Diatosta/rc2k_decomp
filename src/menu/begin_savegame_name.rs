@@ -24,9 +24,7 @@ use std::sync::atomic::AtomicUsize;
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
 pub static HOOK: RawHook =
-    RawHook::new("menu::begin_savegame_name", rva(0x46D571), thunk, &ORIGINAL)
-        .self_test(self_test)
-        .self_test_unpaused();
+    RawHook::new("menu::begin_savegame_name", rva(0x46D571), thunk, &ORIGINAL).self_test(self_test);
 
 hook_asm!(
     thunk,

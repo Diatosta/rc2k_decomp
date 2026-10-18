@@ -1006,6 +1006,7 @@ pub fn test_vars(sh: &Shadow, st: &ShadowTest) -> (Vec<Region>, Vec<Region>) {
     vars.extend([SETTINGS_RVA, TINT_RVA, NEAR_RVA, Z_K_RVA, UV_K_RVA].map(at));
     vars.push((addr(st.up), 0x58));
     vars.push((addr(VIEW_RVA), 0x40));
+    vars.push((addr(sh.lifts), 0x10)); // `test_prepare` writes them (left changed until 2026-10-18)
     vars.push((addr(MARK_CORNERS_RVA) + 0x10 * 0x80, 4 * 0x80));
     (regions, vars)
 }

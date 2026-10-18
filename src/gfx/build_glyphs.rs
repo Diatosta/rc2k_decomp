@@ -66,9 +66,8 @@ use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
-pub static HOOK: RawHook = RawHook::new("gfx::build_glyphs", rva(0x412085), thunk, &ORIGINAL)
-    .self_test(self_test)
-    .self_test_unpaused();
+pub static HOOK: RawHook =
+    RawHook::new("gfx::build_glyphs", rva(0x412085), thunk, &ORIGINAL).self_test(self_test);
 
 hook_asm!(
     thunk,
@@ -547,7 +546,7 @@ fn self_test() -> (usize, usize) {
     let Some(mut t) = SelfTest::begin(&HOOK) else {
         return (0, 0);
     };
-    // Unpaused, and it changes what the game's frames blit with: their comparisons in the
+    // It changes what the game's frames blit with: their comparisons in the
     // meantime are not to be trusted (a `blit_glyph` mismatch on 2026-10-15).
     let _disturbing = crate::screens::harness::Disturbing::begin();
     let work = game_addr(WORK_MEMORY_RVA) as *mut MemoryList;

@@ -18,7 +18,7 @@
 //! report: a file that does not load or has an error, a message count other than 0x757,
 //! and anything else `lexicon::compile` refuses.
 //! Shadow mode compiles twice and compares the whole table and the counts. The self-test
-//! does the same once, with the game running (the original logs), and then lets the Rust
+//! does the same once, and then lets the Rust
 //! version put its table in place and looks again. The game's own call at start comes
 //! before the hooks are in place (they are installed from a thread of their own), so the
 //! self-test is where both versions really run.
@@ -42,9 +42,7 @@ use std::sync::atomic::AtomicUsize;
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
 pub static HOOK: RawHook =
-    RawHook::new("strings::compile_lexicon", rva(0x40356E), thunk, &ORIGINAL)
-        .self_test(self_test)
-        .self_test_unpaused();
+    RawHook::new("strings::compile_lexicon", rva(0x40356E), thunk, &ORIGINAL).self_test(self_test);
 
 hook_asm!(
     thunk,

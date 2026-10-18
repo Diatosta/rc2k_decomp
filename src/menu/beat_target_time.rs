@@ -94,6 +94,13 @@ fn self_test() -> (usize, usize) {
     }
     let mut vars = regions.clone();
     vars.extend(EXTRA.map(at));
+    // `prepare` writes the players' +0x88: put back too (left changed until 2026-10-18).
+    vars.extend(
+        (0..4u32)
+            .map(player)
+            .filter(|&p| p != 0)
+            .map(|p| (p + 0x88, 4)),
+    );
     let saved = capture(&vars);
     // The probe runs on the saved tables: it writes what the tests write.
     let refused = unsafe { beat_target_time(&before) }.is_err();

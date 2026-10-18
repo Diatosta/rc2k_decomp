@@ -143,6 +143,10 @@ fn self_test() -> (usize, usize) {
     all.extend([
         (game_addr(rva(0x719FE4)) as u32, 4),
         (game_addr(rva(0x719FFC)) as u32, 4),
+        // `set_hits` writes these too (left changed until 2026-10-18).
+        (game_addr(rva(0x71A2D0)) as u32, 0x10),
+        (game_addr(rva(0x71A32C)) as u32, 0x10),
+        (game_addr(rva(0x71A270)) as u32, 4),
     ]);
     let saved = capture(&all);
     for seed in 0..20u32 {

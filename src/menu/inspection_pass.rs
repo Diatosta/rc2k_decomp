@@ -16,7 +16,7 @@
 //! versions (the sleep `system::sleep`'s). Ungated (the page waits for the player).
 //! Refuses a player count of 0 or past 4, a player missing, a taking-part player's car
 //! without its table, before anything. Shadow mode runs the original alone (it logs and
-//! shows). Self-test (unpaused: `driver_stats` logs): a copy whose screen, sleep, fade and
+//! shows). Self-test: a copy whose screen, sleep, fade and
 //! page calls go to stand-ins, against the Rust version, players taking part by lot.
 
 use crate::errors::Refused;
@@ -29,9 +29,8 @@ use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
-pub static HOOK: RawHook = RawHook::new("menu::inspection_pass", rva(0x4A8556), thunk, &ORIGINAL)
-    .self_test(self_test)
-    .self_test_unpaused();
+pub static HOOK: RawHook =
+    RawHook::new("menu::inspection_pass", rva(0x4A8556), thunk, &ORIGINAL).self_test(self_test);
 
 hook_asm!(
     thunk,

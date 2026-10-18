@@ -18,7 +18,7 @@
 //! hundredfold of 0, a half time of 0: the original tests the dividend), before anything;
 //! refuses a record past the table, a class count of 0 or past 0x100, a class's driver
 //! count of 0 (the original's `div` traps), a drivers table without its end, before
-//! anything. Shadow mode runs the original alone (it logs). Self-test (unpaused: it logs):
+//! anything. Shadow mode runs the original alone (it logs). Self-test:
 //! the original and the Rust version on the game's tables, the random state and the
 //! counters by lot; put back.
 use crate::errors::{BadInput, FatalError, Refused};
@@ -31,9 +31,8 @@ use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
-pub static HOOK: RawHook = RawHook::new("menu::calc_cpu_times", rva(0x470950), thunk, &ORIGINAL)
-    .self_test(self_test)
-    .self_test_unpaused();
+pub static HOOK: RawHook =
+    RawHook::new("menu::calc_cpu_times", rva(0x470950), thunk, &ORIGINAL).self_test(self_test);
 
 hook_asm!(
     thunk,

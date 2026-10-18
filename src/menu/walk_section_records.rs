@@ -11,8 +11,8 @@
 //!
 //! Callers: `sub_4A0E60`, `sub_4AA4D7`. The steps are their Rust versions. Refuses what
 //! they refuse for any record of the walk, and a walk past 64 records, before anything.
-//! Shadow mode runs the original alone (it logs, in `calc_cpu_times`). Self-test
-//! (unpaused): the original and the Rust version on the game's tables from the section's
+//! Shadow mode runs the original alone (it logs, in `calc_cpu_times`). Self-test:
+//! the original and the Rust version on the game's tables from the section's
 //! first records; put back.
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
@@ -33,8 +33,7 @@ pub static HOOK: RawHook = RawHook::new(
 .private_copy(0x71)
 .relocate_calls(&CALLS)
 .manual_patch()
-.self_test(self_test)
-.self_test_unpaused();
+.self_test(self_test);
 
 /// Its calls (a private copy: the loop goes back to +1, inside the patched bytes).
 const CALLS: [usize; 5] = [0x12, 0x21, 0x48, 0x63, 0x6A];

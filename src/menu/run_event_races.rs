@@ -29,8 +29,8 @@
 //! end through `part`, in the game their Rust versions. Ungated (the races). Refuses fewer
 //! than 0xB2 drivers or fewer than four still running among them (the drop-out loop would
 //! run on), a missing player for the mode, and what the steps refuse, before anything.
-//! Shadow mode runs the original alone (it runs races, and logs). Self-test (unpaused: it
-//! logs): a copy whose races and front-end call go to stand-ins, against the Rust version,
+//! Shadow mode runs the original alone (it runs races, and logs). Self-test:
+//! a copy whose races and front-end call go to stand-ins, against the Rust version,
 //! by mode and result; put back.
 
 use crate::errors::{BadInput, Refused};
@@ -43,9 +43,8 @@ use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
-pub static HOOK: RawHook = RawHook::new("menu::run_event_races", rva(0x473126), thunk, &ORIGINAL)
-    .self_test(self_test)
-    .self_test_unpaused();
+pub static HOOK: RawHook =
+    RawHook::new("menu::run_event_races", rva(0x473126), thunk, &ORIGINAL).self_test(self_test);
 
 hook_asm!(
     thunk,

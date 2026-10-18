@@ -169,6 +169,17 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 /// The current car's sound object's words the sounds write, when there is one.
 pub fn sound_regions() -> Vec<Region> {
+    use crate::physics::car_sounds::listed;
+    // The sound object is written only while the current car (or for `place_sound_e1_other`
+    // the car `dword_6D3CD4`) is listed. An unlisted car's object pointer may be stale: put
+    // back over freed memory, its bytes overwrote Rust's heap in between (2026-10-18, the
+    // shadow throttle's map, a crash in `crossed_edge`'s test).
+    let written = [g(0x71B3F8), g(0x6D3CD4)]
+        .into_iter()
+        .any(|car| listed(car) == Ok(true));
+    if !written {
+        return vec![(a(0x6D1AEC), 4)];
+    }
     match crate::physics::car_sounds::object() {
         Ok(o) => vec![(o + 0x10, 4), (o + 0x238, 0x30), (a(0x6D1AEC), 4)],
         Err(_) => vec![],

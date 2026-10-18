@@ -114,7 +114,9 @@ fn self_test() -> (usize, usize) {
     if let Some(why) = text_unavailable() {
         return t.skip(why);
     }
-    if enable_item(4).is_err() {
+    // Only looked up: enabling it here, before the capture, left the current menu changed
+    // (the stage selection's items, 2026-10-18).
+    if crate::menu::item_at::item_at(4).is_err() {
         return t.skip("no current menu");
     }
     let mut kept: Vec<Region> = vec![

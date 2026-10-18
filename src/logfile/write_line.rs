@@ -26,19 +26,18 @@ use windows_sys::Win32::System::Threading::Sleep;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
-pub static HOOK: RawHook = RawHook::new("logfile::write_line", rva(0x40132C), thunk, &ORIGINAL)
-    .self_test(self_test)
-    .self_test_unpaused();
+pub static HOOK: RawHook =
+    RawHook::new("logfile::write_line", rva(0x40132C), thunk, &ORIGINAL).self_test(self_test);
 
-// The game enters this tail holding `g_logLock`, which the self-test also takes: if the thunk
-// waited for self-tests here, the two would wait for each other. So this hook never waits,
-// and its self-test runs with the game running; the lock is what keeps them apart.
+// The game enters this tail holding `g_logLock`, which self-tests that log also take: if the
+// thunk waited for self-tests here, the two would wait for each other. So this hook (and the
+// hooks it reaches) never waits; the lock is what keeps them apart.
 hook_asm!(
     thunk,
     call_original,
     dispatch = dispatch,
     original = ORIGINAL,
-    ungated
+    log_lock
 );
 
 // ---- game data ----

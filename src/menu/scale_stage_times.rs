@@ -9,7 +9,7 @@
 //! Out: eax the section held (no `pusha`); the rest kept
 //!
 //! Caller: `menu::calc_cpu_times`. Logs through the `logfile::` Rust versions (level 1).
-//! Shadow mode runs the original alone (it logs). Self-test (unpaused: it logs): the
+//! Shadow mode runs the original alone (it logs). Self-test: the
 //! original and the Rust version on a record of the test's, times and sections by lot.
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
@@ -21,9 +21,8 @@ use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
-pub static HOOK: RawHook = RawHook::new("menu::scale_stage_times", rva(0x46354E), thunk, &ORIGINAL)
-    .self_test(self_test)
-    .self_test_unpaused();
+pub static HOOK: RawHook =
+    RawHook::new("menu::scale_stage_times", rva(0x46354E), thunk, &ORIGINAL).self_test(self_test);
 
 hook_asm!(
     thunk,

@@ -107,6 +107,29 @@ pub fn test_crossed(hook: &RawHook, call_original: CallOriginal, rust: Rust) -> 
     }
     let car = crate::physics::car_sounds::CURRENT;
     let sp = crate::physics::scene_point_hits_car::SCENE_POINTS;
+    // The stage's faces for the cases: from 10 on, every 7th whose four corners are scene
+    // points. Not every face is one (2026-10-18: face 45 of a stage had corners [3D,
+    // D07D8B5, 2C, 0]; read as a point, the test crashed); the physics reaches faces only
+    // through the stage's grid.
+    let mut numbers = Vec::new();
+    if whole {
+        let (faces, points) = (g(0x5CCD1C), g(0x5CCD20));
+        let rd = |x: u32| unsafe { (x as *const u32).read_unaligned() };
+        let mut number = 10;
+        while numbers.len() < 16 && number < faces {
+            let at = (number << 6).wrapping_add(g(FACES));
+            if (0..4).all(|j| rd(at + 4 + 4 * j) < points) {
+                numbers.push(number);
+            }
+            number += 7;
+        }
+        if numbers.len() < 16 {
+            return t.skip(&format!(
+                "fewer than 16 four-cornered faces among {faces} (table {:#x})",
+                g(FACES)
+            ));
+        }
+    }
     let mut all = regions();
     if !whole {
         all.extend(contact_force::inputs());
@@ -151,7 +174,7 @@ pub fn test_crossed(hook: &RawHook, call_original: CallOriginal, rust: Rust) -> 
                     // The face: in a race one of the stage's (its real corners, as
                     // `feel_ground` reads the stage after); else a test square of
                     // corners p1 (-1, -1), p2 (1, -1), p3 (-1, 1), p4 (1, 1) (x 0x10000).
-                    let number = if whole { 10 + seed * 7 } else { 0 };
+                    let number = if whole { numbers[seed as usize] } else { 0 };
                     if !whole {
                         p(FACES, fs);
                         p(sp, ps);

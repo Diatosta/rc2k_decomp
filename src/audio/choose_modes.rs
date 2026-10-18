@@ -20,7 +20,7 @@
 //! Refuses a quality past `g_qualityModes` (the original reads past it).
 //! Compared in shadow mode (the options and both modes; the Rust version's log calls noted,
 //! not written). Self-test: the original on options of the test's, with the real log
-//! (unpaused), 53 cases.
+//!, 53 cases.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, rva, shadow};
@@ -29,9 +29,8 @@ use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
-pub static HOOK: RawHook = RawHook::new("audio::choose_modes", rva(0x40A1CA), thunk, &ORIGINAL)
-    .self_test(self_test)
-    .self_test_unpaused();
+pub static HOOK: RawHook =
+    RawHook::new("audio::choose_modes", rva(0x40A1CA), thunk, &ORIGINAL).self_test(self_test);
 
 hook_asm!(
     thunk,

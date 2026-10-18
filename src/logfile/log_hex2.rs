@@ -11,16 +11,15 @@ use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
-pub static HOOK: RawHook = RawHook::new("logfile::log_hex2", rva(0x40163B), thunk, &ORIGINAL)
-    .self_test(self_test)
-    .self_test_unpaused();
+pub static HOOK: RawHook =
+    RawHook::new("logfile::log_hex2", rva(0x40163B), thunk, &ORIGINAL).self_test(self_test);
 
 hook_asm!(
     thunk,
     call_original,
     dispatch = dispatch,
     original = ORIGINAL,
-    ungated
+    log_lock
 );
 
 // ---- Rust version ----

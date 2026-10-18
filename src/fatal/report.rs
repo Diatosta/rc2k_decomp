@@ -294,6 +294,10 @@ extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
     let context = context_of(r);
     let original = ORIGINAL.load(Ordering::SeqCst) as u32;
+    log(&format!(
+        "fatal::report: {}",
+        crate::framework::crash_note()
+    ));
 
     let target = if shadow() {
         let text = unsafe { text_from_game(&context) };

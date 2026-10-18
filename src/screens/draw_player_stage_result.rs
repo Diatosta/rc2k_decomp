@@ -110,10 +110,17 @@ fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
 }
 
 fn state() -> Vec<u8> {
+    let mut v = drawn_state();
+    v.extend(capture(&[(game_addr(rva(0x51E624)) as u32, 0x20)]));
+    v
+}
+
+/// `state` without the measuring font: in the self-test the Rust version draws on a
+/// `RecordingCanvas`, which leaves fonts alone; the font is compared in shadow mode.
+fn drawn_state() -> Vec<u8> {
     capture(&[
         (line_buffer() as u32, 0x100),
         (crate::strings::text_from_ids::text() as u32, 0x100),
-        (game_addr(rva(0x51E624)) as u32, 0x20),
     ])
 }
 
@@ -131,7 +138,9 @@ fn self_test() -> (usize, usize) {
     if !unsafe { times_page_ready(&STAGE_TIMES) } {
         return t.skip("no stage records");
     }
-    let regions: Vec<Region> = vec![at(rva(0x75598C))];
+    // The measuring leaves its count in the font at 0x51E624's palette (+0x14), a pointer
+    // until then: put back per case (left changed until 2026-10-18).
+    let regions: Vec<Region> = vec![at(rva(0x75598C)), (game_addr(rva(0x51E624)) as u32, 0x20)];
     let saved = capture(&regions);
     for player in 0..crate::menu::player::PLAYERS {
         if crate::menu::player::player_at(player) == 0 {
@@ -152,9 +161,12 @@ fn self_test() -> (usize, usize) {
             &format!("player {player}"),
             call_original,
             Regs::SENTINEL,
-            &|| unsafe { game_write(rva(0x75598C), player) },
+            &|| unsafe {
+                restore(&regions, &saved);
+                game_write(rva(0x75598C), player)
+            },
             &rust,
-            &state,
+            &drawn_state,
         );
     }
     restore(&regions, &saved);

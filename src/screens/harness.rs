@@ -18,7 +18,8 @@ use std::sync::atomic::{AtomicU32, Ordering};
 /// shadow comparison that such a test's writes may have fallen into is not reported.
 static DISTURBANCES: AtomicU32 = AtomicU32::new(0);
 
-/// Held by a self-test that runs unpaused while it has the highlighted item changed.
+/// Held by a self-test while it has what frames read changed (in case a thread got past the
+/// pause: a pause timeout).
 pub struct Disturbing(());
 
 impl Disturbing {

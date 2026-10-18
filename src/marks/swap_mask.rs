@@ -11,8 +11,9 @@
 //!
 //! Caller: `marks::run_frame` (0x4D1549). Its calls through `part` (1 the lock, 2 a pixel,
 //! 3 the unlock, 4 the forgetting); in the game the platform's two through the game
-//! (section 15), the others their Rust versions. Refuses null settings and a surface wider
-//! than the mask's 0x100, before anything. Shadow mode runs the original alone (it tells
+//! (section 15), the others their Rust versions. Refuses null settings (before anything) and
+//! a locked texture (`g_surface` after the lock) wider than the mask's 0x100 (unlocked again,
+//! what was written put back). Shadow mode runs the original alone (it tells
 //! the device). Self-test: a copy whose calls go to stand-ins, against the Rust version,
 //! the switch changed or not, on a narrow test surface width.
 
@@ -58,20 +59,32 @@ pub unsafe fn swap_mask(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         if s == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        if game_read::<u32>(WIDTH_RVA) > 0x100 {
-            return Err(BadInput("a surface wider than the marks' mask").into());
-        }
         g.esi = s;
         let switch = ((s + 0x2704) as *const u32).read_unaligned();
         g.eax = switch;
         if g.eax == game_read::<u32>(SEEN_RVA) {
             return Ok(g);
         }
+        let kept: [u32; 2] = [game_read(SEEN_RVA), game_read(CHOSEN_RVA)];
         game_write(SEEN_RVA, g.eax);
         g.eax = game_read(if switch != 0 { BMASK_RVA } else { MASK_RVA });
         game_write(CHOSEN_RVA, g.eax);
         g.eax = game_read(SLOT_RVA);
         part(1, &mut g)?;
+        // The width is the locked texture's (`g_surface` while it is locked), not the
+        // screen's: checked here (2026-10-18: checked before the lock, it refused every
+        // frame). A row wider than the mask's would read past its block: unlocked, put
+        // back and refused.
+        if game_read::<u32>(WIDTH_RVA) > 0x100 {
+            let mut u = Regs {
+                eax: game_read(SLOT_RVA),
+                ..g
+            };
+            part(3, &mut u)?;
+            game_write(SEEN_RVA, kept[0]);
+            game_write(CHOSEN_RVA, kept[1]);
+            return Err(BadInput("a locked mask texture wider than the mask's 0x100").into());
+        }
         g.edx = 0;
         loop {
             g.ecx = 0;

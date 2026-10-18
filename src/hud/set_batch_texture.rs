@@ -5,7 +5,7 @@
 //! Out: all kept (`pusha` .. `popa`)
 //!
 //! Caller: `hud::add_polygon`. The texture call through `part` (1 with eax the texture),
-//! in the game its Rust version. Refuses a texture past `g_kindFirstSlots` (0x87), before
+//! in the game its Rust version. Refuses a texture past `g_kindFirstSlots` (0x400 dwords; the HUD asks for 0xC0 .. 0xDC), before
 //! anything. Shadow mode runs the original alone (it tells the device). Self-test: a copy
 //! whose call goes to a stand-in, against the Rust version.
 
@@ -28,7 +28,7 @@ hook_asm!(
 );
 
 const SLOTS_RVA: usize = rva(0x5D1AE8); // g_kindFirstSlots
-const SLOTS: u32 = 0x87;
+const SLOTS: u32 = 0x400; // `scene::reset_texture_tables` clears 0x400 (0x87 was IDA's next name)
 
 /// A call by place: 1 `set_texture`.
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;

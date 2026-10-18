@@ -15,7 +15,7 @@
 //! `logfile::log_write` and `log_int` (level 1). Refuses no table, one without its end
 //! entry, a class count of 0 or past 0x100, a section past 5, a player past 4 or missing,
 //! before anything; a driver not found is the search's fatal error, before anything.
-//! Shadow mode runs the original alone (it logs). Self-test (unpaused: it logs): the original and the Rust version on the game's tables,
+//! Shadow mode runs the original alone (it logs). Self-test: the original and the Rust version on the game's tables,
 //! groups and sections by lot; put back.
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
@@ -28,9 +28,7 @@ use std::sync::atomic::AtomicUsize;
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
 pub static HOOK: RawHook =
-    RawHook::new("menu::award_stage_points", rva(0x4A47EA), thunk, &ORIGINAL)
-        .self_test(self_test)
-        .self_test_unpaused();
+    RawHook::new("menu::award_stage_points", rva(0x4A47EA), thunk, &ORIGINAL).self_test(self_test);
 
 hook_asm!(
     thunk,

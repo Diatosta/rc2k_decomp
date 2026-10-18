@@ -130,9 +130,13 @@ pub fn regions() -> Vec<Region> {
     if g(FACES) != 0 {
         all.push((face, 0x40));
     }
-    if let Ok(o) = crate::physics::car_sounds::object() {
-        all.extend([(o + 0x10, 4), (o + 0x238, 0x28), (a(0x6D1AEC), 4)]);
+    // Only a listed car's object is written (`place_sound_object`); an unlisted car's
+    // pointer may be stale (see `crash_contact::sound_regions`).
+    let listed = crate::physics::car_sounds::listed(g(0x71B3F8)) == Ok(true);
+    if listed && let Ok(o) = crate::physics::car_sounds::object() {
+        all.extend([(o + 0x10, 4), (o + 0x238, 0x28)]);
     }
+    all.push((a(0x6D1AEC), 4));
     all
 }
 

@@ -33,9 +33,8 @@ use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatus, MEMORYST
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
-pub static HOOK: RawHook = RawHook::new("logfile::start_log", rva(0x401135), thunk, &ORIGINAL)
-    .self_test(self_test)
-    .self_test_unpaused();
+pub static HOOK: RawHook =
+    RawHook::new("logfile::start_log", rva(0x401135), thunk, &ORIGINAL).self_test(self_test);
 
 hook_asm!(
     thunk,

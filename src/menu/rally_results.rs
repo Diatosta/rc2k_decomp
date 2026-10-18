@@ -122,7 +122,8 @@ fn self_test() -> (usize, usize) {
             .filter(|&(p, _)| p != 0),
     );
     let mut vars = regions.clone();
-    vars.extend([EVENT_MODE_RVA, PLAYER_COUNT_RVA].map(at));
+    // `dword_75597C` was left changed (2026-10-18): put back too.
+    vars.extend([EVENT_MODE_RVA, PLAYER_COUNT_RVA, rva(0x75597C)].map(at));
     let saved = capture(&vars);
     for case in 0..2u32 {
         run_both(
