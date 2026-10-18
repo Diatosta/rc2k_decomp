@@ -187,6 +187,11 @@ pub fn dispatch_draw_rewound(
         return;
     }
 
+    if !crate::service::harness::shadow_due(hook) {
+        unsafe { call_original(r) };
+        return;
+    }
+
     let disturbances = DISTURBANCES.load(Ordering::SeqCst);
     let before = capture(rewind);
     let mut canvas = RecordingCanvas::new(true);
@@ -266,8 +271,18 @@ pub fn check_draw(
     let regs_ok = mine.as_ref().is_ok_and(|left| left.matches(&before, &ro));
     let ok = regs_ok && state_o == state_r && calls_o == canvas.calls && kerning_o == canvas.state;
     t.check(ok, || {
+        let first = first_difference(&calls_o, &canvas.calls);
+        let shown = first.map(|n| (calls_o.get(n).copied(), canvas.calls.get(n).copied()));
+        let state_at = state_o
+            .iter()
+            .zip(&state_r)
+            .position(|(a, b)| a != b)
+            .map(|n| {
+                let around = n.saturating_sub(8)..(n + 8).min(state_o.len()).min(state_r.len());
+                (n, state_o[around.clone()].to_vec(), state_r[around].to_vec())
+            });
         format!(
-            "{what}: regs_ok={regs_ok} same_state={} same_kerning={} original eax={:#x} ebx={:#x} ecx={:#x} edx={:#x} esi={:#x} edi={:#x} carry={} calls={}; rust {mine:?} calls={} first different call={:?}",
+            "{what}: regs_ok={regs_ok} same_state={} same_kerning={} original eax={:#x} ebx={:#x} ecx={:#x} edx={:#x} esi={:#x} edi={:#x} carry={} calls={}; rust {mine:?} calls={} first different call={:?}: original / rust {shown:x?}; state first differs at (byte, original's and rust's bytes from 8 before) {state_at:x?}",
             state_o == state_r,
             kerning_o == canvas.state,
             ro.eax,

@@ -52,7 +52,8 @@ fn self_test() -> (usize, usize) {
             address: 0x40C990,
             len: 0x87,
             entry: &[0x60, 0x83, 0x3D, 0x60, 0x6C, 0x50, 0x00, 0x01],
-            calls: &[],
+            // The registry's calls (paths the tests do not take).
+            calls: &[0x19, 0x49, 0x75, 0x80],
             jumps_out: &[],
         },
         &|_| None,

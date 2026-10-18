@@ -45,6 +45,30 @@ pub unsafe fn set_flag(flag_ida: usize) -> Result<Left, Refused> {
     unsafe { set_flag_at(a(CURRENT_CAR), a(TABLE), a(flag_ida)) }
 }
 
+/// A copy of one twin (at `address`, its flag `flag_ida`) on test cells.
+pub fn twin_copy(
+    hook: &RawHook,
+    address: usize,
+    flag_ida: usize,
+    current: u32,
+    table: u32,
+    flag: u32,
+) -> Result<crate::redirect::RedirectedCopy, String> {
+    crate::audio::test_copy::make(
+        hook,
+        &crate::audio::test_copy::Copy {
+            address,
+            len: 0x1C,
+            entry: &[0xA1, 0xF8, 0xB3, 0x71, 0x00],
+            calls: &[],
+            jumps_out: &[],
+        },
+        &|_| None,
+        &[(CURRENT_CAR, current), (TABLE, table), (flag_ida, flag)],
+        3,
+    )
+}
+
 /// The test of one twin at `address` whose flag is `flag_ida`.
 pub fn test_twin(hook: &RawHook, address: usize, entry: &[u8], flag_ida: usize) -> (usize, usize) {
     let Some(mut t) = SelfTest::begin(hook) else {

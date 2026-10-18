@@ -537,3 +537,583 @@ macro_rules! out3_hook {
     };
 }
 pub(crate) use out3_hook;
+
+/// Six 80-bit values in (st(0) .. st(5)), none out, for `six_in_hook!`.
+#[repr(C)]
+pub struct Six80 {
+    pub inputs: UnsafeCell<[[u8; 10]; 6]>,
+}
+
+unsafe impl Sync for Six80 {}
+
+impl Six80 {
+    pub const fn new() -> Self {
+        Self {
+            inputs: UnsafeCell::new([[0; 10]; 6]),
+        }
+    }
+
+    pub fn inputs(&self) -> [[u8; 10]; 6] {
+        unsafe { *self.inputs.get() }
+    }
+
+    pub fn set_inputs(&self, v: [[u8; 10]; 6]) {
+        unsafe { *self.inputs.get() = v };
+    }
+}
+
+impl Default for Six80 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// For a hook whose function takes st(0) .. st(5) and pops them all: `$thunk` takes the
+/// six off into `$six.inputs` and calls `$dispatch(regs)` (gated as `hook_asm!`'s);
+/// `$with_six(regs)` loads the inputs again and runs `$call_original` (which pops them).
+macro_rules! six_in_hook {
+    ($thunk:ident, $call_original:ident, $with_six:ident, dispatch = $dispatch:ident,
+     original = $orig:ident, six = $six:ident) => {
+        #[unsafe(naked)]
+        pub(crate) unsafe extern "C" fn $thunk() {
+            core::arch::naked_asm!(
+                "lea esp, [esp - 60]",
+                "fstp tbyte ptr [esp]",
+                "fstp tbyte ptr [esp + 10]",
+                "fstp tbyte ptr [esp + 20]",
+                "fstp tbyte ptr [esp + 30]",
+                "fstp tbyte ptr [esp + 40]",
+                "fstp tbyte ptr [esp + 50]",
+                "pushfd",
+                "pushad",
+                "cld",
+                "call {enter}",
+                "push esp",             // arg: *mut Regs
+                "lea eax, [esp + 40]",
+                "push eax",
+                "call {keep}",
+                "add esp, 4",
+                "call {dispatch}",
+                "add esp, 4",
+                "call {leave}",
+                "popad",
+                "popfd",
+                "lea esp, [esp + 60]",  // no flags touched from here
+                "ret",
+                enter = sym $crate::framework::hook_enter,
+                leave = sym $crate::framework::hook_leave,
+                keep = sym keep_six,
+                dispatch = sym $dispatch,
+            )
+        }
+
+        extern "C" fn keep_six(at: *const [[u8; 10]; 6]) {
+            $six.set_inputs(unsafe { at.read_unaligned() });
+        }
+
+        /// The original with the inputs in st(0) .. st(5) (it pops them).
+        #[unsafe(naked)]
+        pub(crate) unsafe extern "C" fn $with_six(_regs: *mut $crate::framework::Regs) {
+            core::arch::naked_asm!(
+                "push dword ptr [esp + 4]",
+                "fld tbyte ptr [{p} + 50]",
+                "fld tbyte ptr [{p} + 40]",
+                "fld tbyte ptr [{p} + 30]",
+                "fld tbyte ptr [{p} + 20]",
+                "fld tbyte ptr [{p} + 10]",
+                "fld tbyte ptr [{p}]",
+                "call {co}",
+                "add esp, 4",
+                "ret",
+                co = sym $call_original,
+                p = sym $six,
+            )
+        }
+
+        $crate::framework::hook_asm!(@call_original $call_original, $orig);
+    };
+}
+pub(crate) use six_in_hook;
+
+/// Calls code at `addr` (a test's copy) with `regs` loaded and `inputs` in st(0) ..
+/// st(2), as `call_game` does with the registers; the registers and flags it returns
+/// with go back into `regs`. For copies of functions that take three values on the x87
+/// stack and pop them.
+#[unsafe(naked)]
+pub unsafe extern "C" fn call_with_three(
+    _regs: *mut crate::framework::Regs,
+    _addr: usize,
+    _inputs: *const [[u8; 10]; 3],
+) {
+    core::arch::naked_asm!(
+        "push ebx", "push esi", "push edi", "push ebp",
+        "mov eax, [esp + 28]",           // inputs
+        "fld tbyte ptr [eax + 20]",
+        "fld tbyte ptr [eax + 10]",
+        "fld tbyte ptr [eax]",
+        "mov eax, [esp + 20]",           // eax = regs
+        "push eax",                      // remember regs across the call
+        "mov ecx, [eax + {o_ecx}]",
+        "mov edx, [eax + {o_edx}]",
+        "mov ebx, [eax + {o_ebx}]",
+        "mov esi, [eax + {o_esi}]",
+        "mov edi, [eax + {o_edi}]",
+        "mov ebp, [eax + {o_ebp}]",
+        "mov eax, [eax + {o_eax}]",
+        "call dword ptr [esp + 28]",     // addr
+        "pushfd",
+        "cld",
+        "push eax",
+        "mov eax, [esp + 8]",            // eax = regs again
+        "mov [eax + {o_ecx}], ecx",
+        "mov [eax + {o_edx}], edx",
+        "mov [eax + {o_ebx}], ebx",
+        "mov [eax + {o_esi}], esi",
+        "mov [eax + {o_edi}], edi",
+        "mov [eax + {o_ebp}], ebp",
+        "pop dword ptr [eax + {o_eax}]",
+        "pop dword ptr [eax + {o_eflags}]",
+        "add esp, 4",
+        "pop ebp", "pop edi", "pop esi", "pop ebx",
+        "ret",
+        o_eax = const core::mem::offset_of!(crate::framework::Regs, eax),
+        o_eflags = const core::mem::offset_of!(crate::framework::Regs, eflags),
+        o_ecx = const core::mem::offset_of!(crate::framework::Regs, ecx),
+        o_edx = const core::mem::offset_of!(crate::framework::Regs, edx),
+        o_ebx = const core::mem::offset_of!(crate::framework::Regs, ebx),
+        o_esi = const core::mem::offset_of!(crate::framework::Regs, esi),
+        o_edi = const core::mem::offset_of!(crate::framework::Regs, edi),
+        o_ebp = const core::mem::offset_of!(crate::framework::Regs, ebp),
+    )
+}
+
+/// For a hook whose function takes st(0) .. st(2) and pops them (leaving nothing): `$thunk`
+/// takes the three off into `$triple.inputs` and calls `$dispatch(regs)` (gated as
+/// `hook_asm!`'s); `$with_three(regs)` loads them again and runs `$call_original`.
+macro_rules! three_in_hook {
+    ($thunk:ident, $call_original:ident, $with_three:ident, dispatch = $dispatch:ident,
+     original = $orig:ident, triple = $triple:ident) => {
+        #[unsafe(naked)]
+        pub(crate) unsafe extern "C" fn $thunk() {
+            core::arch::naked_asm!(
+                "lea esp, [esp - 30]",
+                "fstp tbyte ptr [esp]",
+                "fstp tbyte ptr [esp + 10]",
+                "fstp tbyte ptr [esp + 20]",
+                "pushfd",
+                "pushad",
+                "cld",
+                "call {enter}",
+                "push esp",             // arg: *mut Regs
+                "lea eax, [esp + 40]",
+                "push eax",
+                "call {keep}",
+                "add esp, 4",
+                "call {dispatch}",
+                "add esp, 4",
+                "call {leave}",
+                "popad",
+                "popfd",
+                "lea esp, [esp + 30]",  // no flags touched from here
+                "ret",
+                enter = sym $crate::framework::hook_enter,
+                leave = sym $crate::framework::hook_leave,
+                keep = sym keep_three,
+                dispatch = sym $dispatch,
+            )
+        }
+
+        extern "C" fn keep_three(at: *const [[u8; 10]; 3]) {
+            $triple.set_inputs(unsafe { at.read_unaligned() });
+        }
+
+        /// The original with the inputs in st(0) .. st(2) (it pops them).
+        #[unsafe(naked)]
+        pub(crate) unsafe extern "C" fn $with_three(_regs: *mut $crate::framework::Regs) {
+            core::arch::naked_asm!(
+                "push dword ptr [esp + 4]",
+                "fld tbyte ptr [{p} + 20]",
+                "fld tbyte ptr [{p} + 10]",
+                "fld tbyte ptr [{p}]",
+                "call {co}",
+                "add esp, 4",
+                "ret",
+                co = sym $call_original,
+                p = sym $triple,
+            )
+        }
+
+        $crate::framework::hook_asm!(@call_original $call_original, $orig);
+    };
+}
+pub(crate) use three_in_hook;
+
+/// Calls code at `addr` (a test's copy) with `regs` loaded and `inputs` in st(0) and
+/// st(1), as `call_game` does with the registers; the registers and flags it returns
+/// with go back into `regs`. For copies of functions that take two values on the x87
+/// stack and pop them.
+#[unsafe(naked)]
+pub unsafe extern "C" fn call_with_two(
+    _regs: *mut crate::framework::Regs,
+    _addr: usize,
+    _inputs: *const [[u8; 10]; 2],
+) {
+    core::arch::naked_asm!(
+        "push ebx", "push esi", "push edi", "push ebp",
+        "mov eax, [esp + 28]",           // inputs
+        "fld tbyte ptr [eax + 10]",
+        "fld tbyte ptr [eax]",
+        "mov eax, [esp + 20]",           // eax = regs
+        "push eax",                      // remember regs across the call
+        "mov ecx, [eax + {o_ecx}]",
+        "mov edx, [eax + {o_edx}]",
+        "mov ebx, [eax + {o_ebx}]",
+        "mov esi, [eax + {o_esi}]",
+        "mov edi, [eax + {o_edi}]",
+        "mov ebp, [eax + {o_ebp}]",
+        "mov eax, [eax + {o_eax}]",
+        "call dword ptr [esp + 28]",     // addr
+        "pushfd",
+        "cld",
+        "push eax",
+        "mov eax, [esp + 8]",            // eax = regs again
+        "mov [eax + {o_ecx}], ecx",
+        "mov [eax + {o_edx}], edx",
+        "mov [eax + {o_ebx}], ebx",
+        "mov [eax + {o_esi}], esi",
+        "mov [eax + {o_edi}], edi",
+        "mov [eax + {o_ebp}], ebp",
+        "pop dword ptr [eax + {o_eax}]",
+        "pop dword ptr [eax + {o_eflags}]",
+        "add esp, 4",
+        "pop ebp", "pop edi", "pop esi", "pop ebx",
+        "ret",
+        o_eax = const core::mem::offset_of!(crate::framework::Regs, eax),
+        o_eflags = const core::mem::offset_of!(crate::framework::Regs, eflags),
+        o_ecx = const core::mem::offset_of!(crate::framework::Regs, ecx),
+        o_edx = const core::mem::offset_of!(crate::framework::Regs, edx),
+        o_ebx = const core::mem::offset_of!(crate::framework::Regs, ebx),
+        o_esi = const core::mem::offset_of!(crate::framework::Regs, esi),
+        o_edi = const core::mem::offset_of!(crate::framework::Regs, edi),
+        o_ebp = const core::mem::offset_of!(crate::framework::Regs, ebp),
+    )
+}
+
+/// For a hook whose function takes st(0) and st(1) and pops them (leaving nothing): `$thunk`
+/// takes the two off into `$pair.inputs` and calls `$dispatch(regs)` (gated as
+/// `hook_asm!`'s); `$with_two(regs)` loads them again and runs `$call_original`.
+macro_rules! two_in_hook {
+    ($thunk:ident, $call_original:ident, $with_two:ident, dispatch = $dispatch:ident,
+     original = $orig:ident, pair = $pair:ident) => {
+        #[unsafe(naked)]
+        pub(crate) unsafe extern "C" fn $thunk() {
+            core::arch::naked_asm!(
+                "lea esp, [esp - 20]",
+                "fstp tbyte ptr [esp]",
+                "fstp tbyte ptr [esp + 10]",
+                "pushfd",
+                "pushad",
+                "cld",
+                "call {enter}",
+                "push esp",             // arg: *mut Regs
+                "lea eax, [esp + 40]",
+                "push eax",
+                "call {keep}",
+                "add esp, 4",
+                "call {dispatch}",
+                "add esp, 4",
+                "call {leave}",
+                "popad",
+                "popfd",
+                "lea esp, [esp + 20]",  // no flags touched from here
+                "ret",
+                enter = sym $crate::framework::hook_enter,
+                leave = sym $crate::framework::hook_leave,
+                keep = sym keep_two,
+                dispatch = sym $dispatch,
+            )
+        }
+
+        extern "C" fn keep_two(at: *const [[u8; 10]; 2]) {
+            $pair.set_inputs(unsafe { at.read_unaligned() });
+        }
+
+        /// The original with the inputs in st(0) and st(1) (it pops them).
+        #[unsafe(naked)]
+        pub(crate) unsafe extern "C" fn $with_two(_regs: *mut $crate::framework::Regs) {
+            core::arch::naked_asm!(
+                "push dword ptr [esp + 4]",
+                "fld tbyte ptr [{p} + 10]",
+                "fld tbyte ptr [{p}]",
+                "call {co}",
+                "add esp, 4",
+                "ret",
+                co = sym $call_original,
+                p = sym $pair,
+            )
+        }
+
+        $crate::framework::hook_asm!(@call_original $call_original, $orig);
+    };
+}
+pub(crate) use two_in_hook;
+
+/// Four 80-bit values in (st(0) .. st(3)), none out, for `four_in_hook!`.
+#[repr(C)]
+pub struct Four80 {
+    pub inputs: UnsafeCell<[[u8; 10]; 4]>,
+}
+
+unsafe impl Sync for Four80 {}
+
+impl Four80 {
+    pub const fn new() -> Self {
+        Self {
+            inputs: UnsafeCell::new([[0; 10]; 4]),
+        }
+    }
+
+    pub fn inputs(&self) -> [[u8; 10]; 4] {
+        unsafe { *self.inputs.get() }
+    }
+
+    pub fn set_inputs(&self, v: [[u8; 10]; 4]) {
+        unsafe { *self.inputs.get() = v };
+    }
+}
+
+impl Default for Four80 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// For a hook whose function takes st(0) .. st(3) and pops them all: `$thunk` takes the
+/// four off into `$four.inputs` and calls `$dispatch(regs)` (gated as `hook_asm!`'s);
+/// `$with_four(regs)` loads the inputs again and runs `$call_original` (which pops them).
+macro_rules! four_in_hook {
+    ($thunk:ident, $call_original:ident, $with_four:ident, dispatch = $dispatch:ident,
+     original = $orig:ident, four = $four:ident) => {
+        #[unsafe(naked)]
+        pub(crate) unsafe extern "C" fn $thunk() {
+            core::arch::naked_asm!(
+                "lea esp, [esp - 40]",
+                "fstp tbyte ptr [esp]",
+                "fstp tbyte ptr [esp + 10]",
+                "fstp tbyte ptr [esp + 20]",
+                "fstp tbyte ptr [esp + 30]",
+                "pushfd",
+                "pushad",
+                "cld",
+                "call {enter}",
+                "push esp",             // arg: *mut Regs
+                "lea eax, [esp + 40]",
+                "push eax",
+                "call {keep}",
+                "add esp, 4",
+                "call {dispatch}",
+                "add esp, 4",
+                "call {leave}",
+                "popad",
+                "popfd",
+                "lea esp, [esp + 40]",  // no flags touched from here
+                "ret",
+                enter = sym $crate::framework::hook_enter,
+                leave = sym $crate::framework::hook_leave,
+                keep = sym keep_four,
+                dispatch = sym $dispatch,
+            )
+        }
+
+        extern "C" fn keep_four(at: *const [[u8; 10]; 4]) {
+            $four.set_inputs(unsafe { at.read_unaligned() });
+        }
+
+        /// The original with the inputs in st(0) .. st(3) (it pops them).
+        #[unsafe(naked)]
+        pub(crate) unsafe extern "C" fn $with_four(_regs: *mut $crate::framework::Regs) {
+            core::arch::naked_asm!(
+                "push dword ptr [esp + 4]",
+                "fld tbyte ptr [{p} + 30]",
+                "fld tbyte ptr [{p} + 20]",
+                "fld tbyte ptr [{p} + 10]",
+                "fld tbyte ptr [{p}]",
+                "call {co}",
+                "add esp, 4",
+                "ret",
+                co = sym $call_original,
+                p = sym $four,
+            )
+        }
+
+        $crate::framework::hook_asm!(@call_original $call_original, $orig);
+    };
+}
+pub(crate) use four_in_hook;
+
+/// Calls code at `addr` (a test's copy) with `regs` loaded and `inputs` in st(0) ..
+/// st(3), as `call_game` does with the registers; the registers and flags it returns
+/// with go back into `regs`. For copies of functions that take four values on the x87
+/// stack and pop them.
+#[unsafe(naked)]
+pub unsafe extern "C" fn call_with_four(
+    _regs: *mut crate::framework::Regs,
+    _addr: usize,
+    _inputs: *const [[u8; 10]; 4],
+) {
+    core::arch::naked_asm!(
+        "push ebx", "push esi", "push edi", "push ebp",
+        "mov eax, [esp + 28]",           // inputs
+        "fld tbyte ptr [eax + 30]",
+        "fld tbyte ptr [eax + 20]",
+        "fld tbyte ptr [eax + 10]",
+        "fld tbyte ptr [eax]",
+        "mov eax, [esp + 20]",           // eax = regs
+        "push eax",                      // remember regs across the call
+        "mov ecx, [eax + {o_ecx}]",
+        "mov edx, [eax + {o_edx}]",
+        "mov ebx, [eax + {o_ebx}]",
+        "mov esi, [eax + {o_esi}]",
+        "mov edi, [eax + {o_edi}]",
+        "mov ebp, [eax + {o_ebp}]",
+        "mov eax, [eax + {o_eax}]",
+        "call dword ptr [esp + 28]",     // addr
+        "pushfd",
+        "cld",
+        "push eax",
+        "mov eax, [esp + 8]",            // eax = regs again
+        "mov [eax + {o_ecx}], ecx",
+        "mov [eax + {o_edx}], edx",
+        "mov [eax + {o_ebx}], ebx",
+        "mov [eax + {o_esi}], esi",
+        "mov [eax + {o_edi}], edi",
+        "mov [eax + {o_ebp}], ebp",
+        "pop dword ptr [eax + {o_eax}]",
+        "pop dword ptr [eax + {o_eflags}]",
+        "add esp, 4",
+        "pop ebp", "pop edi", "pop esi", "pop ebx",
+        "ret",
+        o_eax = const core::mem::offset_of!(crate::framework::Regs, eax),
+        o_eflags = const core::mem::offset_of!(crate::framework::Regs, eflags),
+        o_ecx = const core::mem::offset_of!(crate::framework::Regs, ecx),
+        o_edx = const core::mem::offset_of!(crate::framework::Regs, edx),
+        o_ebx = const core::mem::offset_of!(crate::framework::Regs, ebx),
+        o_esi = const core::mem::offset_of!(crate::framework::Regs, esi),
+        o_edi = const core::mem::offset_of!(crate::framework::Regs, edi),
+        o_ebp = const core::mem::offset_of!(crate::framework::Regs, ebp),
+    )
+}
+
+/// Calls code at `addr` (a test's copy) as `call_with_two` does, for functions that read
+/// st(0) and st(1) and leave them: they are taken off after the call.
+#[unsafe(naked)]
+pub unsafe extern "C" fn call_with_two_kept(
+    _regs: *mut crate::framework::Regs,
+    _addr: usize,
+    _inputs: *const [[u8; 10]; 2],
+) {
+    core::arch::naked_asm!(
+        "push ebx", "push esi", "push edi", "push ebp",
+        "mov eax, [esp + 28]",           // inputs
+        "fld tbyte ptr [eax + 10]",
+        "fld tbyte ptr [eax]",
+        "mov eax, [esp + 20]",           // eax = regs
+        "push eax",                      // remember regs across the call
+        "mov ecx, [eax + {o_ecx}]",
+        "mov edx, [eax + {o_edx}]",
+        "mov ebx, [eax + {o_ebx}]",
+        "mov esi, [eax + {o_esi}]",
+        "mov edi, [eax + {o_edi}]",
+        "mov ebp, [eax + {o_ebp}]",
+        "mov eax, [eax + {o_eax}]",
+        "call dword ptr [esp + 28]",     // addr
+        "fstp st(0)",
+        "fstp st(0)",
+        "pushfd",
+        "cld",
+        "push eax",
+        "mov eax, [esp + 8]",            // eax = regs again
+        "mov [eax + {o_ecx}], ecx",
+        "mov [eax + {o_edx}], edx",
+        "mov [eax + {o_ebx}], ebx",
+        "mov [eax + {o_esi}], esi",
+        "mov [eax + {o_edi}], edi",
+        "mov [eax + {o_ebp}], ebp",
+        "pop dword ptr [eax + {o_eax}]",
+        "pop dword ptr [eax + {o_eflags}]",
+        "add esp, 4",
+        "pop ebp", "pop edi", "pop esi", "pop ebx",
+        "ret",
+        o_eax = const core::mem::offset_of!(crate::framework::Regs, eax),
+        o_eflags = const core::mem::offset_of!(crate::framework::Regs, eflags),
+        o_ecx = const core::mem::offset_of!(crate::framework::Regs, ecx),
+        o_edx = const core::mem::offset_of!(crate::framework::Regs, edx),
+        o_ebx = const core::mem::offset_of!(crate::framework::Regs, ebx),
+        o_esi = const core::mem::offset_of!(crate::framework::Regs, esi),
+        o_edi = const core::mem::offset_of!(crate::framework::Regs, edi),
+        o_ebp = const core::mem::offset_of!(crate::framework::Regs, ebp),
+    )
+}
+
+/// For a hook whose function reads st(0) and st(1) and leaves them: `$thunk` takes the two
+/// off into `$pair.inputs`, calls `$dispatch(regs)` (gated as `hook_asm!`'s) and puts
+/// them back; `$with_two(regs)` loads them, runs `$call_original` and takes them off.
+macro_rules! two_kept_hook {
+    ($thunk:ident, $call_original:ident, $with_two:ident, dispatch = $dispatch:ident,
+     original = $orig:ident, pair = $pair:ident) => {
+        #[unsafe(naked)]
+        pub(crate) unsafe extern "C" fn $thunk() {
+            core::arch::naked_asm!(
+                "lea esp, [esp - 20]",
+                "fstp tbyte ptr [esp]",
+                "fstp tbyte ptr [esp + 10]",
+                "pushfd",
+                "pushad",
+                "cld",
+                "call {enter}",
+                "push esp",             // arg: *mut Regs
+                "lea eax, [esp + 40]",
+                "push eax",
+                "call {keep}",
+                "add esp, 4",
+                "call {dispatch}",
+                "add esp, 4",
+                "call {leave}",
+                "popad",
+                "popfd",
+                "fld tbyte ptr [esp + 10]", // no flags touched from here
+                "fld tbyte ptr [esp]",
+                "lea esp, [esp + 20]",
+                "ret",
+                enter = sym $crate::framework::hook_enter,
+                leave = sym $crate::framework::hook_leave,
+                keep = sym keep_two,
+                dispatch = sym $dispatch,
+            )
+        }
+
+        extern "C" fn keep_two(at: *const [[u8; 10]; 2]) {
+            $pair.set_inputs(unsafe { at.read_unaligned() });
+        }
+
+        /// The original with the inputs in st(0) and st(1), taken off after.
+        #[unsafe(naked)]
+        pub(crate) unsafe extern "C" fn $with_two(_regs: *mut $crate::framework::Regs) {
+            core::arch::naked_asm!(
+                "push dword ptr [esp + 4]",
+                "fld tbyte ptr [{p} + 10]",
+                "fld tbyte ptr [{p}]",
+                "call {co}",
+                "fstp st(0)",
+                "fstp st(0)",
+                "add esp, 4",
+                "ret",
+                co = sym $call_original,
+                p = sym $pair,
+            )
+        }
+
+        $crate::framework::hook_asm!(@call_original $call_original, $orig);
+    };
+}
+pub(crate) use two_kept_hook;

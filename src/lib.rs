@@ -13,6 +13,7 @@ pub mod fatal;
 pub mod files;
 mod framework;
 pub mod gfx;
+pub mod hud;
 pub mod input;
 pub mod install;
 pub mod logfile;

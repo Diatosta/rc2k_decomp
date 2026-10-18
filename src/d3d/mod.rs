@@ -11,9 +11,13 @@
 use crate::framework::GameHook;
 
 pub mod draw_fan_unclipped;
+pub mod lock_texture;
 pub mod recorder;
 pub mod set_render_state;
 pub mod set_texture;
+pub mod texture_lock;
+pub mod texture_surface_info;
+pub mod unlock_texture;
 
 /// A vertex as the game hands it over: x, y, z, 1/w (floats), colour, specular, u, v
 /// (floats), as their bits.
@@ -26,4 +30,7 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &set_render_state::HOOK,
     &set_texture::HOOK,
     &draw_fan_unclipped::HOOK,
+    &texture_surface_info::HOOK,
+    &lock_texture::HOOK,
+    &unlock_texture::HOOK,
 ];

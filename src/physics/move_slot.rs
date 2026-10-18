@@ -261,9 +261,12 @@ pub fn fill_slots(at_: u32, n: u32, seed: u32) {
     }
 }
 
-/// In a race? (A stage's faces and the work car's place there.)
+/// In a race? (A stage's faces and the work car's place there, and the course's records
+/// with their count: the ground search reads them unchecked, so a test that reaches it
+/// in the menus would end the game.)
 pub fn in_race() -> bool {
-    unsafe { game_read::<u32>(rva(0x5CCD1C)) != 0 && game_read::<u32>(rva(0x5CCCBC)) != 0 }
+    let g = |a: usize| unsafe { game_read::<u32>(rva(a)) };
+    g(0x5CCD1C) != 0 && g(0x5CCCBC) != 0 && g(0x5CCCB8) != 0 && g(0x5CCD18) != 0
 }
 
 fn self_test() -> (usize, usize) {

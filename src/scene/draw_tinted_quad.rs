@@ -1,0 +1,203 @@
+//! `scene::draw_tinted_quad` (0x44B538): a flat quad on the screen in `dword_623DE8`'s
+//! colour, see-through by `dword_623DEC`'s low byte, through the polygon pipeline (858
+//! callers: the HUD's backdrops, the service area's screen, the menus): as
+//! `scene::draw_flat_quad` but the texture places 0, the colour whole, each record's +0x18
+//! 0xFFFFFF, +0x1C 0, +0x20 0xFF and +0x21 the see-through byte; no texture scaling; with
+//! three vertices or more after the clip: `scene::depth_buffer_off`, mode 3,
+//! `dword_6240BC` / `dword_6240C0` -1, `dword_6240E0` 0, `dword_6240E4` 1,
+//! `scene::draw_polygon`, mode 0, `g_polygonDrawn` 1, `scene::depth_buffer_on`; the
+//! colour back to white.
+//!
+//! In:  nothing (`dword_623DE8` .. `dword_623E24`, set by the caller)
+//! Out: eax 0xFF, ecx 4, esi the record pool going into the calls; then as they leave them
+//!
+//! The calls through `part` as `draw_flat_quad`'s (2 the clip, 3 / 5 the depth buffer, 4
+//! the draw), in the game their Rust versions. Shadow mode runs the original alone (it
+//! draws). Self-test: a copy whose calls go to stand-ins, against the Rust version, quads
+//! by lot.
+
+use crate::errors::Refused;
+use crate::framework::{
+    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
+};
+use crate::math::x87;
+use crate::scene::draw_flat_quad::{Part, game_part};
+use crate::service::harness::{Region, at, capture, restore};
+use std::sync::atomic::AtomicUsize;
+
+static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
+
+pub static HOOK: RawHook =
+    RawHook::new("scene::draw_tinted_quad", rva(0x44B538), thunk, &ORIGINAL).self_test(self_test);
+
+hook_asm!(
+    thunk,
+    call_original,
+    dispatch = dispatch,
+    original = ORIGINAL
+);
+
+const DRAWN_RVA: usize = rva(0x624134); // g_polygonDrawn
+const VERTEX_RVA: usize = rva(0x623E40); // dword_623E40: four of 0x20
+const RECORDS_RVA: usize = rva(0x975510); // g_polygonEntries: records of 0x44
+const CORNERS_RVA: usize = rva(0x623E10); // left, right; dword_623E20 top, bottom
+const SCRATCH_RVA: usize = rva(0x62400C); // dword_62400C
+const DEPTH_RVA: usize = rva(0x5C5E20); // dword_5C5E20
+const COLOUR_IN_RVA: usize = rva(0x623DE8); // dword_623DE8, dword_623DEC
+const COLOUR_RVA: usize = rva(0x6240CC); // g_polygonColour
+const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
+const POOL_RVA: usize = rva(0x977F10); // g_polygonRecordPool
+const NEXT_RECORD_RVA: usize = rva(0x6240A4); // g_polygonNextRecord
+const LIST_RVA: usize = rva(0x977710); // g_polygonList
+const NEXT_ENTRY_RVA: usize = rva(0x624114); // g_polygonNextEntry
+const MODE_RVA: usize = rva(0x63DAB4); // g_polygonMode
+const TEXTURES_RVA: [usize; 2] = [rva(0x6240BC), rva(0x6240C0)];
+const SIDES_RVA: [usize; 2] = [rva(0x6240E0), rva(0x6240E4)];
+const RECORD: usize = 0x44;
+
+fn set(r: usize, v: u32) {
+    unsafe { game_write(r, v) };
+}
+
+/// The Rust version (see the header): the registers it leaves.
+pub unsafe fn draw_tinted_quad(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    let mut g = *entry;
+    unsafe {
+        set(DRAWN_RVA, 0);
+        for n in 0..4 {
+            let rec = RECORDS_RVA + RECORD * n;
+            set(rec + 4, game_addr(VERTEX_RVA + 0x20 * n) as u32);
+            set(rec + 8, 0);
+            set(rec + 0xC, 0);
+        }
+        let float = |r: usize| {
+            let v = x87::from_int(game_read(r));
+            set(SCRATCH_RVA, v);
+            v
+        };
+        let [left, right, top, bottom] = [
+            CORNERS_RVA,
+            CORNERS_RVA + 4,
+            CORNERS_RVA + 0x10,
+            CORNERS_RVA + 0x14,
+        ]
+        .map(float);
+        let v = |n: usize, o: usize, x: u32| set(VERTEX_RVA + 0x20 * n + o, x);
+        for (n, x, y) in [
+            (0, left, top),
+            (1, right, top),
+            (2, right, bottom),
+            (3, left, bottom),
+        ] {
+            v(n, 0xC, x);
+            v(n, 0x1C, y);
+        }
+        let depth: u32 = game_read(DEPTH_RVA);
+        for n in 0..4 {
+            v(n, 0x18, depth);
+        }
+        let see: u8 = game_read(COLOUR_IN_RVA + 4);
+        set(COLOUR_RVA, game_read(COLOUR_IN_RVA));
+        for n in 0..4 {
+            let rec = RECORDS_RVA + RECORD * n;
+            set(rec, 0xFFFF_FFFF);
+            game_write(rec + 0x21, see);
+            set(rec + 0x18, 0xFF_FFFF);
+            set(rec + 0x1C, 0);
+            game_write(rec + 0x20, 0xFFu8);
+        }
+        set(COUNT_RVA, 4);
+        g.esi = game_addr(POOL_RVA) as u32;
+        set(NEXT_RECORD_RVA, g.esi);
+        for n in 0..4u32 {
+            set(LIST_RVA + 4 * n as usize, n);
+        }
+        set(LIST_RVA + 16, 0);
+        set(NEXT_ENTRY_RVA, 4);
+        [g.eax, g.ecx] = [0xFF, 4];
+        part(2, &mut g)?;
+        if game_read::<u32>(COUNT_RVA) >= 3 {
+            part(3, &mut g)?;
+            set(MODE_RVA, 3);
+            set(TEXTURES_RVA[0], 0xFFFF_FFFF);
+            set(TEXTURES_RVA[1], 0xFFFF_FFFF);
+            set(SIDES_RVA[0], 0);
+            set(SIDES_RVA[1], 1);
+            part(4, &mut g)?;
+            set(MODE_RVA, 0);
+            set(DRAWN_RVA, 1);
+            part(5, &mut g)?;
+        }
+        set(COLOUR_RVA, 0xFF_FFFF);
+    }
+    Ok(g)
+}
+
+extern "C" fn dispatch(r: &mut Regs) {
+    HOOK.count_call();
+    if shadow() {
+        unsafe { call_original(r) };
+        return;
+    }
+    match unsafe { draw_tinted_quad(r, &mut game_part) } {
+        Ok(left) => *r = Regs { esp: r.esp, ..left },
+        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
+    }
+}
+
+fn self_test() -> (usize, usize) {
+    use crate::race::mud::{copy, run_both, test_part};
+    let Some(mut t) = SelfTest::begin(&HOOK) else {
+        return (0, 0);
+    };
+    // mov g_polygonDrawn, 0
+    let entry: &[u8] = &[0xC7, 0x05, 0x34, 0x41, 0x62, 0x00, 0x00, 0x00, 0x00, 0x00];
+    let copy = match copy(
+        0x44B538,
+        0x229,
+        entry,
+        &[0x1BB, 0x1C9, 0x200, 0x219],
+        &[(0x44D15A, 2), (0x44E3F1, 3), (0x44BA2C, 4), (0x44E41F, 5)],
+    ) {
+        Ok(c) => c,
+        Err(why) => return t.skip(why),
+    };
+    let regions: Vec<Region> = vec![
+        at(DRAWN_RVA),
+        (game_addr(VERTEX_RVA) as u32, 0x80),
+        (game_addr(RECORDS_RVA) as u32, RECORD * 4),
+        at(SCRATCH_RVA),
+        at(COLOUR_RVA),
+        at(COUNT_RVA),
+        at(NEXT_RECORD_RVA),
+        (game_addr(LIST_RVA) as u32, 0x14),
+        at(NEXT_ENTRY_RVA),
+        at(MODE_RVA),
+        at(TEXTURES_RVA[0]),
+        at(TEXTURES_RVA[1]),
+        at(SIDES_RVA[0]),
+        at(SIDES_RVA[1]),
+    ];
+    let mut vars = regions.clone();
+    vars.push((game_addr(COLOUR_IN_RVA) as u32, 0x40));
+    let saved = capture(&vars);
+    for case in 0..3u32 {
+        run_both(
+            &mut t,
+            &format!("case {case}"),
+            &copy,
+            &regions,
+            &|| unsafe {
+                restore(&vars, &saved);
+                for n in 0..16u32 {
+                    game_write(COLOUR_IN_RVA + 4 * n as usize, n * 0x13_0000 + case * 7 + 1);
+                }
+                game_write(COUNT_RVA, 9u32);
+                std::ptr::write_bytes(game_addr(VERTEX_RVA) as *mut u8, 0xAA, 0x80);
+            },
+            &|r| unsafe { draw_tinted_quad(r, &mut test_part) },
+        );
+    }
+    restore(&vars, &saved);
+    t.finish()
+}

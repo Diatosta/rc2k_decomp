@@ -1,6 +1,7 @@
 use crate::framework::GameHook;
 
 pub mod blend_font;
+pub mod draw_clock_fixed_pitch;
 pub mod draw_string_by_id;
 pub mod draw_text;
 pub mod draw_text_keep_regs;
@@ -17,6 +18,7 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &draw_text::HOOK,
     &draw_text_keep_regs::HOOK,
     &draw_string_by_id::HOOK,
+    &draw_clock_fixed_pitch::HOOK,
     &draw_time_fixed_pitch::HOOK,
     &measure_text::HOOK,
     &measure_string_by_id::HOOK,

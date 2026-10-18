@@ -1,5 +1,5 @@
 //! `marks::set_up_squares` (0x4BF529): in `sub_4C0F2E`, the items cleared and the tables of
-//! four-point circles (`g_marksSquareItems` .., 0x800 of 0x3C), then `marks::reset_outline`.
+//! four-point circles (`g_marksSquareItems` .., 0x800 of 0x3C), then `marks::reset_pong`.
 //!
 //! In:  nothing
 //! Out: see `marks/shapes.rs`

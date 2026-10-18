@@ -35,6 +35,7 @@ const TIME_RVA: usize = rva(0x5183A4); // dword_5183A4
 // ---- Rust version ----
 
 pub unsafe fn seed_random() {
+    crate::math::next_random::wait_for_random();
     unsafe {
         let seed = random_step(game_read(TIME_RVA), game_read(DATE_RVA));
         if seed != 0 {
@@ -52,6 +53,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
+    // Waits while a test owns the generator (`next_random::own_random`).
+    crate::math::next_random::wait_for_random();
     dispatch_state(&HOOK, r, call_original, &[at(STATE_RVA)], &rust);
 }
 

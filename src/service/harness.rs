@@ -38,6 +38,50 @@ pub fn restore(regions: &[Region], mut bytes: &[u8]) {
 /// leaves in them. It must not have written anything when it returns an error.
 pub type Rust<'a> = &'a dyn Fn(&Regs) -> Result<Left, Refused>;
 
+/// Shadow comparisons per hook and second at most: a hook called thousands of times a
+/// frame (per face, per polygon, per particle) would otherwise slow a race to a crawl. The
+/// calls past it run the original alone, which is what shadow mode gives the game anyway.
+pub const SHADOW_PER_SECOND: u32 = 20;
+
+/// Whether this shadow-mode call of `hook` is compared (see `SHADOW_PER_SECOND`).
+pub fn shadow_due(hook: &RawHook) -> bool {
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+    use std::time::Instant;
+    static SEEN: OnceLock<Mutex<HashMap<usize, (u64, u32)>>> = OnceLock::new();
+    static START: OnceLock<Instant> = OnceLock::new();
+    let second = START.get_or_init(Instant::now).elapsed().as_secs();
+    let key = hook as *const RawHook as usize;
+    let mut seen = SEEN
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .unwrap();
+    let entry = seen.entry(key).or_insert((second, 0));
+    if entry.0 != second {
+        *entry = (second, 0);
+    }
+    entry.1 += 1;
+    entry.1 <= SHADOW_PER_SECOND
+}
+
+/// A short account of where two captures differ: how many bytes, the first, and 16 bytes
+/// from there on each side (a whole capture can be megabytes).
+pub fn diff_summary(theirs: &[u8], mine: &[u8]) -> String {
+    let differing = theirs.iter().zip(mine).filter(|(a, b)| a != b).count();
+    match theirs.iter().zip(mine).position(|(a, b)| a != b) {
+        None if theirs.len() == mine.len() => "same".into(),
+        None => format!("lengths {} / {}", theirs.len(), mine.len()),
+        Some(n) => {
+            let end = (n + 16).min(theirs.len()).min(mine.len());
+            format!(
+                "{differing} bytes differ, the first at {n:#x}: original {:x?}, rust {:x?}",
+                &theirs[n..end],
+                &mine[n..end]
+            )
+        }
+    }
+}
+
 /// The whole `dispatch` of such a hook. `regions` is everything the function may write.
 pub fn dispatch_state(
     hook: &RawHook,
@@ -53,6 +97,11 @@ pub fn dispatch_state(
             Ok(left) => left.apply(r),
             Err(e) => unsafe { crate::fatal::raise::refused(hook, e, r, call_original) },
         }
+        return;
+    }
+
+    if !shadow_due(hook) {
+        unsafe { call_original(r) };
         return;
     }
 
@@ -75,8 +124,9 @@ pub fn dispatch_state(
     if theirs != mine || !left.matches(r, &o) {
         crate::screens::harness::mismatch_unless_disturbed(hook, || {
             format!(
-                "before {before:x?}: original {theirs:x?}; rust {mine:x?} regs_ok={}",
-                left.matches(r, &o)
+                "regs_ok={}; memory: {}",
+                left.matches(r, &o),
+                diff_summary(&theirs, &mine)
             )
         });
     }
@@ -239,7 +289,20 @@ pub fn check_state_with(
 
     let regs_ok = mine.as_ref().is_ok_and(|left| left.matches(&before, &ro));
     t.check(regs_ok && theirs == state, || {
-        format!("{what}: regs_ok={regs_ok} original {theirs:x?}; rust {mine:?} {state:x?}")
+        format!(
+            "{what}: regs_ok={regs_ok} original eax={:#x} ebx={:#x} ecx={:#x} edx={:#x} \
+             esi={:#x} edi={:#x} ebp={:#x} carry={}; rust {mine:x?}; memory: {}; observed: {}",
+            ro.eax,
+            ro.ebx,
+            ro.ecx,
+            ro.edx,
+            ro.esi,
+            ro.edi,
+            ro.ebp,
+            ro.carry(),
+            diff_summary(&theirs.0, &state.0),
+            diff_summary(&theirs.1, &state.1)
+        )
     });
 }
 

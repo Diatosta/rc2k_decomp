@@ -1,7 +1,7 @@
 //! `scene::draw_scene_object` (0x451E3E): chooses the set of textures for the object
 //! `g_objectNumber` and draws it the way the scene's mode asks for.
 //!
-//! In:  esi, passed on to `sub_451B61`
+//! In:  esi, passed on to `scene::draw_described_object`
 //! Out: the registers as its parts leave them; before the drawing eax = what was last
 //!      looked at, ebx = the object's number, edx = the car's remainder if a car was
 //!      looked at
@@ -11,7 +11,7 @@
 //! a race, an object of kind 0x23A, and in a race for objects 0x50 .. 0xEF (the cars,
 //! 0x14 objects each) whose car's block has 0x21 at +0x24.
 //! Nothing more for an object without faces (`g_objectFaceCounts`). Else by
-//! `dword_6365C4`: 0 `scene::draw_shown_object`; 1 and 2 `sub_451B61` (not ported: it
+//! `dword_6365C4`: 0 `scene::draw_shown_object`; 1 and 2 `scene::draw_described_object` (it
 //! takes an object's description in esi and comes back here); anything else nothing.
 //! Twelve callers.
 //! Refuses a car without its block.
@@ -52,7 +52,7 @@ const KINDS_RVA: usize = rva(0x5CD27C); // g_objectKinds
 const BLOCKS_RVA: usize = rva(0x71B3B8); // g_carBlocks
 const FACE_COUNTS_RVA: usize = rva(0x632F70); // dword_632F70
 const MODE_RVA: usize = rva(0x6365C4); // dword_6365C4
-const DESCRIBED_RVA: usize = rva(0x451B61); // sub_451B61
+const DESCRIBED_RVA: usize = rva(0x451B61); // scene::draw_described_object
 const OBJECTS: u32 = 0x100;
 const OTHER_SET: u32 = 0x108;
 
@@ -66,7 +66,7 @@ const TOO_HIGH: FatalError = FatalError {
 pub enum Way {
     /// `scene::draw_shown_object`.
     Shown,
-    /// `sub_451B61`.
+    /// `scene::draw_described_object`.
     Described,
 }
 
@@ -126,6 +126,20 @@ pub unsafe fn draw_scene_object(
     }
 }
 
+/// `draw_scene_object` with the game's parts (`scene::draw_shown_object` and its drawing;
+/// `scene::draw_described_object`), for Rust callers.
+pub unsafe fn draw_scene_object_in_game(r: &mut Regs) -> Result<(), Refused> {
+    unsafe {
+        draw_scene_object(r, &mut |way, r| match way {
+            Way::Shown => draw_shown_object(r, &mut |r| draw_object_in_game(r)).map(|_| ()),
+            Way::Described => crate::scene::draw_described_object::draw_described_object(
+                r,
+                &mut crate::scene::draw_described_object::described_part,
+            ),
+        })
+    }
+}
+
 // ---- hook ----
 
 extern "C" fn dispatch(r: &mut Regs) {
@@ -146,15 +160,7 @@ extern "C" fn dispatch(r: &mut Regs) {
         return;
     }
     let entry = *r;
-    let done = unsafe {
-        draw_scene_object(r, &mut |way, r| match way {
-            Way::Shown => draw_shown_object(r, &mut |r| draw_object_in_game(r)).map(|_| ()),
-            Way::Described => {
-                call_game(r, game_addr(DESCRIBED_RVA));
-                Ok(())
-            }
-        })
-    };
+    let done = unsafe { draw_scene_object_in_game(r) };
     if let Err(e) = done {
         *r = entry;
         unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) }

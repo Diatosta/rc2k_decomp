@@ -4,33 +4,151 @@ use crate::framework::GameHook;
 
 pub mod animate_lit_faces;
 pub mod animate_stage;
+pub mod any_key_down;
 pub mod car;
+pub mod car_input_words;
 pub mod car_near_checkpoint;
 pub mod checkpoint_taken;
 pub mod choose_shown_cars;
 pub mod clear_start_state;
+pub mod countdown_beep;
+pub mod countdown_beeps;
+pub mod countdown_cue;
+pub mod countdown_sound;
+pub mod device_axes;
 pub mod drive_computer_car;
+pub mod duel_sound_levels;
+pub mod finish_camera;
+pub mod finish_race;
+pub mod finish_race_0;
+pub mod finish_run;
+pub mod finish_timing;
+pub mod flush_replay;
+pub mod flush_replay_if;
+pub mod hold_count_tick;
 pub mod keep_lead_car_values;
+pub mod keep_replay_frame;
 pub mod lead_car_values;
 pub mod load_car;
+pub mod load_replay_cars;
+pub mod load_replay_frame;
 pub mod next_camera_view;
 pub mod note_gap_ahead;
 pub mod note_gap_behind;
 pub mod note_gaps;
+pub mod pack_inputs;
+pub mod pause_until_key;
+pub mod pedal_inputs;
+pub mod pick_replay_camera;
+pub mod play_inputs;
+pub mod play_inputs_if;
+pub mod play_race;
+pub mod play_replay_frame;
 pub mod put_back_lead_car_values;
+pub mod quit_question;
+pub mod race_cars_step;
+pub mod race_clock_tick;
+pub mod race_frame;
+pub mod race_init;
+pub mod race_loop;
 pub mod race_mode_cars;
+pub mod race_parts;
+pub mod race_step;
+pub mod race_tick;
 pub mod read_car_controls;
+pub mod read_packed;
+pub mod read_replay_frame;
+pub mod read_replay_frame_0;
+pub mod record_inputs;
+pub mod record_inputs_if;
+pub mod replay_cameras;
+pub mod replay_clock_tick;
+pub mod replay_frame_marks;
+pub mod replay_step;
+pub mod reset_request;
+pub mod save_replay_cars;
 pub mod set_camera_view;
 pub mod set_listener;
 pub mod share_all_cars;
 pub mod share_car_state;
+pub mod simple_car_step;
 pub mod start_blend;
 pub mod start_car_on_line;
 pub mod start_cars_behind;
+pub mod steer_inputs;
 pub mod store_car;
+pub mod store_first_car;
+pub mod two_car_order;
+pub mod tyre_change_screen;
+pub mod tyre_parts;
+pub mod tyre_quad;
+pub mod tyre_screen;
+pub mod tyre_screen_parts;
+pub mod tyre_turned_quad;
+pub mod unpack_inputs;
+pub mod unpack_rle;
+pub mod write_replay_frames;
 
 pub static HOOKS: &[&dyn GameHook] = &[
     &load_car::HOOK,
+    &race_frame::HOOK,
+    &store_first_car::HOOK,
+    &finish_camera::HOOK,
+    &finish_timing::HOOK,
+    &finish_run::HOOK,
+    &finish_race::HOOK,
+    &finish_race_0::HOOK,
+    &tyre_quad::HOOK,
+    &tyre_turned_quad::HOOK,
+    &tyre_screen_parts::HOOK,
+    &tyre_screen::HOOK,
+    &tyre_change_screen::HOOK,
+    &simple_car_step::HOOK,
+    &race_tick::HOOK,
+    &race_step::HOOK,
+    &pause_until_key::HOOK,
+    &quit_question::HOOK,
+    &race_loop::HOOK,
+    &play_race::HOOK,
+    &unpack_rle::HOOK,
+    &read_packed::HOOK,
+    &read_replay_frame::HOOK,
+    &read_replay_frame_0::HOOK,
+    &load_replay_frame::HOOK,
+    &pick_replay_camera::HOOK,
+    &replay_cameras::HOOK,
+    &keep_replay_frame::HOOK,
+    &play_replay_frame::HOOK,
+    &countdown_sound::HOOK,
+    &countdown_cue::HOOK,
+    &countdown_beep::HOOK,
+    &countdown_beeps::HOOK,
+    &write_replay_frames::HOOK,
+    &flush_replay::HOOK,
+    &flush_replay_if::HOOK,
+    &replay_step::HOOK,
+    &pack_inputs::HOOK,
+    &unpack_inputs::HOOK,
+    &play_inputs::HOOK,
+    &record_inputs::HOOK,
+    &record_inputs_if::HOOK,
+    &play_inputs_if::HOOK,
+    &hold_count_tick::HOOK,
+    &replay_clock_tick::HOOK,
+    &two_car_order::HOOK,
+    &duel_sound_levels::HOOK,
+    &save_replay_cars::HOOK,
+    &load_replay_cars::HOOK,
+    &replay_frame_marks::HOOK,
+    &any_key_down::HOOK,
+    &race_clock_tick::HOOK,
+    &device_axes::HOOK,
+    &car_input_words::HOOK,
+    &pedal_inputs::HOOK,
+    &reset_request::HOOK,
+    &steer_inputs::HOOK,
+    &race_cars_step::HOOK,
+    &race_init::HOOK,
     &store_car::HOOK,
     &keep_lead_car_values::HOOK,
     &put_back_lead_car_values::HOOK,

@@ -2,8 +2,9 @@
 //! be drawn.
 //!
 //! In:  nothing
-//! Out: the original leaves every register changed; its callers go on by the number
-//!      of vertices alone, and the Rust version keeps the registers
+//! Out: the original leaves every register changed (ebx the count left, as its passes end);
+//!      its callers go on by the number of vertices alone; the hook gives ebx the count and
+//!      keeps the rest
 //!
 //! `dword_624124` = 1; `dword_62411C` = 0x1000 and one pass of `scene/clip.rs` that
 //! keeps what is deeper than that (`sub_44DB93`); then, with `dword_621510` at 0,
@@ -70,9 +71,14 @@ pub unsafe fn clip_polygon_by_depth() -> Result<(), BadInput> {
 // ---- hook ----
 
 extern "C" fn dispatch(r: &mut Regs) {
+    let rust_runs = !crate::framework::shadow();
     dispatch_clip(&HOOK, r, call_original, &regions, &|| unsafe {
         clip_polygon_by_depth()
     });
+    if rust_runs {
+        // Its passes end `mov g_polygonVertexCount, ebx`: ebx the count left.
+        r.ebx = unsafe { crate::framework::game_read(crate::d3d::draw_fan_unclipped::COUNT_RVA) };
+    }
 }
 
 // ---- self-test ----

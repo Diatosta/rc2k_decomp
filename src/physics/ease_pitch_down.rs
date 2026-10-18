@@ -1,0 +1,87 @@
+//! `physics::ease_pitch_down` (0x438CD3): half the way from `g_car` +0x6B8
+//! (`unk_71A690`) down to `dword_608C1C` (unsigned halving, `shr`), kept in
+//! `dword_608C24` and taken from +0x6B8. The twin of `physics::ease_pitch_up`.
+//!
+//! In:  nothing
+//! Out: eax the step; the rest kept; no flags read
+//!
+//! Caller: `sub_43907F` (0x4392F3).
+//! Self-test: `physics/copy_hooks_test.rs`, 8 fillings.
+
+use crate::errors::Refused;
+use crate::framework::{EAX, RawHook, Regs, game_addr, hook_asm, rva};
+use crate::physics::copy_hooks_test::{lot, test_moves};
+use crate::screens::harness::Left;
+use crate::service::harness::dispatch_state;
+use std::sync::atomic::AtomicUsize;
+
+static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
+
+pub static HOOK: RawHook =
+    RawHook::new("physics::ease_pitch_down", rva(0x438CD3), thunk, &ORIGINAL).self_test(self_test);
+
+hook_asm!(
+    thunk,
+    call_original,
+    dispatch = dispatch,
+    original = ORIGINAL
+);
+
+fn game() -> Vec<u32> {
+    VARIABLES
+        .iter()
+        .map(|&x| game_addr(rva(x)) as u32)
+        .collect()
+}
+
+unsafe fn at(a: u32) -> u32 {
+    unsafe { (a as *const u32).read_unaligned() }
+}
+
+unsafe fn put(a: u32, v: u32) {
+    unsafe { (a as *mut u32).write_unaligned(v) }
+}
+
+/// The variables (IDA addresses).
+const VARIABLES: [usize; 3] = [0x71A690, 0x608C1C, 0x608C24];
+
+/// The core on the variables' addresses.
+unsafe fn core(v: &[u32]) -> Left {
+    unsafe {
+        let step = at(v[0]).wrapping_sub(at(v[1])) >> 1;
+        put(v[2], step);
+        put(v[0], at(v[0]).wrapping_sub(step));
+        Left::nothing().with(EAX, step)
+    }
+}
+
+/// The Rust version.
+pub unsafe fn ease_pitch_down() -> Left {
+    unsafe { core(&game()) }
+}
+
+fn rust(_: &Regs) -> Result<Left, Refused> {
+    Ok(unsafe { ease_pitch_down() })
+}
+
+extern "C" fn dispatch(r: &mut Regs) {
+    let v = game();
+    dispatch_state(&HOOK, r, call_original, &[(v[0], 4), (v[2], 4)], &rust);
+}
+
+fn self_test() -> (usize, usize) {
+    test_moves(
+        &HOOK,
+        0x438CD3,
+        0x19,
+        &[0xA1, 0x90, 0xA6, 0x71, 0x00],
+        &VARIABLES,
+        4,
+        8,
+        &|seed, out| {
+            lot(seed, out);
+            let _ = out;
+        },
+        &|v, _| unsafe { core(v) },
+    )
+}

@@ -5,17 +5,36 @@ use crate::text::font::Font;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+pub mod best_scores;
+pub mod best_scores_caption;
 pub mod buttons;
 pub mod car_caption;
 pub mod car_caption_2;
 pub mod car_page_title;
+pub mod championship_table;
+pub mod classify_controller;
+pub mod controller;
 pub mod draw_background_band;
+pub mod draw_best_scores;
+pub mod draw_best_scores_page;
+pub mod draw_bottom_panel;
 pub mod draw_brake_balance_marker;
 pub mod draw_button;
 pub mod draw_button_alt;
 pub mod draw_button_highlighted;
 pub mod draw_car_figures;
+pub mod draw_championship_table;
+pub mod draw_class_times;
+pub mod draw_class_times_marked;
+pub mod draw_column_boxes;
+pub mod draw_column_rules;
+pub mod draw_control_bindings;
+pub mod draw_controller_page;
+pub mod draw_duel_result;
 pub mod draw_empty_savegame;
+pub mod draw_event_best_scores;
+pub mod draw_fade_overlay;
+pub mod draw_graphics_settings;
 pub mod draw_highlighted_caption;
 pub mod draw_inspection_status;
 pub mod draw_item_button;
@@ -23,15 +42,31 @@ pub mod draw_item_button_centred;
 pub mod draw_item_button_centred_highlighted;
 pub mod draw_item_button_right;
 pub mod draw_item_button_right_highlighted;
+pub mod draw_itinerary;
 pub mod draw_leave_question;
 pub mod draw_load_setup_list;
 pub mod draw_menu_item_text;
 pub mod draw_menu_items;
 pub mod draw_menu_labels;
+pub mod draw_message_box;
 pub mod draw_name_cursor;
+pub mod draw_no_controller;
+pub mod draw_note_1fd;
+pub mod draw_options_checklist;
+pub mod draw_overall_best_scores;
 pub mod draw_player2_details;
 pub mod draw_player34_details;
 pub mod draw_player_details;
+pub mod draw_player_rally_result;
+pub mod draw_player_stage_result;
+pub mod draw_players_results;
+pub mod draw_players_results_points;
+pub mod draw_players_standings;
+pub mod draw_rally_stage_info;
+pub mod draw_rally_stage_times;
+pub mod draw_rally_times_heading;
+pub mod draw_record_heading;
+pub mod draw_record_times;
 pub mod draw_redefined_keys;
 pub mod draw_repair_times;
 pub mod draw_ride_height_installed_marker;
@@ -42,29 +77,65 @@ pub mod draw_savegame_names;
 pub mod draw_savegame_preview;
 pub mod draw_selected_stage_menu;
 pub mod draw_service_area;
+pub mod draw_service_boxes;
 pub mod draw_service_stage_info;
 pub mod draw_service_time;
 pub mod draw_setup_slot_names;
+pub mod draw_sound_settings;
+pub mod draw_spaced_number;
+pub mod draw_stage_best_and_fastest;
 pub mod draw_stage_heading;
 pub mod draw_stage_info;
 pub mod draw_stage_records;
+pub mod draw_stage_results;
+pub mod draw_stage_times;
+pub mod draw_stage_times_heading;
 pub mod draw_steering_sensitivity_marker;
 pub mod draw_suspension_stiffness_installed_marker;
 pub mod draw_suspension_stiffness_marker;
 pub mod draw_time_trial_stage_info;
+pub mod draw_two_column_panel;
 pub mod draw_visual_preferences;
+pub mod draw_volume_settings;
+pub mod find_history_entry;
 pub mod gearing_text;
 pub mod harness;
+pub mod itinerary;
+pub mod learn_axis;
+pub mod load_audio_settings;
+pub mod locked_notes;
+pub mod note_locked_item_3;
+pub mod note_locked_stage;
+pub mod page_settings;
+pub mod pick_player_1;
+pub mod pick_player_2;
+pub mod pick_player_3;
+pub mod pick_player_4;
 pub mod player_number_text;
+pub mod players_results;
+pub mod read_controller;
+pub mod replay_range_caption;
 pub mod savegame_page_numbers;
 pub mod savegame_preview;
+pub mod service_area_frame;
+pub mod service_box_frame_1;
+pub mod service_box_frame_2;
+pub mod service_box_frame_3;
+pub mod service_box_frame_4;
+pub mod service_boxes;
 pub mod set_stage_choice_titles;
 pub mod setup_markers;
 pub mod slideshow_title;
+pub mod stage_choice_texts;
+pub mod stage_info;
+pub mod stage_options_texts;
 pub mod stage_panel;
+pub mod stage_results;
 pub mod yes_no_caption;
 
 pub static HOOKS: &[&dyn GameHook] = &[
+    &draw_fade_overlay::HOOK,
+    &draw_service_boxes::HOOK,
     &draw_stage_heading::HOOK,
     &draw_background_band::HOOK,
     &draw_highlighted_caption::HOOK,
@@ -100,6 +171,11 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &draw_item_button_centred_highlighted::HOOK,
     &draw_menu_item_text::HOOK,
     &draw_menu_items::HOOK,
+    &service_area_frame::HOOK,
+    &service_box_frame_1::HOOK,
+    &service_box_frame_2::HOOK,
+    &service_box_frame_3::HOOK,
+    &service_box_frame_4::HOOK,
     &yes_no_caption::HOOK,
     &draw_leave_question::HOOK,
     &savegame_page_numbers::HOOK,
@@ -117,6 +193,58 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &draw_player2_details::HOOK,
     &draw_player34_details::HOOK,
     &draw_redefined_keys::HOOK,
+    &pick_player_1::HOOK,
+    &pick_player_2::HOOK,
+    &pick_player_3::HOOK,
+    &pick_player_4::HOOK,
+    &load_audio_settings::HOOK,
+    &draw_sound_settings::HOOK,
+    &draw_graphics_settings::HOOK,
+    &draw_player_stage_result::HOOK,
+    &draw_options_checklist::HOOK,
+    &draw_player_rally_result::HOOK,
+    &draw_itinerary::HOOK,
+    &draw_players_standings::HOOK,
+    &draw_rally_stage_info::HOOK,
+    &draw_stage_best_and_fastest::HOOK,
+    &draw_stage_results::HOOK,
+    &find_history_entry::HOOK,
+    &draw_championship_table::HOOK,
+    &draw_control_bindings::HOOK,
+    &draw_volume_settings::HOOK,
+    &draw_duel_result::HOOK,
+    &draw_spaced_number::HOOK,
+    &draw_players_results::HOOK,
+    &draw_players_results_points::HOOK,
+    &draw_bottom_panel::HOOK,
+    &draw_column_rules::HOOK,
+    &draw_column_boxes::HOOK,
+    &draw_two_column_panel::HOOK,
+    &draw_message_box::HOOK,
+    &note_locked_item_3::HOOK,
+    &note_locked_stage::HOOK,
+    &read_controller::HOOK,
+    &classify_controller::HOOK,
+    &learn_axis::HOOK,
+    &draw_no_controller::HOOK,
+    &draw_controller_page::HOOK,
+    &stage_options_texts::HOOK,
+    &stage_choice_texts::HOOK,
+    &best_scores_caption::HOOK,
+    &draw_best_scores::HOOK,
+    &draw_event_best_scores::HOOK,
+    &draw_overall_best_scores::HOOK,
+    &draw_best_scores_page::HOOK,
+    &draw_class_times::HOOK,
+    &draw_class_times_marked::HOOK,
+    &draw_stage_times_heading::HOOK,
+    &draw_rally_times_heading::HOOK,
+    &draw_stage_times::HOOK,
+    &draw_rally_stage_times::HOOK,
+    &draw_record_heading::HOOK,
+    &draw_record_times::HOOK,
+    &draw_note_1fd::HOOK,
+    &replay_range_caption::HOOK,
     &draw_visual_preferences::HOOK,
 ];
 

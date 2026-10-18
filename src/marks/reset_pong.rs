@@ -1,5 +1,6 @@
-//! `marks::reset_outline` (0x4B7E64): four (x, y) pairs set from `flt_769182` .., the count
-//! `dword_768700` 5, `dword_7687D0` 0.
+//! `marks::reset_pong` (0x4B7E64): the pong game put back to its start: four (x, y) pairs
+//! (the ball and the bats) set from `flt_769182` .., the ball's steps (`g_pongSteps`,
+//! 0x768700) 5, the hits (`g_pongHits`) 0. Named `reset_outline` until 2026-10-18.
 //!
 //! In:  nothing
 //! Out: every register kept
@@ -19,7 +20,7 @@ use std::sync::atomic::AtomicUsize;
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
 pub static HOOK: RawHook =
-    RawHook::new("marks::reset_outline", rva(0x4B7E64), thunk, &ORIGINAL).self_test(self_test);
+    RawHook::new("marks::reset_pong", rva(0x4B7E64), thunk, &ORIGINAL).self_test(self_test);
 
 hook_asm!(
     thunk,
@@ -31,7 +32,7 @@ hook_asm!(
 const FROM_RVA: usize = rva(0x769182); // flt_769182
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { reset_outline() };
+    unsafe { reset_pong() };
     Ok(left_of(r))
 }
 

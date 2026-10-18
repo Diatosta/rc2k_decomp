@@ -196,7 +196,7 @@ pub fn hexagon_regions() -> Vec<Region> {
 
 /// `marks::set_up_squares` (0x4BF529): its once-only mark set (`g_marksSquaresDone`, then
 /// `resume`; nothing else is done once); the square items cleared, their curve and circles
-/// (4 points); then `marks::reset_outline`. Leaves eax 8, esi past the radii, edi past the
+/// (4 points); then `marks::reset_pong`. Leaves eax 8, esi past the radii, edi past the
 /// points. Refuses a mark neither 0 nor `resume`.
 pub unsafe fn set_up_squares(entry: &Regs, resume: u32) -> Result<Regs, Refused> {
     let mut g = *entry;
@@ -205,7 +205,7 @@ pub unsafe fn set_up_squares(entry: &Regs, resume: u32) -> Result<Regs, Refused>
             game_write(SQUARES.done, resume);
         }
         SQUARES.make(&mut g);
-        crate::marks::splines::reset_outline();
+        crate::marks::splines::reset_pong();
     }
     Ok(g)
 }

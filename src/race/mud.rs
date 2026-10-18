@@ -253,10 +253,22 @@ pub fn run_both(
     prepare: &dyn Fn(),
     rust: &dyn Fn(&Regs) -> Result<Regs, Refused>,
 ) {
+    run_both_from(t, what, copy, regions, prepare, Regs::SENTINEL, rust);
+}
+
+/// `run_both` with both sides starting from the registers `before` (a function's inputs).
+pub fn run_both_from(
+    t: &mut crate::framework::SelfTest,
+    what: &str,
+    copy: &crate::redirect::RedirectedCopy,
+    regions: &[crate::service::harness::Region],
+    prepare: &dyn Fn(),
+    before: Regs,
+    rust: &dyn Fn(&Regs) -> Result<Regs, Refused>,
+) {
     use crate::race::level_init::take_called;
     use crate::service::harness::capture;
     let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    let before = Regs::SENTINEL;
     prepare();
     take_called();
     let mut ro = before;

@@ -3,6 +3,7 @@
 use crate::framework::GameHook;
 
 pub mod add_clio_car;
+pub mod add_player_times;
 pub mod add_text_length;
 pub mod advanced_audio_loop;
 pub mod apply_cheats;
@@ -12,23 +13,31 @@ pub mod arcade_results_loop;
 pub mod arcade_review_options_loop;
 pub mod arcade_select_level_loop;
 pub mod audio_setup_loop;
+pub mod award_overall_points;
+pub mod award_stage_points;
 pub mod backspace_savegame_name;
 pub mod backup_text;
+pub mod beat_target_time;
 pub mod begin_event;
 pub mod begin_player_name;
 pub mod begin_replay_name;
 pub mod begin_savegame_name;
+pub mod best_class_scores;
 pub mod best_class_scores_loop;
+pub mod best_overall_scores;
 pub mod best_overall_scores_loop;
 pub mod best_scores_48a69e_loop;
 pub mod best_times_loop;
 pub mod build_notice;
+pub mod calc_cpu_times;
 pub mod car_buttons;
 pub mod car_choice;
 pub mod car_description;
 pub mod car_specification_loop;
 pub mod car_specs_47af4c_loop;
+pub mod championship_finish;
 pub mod championship_new_simulation_loop;
+pub mod championship_standings;
 pub mod championship_standings_loop;
 pub mod choose_key;
 pub mod choose_key_0;
@@ -43,24 +52,50 @@ pub mod choose_key_6;
 pub mod choose_key_7;
 pub mod choose_key_8;
 pub mod choose_key_9;
+pub mod class_championship_pass;
 pub mod class_championship_standings_loop;
 pub mod class_rally_results_loop;
+pub mod class_rally_results_pass;
 pub mod class_stage_results_loop;
+pub mod class_stage_results_pass;
 pub mod clear_choice_marks;
 pub mod clear_event_state;
 pub mod clear_players_284;
+pub mod clear_players_288;
+pub mod clear_record_entries;
+pub mod clear_result_slots;
+pub mod clear_score_marks;
+pub mod clear_standings_a;
+pub mod clear_standings_b;
 pub mod clear_text;
 pub mod confirm_leaving;
+pub mod copy_standing_entry;
+pub mod copy_standings_summary;
 pub mod disable_item;
 pub mod draw_frame;
 pub mod draw_menu;
 pub mod draw_stage_map;
+pub mod driver_stats;
 pub mod drop_missing_controllers;
 pub mod edit_player_name;
 pub mod edit_replay_name;
 pub mod edit_savegame_name;
 pub mod enable_item;
+pub mod enter_best_score;
+pub mod enter_best_score_4;
+pub mod enter_record_entry;
+pub mod fade_frame;
+pub mod fade_in;
+pub mod fade_out;
+pub mod fades;
+pub mod find_cpu_team;
 pub mod find_player_car;
+pub mod find_section_player;
+pub mod finish_calls;
+pub mod first_page_stage;
+pub mod first_player_a;
+pub mod first_player_b;
+pub mod first_player_unplaced;
 pub mod fit_player_names;
 pub mod flip_codriver;
 pub mod flip_yes_no;
@@ -73,8 +108,15 @@ pub mod hide_in_game_options;
 pub mod in_game_options_items;
 pub mod in_game_options_loop;
 pub mod information_loop;
+pub mod init_standings_a;
+pub mod init_standings_b;
 pub mod inspection_area_loop;
+pub mod inspection_faults;
+pub mod inspection_pass;
+pub mod inspection_screen;
+pub mod inspection_verdict;
 pub mod item_at;
+pub mod keep_record_best;
 pub mod leave_question_loop;
 pub mod link_player_names;
 pub mod load_background;
@@ -100,6 +142,7 @@ pub mod next_car_page;
 pub mod next_choice_car;
 pub mod next_gearing;
 pub mod next_nationality;
+pub mod next_record_kind;
 pub mod next_savegame_page;
 pub mod next_second_view;
 pub mod next_slideshow_car;
@@ -108,9 +151,15 @@ pub mod next_stage_loop;
 pub mod next_stage_number;
 pub mod next_stage_sub;
 pub mod next_view;
+pub mod number_all_a;
+pub mod number_all_b;
+pub mod number_standings_a;
+pub mod number_standings_b;
 pub mod options_loop;
 pub mod overall_rally_results_loop;
 pub mod overall_stage_results_loop;
+pub mod picture_frame;
+pub mod plain_frame;
 pub mod play_films;
 pub mod player;
 pub mod player1_details_loop;
@@ -118,9 +167,11 @@ pub mod player2_details_loop;
 pub mod player3_details_loop;
 pub mod player4_details_loop;
 pub mod player_details_loop;
+pub mod player_entered;
 pub mod player_name;
 pub mod player_names;
 pub mod player_settings;
+pub mod player_to_standing_b;
 pub mod previous_car;
 pub mod previous_car_number;
 pub mod previous_car_page;
@@ -133,7 +184,12 @@ pub mod previous_slideshow_picture;
 pub mod previous_stage_sub;
 pub mod previous_view;
 pub mod raise_sensitivity;
+pub mod rally_results;
 pub mod rally_stages_loop;
+pub mod rank_best_score;
+pub mod rank_best_score_4;
+pub mod rank_record_entry;
+pub mod record_entries_pass;
 pub mod redefine_key;
 pub mod redefine_keys;
 pub mod redefine_keys_player1_loop;
@@ -141,7 +197,14 @@ pub mod redefine_keys_player2_loop;
 pub mod redefine_keys_player3_loop;
 pub mod redefine_keys_player4_loop;
 pub mod redefine_player1_key;
+pub mod reload_front_end;
 pub mod remove_secret_cars;
+pub mod reset_cars_750724;
+pub mod reset_driver_condition;
+pub mod reset_drivers;
+pub mod reset_player_times;
+pub mod reset_player_totals;
+pub mod reset_single_event;
 pub mod restore_text;
 pub mod results_482e9b_loop;
 pub mod results_48584b_loop;
@@ -153,12 +216,14 @@ pub mod review_options_485f5e_loop;
 pub mod review_options_4882e2_loop;
 pub mod review_options_48861d_loop;
 pub mod run_draw_list;
+pub mod run_event_races;
 pub mod run_front_end;
 pub mod run_item_action;
 pub mod run_list;
 pub mod save_championship_loop;
 pub mod save_replay_loop;
 pub mod save_setup_loop;
+pub mod scale_stage_times;
 pub mod screen_47814c_loop;
 pub mod screen_4783f6_loop;
 pub mod screen_4786aa_loop;
@@ -170,16 +235,38 @@ pub mod screen_479410_loop;
 pub mod screen_483163_loop;
 pub mod screen_488f4c_loop;
 pub mod screen_loop;
+pub mod scripted;
+pub mod sealed_player_time;
+pub mod section_finish;
 pub mod select_car_loop;
 pub mod select_stage_loop;
+pub mod service_pass;
+pub mod set_player_entry_kind;
 pub mod set_up_front_end;
+pub mod show_championship_standings;
+pub mod show_class_championship_standings;
+pub mod show_class_rally_results;
+pub mod show_class_stage_results;
 pub mod show_in_game_options;
 pub mod show_loading_picture;
+pub mod show_overall_rally_results;
+pub mod show_overall_stage_results;
+pub mod shuffle_drivers;
 pub mod simple_select_players_loop;
 pub mod single_rally;
 pub mod slideshow_loop;
+pub mod sort_standings_b_by_figure;
+pub mod sort_standings_b_by_points;
+pub mod sort_standings_b_by_score;
+pub mod sort_standings_by_time;
+pub mod sort_standings_by_total;
 pub mod stage_choice;
+pub mod stage_range_caption;
 pub mod stage_result_loop;
+pub mod standings;
+pub mod standings_a_from_all;
+pub mod standings_b_from_all;
+pub mod standings_from_drivers;
 pub mod start_rally_loop;
 pub mod step_carousel;
 pub mod store_player_names;
@@ -209,9 +296,92 @@ pub mod view_courses_loop;
 pub mod view_stage_loop;
 pub mod visual_options_loop;
 pub mod visual_preferences_loop;
+pub mod walk_section_records;
 pub mod welcome_loop;
 
 pub static HOOKS: &[&dyn GameHook] = &[
+    &add_player_times::HOOK,
+    &award_overall_points::HOOK,
+    &award_stage_points::HOOK,
+    &beat_target_time::HOOK,
+    &best_class_scores::HOOK,
+    &best_overall_scores::HOOK,
+    &calc_cpu_times::HOOK,
+    &championship_finish::HOOK,
+    &championship_standings::HOOK,
+    &class_championship_pass::HOOK,
+    &class_rally_results_pass::HOOK,
+    &class_stage_results_pass::HOOK,
+    &clear_players_288::HOOK,
+    &clear_record_entries::HOOK,
+    &clear_result_slots::HOOK,
+    &clear_score_marks::HOOK,
+    &clear_standings_a::HOOK,
+    &clear_standings_b::HOOK,
+    &copy_standing_entry::HOOK,
+    &copy_standings_summary::HOOK,
+    &driver_stats::HOOK,
+    &enter_best_score::HOOK,
+    &enter_best_score_4::HOOK,
+    &enter_record_entry::HOOK,
+    &fade_frame::HOOK,
+    &fade_in::HOOK,
+    &fade_out::HOOK,
+    &find_cpu_team::HOOK,
+    &find_section_player::HOOK,
+    &first_page_stage::HOOK,
+    &first_player_a::HOOK,
+    &first_player_b::HOOK,
+    &first_player_unplaced::HOOK,
+    &init_standings_a::HOOK,
+    &init_standings_b::HOOK,
+    &inspection_faults::HOOK,
+    &inspection_pass::HOOK,
+    &inspection_screen::HOOK,
+    &inspection_verdict::HOOK,
+    &keep_record_best::HOOK,
+    &next_record_kind::HOOK,
+    &number_all_a::HOOK,
+    &number_all_b::HOOK,
+    &number_standings_a::HOOK,
+    &number_standings_b::HOOK,
+    &picture_frame::HOOK,
+    &player_entered::HOOK,
+    &player_to_standing_b::HOOK,
+    &rally_results::HOOK,
+    &rank_best_score::HOOK,
+    &rank_best_score_4::HOOK,
+    &rank_record_entry::HOOK,
+    &record_entries_pass::HOOK,
+    &reload_front_end::HOOK,
+    &reset_cars_750724::HOOK,
+    &reset_driver_condition::HOOK,
+    &reset_drivers::HOOK,
+    &reset_player_times::HOOK,
+    &reset_player_totals::HOOK,
+    &reset_single_event::HOOK,
+    &run_event_races::HOOK,
+    &scale_stage_times::HOOK,
+    &sealed_player_time::HOOK,
+    &section_finish::HOOK,
+    &service_pass::HOOK,
+    &set_player_entry_kind::HOOK,
+    &show_championship_standings::HOOK,
+    &show_class_championship_standings::HOOK,
+    &show_class_rally_results::HOOK,
+    &show_class_stage_results::HOOK,
+    &show_overall_rally_results::HOOK,
+    &show_overall_stage_results::HOOK,
+    &shuffle_drivers::HOOK,
+    &sort_standings_b_by_figure::HOOK,
+    &sort_standings_b_by_points::HOOK,
+    &sort_standings_b_by_score::HOOK,
+    &sort_standings_by_time::HOOK,
+    &sort_standings_by_total::HOOK,
+    &stage_range_caption::HOOK,
+    &standings_a_from_all::HOOK,
+    &standings_b_from_all::HOOK,
+    &standings_from_drivers::HOOK,
     &step_carousel::HOOK,
     &draw_menu::HOOK,
     &load_background::HOOK,
@@ -318,6 +488,7 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &time_trial_select_stage_loop::HOOK,
     &championship_new_simulation_loop::HOOK,
     &arcade_select_level_loop::HOOK,
+    &walk_section_records::HOOK,
     &welcome_loop::HOOK,
     &main_menu_loop::HOOK,
     &confirm_leaving::HOOK,

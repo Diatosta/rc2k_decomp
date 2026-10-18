@@ -56,6 +56,10 @@ pub fn dispatch_flags(
     rust: &dyn Fn(&Regs) -> Result<FlagResult, Refused>,
 ) {
     hook.count_call();
+    if shadow() && !crate::service::harness::shadow_due(hook) {
+        unsafe { call_original(r) };
+        return;
+    }
     let mine = match rust(r) {
         Ok(m) => m,
         Err(e) => {

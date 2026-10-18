@@ -20,8 +20,12 @@ pub mod copy_picture_to_surface;
 pub mod copy_pixel_rows;
 pub mod decode_png;
 pub mod describe_format;
+pub mod draw_hline;
+pub mod draw_vline;
+pub mod fill_rect;
 pub mod fill_row_table;
 pub mod fill_thirds_table;
+pub mod frame_rect;
 pub mod free_fonts;
 pub mod glyph_builder;
 pub mod glyph_tables;
@@ -56,6 +60,7 @@ pub mod read_pixel;
 pub mod read_png;
 pub mod read_sheet;
 pub mod read_texture_picture;
+pub mod rect;
 pub mod rescale_picture;
 pub mod rescale_to_surface;
 pub mod rgb_pixels_to_dwords;
@@ -69,6 +74,10 @@ pub mod upload_texture_picture;
 
 pub static HOOKS: &[&dyn GameHook] = &[
     &blit_glyph::HOOK,
+    &fill_rect::HOOK,
+    &frame_rect::HOOK,
+    &draw_hline::HOOK,
+    &draw_vline::HOOK,
     &blit_marker_pair::HOOK,
     &blit_bar::HOOK,
     &blit_bar_marker::HOOK,

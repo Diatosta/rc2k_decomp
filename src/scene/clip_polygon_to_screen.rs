@@ -3,8 +3,9 @@
 //!
 //! In:  nothing
 //! Out: the original leaves eax, ecx, edx, esi changed, and after a clipping ebx, edi
-//!      and ebp too; its callers go on by the number of vertices alone, and the Rust
-//!      version keeps the registers
+//!      and ebp too; its callers go on by the number of vertices alone; the hook gives a
+//!      polygon wholly on the screen the original's eax, ecx, edx, esi (`unclipped_regs`)
+//!      and keeps the registers after a clipping
 //!
 //! `dword_624120` = 1. Each vertex's place on the screen (its record's +0xC and +0x1C)
 //! against the edges `flt_6241EC` (left), `flt_6241F0` (right), `flt_6241E4` (top) and
@@ -113,6 +114,29 @@ pub unsafe fn clip_polygon_to_screen() -> Result<(), BadInput> {
     }
 }
 
+/// The registers the original leaves for a polygon wholly on the screen (its mask loop's
+/// end): eax the last listed entry's number x 0x44, ecx the count, edx 0, esi that entry's
+/// vertex record. Callers' callees read none of them; set so that the registers match.
+pub unsafe fn unclipped_regs(r: &mut Regs) {
+    unsafe {
+        use crate::scene::polygon::{ENTRIES_RVA, LIST_RVA};
+        let n: u32 = game_read(COUNT_RVA);
+        if n == 0 {
+            return;
+        }
+        r.eax = game_read::<u32>(LIST_RVA + 4 * (n as usize - 1)).wrapping_mul(0x44);
+        r.ecx = n;
+        r.edx = 0;
+        r.esi = ((crate::framework::game_addr(ENTRIES_RVA) as u32 + r.eax + 4) as *const u32)
+            .read_unaligned();
+    }
+}
+
+/// Whether no vertex is past an edge (the original's no-clip path).
+pub unsafe fn wholly_on_screen() -> bool {
+    matches!(unsafe { outside_mask() }, Ok(0))
+}
+
 // ---- hook ----
 
 extern "C" fn dispatch(r: &mut Regs) {
@@ -122,9 +146,13 @@ extern "C" fn dispatch(r: &mut Regs) {
         Ok(0) => light_regions(),
         _ => regions(),
     };
+    let unclipped = !crate::framework::shadow() && unsafe { wholly_on_screen() };
     dispatch_clip(&HOOK, r, call_original, &regions, &|| unsafe {
         clip_polygon_to_screen()
     });
+    if unclipped {
+        unsafe { unclipped_regs(r) };
+    }
 }
 
 // ---- self-test ----

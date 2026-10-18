@@ -4,8 +4,10 @@
 
 use crate::framework::GameHook;
 
+pub mod add_drift_particle;
 pub mod add_face_points;
 pub mod add_mark_slot;
+pub mod adjugate3;
 pub mod aim_vector;
 pub mod allocate_links;
 pub mod allocate_places;
@@ -27,9 +29,26 @@ pub mod collect_points_b;
 pub mod copy_block_points;
 pub mod copy_first_point;
 pub mod corners;
+pub mod draw_cell_sprite;
+pub mod draw_cell_sprite_2;
+pub mod draw_flare_part;
 pub mod draw_frame;
+pub mod draw_glow;
+pub mod draw_lens_flare;
+pub mod draw_mark_slots;
 pub mod draw_mask;
 pub mod draw_mask_shape;
+pub mod draw_overlays;
+pub mod draw_particle;
+pub mod draw_plane;
+pub mod draw_pong_box;
+pub mod draw_ribbon;
+pub mod draw_shadow;
+pub mod draw_snow;
+pub mod draw_square;
+pub mod draw_streak;
+pub mod draw_subcell_sprite;
+pub mod draw_turned_sprite;
 pub mod drift_offsets;
 pub mod edges;
 pub mod emit_body_particles;
@@ -47,13 +66,23 @@ pub mod emit_particle_5;
 pub mod emit_particle_6;
 pub mod emit_wheel_particles;
 pub mod emitters;
+pub mod expire_hexagons;
+pub mod expire_squares;
 pub mod fill_mask_spans;
 pub mod find_farthest_pairs;
 pub mod find_farthest_points;
 pub mod find_spline_ends;
+pub mod flare_frame;
 pub mod frame_marks;
 pub mod gather_spline_points;
 pub mod grade_spline_points;
+pub mod hexagons_drift;
+pub mod hexagons_frame;
+pub mod hexagons_setup;
+pub mod hexagons_spawn;
+pub mod hexagons_step;
+pub mod hexagons_top;
+pub mod init_mark_step;
 pub mod init_marks;
 pub mod jitter_point;
 pub mod keep_vectors;
@@ -84,21 +113,42 @@ pub mod measure_lines;
 pub mod measure_slot_lines;
 pub mod measure_starting_sums;
 pub mod morph_object_points;
+pub mod move_pong_ball;
+pub mod move_pong_bat;
 pub mod order_spline_points;
+pub mod pick_hexagon;
 pub mod pick_shapes;
+pub mod pick_square;
 pub mod pixels;
 pub mod place_graded_points;
 pub mod place_shape_points;
 pub mod place_spline;
 pub mod place_view;
 pub mod place_view_2;
+pub mod pong;
+pub mod pong_ball_hits;
+pub mod pong_bat_back;
+pub mod pong_cell;
+pub mod pong_digit;
+pub mod pong_score;
+pub mod pong_setup;
 pub mod profiles;
 pub mod reset_mask_cursor;
-pub mod reset_outline;
+pub mod reset_pong;
 pub mod reset_settings_blocks;
+pub mod ring_frame;
 pub mod rings;
+pub mod run_frame;
+pub mod run_particles;
+pub mod run_pong;
+pub mod run_rain;
+pub mod run_ribbons;
+pub mod run_ring;
 pub mod run_shapes;
+pub mod run_snow;
 pub mod run_splines;
+pub mod run_squares;
+pub mod scale_axes;
 pub mod scale_corners;
 pub mod scale_kept_vectors;
 pub mod scale_rows3;
@@ -124,12 +174,20 @@ pub mod span_quad;
 pub mod span_ring;
 pub mod span_triangle;
 pub mod spans;
+pub mod spawn_hexagon;
+pub mod spawn_square;
 pub mod splines;
 pub mod spread_point;
+pub mod squares_frame;
+pub mod squares_setup;
+pub mod squares_spawn;
+pub mod squares_step;
 pub mod stage_record;
+pub mod swap_mask;
 pub mod tick_clock;
 pub mod tidy_marks;
 pub mod tilt_shape;
+pub mod trail_particles;
 pub mod turn_all_shapes;
 pub mod turn_kept_vectors;
 pub mod turn_kept_xz;
@@ -144,8 +202,10 @@ pub mod view_motion;
 pub mod view_step;
 
 pub static HOOKS: &[&dyn GameHook] = &[
+    &add_drift_particle::HOOK,
     &add_face_points::HOOK,
     &add_mark_slot::HOOK,
+    &adjugate3::HOOK,
     &aim_vector::HOOK,
     &allocate_links::HOOK,
     &allocate_places::HOOK,
@@ -165,9 +225,26 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &collect_points_b::HOOK,
     &copy_block_points::HOOK,
     &copy_first_point::HOOK,
+    &draw_cell_sprite::HOOK,
+    &draw_cell_sprite_2::HOOK,
+    &draw_flare_part::HOOK,
     &draw_frame::HOOK,
+    &draw_glow::HOOK,
+    &draw_lens_flare::HOOK,
+    &draw_mark_slots::HOOK,
     &draw_mask::HOOK,
     &draw_mask_shape::HOOK,
+    &draw_overlays::HOOK,
+    &draw_particle::HOOK,
+    &draw_plane::HOOK,
+    &draw_pong_box::HOOK,
+    &draw_ribbon::HOOK,
+    &draw_shadow::HOOK,
+    &draw_snow::HOOK,
+    &draw_square::HOOK,
+    &draw_streak::HOOK,
+    &draw_subcell_sprite::HOOK,
+    &draw_turned_sprite::HOOK,
     &drift_offsets::HOOK,
     &emit_body_particles::HOOK,
     &emit_bursts::HOOK,
@@ -183,13 +260,23 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &emit_particle_5::HOOK,
     &emit_particle_6::HOOK,
     &emit_wheel_particles::HOOK,
+    &expire_hexagons::HOOK,
+    &expire_squares::HOOK,
     &fill_mask_spans::HOOK,
     &find_farthest_pairs::HOOK,
     &find_farthest_points::HOOK,
     &find_spline_ends::HOOK,
+    &flare_frame::HOOK,
     &frame_marks::HOOK,
     &gather_spline_points::HOOK,
     &grade_spline_points::HOOK,
+    &hexagons_drift::HOOK,
+    &hexagons_frame::HOOK,
+    &hexagons_setup::HOOK,
+    &hexagons_spawn::HOOK,
+    &hexagons_step::HOOK,
+    &hexagons_top::HOOK,
+    &init_mark_step::HOOK,
     &init_marks::HOOK,
     &jitter_point::HOOK,
     &keep_vectors::HOOK,
@@ -215,18 +302,38 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &measure_slot_lines::HOOK,
     &measure_starting_sums::HOOK,
     &morph_object_points::HOOK,
+    &move_pong_ball::HOOK,
+    &move_pong_bat::HOOK,
     &order_spline_points::HOOK,
+    &pick_hexagon::HOOK,
     &pick_shapes::HOOK,
+    &pick_square::HOOK,
     &place_graded_points::HOOK,
     &place_shape_points::HOOK,
     &place_spline::HOOK,
     &place_view::HOOK,
     &place_view_2::HOOK,
+    &pong_ball_hits::HOOK,
+    &pong_bat_back::HOOK,
+    &pong_cell::HOOK,
+    &pong_digit::HOOK,
+    &pong_score::HOOK,
+    &pong_setup::HOOK,
     &reset_mask_cursor::HOOK,
-    &reset_outline::HOOK,
+    &reset_pong::HOOK,
     &reset_settings_blocks::HOOK,
+    &ring_frame::HOOK,
+    &run_frame::HOOK,
+    &run_particles::HOOK,
+    &run_pong::HOOK,
+    &run_rain::HOOK,
+    &run_ribbons::HOOK,
+    &run_ring::HOOK,
     &run_shapes::HOOK,
+    &run_snow::HOOK,
     &run_splines::HOOK,
+    &run_squares::HOOK,
+    &scale_axes::HOOK,
     &scale_corners::HOOK,
     &scale_kept_vectors::HOOK,
     &scale_rows3::HOOK,
@@ -248,11 +355,19 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &span_quad::HOOK,
     &span_ring::HOOK,
     &span_triangle::HOOK,
+    &spawn_hexagon::HOOK,
+    &spawn_square::HOOK,
     &spread_point::HOOK,
+    &squares_frame::HOOK,
+    &squares_setup::HOOK,
+    &squares_spawn::HOOK,
+    &squares_step::HOOK,
     &stage_record::HOOK,
+    &swap_mask::HOOK,
     &tick_clock::HOOK,
     &tidy_marks::HOOK,
     &tilt_shape::HOOK,
+    &trail_particles::HOOK,
     &turn_all_shapes::HOOK,
     &turn_kept_vectors::HOOK,
     &turn_kept_xz::HOOK,

@@ -53,6 +53,11 @@ extern "C" fn dispatch(r: &mut Regs) {
         unsafe { call_original(r) };
         return;
     }
+    unsafe { set_up_engine_in_game(r) };
+}
+
+/// With the tables' Rust version and the cars through the game.
+pub unsafe fn set_up_engine_in_game(r: &mut Regs) {
     set_up_engine(r, &mut |n, r| unsafe {
         if n == 0 {
             fill_engine_tables(r);

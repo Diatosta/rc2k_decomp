@@ -7,7 +7,8 @@
 //!      not read: `mov` / `retn` follow)
 //!
 //! See `race/frame_draw.rs`. Callers: `sub_45B147` (0x45B153, 0x45B164), once per view.
-//! What the values are (+0x140: the splits' places, a reading) is not settled. Refuses
+//! The values are `CarBlock` +0x140, a dword per checkpoint (written by `sub_436833`),
+//! `check_count` (+0x90) of them; what they hold (places at each split) is a reading. Refuses
 //! (before anything) a count past the buffers' 0x40 dwords. Shadow mode: by state (the 0x40
 //! dwords at edi). Self-test: a test block and buffer (0xAA), `dword_601830` set and put
 //! back, counts 0, negative, 1, 5, 0x40 with rising, falling, equal and far values.

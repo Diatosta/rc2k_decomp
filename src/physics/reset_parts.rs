@@ -1,9 +1,11 @@
 //! The car reset's steps under `sub_43B635` (stream B, 2026-10-17): `physics::false_start`
 //! (0x43B9B4), `physics::reset_when_stuck` (0x43EFBA), `physics::reset_car` (0x43EFEF),
 //! `physics::reset_car_on_line` (0x43FB00). Their calls go through a `Part` by place, as
-//! stream A's `race/car_starts.rs` (its places 0 .. 12), with four more of ours:
+//! stream A's `race/car_starts.rs` (its places 0 .. 12), with more of ours:
 //! 13 `physics::reset_point_blocked`, 14 the log line (`log_write_l1_nl`, 0x40142B),
-//! 15 `physics::reset_car`, 16 `physics::reset_car_on_line`. In the game the Rust
+//! 15 `physics::reset_car`, 16 `physics::reset_car_on_line`, 17
+//! `race::nearest_checkpoint_in`, 18 `physics::find_ground`, 19
+//! `physics::count_ground_probe` (only the camera's ground checks call it). In the game the Rust
 //! versions; in the self-tests copies whose calls go to the stand-ins (`handler`: stream
 //! A's `note`, and for place 13 a carry by the case's pattern), and the Rust versions
 //! with the same.
@@ -22,9 +24,15 @@ pub const BLOCKED: u32 = 13;
 pub const LOG: u32 = 14;
 pub const RESET_CAR: u32 = 15;
 pub const ON_LINE: u32 = 16;
+pub const NEAREST_IN: u32 = 17;
+pub const FIND_GROUND: u32 = 18;
+pub const COUNT_PROBE: u32 = 19;
 
 /// Our places' functions (IDA addresses).
-const EXTRA: [(usize, u32); 4] = [
+const EXTRA: [(usize, u32); 7] = [
+    (0x438E22, COUNT_PROBE),
+    (0x4413F8, NEAREST_IN),
+    (0x441E29, FIND_GROUND),
     (0x43F0DF, BLOCKED),
     (0x40142B, LOG),
     (0x43EFEF, RESET_CAR),
@@ -44,6 +52,13 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             RESET_CAR => *r = crate::physics::reset_car::reset_car(r, &mut game_part)?,
             ON_LINE => {
                 *r = crate::physics::reset_car_on_line::reset_car_on_line(r, &mut game_part)?
+            }
+            NEAREST_IN => *r = crate::race::start_place::nearest_checkpoint_in(r)?,
+            FIND_GROUND => {
+                crate::physics::find_ground::find_ground()?;
+            }
+            COUNT_PROBE => {
+                *r = crate::physics::count_ground_probe::count_ground_probe(r, &mut game_part)?
             }
             _ => crate::race::car_starts::game_part(place, r)?,
         }
@@ -143,8 +158,24 @@ pub fn both(
     fill: &dyn Fn(),
     rust: unsafe fn(&Regs, Part) -> Result<Regs, Refused>,
 ) {
+    both_with(t, what, copy, pattern, entry, fill, rust, &[]);
+}
+
+/// `both`, with more regions compared.
+#[allow(clippy::too_many_arguments)] // one case's whole description
+pub fn both_with(
+    t: &mut SelfTest,
+    what: &str,
+    copy: &RedirectedCopy,
+    pattern: u64,
+    entry: Regs,
+    fill: &dyn Fn(),
+    rust: unsafe fn(&Regs, Part) -> Result<Regs, Refused>,
+    extra: &[Region],
+) {
     let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    let all = regions();
+    let mut all = regions();
+    all.extend_from_slice(extra);
     fill();
     start_case(pattern);
     let mut ro = entry;

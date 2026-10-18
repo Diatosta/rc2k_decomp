@@ -673,3 +673,192 @@ pub fn wheel_int(v: [u32; 7]) -> i32 {
         v = v.as_ptr(), o = &raw mut out);
     out
 }
+
+/// `fld x; fabs; fdiv a; fadd b; fmul c; fstp`.
+pub fn abs_div_add_mul(x: u32, a: u32, b: u32, c: u32) -> u32 {
+    let (v, mut out) = ([x, a, b, c], 0u32);
+    x87!("fld dword ptr [{v}]", "fabs", "fdiv dword ptr [{v} + 4]", "fadd dword ptr [{v} + 8]",
+        "fmul dword ptr [{v} + 12]", "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld a; fmul b; fmul c; fadd d; fstp`.
+pub fn mul2_plus(a: u32, b: u32, c: u32, d: u32) -> u32 {
+    let (v, mut out) = ([a, b, c, d], 0u32);
+    x87!("fld dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]",
+        "fadd dword ptr [{v} + 12]", "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld a; fld s; fabs; fadd b; fdivp st(1), st; fsub c; fstp`: a / (|s| + b) - c.
+pub fn over_abs_plus_minus(a: u32, s: u32, b: u32, c: u32) -> u32 {
+    let (v, mut out) = ([a, s, b, c], 0u32);
+    x87!("fld dword ptr [{v}]", "fld dword ptr [{v} + 4]", "fabs", "fadd dword ptr [{v} + 8]",
+        ".byte 0xDE, 0xF9", "fsub dword ptr [{v} + 12]", "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fild a; fisub b` as an 80-bit value: a - b, exact.
+pub fn ints_diff_80(a: i32, b: i32) -> [u8; 10] {
+    let (v, mut out) = ([a, b], [0u8; 10]);
+    x87!("fild dword ptr [{v}]", "fisub dword ptr [{v} + 4]", "fstp tbyte ptr [{o}]";
+        v = v.as_ptr(), o = out.as_mut_ptr());
+    out
+}
+
+/// `fld x; fabs; fidiv n; fstp`.
+pub fn abs_fidiv(x: u32, n: i32) -> u32 {
+    let (v, mut out) = ([x, n as u32], 0u32);
+    x87!("fld dword ptr [{v}]", "fabs", "fidiv dword ptr [{v} + 4]", "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fild a; fidiv b; fstp`.
+pub fn int_fidiv(a: i32, b: i32) -> u32 {
+    let (v, mut out) = ([a, b], 0u32);
+    x87!("fild dword ptr [{v}]", "fidiv dword ptr [{v} + 4]", "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld1; fsub d; fmul s; fadd d; fstp`: d + (1 - d) s.
+pub fn one_less_times_plus(d: u32, s: u32) -> u32 {
+    let (v, mut out) = ([d, s], 0u32);
+    x87!("fld1", "fsub dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fadd dword ptr [{v}]",
+        "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld a; fsub b; fmul c; fadd d; fstp`.
+pub fn sub_mul_add(a: u32, b: u32, c: u32, d: u32) -> u32 {
+    let (v, mut out) = ([a, b, c, d], 0u32);
+    x87!("fld dword ptr [{v}]", "fsub dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]",
+        "fadd dword ptr [{v} + 12]", "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld a; fmul b; fdiv c; fcomp k; fnstsw`: C0 .. C3 (0x4700).
+pub fn mul_div_status(a: u32, b: u32, c: u32, k: u32) -> u16 {
+    let (v, mut status) = ([a, b, c, k], 0u16);
+    x87!("fld dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fdiv dword ptr [{v} + 8]",
+        "fcomp dword ptr [{v} + 12]", "fnstsw word ptr [{s}]";
+        v = v.as_ptr(), s = &raw mut status);
+    status & 0x4700
+}
+
+/// `fld a; fmul b; fcomp c; fnstsw`: C0 .. C3 (0x4700).
+pub fn mul_status(a: u32, b: u32, c: u32) -> u16 {
+    let (v, mut status) = ([a, b, c], 0u16);
+    x87!("fld dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fcomp dword ptr [{v} + 8]",
+        "fnstsw word ptr [{s}]";
+        v = v.as_ptr(), s = &raw mut status);
+    status & 0x4700
+}
+
+/// `fld a; fmul b; fistp` with the rounding set to chop (`fstcw`, RC 11, `fldcw`, put back
+/// after), the precision as it was.
+pub fn trunc_mul_to_int(a: u32, b: u32) -> i32 {
+    let v = [a, b];
+    let mut out = 0i32;
+    let mut cw = [0u16; 2];
+    unsafe {
+        core::arch::asm!(
+            "fnstcw word ptr [{c}]",
+            "mov ax, word ptr [{c}]",
+            "and ax, 0xF3FF",
+            "or ax, 0x0C00",
+            "mov word ptr [{c} + 2], ax",
+            "fldcw word ptr [{c} + 2]",
+            "fld dword ptr [{v}]",
+            "fmul dword ptr [{v} + 4]",
+            "fistp dword ptr [{o}]",
+            "fldcw word ptr [{c}]",
+            c = in(reg) cw.as_mut_ptr(),
+            v = in(reg) v.as_ptr(),
+            o = in(reg) &raw mut out,
+            out("eax") _,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+        );
+    }
+    out
+}
+
+/// `fld s; fsub a0; fld a1; fsub a0; fdivp; fld c1; fsub c0; fmulp; fadd c0; fstp`: the
+/// table line between (a0, c0) and (a1, c1) at s.
+pub fn lerp_table(s: u32, a0: u32, a1: u32, c0: u32, c1: u32) -> u32 {
+    let (v, mut out) = ([s, a0, a1, c0, c1], 0u32);
+    x87!("fld dword ptr [{v}]", "fsub dword ptr [{v} + 4]", "fld dword ptr [{v} + 8]",
+        "fsub dword ptr [{v} + 4]", ".byte 0xDE, 0xF9", "fld dword ptr [{v} + 16]",
+        "fsub dword ptr [{v} + 12]", ".byte 0xDE, 0xC9", "fadd dword ptr [{v} + 12]",
+        "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld a; fdiv b; fmul c; fstp`.
+pub fn div_then_mul(a: u32, b: u32, c: u32) -> u32 {
+    let (v, mut out) = ([a, b, c], 0u32);
+    x87!("fld dword ptr [{v}]", "fdiv dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]",
+        "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld a; fadd b; fild n; fmulp; fdiv k; fsub b; fstp`.
+pub fn sum_times_int_over_minus(a: u32, b: u32, n: i32, k: u32) -> u32 {
+    let (v, mut out) = ([a, b, n as u32, k], 0u32);
+    x87!("fld dword ptr [{v}]", "fadd dword ptr [{v} + 4]", "fild dword ptr [{v} + 8]",
+        ".byte 0xDE, 0xC9", "fdiv dword ptr [{v} + 12]", "fsub dword ptr [{v} + 4]",
+        "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fld a; fmul b; fdiv c; fdiv d; fstp`.
+pub fn mul_div2(a: u32, b: u32, c: u32, d: u32) -> u32 {
+    let (v, mut out) = ([a, b, c, d], 0u32);
+    x87!("fld dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fdiv dword ptr [{v} + 8]",
+        "fdiv dword ptr [{v} + 12]", "fstp dword ptr [{o}]";
+        v = v.as_ptr(), o = &raw mut out);
+    out
+}
+
+/// `fild i; fmul k; fadd a; (fadd b;) fstp`.
+pub fn int_mul_add(i: i32, k: u32, a: u32, b: Option<u32>) -> u32 {
+    let (v, mut out) = ([i as u32, k, a, b.unwrap_or(0)], 0u32);
+    if b.is_some() {
+        x87!("fild dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fadd dword ptr [{v} + 8]",
+            "fadd dword ptr [{v} + 12]", "fstp dword ptr [{o}]";
+            v = v.as_ptr(), o = &raw mut out);
+    } else {
+        x87!("fild dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fadd dword ptr [{v} + 8]",
+            "fstp dword ptr [{o}]";
+            v = v.as_ptr(), o = &raw mut out);
+    }
+    out
+}
+
+/// `fld a; fdiv b` as an 80-bit value.
+pub fn div_80(a: u32, b: u32) -> [u8; 10] {
+    let (v, mut out) = ([a, b], [0u8; 10]);
+    x87!("fld dword ptr [{v}]", "fdiv dword ptr [{v} + 4]", "fstp tbyte ptr [{o}]";
+        v = v.as_ptr(), o = out.as_mut_ptr());
+    out
+}
+
+/// `fld tbyte e; fcomp dword b; fnstsw`: the status word's C0 .. C3 (0x4700), an 80-bit
+/// value against a float.
+pub fn compare_80(e: [u8; 10], b: u32) -> u16 {
+    let mut status = 0u16;
+    x87!("fld tbyte ptr [{e}]", "fcomp dword ptr [{b}]", "fnstsw word ptr [{s}]";
+        e = e.as_ptr(), b = &raw const b, s = &raw mut status);
+    status & 0x4700
+}

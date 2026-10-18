@@ -29,6 +29,7 @@ hook_asm!(
 // ---- Rust version ----
 
 pub unsafe fn stir_random(number: u32) {
+    crate::math::next_random::wait_for_random();
     unsafe {
         let stirred = random_step(number, game_read(STATE_RVA));
         if stirred != 0 {
@@ -45,6 +46,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
+    // Waits while a test owns the generator (`next_random::own_random`).
+    crate::math::next_random::wait_for_random();
     dispatch_state(&HOOK, r, call_original, &[at(STATE_RVA)], &rust);
 }
 

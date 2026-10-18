@@ -21,9 +21,9 @@ const GRADES: u32 = 0xC90;
 /// `sub_4BA316`'s two heights (its reading of +0x18 and +0x1C is overwritten: section 16).
 const LOW: i32 = 0x3830;
 const HIGH: i32 = 0x6720;
-const OUTLINE_FROM_RVA: usize = rva(0x769182); // flt_769182 .. flt_76919E
-/// Where `reset_outline` puts the eight floats: four (x, y) pairs 0x18 apart.
-const OUTLINE_TO: [usize; 8] = [
+const PONG_FROM_RVA: usize = rva(0x769182); // flt_769182 .. flt_76919E
+/// Where `reset_pong` puts the eight floats: four (x, y) pairs 0x18 apart.
+const PONG_TO: [usize; 8] = [
     0x768688, 0x76868C, 0x7686A0, 0x7686A4, 0x7686B8, 0x7686BC, 0x7686D0, 0x7686D4,
 ];
 pub const OUTLINE_COUNT_RVA: usize = rva(0x768700); // dword_768700
@@ -207,22 +207,22 @@ pub fn find_farthest_points(entry: &Regs) -> Regs {
     *entry
 }
 
-/// `marks::reset_outline` (0x4B7E64): the eight floats from `flt_769182` to four (x, y)
+/// `marks::reset_pong` (0x4B7E64): the eight floats from `flt_769182` to four (x, y)
 /// pairs from `flt_768688`, `dword_768700` 5, `dword_7687D0` 0. Every register kept.
-pub unsafe fn reset_outline() {
+pub unsafe fn reset_pong() {
     unsafe {
-        for (n, to) in OUTLINE_TO.into_iter().enumerate() {
-            game_write(rva(to), x87::loaded(game_read(OUTLINE_FROM_RVA + 4 * n)));
+        for (n, to) in PONG_TO.into_iter().enumerate() {
+            game_write(rva(to), x87::loaded(game_read(PONG_FROM_RVA + 4 * n)));
         }
         game_write(OUTLINE_COUNT_RVA, 5u32);
         game_write(OUTLINE_MARK_RVA, 0u32);
     }
 }
 
-/// What `reset_outline` writes.
+/// What `reset_pong` writes.
 pub fn outline_regions() -> Vec<crate::service::harness::Region> {
     use crate::service::harness::at;
-    let mut r: Vec<_> = OUTLINE_TO.into_iter().map(|a| at(rva(a))).collect();
+    let mut r: Vec<_> = PONG_TO.into_iter().map(|a| at(rva(a))).collect();
     r.extend([at(OUTLINE_COUNT_RVA), at(OUTLINE_MARK_RVA)]);
     r
 }

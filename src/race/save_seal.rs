@@ -100,7 +100,7 @@ pub unsafe fn pack_runs(from: u32, count: u32, to: u32) -> u32 {
 
 // The cipher's tables and variables (dword_4E052C .. as IDA shows them).
 const KEY_RVA: usize = rva(0x4E052C); // the key (two dwords)
-const BLOCK_RVA: usize = rva(0x4E0534); // the block (two dwords)
+pub const BLOCK_RVA: usize = rva(0x4E0534); // the block (two dwords)
 const SUBKEYS_RVA: usize = rva(0x4E04AC); // sixteen subkeys (two dwords each)
 pub const SEALED_RVA: [usize; 2] = [rva(0x4E053C), rva(0x4E0540)]; // `value`, dword_4E0540
 const PC1_A: usize = rva(0x4E015C);

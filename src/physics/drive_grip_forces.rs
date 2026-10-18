@@ -1,0 +1,414 @@
+//! `physics::drive_grip_forces` (0x43CD79): the driven wheels' grip forces for the step.
+//! In order: `flt_614768` = -(+0x1F4 / 50 - 1) held to 0 ..= 1; +0x210 the steer's sine
+//! (+0x64C >> 20 into `g_sines`) x speed / `dword_614BA0` (twice over, as the original);
+//! when moving: the slip limit `flt_614260` (a grip figure x `flt_613FC8` x a drive-kind
+//! factor x `dword_614B74` / speed, `fabs`), +0x210 held to ±it, 0 below `flt_613E84`
+//! speed with the drive speed not; with bit 12 of +0x468 +0x644 scaled by +0x210's share
+//! of what it was (held 0 ..= 1, `fimul`, `fistp`), or 0; +0x210 x `flt_613E5C` /
+//! `flt_613E60` with +0x284 1; the drive-kind 0 lean force +0x21C; the engine braking
+//! +0x214 (by drive kind, the counts at +0x63C / +0x638 / +0x640, scaled, x `flt_613EB4`
+//! against +0x210's sign, x `flt_613E54` / `58` with +0x284 -1); the drive-kind 1 yaw force
+//! +0x218 (speed's share of `flt_613E7C`, +0x180 held to ±`flt_613E80`, negated in place
+//! and put back); +0x204 the sum of the four; force records 19 and 20 (`g_forceRecords`)
+//! 0, or with +0x254 clear the yaw twist eased toward +0x204 by `flt_613EA4`
+//! (`flt_5C5E48`) and split over the rear wheels' places (+0xCF0 ..).
+//!
+//! The flow, the compares and the integer steps are Rust; each straight x87 run is a small
+//! block of the original's instructions (generated from IDA, `physics/flow.rs`).
+//!
+//! In:  nothing
+//! Out: eax, ebx and edx as the instructions leave them; no flags read (the caller calls
+//!      on)
+//!
+//! Caller: `sub_43B635` (0x43B7A3), every physics step.
+//! Self-test: the original and the Rust version on the game's variables (saved and put
+//! back): drive kinds 0 / 1, speeds 0, small and large, the switches, under three
+//! precisions.
+
+use crate::errors::Refused;
+use crate::framework::{EAX, EBX, EDX, RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
+use crate::math::x87;
+use crate::math::x87_run::{TEST_CONTROL_WORDS, abs_compare, mul_status, with_control_word};
+use crate::physics::flow::{a, base, c3, ease_zero, g, hold_high, hold_low, negate, p, x87_run};
+use crate::scene::matrix3::test_floats;
+use crate::screens::harness::Left;
+use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use std::sync::atomic::AtomicUsize;
+
+static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
+
+pub static HOOK: RawHook = RawHook::new(
+    "physics::drive_grip_forces",
+    rva(0x43CD79),
+    thunk,
+    &ORIGINAL,
+)
+.self_test(self_test);
+
+hook_asm!(
+    thunk,
+    call_original,
+    dispatch = dispatch,
+    original = ORIGINAL
+);
+
+/// `edx` = the steer angle's table index (+0x64C >> 20).
+fn steer_index() -> u32 {
+    g(0x71A624) >> 20
+}
+
+/// 0x43CDFF / 0x43CE21: +0x210 = sine x speed / `dword_614BA0`.
+fn steer_force(e: u32) {
+    x87_run!(
+        "fld dword ptr [{b} + {e}*4 + 0x623AE4]",
+        "fmul dword ptr [{b} + 0x31A184]",
+        "fdiv dword ptr [{b} + 0x214BA0]",
+        "fstp dword ptr [{b} + 0x31A1E8]";
+        b = base(), e = e
+    );
+}
+
+/// The Rust version: ebx in; eax, ebx, edx as left out (eax and edx always set).
+pub unsafe fn drive_grip_forces(ebx: u32) -> [u32; 3] {
+    let mut ebx = ebx;
+    let mut edx;
+    let kind = g(0x71A018);
+    // 0x43CD79: the share of +0x1F4 out of 50, from 1, held 0 ..= 1.
+    p(0x62400C, 0x32);
+    x87_run!(
+        "fild dword ptr [{b} + 0x31A1CC]",
+        "fild dword ptr [{b} + 0x22400C]",
+        ".byte 0xDE, 0xF9", // fdivp st(1), st
+        "fsub dword ptr [{b} + 0x1C5D38]",
+        ".byte 0xD9, 0xE0", // fchs
+        "fstp dword ptr [{b} + 0x214768]";
+        b = base()
+    );
+    hold_low(0x614768, 0x5C5D90);
+    hold_high(0x614768, 0x5C5D38);
+    p(0x71A1E8, 0);
+    if g(0x71A220) == 0 {
+        steer_force(steer_index());
+    }
+    edx = steer_index();
+    steer_force(edx);
+    if !c3(g(0x71A184), g(0x5C5D90)) {
+        // 0x43CE53: the slip limit, by the drive kind's factor.
+        let factor = if kind == 1 { 0x613EB0 } else { 0x613EAC };
+        x87_run!(
+            "fld dword ptr [{b} + 0x2142A8]",
+            "fmul dword ptr [{b} + 0x213FC8]",
+            "fmul dword ptr [{f}]",
+            "fmul dword ptr [{b} + 0x214B74]",
+            "fdiv dword ptr [{b} + 0x31A184]",
+            ".byte 0xD9, 0xE1", // fabs
+            "fstp dword ptr [{b} + 0x214260]";
+            b = base(), f = a(factor)
+        );
+        p(0x62400C, g(0x71A1E8));
+        // +0x210 held to ±the limit (the value negated in place between).
+        hold_high(0x71A1E8, 0x614260);
+        negate(0x71A1E8);
+        hold_high(0x71A1E8, 0x614260);
+        negate(0x71A1E8);
+        let slow = |v: usize| abs_compare(g(v), g(0x613E84)) & 0x100 != 0;
+        if !slow(0x71A184) && slow(0x71A190) {
+            p(0x71A1E8, 0);
+        }
+        ebx = g(0x71A440);
+        if ebx & 0x1000 != 0 {
+            if g(0x62400C) == 0 {
+                p(0x71A61C, 0);
+            } else {
+                x87_run!(
+                    "fld dword ptr [{b} + 0x31A1E8]",
+                    "fdiv dword ptr [{b} + 0x22400C]",
+                    "fstp dword ptr [{b} + 0x22400C]";
+                    b = base()
+                );
+                hold_high(0x62400C, 0x5C5D38);
+                hold_low(0x62400C, 0x5C5D90);
+                x87_run!(
+                    "fld dword ptr [{b} + 0x22400C]",
+                    "fimul dword ptr [{b} + 0x31A61C]",
+                    "fistp dword ptr [{b} + 0x31A61C]";
+                    b = base()
+                );
+            }
+        }
+    }
+    // 0x43CFB7
+    if g(0x71A25C) == 1 {
+        let k = if kind == 1 { 0x613E5C } else { 0x613E60 };
+        p(0x71A1E8, x87::mul(g(0x71A1E8), g(k)));
+    }
+    p(0x71A1F4, 0);
+    if kind == 0 {
+        x87_run!(
+            "fld dword ptr [{b} + 0x31A17C]",
+            ".byte 0xD8, 0xC8", // fmul st, st
+            "fld dword ptr [{b} + 0x31A184]",
+            ".byte 0xD8, 0xC8",
+            ".byte 0xDE, 0xC1", // faddp st(1), st
+            ".byte 0xD9, 0xFA", // fsqrt
+            "fstp dword ptr [{b} + 0x22400C]";
+            b = base()
+        );
+        hold_high(0x62400C, 0x613F34);
+        edx = steer_index();
+        x87_run!(
+            "fld dword ptr [{b} + 0x213F34]",
+            "fsub dword ptr [{b} + 0x22400C]",
+            "fdiv dword ptr [{b} + 0x213F34]",
+            "fmul dword ptr [{b} + {e}*4 + 0x623AE4]",
+            "fimul dword ptr [{b} + 0x31A618]",
+            "fdiv dword ptr [{b} + 0x1C5E2C]",
+            "fmul dword ptr [{b} + 0x31A190]",
+            "fmul dword ptr [{b} + 0x213F38]",
+            "fimul dword ptr [{b} + 0x31A610]",
+            "fdiv dword ptr [{b} + 0x1C5E2C]",
+            "fstp dword ptr [{b} + 0x31A1F4]";
+            b = base(), e = edx
+        );
+    }
+    // 0x43D08E: the engine braking.
+    let eax = if kind != 0 {
+        x87_run!(
+            "fld dword ptr [{b} + 0x214BF0]",
+            "fimul dword ptr [{b} + 0x31A614]",
+            "fmul dword ptr [{b} + 0x1C5DB4]",
+            "fistp dword ptr [{b} + 0x22400C]";
+            b = base()
+        );
+        ((g(0x71A614).wrapping_sub(g(0x71A610)) as i32 >> 1) as u32)
+            .wrapping_add(0x80)
+            .wrapping_add(g(0x62400C))
+            .wrapping_add(g(0x71A618))
+    } else {
+        x87_run!(
+            "fld dword ptr [{b} + 0x214BF0]",
+            "fimul dword ptr [{b} + 0x31A614]",
+            ".byte 0xD8, 0xC0", // fadd st, st
+            "fistp dword ptr [{b} + 0x22400C]";
+            b = base()
+        );
+        0x100u32
+            .wrapping_sub(g(0x71A610))
+            .wrapping_add(g(0x62400C))
+            .wrapping_add(g(0x71A618))
+    };
+    p(0x614164, eax);
+    x87_run!(
+        "fild dword ptr [{b} + 0x214164]",
+        "fdiv dword ptr [{b} + 0x1C5E2C]",
+        "fmul dword ptr [{b} + 0x31A1A0]",
+        ".byte 0xD9, 0xE0", // fchs
+        "fmul dword ptr [{b} + 0x213ECC]",
+        "fmul dword ptr [{b} + 0x214B78]",
+        "fstp dword ptr [{b} + 0x31A1EC]";
+        b = base()
+    );
+    if mul_status(g(0x71A1EC), g(0x71A1E8), g(0x5C5D90)) & 0x100 != 0 {
+        p(0x71A1EC, x87::mul(g(0x71A1EC), g(0x613EB4)));
+    }
+    if g(0x71A25C) == u32::MAX {
+        let k = if kind == 1 { 0x613E54 } else { 0x613E58 };
+        p(0x71A1EC, x87::mul(g(0x71A1EC), g(k)));
+    }
+    p(0x71A1F0, 0);
+    if kind == 1 {
+        x87_run!(
+            "fld dword ptr [{b} + 0x31A184]",
+            ".byte 0xD9, 0xE1", // fabs
+            "fstp dword ptr [{b} + 0x22401C]";
+            b = base()
+        );
+        hold_high(0x62401C, 0x613E7C);
+        x87_run!(
+            "fld dword ptr [{b} + 0x213E7C]",
+            "fsub dword ptr [{b} + 0x22401C]",
+            "fdiv dword ptr [{b} + 0x213E7C]",
+            "fstp dword ptr [{b} + 0x22401C]";
+            b = base()
+        );
+        p(0x62400C, x87::loaded(g(0x71A158)));
+        // Held to ±`flt_613E80`, the limit negated in place between and put back.
+        hold_high(0x62400C, 0x613E80);
+        negate(0x613E80);
+        hold_low(0x62400C, 0x613E80);
+        negate(0x613E80);
+        x87_run!(
+            "fld dword ptr [{b} + 0x22400C]",
+            "fdiv dword ptr [{b} + 0x213E80]",
+            "fstp dword ptr [{b} + 0x22400C]";
+            b = base()
+        );
+        edx = steer_index();
+        x87_run!(
+            "fld dword ptr [{b} + {e}*4 + 0x623AE4]",
+            "fdiv dword ptr [{b} + 0x214BA0]",
+            "fimul dword ptr [{b} + 0x31A610]",
+            "fdiv dword ptr [{b} + 0x1C5E2C]",
+            "fmul dword ptr [{b} + 0x22400C]",
+            "fmul dword ptr [{b} + 0x22401C]",
+            "fmul dword ptr [{b} + 0x213E78]",
+            "fstp dword ptr [{b} + 0x31A1F0]";
+            b = base(), e = edx
+        );
+    }
+    // 0x43D2C9: the sum, and the yaw twist on the rear wheels.
+    x87_run!(
+        "fld dword ptr [{b} + 0x31A1E8]",
+        "fadd dword ptr [{b} + 0x31A1EC]",
+        "fadd dword ptr [{b} + 0x31A1F0]",
+        "fadd dword ptr [{b} + 0x31A1F4]",
+        "fstp dword ptr [{b} + 0x31A1DC]";
+        b = base()
+    );
+    p(0x6149D0, 0);
+    p(0x6149F0, 0);
+    if g(0x71A22C) != 0 {
+        return [eax, ebx, edx];
+    }
+    p(0x71A1D8, x87::loaded(g(0x71A160)));
+    let old = g(0x71A1D8);
+    p(0x5C5E48, x87::sub(old, g(0x71A1DC)));
+    ease_zero(0x5C5E48, 0x613EA4);
+    let held = [old];
+    x87_run!(
+        "fld dword ptr [{b} + 0x1C5E48]",
+        "fadd dword ptr [{b} + 0x31A1DC]",
+        "fstp dword ptr [{b} + 0x31A1D8]",
+        "fld dword ptr [{o}]",
+        "fsub dword ptr [{b} + 0x31A1D8]",
+        ".byte 0xD9, 0xE0", // fchs
+        "fstp dword ptr [{b} + 0x22400C]",
+        "fld dword ptr [{b} + 0x22400C]",
+        "fdiv dword ptr [{b} + 0x21388C]",
+        "fmul dword ptr [{b} + 0x1C5E40]",
+        "fdiv dword ptr [{b} + 0x213FAC]",
+        "fst dword ptr [{b} + 0x2149D0]",
+        ".byte 0xD9, 0xE0", // fchs
+        "fstp dword ptr [{b} + 0x2149F0]",
+        ".byte 0xD9, 0xE8", // fld1
+        "fst dword ptr [{b} + 0x2149E4]",
+        ".byte 0xD9, 0xE0",
+        "fstp dword ptr [{b} + 0x214A04]",
+        "fld dword ptr [{b} + 0x2149D0]",
+        "fdiv dword ptr [{b} + 0x31ACC8]",
+        "fstp dword ptr [{b} + 0x2149D0]",
+        "fld dword ptr [{b} + 0x2149E4]",
+        "fmul dword ptr [{b} + 0x31ACC8]",
+        "fstp dword ptr [{b} + 0x2149E4]",
+        "fld dword ptr [{b} + 0x2149F0]",
+        "fdiv dword ptr [{b} + 0x31ACD4]",
+        ".byte 0xD9, 0xE0",
+        "fstp dword ptr [{b} + 0x2149F0]",
+        "fld dword ptr [{b} + 0x214A04]",
+        "fmul dword ptr [{b} + 0x31ACD4]",
+        ".byte 0xD9, 0xE0",
+        "fstp dword ptr [{b} + 0x214A04]";
+        b = base(), o = held.as_ptr()
+    );
+    [eax, ebx, edx]
+}
+
+fn rust(r: &Regs) -> Result<Left, Refused> {
+    let [eax, ebx, edx] = unsafe { drive_grip_forces(r.ebx) };
+    Ok(Left::nothing().with(EAX, eax).with(EBX, ebx).with(EDX, edx))
+}
+
+fn regions() -> Vec<Region> {
+    let a = |x: usize| game_addr(rva(x)) as u32;
+    vec![
+        (a(0x614768), 4),
+        (a(0x71A1D8), 0x20),
+        (a(0x614260), 4),
+        (a(0x62400C), 4),
+        (a(0x62401C), 4),
+        (a(0x71A61C), 4),
+        (a(0x614164), 4),
+        (a(0x613E80), 4),
+        (a(0x5C5E48), 4),
+        (a(0x6149D0), 0x40),
+    ]
+}
+
+extern "C" fn dispatch(r: &mut Regs) {
+    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+fn self_test() -> (usize, usize) {
+    let Some(mut t) = SelfTest::begin(&HOOK) else {
+        return (0, 0);
+    };
+    let a = |x: usize| game_addr(rva(x)) as u32;
+    let mut all = regions();
+    all.extend([
+        (a(0x71A158), 0x10),
+        (a(0x71A17C), 12),
+        (a(0x71A190), 4),
+        (a(0x71A1A0), 4),
+        (a(0x71A1CC), 4),
+        (a(0x71A018), 4),
+        (a(0x71A220), 4),
+        (a(0x71A22C), 4),
+        (a(0x71A25C), 4),
+        (a(0x71A440), 4),
+        (a(0x71A610), 0x18),
+        (a(0x71ACC8), 0x10),
+        (a(0x6142A8), 4),
+        (a(0x614B74), 8),
+        (a(0x614BA0), 4),
+        (a(0x614BF0), 4),
+    ]);
+    let saved = capture(&all);
+    for word in TEST_CONTROL_WORDS {
+        with_control_word(word, &mut || {
+            for seed in 0..12u32 {
+                let set = || {
+                    let mut f = [0u32; 12];
+                    test_floats(seed * 17 + 5, &mut f);
+                    let small = |k: usize| (f32::from_bits(f[k]) % 20.0).to_bits();
+                    p(0x71A1CC, seed * 13);
+                    p(0x71A220, seed % 3 / 2);
+                    p(0x71A624, seed.wrapping_mul(0x1234_5678));
+                    p(0x71A184, if seed % 4 == 0 { 0 } else { small(0) });
+                    p(0x71A17C, small(1));
+                    p(0x71A190, small(2));
+                    p(0x71A158, small(3));
+                    p(0x71A160, small(4));
+                    p(0x71A1A0, small(5));
+                    p(0x71A018, seed % 2);
+                    p(0x71A22C, (seed % 5 == 4) as u32);
+                    p(0x71A25C, [0u32, 1, u32::MAX][(seed % 3) as usize]);
+                    p(0x71A440, if seed % 2 == 0 { 0x1000 } else { 0 });
+                    p(0x71A610, 100 + seed);
+                    p(0x71A614, seed % 2);
+                    p(0x71A618, 50 + seed);
+                    p(0x71A61C, 300 + seed * 7);
+                    p(0x71ACC8, (1.0 + seed as f32 * 0.1).to_bits());
+                    p(0x71ACD4, (1.5 + seed as f32 * 0.1).to_bits());
+                    p(0x6142A8, small(6));
+                    p(0x614B74, small(7));
+                    p(0x614B78, small(8));
+                    p(0x614BA0, (2.0 + seed as f32).to_bits());
+                    p(0x614BF0, small(9));
+                    p(0x5C5E48, small(10));
+                    p(0x71A1D8, small(11));
+                };
+                check_state(
+                    &mut t,
+                    &format!("control word {word:#x}, seed {seed}"),
+                    call_original,
+                    Regs::SENTINEL,
+                    &set,
+                    &all,
+                    &rust,
+                );
+            }
+        });
+    }
+    restore(&all, &saved);
+    t.finish()
+}

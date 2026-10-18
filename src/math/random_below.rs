@@ -46,6 +46,7 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
+    crate::math::next_random::wait_for_random();
     dispatch_state(&HOOK, r, call_original, &[at(STATE_RVA)], &rust);
 }
 

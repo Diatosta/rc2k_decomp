@@ -253,11 +253,26 @@ fn self_test() -> (usize, usize) {
         ))
     };
     let (theirs, mine) = (run(false), run(true));
+    // Free space is the disk's, which other programs (and the game's threads) change between
+    // the two runs: equal within 64 MB, and its line equal but for the number.
+    let free_line = |line: &String| line.starts_with("free space on partition=");
+    let same = match (&theirs, &mine) {
+        (Some(o), Some(r)) => {
+            o.0 == r.0
+                && o.1 == r.1
+                && o.2.abs_diff(r.2) < 0x1_0000
+                && o.3.len() == r.3.len()
+                && o.3
+                    .iter()
+                    .zip(&r.3)
+                    .all(|(a, b)| a == b || (free_line(a) && free_line(b)))
+        }
+        _ => false,
+    };
     t.check(
-        theirs == mine
-            && theirs
-                .as_ref()
-                .is_some_and(|run| run.0 && run.1 == 1 && run.3.len() > 10),
+        same && theirs
+            .as_ref()
+            .is_some_and(|run| run.0 && run.1 == 1 && run.3.len() > 10),
         || format!("the log's head: original {theirs:?}; rust {mine:?}"),
     );
     restore(&written, &saved);

@@ -55,6 +55,12 @@ pub fn append_speed(tenths: u32, with_label: bool, units: u32) -> Result<Vec<u8>
     Ok(out)
 }
 
+/// Whether the original traps on this speed (metric, past `miles_to_km::MAX_INPUT`): tests
+/// that take players' live speeds (mid-race data in a stage) leave such cases out.
+pub fn traps(tenths: u32) -> bool {
+    append_speed(tenths, false, units()).is_err()
+}
+
 // ---- hook ----
 
 extern "C" fn dispatch(r: &mut Regs) {

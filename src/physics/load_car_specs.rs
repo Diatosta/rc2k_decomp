@@ -1,0 +1,271 @@
+//! `physics::load_car_specs` (0x421482): the work car's handling figures from its kind's
+//! record (`g_car` +0x24, at most 0x21; records of 0xB0 at 0x5C790C, "00 renault maxi
+//! megane" ..): the drive kind; four whole figures as floats into `flt_5CB96C` .. (each at
+//! least 8.0) and the engine's top (+0x1DC, at least `flt_5C5D18`); the shift points
+//! `flt_5CB958` .. `flt_5CB964`; `flt_5CB968`; `flt_614104`; the torque curve (nine
+//! dwords) at `dword_614B7C`; the gear count (3 ..= 7, by the sign) and nine more words;
+//! three whole figures x 65536 / `flt_5C5D18` `fistp` into `dword_614BC0` .. (for kinds
+//! below 0x17 from `dword_613F04` .. instead); `dword_614BA0` .. from `dword_613EFC`,
+//! `613F00`, `613F14` (the record's first written, then these); two floats x
+//! `flt_613FC8`; `dword_62400C`, `dword_61476C`; and by the drive kind `flt_6140F8` and
+//! it + 100 into `flt_6140FC`.
+//!
+//! The x87 runs are the original's instructions (from IDA); the compares and the integer
+//! steps in Rust.
+//!
+//! In:  nothing
+//! Out: eax the record's gear count, ebx the drive kind, esi the record; no flags read
+//!
+//! Callers: `sub_43B635` (0x43B63A), `sub_4217E4`.
+//! Refuses (before anything) a drive kind past 3 (`flt_613FB8`'s size not worked out).
+//! Self-test: the original and the Rust version on the game's variables (saved and put
+//! back): kinds 0, 5, 0x16, 0x17, 0x21, 0x40, under three precisions.
+
+use crate::errors::{BadInput, Refused};
+use crate::framework::{
+    EAX, EBX, ESI, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
+};
+use crate::math::x87;
+use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
+use crate::screens::harness::Left;
+use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use std::cmp::Ordering;
+use std::sync::atomic::AtomicUsize;
+
+static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
+
+pub static HOOK: RawHook =
+    RawHook::new("physics::load_car_specs", rva(0x421482), thunk, &ORIGINAL).self_test(self_test);
+
+hook_asm!(
+    thunk,
+    call_original,
+    dispatch = dispatch,
+    original = ORIGINAL
+);
+
+fn g(x: usize) -> u32 {
+    unsafe { game_read(rva(x)) }
+}
+
+fn p(x: usize, v: u32) {
+    unsafe { game_write(rva(x), v) }
+}
+
+unsafe fn at(a: u32) -> u32 {
+    unsafe { (a as *const u32).read_unaligned() }
+}
+
+fn below(a: u32, b: u32) -> bool {
+    !matches!(
+        f32::from_bits(a).partial_cmp(&f32::from_bits(b)),
+        Some(Ordering::Greater | Ordering::Equal)
+    )
+}
+
+macro_rules! x87_block {
+    ($($line:literal),+ ; $($name:ident = $value:expr),*) => {
+        core::arch::asm!(
+            $($line),+,
+            $($name = in(reg) $value),*,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+        )
+    };
+}
+
+/// The Rust version.
+pub unsafe fn load_car_specs() -> Result<Left, Refused> {
+    let b = game_addr(0) as u32;
+    let kind = g(0x719FFC).min(0x21);
+    let s = game_addr(rva(0x5C790C)) as u32 + 0xB0 * kind;
+    let drive = unsafe { at(s + 0x18) };
+    if drive > 3 {
+        return Err(BadInput("a drive kind past 3").into());
+    }
+    p(0x71A018, drive);
+    // 0x4214A7 .. 0x421543
+    unsafe {
+        x87_block!(
+            "fild dword ptr [{s} + 0x64]",
+            "fstp dword ptr [{b} + 0x1CB96C]",
+            "fild dword ptr [{s} + 0x68]",
+            "fstp dword ptr [{b} + 0x1CB970]",
+            "fild dword ptr [{s} + 0x6C]",
+            "fstp dword ptr [{b} + 0x1CB974]",
+            "fild dword ptr [{s} + 0x70]",
+            "fstp dword ptr [{b} + 0x1CB978]",
+            "fild dword ptr [{s} + 0x74]",
+            "fstp dword ptr [{b} + 0x31A1B4]",
+            "fld dword ptr [{b} + 0x213F10]",
+            "fstp dword ptr [{b} + 0x31A1B8]",
+            "fld dword ptr [{s} + 0xA4]",
+            "fst dword ptr [{b} + 0x1CB958]",
+            "fmul dword ptr [{b} + 0x213E88]",
+            "fstp dword ptr [{b} + 0x1CB964]",
+            "fld dword ptr [{s} + 0xA8]",
+            "fadd dword ptr [{b} + 0x1C5DDC]",
+            "fstp dword ptr [{b} + 0x1CB95C]",
+            "fld dword ptr [{s} + 0xAC]",
+            "fadd dword ptr [{b} + 0x1C5DDC]",
+            "fstp dword ptr [{b} + 0x1CB960]",
+            "fild dword ptr [{s} + 0x78]",
+            "fmul dword ptr [{b} + 0x213EB8]",
+            "fdiv dword ptr [{b} + 0x31A1B4]",
+            "fstp dword ptr [{b} + 0x1CB968]",
+            "fld dword ptr [{b} + 0x31A1B4]",
+            "fmul dword ptr [{b} + 0x213FE4]",
+            "fstp dword ptr [{b} + 0x214104]";
+            b = b, s = s
+        )
+    };
+    if below(g(0x71A1B4), g(0x5C5D18)) {
+        p(0x71A1B4, x87::loaded(g(0x5C5D18)));
+    }
+    for k in 0..4usize {
+        let at_k = 0x5CB96C + 4 * k;
+        if below(g(at_k), g(0x5C5D50)) {
+            p(at_k, x87::loaded(g(0x5C5D50)));
+        }
+    }
+    unsafe {
+        for k in 0..9u32 {
+            p(0x614B7C + 4 * k as usize, at(s + 0x7C + 4 * k));
+        }
+        p(0x614C18, at(s + 0xA0));
+        let count = at(s + 0x1C);
+        p(0x614C10, count);
+        if (g(0x614C10).wrapping_sub(3) as i32) < 0 {
+            p(0x614C10, 3);
+        }
+        if (g(0x614C10).wrapping_sub(7) as i32) >= 0 {
+            p(0x614C10, 7);
+        }
+        for (to, from) in [
+            (0x614C14usize, 0x20u32),
+            (0x614BB4, 0x2C),
+            (0x614BB8, 0x30),
+            (0x614B74, 0x24),
+            (0x614B78, 0x28),
+            (0x614BBC, 0x34),
+        ] {
+            p(to, at(s + from));
+        }
+        // 0x4216C5 .. 0x421704
+        x87_block!(
+            "fild dword ptr [{s} + 0x40]",
+            "fmul dword ptr [{b} + 0x1C5D98]",
+            "fdiv dword ptr [{b} + 0x1C5D18]",
+            "fistp dword ptr [{b} + 0x214BC0]",
+            "fild dword ptr [{s} + 0x44]",
+            "fmul dword ptr [{b} + 0x1C5D98]",
+            "fdiv dword ptr [{b} + 0x1C5D18]",
+            "fistp dword ptr [{b} + 0x214BC4]",
+            "fild dword ptr [{s} + 0x48]",
+            "fmul dword ptr [{b} + 0x1C5D98]",
+            "fdiv dword ptr [{b} + 0x1C5D18]",
+            "fistp dword ptr [{b} + 0x214BC8]";
+            b = b, s = s
+        );
+        if g(0x719FFC) < 0x17 {
+            // 0x42170D .. 0x421755
+            x87_block!(
+                "fild dword ptr [{b} + 0x213F04]",
+                "fmul dword ptr [{b} + 0x1C5D98]",
+                "fdiv dword ptr [{b} + 0x1C5D18]",
+                "fistp dword ptr [{b} + 0x214BC0]",
+                "fild dword ptr [{b} + 0x213F08]",
+                "fmul dword ptr [{b} + 0x1C5D98]",
+                "fdiv dword ptr [{b} + 0x1C5D18]",
+                "fistp dword ptr [{b} + 0x214BC4]",
+                "fild dword ptr [{b} + 0x213F0C]",
+                "fmul dword ptr [{b} + 0x1C5D98]",
+                "fdiv dword ptr [{b} + 0x1C5D18]",
+                "fistp dword ptr [{b} + 0x214BC8]";
+                b = b
+            );
+        }
+        p(0x614BA0, g(0x613EFC));
+        p(0x614BA4, g(0x613F00));
+        p(0x614BA8, g(0x613F14));
+        // 0x421794 .. 0x4217B2
+        x87_block!(
+            "fld dword ptr [{s} + 0x38]",
+            "fmul dword ptr [{b} + 0x213FC8]",
+            "fstp dword ptr [{b} + 0x214BAC]",
+            "fld dword ptr [{s} + 0x3C]",
+            "fmul dword ptr [{b} + 0x213FC8]",
+            "fstp dword ptr [{b} + 0x214BB0]";
+            b = b, s = s
+        );
+        p(0x62400C, at(s + 0x5C));
+        p(0x61476C, at(s + 0x60));
+        // 0x4217CA .. 0x4217E3
+        x87_block!(
+            "fld dword ptr [{b} + {k}*4 + 0x213FB8]",
+            "fst dword ptr [{b} + 0x2140F8]",
+            "fadd dword ptr [{b} + 0x1C5D14]",
+            "fstp dword ptr [{b} + 0x2140FC]";
+            b = b, k = drive
+        );
+        Ok(Left::nothing()
+            .with(EAX, count)
+            .with(EBX, drive)
+            .with(ESI, s))
+    }
+}
+
+fn rust(_: &Regs) -> Result<Left, Refused> {
+    unsafe { load_car_specs() }
+}
+
+fn regions() -> Vec<Region> {
+    let a = |x: usize| game_addr(rva(x)) as u32;
+    vec![
+        (a(0x71A018), 4),
+        (a(0x5CB958), 0x24),
+        (a(0x71A1B4), 8),
+        (a(0x614104), 4),
+        (a(0x614B74), 0x58),
+        (a(0x614C10), 0xC),
+        (a(0x62400C), 4),
+        (a(0x61476C), 4),
+        (a(0x6140F8), 8),
+    ]
+}
+
+extern "C" fn dispatch(r: &mut Regs) {
+    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+fn self_test() -> (usize, usize) {
+    let Some(mut t) = SelfTest::begin(&HOOK) else {
+        return (0, 0);
+    };
+    let a = |x: usize| game_addr(rva(x)) as u32;
+    let mut all = regions();
+    all.push((a(0x719FFC), 4));
+    let saved = capture(&all);
+    for word in TEST_CONTROL_WORDS {
+        with_control_word(word, &mut || {
+            for kind in [0u32, 5, 0x16, 0x17, 0x21, 0x40] {
+                let drive = g(0x5C790C + 0xB0 * kind.min(0x21) as usize + 0x18);
+                if drive > 3 {
+                    continue;
+                }
+                check_state(
+                    &mut t,
+                    &format!("control word {word:#x}, kind {kind:#x}"),
+                    call_original,
+                    Regs::SENTINEL,
+                    &|| p(0x719FFC, kind),
+                    &all,
+                    &rust,
+                );
+            }
+        });
+    }
+    restore(&all, &saved);
+    t.finish()
+}

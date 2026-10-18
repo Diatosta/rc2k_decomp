@@ -22,6 +22,10 @@ pub fn dispatch_written(
         }
         return;
     }
+    if !crate::service::harness::shadow_due(hook) {
+        unsafe { call_original(r) };
+        return;
+    }
     let before = capture(regions);
     let mut mine_regs = *r;
     let mine = rust(&mut mine_regs);

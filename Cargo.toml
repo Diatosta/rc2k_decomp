@@ -17,6 +17,8 @@ standalone = ["dep:sdl3-sys"]
 
 [dependencies]
 detour = "0.10.0"
+# Already built for `detour`: `RedirectedCopy` checks its copies with the decoder.
+iced-x86 = { version = "1.21", default-features = false, features = ["decoder", "std"] }
 windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_System_LibraryLoader", "Win32_System_SystemServices", "Win32_UI_Input_KeyboardAndMouse", "Win32_System_Console", "Win32_System_Threading", "Win32_System_Diagnostics_Debug", "Win32_Storage", "Win32_Storage_FileSystem", "Win32_Security", "Win32_System_IO", "Win32_System_SystemInformation", "Win32_Globalization", "Win32_System_Environment", "Win32_UI_WindowsAndMessaging", "Win32_System_Registry", "Win32_System_WindowsProgramming", "Win32_System_Memory", "Win32_System_Kernel", "Win32_System_Com"] }
 toml = "1.1.6"
 serde = { version = "1.0.229", features = ["derive"] }

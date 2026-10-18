@@ -648,11 +648,17 @@ fn shadow_regions(count: u32) -> Vec<Region> {
     regions
 }
 
+/// `draw_polygon` with the game's Direct3D layer (`scene::submit_polygon`'s), the
+/// registers at the call passed on, for Rust callers.
+pub unsafe fn draw_polygon_in_game(entry: &Regs) -> Result<(), BadInput> {
+    unsafe { draw_polygon(&mut Game(submit_polygon::Game(entry))) }
+}
+
 extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
     if !shadow() {
         let entry = *r;
-        let done = unsafe { draw_polygon(&mut Game(submit_polygon::Game(&entry))) };
+        let done = unsafe { draw_polygon_in_game(&entry) };
         if let Err(e) = done {
             unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
         }

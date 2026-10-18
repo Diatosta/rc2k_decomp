@@ -1202,3 +1202,12 @@ pub fn check_screen(
     restore(&inputs, &saved.1);
     Ok(())
 }
+
+/// A screen loop run from Rust: its Rust version, as its hook runs it outside shadow mode
+/// (eax the screen's result where it has one; every other register kept).
+pub unsafe fn run_screen(screen: &Screen, r: &mut Regs) {
+    unsafe { screen_loop(screen, r, &mut Real) };
+    if let Some(result) = screen.result {
+        r.eax = unsafe { result() };
+    }
+}

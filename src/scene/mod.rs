@@ -20,6 +20,7 @@ pub mod cached_reflection_coordinates;
 pub mod carousel_pictures;
 pub mod carousel_set_ups;
 pub mod choose_carousel_pictures;
+pub mod choose_view_window;
 pub mod clear_depth_buffer;
 pub mod clear_fog;
 pub mod clear_slot_kinds;
@@ -32,6 +33,7 @@ pub mod clip_test;
 pub mod copy_matrix_with_place;
 pub mod count_texture_needs;
 pub mod cross_product;
+pub mod cross_product3;
 pub mod depth_buffer_off;
 pub mod depth_buffer_on;
 pub mod depth_test_off;
@@ -41,7 +43,9 @@ pub mod draw_car_object;
 pub mod draw_carousel;
 pub mod draw_carousel_entry;
 pub mod draw_clipped_polygon;
+pub mod draw_described_object;
 pub mod draw_fan;
+pub mod draw_flat_quad;
 pub mod draw_highlighted_object;
 pub mod draw_main_menu_carousel;
 pub mod draw_main_menu_objects;
@@ -54,6 +58,7 @@ pub mod draw_object_polygon;
 pub mod draw_polygon;
 pub mod draw_scene_object;
 pub mod draw_shown_object;
+pub mod draw_tinted_quad;
 pub mod end_scene;
 pub mod face_faces_away;
 pub mod face_sort_key;
@@ -62,12 +67,17 @@ pub mod fill_light_ramp;
 pub mod fill_light_scale;
 pub mod fill_light_tables;
 pub mod fill_scene_light_tables;
+pub mod find_object_kind;
 pub mod find_object_of_kind;
+pub mod fog_at;
 pub mod fog_polygon;
 pub mod forget_slot_texture;
+pub mod full_view_window;
 pub mod identity_matrix3;
 pub mod init_texture_levels;
 pub mod invert_turn;
+pub mod kind_hidden_at;
+pub mod kind_is_hidden;
 pub mod known_kind;
 pub mod known_kind_picture;
 pub mod known_kind_plate;
@@ -84,6 +94,8 @@ pub mod load_slot_texture;
 pub mod load_slot_textures;
 pub mod load_texture_picture;
 pub mod load_wanted_textures;
+pub mod lock_frame;
+pub mod look_up_texture;
 pub mod make_object_matrix;
 pub mod map_texture_places;
 pub mod matrix;
@@ -92,11 +104,14 @@ pub mod measure_object;
 pub mod multiply_matrices;
 pub mod multiply_matrices3;
 pub mod next_noise;
+pub mod no_mips_for;
+pub mod noise_step;
 pub mod normalise_vector3;
 pub mod objects;
 pub mod place_object_points;
 pub mod polygon;
 pub mod prepare_menu_scene;
+pub mod present_frame;
 pub mod project_point;
 pub mod project_polygon;
 pub mod raise_texture_needs;
@@ -140,6 +155,7 @@ pub mod step_loading_bar;
 pub mod submit_polygon;
 pub mod texture_levels;
 pub mod texture_needs;
+pub mod texture_picture_folder;
 pub mod texture_steps;
 pub mod textures;
 pub mod transform_int_points;
@@ -147,21 +163,32 @@ pub mod try_allocate_textures;
 pub mod turn_matrix3_x;
 pub mod turn_matrix3_y;
 pub mod turn_matrix3_z;
+pub mod turn_stage_object_point;
 pub mod unit_vector;
+pub mod unlock_frame;
 pub mod update_carousel_pictures;
 pub mod upload_plate;
 pub mod vector3;
 pub mod vertex_light;
 pub mod view_matrix;
+pub mod widen_object_radius;
 
 pub static HOOKS: &[&dyn GameHook] = &[
     &adjugate_matrix::HOOK,
+    &choose_view_window::HOOK,
+    &cross_product3::HOOK,
     &depth_buffer_off::HOOK,
     &depth_buffer_on::HOOK,
     &depth_test_off::HOOK,
     &depth_test_on::HOOK,
     &draw_fan::HOOK,
+    &draw_flat_quad::HOOK,
     &draw_polygon::HOOK,
+    &draw_tinted_quad::HOOK,
+    &fog_at::HOOK,
+    &full_view_window::HOOK,
+    &lock_frame::HOOK,
+    &present_frame::HOOK,
     &rotate_point::HOOK,
     &set_texture::HOOK,
     &submit_polygon::HOOK,
@@ -178,11 +205,16 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &reflect_vector::HOOK,
     &reflection_coordinates::HOOK,
     &cached_reflection_coordinates::HOOK,
+    &unlock_frame::HOOK,
     &vertex_light::HOOK,
     &draw_object_face::HOOK,
     &draw_object_faces::HOOK,
     &draw_object::HOOK,
     &draw_shown_object::HOOK,
+    &kind_is_hidden::HOOK,
+    &kind_hidden_at::HOOK,
+    &draw_described_object::HOOK,
+    &look_up_texture::HOOK,
     &draw_scene_object::HOOK,
     &set_turn_x::HOOK,
     &set_turn_y::HOOK,
@@ -290,4 +322,10 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &dot_product3::HOOK,
     &angle_between_vectors::HOOK,
     &forget_slot_texture::HOOK,
+    &no_mips_for::HOOK,
+    &noise_step::HOOK,
+    &find_object_kind::HOOK,
+    &turn_stage_object_point::HOOK,
+    &widen_object_radius::HOOK,
+    &texture_picture_folder::HOOK,
 ];

@@ -247,6 +247,14 @@ fn self_test() -> (usize, usize) {
                 for n in 0..0x10 {
                     *ptrs.2.add(n) = ((n as f32 - 5.0) * 0.3).to_bits();
                 }
+                if case == 1 {
+                    let now = capture(&regions);
+                    crate::framework::log(&format!(
+                        "marks::emit_body_particles: case 1 at the set-up's end ({} extra): {:x?}",
+                        extra.len(),
+                        &now[..now.len().min(0xD0)]
+                    ));
+                }
             },
             &regions,
             &rust,

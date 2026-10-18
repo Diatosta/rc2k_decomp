@@ -1,6 +1,8 @@
 use crate::framework::GameHook;
 
+pub mod append_axis_name;
 pub mod append_clock;
+pub mod append_clock_padded;
 pub mod append_distance_2dp;
 pub mod append_fraction;
 pub mod append_length;
@@ -18,6 +20,7 @@ pub mod car_units;
 pub mod compile_lexicon;
 pub mod copy_printable;
 pub mod expand_entry;
+pub mod format_seal_code;
 pub mod format_u32;
 pub mod hex_append;
 pub mod lexicon;
@@ -39,6 +42,8 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &copy_printable::HOOK,
     &str_append::HOOK,
     &hex_append::HOOK,
+    &format_seal_code::HOOK,
+    &append_axis_name::HOOK,
     &str_append_indexed::HOOK,
     &append_string_by_id::HOOK,
     &expand_entry::HOOK,
@@ -49,6 +54,7 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &append_percent::HOOK,
     &append_fraction::HOOK,
     &append_clock::HOOK,
+    &append_clock_padded::HOOK,
     &append_time::HOOK,
     &append_distance_2dp::HOOK,
     &append_speed::HOOK,

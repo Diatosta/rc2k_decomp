@@ -36,6 +36,18 @@ impl RedirectedCopy {
             let this = Self(copy);
             std::ptr::copy_nonoverlapping(original as *const u8, copy, len);
             std::ptr::copy_nonoverlapping(entry_bytes.as_ptr(), copy, entry_bytes.len());
+            if let Some(offset) = unlisted_call(
+                std::slice::from_raw_parts(copy, len),
+                original,
+                call_offsets,
+            ) {
+                // A call out of the copy that is not moved runs into whatever lies at the
+                // same distance from the copy (2026-10-18: `draw_cell_sprite`'s test).
+                return Err(Box::leak(
+                    format!("a call out of the copy at +{offset:#x} that is not in its list")
+                        .into_boxed_str(),
+                ));
+            }
             for &offset in call_offsets {
                 let at = copy.add(offset);
                 if offset + 5 > len || at.read() != 0xE8 {
@@ -70,6 +82,28 @@ impl RedirectedCopy {
     pub fn addr(&self) -> usize {
         self.0 as usize
     }
+}
+
+/// The first `call rel32` of `code` (the bytes of `original`, `len` long) whose target is
+/// outside it and whose offset `listed` lacks.
+fn unlisted_call(code: &[u8], original: usize, listed: &[usize]) -> Option<usize> {
+    use iced_x86::{Decoder, DecoderOptions, FlowControl, OpKind};
+    let end = original + code.len();
+    let mut decoder = Decoder::with_ip(32, code, original as u64, DecoderOptions::NONE);
+    while decoder.can_decode() {
+        let insn = decoder.decode();
+        let offset = insn.ip() as usize - original;
+        if insn.flow_control() == FlowControl::Call
+            && insn.op0_kind() == OpKind::NearBranch32
+            && code.get(offset) == Some(&0xE8)
+        {
+            let target = insn.near_branch_target() as usize;
+            if !(original..end).contains(&target) && !listed.contains(&offset) {
+                return Some(offset);
+            }
+        }
+    }
+    None
 }
 
 impl Drop for RedirectedCopy {

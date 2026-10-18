@@ -43,7 +43,48 @@ pub fn random_step(state: u32, mixed_in: u32) -> u32 {
     (state & !0xFF | low as u32).rotate_right(1) ^ mixed_in
 }
 
+/// The thread that owns the generator during an unpaused self-test (0: none). Another
+/// thread asking for a number meanwhile waits: the game's thread keeps running during
+/// such a test, and its draws would put the test's two sides on different numbers.
+static OWNER: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+fn this_thread() -> u32 {
+    unsafe { windows_sys::Win32::System::Threading::GetCurrentThreadId() }
+}
+
+/// Runs `f` (a self-test) with the generator to this thread alone.
+pub fn own_random<R>(f: impl FnOnce() -> R) -> R {
+    use std::sync::atomic::Ordering;
+    /// Gives the generator back however `f` ends (a panic too), or the game would wait.
+    struct Release;
+    impl Drop for Release {
+        fn drop(&mut self) {
+            OWNER.store(0, Ordering::SeqCst);
+        }
+    }
+    OWNER.store(this_thread(), Ordering::SeqCst);
+    let _release = Release;
+    f()
+}
+
+/// Waits while another thread owns the generator (`own_random`).
+pub fn wait_for_random() {
+    use std::sync::atomic::Ordering;
+    loop {
+        let owner = OWNER.load(Ordering::SeqCst);
+        if owner == 0 || owner == this_thread() {
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+}
+
+/// The numbers drawn so far (for tests that compare how many each side drew).
+pub static DRAWS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
 pub unsafe fn next_random() -> u32 {
+    wait_for_random();
+    DRAWS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     unsafe {
         let next = random_step(game_read(STATE_RVA), 0);
         game_write(STATE_RVA, next);
@@ -58,6 +99,7 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
+    wait_for_random();
     dispatch_state(&HOOK, r, call_original, &[at(STATE_RVA)], &rust);
     // `random_step` ends in `xor eax, ebx` (ebx 0): its caller `race::nonzero_random`
     // (0x444C14) reads the zero flag (`jnz`).

@@ -292,6 +292,10 @@ pub fn dispatch_clip(
         }
         return;
     }
+    if !crate::service::harness::shadow_due(hook) {
+        unsafe { call_original(r) };
+        return;
+    }
     let regions = regions();
     let count: u32 = unsafe { game_read(COUNT_RVA) };
     let before = capture(&regions);

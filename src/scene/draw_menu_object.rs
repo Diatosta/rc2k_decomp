@@ -17,9 +17,6 @@ use crate::framework::{
 };
 use crate::install::stand_ins::{act, set_handler, stand_in};
 use crate::redirect::RedirectedCopy;
-use crate::scene::draw_object::draw_object_in_game;
-use crate::scene::draw_scene_object::{Way, draw_scene_object};
-use crate::scene::draw_shown_object::draw_shown_object;
 use crate::scene::matrix::make_object_matrix;
 use crate::service::harness::{at, capture, restore};
 use std::sync::Mutex;
@@ -42,7 +39,6 @@ hook_asm!(
 const SHINE_RVA: usize = rva(0x5CCE74); // g_shine
 const VIEW_KIND_RVA: usize = rva(0x6365C8); // dword_6365C8
 const LIGHT_KIND_RVA: usize = rva(0x62DAF4); // g_lightKind
-const DESCRIBED_RVA: usize = rva(0x451B61); // scene::draw_described_object
 
 /// The two calls.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -78,13 +74,7 @@ pub unsafe fn draw_menu_object_in_game(r: &mut Regs) -> Result<(), Refused> {
                 make_object_matrix().apply(r);
                 Ok(())
             }
-            Step::Draw => draw_scene_object(r, &mut |way, r| match way {
-                Way::Shown => draw_shown_object(r, &mut |r| draw_object_in_game(r)).map(|_| ()),
-                Way::Described => {
-                    call_game(r, game_addr(DESCRIBED_RVA));
-                    Ok(())
-                }
-            }),
+            Step::Draw => crate::scene::draw_scene_object::draw_scene_object_in_game(r),
         })
     }
 }

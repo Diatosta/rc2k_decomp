@@ -159,6 +159,19 @@ pub unsafe fn draw_stage_body(
     keep_entry_34: bool,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
+    unsafe { draw_stage_body_in(record, marker_palette, keep_entry_34, HEADING_FONT, canvas) }
+}
+
+/// `draw_stage_body` with the two headings (surface, weather) in `heading_font`: the rally
+/// stage page (`screens::draw_rally_stage_info`) uses `stru_51E564`, the others
+/// `stru_51E5C4`.
+pub unsafe fn draw_stage_body_in(
+    record: u32,
+    marker_palette: u32,
+    keep_entry_34: bool,
+    heading_font: usize,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
     unsafe {
         // A line built in the line buffer and drawn with the value font.
         let value = |canvas: &mut dyn Canvas, mut bytes: Vec<u8>, x: i32, y: i32| {
@@ -211,7 +224,7 @@ pub unsafe fn draw_stage_body(
         label(canvas, LENGTH_LABEL, LABEL_FONT, RIGHT_LABEL_X, 0xE8)?;
 
         // Road surface: four percentages, then their labels.
-        label(canvas, SURFACE_HEADING, HEADING_FONT, CENTRE_X, 0x107)?;
+        label(canvas, SURFACE_HEADING, heading_font, CENTRE_X, 0x107)?;
         for (field, x, y) in [
             (0x24, LEFT_VALUE_X, 0x120),
             (0x2C, RIGHT_VALUE_X, 0x120),
@@ -235,7 +248,7 @@ pub unsafe fn draw_stage_body(
         }
 
         // Weather: temperature and wind, then the weather line.
-        label(canvas, WEATHER_HEADING, HEADING_FONT, CENTRE_X, 0x156)?;
+        label(canvas, WEATHER_HEADING, heading_font, CENTRE_X, 0x156)?;
         let (temperature, _) = append_temperature(dword(entry.wrapping_add(0x1C)) as i32);
         value(canvas, temperature, LEFT_VALUE_X, 0x16F)?;
         label(canvas, TEMPERATURE_LABEL, LABEL_FONT, LEFT_LABEL_X, 0x16F)?;

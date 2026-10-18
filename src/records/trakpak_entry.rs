@@ -34,7 +34,7 @@ const HEADER_RVA: usize = rva(0x734BC6); // g_trakPakHeader: +0 link, +4 pack id
 const ENTRIES_OFFSET: u32 = 0x34;
 const ENTRY_SIZE: u32 = 0x40;
 
-fn loaded_pack_id() -> u32 {
+pub fn loaded_pack_id() -> u32 {
     unsafe { game_read(HEADER_RVA + 4) }
 }
 

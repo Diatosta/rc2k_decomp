@@ -1,0 +1,248 @@
+//! `marks::draw_lens_flare` (0x4C4ED3): the lens flare, 0x11 parts along the line from the
+//! glow's place on the screen (the settings' +0x2758, +0x275C) through the screen's
+//! centre. The way out (`flt_91FFDA` x, `flt_91FFDE` -y) also into `flt_92051E` ..
+//! (`flt_920526` 0) and made one long there (`scene::normalise_vector3`); its length
+//! `flt_91FFD6`; the alpha `flt_9206D6` less the length times `flt_9206D2` (`fistp`, at
+//! least 0) times the settings' +0x2754, >> 8. Then for each part k from 0x10 down to 0:
+//! its centre (-x, y times `g_marksWaveLevels`[k] plus the centre, unrounded),
+//! `marks::draw_flare_part` with corner `dword_92052A`[k], size `dword_9205B2`[k] times
+//! `flt_9206DA` (`fistp`), angle 0, colour 0xFFFFFF, that alpha.
+//!
+//! In:  nothing (`g_marksSettings`)
+//! Out: esi 0, ebp the alpha, edx the alpha product's high half; the rest kept (each part
+//!      inside `pusha` .. `popa`)
+//!
+//! Caller: `sub_4C4EA2`. The normalising is its Rust version (the copy's call goes to its
+//! hook); the parts through `part` (1 with the two values), in the game the Rust version.
+//! Refuses null settings and a part's corner past `g_marksCorners`, before anything.
+//! Shadow mode runs the original alone (it draws). Self-test: a copy whose part calls go
+//! to a stand-in taking the values off, against the Rust version, glow places by lot.
+
+use crate::errors::{BadInput, Refused};
+use crate::framework::{
+    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
+};
+use crate::marks::setup::{SETTINGS_RVA, WAVE_LEVELS_RVA};
+use crate::math::x87;
+use crate::service::harness::{Region, at, capture, restore};
+use std::sync::Mutex;
+use std::sync::atomic::AtomicUsize;
+
+static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
+
+pub static HOOK: RawHook =
+    RawHook::new("marks::draw_lens_flare", rva(0x4C4ED3), thunk, &ORIGINAL).self_test(self_test);
+
+hook_asm!(
+    thunk,
+    call_original,
+    dispatch = dispatch,
+    original = ORIGINAL
+);
+
+const CENTRE_RVA: [usize; 2] = [rva(0x62409C), rva(0x6240A0)];
+const WAY_RVA: [usize; 2] = [rva(0x91FFDA), rva(0x91FFDE)]; // flt_91FFDA, flt_91FFDE
+const UNIT_RVA: usize = rva(0x92051E); // flt_92051E .. flt_920526
+const LENGTH_RVA: usize = rva(0x91FFD6); // flt_91FFD6
+const FADE: [usize; 2] = [rva(0x9206D2), rva(0x9206D6)]; // flt_9206D2, flt_9206D6
+const SIZE_K_RVA: usize = rva(0x9206DA); // flt_9206DA
+const CORNER_RVA: usize = rva(0x92052A); // dword_92052A: 0x11
+const SIZE_RVA: usize = rva(0x9205B2); // dword_9205B2: 0x11
+const PARTS: u32 = 0x11;
+
+/// A call by place (1 `draw_flare_part`), with its two values (st(0) first).
+pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs, &[[u8; 10]]) -> Result<(), Refused>;
+
+unsafe fn get(a: u32) -> u32 {
+    unsafe { (a as *const u32).read_unaligned() }
+}
+
+/// The Rust version (see the header): the registers it leaves.
+pub unsafe fn draw_lens_flare(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    let mut g = *entry;
+    unsafe {
+        let settings: u32 = game_read(SETTINGS_RVA);
+        if settings == 0 {
+            return Err(BadInput("no marks settings").into());
+        }
+        if (0..PARTS).any(|k| game_read::<u32>(CORNER_RVA + 4 * k as usize) >= 0x100) {
+            return Err(BadInput("a flare corner past g_marksCorners").into());
+        }
+        let [cx, cy] = CENTRE_RVA.map(|r| game_read::<u32>(r));
+        let dx = x87::sub(get(settings + 0x2758), cx);
+        let dy = x87::sub(get(settings + 0x275C), cy) ^ 0x8000_0000;
+        game_write(WAY_RVA[0], dx);
+        game_write(WAY_RVA[1], dy);
+        game_write(UNIT_RVA, x87::loaded(dx));
+        game_write(UNIT_RVA + 4, x87::loaded(dy));
+        game_write(UNIT_RVA + 8, 0u32);
+        g.esi = game_addr(UNIT_RVA) as u32;
+        crate::scene::vector3::normalise_vector3(g.esi);
+        let length = crate::math::x87_load::float_hypot(dx, dy);
+        game_write(LENGTH_RVA, length);
+        let alpha = x87::times_subr_to_int(length, game_read(FADE[0]), game_read(FADE[1])).max(0);
+        let product = u64::from(get(settings + 0x2754)) * u64::from(alpha as u32);
+        g.edx = (product >> 32) as u32;
+        g.ebp = (product as u32) >> 8;
+        let size_k: u32 = game_read(SIZE_K_RVA);
+        for k in (0..PARTS as usize).rev() {
+            let level: u32 = game_read(WAVE_LEVELS_RVA + 4 * k);
+            let y = x87::times_plus_80(dy, level, cy, false);
+            let x = x87::times_plus_80(dx, level, cx, true);
+            let mut p = Regs {
+                eax: game_read(CORNER_RVA + 4 * k),
+                ebx: 0,
+                ecx: g.ebp,
+                edx: x87::int_times_to_int(game_read(SIZE_RVA + 4 * k), size_k) as u32,
+                esi: 0xFF_FFFF,
+                ..g
+            };
+            part(1, &mut p, &[x, y])?;
+        }
+        g.esi = 0;
+    }
+    Ok(g)
+}
+
+/// In the game: `draw_flare_part`'s Rust version.
+pub fn game_part(_place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused> {
+    use crate::marks::draw_flare_part as fp;
+    unsafe { fp::draw_flare_part(r, [v[0], v[1]], &mut fp::game_part) }?;
+    Ok(())
+}
+
+extern "C" fn dispatch(r: &mut Regs) {
+    HOOK.count_call();
+    if shadow() {
+        unsafe { call_original(r) };
+        return;
+    }
+    match unsafe { draw_lens_flare(r, &mut game_part) } {
+        Ok(left) => *r = Regs { esp: r.esp, ..left },
+        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
+    }
+}
+
+/// A part as the test notes it: eax .. esi, the two values.
+type Noted = ([u32; 5], Vec<[u8; 10]>);
+
+static NOTED: Mutex<Vec<Noted>> = Mutex::new(Vec::new());
+
+fn note(r: &Regs, v: &[[u8; 10]]) {
+    NOTED
+        .lock()
+        .unwrap()
+        .push(([r.eax, r.ebx, r.ecx, r.edx, r.esi], v.to_vec()));
+}
+
+extern "C" fn note_two(r: *const Regs, v: *const [u8; 10]) {
+    note(unsafe { &*r }, unsafe { std::slice::from_raw_parts(v, 2) });
+}
+
+/// The test's stand-in for the part: its two values taken off and noted.
+#[unsafe(naked)]
+unsafe extern "C" fn part_stand_in() {
+    core::arch::naked_asm!(
+        "lea esp, [esp - 20]",
+        "fstp tbyte ptr [esp]",
+        "fstp tbyte ptr [esp + 10]",
+        "pushfd",
+        "pushad",
+        "mov eax, esp",
+        "lea ecx, [esp + 36]",
+        "push ecx",
+        "push eax",
+        "call {note}",
+        "add esp, 8",
+        "popad",
+        "popfd",
+        "lea esp, [esp + 20]",
+        "ret",
+        note = sym note_two,
+    )
+}
+
+fn self_test() -> (usize, usize) {
+    let Some(mut t) = SelfTest::begin(&HOOK) else {
+        return (0, 0);
+    };
+    let copy = match unsafe {
+        crate::redirect::RedirectedCopy::new(
+            game_addr(rva(0x4C4ED3)),
+            0x127,
+            // mov esi, g_marksSettings
+            &[0x8B, 0x35, 0x28, 0x7A, 0x76, 0x00],
+            &[0x52, 0x117],
+            &|c| (c + 0x40_0000 == 0x4C4FFB).then_some(part_stand_in as *const () as usize),
+        )
+    } {
+        Ok(c) => c,
+        Err(why) => return t.skip(why),
+    };
+    let mut settings = vec![0u32; 0x2760 / 4];
+    let sa = settings.as_mut_ptr() as u32;
+    let regions: Vec<Region> = vec![
+        (game_addr(WAY_RVA[0]) as u32, 8),
+        (game_addr(UNIT_RVA) as u32, 12),
+        at(LENGTH_RVA),
+    ];
+    let mut vars = regions.clone();
+    vars.extend([SETTINGS_RVA, FADE[0], FADE[1], SIZE_K_RVA].map(at));
+    vars.push((game_addr(CORNER_RVA) as u32, 4 * PARTS as usize));
+    vars.push((game_addr(SIZE_RVA) as u32, 4 * PARTS as usize));
+    let saved = capture(&vars);
+    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
+    for case in 0..4u32 {
+        let k = case as f32;
+        let prepare = || unsafe {
+            restore(&vars, &saved);
+            game_write(SETTINGS_RVA, sa);
+            let s = sa as *mut u32;
+            *s.add(0x2754 / 4) = 0x80 + case * 0x30;
+            *s.add(0x2758 / 4) = (40.0f32 + k * 150.0).to_bits();
+            *s.add(0x275C / 4) = (300.0f32 - k * 90.0).to_bits();
+            game_write(FADE[0], (0.4f32 + k * 0.1).to_bits());
+            game_write(FADE[1], 255.0f32.to_bits());
+            game_write(SIZE_K_RVA, (1.5f32 - k * 0.25).to_bits());
+            for n in 0..PARTS as usize {
+                game_write(CORNER_RVA + 4 * n, ((n as u32 * 7 + case) % 0x40) + 0x10);
+                game_write(SIZE_RVA + 4 * n, 10 + n as u32 * 3);
+            }
+        };
+        prepare();
+        NOTED.lock().unwrap().clear();
+        let mut ro = Regs::SENTINEL;
+        unsafe { crate::framework::call_game(&mut ro, copy.addr()) };
+        let theirs = (
+            Some(regs(&ro)),
+            std::mem::take(&mut *NOTED.lock().unwrap()),
+            capture(&regions),
+        );
+        prepare();
+        let mine = unsafe {
+            draw_lens_flare(&Regs::SENTINEL, &mut |_, r, v| {
+                note(r, v);
+                Ok(())
+            })
+        };
+        let mine = (
+            mine.as_ref().ok().map(regs),
+            std::mem::take(&mut *NOTED.lock().unwrap()),
+            capture(&regions),
+        );
+        t.check(theirs == mine, || {
+            format!(
+                "case {case}: original {:x?} {} parts; rust {:x?} {} parts; parts same {}; state same {}",
+                theirs.0,
+                theirs.1.len(),
+                mine.0,
+                mine.1.len(),
+                theirs.1 == mine.1,
+                theirs.2 == mine.2
+            )
+        });
+    }
+    restore(&vars, &saved);
+    drop(settings);
+    t.finish()
+}

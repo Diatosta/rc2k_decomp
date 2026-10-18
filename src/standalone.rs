@@ -249,6 +249,63 @@ static UNPORTED: Mutex<Vec<(usize, u32, String)>> = Mutex::new(Vec::new());
 const EXITS: [usize; 2] = [0x4010EE, 0x401116];
 static FILTER: AtomicUsize = AtomicUsize::new(0);
 
+/// The module an address is in, and the address relative to its base ("rc2k.exe+0x1234").
+fn in_module(address: usize) -> Option<String> {
+    use windows_sys::Win32::System::LibraryLoader::{
+        GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+        GetModuleFileNameW, GetModuleHandleExW,
+    };
+    unsafe {
+        let mut module = std::ptr::null_mut();
+        let flags =
+            GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT;
+        if GetModuleHandleExW(flags, address as *const u16, &mut module) == 0 {
+            return None;
+        }
+        let mut name = [0u16; 260];
+        let n = GetModuleFileNameW(module, name.as_mut_ptr(), name.len() as u32) as usize;
+        let path = String::from_utf16_lossy(&name[..n]);
+        let file = path.rsplit(['\\', '/']).next().unwrap_or(&path).to_string();
+        Some(format!("{file}+{:#x}", address - module as usize))
+    }
+}
+
+/// The return addresses into this program found on the stack from `esp` (at most 24), for
+/// `llvm-symbolizer` with the program's PDB.
+fn stack_returns(esp: usize) -> String {
+    let own = in_module(stack_returns as *const () as usize)
+        .map(|m| m.split('+').next().unwrap_or("").to_string());
+    let mut out = Vec::new();
+    // 2 KB of stack: well inside it at any fault the game code can reach.
+    for k in 0..512usize {
+        let at = esp + 4 * k;
+        let value = unsafe { (at as *const u32).read_unaligned() } as usize;
+        if let (Some(m), Some(own)) = (in_module(value), own.as_ref())
+            && m.starts_with(own.as_str())
+        {
+            out.push(m);
+            if out.len() == 24 {
+                break;
+            }
+        }
+    }
+    out.join(" ")
+}
+
+/// The game closed during a race (`g_quitting`): what the original's way out does
+/// (0x4154B5 back into the main loop, which asks for the shutdown, logs "Leaving main
+/// loop..." and returns to `start`), the program ended as `start` ends it.
+pub fn leave_from_race() -> ! {
+    if let Err(e) = unsafe { crate::threading::request_quit::request_quit() } {
+        log(&format!(
+            "standalone: the shutdown thread did not start ({:#x})",
+            e.code
+        ));
+    }
+    log("system::main_loop: leaving (the game was closed during a race)");
+    finish("the game was closed during a race", 0)
+}
+
 fn finish(why: &str, code: u32) -> ! {
     log(&format!("standalone: ending: {why}"));
     // Another thread may be in the handler with the list; not for long.
@@ -308,6 +365,11 @@ unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {
         // A call or jump into the game's image faults at the address it went to.
         let ran_into_game = ida(address).is_some() && context.Eip as usize == address;
         if !ran_into_game {
+            log(&format!(
+                "standalone: the fault is in {}; return addresses on the stack: {}",
+                in_module(address).unwrap_or_else(|| "no module".into()),
+                stack_returns(context.Esp as usize)
+            ));
             finish(
                 &format!(
                     "access violation at {address:#x} ({}), {} address {:#x}",

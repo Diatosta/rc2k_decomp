@@ -58,7 +58,8 @@ fn self_test() -> (usize, usize) {
             address: 0x40CA17,
             len: 0xC2,
             entry: &[0x60, 0x8B, 0xD8, 0xF7, 0x05, 0x5C, 0x6C, 0x50, 0x00, 0x02],
-            calls: &[0x30],
+            // CoCreateInstance; the log (a path the tests do not take).
+            calls: &[0x30, 0x8D],
             jumps_out: &[],
         },
         &|callee| (callee == rva(0x4D7CCE)).then_some(no_class as *const () as usize),

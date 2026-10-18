@@ -177,7 +177,6 @@ fn regions() -> Vec<Region> {
         FIRST_FACE_RVA,
         FACE_COUNT_RVA,
         LAST_RVA,
-        RANDOM_RVA,
     ]
     .map(at)
     .to_vec();
@@ -186,8 +185,11 @@ fn regions() -> Vec<Region> {
     // The state only for an object that has one: `dword_5CCCBC` goes on naming a
     // stage's memory after the stage has given it back (2026-10-13: reading it for
     // a menu's object ended the game).
+    // The random state too only then: no other object draws, and other threads do (a
+    // capture of it would compare, and its restore undo, their draws).
     if let (Some(4), Some(state)) = (unsafe { way() }, unsafe { state() }) {
         regions.push((state as u32, 16));
+        regions.push(at(RANDOM_RVA));
     }
     regions
 }
