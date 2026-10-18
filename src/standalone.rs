@@ -244,6 +244,8 @@ unsafe fn thunk_of(hook: usize) -> Option<usize> {
 /// The game's functions that were called and are not ported: address as IDA shows it,
 /// how often, and where the first call came from.
 static UNPORTED: Mutex<Vec<(usize, u32, String)>> = Mutex::new(Vec::new());
+/// Calls of the game's functions that are not ported (each a fault), for the timing line.
+pub static FAULTS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 /// `start`'s way out (0x4010EE after the main loop, 0x401116 the short one), where
 /// `fatal::report` and the `-v` switch jump to.
 const EXITS: [usize; 2] = [0x4010EE, 0x401116];
@@ -410,6 +412,7 @@ unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {
             );
         }
         let from = (context.Esp as *const u32).read_unaligned() as usize;
+        FAULTS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         if let Ok(mut unported) = UNPORTED.lock() {
             match unported.iter_mut().find(|entry| entry.0 == at) {
                 Some(entry) => entry.1 += 1,
@@ -498,6 +501,11 @@ unsafe fn start() {
         // What the window's procedure and the key thread tell the main loop, and the
         // films, whose player is the platform's.
         stand_in("the window is the active one", 0x518374, 1);
+        stand_in(
+            "the window has the focus (until SDL says otherwise)",
+            0x518378,
+            1,
+        );
         stand_in("the key thread runs", 0x518998, 1);
         stand_in("no films", 0x5BE870, 1);
         call(0x415383, &mut r);

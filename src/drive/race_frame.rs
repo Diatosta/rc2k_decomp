@@ -1,9 +1,9 @@
 //! `drive::race_frame` (0x4541BF): one frame of the race. The window's messages
 //! (`system::pump_messages`); quitting (`g_quitting` 1) ends it there. With the window
 //! the active one and `dword_518380` not 1: the 3D scene begun (`scene::begin_scene`;
-//! its carry: the frame lost), drawn (`sub_45429B`) and ended (`scene::end_scene`), the
-//! race's sounds (`sound::race_sound_tick`, eax 0x12), the screenshot key (`sub_41F3DB`),
-//! the 2D pass and the showing (`sub_4547AE`, carry: lost); made: carry clear. Lost (or
+//! its carry: the frame lost), drawn (`race::draw_race_scene`) and ended (`scene::end_scene`), the
+//! race's sounds (`sound::race_sound_tick`, eax 0x12), the replay's screenshot
+//! (`race::replay_screenshot`), the frame shown (`race::show_frame`, carry: lost); made: carry clear. Lost (or
 //! not drawn): unless quitting, the surfaces restored (`sub_405B10`, ebx `dword_518380`)
 //! and the flags of `cmp (ebx ^ 1) | dword_518380, 1`.
 //!
@@ -12,9 +12,8 @@
 //!      of `cmp g_quitting, 1`); the registers as the calls leave them, ebx on the lost way
 //!
 //! Callers: `drive::race_loop`, `quit_question`, `pause_until_key`, `finish_run`,
-//! `sub_4607A5`. The sound tick is its Rust version; the window, the scene, the
-//! drawing (`sub_45429B`, `sub_4547AE`: not ported yet), the screenshot and the restore
-//! through the game. A private copy (a call at +0). Ungated (the sound tick's quit jump
+//! `sub_4607A5`. The drawing, the sound tick, the screenshot and the showing are their Rust
+//! versions; the window, the scene's begin and end and the restore through the game. A private copy (a call at +0). Ungated (the sound tick's quit jump
 //! does not come back). Shadow mode runs the original alone (it draws). Self-test: a copy
 //! whose calls go to `menu::scripted`'s stand-ins, against the Rust version: each way.
 
@@ -50,11 +49,11 @@ const LOST_RVA: usize = rva(0x518380); // dword_518380
 const CALLED: [usize; 9] = [
     0, 0x410535, // 1 system::pump_messages
     0x44E8A1, // 2 scene::begin_scene
-    0x45429B, // 3 sub_45429B: the 3D drawing
+    0x45429B, // 3 race::draw_race_scene
     0x44E952, // 4 scene::end_scene
     0x421BA9, // 5 sound::race_sound_tick
-    0x41F3DB, // 6 sub_41F3DB: the screenshot key
-    0x4547AE, // 7 sub_4547AE: the 2D pass, the showing
+    0x41F3DB, // 6 race::replay_screenshot
+    0x4547AE, // 7 race::show_frame
     0x405B10, // 8 sub_405B10: the surfaces restored
 ];
 
@@ -116,11 +115,28 @@ pub fn race_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     Ok(r)
 }
 
-/// In the game: the sound tick's Rust version, the rest through the game.
+/// In the game: the Rust versions of the drawing, the sound tick, the replay screenshot and
+/// the showing; the rest (the messages, the scene's begin and end, the surfaces' restore)
+/// through the game.
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     if place == 5 {
         use crate::sound::race_sound_tick::race_sound_tick_in;
         return race_sound_tick_in(r, &mut crate::sound::turn_parts::game_part);
+    }
+    if place == 3 {
+        use crate::race::draw_race_scene::{draw_race_scene, game_part};
+        *r = unsafe { draw_race_scene(r, &mut game_part) }?;
+        return Ok(());
+    }
+    if place == 6 {
+        use crate::race::replay_screenshot::{game_part, replay_screenshot};
+        *r = unsafe { replay_screenshot(r, &mut game_part) }?;
+        return Ok(());
+    }
+    if place == 7 {
+        use crate::race::show_frame::{game_part, show_frame};
+        *r = unsafe { show_frame(r, &mut game_part) }?;
+        return Ok(());
     }
     unsafe { call_game(r, game_addr(rva(CALLED[place as usize]))) };
     Ok(())

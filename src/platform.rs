@@ -38,6 +38,7 @@ use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
 const QUIT_RVA: usize = rva(0x51837C); // dword_51837C
 const PENDING_KEY_RVA: usize = rva(0x4F6ADC); // byte_4F6ADC
+const FOCUSED_RVA: usize = rva(0x518378); // dword_518378: 1 while the window has the focus
 const MENU_MODE_RVA: usize = rva(0x4F4944); // dword_4F4944
 const RACE_MODE_RVA: usize = rva(0x4F4948); // dword_4F4948
 const MODE_FLAGS_RVA: usize = rva(0x4F4934); // g_screenModeFlags
@@ -95,6 +96,13 @@ fn pump() {
             if event.r#type == SDL_EVENT_QUIT.0 {
                 log("platform: the window was closed: the quit switch is set");
                 game_write(QUIT_RVA, 1u32);
+            } else if event.r#type == SDL_EVENT_WINDOW_FOCUS_GAINED.0
+                || event.r#type == SDL_EVENT_WINDOW_FOCUS_LOST.0
+            {
+                // As the window's procedure on `WM_ACTIVATE`: the input thread reads the
+                // devices (and does not sleep a second a tick) while it is 1.
+                let focused = event.r#type == SDL_EVENT_WINDOW_FOCUS_GAINED.0;
+                game_write(FOCUSED_RVA, focused as u32);
             } else if event.r#type == SDL_EVENT_KEY_DOWN.0 || event.r#type == SDL_EVENT_KEY_UP.0 {
                 let key = game_key(event.key.scancode.0);
                 if key == 0 {
@@ -321,6 +329,8 @@ unsafe fn set_screen_mode(mode: u32) -> Result<(), String> {
 }
 
 extern "C" fn set_mode(r: &mut Regs) {
+    // The 3D drawing noted so far, before the screen is shown, written or changed.
+    crate::platform_3d::flush();
     SET_MODE.count_call();
     let done = unsafe { set_screen_mode(r.eax) };
     if let Err(why) = &done {
@@ -347,6 +357,8 @@ hook_asm!(
 
 /// `gfx::set_screen_mode` with the menus' mode; every register kept, the flags its.
 extern "C" fn menu_mode(r: &mut Regs) {
+    // The 3D drawing noted so far, before the screen is shown, written or changed.
+    crate::platform_3d::flush();
     MENU_MODE.count_call();
     let mode = unsafe { game_read(MENU_MODE_RVA) };
     let done = unsafe { set_screen_mode(mode) };
@@ -379,6 +391,8 @@ fn compared_with_one(r: &mut Regs, locked: u32) {
 }
 
 extern "C" fn lock(r: &mut Regs) {
+    // The 3D drawing noted so far, before the screen is shown, written or changed.
+    crate::platform_3d::flush();
     LOCK.count_call();
     unsafe {
         let have = SCREEN.lock().is_ok_and(|screen| screen.is_some());
@@ -447,6 +461,44 @@ hook_asm!(
     original = SHOW_ORIGINAL
 );
 
+/// Every five seconds a line on where the time went: the frames shown, the fans drawn and
+/// the time in the rasteriser, the calls of functions that are not ported (each a fault).
+fn report_timing() {
+    use std::sync::Mutex;
+    use std::sync::atomic::Ordering::Relaxed;
+    use std::time::Instant;
+    /// When, and the four counts then.
+    type Mark = (Instant, u64, u64, u64, u64);
+    static LAST: Mutex<Option<Mark>> = Mutex::new(None);
+    let now = Instant::now();
+    let (frames, fans, micros, faults) = (
+        SHOWN.load(Ordering::SeqCst) as u64,
+        crate::platform_3d::FANS.load(Relaxed),
+        crate::platform_3d::RASTER_MICROS.load(Relaxed),
+        crate::standalone::FAULTS.load(Relaxed),
+    );
+    let Ok(mut last) = LAST.lock() else {
+        return;
+    };
+    match *last {
+        Some((at, f0, n0, m0, x0)) if now.duration_since(at).as_secs() >= 5 => {
+            let seconds = now.duration_since(at).as_secs_f64();
+            log(&format!(
+                "platform: the last {seconds:.1} s: {} frames ({:.1} a second), {} fans ({:.0} ms in the rasteriser, {:.0}%), {} calls not ported",
+                frames - f0,
+                (frames - f0) as f64 / seconds,
+                fans - n0,
+                (micros - m0) as f64 / 1000.0,
+                (micros - m0) as f64 / 10000.0 / seconds,
+                faults - x0
+            ));
+            *last = Some((now, frames, fans, micros, faults));
+        }
+        Some(_) => {}
+        None => *last = Some((now, frames, fans, micros, faults)),
+    }
+}
+
 unsafe fn show_frame(screen: &Screen) -> Result<(), &'static str> {
     unsafe {
         let window = screen.window as *mut SDL_Window;
@@ -485,6 +537,8 @@ unsafe fn show_frame(screen: &Screen) -> Result<(), &'static str> {
 }
 
 extern "C" fn show(r: &mut Regs) {
+    // The 3D drawing noted so far, before the screen is shown, written or changed.
+    crate::platform_3d::flush();
     SHOW.count_call();
     unsafe {
         if quitting() {
@@ -510,6 +564,7 @@ extern "C" fn show(r: &mut Regs) {
                 game_write(QUIT_RVA, 1u32);
             }
         }
+        report_timing();
         // A flip waits for the screen: some sixty frames a second at most.
         let now = SDL_GetTicks() as usize;
         let since = now.wrapping_sub(LAST_SHOWN.swap(now, Ordering::SeqCst));

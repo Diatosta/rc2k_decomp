@@ -73,6 +73,7 @@ pub mod fog_at;
 pub mod fog_polygon;
 pub mod forget_slot_texture;
 pub mod full_view_window;
+pub mod glow_render_states;
 pub mod identity_matrix3;
 pub mod init_texture_levels;
 pub mod invert_turn;
@@ -129,6 +130,7 @@ pub mod scale_texture_coordinates;
 pub mod set_filters;
 pub mod set_fine_turn_x;
 pub mod set_fine_turn_y;
+pub mod set_fog_colour;
 pub mod set_light_direction;
 pub mod set_object_fade;
 pub mod set_object_file_names;
@@ -290,6 +292,8 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &draw_car_object::HOOK,
     &set_render_state::HOOK,
     &set_filters::HOOK,
+    &set_fog_colour::HOOK,
+    &glow_render_states::HOOK,
     &begin_scene::HOOK,
     &end_scene::HOOK,
     &upload_plate::HOOK,

@@ -10,7 +10,11 @@
 
 use crate::framework::GameHook;
 
+pub mod copy_screen_to_texture;
+pub mod draw_fan;
 pub mod draw_fan_unclipped;
+pub mod draw_hud_batch;
+pub mod draw_indexed;
 pub mod lock_texture;
 pub mod recorder;
 pub mod set_render_state;
@@ -30,6 +34,10 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &set_render_state::HOOK,
     &set_texture::HOOK,
     &draw_fan_unclipped::HOOK,
+    &draw_fan::HOOK,
+    &draw_indexed::HOOK,
+    &draw_hud_batch::HOOK,
+    &copy_screen_to_texture::HOOK,
     &texture_surface_info::HOOK,
     &lock_texture::HOOK,
     &unlock_texture::HOOK,

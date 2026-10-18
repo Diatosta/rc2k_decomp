@@ -233,7 +233,7 @@ pub unsafe fn draw_view_backdrop(
 pub fn backdrop_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         match place {
-            1 => crate::framework::call_game(r, game_addr(rva(0x44E44D))),
+            1 => crate::scene::glow_render_states::glow_render_states(r),
             2 => crate::scene::set_texture::set_texture_in_game(r),
             3 => crate::framework::call_game(r, game_addr(rva(0x41AD9C))),
             _ => crate::scene::depth_buffer_on::depth_buffer(r, true),

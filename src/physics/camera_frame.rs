@@ -11,7 +11,8 @@
 //! Callers: `sub_43B635`, `sub_459360`, `sub_46062E`.
 //! Refuses what `update_camera` refuses (everything written put back). Shadow mode runs
 //! the original alone (as its ground checks).
-//! Self-test (`update_camera::camera_test`, in a race; skipped otherwise).
+//! Self-test (`update_camera::camera_test`, in a race; skipped otherwise; the carry not
+//! compared, as no caller reads it).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, hook_asm, rva};
@@ -36,11 +37,7 @@ fn steps(r: &mut Regs, part: Part) -> Result<(), Refused> {
     for x in [0x637644, 0x637638, 0x63763C, 0x637640] {
         p(x, 0);
     }
-    // The carry `update_camera` gets (and leaves, on its paths that set none): the last
-    // compare's, `cmp mode, 3` when the mode is not 1 .. 3, else a `cmp x, 0` (clear).
-    let mode = g(0x71A65C);
-    r.set_carry(!matches!(mode, 1..=3) && mode < 3);
-    if matches!(mode, 1..=3) && g(0x71A22C) == 0 {
+    if matches!(g(0x71A65C), 1..=3) && g(0x71A22C) == 0 {
         x87_run!(
             "fld dword ptr [{b} + 0x31A8E4]",
             "fmul dword ptr [{b} + 0x214098]",

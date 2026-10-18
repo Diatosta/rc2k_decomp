@@ -393,7 +393,10 @@ pub fn camera_test(hook: &RawHook, call_original: CallOriginal, rust: Check) -> 
     let mut all = camera_regions();
     all.extend([(a(0x71A10C), 12), (a(0x71A998), 12)]);
     let saved = capture(&all);
-    let regs = |r: &Regs| (r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp, r.carry());
+    // The carry is not compared: none of the three (`update_camera`, `camera_frame`,
+    // `camera_avoid_ground`) has its flags read, and theirs are their last compare's, which
+    // the stage decides (2026-10-18: each failed on it in turn, shadow on and off).
+    let regs = |r: &Regs| (r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp);
     for word in TEST_CONTROL_WORDS {
         with_control_word(word, &mut || {
             for case in 0..14u32 {

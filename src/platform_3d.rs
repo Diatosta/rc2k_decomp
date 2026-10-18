@@ -25,6 +25,9 @@
 //! - `d3d::begin_scene` (0x41ABC7), `d3d::end_scene` (0x41AB8A): the layer's own
 //!   states and its "in a scene" switch.
 //! - `d3d::clear_viewport` (0x44E9D9): the depth buffer.
+//!
+//! The drawing is noted and drawn in tiles over the processor's threads when something is to
+//! see it (see `flush`).
 
 use crate::errors::FatalError;
 use crate::framework::{
@@ -159,6 +162,8 @@ fn object(number: usize) -> u32 {
 }
 
 unsafe extern "system" fn lock(this: u32, _: u32, description: u32, _: u32, _: u32) -> i32 {
+    // The texture is to be written: the noted drawing that reads it first.
+    flush();
     let number = unsafe { ((this + 4) as *const u32).read_unaligned() } as usize;
     let mut memory = LEVELS_MEMORY.lock().unwrap();
     match memory.get_mut(number).and_then(|l| l.as_mut()) {
@@ -183,22 +188,208 @@ const TARGET_PIXELS_RVA: usize = rva(0x4F4988); // the screen's pixels (platform
 const TARGET_PITCH_RVA: usize = rva(0x4F4984);
 const SCREEN_BITS_RVA: usize = rva(0x4F4954); // g_screenBits
 
-/// A fan into the screen, with the states and the current texture
-/// (`g_currentTexture`, a video texture's number) as the game set them.
-pub fn draw_fan(vertices: &[crate::rasteriser::Vertex]) {
-    use crate::rasteriser::{States, Target, Texture};
+/// For the standalone's timing line (`platform::show`): fans drawn and the microseconds
+/// spent drawing them (at the flushes).
+pub static FANS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static RASTER_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+// ---- the frame's drawing, in tiles ----
+//
+// The fans and the depth buffer's clears are noted as the game makes them and drawn when
+// something is to see or change what they draw into (`flush`): the frame shown, the screen
+// locked for 2D drawing, a texture locked, made, loaded or released, the scene ended, the
+// screen mode changed. Then the screen is cut into tiles that the processor's threads draw
+// at once, each tile its fans and clears in the game's order: each pixel sees the same
+// operations in the same order as one by one. A texture is noted by where its memory is
+// (that does not change before the flush) and drawn from as it is then.
+
+/// A texture's first level as noted: its memory and how it is laid out.
+#[derive(Clone, Copy)]
+struct TextureNote {
+    /// The memory's address (a number: the tiles' threads read it).
+    pixels: usize,
+    len: usize,
+    width: usize,
+    height: usize,
+    pitch: usize,
+    bytes: usize,
+    masks: [u32; 4],
+}
+
+enum Noted {
+    Fan {
+        vertices: Vec<crate::rasteriser::Vertex>,
+        states: Box<[u32; STATES]>,
+        texture: Option<TextureNote>,
+        /// The vertices' bounds on the screen: (left, top, right, bottom).
+        bounds: (f32, f32, f32, f32),
+    },
+    /// The depth buffer back to 1.0 in a rectangle (left, top, right, bottom).
+    Clear([usize; 4]),
+}
+
+/// What the noted drawing draws into.
+#[derive(Clone, Copy, PartialEq)]
+struct Into {
+    pixels: usize,
+    pitch: usize,
+    width: usize,
+    height: usize,
+    bits: u32,
+}
+
+struct Pending {
+    into: Option<Into>,
+    noted: Vec<Noted>,
+}
+
+static PENDING: Mutex<Pending> = Mutex::new(Pending {
+    into: None,
+    noted: Vec::new(),
+});
+// Safety: the pointers in it are the game's memory and ours, used only by the game's
+// thread and, during a flush, by the tiles' threads it waits for.
+unsafe impl Send for Pending {}
+
+const TILE: usize = 64;
+
+/// The screen as the game has it now.
+fn screen() -> Option<Into> {
     unsafe {
         let pixels: u32 = game_read(TARGET_PIXELS_RVA);
-        if pixels == 0 {
-            return;
-        }
-        let target = Target {
-            pixels: pixels as *mut u8,
+        (pixels != 0).then(|| Into {
+            pixels: pixels as usize,
             pitch: game_read::<u32>(TARGET_PITCH_RVA) as usize,
             width: game_read::<u32>(SCREEN_WIDTH_RVA) as usize,
             height: game_read::<u32>(SCREEN_HEIGHT_RVA) as usize,
             bits: game_read(SCREEN_BITS_RVA),
-        };
+        })
+    }
+}
+
+/// Notes `what` for the screen as it is now (the noted so far drawn first when that is
+/// another).
+fn note(what: Noted) {
+    let Some(into) = screen() else {
+        return;
+    };
+    let mut pending = PENDING.lock().unwrap();
+    if pending.into.is_some_and(|i| i != into) {
+        draw_noted(&mut pending);
+    }
+    pending.into = Some(into);
+    pending.noted.push(what);
+}
+
+/// Draws everything noted, the screen in tiles over the threads.
+pub fn flush() {
+    let mut pending = PENDING.lock().unwrap();
+    draw_noted(&mut pending);
+}
+
+fn draw_noted(pending: &mut Pending) {
+    use crate::rasteriser::{Clip, States, Target, Texture};
+    use rayon::prelude::*;
+    let noted = std::mem::take(&mut pending.noted);
+    let Some(into) = pending.into.take() else {
+        return;
+    };
+    if noted.is_empty() {
+        return;
+    }
+    let started = std::time::Instant::now();
+    let fans = noted
+        .iter()
+        .filter(|n| matches!(n, Noted::Fan { .. }))
+        .count() as u64;
+    with_depth(|depth| {
+        if depth.width != into.width || depth.height != into.height {
+            return;
+        }
+        let depth_at = depth.values.as_mut_ptr() as usize;
+        let tiles: Vec<Clip> = (0..into.height.div_ceil(TILE))
+            .flat_map(|ty| {
+                (0..into.width.div_ceil(TILE)).map(move |tx| Clip {
+                    left: tx * TILE,
+                    top: ty * TILE,
+                    right: ((tx + 1) * TILE).min(into.width),
+                    bottom: ((ty + 1) * TILE).min(into.height),
+                })
+            })
+            .collect();
+        let noted = &noted;
+        tiles.par_iter().for_each(move |clip| {
+            let target = Target {
+                pixels: into.pixels as *mut u8,
+                pitch: into.pitch,
+                width: into.width,
+                height: into.height,
+                bits: into.bits,
+            };
+            let depth = depth_at as *mut f32;
+            for what in noted {
+                match what {
+                    Noted::Fan {
+                        vertices,
+                        states,
+                        texture,
+                        bounds: (left, top, right, bottom),
+                    } => {
+                        // Not this tile's (the bounds a pixel wider for the edges' rule).
+                        if *right < clip.left as f32 - 1.0
+                            || *left > clip.right as f32 + 1.0
+                            || *bottom < clip.top as f32 - 1.0
+                            || *top > clip.bottom as f32 + 1.0
+                        {
+                            continue;
+                        }
+                        let texture = texture.map(|t| Texture {
+                            pixels: unsafe {
+                                std::slice::from_raw_parts(t.pixels as *const u8, t.len)
+                            },
+                            width: t.width,
+                            height: t.height,
+                            pitch: t.pitch,
+                            bytes: t.bytes,
+                            masks: t.masks,
+                        });
+                        unsafe {
+                            crate::rasteriser::draw_fan_in(
+                                vertices,
+                                &target,
+                                &States(&states[..]),
+                                texture.as_ref(),
+                                depth,
+                                clip,
+                            )
+                        };
+                    }
+                    Noted::Clear([left, top, right, bottom]) => {
+                        let (x0, x1) = ((*left).max(clip.left), (*right).min(clip.right));
+                        let (y0, y1) = ((*top).max(clip.top), (*bottom).min(clip.bottom));
+                        for y in y0..y1 {
+                            for x in x0..x1 {
+                                unsafe { *depth.add(y * into.width + x) = 1.0 };
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    });
+    use std::sync::atomic::Ordering::Relaxed;
+    FANS.fetch_add(fans, Relaxed);
+    RASTER_MICROS.fetch_add(started.elapsed().as_micros() as u64, Relaxed);
+}
+
+/// A fan into the screen, with the states and the current texture
+/// (`g_currentTexture`, a video texture's number) as the game set them: noted, drawn at
+/// the next flush.
+pub fn draw_fan(vertices: &[crate::rasteriser::Vertex]) {
+    if vertices.len() < 3 {
+        return;
+    }
+    unsafe {
         let states: [u32; STATES] = game_read(KEPT_STATES_RVA);
         let current: u32 = game_read(CURRENT_TEXTURE_RVA);
         let memory = LEVELS_MEMORY.lock().unwrap();
@@ -210,8 +401,9 @@ pub fn draw_fan(vertices: &[crate::rasteriser::Vertex]) {
                     return None;
                 }
                 let format = (record.format as *const TextureFormat).read_unaligned();
-                Some(Texture {
-                    pixels: &level.pixels,
+                Some(TextureNote {
+                    pixels: level.pixels.as_ptr() as usize,
+                    len: level.pixels.len(),
                     width: record.width as usize,
                     height: record.height as usize,
                     pitch: level.pitch as usize,
@@ -220,15 +412,114 @@ pub fn draw_fan(vertices: &[crate::rasteriser::Vertex]) {
                 })
             })
             .flatten();
-        with_depth(|depth| {
-            crate::rasteriser::draw_fan(
-                vertices,
-                &target,
-                &States(&states),
-                texture.as_ref(),
-                &mut depth.values,
-            )
+        drop(memory);
+        let f = |v: &crate::rasteriser::Vertex, n: usize| f32::from_bits(v[n]);
+        let mut bounds = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
+        for v in vertices {
+            let (x, y) = (f(v, 0), f(v, 1));
+            bounds = (
+                bounds.0.min(x),
+                bounds.1.min(y),
+                bounds.2.max(x),
+                bounds.3.max(y),
+            );
+        }
+        if !(bounds.0.is_finite()
+            && bounds.1.is_finite()
+            && bounds.2.is_finite()
+            && bounds.3.is_finite())
+        {
+            bounds = (f32::MIN, f32::MIN, f32::MAX, f32::MAX);
+        }
+        note(Noted::Fan {
+            vertices: vertices.to_vec(),
+            states: Box::new(states),
+            texture,
+            bounds,
         });
+    }
+}
+
+/// The screen into system texture `number`'s first level, as DirectDraw's `Blt` without
+/// rectangles does it: stretched to the texture's size, each texel the screen's pixel at
+/// its place scaled (nearest), in the texture's format (its alpha full). For
+/// `d3d::copy_screen_to_texture` (the mirror's picture).
+pub fn copy_screen_to_system_texture(number: u32) {
+    flush();
+    if number >= MOST {
+        return;
+    }
+    let Some(screen) = screen() else {
+        return;
+    };
+    unsafe {
+        let record = record_at(0, number).read_unaligned();
+        if record.format == 0 || record.width == 0 || record.height == 0 {
+            return;
+        }
+        let format = (record.format as *const TextureFormat).read_unaligned();
+        let bytes = format.bytes_per_pixel as usize;
+        let masks = format.format.masks;
+        let mut memory = LEVELS_MEMORY.lock().unwrap();
+        let Some(level) = memory
+            .get_mut(surface_number(0, number, 0))
+            .and_then(|l| l.as_mut())
+        else {
+            return;
+        };
+        let (w, h) = (record.width as usize, record.height as usize);
+        // A component (0 .. 255) into a mask's place.
+        let put = |c: u32, mask: u32| -> u32 {
+            if mask == 0 {
+                return 0;
+            }
+            let shift = mask.trailing_zeros();
+            let most = mask >> shift;
+            ((c * most + 127) / 255) << shift
+        };
+        for y in 0..h {
+            let sy = y * screen.height / h;
+            let row = (screen.pixels + sy * screen.pitch) as *const u8;
+            for x in 0..w {
+                let sx = x * screen.width / w;
+                let (red, green, blue) = if screen.bits == 16 {
+                    let p = (row.add(sx * 2) as *const u16).read_unaligned() as u32;
+                    let (r5, g6, b5) = (p >> 11 & 0x1F, p >> 5 & 0x3F, p & 0x1F);
+                    (r5 << 3 | r5 >> 2, g6 << 2 | g6 >> 4, b5 << 3 | b5 >> 2)
+                } else {
+                    let p = (row.add(sx * 4) as *const u32).read_unaligned();
+                    (p >> 16 & 0xFF, p >> 8 & 0xFF, p & 0xFF)
+                };
+                let texel =
+                    put(blue, masks[0]) | put(green, masks[1]) | put(red, masks[2]) | masks[3];
+                let at = y * level.pitch as usize + x * bytes;
+                if let Some(to) = level.pixels.get_mut(at..at + bytes) {
+                    to.copy_from_slice(&texel.to_le_bytes()[..bytes.min(4)]);
+                }
+            }
+        }
+    }
+}
+
+/// An indexed triangle list (Direct3D's `DrawIndexedPrimitive` with type 4, as the scene's
+/// batches and the HUD hand it): each three indices (16 bits) one triangle of the
+/// vertices, drawn as a fan of three. An index past the vertices ends the list (Direct3D
+/// would have refused the call).
+pub unsafe fn draw_indexed_list(vertices: u32, vertex_count: u32, indices: u32, index_count: u32) {
+    use crate::d3d::VERTEX_LEN;
+    let vertex = |n: u16| unsafe {
+        ((vertices as usize + n as usize * VERTEX_LEN) as *const crate::d3d::Vertex)
+            .read_unaligned()
+    };
+    for t in 0..(index_count / 3) as usize {
+        let at = |k: usize| unsafe {
+            ((indices as usize + 2 * (3 * t + k)) as *const u16).read_unaligned()
+        };
+        let corners = [at(0), at(1), at(2)];
+        if corners.iter().any(|&n| u32::from(n) >= vertex_count) {
+            return;
+        }
+        draw_fan(&corners.map(vertex));
     }
 }
 
@@ -356,6 +647,7 @@ unsafe fn allocate_textures(r: &Regs) -> Result<(), FatalError> {
 
 extern "C" fn allocate(r: &mut Regs) {
     ALLOCATE.count_call();
+    flush();
     let reports: u32 = unsafe { game_read(REPORTS_RVA) };
     unsafe { game_write(REPORTS_RVA, 0u32) };
     let done = unsafe { allocate_textures(r) };
@@ -426,6 +718,7 @@ unsafe fn release_pool(pool: usize) {
 
 extern "C" fn release(_r: &mut Regs) {
     RELEASE.count_call();
+    flush();
     unsafe {
         log_write(game_ptr(RELEASE_TEXT_RVA), true, 2);
         release_pool(1);
@@ -453,6 +746,7 @@ hook_asm!(
 /// level where both have the level.
 extern "C" fn load(r: &mut Regs) {
     LOAD.count_call();
+    flush();
     let (system, video) = (r.eax, r.ebx);
     if system >= MOST || video >= MOST {
         log(&format!(
@@ -548,6 +842,7 @@ hook_asm!(
 
 extern "C" fn end(r: &mut Regs) {
     END.count_call();
+    flush();
     unsafe {
         if game_read::<u32>(IN_SCENE_RVA) == 1 {
             game_write(IN_SCENE_RVA, 0u32);
@@ -608,17 +903,8 @@ pub fn with_depth<R>(f: impl FnOnce(&mut Depth) -> R) -> R {
 extern "C" fn clear(r: &mut Regs) {
     CLEAR.count_call();
     let [left, top, right, bottom]: [i32; 4] = unsafe { game_read(CLEARED_RVA) };
-    with_depth(|depth| {
-        let (right, bottom) = (
-            (right.max(0) as usize).min(depth.width),
-            (bottom.max(0) as usize).min(depth.height),
-        );
-        for y in (top.max(0) as usize)..bottom {
-            for x in (left.max(0) as usize)..right {
-                depth.values[y * depth.width + x] = 1.0;
-            }
-        }
-    });
+    let c = |v: i32| v.max(0) as usize;
+    note(Noted::Clear([c(left), c(top), c(right), c(bottom)]));
     r.eax = 0;
 }
 

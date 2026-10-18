@@ -36,7 +36,7 @@ hook_asm!(
 pub const FORMAT_POINTER_RVA: usize = rva(0x4F49B8);
 
 /// Where the pixel goes and how wide it is.
-unsafe fn place(x: u32, y: u32) -> (u32, u32) {
+pub unsafe fn place(x: u32, y: u32) -> (u32, u32) {
     unsafe {
         let base: u32 = game_read(BASE_RVA);
         let row = base.wrapping_add(y.wrapping_mul(game_read(PITCH_RVA)));

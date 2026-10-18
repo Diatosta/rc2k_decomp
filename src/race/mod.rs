@@ -12,6 +12,7 @@ pub mod add_surface_share;
 pub mod allocate_course_memory;
 pub mod auto_set_up_car;
 pub mod best_line;
+pub mod blit_map_tiles;
 pub mod both_countdown_lights;
 pub mod both_split_colours;
 pub mod build_best_line;
@@ -92,9 +93,11 @@ pub mod draw_list_entry;
 pub mod draw_lit_triangle;
 pub mod draw_marked_face;
 pub mod draw_marks_overlays;
+pub mod draw_mirror_view;
 pub mod draw_name_plate;
 pub mod draw_own_car;
 pub mod draw_plate_by_id;
+pub mod draw_race_scene;
 pub mod draw_race_slots;
 pub mod draw_screen_quad;
 pub mod draw_screen_tint;
@@ -106,6 +109,8 @@ pub mod draw_sorted_entries;
 pub mod draw_time_plate;
 pub mod draw_tinted_face;
 pub mod draw_view_backdrop;
+pub mod draw_view_overlays;
+pub mod draw_view_scene;
 pub mod draw_view_tint;
 pub mod draw_whole_quad;
 pub mod drop_absent_player;
@@ -133,6 +138,7 @@ pub mod face_texture_coordinates_2;
 pub mod fetch_view_value;
 pub mod find_sound_spots;
 pub mod first_check_checkpoint;
+pub mod flush_draw_batch;
 pub mod flush_texture_batch;
 pub mod flush_triangle_batch;
 pub mod fog_table;
@@ -200,9 +206,14 @@ pub mod map_segment;
 pub mod map_tiles;
 pub mod map_tiles_stub;
 pub mod mark_far_cells;
+pub mod measure_frame_rate;
 pub mod mirror_view_window;
 pub mod mud;
+pub mod mud_frame;
 pub mod mud_pixel;
+pub mod mud_texel;
+pub mod mud_texture_turn;
+pub mod muddy_texel;
 pub mod music;
 pub mod name_plates;
 pub mod nearest_checkpoint;
@@ -231,6 +242,7 @@ pub mod plate_test;
 pub mod players_all_out;
 pub mod prepare_course_view;
 pub mod prepare_sound_tables;
+pub mod put_mud_texel;
 pub mod race_cars;
 pub mod race_end;
 pub mod race_from_menu;
@@ -250,6 +262,7 @@ pub mod render3d_tidy;
 pub mod replay;
 pub mod replay_cameras_1;
 pub mod replay_cameras_2;
+pub mod replay_screenshot;
 pub mod reset_car_blocks;
 pub mod reset_car_motion;
 pub mod reset_car_race_state;
@@ -303,6 +316,7 @@ pub mod shadow_on_face;
 pub mod shadow_points;
 pub mod shadow_polygon;
 pub mod share_sound_spots;
+pub mod show_frame;
 pub mod silence_race_sounds;
 pub mod single_rally;
 pub mod single_rally_race;
@@ -321,6 +335,7 @@ pub mod sound_span;
 pub mod sound_spots;
 pub mod sound_tables;
 pub mod sounds;
+pub mod splash_mud;
 pub mod split_colours;
 pub mod stage_free;
 pub mod stage_loading;
@@ -342,11 +357,14 @@ pub mod store_view_value;
 pub mod surface_shares;
 pub mod swap_stage_texture;
 pub mod textures_alloc;
+pub mod throw_mud_texel;
 pub mod tidy_everything;
 pub mod tidy_game_mode;
 pub mod tidy_stage;
+pub mod tint_to_mud_colour;
 pub mod tweak_stage;
 pub mod tyre_change;
+pub mod update_mud_texture;
 pub mod update_name_plates;
 pub mod view_light;
 pub mod view_matrices;
@@ -418,6 +436,23 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &clear_mud_state::HOOK,
     &sample_mud_colours::HOOK,
     &init_mud::HOOK,
+    &tint_to_mud_colour::HOOK,
+    &mud_texel::HOOK,
+    &put_mud_texel::HOOK,
+    &muddy_texel::HOOK,
+    &throw_mud_texel::HOOK,
+    &splash_mud::HOOK,
+    &update_mud_texture::HOOK,
+    &mud_texture_turn::HOOK,
+    &mud_frame::HOOK,
+    &flush_draw_batch::HOOK,
+    &draw_view_scene::HOOK,
+    &draw_view_overlays::HOOK,
+    &draw_mirror_view::HOOK,
+    &measure_frame_rate::HOOK,
+    &replay_screenshot::HOOK,
+    &show_frame::HOOK,
+    &draw_race_scene::HOOK,
     &car_kind_10::HOOK,
     &car_kind_11::HOOK,
     &sort_points_by_y::HOOK,
@@ -651,6 +686,7 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &draw_time_plate::HOOK,
     &draw_plate_by_id::HOOK,
     &update_name_plates::HOOK,
+    &blit_map_tiles::HOOK,
     &map_tiles_stub::HOOK,
     &map_tiles::HOOK,
     &scroll_map::HOOK,

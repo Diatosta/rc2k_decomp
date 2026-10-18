@@ -2194,14 +2194,14 @@ pub unsafe fn set_up_fog(
     }
 }
 
-/// `set_up_fog`'s parts in the game: the Rust clock, the device call in the game.
+/// `set_up_fog`'s parts in the game: the Rust clock and fog colour.
 pub fn fog_part(place: u32, r: &mut crate::framework::Regs) -> Result<(), Refused> {
     match place {
         1 => {
             r.eax =
                 crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count())
         }
-        _ => unsafe { crate::framework::call_game(r, crate::framework::game_addr(rva(0x44E76B))) },
+        _ => unsafe { crate::scene::set_fog_colour::set_fog_colour(r.eax) },
     }
     Ok(())
 }
@@ -2599,14 +2599,15 @@ pub unsafe fn draw_sky(
     }
 }
 
-/// `draw_sky`'s parts in the game: the platform's calls (render states, the batch's
-/// flush) in the game; `scene::draw_scene_object` and the depth buffer by their Rust
-/// versions.
+/// `draw_sky`'s parts in the game: the Rust versions (the glow's render states,
+/// `scene::draw_scene_object`, the batch's flush, the depth buffer).
 pub fn sky_part(place: u32, r: &mut crate::framework::Regs) -> Result<(), Refused> {
     unsafe {
         match place {
             4 => crate::scene::depth_buffer_on::depth_buffer(r, true),
+            1 => crate::scene::glow_render_states::glow_render_states(r),
             2 => return crate::scene::draw_scene_object::draw_scene_object_in_game(r),
+            3 => return crate::race::flush_draw_batch::flush_draw_batch_in_game(r),
             _ => {
                 let callee = SKY_CALLEES
                     .iter()

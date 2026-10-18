@@ -142,13 +142,13 @@ pub unsafe fn scroll_maps(r: &mut Regs, part: crate::race::frame::Part) -> Resul
 }
 
 /// The parts in the game: `scroll_map` with `map_tiles` with the tiles' blit
-/// (`sub_45B68F` -> `sub_41B931`, the game's).
+/// (`sub_45B68F` -> `race::blit_map_tiles`).
 pub fn scroll_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe { scroll_map(r, &mut |_, r| map_tiles(r, &mut tiles_part)) }
 }
 
-/// `map_tiles`' part in the game: `sub_45B68F` -> `sub_41B931` (the tiles' blit).
+/// `map_tiles`' part in the game: `sub_45B68F` -> `race::blit_map_tiles` (the tiles'
+/// blit, its Rust version).
 pub fn tiles_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { crate::framework::call_game(r, crate::framework::game_addr(rva(0x41B931))) };
-    Ok(())
+    unsafe { crate::race::blit_map_tiles::blit_map_tiles_in_game(r) }
 }

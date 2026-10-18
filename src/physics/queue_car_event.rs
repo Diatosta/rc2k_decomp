@@ -100,7 +100,10 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     let p = QueuePlaces::game();
-    let regions = [(p.times, 0x2C), (p.f9c, 8)];
+    // The times, the events, the count, +0xF9C and +0xFA0: all (until 2026-10-18 the count
+    // and four events were left out, so in shadow mode the Rust version's count stood and the
+    // original queued one further on).
+    let regions = [(p.times, (p.fa0 + 4 - p.times) as usize)];
     dispatch_state(&HOOK, r, call_original, &regions, &rust);
 }
 

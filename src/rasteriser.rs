@@ -76,7 +76,8 @@ fn part(pixel: u32, mask: u32) -> f32 {
 }
 
 impl Texture<'_> {
-    fn texel(&self, u: f32, v: f32, clamp: bool) -> Colour {
+    /// The texel's raw pixel at (u, v), wrapped or clamped.
+    fn pixel(&self, u: f32, v: f32, clamp: bool) -> u32 {
         let at = |t: f32, size: usize| -> usize {
             let n = (t * size as f32).floor() as i64;
             if clamp {
@@ -87,7 +88,7 @@ impl Texture<'_> {
         };
         let (x, y) = (at(u, self.width), at(v, self.height));
         let place = y * self.pitch + x * self.bytes;
-        let pixel = match self.bytes {
+        match self.bytes {
             2 => self
                 .pixels
                 .get(place..place + 2)
@@ -96,8 +97,7 @@ impl Texture<'_> {
                 .pixels
                 .get(place..place + 4)
                 .map_or(0, |b| u32::from_le_bytes([b[0], b[1], b[2], b[3]])),
-        };
-        [0, 1, 2, 3].map(|n| part(pixel, self.masks[n]))
+        }
     }
 
     fn has_alpha(&self) -> bool {
@@ -212,7 +212,42 @@ pub unsafe fn draw_fan(
     texture: Option<&Texture>,
     depth: &mut [f32],
 ) {
-    if vertices.len() < 3 || depth.len() < target.width * target.height {
+    if depth.len() < target.width * target.height {
+        return;
+    }
+    let clip = Clip {
+        left: 0,
+        top: 0,
+        right: target.width,
+        bottom: target.height,
+    };
+    unsafe { draw_fan_in(vertices, target, states, texture, depth.as_mut_ptr(), &clip) };
+}
+
+/// A rectangle of the target: places from (left, top) up to (right, bottom).
+#[derive(Clone, Copy)]
+pub struct Clip {
+    pub left: usize,
+    pub top: usize,
+    pub right: usize,
+    pub bottom: usize,
+}
+
+/// `draw_fan` within `clip` only (a tile of the frame: tiles drawn at once give the same
+/// pixels as the whole, each pixel's triangles still in their order).
+///
+/// # Safety
+/// `target.pixels` must hold `target.height` rows of `target.pitch` bytes, `depth` a float
+/// a place of the target; no other thread may draw into `clip` meanwhile.
+pub unsafe fn draw_fan_in(
+    vertices: &[Vertex],
+    target: &Target,
+    states: &States,
+    texture: Option<&Texture>,
+    depth: *mut f32,
+    clip: &Clip,
+) {
+    if vertices.len() < 3 {
         return;
     }
     let points: Vec<Point> = vertices.iter().map(point).collect();
@@ -224,6 +259,7 @@ pub unsafe fn draw_fan(
                 states,
                 texture,
                 depth,
+                clip,
             )
         };
     }
@@ -234,7 +270,8 @@ unsafe fn draw_triangle(
     target: &Target,
     states: &States,
     texture: Option<&Texture>,
-    depth: &mut [f32],
+    depth: *mut f32,
+    clip: &Clip,
 ) {
     // Positive: clockwise on the screen (y goes down).
     let area = (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
@@ -254,39 +291,147 @@ unsafe fn draw_triangle(
     } else {
         (a, b, c, area)
     };
-    let left = a.x.min(b.x).min(c.x).floor().max(0.0) as usize;
-    let right = (a.x.max(b.x).max(c.x).ceil() as i64).clamp(0, target.width as i64) as usize;
-    let top = a.y.min(b.y).min(c.y).floor().max(0.0) as usize;
-    let bottom = (a.y.max(b.y).max(c.y).ceil() as i64).clamp(0, target.height as i64) as usize;
-
-    let depth_test = states.get(0x07) != 0;
-    let depth_function = states.get(0x17);
-    let depth_write = states.get(0x0E) != 0;
-    let alpha_test = states.get(0x0F) != 0;
-    let alpha_function = states.get(0x19);
-    let alpha_reference = (states.get(0x18) & 0xFF) as f32 / 255.0;
-    let blending = states.get(0x1B) != 0;
-    let (source_blend, target_blend) = (states.get(0x13), states.get(0x14));
-    let fog = states.get(0x1C) != 0;
-    let fog_colour = unpack(states.get(0x22));
-    let mixing = states.get(0x15);
-    let clamp = states.get(0x03) == 3;
-
-    // Inside where all three edge functions are at or above 0, as the area is.
+    let left = (a.x.min(b.x).min(c.x).floor().max(0.0) as usize).max(clip.left);
+    let right = ((a.x.max(b.x).max(c.x).ceil() as i64).clamp(0, target.width as i64) as usize)
+        .min(clip.right);
+    let top = (a.y.min(b.y).min(c.y).floor().max(0.0) as usize).max(clip.top);
+    let bottom = ((a.y.max(b.y).max(c.y).ceil() as i64).clamp(0, target.height as i64) as usize)
+        .min(clip.bottom);
+    if left >= right || top >= bottom {
+        return;
+    }
     let edges = [(b, c), (c, a), (a, b)];
-    let biases: Vec<bool> = edges.iter().map(|(p, q)| top_left(p, q)).collect();
+    let triangle = Triangle {
+        points: [a, b, c],
+        area,
+        edges,
+        biases: edges.map(|(p, q)| top_left(p, q)),
+        left,
+        right,
+        depth_test: states.get(0x07) != 0,
+        depth_function: states.get(0x17),
+        depth_write: states.get(0x0E) != 0,
+        alpha_test: states.get(0x0F) != 0,
+        alpha_function: states.get(0x19),
+        alpha_reference: (states.get(0x18) & 0xFF) as f32 / 255.0,
+        blending: states.get(0x1B) != 0,
+        source_blend: states.get(0x13),
+        target_blend: states.get(0x14),
+        fog: states.get(0x1C) != 0,
+        fog_colour: unpack(states.get(0x22)),
+        mixing: states.get(0x15),
+        clamp: states.get(0x03) == 3,
+        texture: texture.map(|t| (t, Scales::of(t))),
+        target,
+        depth,
+    };
     for y in top..bottom {
-        for x in left..right {
-            let (px, py) = (x as f32, y as f32);
+        unsafe { triangle.row(y) };
+    }
+}
+
+/// A texture's four channels as shifts and greatest values (`part`'s, worked out once).
+struct Scales {
+    shift: [u32; 4],
+    most: [f32; 4],
+}
+
+impl Scales {
+    fn of(texture: &Texture) -> Self {
+        let shift = texture
+            .masks
+            .map(|m| if m == 0 { 0 } else { m.trailing_zeros() });
+        let mut most = [0.0f32; 4];
+        for n in 0..4 {
+            most[n] = if texture.masks[n] == 0 {
+                0.0
+            } else {
+                (texture.masks[n] >> shift[n]) as f32
+            };
+        }
+        Self { shift, most }
+    }
+
+    /// `part` of each channel.
+    fn colour(&self, pixel: u32, masks: &[u32; 4]) -> Colour {
+        let mut c = [1.0f32; 4];
+        for n in 0..4 {
+            if masks[n] != 0 {
+                c[n] = ((pixel & masks[n]) >> self.shift[n]) as f32 / self.most[n];
+            }
+        }
+        c
+    }
+}
+
+struct Triangle<'a> {
+    points: [&'a Point; 3],
+    area: f32,
+    edges: [(&'a Point, &'a Point); 3],
+    biases: [bool; 3],
+    left: usize,
+    right: usize,
+    depth_test: bool,
+    depth_function: u32,
+    depth_write: bool,
+    alpha_test: bool,
+    alpha_function: u32,
+    alpha_reference: f32,
+    blending: bool,
+    source_blend: u32,
+    target_blend: u32,
+    fog: bool,
+    fog_colour: Colour,
+    mixing: u32,
+    clamp: bool,
+    texture: Option<(&'a Texture<'a>, Scales)>,
+    target: &'a Target,
+    depth: *mut f32,
+}
+
+impl Triangle<'_> {
+    /// The places of row `y` that may be inside: where each edge's function, linear in x,
+    /// is not below 0, widened by a pixel each way (the exact test decides each place).
+    fn span(&self, py: f32) -> (usize, usize) {
+        let (mut lo, mut hi) = (self.left as f32, self.right as f32);
+        for (p, q) in self.edges {
+            // e(x) = c - d (x - p.x)
+            let (c, d) = ((q.x - p.x) * (py - p.y), q.y - p.y);
+            if d > 0.0 {
+                let bound = p.x + c / d;
+                if bound.is_finite() {
+                    hi = hi.min(bound.ceil() + 1.0);
+                }
+            } else if d < 0.0 {
+                let bound = p.x + c / d;
+                if bound.is_finite() {
+                    lo = lo.max(bound.floor() - 1.0);
+                }
+            } else if c < 0.0 {
+                return (0, 0);
+            }
+        }
+        let lo = (lo.max(self.left as f32)) as usize;
+        let hi = (hi.min(self.right as f32)).max(0.0) as usize;
+        (lo, hi.max(lo))
+    }
+
+    unsafe fn row(&self, y: usize) {
+        let [a, b, c] = self.points;
+        let target = self.target;
+        let py = y as f32;
+        let (from, to) = self.span(py);
+        for x in from..to {
+            let px = x as f32;
             let mut weights = [0.0f32; 3];
             let mut inside = true;
-            for (n, ((p, q), &bias)) in edges.iter().zip(&biases).enumerate() {
+            for (n, ((p, q), &bias)) in self.edges.iter().zip(&self.biases).enumerate() {
                 let e = edge(p, q, px, py);
                 if e < 0.0 || (e == 0.0 && !bias) {
                     inside = false;
                     break;
                 }
-                weights[n] = e / area;
+                weights[n] = e / self.area;
             }
             if !inside {
                 continue;
@@ -295,12 +440,13 @@ unsafe fn draw_triangle(
             let mix = |fa: f32, fb: f32, fc: f32| wa * fa + wb * fb + wc * fc;
             let z = mix(a.z, b.z, c.z);
             let place = y * target.width + x;
-            if depth_test && !compare(depth_function, z, depth[place]) {
+            let depth = unsafe { self.depth.add(place) };
+            if self.depth_test && !compare(self.depth_function, z, unsafe { *depth }) {
                 continue;
             }
             let colour: Colour = [0, 1, 2, 3].map(|n| mix(a.colour[n], b.colour[n], c.colour[n]));
             let mut out = colour;
-            if let Some(texture) = texture {
+            if let Some((texture, scales)) = &self.texture {
                 let w = mix(a.w, b.w, c.w);
                 let (u, v) = if w != 0.0 {
                     (
@@ -310,8 +456,8 @@ unsafe fn draw_triangle(
                 } else {
                     (mix(a.u, b.u, c.u), mix(a.v, b.v, c.v))
                 };
-                let texel = texture.texel(u, v, clamp);
-                out = match mixing {
+                let texel = scales.colour(texture.pixel(u, v, self.clamp), &texture.masks);
+                out = match self.mixing {
                     1 | 7 => texel,
                     4 => [0, 1, 2, 3].map(|n| texel[n] * colour[n]),
                     _ => {
@@ -329,26 +475,26 @@ unsafe fn draw_triangle(
                     }
                 };
             }
-            if alpha_test && !compare(alpha_function, out[3], alpha_reference) {
+            if self.alpha_test && !compare(self.alpha_function, out[3], self.alpha_reference) {
                 continue;
             }
-            if fog {
+            if self.fog {
                 let kept = mix(a.specular[3], b.specular[3], c.specular[3]).clamp(0.0, 1.0);
-                for n in 0..3 {
-                    out[n] = out[n] * kept + fog_colour[n] * (1.0 - kept);
+                for (o, f) in out.iter_mut().zip(self.fog_colour).take(3) {
+                    *o = *o * kept + f * (1.0 - kept);
                 }
             }
-            if blending {
+            if self.blending {
                 let under = unsafe { read_target(target, x, y) };
                 let (s, d) = (
-                    factor(source_blend, &out, &under),
-                    factor(target_blend, &out, &under),
+                    factor(self.source_blend, &out, &under),
+                    factor(self.target_blend, &out, &under),
                 );
                 out = [0, 1, 2, 3].map(|n| out[n] * s[n] + under[n] * d[n]);
             }
             unsafe { write_target(target, x, y, &out) };
-            if depth_write {
-                depth[place] = z;
+            if self.depth_write {
+                unsafe { *depth = z };
             }
         }
     }

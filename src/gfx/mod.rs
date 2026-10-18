@@ -22,6 +22,7 @@ pub mod decode_png;
 pub mod describe_format;
 pub mod draw_hline;
 pub mod draw_vline;
+pub mod fade_colour;
 pub mod fill_rect;
 pub mod fill_row_table;
 pub mod fill_thirds_table;
@@ -132,4 +133,5 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &load_picture_to_texture::HOOK,
     &load_picture_with_overlay::HOOK,
     &put_surface_pixel::HOOK,
+    &fade_colour::HOOK,
 ];
