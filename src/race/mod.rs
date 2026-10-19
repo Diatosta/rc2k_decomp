@@ -262,6 +262,9 @@ pub mod render3d_tidy;
 pub mod replay;
 pub mod replay_cameras_1;
 pub mod replay_cameras_2;
+pub mod replay_mode;
+pub mod replay_mode_1;
+pub mod replay_mode_3;
 pub mod replay_screenshot;
 pub mod reset_car_blocks;
 pub mod reset_car_motion;
@@ -687,6 +690,8 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &draw_plate_by_id::HOOK,
     &update_name_plates::HOOK,
     &blit_map_tiles::HOOK,
+    &replay_mode_1::HOOK,
+    &replay_mode_3::HOOK,
     &map_tiles_stub::HOOK,
     &map_tiles::HOOK,
     &scroll_map::HOOK,

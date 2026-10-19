@@ -305,6 +305,14 @@ unsafe fn set_screen_mode(mode: u32) -> Result<(), String> {
             return Err("SDL opens no window".into());
         }
         SDL_SetWindowSize(window, width as i32, height as i32);
+        // Black at once, as a mode change leaves the screen: until the first frame is shown
+        // the resized window would show what the window system puts there (white under
+        // Wine, a frame's flash before the loading picture: owner, 2026-10-19).
+        let surface = SDL_GetWindowSurface(window);
+        if !surface.is_null() {
+            SDL_FillSurfaceRect(surface, std::ptr::null(), 0);
+            SDL_UpdateWindowSurface(window);
+        }
         let pixels = vec![0u8; (bytes * width * height) as usize];
         game_write(PIXELS_RVA, pixels.as_ptr() as u32);
         game_write(PITCH_RVA, bytes * width);

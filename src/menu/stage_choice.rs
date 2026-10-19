@@ -160,6 +160,17 @@ pub unsafe fn next_stage_number(draw: Draw) -> Result<(), Refused> {
     unsafe { step(NUMBER_RVA, |n| if n >= 6 { 1 } else { n + 1 }, draw) }
 }
 
+/// `menu::previous_stage_number`: below 2 (signed) to 6, else back one.
+pub unsafe fn previous_stage_number(draw: Draw) -> Result<(), Refused> {
+    unsafe {
+        step(
+            NUMBER_RVA,
+            |n| if (n as i32) >= 2 { n - 1 } else { 6 },
+            draw,
+        )
+    }
+}
+
 // ---- for the settings' self-tests ----
 
 /// A setting's function: its address and length as IDA shows them, its first bytes, the

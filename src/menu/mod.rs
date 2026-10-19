@@ -12,6 +12,7 @@ pub mod arcade_next_stage_loop;
 pub mod arcade_results_loop;
 pub mod arcade_review_options_loop;
 pub mod arcade_select_level_loop;
+pub mod ask_to_leave;
 pub mod audio_setup_loop;
 pub mod award_overall_points;
 pub mod award_stage_points;
@@ -181,6 +182,7 @@ pub mod previous_nationality;
 pub mod previous_second_view;
 pub mod previous_slideshow_car;
 pub mod previous_slideshow_picture;
+pub mod previous_stage_number;
 pub mod previous_stage_sub;
 pub mod previous_view;
 pub mod raise_sensitivity;
@@ -199,6 +201,9 @@ pub mod redefine_keys_player4_loop;
 pub mod redefine_player1_key;
 pub mod reload_front_end;
 pub mod remove_secret_cars;
+pub mod replay_item_a;
+pub mod replay_item_b;
+pub mod replay_items;
 pub mod reset_cars_750724;
 pub mod reset_driver_condition;
 pub mod reset_drivers;
@@ -546,6 +551,10 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &next_stage_sub::HOOK,
     &previous_stage_sub::HOOK,
     &next_stage_number::HOOK,
+    &previous_stage_number::HOOK,
+    &ask_to_leave::HOOK,
+    &replay_item_a::HOOK,
+    &replay_item_b::HOOK,
     &mark_stage_choice::HOOK,
     &next_gearing::HOOK,
     &previous_gearing::HOOK,
