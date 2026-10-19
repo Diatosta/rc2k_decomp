@@ -152,6 +152,7 @@ pub mod item_at;
 pub mod keep_arcade_stage_best;
 pub mod keep_record_best;
 pub mod keep_stage_best;
+pub mod learn_bindings;
 pub mod leave_question_loop;
 pub mod link_player_names;
 pub mod load_background;

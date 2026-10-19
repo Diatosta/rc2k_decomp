@@ -1,5 +1,5 @@
 //! `input::device_command` (0x408AE5): the input thread's command (al):
-//! - 1: device ah given back (`input::release_device`) and acquired again (`sub_408473`);
+//! - 1: device ah given back (`input::release_device`) and acquired again (`input::acquire_device`);
 //! - 2 (the race's end): `dword_518090` 0, the effects ended (`input::end_effects`), a
 //!   tick (`input::input_tick`), both devices given back and +0x414 0 (not read);
 //! - 3 (the race's start): device 0 set up from player 1's controls (`dword_75AE28`,
@@ -15,8 +15,8 @@
 //! Caller: `input::input_tick` (when `g_inputCommand` was set). Its calls through `part`:
 //! 0 the release (esi), 1 the acquiring (esi), 2 the effects' end, 3 the tick, 4 the set-up
 //! (esi, edi), 5 the sleep (eax the milliseconds), 6 the effects' start; in the game the
-//! Rust versions of the release, the tick, the set-up, the sleep and the effects' end and
-//! start, the acquiring through the game (DirectInput, section 15). Refuses (before anything) a device past 1 for command 1.
+//! Rust versions of all (the acquiring `input::acquire_device`). Refuses (before
+//! anything) a device past 1 for command 1.
 //! Shadow mode runs the original alone (it acquires devices). Self-test: a copy whose
 //! calls go to stand-ins, against the Rust version: each command, each player setting.
 
@@ -108,8 +108,7 @@ pub unsafe fn device_command(entry: &Regs, part: Part) -> Result<Regs, Refused> 
     Ok(*entry)
 }
 
-/// In the game: the Rust versions of the release, the tick, the set-up and the sleep; the
-/// acquiring and the effects' end and start through the game.
+/// In the game: the Rust versions.
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         match place {
@@ -131,6 +130,10 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                     &mut crate::input::set_up_device::game_part,
                 )?
             }
+            1 => crate::input::acquire_device::acquire_device(
+                r.esi,
+                &mut crate::input::make_effect::game_part,
+            )?,
             5 => crate::system::sleep::sleep(r.eax),
             2 => crate::input::end_effects::end_effects(r, &mut crate::input::effects::game_part)?,
             6 => crate::input::begin_effects::begin_effects(

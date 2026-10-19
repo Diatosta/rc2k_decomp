@@ -70,9 +70,21 @@ pub unsafe fn com_call(object: u32, slot: u32, args: &[u32]) -> u32 {
                 let f: extern "system" fn(u32) -> u32 = std::mem::transmute(f);
                 f(object)
             }
+            [a] => {
+                let f: extern "system" fn(u32, u32) -> u32 = std::mem::transmute(f);
+                f(object, a)
+            }
             [a, b] => {
                 let f: extern "system" fn(u32, u32, u32) -> u32 = std::mem::transmute(f);
                 f(object, a, b)
+            }
+            [a, b, c] => {
+                let f: extern "system" fn(u32, u32, u32, u32) -> u32 = std::mem::transmute(f);
+                f(object, a, b, c)
+            }
+            [a, b, c, d] => {
+                let f: extern "system" fn(u32, u32, u32, u32, u32) -> u32 = std::mem::transmute(f);
+                f(object, a, b, c, d)
             }
             _ => panic!("com_call: {} arguments", args.len()),
         }

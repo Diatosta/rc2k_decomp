@@ -483,14 +483,30 @@ hook_asm!(
     original = SHOW_ORIGINAL
 );
 
-// ---- where the time goes: the main thread sampled every millisecond ----
+// ---- where the time goes: the main thread and the rasteriser's sampled every millisecond ----
 
-/// Where the main thread was, by address, since the last report.
+/// Where the sampled threads were, by address, since the last report.
 static SAMPLES: std::sync::Mutex<Option<std::collections::HashMap<u32, u32>>> =
     std::sync::Mutex::new(None);
 
-/// Starts the sampler on the calling thread (the main one), once: a thread of its own
-/// stops it every millisecond, notes its instruction pointer and lets it go on.
+/// The time putting frames on the screen (`show_frame`), in microseconds.
+static SHOW_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// The threads the sampler looks at: the main one and the rasteriser's.
+static SAMPLED: std::sync::Mutex<Vec<u32>> = std::sync::Mutex::new(Vec::new());
+
+/// The rasteriser's threads (rayon's pool), each noted for the sampler when it starts.
+pub fn start_threads() {
+    let _ = rayon::ThreadPoolBuilder::new()
+        .start_handler(|_| {
+            let id = unsafe { windows_sys::Win32::System::Threading::GetCurrentThreadId() };
+            SAMPLED.lock().unwrap().push(id);
+        })
+        .build_global();
+}
+
+/// Starts the sampler, once (from the main thread): a thread of its own stops each sampled
+/// thread every millisecond, notes its instruction pointer and lets it go on.
 fn start_sampler() {
     use std::sync::Once;
     use windows_sys::Win32::System::Diagnostics::Debug::{
@@ -502,30 +518,41 @@ fn start_sampler() {
     };
     static STARTED: Once = Once::new();
     STARTED.call_once(|| {
-        let id = unsafe { GetCurrentThreadId() };
-        let thread = unsafe { OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT, 0, id) };
-        if thread.is_null() {
-            return;
-        }
-        let thread = thread as usize;
+        SAMPLED
+            .lock()
+            .unwrap()
+            .insert(0, unsafe { GetCurrentThreadId() });
         *SAMPLES.lock().unwrap() = Some(Default::default());
         std::thread::spawn(move || {
-            let thread = thread as windows_sys::Win32::Foundation::HANDLE;
+            let mut handles: Vec<(u32, usize)> = Vec::new();
             loop {
                 std::thread::sleep(std::time::Duration::from_millis(1));
-                unsafe {
-                    if SuspendThread(thread) == u32::MAX {
-                        return;
+                for &id in SAMPLED.lock().unwrap().iter() {
+                    if !handles.iter().any(|h| h.0 == id) {
+                        let h = unsafe {
+                            OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT, 0, id)
+                        };
+                        if !h.is_null() {
+                            handles.push((id, h as usize));
+                        }
                     }
-                    let mut context: CONTEXT = std::mem::zeroed();
-                    context.ContextFlags = CONTEXT_CONTROL_X86;
-                    let got = GetThreadContext(thread, &mut context) != 0;
-                    ResumeThread(thread);
-                    if got
-                        && let Ok(mut samples) = SAMPLES.lock()
-                        && let Some(samples) = samples.as_mut()
-                    {
-                        *samples.entry(context.Eip).or_insert(0) += 1;
+                }
+                for &(_, h) in &handles {
+                    let thread = h as windows_sys::Win32::Foundation::HANDLE;
+                    unsafe {
+                        if SuspendThread(thread) == u32::MAX {
+                            continue;
+                        }
+                        let mut context: CONTEXT = std::mem::zeroed();
+                        context.ContextFlags = CONTEXT_CONTROL_X86;
+                        let got = GetThreadContext(thread, &mut context) != 0;
+                        ResumeThread(thread);
+                        if got
+                            && let Ok(mut samples) = SAMPLES.lock()
+                            && let Some(samples) = samples.as_mut()
+                        {
+                            *samples.entry(context.Eip).or_insert(0) += 1;
+                        }
                     }
                 }
             }
@@ -642,6 +669,27 @@ fn report_timing() {
                 faults - x0
             ));
             *last = Some((now, frames, fans, micros, faults, flushes, pixels));
+            {
+                use crate::platform_3d::{PARALLEL_MICROS, TILE_MICROS};
+                static LAST_P: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+                static LAST_T: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+                static LAST_S: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+                let (p, t) = (PARALLEL_MICROS.load(Relaxed), TILE_MICROS.load(Relaxed));
+                let (dp, dt) = (p - LAST_P.swap(p, Relaxed), t - LAST_T.swap(t, Relaxed));
+                static LAST_N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+                let sh = SHOW_MICROS.load(Relaxed);
+                let ds = sh - LAST_S.swap(sh, Relaxed);
+                let no = crate::platform_3d::NOTE_MICROS.load(Relaxed);
+                let dn = no - LAST_N.swap(no, Relaxed);
+                log(&format!(
+                    "platform: the rasteriser's parallel part {:.0} ms, the threads in its tiles {:.0} ms ({:.1} threads busy on average); showing the frames {:.0} ms; noting the fans {:.0} ms",
+                    dp as f64 / 1000.0,
+                    dt as f64 / 1000.0,
+                    dt as f64 / dp.max(1) as f64,
+                    ds as f64 / 1000.0,
+                    dn as f64 / 1000.0
+                ));
+            }
             let hot = hot_places();
             if !hot.is_empty() {
                 log(&hot);
@@ -701,7 +749,13 @@ extern "C" fn show(r: &mut Regs) {
         if let Ok(screen) = SCREEN.lock()
             && let Some(screen) = screen.as_ref()
         {
-            if let Err(why) = show_frame(screen) {
+            let showing = std::time::Instant::now();
+            let shown_ok = show_frame(screen);
+            SHOW_MICROS.fetch_add(
+                showing.elapsed().as_micros() as u64,
+                std::sync::atomic::Ordering::Relaxed,
+            );
+            if let Err(why) = shown_ok {
                 log(&format!("platform: no frame shown: {why}"));
             }
             game_write(FLIPPED_RVA, game_read::<u32>(FLIPPED_RVA) ^ 1);

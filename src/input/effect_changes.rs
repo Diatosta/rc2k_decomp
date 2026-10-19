@@ -25,14 +25,14 @@
 //! Out: every register kept (`pusha` .. `popa`)
 //! The DirectInput calls (`sub_409AEE` the effect's Download and Start, `sub_409B1F` its
 //! SetParameters with eax the flags, `sub_409B0D` its Stop; each only with an effect at
-//! +0x30) go through `part` (0, 1, 2), in the game through the game (section 15). Refuses
+//! +0x30) go through `part` (0, 1, 2), in the game their Rust versions (`effect_objects`). Refuses
 //! (before anything) for effect 1 a row past the table's 14 and a blend of 0 (the
 //! original's `idiv` traps). Shadow mode runs the original alone (DirectInput). Manual
 //! patches with private copies (a `jnz` in the first bytes). Self-test: a copy whose calls
 //! go to stand-ins, against the Rust version, each change, values of both signs.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, rva};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, rva};
 use crate::menu::parts::{Part, copy, dispatch_parted, run_both, test_part};
 
 const START: usize = 0x409AEE; // sub_409AEE
@@ -138,9 +138,14 @@ pub unsafe fn effect_change(entry: &Regs, number: u32, part: Part) -> Result<Reg
     Ok(*entry)
 }
 
-/// In the game: DirectInput's calls through the game.
+/// In the game: the Rust versions of the effect's calls (`input::effect_objects`).
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { call_game(r, game_addr(rva(CALLEES[place as usize]))) };
+    use crate::input::effect_objects::{set_effect_parameters, start_effect, stop_effect};
+    match place {
+        0 => start_effect(r.edi),
+        1 => set_effect_parameters(r.edi, r.eax),
+        _ => stop_effect(r.edi),
+    }
     Ok(())
 }
 

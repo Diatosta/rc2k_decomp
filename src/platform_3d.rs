@@ -266,6 +266,10 @@ fn reads_texture(pixels: usize) -> bool {
 }
 
 /// The flushes that drew something and the pixels written (for `platform::report_timing`).
+/// The parallel drawing's wall time and the threads' time inside the tiles (summed), in
+/// microseconds: how well the tiles keep the threads busy.
+pub static PARALLEL_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static TILE_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 pub static FLUSHES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 pub static PIXELS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
@@ -330,6 +334,7 @@ fn draw_noted(pending: &mut Pending) {
         return;
     }
     FLUSHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    dump_if_asked(&noted, &into);
     let started = std::time::Instant::now();
     let fans = noted
         .iter()
@@ -361,6 +366,7 @@ fn draw_noted(pending: &mut Pending) {
         };
         let noted = &noted;
         let draw_tile = move |clip: &Clip| {
+            let tile_started = std::time::Instant::now();
             let target = Target {
                 pixels: into.pixels as *mut u8,
                 pitch: into.pitch,
@@ -419,16 +425,123 @@ fn draw_noted(pending: &mut Pending) {
                 }
             }
             PIXELS.fetch_add(written, std::sync::atomic::Ordering::Relaxed);
+            TILE_MICROS.fetch_add(
+                tile_started.elapsed().as_micros() as u64,
+                std::sync::atomic::Ordering::Relaxed,
+            );
         };
+        let parallel_started = std::time::Instant::now();
         if tiles.len() == 1 {
             draw_tile(&tiles[0]);
         } else {
             tiles.par_iter().for_each(draw_tile);
         }
+        PARALLEL_MICROS.fetch_add(
+            parallel_started.elapsed().as_micros() as u64,
+            std::sync::atomic::Ordering::Relaxed,
+        );
     });
     use std::sync::atomic::Ordering::Relaxed;
     FANS.fetch_add(fans, Relaxed);
     RASTER_MICROS.fetch_add(started.elapsed().as_micros() as u64, Relaxed);
+}
+
+/// With `RC2K_DUMP=n` in the environment: the n-th flush of 1000 fans or more written to
+/// `rc2k_frame_dump.bin`, for replaying it outside the program (the benchmark): "RC2KDUMP",
+/// the screen's width, height, bits; the textures (each once: width, height, pitch, bytes,
+/// four masks, its bytes' length and bytes); then each noted thing in order: 1 a fan (its
+/// vertices' count and the vertices, 8 dwords each; the 0x40 states; its texture's number
+/// or -1), 2 a depth clear (left, top, right, bottom). All little-endian dwords.
+fn dump_if_asked(noted: &[Noted], into: &Into) {
+    use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
+    static SEEN: AtomicU32 = AtomicU32::new(0);
+    let Some(wanted) = std::env::var("RC2K_DUMP")
+        .ok()
+        .and_then(|n| n.parse::<u32>().ok())
+    else {
+        return;
+    };
+    let fans = noted
+        .iter()
+        .filter(|n| matches!(n, Noted::Fan { .. }))
+        .count();
+    if fans < 1000 || SEEN.fetch_add(1, Relaxed) + 1 != wanted {
+        return;
+    }
+    let mut out: Vec<u8> = b"RC2KDUMP".to_vec();
+    let put = |out: &mut Vec<u8>, v: u32| out.extend(v.to_le_bytes());
+    for v in [into.width as u32, into.height as u32, into.bits] {
+        put(&mut out, v);
+    }
+    let mut textures: Vec<usize> = Vec::new();
+    for n in noted {
+        if let Noted::Fan {
+            texture: Some(t), ..
+        } = n
+            && !textures.contains(&t.pixels)
+        {
+            textures.push(t.pixels);
+        }
+    }
+    put(&mut out, textures.len() as u32);
+    for &at in &textures {
+        let t = noted
+            .iter()
+            .find_map(|n| match n {
+                Noted::Fan {
+                    texture: Some(t), ..
+                } if t.pixels == at => Some(t),
+                _ => None,
+            })
+            .unwrap();
+        for v in [t.width, t.height, t.pitch, t.bytes] {
+            put(&mut out, v as u32);
+        }
+        for m in t.masks {
+            put(&mut out, m);
+        }
+        put(&mut out, t.len as u32);
+        out.extend_from_slice(unsafe { std::slice::from_raw_parts(t.pixels as *const u8, t.len) });
+    }
+    put(&mut out, noted.len() as u32);
+    for n in noted {
+        match n {
+            Noted::Fan {
+                vertices,
+                states,
+                texture,
+                ..
+            } => {
+                put(&mut out, 1);
+                put(&mut out, vertices.len() as u32);
+                for v in vertices {
+                    for &d in v {
+                        put(&mut out, d);
+                    }
+                }
+                for &st in states.iter() {
+                    put(&mut out, st);
+                }
+                let number = texture
+                    .as_ref()
+                    .and_then(|t| textures.iter().position(|&p| p == t.pixels))
+                    .map_or(u32::MAX, |n| n as u32);
+                put(&mut out, number);
+            }
+            Noted::Clear(r) => {
+                put(&mut out, 2);
+                for &v in r {
+                    put(&mut out, v as u32);
+                }
+            }
+        }
+    }
+    let written = std::fs::write("rc2k_frame_dump.bin", &out);
+    crate::framework::log(&format!(
+        "platform_3d: flush {wanted} of {fans} fans dumped to rc2k_frame_dump.bin ({} bytes, {} textures): {written:?}",
+        out.len(),
+        textures.len()
+    ));
 }
 
 /// A fan into the screen, with the states and the current texture
@@ -447,7 +560,19 @@ pub fn draw_strip(vertices: &[crate::rasteriser::Vertex]) {
     }
 }
 
+/// The time noting fans (`draw_fan`), in microseconds.
+pub static NOTE_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 pub fn draw_fan(vertices: &[crate::rasteriser::Vertex]) {
+    let noting = std::time::Instant::now();
+    note_fan(vertices);
+    NOTE_MICROS.fetch_add(
+        noting.elapsed().as_micros() as u64,
+        std::sync::atomic::Ordering::Relaxed,
+    );
+}
+
+fn note_fan(vertices: &[crate::rasteriser::Vertex]) {
     if vertices.len() < 3 {
         return;
     }

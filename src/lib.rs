@@ -31,6 +31,8 @@ pub mod platform;
 #[cfg(feature = "standalone")]
 pub mod platform_3d;
 #[cfg(feature = "standalone")]
+pub mod platform_input;
+#[cfg(feature = "standalone")]
 pub mod platform_sound;
 pub mod race;
 #[cfg(feature = "standalone")]

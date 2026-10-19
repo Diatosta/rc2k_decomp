@@ -18,9 +18,10 @@
 //! 0 the log (eax the text), 1 DirectInput made (eax 1 when it was), 2 .. 4 the keyboard,
 //! the mouse, the joysticks made, 5 the priority (eax, esi the slot), 6 the keyboard read,
 //! 7 the mouse read, 8 .. 10 the mouse, the keyboard, DirectInput released; in the game
-//! through the game (DirectInput, section 15). In the standalone program SDL stands for
-//! DirectInput: nothing is made, read (its events fill `g_keysDown`) or released there, and
-//! DirectInput counts as made. Each tick passes a gate (`hook_enter` / `hook_leave`), so a
+//! through the game (DirectInput, section 15), the joysticks `input::list_joysticks`. In
+//! the standalone program DirectInput is made in Rust (`input::di_objects`, on SDL's
+//! joysticks, `platform_input.rs`) and released; the keyboard and the mouse are SDL's
+//! events (they fill `g_keysDown`): nothing is made, read or released for them. Each tick passes a gate (`hook_enter` / `hook_leave`), so a
 //! self-test's pause holds the thread between ticks. Ungated thunk (it runs for the
 //! game's whole life). Refuses what its steps refuse (the original then runs: its flag is
 //! set, so it goes to its end). Shadow mode runs the original alone (the thread is the
@@ -159,18 +160,39 @@ pub unsafe fn input_thread(part: Part) -> Result<(), Refused> {
 }
 
 /// In the game: through the game (place 1 then says whether DirectInput was made), but the
-/// priority (5), which is `threading::set_priority`'s Rust version. In the standalone
-/// program the platform's parts are SDL's: DirectInput counts as made and nothing else is
-/// done but the priority.
+/// priority (5), which is `threading::set_priority`'s Rust version, and the joysticks' list
+/// (4), `input::list_joysticks`'s. In the standalone program DirectInput is made in Rust
+/// (`input::di_objects`, on SDL's joysticks) and given back at the end (10); the keyboard
+/// and the mouse are SDL's events: nothing is made, read or given back for them.
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     if place == 5 {
         // `threading::set_priority`'s Rust version (eax, ecx, edx kept, as there).
         crate::threading::set_priority::set_priority(r.eax as i32);
         return Ok(());
     }
+    if place == 4 {
+        crate::input::list_joysticks::list_joysticks();
+        return Ok(());
+    }
     if standalone() {
-        if place == 1 {
-            r.eax = 1;
+        match place {
+            1 => {
+                let input = crate::input::di_objects::create_input();
+                unsafe { game_write(DIRECT_INPUT_RVA, input) };
+                r.eax = (input != 0) as u32;
+            }
+            10 => {
+                let input = g(DIRECT_INPUT_RVA);
+                if input != 0 {
+                    crate::input::di_harness::method(
+                        input,
+                        crate::input::di_harness::slot::RELEASE,
+                        &[],
+                    );
+                    unsafe { game_write(DIRECT_INPUT_RVA, 0u32) };
+                }
+            }
+            _ => {}
         }
         return Ok(());
     }

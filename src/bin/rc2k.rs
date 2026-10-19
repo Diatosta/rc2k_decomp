@@ -5,6 +5,10 @@
 //! is `rc2k.log` there unless another is named. With the environment variable
 //! `RC2K_FRAMES` set to a number it ends itself after that many frames and leaves the
 //! last one in `rc2k_frame.raw`.
+//!
+//! A windowed program (no console: everything goes to the log; owner, 2026-10-19).
+
+#![windows_subsystem = "windows"]
 
 use std::path::Path;
 

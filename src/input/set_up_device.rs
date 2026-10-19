@@ -2,7 +2,7 @@
 //! (edi: `dword_75AE28` player 1, `dword_75AF94` player 2): +0x414 .. +0x4DB 0
 //! (`system::zero_memory`, 0xC8 bytes); with a controller chosen ([edi] n, not 0): +0 n - 1,
 //! +0x418 [edi+0x10], +0xC [edi+0x1C], +0x10 [edi+0x18], +0x14 [edi+0x14], +0x18 [edi+0xC],
-//! +0x20 [edi+8] and +8 the same or 2 for 0, and the controller acquired (`sub_408473`);
+//! +0x20 [edi+8] and +8 the same or 2 for 0, and the controller acquired (`input::acquire_device`);
 //! then the twelve bindings: each its key (a byte of [edi+0x54 ..]) and the place, sign
 //! and button of its word (`input::binding_place` of a dword of [edi+0x24 ..]), in the order
 //! of `BINDINGS`.
@@ -11,13 +11,13 @@
 //! Out: every register kept (`pusha` .. `popa`)
 //!
 //! Caller: `input::device_command` (the race's start, both players). The acquiring through
-//! `part` (0, esi and edi as here, eax [edi+8] or 2; in the game through the game:
-//! DirectInput, section 15). Shadow mode runs the original alone (it acquires the device).
+//! `part` (0, esi and edi as here, eax [edi+8] or 2; in the game
+//! `input::acquire_device`'s Rust version). Shadow mode runs the original alone (it acquires the device).
 //! Self-test: a copy whose acquiring goes to a stand-in (which says the device acquired or
 //! not), against the Rust version, on records and controls of the test's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva, shadow};
+use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::input::binding_place::binding_place;
 use crate::input::devices::{RECORD_LEN, at, put, test_record};
 use crate::race::mud::{copy, run_both_from};
@@ -35,7 +35,6 @@ hook_asm!(
     original = ORIGINAL
 );
 
-const ACQUIRE_RVA: usize = rva(0x408473); // sub_408473: the controller acquired
 pub const CONTROLS_LEN: usize = 0x60;
 
 /// The bindings: (the key's byte in the controls, the word's dword, the record's binding).
@@ -103,9 +102,9 @@ pub unsafe fn set_up_device(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 }
 
 /// In the game: the acquiring through the game.
+/// In the game: `input::acquire_device`'s Rust version.
 pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { call_game(r, game_addr(ACQUIRE_RVA)) };
-    Ok(())
+    crate::input::acquire_device::acquire_device(r.esi, &mut crate::input::make_effect::game_part)
 }
 
 extern "C" fn dispatch(r: &mut Regs) {

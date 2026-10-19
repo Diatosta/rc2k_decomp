@@ -8,8 +8,8 @@
 //!
 //! Callers: `input::device_command` (three times), the input thread's end. Its calls
 //! through `part`: 0 `Unacquire` (eax the device), 1 the effects stopped (esi), 2
-//! `Release` (eax); in the game the device's methods and `sub_4095AE` through the game
-//! (DirectInput, section 15). Refuses (before anything) a controller number past 16 with
+//! `Release` (eax); in the game the device's methods and `input::end_force`'s Rust
+//! version. Refuses (before anything) a controller number past 16 with
 //! a device. Shadow mode runs the original alone (it releases the device). Self-test: a
 //! copy whose effects' call goes to a stand-in, against the Rust version, on records of
 //! the test's with a device of the test's or none, the controller's entry 1 or not.
@@ -37,8 +37,6 @@ hook_asm!(
     dispatch = dispatch,
     original = ORIGINAL
 );
-
-const STOP_EFFECTS_RVA: usize = rva(0x4095AE); // sub_4095AE
 
 /// A call by place (see the header).
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
@@ -71,12 +69,12 @@ pub unsafe fn release_device(entry: &Regs, part: Part) -> Result<Regs, Refused> 
     Ok(*entry)
 }
 
-/// In the game: the device's methods, the effects' stop through the game.
+/// In the game: the device's methods, `input::end_force`.
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         match place {
             0 => r.eax = com_call(r.eax, 0x20, &[]),
-            1 => call_game(r, game_addr(STOP_EFFECTS_RVA)),
+            1 => crate::input::end_force::end_force(r.esi),
             _ => r.eax = com_call(r.eax, 0x08, &[]),
         }
     }

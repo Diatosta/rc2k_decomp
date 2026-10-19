@@ -610,6 +610,8 @@ unsafe fn start() {
 /// `frames`, if not 0: the program ends itself after that many frames were shown.
 pub fn run(game: &Path, log_file: &Path, frames: u32) -> ! {
     crate::platform::FRAMES_TO_SHOW.store(frames, Ordering::SeqCst);
+    crate::platform::start_threads();
+    crate::platform_input::SdlBackend::start();
     let _ = std::fs::File::create(log_file);
     let _ = LOG_PATH.set(log_file.to_path_buf());
     let image = match unsafe { map_game(game) } {
