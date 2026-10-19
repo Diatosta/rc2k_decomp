@@ -14,10 +14,12 @@
 //! version, a command or none, one device or two.
 
 use crate::errors::Refused;
+use crate::field;
 use crate::framework::{
     RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
 use crate::input::devices::{RECORDS, at, put};
+use crate::input::types::InputDevice;
 use crate::race::mud::{copy, run_both, test_part};
 use crate::service::harness::{Region, at as at_rva, capture, restore};
 use std::sync::atomic::AtomicUsize;
@@ -70,7 +72,7 @@ pub unsafe fn input_tick(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         put(
             first,
             0x4E8,
-            (at(second, 0x4E8) & 0x70FF) | at(first, 0x4E8),
+            (at(second, field!(InputDevice, bits)) & 0x70FF) | at(first, field!(InputDevice, bits)),
         );
     }
     Ok(*entry)

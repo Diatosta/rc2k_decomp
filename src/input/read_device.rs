@@ -27,10 +27,12 @@
 //! lot, each kind, read or not.
 
 use crate::errors::{BadInput, Refused};
+use crate::field;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva, shadow};
 use crate::input::devices::{KEYS_DOWN_RVA, RECORD_LEN, at, key_down, put, test_record};
 use crate::input::hat_direction::hat_direction;
 use crate::input::hat_reading::hat_reading;
+use crate::input::types::InputDevice;
 use crate::race::mud::{copy, run_both_from, test_part};
 use crate::service::harness::{Region, capture, restore};
 use std::sync::atomic::AtomicUsize;
@@ -77,7 +79,7 @@ fn axis_value(record: u32, g: u32) -> i32 {
 
 /// One of the four readings (binding at `g`): (the value, all of it pressed).
 fn reading(record: u32, g: u32, full: u32, negate_axis: bool) -> (u32, bool) {
-    let buttons = at(record, 0x38);
+    let buttons = at(record, field!(InputDevice, buttons));
     if key_down(at(record, g)) {
         return (full, true);
     }
@@ -109,9 +111,9 @@ fn pressed(record: u32, g: u32) -> bool {
         if axis_value(record, g) <= 0x40 {
             return false;
         }
-        return button == 0 || at(record, 0x38) & button != 0;
+        return button == 0 || at(record, field!(InputDevice, buttons)) & button != 0;
     }
-    button != 0 && at(record, 0x38) & button != 0
+    button != 0 && at(record, field!(InputDevice, buttons)) & button != 0
 }
 
 /// `test ecx, ecx` then `mov ecx, 0FFFFFF00h; js` .. `mov ecx, 100h`: not 0 made all of it.
@@ -129,7 +131,7 @@ pub unsafe fn read_device(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     check_bindings(record)?;
     let mut poll = *entry;
     part(0, &mut poll)?;
-    if at(record, 0x414) != 1 {
+    if at(record, field!(InputDevice, reading)) != 1 {
         return Ok(*entry);
     }
     let mut bits = (hat_reading(record).0 << 24) | hat_direction(record);
@@ -152,7 +154,7 @@ pub unsafe fn read_device(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     if b {
         bits |= 0x2000;
     }
-    if at(record, 8) == 1 {
+    if at(record, field!(InputDevice, kind)) == 1 {
         bits |= 0x7000;
         steering = whole_steering(steering);
         if brake != 0 {
@@ -167,10 +169,10 @@ pub unsafe fn read_device(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             bits |= 1 << k;
         }
     }
-    put(record, 0x4DC, steering);
-    put(record, 0x4E0, brake);
-    put(record, 0x4E4, throttle);
-    put(record, 0x4E8, bits);
+    put(record, field!(InputDevice, readings), steering);
+    put(record, field!(InputDevice, readings) + 4, brake);
+    put(record, field!(InputDevice, readings) + 8, throttle);
+    put(record, field!(InputDevice, bits), bits);
     Ok(*entry)
 }
 

@@ -14,6 +14,7 @@
 //! `net::host_session`'s, the session's record a test one.
 
 use crate::errors::Refused;
+use crate::field;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::net::host_session::{OPEN_JOIN, finish, open, session_test};
 use crate::net::lobby::{
@@ -21,6 +22,7 @@ use crate::net::lobby::{
     LOG_L2_NL, POST_CALL, Part, RESTORE_WINDOW, SESSION_DESC, ZERO_MEMORY, a, cmp_flags,
     dispatch_lobby, g, log_text, movsb, p,
 };
+use crate::net::types::NetSession;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -65,11 +67,11 @@ pub fn join_session(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     part(SESSION_ENTRY, &mut r)?;
     r.esi = r.eax;
     let record = r.esi;
-    movsb(a(JOINED), record + 0x40, 0x10);
+    movsb(a(JOINED), record + field!(NetSession, instance), 0x10);
     movsb(a(JOINED_NAME), record, 0x40);
     r.eax = unsafe { ((record + 0x50) as *const u32).read_unaligned() }; // mov eax, [esi+50h]
     p(JOINED_MOST, r.eax);
-    movsb(a(JOINED_PASSWORD), record + 0x58, 0x10);
+    movsb(a(JOINED_PASSWORD), record + field!(NetSession, user), 0x10);
     let mut c = Regs {
         ebx: a(SESSION_DESC),
         ecx: 0x50,

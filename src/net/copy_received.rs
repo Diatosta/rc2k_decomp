@@ -17,8 +17,10 @@
 //! 0 .. 3 players.
 
 use crate::errors::{BadInput, Refused};
+use crate::field;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::input::effects::compare;
+use crate::net::types::NetPlayerBlock;
 use crate::net::{LOCK, PLAYERS, Part, RECEIVED, RECEIVED_LEN, UNLOCK, a, dispatch_net};
 use crate::system::api_stand_ins::copy_with;
 use std::sync::atomic::AtomicUsize;
@@ -61,11 +63,11 @@ pub fn copy_received_with(
         let record = received + RECEIVED_LEN * player;
         let byte = unsafe {
             std::ptr::copy(
-                (record + 0x34) as *const u8,
-                (record + 0x4040) as *mut u8,
+                (record + field!(NetPlayerBlock, count)) as *const u8,
+                (record + field!(NetPlayerBlock, copied_count)) as *mut u8,
                 COPIED,
             );
-            ((record + 0x34) as *mut u32).write_unaligned(0);
+            ((record + field!(NetPlayerBlock, count)) as *mut u32).write_unaligned(0);
             let byte = ((record + 0x4039) as *const u8).read();
             ((record + 0x4038) as *mut u8).write(byte);
             byte
@@ -73,7 +75,7 @@ pub fn copy_received_with(
         // The registers as the loop leaves them (the unlock's call sees them).
         g.eax = g.eax & !0xFF | byte as u32;
         g.ecx = 0;
-        g.esi = record + 0x4040;
+        g.esi = record + field!(NetPlayerBlock, copied_count);
         g.edi = record + RECEIVED_LEN;
         player += 1;
         g.ebx = received + RECEIVED_LEN * player;

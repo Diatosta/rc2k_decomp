@@ -21,6 +21,7 @@
 //! not, times and none; the buttons' switches.
 
 use crate::errors::{BadInput, Refused};
+use crate::field;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::net::lobby::{
     APPEND_STRING, APPEND_TIME, BLIT, BLOCK, CAR_ITEM, CHAT, CHAT_INPUT, COPY_PICTURE, DRAW_HLINE,
@@ -28,6 +29,7 @@ use crate::net::lobby::{
     SHOW_GAPS, SORTED, SPRITES, STAGE_ITEM, STR_APPEND, Saved, TEXT, UNLOCK, UNLOCK_RECEIVED, a,
     answer, dispatch_lobby, dword, g, p, region, run_both,
 };
+use crate::net::types::NetPlayerBlock;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -132,7 +134,7 @@ pub fn lobby_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             r.ebx = a(TEXT);
             part(STR_APPEND, &mut r)?;
             nul(&mut r);
-            r.eax = if byte(block + 0x24) & 1 != 0 {
+            r.eax = if byte(block + field!(NetPlayerBlock, record.state)) & 1 != 0 {
                 a(READY_FONT)
             } else {
                 a(NAME_FONT)
@@ -319,7 +321,7 @@ fn self_test() -> (usize, usize) {
                             b as *mut u8,
                             5,
                         );
-                        ((b + 0x24) as *mut u8).write(state);
+                        ((b + field!(NetPlayerBlock, record.state)) as *mut u8).write(state);
                         ((b + 0x25) as *mut u8).write(car);
                         ((b + 0x27) as *mut u8).write(nation);
                         ((b + 0x2C) as *mut u32).write_unaligned(time);

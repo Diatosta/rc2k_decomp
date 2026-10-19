@@ -33,6 +33,7 @@
 //! record with a device (the fatal error).
 
 use crate::errors::{FatalError, Refused};
+use crate::field;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva, shadow};
 use crate::input::devices::{RECORD_LEN, RECORDS, at, put};
 use crate::input::di_harness::{
@@ -40,6 +41,10 @@ use crate::input::di_harness::{
     JOYSTICK_FORMAT_RVA, NEW_DEVICE2_RVA, RANGE_PROP_RVA, a, compare, entry_of, fatal, g, method,
     p, regs_text, shared_regions, slot,
 };
+use crate::input::types::{
+    Controller as C, DiPropDword as W, DiPropHeader, DiPropRange as R, InputDevice as D,
+};
+use std::mem::size_of;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -87,93 +92,113 @@ fn log_int(v: u32, newline: bool) {
 
 /// The settings from the configuration, and the log's line.
 fn settings(record: u32, entry: u32) {
-    if at(record, 8) == 0 {
-        put(record, 8, 2);
-        if at(entry, 8) > 3 {
-            put(record, 8, 3);
+    let kind = field!(D, kind);
+    if at(record, kind) == 0 {
+        put(record, kind, 2);
+        if at(entry, field!(C, axes)) > 3 {
+            put(record, kind, 3);
         }
     }
-    let kind = g(KIND_RVA) as i32;
-    if kind != 0 && (1..=3).contains(&kind) {
-        put(record, 8, kind as u32);
+    let configured = g(KIND_RVA) as i32;
+    if configured != 0 && (1..=3).contains(&configured) {
+        put(record, kind, configured as u32);
     }
     if (g(CODE_RVA) as i32) >= 0 {
-        put(record, 0x18, g(CODE_RVA));
+        put(record, field!(D, axis_code), g(CODE_RVA));
     }
-    for (from, to) in [(STRENGTH_RVA, 0xC), (DEAD_RVA, 0x10), (END_RVA, 0x14)] {
+    for (from, to) in [
+        (STRENGTH_RVA, field!(D, strength)),
+        (DEAD_RVA, field!(D, dead_zone)),
+        (END_RVA, field!(D, end_zone)),
+    ] {
         if g(from) <= 100 {
             put(record, to, g(from));
         }
     }
     if (g(FLAG_RVA) as i32) >= 0 {
-        put(record, 0x1C, g(FLAG_RVA));
+        put(record, field!(D, axis_pick), g(FLAG_RVA));
     }
     log_text(JOY_RVA);
-    log_int(at(record, 0), false);
-    log_int(at(entry, 8), false);
-    log_int(at(entry, 0xC), false);
+    log_int(at(record, field!(D, controller)), false);
+    log_int(at(entry, field!(C, axes)), false);
+    log_int(at(entry, field!(C, buttons)), false);
     log_text(AXMODE_RVA);
-    log_int(at(record, 8), false);
+    log_int(at(record, kind), false);
     log_text(AXCODE_RVA);
-    unsafe { crate::logfile::log_hex8::log_hex8(at(record, 0x18), false, 2) };
+    unsafe { crate::logfile::log_hex8::log_hex8(at(record, field!(D, axis_code)), false, 2) };
     log_text(DZ_RVA);
-    log_int(at(record, 0x10), false);
-    log_int(at(record, 0x14), false);
+    log_int(at(record, field!(D, dead_zone)), false);
+    log_int(at(record, field!(D, end_zone)), false);
     log_text(FF_RVA);
-    log_int(at(entry, 0x1C), false);
-    log_int(at(record, 0xC), true);
+    log_int(at(entry, field!(C, force_feedback)), false);
+    log_int(at(record, field!(D, strength)), true);
 }
 
-/// The axis at offset (the record's byte `byte` & 7) x 4.
-fn axis(record: u32, byte: u32) -> u32 {
-    let b = unsafe { (record.wrapping_add(byte) as *const u8).read() } as u32;
+/// The axis at offset (the record's axis pick `n` & 7) x 4.
+fn axis(record: u32, n: u32) -> u32 {
+    let at = record.wrapping_add(field!(D, axis_pick) + n);
+    let b = unsafe { (at as *const u8).read() } as u32;
     (b & 7) * 4
 }
 
 /// The ranges, dead zones and saturation.
 fn properties(record: u32) {
-    let device = at(record, 4);
+    let device = at(record, field!(D, device));
     let set = |what: u32, prop: u32| method(device, slot::SET_PROPERTY, &[what, prop]);
+    let (header, object, how) = (
+        size_of::<DiPropHeader>() as u32,
+        field!(R, header.object),
+        field!(R, header.how),
+    );
     let range = a(RANGE_PROP_RVA);
-    for (n, v) in [0x18u32, 0x10, 0, 0, (-256i32) as u32, 0]
-        .into_iter()
-        .enumerate()
-    {
-        put(range, 4 * n as u32, v);
-    }
+    put(range, field!(R, header.size), size_of::<R>() as u32);
+    put(range, field!(R, header.header_size), header);
+    put(range, object, 0);
+    put(range, how, 0);
+    put(range, field!(R, min), (-256i32) as u32);
+    put(range, field!(R, max), 0);
     set(DIPROP_RANGE, range);
-    put(range, 8, axis(record, 0x1D));
-    put(range, 0xC, 1);
-    put(range, 0x10, (-256i32) as u32);
-    put(range, 0x14, 0x100);
+    put(range, object, axis(record, 1));
+    put(range, how, 1);
+    put(range, field!(R, min), (-256i32) as u32);
+    put(range, field!(R, max), 0x100);
     set(DIPROP_RANGE, range);
-    let two_axes = at(record, 8) <= 2;
+    let two_axes = at(record, field!(D, kind)) <= 2;
     if two_axes {
-        put(range, 8, axis(record, 0x1C));
+        put(range, object, axis(record, 0));
         set(DIPROP_RANGE, range);
     }
     let dword = a(DWORD_PROP_RVA);
-    for (n, v) in [0x14u32, 0x10, 0, 0, 0].into_iter().enumerate() {
-        put(dword, 4 * n as u32, v);
-    }
+    let start = |data: Option<u32>| {
+        put(dword, field!(W, header.size), size_of::<W>() as u32);
+        put(dword, field!(W, header.header_size), header);
+        put(dword, field!(W, header.object), 0);
+        put(dword, field!(W, header.how), 0);
+        if let Some(data) = data {
+            put(dword, field!(W, data), data);
+        }
+    };
+    start(Some(0));
     set(DIPROP_DEADZONE, dword);
     // (sic) the range's object, not the dead zone's
-    put(range, 8, axis(record, 0x1D));
-    put(dword, 0xC, 1);
-    put(dword, 0x10, at(record, 0x10).wrapping_mul(100));
+    put(range, object, axis(record, 1));
+    put(dword, field!(W, header.how), 1);
+    put(
+        dword,
+        field!(W, data),
+        at(record, field!(D, dead_zone)).wrapping_mul(100),
+    );
     set(DIPROP_DEADZONE, dword);
     if two_axes {
-        put(range, 8, axis(record, 0x1C));
+        put(range, object, axis(record, 0));
         set(DIPROP_DEADZONE, dword);
     }
-    for (n, v) in [0x14u32, 0x10, 0, 0].into_iter().enumerate() {
-        put(dword, 4 * n as u32, v);
-    }
-    let rest = 100u32.wrapping_sub(at(record, 0x10));
+    start(None);
+    let rest = 100u32.wrapping_sub(at(record, field!(D, dead_zone)));
     if (rest as i32) > 0 {
-        let live = rest.wrapping_sub(at(record, 0x14));
+        let live = rest.wrapping_sub(at(record, field!(D, end_zone)));
         if (live as i32) > 0 {
-            put(dword, 0x10, live.wrapping_mul(10000) / rest);
+            put(dword, field!(W, data), live.wrapping_mul(10000) / rest);
             set(DIPROP_SATURATION, dword);
         }
     }
@@ -181,26 +206,30 @@ fn properties(record: u32) {
 
 /// The Rust version (see the header).
 pub fn acquire_device(record: u32, part: crate::input::make_effect::Part) -> Result<(), Refused> {
-    if at(record, 0) >= g(CONTROLLER_COUNT_RVA) {
+    if at(record, field!(D, controller)) >= g(CONTROLLER_COUNT_RVA) {
         return Ok(());
     }
     let entry = entry_of(record);
-    if at(entry, 0x18) != 1 {
+    if at(entry, field!(C, attached)) != 1 {
         return Ok(());
     }
-    if at(record, 4) != 0 {
+    if at(record, field!(D, device)) != 0 {
         return Err(fatal(0x8023_831D).into());
     }
     settings(record, entry);
     let hr = method(
         g(DIRECT_INPUT_RVA),
         slot::CREATE_DEVICE,
-        &[entry + 0x20, record.wrapping_add(4), 0],
+        &[
+            entry + field!(C, instance),
+            record.wrapping_add(field!(D, device)),
+            0,
+        ],
     );
     if hr != 0 {
         return Err(NO_OBJECT.into());
     }
-    let device = at(record, 4);
+    let device = at(record, field!(D, device));
     if method(
         device,
         slot::QUERY,
@@ -210,9 +239,9 @@ pub fn acquire_device(record: u32, part: crate::input::make_effect::Part) -> Res
         return Err(fatal(0x8023_8318).into());
     }
     method(device, slot::RELEASE, &[]);
-    put(record, 4, g(NEW_DEVICE2_RVA));
+    put(record, field!(D, device), g(NEW_DEVICE2_RVA));
     p(NEW_DEVICE2_RVA, 0);
-    let device = at(record, 4);
+    let device = at(record, field!(D, device));
     if method(device, slot::SET_DATA_FORMAT, &[a(JOYSTICK_FORMAT_RVA)]) != 0 {
         return Err(fatal(0x8023_8312).into());
     }
@@ -220,12 +249,12 @@ pub fn acquire_device(record: u32, part: crate::input::make_effect::Part) -> Res
         return Err(fatal(0x8023_8313).into());
     }
     properties(record);
-    if at(entry, 0x1C) == 1 {
+    if at(entry, field!(C, force_feedback)) == 1 {
         crate::input::begin_force::begin_force(record, part)?;
     }
     method(device, slot::ACQUIRE, &[]);
     crate::input::clear_device_readings::clear_device_readings(record);
-    put(record, 0x24, 1);
+    put(record, field!(D, acquired), 1);
     Ok(())
 }
 
@@ -268,8 +297,9 @@ fn self_test() -> (usize, usize) {
             // the second entry not attached: a third "controller" that is listed
             if controller == 2 {
                 p(CONTROLLER_COUNT_RVA, 3);
-                let third = a(crate::input::di_harness::CONTROLLERS_RVA) + 2 * 0x50;
-                put(third, 0x18, 0);
+                let third = a(crate::input::di_harness::CONTROLLERS_RVA)
+                    + 2 * crate::input::di_harness::CONTROLLER_LEN;
+                put(third, field!(C, attached), 0);
             }
             let values: [(usize, u32); 6] = if config {
                 [
@@ -294,14 +324,14 @@ fn self_test() -> (usize, usize) {
                 p(at, v);
             }
             unsafe { std::ptr::copy_nonoverlapping(start.as_ptr(), r as *mut u8, RECORD_LEN) };
-            put(r, 0, controller);
-            put(r, 4, 0);
-            put(r, 8, kind);
-            put(r, 0xC, 50);
-            put(r, 0x10, zones.0);
-            put(r, 0x14, zones.1);
-            put(r, 0x18, 0x0103);
-            put(r, 0x1C, 0x0204);
+            put(r, field!(D, controller), controller);
+            put(r, field!(D, device), 0);
+            put(r, field!(D, kind), kind);
+            put(r, field!(D, strength), 50);
+            put(r, field!(D, dead_zone), zones.0);
+            put(r, field!(D, end_zone), zones.1);
+            put(r, field!(D, axis_code), 0x0103);
+            put(r, field!(D, axis_pick), 0x0204);
         }
     };
     for controller in [0u32, 1, 2, 5] {
@@ -346,7 +376,7 @@ fn self_test() -> (usize, usize) {
     let saved = crate::service::harness::capture(&regions);
     world.side();
     fill(0, 2, (10, 20), false)();
-    put(rec, 4, 0x1234);
+    put(rec, field!(D, device), 0x1234);
     let done = acquire_device(rec, &mut crate::input::make_effect::game_part);
     crate::service::harness::restore(&regions, &saved);
     world.side();

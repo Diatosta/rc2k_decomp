@@ -28,6 +28,7 @@
 //! scripted, the other players' states given), against the Rust version.
 
 use crate::errors::Refused;
+use crate::field;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::net::choose_connection::chosen;
 use crate::net::lobby::{
@@ -37,6 +38,7 @@ use crate::net::lobby::{
     SYNC_CLOCK, SYNC_FIRST, SYNCED, Saved, TICK, a, answer, block, dispatch_lobby, dword, g, game,
     gb, p, pb, region, run_both,
 };
+use crate::net::types::NetPlayerBlock;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -67,7 +69,7 @@ pub fn all_states(r: &mut Regs, bits: u8, count: u32) -> u8 {
     r.ebx = block(0);
     r.ecx = count;
     loop {
-        let ah = gb_at(r.ebx + 0x24);
+        let ah = gb_at(r.ebx + field!(NetPlayerBlock, record.state));
         r.eax = r.eax & !0xFFFF | (ah as u32) << 8 | al as u32;
         if ah & 0x80 == 0 {
             al &= ah;
@@ -117,7 +119,9 @@ pub fn sync(r: &mut Regs, kind: u8, part: Part) -> Result<bool, Refused> {
         loop {
             if gb(SYNCED + r.ecx as usize) != 1 {
                 let (kept_ebx, kept_ecx) = (r.ebx, r.ecx);
-                r.eax = unsafe { ((r.ebx + 0x20) as *const u32).read_unaligned() };
+                r.eax = unsafe {
+                    ((r.ebx + field!(NetPlayerBlock, id)) as *const u32).read_unaligned()
+                };
                 r.ebx = a(SEND_BUFFER);
                 r.ecx = kind as u32 | (gb(SYNC) as u32) << 8;
                 unsafe { (r.ebx as *mut u16).write_unaligned(r.ecx as u16) };
@@ -319,8 +323,8 @@ pub fn set_players(states: &[u8]) {
     for (n, &s) in states.iter().enumerate() {
         let b = block(n as u32);
         unsafe {
-            ((b + 0x20) as *mut u32).write_unaligned(0x10 + n as u32);
-            ((b + 0x24) as *mut u8).write(s);
+            ((b + field!(NetPlayerBlock, id)) as *mut u32).write_unaligned(0x10 + n as u32);
+            ((b + field!(NetPlayerBlock, record.state)) as *mut u8).write(s);
         }
     }
 }

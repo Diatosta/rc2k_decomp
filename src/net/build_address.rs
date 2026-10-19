@@ -17,6 +17,7 @@
 //! object, against the Rust version: each provider, a port or none, each failure.
 
 use crate::errors::Refused;
+use crate::field;
 use crate::framework::{RawHook, Regs, SelfTest, ZERO_FLAG, hook_asm, rva};
 use crate::net::dplay::{CREATE_COMPOUND_ADDRESS, call};
 use crate::net::lobby::{
@@ -25,6 +26,7 @@ use crate::net::lobby::{
     TestObject, a, answer, cmp_flags, com_answer, dispatch_lobby, dword, g, log_text, p, region,
     run_both, test_eax,
 };
+use crate::net::types::NetConnection;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -224,8 +226,16 @@ fn self_test() -> (usize, usize) {
                     ((rec + n) as *mut u8).write(n as u8);
                 }
                 match provider {
-                    0 => crate::net::lobby::movsb(rec + 0x40, a(IPX), 0x10),
-                    1 => crate::net::lobby::movsb(rec + 0x40, a(TCPIP), 0x10),
+                    0 => crate::net::lobby::movsb(
+                        rec + field!(NetConnection, service_provider),
+                        a(IPX),
+                        0x10,
+                    ),
+                    1 => crate::net::lobby::movsb(
+                        rec + field!(NetConnection, service_provider),
+                        a(TCPIP),
+                        0x10,
+                    ),
                     _ => {}
                 }
                 answer(Box::new(move |place, r| match place {

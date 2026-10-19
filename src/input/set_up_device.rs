@@ -17,9 +17,11 @@
 //! not), against the Rust version, on records and controls of the test's.
 
 use crate::errors::Refused;
+use crate::field;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::input::binding_place::binding_place;
 use crate::input::devices::{RECORD_LEN, at, put, test_record};
+use crate::input::types::InputDevice;
 use crate::race::mud::{copy, run_both_from};
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
@@ -64,7 +66,7 @@ pub unsafe fn set_up_device(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     }
     let n = at(controls, 0);
     if n != 0 {
-        put(record, 0, n - 1);
+        put(record, field!(InputDevice, controller), n - 1);
         for (to, from) in [
             (0x418, 0x10),
             (0xC, 0x1C),
@@ -75,11 +77,11 @@ pub unsafe fn set_up_device(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             put(record, to, at(controls, from));
         }
         let mut kind = at(controls, 8);
-        put(record, 0x20, kind);
+        put(record, field!(InputDevice, sensitivity), kind);
         if kind == 0 {
             kind = 2;
         }
-        put(record, 8, kind);
+        put(record, field!(InputDevice, kind), kind);
         let mut r = Regs {
             eax: kind,
             ..*entry
@@ -177,7 +179,7 @@ fn self_test() -> (usize, usize) {
             &|| unsafe {
                 std::ptr::copy_nonoverlapping(start.as_ptr(), p as *mut u8, RECORD_LEN);
                 // Not acquired before the set-up (else `binding_place` sees the old +0x24).
-                put(p, 0x24, 0);
+                put(p, field!(InputDevice, acquired), 0);
                 ACQUIRES.store(acquires, Ordering::SeqCst);
             },
             Regs {

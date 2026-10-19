@@ -21,6 +21,7 @@
 //! device that is not there (`CreateDevice` fails), 0, 5, 15 and 16 controllers before,
 //! the force-feedback switch both ways.
 
+use crate::field;
 use crate::framework::{RawHook, SelfTest, game_addr, rva};
 use crate::input::devices::{at, put};
 use crate::input::di_harness::{
@@ -29,6 +30,7 @@ use crate::input::di_harness::{
     NEW_DEVICE2_RVA, a, call_stdcall2, compare, dispatch_callback, g, method, p, shared_regions,
     slot,
 };
+use crate::input::types::{Controller, DiDevCaps, DiDeviceInstance};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -64,7 +66,11 @@ fn look_over(instance: u32, entry: u32) -> bool {
     if !ok(method(
         input,
         slot::CREATE_DEVICE,
-        &[instance + 4, a(NEW_DEVICE_RVA), 0],
+        &[
+            instance + field!(DiDeviceInstance, instance),
+            a(NEW_DEVICE_RVA),
+            0,
+        ],
     )) {
         return false;
     }
@@ -97,35 +103,59 @@ fn look_over(instance: u32, entry: u32) -> bool {
     }
     let found = game_addr(rva(AXIS_FOUND)) as u32;
     method(device2, slot::ENUM_OBJECTS, &[found, entry, 0]);
-    put(entry, 4, at(instance, 0x24));
-    unsafe { std::ptr::copy((instance + 4) as *const u8, (entry + 0x20) as *mut u8, 16) };
+    put(
+        entry,
+        field!(Controller, dev_type),
+        at(instance, field!(DiDeviceInstance, dev_type)),
+    );
+    let guid = instance + field!(DiDeviceInstance, instance);
+    let to = entry + field!(Controller, instance);
+    unsafe { std::ptr::copy(guid as *const u8, to as *mut u8, 16) };
     let count = g(CONTROLLER_COUNT_RVA);
     let mut name = vec![b'('];
     name.extend(crate::strings::append_u32::append_u32(
         count.wrapping_add(1),
     ));
     name.extend(b") ");
-    unsafe { std::ptr::copy(name.as_ptr(), (entry + 0x30) as *mut u8, name.len()) };
+    let at_name = entry + field!(Controller, name);
+    unsafe { std::ptr::copy(name.as_ptr(), at_name as *mut u8, name.len()) };
     let kept = g(KEEP_CASE_RVA);
     p(KEEP_CASE_RVA, 0);
-    let to = (entry + 0x30) as usize + name.len();
+    let to = at_name as usize + name.len();
     // room 0x19 is never refused
     let _ = unsafe {
         crate::strings::copy_printable::copy_printable(
-            (instance + 0x28) as *const u8,
+            (instance + field!(DiDeviceInstance, instance_name)) as *const u8,
             to as *mut u8,
             0x19,
         )
     };
     p(KEEP_CASE_RVA, kept);
-    let caps = |offset: usize| g(CAPS_RVA + offset);
-    put(entry, 0, caps(4));
-    put(entry, 8, caps(0xC));
-    put(entry, 0xC, caps(0x10));
-    put(entry, 0x10, caps(0x14));
-    put(entry, 0x18, (caps(4) & 1 != 0) as u32);
+    let caps = |offset: u32| g(CAPS_RVA + offset as usize);
+    let flags = caps(field!(DiDevCaps, flags));
+    put(entry, field!(Controller, caps_flags), flags);
+    put(
+        entry,
+        field!(Controller, axes),
+        caps(field!(DiDevCaps, axes)),
+    );
+    put(
+        entry,
+        field!(Controller, buttons),
+        caps(field!(DiDevCaps, buttons)),
+    );
+    put(
+        entry,
+        field!(Controller, hats),
+        caps(field!(DiDevCaps, hats)),
+    );
+    put(entry, field!(Controller, attached), (flags & 1 != 0) as u32);
     if g(NO_FORCE_RVA) == 0 {
-        put(entry, 0x1C, (caps(4) & 0x100 != 0) as u32);
+        put(
+            entry,
+            field!(Controller, force_feedback),
+            (flags & 0x100 != 0) as u32,
+        );
     }
     p(CONTROLLER_COUNT_RVA, count.wrapping_add(1));
     true
@@ -161,15 +191,15 @@ fn self_test() -> (usize, usize) {
     regions.push((a(KEEP_CASE_RVA), 4));
     let mut missing = devices[0].clone();
     missing.instance[0] ^= 0xFF;
-    let instances: Vec<Vec<u8>> = devices
+    let instances: Vec<crate::input::types::DiDeviceInstance> = devices
         .iter()
         .chain([&missing])
-        .map(crate::input::di_objects::instance_bytes)
+        .map(crate::input::di_objects::device_instance)
         .collect();
     for (n, instance) in instances.iter().enumerate() {
         for count in [0u32, 5, 15, 16] {
             for no_force in [0u32, 1] {
-                let i = instance.as_ptr() as u32;
+                let i = instance as *const crate::input::types::DiDeviceInstance as u32;
                 compare(
                     &mut t,
                     &format!("device {n}, {count} before, force feedback off {no_force}"),

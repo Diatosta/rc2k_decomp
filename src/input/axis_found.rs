@@ -11,9 +11,12 @@
 //! Self-test: the original and the Rust version called with each axis's GUID, a button's
 //! and a slider's, on entries of the test's.
 
+use crate::field;
 use crate::framework::{RawHook, SelfTest, game_addr, rva};
 use crate::input::devices::{at, put};
 use crate::input::di_harness::{call_stdcall2, compare, dispatch_callback};
+use crate::input::types::{Controller, DiDeviceObjectInstance};
+use std::mem::size_of;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -42,14 +45,17 @@ const AXES_RVA: usize = rva(0x4F7E38); // unk_4F7E38: the six axes' GUIDs, 16 by
 
 /// The Rust version: eax.
 pub fn axis_found(object: u32, entry: u32) -> u32 {
-    let mut bits = at(entry, 0x14);
+    let mut bits = at(entry, field!(Controller, axis_bits));
     for n in 0..6u32 {
         let axis = game_addr(AXES_RVA) as u32 + 16 * n;
-        if crate::system::same_guid::same_guid(object.wrapping_add(4), axis) {
+        if crate::system::same_guid::same_guid(
+            object.wrapping_add(field!(DiDeviceObjectInstance, guid_type)),
+            axis,
+        ) {
             bits |= 1 << n;
         }
     }
-    put(entry, 0x14, bits);
+    put(entry, field!(Controller, axis_bits), bits);
     1
 }
 
@@ -76,21 +82,28 @@ fn self_test() -> (usize, usize) {
         0x11CF,
         rest,
     ));
-    let mut entry = vec![0u8; 0x50];
+    let mut entry = vec![0u8; size_of::<Controller>()];
     let e = entry.as_mut_ptr() as u32;
     for (n, g) in guids.iter().enumerate() {
         for before in [0u32, 0x15, 0xFFFF_FFC0] {
-            let mut object = vec![0u8; 0x13C];
-            object[4..0x14].copy_from_slice(g);
-            let o = object.as_ptr() as u32;
+            let object = DiDeviceObjectInstance {
+                size: size_of::<DiDeviceObjectInstance>() as u32,
+                guid_type: *g,
+                offset: 0,
+                kind: 0,
+                flags: 0,
+                name: [0; 260],
+                rest: [0; 24],
+            };
+            let o = &object as *const DiDeviceObjectInstance as u32;
             compare(
                 &mut t,
                 &format!("object {n}, bits before {before:#x}"),
                 &world,
-                &[(e, 0x50)],
+                &[(e, size_of::<Controller>())],
                 &|| {
-                    unsafe { std::ptr::write_bytes(e as *mut u8, 0xAA, 0x50) };
-                    put(e, 0x14, before);
+                    unsafe { std::ptr::write_bytes(e as *mut u8, 0xAA, size_of::<Controller>()) };
+                    put(e, field!(Controller, axis_bits), before);
                 },
                 &mut || format!("{}", unsafe { call_stdcall2(original, o, e) }),
                 &mut || format!("{}", axis_found(o, e)),

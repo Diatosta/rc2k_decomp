@@ -23,6 +23,7 @@
 //! but the host.
 
 use crate::errors::Refused;
+use crate::field;
 use crate::framework::{CARRY_FLAG, RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::net::lobby::{
     APPLY_SOUND, CLEAR_FRONT, CLEAR_RACE_SOUNDS, CLOCK_A, COPY_RECEIVED, FIRST_HOST,
@@ -32,6 +33,7 @@ use crate::net::lobby::{
     dispatch_lobby, dword, g, log_text, p, region, run_both, test_eax,
 };
 use crate::net::lobby_loop::set_players;
+use crate::net::types::NetPlayerBlock;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -78,7 +80,7 @@ pub fn lets_rally(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     r.ebx = block(0);
     r.ecx = 0;
     loop {
-        if byte(r.ebx + 0x24) & 0x10 == 0 {
+        if byte(r.ebx + field!(NetPlayerBlock, record.state)) & 0x10 == 0 {
             break;
         }
         r.ebx = r.ebx.wrapping_add(crate::net::lobby::BLOCK);

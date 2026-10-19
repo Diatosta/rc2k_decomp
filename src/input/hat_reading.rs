@@ -10,10 +10,12 @@
 //! version on angles by lot and centred, with and without a device, each hat kind.
 
 use crate::errors::Refused;
+use crate::field;
 use crate::framework::{
     EAX, ECX, EDX, RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva,
 };
 use crate::input::devices::{STATE_RVA, at, test_record};
+use crate::input::types::InputDevice;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
 use std::sync::atomic::AtomicUsize;
@@ -34,7 +36,9 @@ const HAT_RVA: usize = STATE_RVA + 0x20; // dword_4F6A48
 
 /// The Rust version (see the header): (eax, the `div`'s ecx and edx when it was reached).
 pub fn hat_reading(record: u32) -> (u32, Option<(u32, u32)>) {
-    if at(record, 4) == 0 || at(record, 0x418) != 0 {
+    if at(record, field!(InputDevice, device)) == 0
+        || at(record, field!(InputDevice, hat_kind)) != 0
+    {
         return (0, None);
     }
     let hat: u32 = unsafe { game_read(HAT_RVA) };

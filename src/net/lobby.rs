@@ -45,7 +45,7 @@ pub const SESSION: usize = 0x52A910; // g_netSession: 1 while a network game run
 pub const PLAYER: usize = 0x52A920; // g_netPlayer: this machine's player
 pub const PLAYERS: usize = 0x52AD98; // g_netPlayers
 pub const RECEIVED: usize = 0x52AD9C; // g_netReceived: 0x804C bytes a player
-pub const BLOCK: u32 = 0x804C;
+pub const BLOCK: u32 = std::mem::size_of::<crate::net::types::NetPlayerBlock>() as u32;
 pub const MODE: usize = 0x52A908; // dword_52A908: 0 the settings, 1 host, 2 join, 3 lobby
 pub const SYNC: usize = 0x52A914; // byte_52A914: counted up at each lobby
 pub const SEQUENCE: usize = 0x52A915; // g_netSequence
@@ -273,8 +273,8 @@ pub const NO_SESSION: u32 = 0x80A6_1030;
 pub const NO_SESSIONS: u32 = 0x80A6_1031;
 pub const NO_CONNECTION_MEMORY: u32 = 0x80E6_8021;
 pub const NO_SESSION_MEMORY: u32 = 0x80E6_8022;
-pub const CONNECTION_LEN: u32 = 0x54;
-pub const SESSION_LEN: u32 = 0x68;
+pub const CONNECTION_LEN: u32 = std::mem::size_of::<crate::net::types::NetConnection>() as u32;
+pub const SESSION_LEN: u32 = std::mem::size_of::<crate::net::types::NetSession>() as u32;
 
 /// Record `index` (unsigned) of a table of `len`-byte records at `table` holding `count`:
 /// `jnb` the first fatal error, a null table the second.

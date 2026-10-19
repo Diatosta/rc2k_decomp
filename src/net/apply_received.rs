@@ -16,9 +16,11 @@
 //! against the Rust version: 1 .. 3 players, 0 .. 3 messages each.
 
 use crate::errors::{BadInput, Refused};
+use crate::field;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::input::effects::compare;
 use crate::net::copy_received::MOST_PLAYERS;
+use crate::net::types::NetPlayerBlock;
 use crate::net::{APPLY, COPY_RECEIVED, PLAYERS, Part, RECEIVED, RECEIVED_LEN, a, dispatch_net};
 use crate::system::api_stand_ins::copy_with;
 use std::sync::atomic::AtomicUsize;
@@ -52,7 +54,7 @@ pub fn apply_received_with(
     part(COPY_RECEIVED, r)?;
     r.ebp = 0;
     loop {
-        r.esi = received + RECEIVED_LEN * r.ebp + 0x4040;
+        r.esi = received + RECEIVED_LEN * r.ebp + field!(NetPlayerBlock, copied_count);
         r.edx = unsafe { (r.esi as *const u32).read_unaligned() };
         if r.edx != 0 {
             r.esi += 4;
@@ -119,7 +121,7 @@ fn self_test() -> (usize, usize) {
                     m.add(k).write_volatile((k as u32).wrapping_mul(0x2F) as u8);
                 }
                 for p in 0..n {
-                    let at = base + RECEIVED_LEN * p + 0x4040;
+                    let at = base + RECEIVED_LEN * p + field!(NetPlayerBlock, copied_count);
                     ((at) as *mut u32).write_volatile((messages + p) % 4);
                 }
                 (count as *mut u32).write_volatile(n);

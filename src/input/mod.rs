@@ -60,6 +60,7 @@ pub mod stop_effects;
 pub mod take_key;
 pub mod take_mouse;
 pub mod take_mouse_clicks;
+pub mod types;
 pub mod unpack_mouse;
 pub mod update;
 pub mod update_car_effects;

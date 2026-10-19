@@ -21,8 +21,10 @@
 //! axis choices by lot, acquired or not, with and without a device.
 
 use crate::errors::Refused;
+use crate::field;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, rva, shadow};
 use crate::input::devices::{RECORD_LEN, STATE_LEN, STATE_RVA, at, com_call, put, test_record};
+use crate::input::types::InputDevice;
 use crate::service::harness::{Region, capture, restore};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
@@ -60,8 +62,8 @@ fn positive(v: u32) -> u32 {
 /// The Rust version (see the header): the registers it leaves (`popa`'s: the entry's).
 pub unsafe fn poll_device(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let record = entry.esi;
-    let device = at(record, 4);
-    if at(record, 0x24) != 1 || device == 0 {
+    let device = at(record, field!(InputDevice, device));
+    if at(record, field!(InputDevice, acquired)) != 1 || device == 0 {
         return Ok(*entry);
     }
     let mut r = Regs {
@@ -87,7 +89,7 @@ pub unsafe fn poll_device(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         record += STATE_LEN as u32;
     }
     let (x, mut y, mut z);
-    if at(record, 8) <= 2 {
+    if at(record, field!(InputDevice, kind)) <= 2 {
         let (v, n) = selected(record, 0x1D);
         x = if n { v.wrapping_neg() } else { v };
         let (v, n) = selected(record, 0x1C);
@@ -105,16 +107,16 @@ pub unsafe fn poll_device(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         z = if n { v.wrapping_add(0x100) } else { v };
     }
     let (y, z) = (positive(y), positive(z));
-    put(record, 0x2C, x);
-    put(record, 0x30, y);
-    put(record, 0x34, z);
+    put(record, field!(InputDevice, axes), x);
+    put(record, field!(InputDevice, axes) + 4, y);
+    put(record, field!(InputDevice, axes) + 8, z);
     let mut buttons = 0u32;
     for k in 0..32usize {
         if unsafe { game_read::<u8>(STATE_RVA + 0x30 + k) } & 0x80 != 0 {
             buttons |= 1 << k;
         }
     }
-    put(record, 0x38, buttons);
+    put(record, field!(InputDevice, buttons), buttons);
     Ok(*entry)
 }
 

@@ -12,8 +12,10 @@
 //! lot and at each case, with and without a device, each hat kind.
 
 use crate::errors::Refused;
+use crate::field;
 use crate::framework::{EAX, RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva};
 use crate::input::devices::{STATE_LEN, STATE_RVA, at, state_byte, test_record};
+use crate::input::types::InputDevice;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
 use std::sync::atomic::AtomicUsize;
@@ -32,7 +34,9 @@ hook_asm!(
 
 /// The Rust version (see the header).
 pub fn hat_direction(record: u32) -> u32 {
-    if at(record, 4) == 0 || at(record, 0x418) == 0 {
+    if at(record, field!(InputDevice, device)) == 0
+        || at(record, field!(InputDevice, hat_kind)) == 0
+    {
         return 0xE00;
     }
     for (button, code) in [(0x35, 0x100), (0x36, 0x200), (0x30, 0x300), (0x31, 0x400)] {

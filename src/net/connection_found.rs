@@ -17,12 +17,14 @@
 //! Rust version: each way out.
 
 use crate::errors::Refused;
+use crate::field;
 use crate::framework::{RawHook, Regs, SelfTest, ZERO_FLAG, rva};
 use crate::net::lobby::{
     ALLOCATE, CONNECTIONS, COPY_PRINTABLE, LOG_L2, LOG_L2_NL, NET_MEMORY, NOTICE_KIND, Part,
     SAME_GUID, Saved, a, answer, dispatch_callback, dword, g, gb, log_text, movsb, p, pb, region,
     run_callback,
 };
+use crate::net::types::NetConnection;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -90,9 +92,9 @@ pub fn connection_found(args: &[u32], part: Part) -> Result<u32, Refused> {
     };
     part(CONNECTION_ENTRY, &mut e)?;
     let record = e.eax;
-    unsafe { ((record + 0x50) as *mut u32).write_unaligned(memory) };
+    unsafe { ((record + field!(NetConnection, data)) as *mut u32).write_unaligned(memory) };
     movsb(memory, data, size);
-    movsb(record + 0x40, guid, 0x10);
+    movsb(record + field!(NetConnection, service_provider), guid, 0x10);
     let mut c = Regs {
         eax: short,
         ebx: record,

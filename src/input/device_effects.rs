@@ -16,8 +16,10 @@
 //! the test's whose effects' functions are a noting stand-in of the test's.
 
 use crate::errors::{BadInput, Refused};
+use crate::field;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_read, hook_asm, rva, shadow};
 use crate::input::devices::{RECORD_LEN, at, put, test_record};
+use crate::input::types::{ForceEffect, InputDevice};
 use crate::service::harness::{Region, at as at_rva, capture, restore};
 use std::sync::Mutex;
 use std::sync::atomic::AtomicUsize;
@@ -44,7 +46,7 @@ pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 /// The controller entry's dword at `offset` for the record's controller, or the refusal.
 pub fn controller(record: u32, offset: usize) -> Result<u32, Refused> {
-    let n = at(record, 0);
+    let n = at(record, field!(InputDevice, controller));
     if n >= CONTROLLERS {
         return Err(BadInput("a controller number past the table's 16").into());
     }
@@ -54,7 +56,9 @@ pub fn controller(record: u32, offset: usize) -> Result<u32, Refused> {
 /// The Rust version (see the header): the registers it leaves (`popa`'s: the entry's).
 pub unsafe fn device_effects(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let record = entry.esi;
-    if at(record, 0x28) != 1 || at(record, 4) == 0 {
+    if at(record, field!(InputDevice, effects_on)) != 1
+        || at(record, field!(InputDevice, device)) == 0
+    {
         return Ok(*entry);
     }
     if controller(record, 0x1C)? != 1 {
@@ -62,11 +66,11 @@ pub unsafe fn device_effects(entry: &Regs, part: Part) -> Result<Regs, Refused> 
     }
     for k in 0..6 {
         let effect = record + EFFECTS + EFFECT_LEN * k;
-        if at(effect, 0x30) == 0 {
+        if at(effect, field!(ForceEffect, object)) == 0 {
             continue;
         }
-        let change = at(effect, 0x2C);
-        put(effect, 0x2C, 0);
+        let change = at(effect, field!(ForceEffect, pending));
+        put(effect, field!(ForceEffect, pending), 0);
         if change == 0 {
             continue;
         }

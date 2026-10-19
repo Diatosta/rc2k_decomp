@@ -16,19 +16,19 @@ pub const DIRECT_INPUT_RVA: usize = rva(0x4F6904); // dword_4F6904: the IDirectI
 pub const NEW_DEVICE_RVA: usize = rva(0x4F6910); // dword_4F6910: a device being made
 pub const NEW_DEVICE2_RVA: usize = rva(0x4F6914); // dword_4F6914: its IDirectInputDevice2A
 pub const CAPS_RVA: usize = rva(0x4F6A78); // dword_4F6A78: a DIDEVCAPS (0x2C bytes)
-pub const CAPS_LEN: usize = 0x2C;
+pub const CAPS_LEN: usize = std::mem::size_of::<crate::input::types::DiDevCaps>();
 pub const DWORD_PROP_RVA: usize = rva(0x4F6AA4); // dword_4F6AA4: a DIPROPDWORD (0x14)
 pub const RANGE_PROP_RVA: usize = rva(0x4F6AB8); // dword_4F6AB8: a DIPROPRANGE (0x18)
 pub const CONTROLLER_COUNT_RVA: usize = rva(0x4F78E0); // g_controllerCount
 pub const CONTROLLERS_RVA: usize = rva(0x4F78E4); // g_controllers: 16 of 0x50 bytes
-pub const CONTROLLER_LEN: u32 = 0x50;
+pub const CONTROLLER_LEN: u32 = std::mem::size_of::<crate::input::types::Controller>() as u32;
 pub const CONTROLLERS: u32 = 16;
 pub const HWND_RVA: usize = rva(0x5184A4); // hWnd
 pub const IID_DEVICE2_RVA: usize = rva(0x4F7E18); // IID_IDirectInputDevice2A
 pub const JOYSTICK_FORMAT_RVA: usize = rva(0x4D7220); // c_dfDIJoystick
-/// A record's six effects: from +0x3C, 0xA4 bytes each.
-pub const EFFECTS_AT: u32 = 0x3C;
-pub const EFFECT_LEN: u32 = 0xA4;
+/// A record's six effects: where they start, and each one's size.
+pub const EFFECTS_AT: u32 = crate::field!(crate::input::types::InputDevice, effects);
+pub const EFFECT_LEN: u32 = std::mem::size_of::<crate::input::types::ForceEffect>() as u32;
 
 /// DirectInput's methods, by their byte offsets in the tables.
 pub mod slot {
@@ -76,8 +76,13 @@ pub fn method(object: u32, slot: u32, args: &[u32]) -> u32 {
 /// The controller's entry for a record (`g_controllers` + 0x50 its number), unchecked as
 /// the original (`imul edi, [esi], 50h`).
 pub fn entry_of(record: u32) -> u32 {
-    a(CONTROLLERS_RVA)
-        .wrapping_add(crate::input::devices::at(record, 0).wrapping_mul(CONTROLLER_LEN))
+    a(CONTROLLERS_RVA).wrapping_add(
+        crate::input::devices::at(
+            record,
+            crate::field!(crate::input::types::InputDevice, controller),
+        )
+        .wrapping_mul(CONTROLLER_LEN),
+    )
 }
 
 /// The game's fatal error `code` with no message.

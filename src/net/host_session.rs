@@ -16,6 +16,7 @@
 //! posting, each failure, done.
 
 use crate::errors::Refused;
+use crate::field;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::net::dplay::{OPEN, call};
 use crate::net::find_sessions::zeroed_description;
@@ -26,6 +27,7 @@ use crate::net::lobby::{
     a, answer, cmp_flags, com_answer, dispatch_lobby, dword, fill, g, game, log_text, movsb, p,
     region, run_both, test_eax,
 };
+use crate::net::types::DpSessionDesc;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -88,7 +90,11 @@ pub fn host_session(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     movsb(a(SESSION_DESC) + 0x18, a(APP_GUID), 0x10);
     p(SESSION_DESC + 0x28, g(MOST_PLAYERS));
     p(SESSION_DESC + 0x30, a(MACHINE_NAME));
-    movsb(a(SESSION_DESC) + 0x40, a(SESSION_PASSWORD), 0x10);
+    movsb(
+        a(SESSION_DESC) + field!(DpSessionDesc, user),
+        a(SESSION_PASSWORD),
+        0x10,
+    );
     finish(
         &mut r,
         OPEN_CREATE,

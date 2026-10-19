@@ -18,23 +18,25 @@
 //! made in Rust (`input::di_harness`): an effect with no object and one with a constant
 //! force's, `set_effect_parameters` with several flags.
 
+use crate::field;
 use crate::framework::{Regs, SelfTest};
 use crate::input::devices::{at, put};
-use crate::input::di_harness::{compare, method, regs_text, slot};
+use crate::input::di_harness::{EFFECT_LEN, compare, method, regs_text, slot};
+use crate::input::types::ForceEffect;
 
 /// `release_effect`'s Rust version.
 pub fn release_effect(effect: u32) {
-    let object = at(effect, 0x30);
+    let object = at(effect, field!(ForceEffect, object));
     if object != 0 {
         method(object, slot::STOP, &[]);
         method(object, slot::RELEASE, &[]);
-        put(effect, 0x30, 0);
+        put(effect, field!(ForceEffect, object), 0);
     }
 }
 
 /// `start_effect`'s Rust version.
 pub fn start_effect(effect: u32) {
-    let object = at(effect, 0x30);
+    let object = at(effect, field!(ForceEffect, object));
     if object != 0 {
         method(object, slot::DOWNLOAD, &[]);
         method(object, slot::START, &[1, 0]);
@@ -43,19 +45,19 @@ pub fn start_effect(effect: u32) {
 
 /// `set_effect_parameters`'s Rust version.
 pub fn set_effect_parameters(effect: u32, flags: u32) {
-    let object = at(effect, 0x30);
+    let object = at(effect, field!(ForceEffect, object));
     if object != 0 {
         method(
             object,
             slot::SET_PARAMETERS,
-            &[effect.wrapping_add(0x34), flags],
+            &[effect.wrapping_add(field!(ForceEffect, effect)), flags],
         );
     }
 }
 
 /// `stop_effect`'s Rust version.
 pub fn stop_effect(effect: u32) {
-    let object = at(effect, 0x30);
+    let object = at(effect, field!(ForceEffect, object));
     if object != 0 {
         method(object, slot::STOP, &[]);
     }
@@ -74,24 +76,35 @@ fn rust_of(which: u32, r: &Regs) {
 /// An effect of the test's at `entry` (0xA4 bytes): a constant force's parameters
 /// (`input::make_effect`'s), and an object made for it on the wheel (`object`).
 pub fn test_effect(entry: u32, object: bool) {
-    unsafe { std::ptr::write_bytes(entry as *mut u8, 0x5A, 0xA4) };
-    put(entry, 4, 1);
-    put(entry, 0xC, 1);
-    put(entry, 0x30, 0);
+    unsafe { std::ptr::write_bytes(entry as *mut u8, 0x5A, EFFECT_LEN as usize) };
+    put(entry, field!(ForceEffect, kind), 1);
+    put(entry, field!(ForceEffect, found), 1);
+    put(entry, field!(ForceEffect, object), 0);
     let constant = crate::input::di_objects::guid(
         0x1354_1C20,
         0x8E33,
         0x11D0,
         [0x9A, 0xD0, 0x00, 0xA0, 0xC9, 0xA0, 0x6E, 0x35],
     );
-    unsafe { std::ptr::copy_nonoverlapping(constant.as_ptr(), (entry + 0x10) as *mut u8, 16) };
+    unsafe {
+        std::ptr::copy_nonoverlapping(
+            constant.as_ptr(),
+            (entry + field!(ForceEffect, guid)) as *mut u8,
+            16,
+        )
+    };
     crate::input::make_effect::fill_parameters(entry);
     if object {
         let device = crate::input::di_objects::test_device(1);
         method(
             device,
             slot::CREATE_EFFECT,
-            &[entry + 0x10, entry + 0x34, entry + 0x30, 0],
+            &[
+                entry + field!(ForceEffect, guid),
+                entry + field!(ForceEffect, effect),
+                entry + field!(ForceEffect, object),
+                0,
+            ],
         );
     }
 }
@@ -108,7 +121,7 @@ fn test(
         crate::input::di_objects::test_devices(),
         Default::default(),
     );
-    let mut entry = vec![0u8; 0xA4];
+    let mut entry = vec![0u8; EFFECT_LEN as usize];
     let e = entry.as_mut_ptr() as u32;
     let flags: &[u32] = if which == 2 {
         &[0x1, 0x4, 0x100, 0x2000_0100, 0x1FF]
@@ -126,7 +139,7 @@ fn test(
                 &mut t,
                 &format!("object {object}, flags {eax:#x}"),
                 &world,
-                &[(e, 0xA4)],
+                &[(e, EFFECT_LEN as usize)],
                 &|| test_effect(e, object),
                 &mut || {
                     let mut r = entry_regs;

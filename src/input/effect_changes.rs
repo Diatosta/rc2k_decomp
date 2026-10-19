@@ -32,7 +32,9 @@
 //! go to stand-ins, against the Rust version, each change, values of both signs.
 
 use crate::errors::{BadInput, Refused};
+use crate::field;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, rva};
+use crate::input::types::{ForceEffect, InputDevice};
 use crate::menu::parts::{Part, copy, dispatch_parted, run_both, test_part};
 
 const START: usize = 0x409AEE; // sub_409AEE
@@ -71,34 +73,38 @@ pub unsafe fn effect_change(entry: &Regs, number: u32, part: Part) -> Result<Reg
     let e = entry.edi;
     let (ecx, edx) = (entry.ecx, entry.edx);
     match (entry.eax, number) {
-        (1, 1) => put(e, 0x68, 0),
+        (1, 1) => put(e, field!(ForceEffect, type_specific), 0),
         (1, 2 | 3 | 5) => {
             let long = [0, 0, 500_000, 250_000, 0, 200_000][number as usize];
-            put(e, 0x3C, long);
+            put(e, field!(ForceEffect, effect.duration), long);
             if number == 5 {
-                put(e, 0x80, 4);
+                put(e, field!(ForceEffect, axes), 4);
             }
             if number != 3 {
-                put(e, 0x5C, e + 0x90);
-                put(e, 0xA0, long);
+                put(
+                    e,
+                    field!(ForceEffect, effect.envelope),
+                    e + field!(ForceEffect, envelope),
+                );
+                put(e, field!(ForceEffect, envelope.fade_time), long);
             }
             if number == 2 {
-                put(e, 0x74, 100_000);
+                put(e, field!(ForceEffect, type_specific) + 12, 100_000);
             }
-            put(e, 0x68, 0);
-            if number == 5 && get(entry.esi + 0x20) > 1 {
-                put(e, 0xC, 0);
+            put(e, field!(ForceEffect, type_specific), 0);
+            if number == 5 && get(entry.esi + field!(InputDevice, sensitivity)) > 1 {
+                put(e, field!(ForceEffect, found), 0);
             }
         }
         (1, 4) => {
-            put(e, 0x6C, 0);
-            put(e, 0x70, 0);
+            put(e, field!(ForceEffect, type_specific) + 4, 0);
+            put(e, field!(ForceEffect, type_specific) + 8, 0);
         }
         (2, 0 | 1 | 4) => part(0, &mut r)?,
         (3, 0) => {
-            put(e, 0x6C, value(ecx));
-            put(e, 0x70, value(ecx));
-            put(e, 0x68, value(edx));
+            put(e, field!(ForceEffect, type_specific) + 4, value(ecx));
+            put(e, field!(ForceEffect, type_specific) + 8, value(ecx));
+            put(e, field!(ForceEffect, type_specific), value(edx));
             r.eax = 0x100;
             part(1, &mut r)?;
         }
@@ -112,8 +118,12 @@ pub unsafe fn effect_change(entry: &Regs, number: u32, part: Part) -> Result<Reg
             if second == 0 {
                 return Err(BadInput("a blend of 0 (the original's idiv traps)").into());
             }
-            put(e, 0x68, value(first));
-            put(e, 0x74, (10_000_000i32 / second as i32) as u32);
+            put(e, field!(ForceEffect, type_specific), value(first));
+            put(
+                e,
+                field!(ForceEffect, type_specific) + 12,
+                (10_000_000i32 / second as i32) as u32,
+            );
             // The registers at the call: the row, the divisor and the `idiv`'s remainder.
             r.ebx = row;
             r.ecx = second;
@@ -122,13 +132,13 @@ pub unsafe fn effect_change(entry: &Regs, number: u32, part: Part) -> Result<Reg
             part(1, &mut r)?;
         }
         (3, 2 | 3 | 5) => {
-            put(e, 0x68, value(ecx));
+            put(e, field!(ForceEffect, type_specific), value(ecx));
             r.eax = 0x2000_0100;
             part(1, &mut r)?;
         }
         (3, 4) => {
-            put(e, 0x6C, value(ecx));
-            put(e, 0x70, value(ecx));
+            put(e, field!(ForceEffect, type_specific) + 4, value(ecx));
+            put(e, field!(ForceEffect, type_specific) + 8, value(ecx));
             r.eax = 0x100;
             part(1, &mut r)?;
         }
@@ -172,7 +182,7 @@ pub fn test_effect(hook: &RawHook, e: Effect) -> (usize, usize) {
         Ok(c) => c,
         Err(why) => return t.skip(why),
     };
-    let mut effect = [0u8; 0xA4];
+    let mut effect = [0u8; std::mem::size_of::<ForceEffect>()];
     let mut record = [0u8; 0x40];
     let (at_effect, at_record) = (effect.as_mut_ptr() as u32, record.as_mut_ptr() as u32);
     for change in 0..=5u32 {
@@ -197,13 +207,17 @@ pub fn test_effect(hook: &RawHook, e: Effect) -> (usize, usize) {
                 &mut t,
                 &format!("change {change}, ecx {ecx:#x}, edx {edx:#x}, device kind {kind}"),
                 &copy,
-                &[(at_effect, 0xA4), (at_record, 0x40)],
+                &[
+                    (at_effect, std::mem::size_of::<ForceEffect>()),
+                    (at_record, 0x40),
+                ],
                 &|| unsafe {
-                    for k in 0..0xA4u32 {
+                    for k in 0..std::mem::size_of::<ForceEffect>() as u32 {
                         ((at_effect + k) as *mut u8).write((k * 7 + change) as u8);
                     }
                     std::ptr::write_bytes(at_record as *mut u8, 0x33, 0x40);
-                    ((at_record + 0x20) as *mut u32).write_unaligned(kind);
+                    ((at_record + field!(InputDevice, sensitivity)) as *mut u32)
+                        .write_unaligned(kind);
                 },
                 Regs {
                     eax: change,

@@ -13,11 +13,13 @@
 //! and a copy of the first device's record whose effects were made (`input::begin_force`):
 //! a controller with no force feedback, the wheel.
 
+use crate::field;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva, shadow};
 use crate::input::devices::{RECORD_LEN, RECORDS, at, put};
 use crate::input::di_harness::{
     EFFECT_LEN, EFFECTS_AT, compare, entry_of, method, regs_text, shared_regions, slot,
 };
+use crate::input::types::{Controller, ForceEffect, InputDevice};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -34,15 +36,19 @@ hook_asm!(
 
 /// The Rust version (see the header).
 pub fn end_force(record: u32) {
-    if at(entry_of(record), 0x1C) != 1 {
+    if at(entry_of(record), field!(Controller, force_feedback)) != 1 {
         return;
     }
     let prop = crate::input::begin_force::dword_property(1);
-    method(at(record, 4), slot::SET_PROPERTY, &[9, prop]);
+    method(
+        at(record, field!(InputDevice, device)),
+        slot::SET_PROPERTY,
+        &[9, prop],
+    );
     for n in 0..6 {
         let e = record.wrapping_add(EFFECTS_AT + n * EFFECT_LEN);
         crate::input::effect_objects::release_effect(e);
-        put(e, 0xC, 0);
+        put(e, field!(ForceEffect, found), 0);
     }
 }
 

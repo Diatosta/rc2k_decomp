@@ -70,9 +70,13 @@ pub unsafe fn call(var: usize, offset: u32, args: &[u32]) -> u32 {
     unsafe { method(g(var), offset, args) }
 }
 
-/// `CoCreateInstance(class, 0, CLSCTX_INPROC_SERVER, interface, out)`.
+/// `CoCreateInstance(class, 0, CLSCTX_INPROC_SERVER, interface, out)`; in the standalone
+/// program DirectPlay's objects made in Rust (`net::dp_objects`).
 pub unsafe fn create_instance(class: u32, interface: u32, out: u32) -> i32 {
     use windows_sys::Win32::System::Com::{CLSCTX_INPROC_SERVER, CoCreateInstance};
+    if crate::framework::standalone() {
+        return unsafe { crate::net::dp_objects::create(class, interface, out) };
+    }
     unsafe {
         CoCreateInstance(
             class as *const _,

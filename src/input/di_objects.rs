@@ -23,7 +23,11 @@
 //! The objects live as long as their references (`AddRef` / `Release`); every method answers
 //! `DI_OK` (0) or a `DIERR_` the way DirectInput would.
 
+use crate::input::types::{
+    DiDevCaps, DiDeviceInstance, DiDeviceObjectInstance, DiEffectInfo, DiJoyState,
+};
 use std::collections::HashMap;
+use std::mem::size_of;
 use std::sync::Mutex;
 
 // ---- what a backend gives and takes ----
@@ -388,19 +392,24 @@ unsafe extern "system" fn release(this: u32) -> u32 {
 // IDirectInputA: 0 QueryInterface, 1 AddRef, 2 Release, 3 CreateDevice, 4 EnumDevices,
 // 5 GetDeviceStatus, 6 RunControlPanel, 7 Initialize
 
-/// The `DIDEVICEINSTANCEA`'s bytes for a device.
-pub fn instance_bytes(d: &DeviceInfo) -> Vec<u8> {
-    let mut b = vec![0u8; 0x244];
-    b[0..4].copy_from_slice(&0x244u32.to_le_bytes());
-    b[4..0x14].copy_from_slice(&d.instance);
-    b[0x14..0x24].copy_from_slice(&d.product);
-    // DIDEVTYPE_JOYSTICK, a generic one (subtype 1)
-    b[0x24..0x28].copy_from_slice(&0x104u32.to_le_bytes());
-    let name = d.name.as_bytes();
-    let n = name.len().min(259);
-    b[0x28..0x28 + n].copy_from_slice(&name[..n]);
-    b[0x12C..0x12C + n].copy_from_slice(&name[..n]);
-    b
+/// The `DIDEVICEINSTANCEA` of a device.
+pub fn device_instance(d: &DeviceInfo) -> DiDeviceInstance {
+    let mut name = [0u8; 260];
+    let bytes = d.name.as_bytes();
+    let n = bytes.len().min(259);
+    name[..n].copy_from_slice(&bytes[..n]);
+    DiDeviceInstance {
+        size: size_of::<DiDeviceInstance>() as u32,
+        instance: d.instance,
+        product: d.product,
+        // DIDEVTYPE_JOYSTICK, a generic one (subtype 1)
+        dev_type: 0x104,
+        instance_name: name,
+        product_name: name,
+        ff_driver: [0; 16],
+        usage_page: 0,
+        usage: 0,
+    }
 }
 
 unsafe extern "system" fn create_device(
@@ -456,8 +465,8 @@ unsafe extern "system" fn enum_devices(
     }
     let callback: EnumDevicesCallback = unsafe { std::mem::transmute(callback) };
     for d in &devices {
-        let bytes = instance_bytes(d);
-        if unsafe { callback(bytes.as_ptr() as u32, context) } == 0 {
+        let instance = device_instance(d);
+        if unsafe { callback(&instance as *const DiDeviceInstance as u32, context) } == 0 {
             break;
         }
     }
@@ -495,18 +504,24 @@ unsafe extern "system" fn get_capabilities(this: u32, caps: *mut u32) -> i32 {
         return DIERR_INVALIDPARAM;
     }
     unsafe {
-        // DIDEVCAPS: dwSize, dwFlags (attached 1, force feedback 0x100), dwDevType, dwAxes,
-        // dwButtons, dwPOVs, then the force feedback's figures
-        let size = caps.read_unaligned().min(0x2C) as usize / 4;
-        let mut v = [0u32; 11];
-        v[0] = caps.read_unaligned();
-        v[1] = 1 | if d.force { 0x100 } else { 0 };
-        v[2] = 0x104;
-        v[3] = d.axes.count_ones();
-        v[4] = d.buttons;
-        v[5] = d.hats;
-        for (n, &x) in v.iter().enumerate().take(size).skip(1) {
-            caps.add(n).write_unaligned(x);
+        let full = DiDevCaps {
+            size: caps.read_unaligned(),
+            flags: 1 | if d.force { 0x100 } else { 0 },
+            dev_type: 0x104,
+            axes: d.axes.count_ones(),
+            buttons: d.buttons,
+            hats: d.hats,
+            ff_sample_period: 0,
+            ff_min_time_resolution: 0,
+            firmware_revision: 0,
+            hardware_revision: 0,
+            ff_driver_version: 0,
+        };
+        // as much as the caller's size says, its size kept
+        let room = (caps.read_unaligned() as usize).min(size_of::<DiDevCaps>());
+        if room > 4 {
+            let from = (&full as *const DiDevCaps as *const u8).add(4);
+            std::ptr::copy_nonoverlapping(from, (caps as *mut u8).add(4), room - 4);
         }
     }
     DI_OK
@@ -531,15 +546,18 @@ unsafe extern "system" fn enum_objects(
         if d.axes & (1 << n) == 0 {
             continue;
         }
-        // DIDEVICEOBJECTINSTANCEA: dwSize, guidType, dwOfs (the axis's place in
-        // DIJOYSTATE), dwType (an absolute axis), dwFlags, tszName
-        let mut b = vec![0u8; 0x13C];
-        b[0..4].copy_from_slice(&0x13Cu32.to_le_bytes());
-        b[4..0x14].copy_from_slice(&axis_guid(n));
-        let place = [0u32, 4, 8, 0xC, 0x10, 0x14][n];
-        b[0x14..0x18].copy_from_slice(&place.to_le_bytes());
-        b[0x18..0x1C].copy_from_slice(&(2u32 | (n as u32) << 8).to_le_bytes());
-        if unsafe { callback(b.as_ptr() as u32, context) } == 0 {
+        let object = DiDeviceObjectInstance {
+            size: size_of::<DiDeviceObjectInstance>() as u32,
+            guid_type: axis_guid(n),
+            // the axis's place in DIJOYSTATE
+            offset: 4 * n as u32,
+            // an absolute axis, its number
+            kind: 2 | (n as u32) << 8,
+            flags: 0,
+            name: [0; 260],
+            rest: [0; 24],
+        };
+        if unsafe { callback(&object as *const DiDeviceObjectInstance as u32, context) } == 0 {
             break;
         }
     }
@@ -688,22 +706,19 @@ unsafe extern "system" fn get_device_state(this: u32, size: u32, out: *mut u8) -
         return DIERR_INVALIDPARAM;
     }
     let reading = backend(|b| b.read(device)).unwrap_or_default();
-    // DIJOYSTATE: lX, lY, lZ, lRx, lRy, lRz, rglSlider[2], rgdwPOV[4], rgbButtons[32]
-    let mut b = [0u8; 0x50];
-    for n in 0..6 {
-        b[4 * n..4 * n + 4].copy_from_slice(&scaled(reading.axes[n], &axes[n]).to_le_bytes());
-    }
-    for n in 0..4 {
-        b[0x20 + 4 * n..0x24 + 4 * n].copy_from_slice(&reading.hats[n].to_le_bytes());
-    }
-    for n in 0..32 {
-        b[0x30 + n] = if reading.buttons >> n & 1 != 0 {
-            0x80
-        } else {
-            0
-        };
-    }
-    unsafe { std::ptr::copy_nonoverlapping(b.as_ptr(), out, 0x50) };
+    let state = DiJoyState {
+        axes: std::array::from_fn(|n| scaled(reading.axes[n], &axes[n])),
+        sliders: [0; 2],
+        hats: reading.hats,
+        buttons: std::array::from_fn(|n| {
+            if reading.buttons >> n & 1 != 0 {
+                0x80
+            } else {
+                0
+            }
+        }),
+    };
+    unsafe { (out as *mut DiJoyState).write_unaligned(state) };
     DI_OK
 }
 
@@ -743,17 +758,19 @@ unsafe extern "system" fn enum_effects(this: u32, callback: usize, context: u32,
         if kind & 0xFF != 0 && kind & 0xFF != k.family() {
             continue;
         }
-        // DIEFFECTINFOA: dwSize, guid, dwEffType, dwStaticParams, dwDynamicParams, tszName
-        let mut b = vec![0u8; 0x124];
-        b[0..4].copy_from_slice(&0x124u32.to_le_bytes());
-        b[4..0x14].copy_from_slice(&k.guid());
-        b[0x14..0x18].copy_from_slice(&k.family().to_le_bytes());
-        // every parameter but the trigger's
-        b[0x18..0x1C].copy_from_slice(&0x1E7u32.to_le_bytes());
-        b[0x1C..0x20].copy_from_slice(&0x1E5u32.to_le_bytes());
-        let name = format!("{k:?}");
-        b[0x20..0x20 + name.len()].copy_from_slice(name.as_bytes());
-        if unsafe { callback(b.as_ptr() as u32, context) } == 0 {
+        let mut name = [0u8; 260];
+        let text = format!("{k:?}");
+        name[..text.len()].copy_from_slice(text.as_bytes());
+        let info = DiEffectInfo {
+            size: size_of::<DiEffectInfo>() as u32,
+            guid: k.guid(),
+            eff_type: k.family(),
+            // every parameter but the trigger's
+            static_params: 0x1E7,
+            dynamic_params: 0x1E5,
+            name,
+        };
+        if unsafe { callback(&info as *const DiEffectInfo as u32, context) } == 0 {
             break;
         }
     }

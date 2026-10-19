@@ -16,6 +16,7 @@
 //! records of a test table), against the Rust version.
 
 use crate::errors::Refused;
+use crate::field;
 use crate::framework::{RawHook, Regs, SelfTest, ZERO_FLAG, hook_asm, rva};
 use crate::net::choose_connection::{chosen, list_move};
 use crate::net::lobby::{
@@ -24,6 +25,7 @@ use crate::net::lobby::{
     SCREENSHOTS_ON, SESSIONS, Saved, TICK, a, answer, dispatch_lobby, dword, g, game, movsb, p,
     region, run_both,
 };
+use crate::net::types::NetSession;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -50,7 +52,7 @@ fn refresh(r: &mut Regs, part: Part) -> Result<bool, Refused> {
     if r.ebx != 0 {
         r.eax = g(CHOICE);
         part(SESSION_ENTRY, r)?;
-        r.esi = r.eax + 0x40;
+        r.esi = r.eax + field!(NetSession, instance);
         r.edi = a(JOINED);
         movsb(r.edi, r.esi, 0x10);
         r.esi += 0x10;
@@ -257,7 +259,9 @@ fn self_test() -> (usize, usize) {
                 let set = move |listed: bool| unsafe {
                     for n in 0..40u32 {
                         let id = if listed { n.wrapping_sub(shift) } else { n };
-                        ((tab + 0x68 * n + 0x40) as *mut [u32; 4]).write_unaligned([id, 0, 0, 0]);
+                        ((tab + crate::net::lobby::SESSION_LEN * n + field!(NetSession, instance))
+                            as *mut [u32; 4])
+                            .write_unaligned([id, 0, 0, 0]);
                     }
                 };
                 set(false);

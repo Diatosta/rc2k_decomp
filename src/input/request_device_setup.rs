@@ -13,9 +13,11 @@
 //! place, ebx 0 and not, put back.
 
 use crate::errors::BadInput;
+use crate::field;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
 use crate::input::devices::put;
 use crate::input::input_tick::COMMAND_RVA;
+use crate::input::types::InputDevice;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
 use std::sync::atomic::AtomicUsize;
@@ -63,13 +65,17 @@ pub unsafe fn request_device_setup(
     if record == 0 {
         return Err(BadInput("no first input device record"));
     }
-    put(record, 0, controller);
-    put(record, 0x20, sensitivity);
-    put(record, 8, if sensitivity == 0 { 2 } else { sensitivity });
-    put(record, 0x18, mode);
-    put(record, 0xC, 0);
-    put(record, 0x10, edx);
-    put(record, 0x14, ebp);
+    put(record, field!(InputDevice, controller), controller);
+    put(record, field!(InputDevice, sensitivity), sensitivity);
+    put(
+        record,
+        field!(InputDevice, kind),
+        if sensitivity == 0 { 2 } else { sensitivity },
+    );
+    put(record, field!(InputDevice, axis_code), mode);
+    put(record, field!(InputDevice, strength), 0);
+    put(record, field!(InputDevice, dead_zone), edx);
+    put(record, field!(InputDevice, end_zone), ebp);
     unsafe { game_write(COMMAND_RVA, 1u32) };
     Ok(())
 }
@@ -110,8 +116,8 @@ fn self_test() -> (usize, usize) {
                 std::ptr::write_bytes(pointer as *mut u8, 0xAA, WRITTEN + 8);
                 // No DirectInput device and not acquired, should the input thread act on the
                 // request before it is put back.
-                put(pointer, 4, 0);
-                put(pointer, 0x24, 0);
+                put(pointer, field!(InputDevice, device), 0);
+                put(pointer, field!(InputDevice, acquired), 0);
                 game_write(COMMAND_RVA, 0u32);
             },
             &[at(COMMAND_RVA), (pointer, WRITTEN + 8)],

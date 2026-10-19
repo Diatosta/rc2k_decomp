@@ -18,6 +18,7 @@
 //! against the Rust version: no object, failing, racing, found, not found.
 
 use crate::errors::{BadInput, Refused};
+use crate::field;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::net::dplay::{ENUM_PLAYERS, GET_PLAYER_DATA, SET_PLAYER_DATA, call};
 use crate::net::lobby::{
@@ -25,6 +26,7 @@ use crate::net::lobby::{
     TestObject, a, block, cmp_flags, com_answer, dispatch_lobby, dword, g, game, p, run_both,
     test_eax,
 };
+use crate::net::types::NetPlayerBlock;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -79,14 +81,20 @@ pub fn list_players(entry: &Regs, _: Part) -> Result<Regs, Refused> {
             r.eax = call(
                 DPLAY,
                 GET_PLAYER_DATA,
-                &[get(at + 0x20), at + 0x24, a(DATA_SIZE), 0],
+                &[
+                    get(at + field!(NetPlayerBlock, id)),
+                    at + field!(NetPlayerBlock, record),
+                    a(DATA_SIZE),
+                    0,
+                ],
             );
         }
         let mut pass = players.wrapping_sub(1) as i32;
         while pass > 0 {
             for k in 0..pass as u32 {
                 let x = block(k);
-                if get(x + 0x20) > get(x + BLOCK + 0x20) {
+                if get(x + field!(NetPlayerBlock, id)) > get(x + BLOCK + field!(NetPlayerBlock, id))
+                {
                     for n in 0..BLOCK / 4 {
                         let (one, two) = (x + 4 * n, x + BLOCK + 4 * n);
                         let v = get(one);
@@ -101,7 +109,7 @@ pub fn list_players(entry: &Regs, _: Part) -> Result<Regs, Refused> {
     r.eax = g(PLAYER_ID);
     let mut n = 0u32;
     loop {
-        if r.eax == get(block(n) + 0x20) {
+        if r.eax == get(block(n) + field!(NetPlayerBlock, id)) {
             p(PLAYER, n);
             test_eax(&mut r);
             return Ok(left(&r));
@@ -178,7 +186,8 @@ fn self_test() -> (usize, usize) {
                         for k in 0..0x40u32 {
                             ((block(n) + 4 * k) as *mut u32).write(n << 8 | k);
                         }
-                        ((block(n) + 0x20) as *mut u32).write(ids[n as usize]);
+                        ((block(n) + field!(NetPlayerBlock, id)) as *mut u32)
+                            .write(ids[n as usize]);
                     }
                 }
                 com_answer(Box::new(move |place, args| {

@@ -14,9 +14,11 @@
 //! turn, as `EnumEffects` lists them, on a copy of the first device's record whose effects
 //! have found nothing, their wanted GUID, or another one.
 
+use crate::field;
 use crate::framework::{RawHook, SelfTest, game_addr, rva};
 use crate::input::devices::{RECORD_LEN, RECORDS, at, put};
 use crate::input::di_harness::{EFFECT_LEN, EFFECTS_AT, call_stdcall2, compare, dispatch_callback};
+use crate::input::types::{DiEffectInfo, ForceEffect};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -43,48 +45,64 @@ pub static HOOK: RawHook = RawHook::new(
 
 /// The Rust version: eax.
 pub fn effect_found(info: u32, record: u32) -> u32 {
-    let kind = at(info, 0x14) & 0xFF;
+    let kind = at(info, field!(DiEffectInfo, eff_type)) & 0xFF;
     for n in 0..6 {
         let e = record.wrapping_add(EFFECTS_AT + n * EFFECT_LEN);
-        if kind != at(e, 4) {
+        if kind != at(e, field!(ForceEffect, kind)) {
             continue;
         }
-        if at(e, 0xC) == 1 && crate::system::same_guid::same_guid(e.wrapping_add(0x10), at(e, 8)) {
+        let guid = e.wrapping_add(field!(ForceEffect, guid));
+        if at(e, field!(ForceEffect, found)) == 1
+            && crate::system::same_guid::same_guid(guid, at(e, field!(ForceEffect, wanted)))
+        {
             continue;
         }
-        put(e, 0xC, 1);
-        put(e, 0x20, at(info, 0x14));
-        put(e, 0x24, at(info, 0x18));
-        put(e, 0x28, at(info, 0x1C));
-        unsafe { std::ptr::copy((info + 4) as *const u8, e.wrapping_add(0x10) as *mut u8, 16) };
+        put(e, field!(ForceEffect, found), 1);
+        put(
+            e,
+            field!(ForceEffect, eff_type),
+            at(info, field!(DiEffectInfo, eff_type)),
+        );
+        put(
+            e,
+            field!(ForceEffect, static_params),
+            at(info, field!(DiEffectInfo, static_params)),
+        );
+        put(
+            e,
+            field!(ForceEffect, dynamic_params),
+            at(info, field!(DiEffectInfo, dynamic_params)),
+        );
+        let from = info + field!(DiEffectInfo, guid);
+        unsafe { std::ptr::copy(from as *const u8, guid as *mut u8, 16) };
     }
     1
 }
 
 /// The eleven standard effects' `DIEFFECTINFOA`s, as `EnumEffects` gives them.
-pub fn test_infos() -> Vec<Vec<u8>> {
+pub fn test_infos() -> Vec<DiEffectInfo> {
     (0..11u32)
         .map(|n| {
-            let mut b = vec![0u8; 0x124];
-            b[0..4].copy_from_slice(&0x124u32.to_le_bytes());
-            let g = crate::input::di_objects::guid(
-                0x1354_1C20 + n,
-                0x8E33,
-                0x11D0,
-                [0x9A, 0xD0, 0x00, 0xA0, 0xC9, 0xA0, 0x6E, 0x35],
-            );
-            b[4..0x14].copy_from_slice(&g);
             let family: u32 = match n {
                 0 => 1,
                 1 => 2,
                 2..=6 => 3,
                 _ => 4,
             };
-            // the type with a flag above its low byte, and parameters of the test's
-            b[0x14..0x18].copy_from_slice(&(family | 0x200).to_le_bytes());
-            b[0x18..0x1C].copy_from_slice(&(0x100 + n).to_le_bytes());
-            b[0x1C..0x20].copy_from_slice(&(0x200 + n).to_le_bytes());
-            b
+            DiEffectInfo {
+                size: std::mem::size_of::<DiEffectInfo>() as u32,
+                guid: crate::input::di_objects::guid(
+                    0x1354_1C20 + n,
+                    0x8E33,
+                    0x11D0,
+                    [0x9A, 0xD0, 0x00, 0xA0, 0xC9, 0xA0, 0x6E, 0x35],
+                ),
+                // the type with a flag above its low byte, and parameters of the test's
+                eff_type: family | 0x200,
+                static_params: 0x100 + n,
+                dynamic_params: 0x200 + n,
+                name: [0; 260],
+            }
         })
         .collect()
 }
@@ -113,22 +131,28 @@ fn self_test() -> (usize, usize) {
             unsafe { std::ptr::copy_nonoverlapping(start.as_ptr(), rec as *mut u8, RECORD_LEN) };
             for (n, &f) in found.iter().enumerate() {
                 let e = rec + EFFECTS_AT + n as u32 * EFFECT_LEN;
-                put(e, 0xC, (f != 0) as u32);
-                let wanted = at(e, 8);
+                put(e, field!(ForceEffect, found), (f != 0) as u32);
+                let wanted = at(e, field!(ForceEffect, wanted));
                 let from = if f == 1 {
                     wanted
                 } else {
-                    infos[10].as_ptr() as u32 + 4
+                    infos[10].guid.as_ptr() as u32
                 };
                 if f != 0 {
-                    unsafe { std::ptr::copy(from as *const u8, (e + 0x10) as *mut u8, 16) };
+                    unsafe {
+                        std::ptr::copy(
+                            from as *const u8,
+                            (e + field!(ForceEffect, guid)) as *mut u8,
+                            16,
+                        )
+                    };
                 }
             }
         };
         let run = |f: &dyn Fn(u32, u32) -> u32| {
             infos
                 .iter()
-                .map(|i| format!("{}", f(i.as_ptr() as u32, rec)))
+                .map(|i| format!("{}", f(i as *const DiEffectInfo as u32, rec)))
                 .collect::<Vec<_>>()
                 .join(",")
         };

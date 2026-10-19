@@ -14,11 +14,13 @@
 //! (the records in a test table, the name copied), against the Rust version: each way out.
 
 use crate::errors::Refused;
+use crate::field;
 use crate::framework::{RawHook, Regs, SelfTest, rva};
 use crate::net::lobby::{
     COPY_PRINTABLE, LOG_HEX_L2, LOG_L2, LOG_NEWLINE_L2, Part, SESSIONS, Saved, a, answer,
     dispatch_callback, dword, g, log_text, movsb, p, run_callback,
 };
+use crate::net::types::{DpSessionDesc, NetSession};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -84,12 +86,22 @@ pub fn session_found(args: &[u32], part: Part) -> Result<u32, Refused> {
         ..e
     };
     part(COPY_PRINTABLE, &mut c)?;
-    movsb(record + 0x40, desc + 8, 0x10);
+    movsb(
+        record + field!(NetSession, instance),
+        desc + field!(DpSessionDesc, instance),
+        0x10,
+    );
     unsafe {
-        ((record + 0x50) as *mut u32).write_unaligned(get(desc + 0x28));
-        ((record + 0x54) as *mut u32).write_unaligned(get(desc + 0x2C));
+        ((record + field!(NetSession, max_players)) as *mut u32)
+            .write_unaligned(get(desc + field!(DpSessionDesc, max_players)));
+        ((record + field!(NetSession, players)) as *mut u32)
+            .write_unaligned(get(desc + field!(DpSessionDesc, current_players)));
     }
-    movsb(record + 0x58, desc + 0x40, 0x10);
+    movsb(
+        record + field!(NetSession, user),
+        desc + field!(DpSessionDesc, user),
+        0x10,
+    );
     Ok(1)
 }
 

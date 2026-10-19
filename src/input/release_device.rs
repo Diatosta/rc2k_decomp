@@ -15,6 +15,7 @@
 //! the test's with a device of the test's or none, the controller's entry 1 or not.
 
 use crate::errors::Refused;
+use crate::field;
 use crate::framework::{
     RawHook, Regs, SelfTest, call_game, game_addr, game_write, hook_asm, rva, shadow,
 };
@@ -22,6 +23,7 @@ use crate::input::clear_device_readings::clear_device_readings;
 use crate::input::device_effects::{CONTROLLERS, CONTROLLERS_RVA, controller};
 use crate::input::devices::{RECORD_LEN, at, com_call, put, test_record};
 use crate::input::poll_device::{NOTED, TestDevice};
+use crate::input::types::InputDevice;
 use crate::race::mud::copy;
 use crate::service::harness::{Region, at as at_rva, capture, restore};
 use std::sync::atomic::AtomicUsize;
@@ -44,7 +46,7 @@ pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 /// The Rust version (see the header): the registers it leaves (`popa`'s: the entry's).
 pub unsafe fn release_device(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let record = entry.esi;
-    let device = at(record, 4);
+    let device = at(record, field!(InputDevice, device));
     if device != 0 {
         let effects = controller(record, 0x1C)? == 1;
         let mut r = Regs {
@@ -54,17 +56,19 @@ pub unsafe fn release_device(entry: &Regs, part: Part) -> Result<Regs, Refused> 
         part(0, &mut r)?;
         if effects {
             let mut e = Regs {
-                edi: game_addr(CONTROLLERS_RVA) as u32 + 0x50 * at(record, 0),
+                edi: game_addr(CONTROLLERS_RVA) as u32
+                    + crate::input::di_harness::CONTROLLER_LEN
+                        * at(record, field!(InputDevice, controller)),
                 ..r
             };
             part(1, &mut e)?;
         }
         r.eax = device;
         part(2, &mut r)?;
-        put(record, 4, 0);
+        put(record, field!(InputDevice, device), 0);
     }
-    put(record, 0x24, 0);
-    put(record, 0x28, 0);
+    put(record, field!(InputDevice, acquired), 0);
+    put(record, field!(InputDevice, effects_on), 0);
     clear_device_readings(record);
     Ok(*entry)
 }

@@ -22,9 +22,11 @@
 //! (force feedback) and the joystick (none: `CreateEffect` fails).
 
 use crate::errors::Refused;
+use crate::field;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, hook_asm, rva, shadow};
 use crate::input::devices::{at, put};
-use crate::input::di_harness::{compare, method, regs_text, slot};
+use crate::input::di_harness::{EFFECT_LEN, compare, method, regs_text, slot};
+use crate::input::types::{ForceEffect as F, InputDevice};
 use std::sync::Mutex;
 use std::sync::atomic::AtomicUsize;
 
@@ -43,36 +45,52 @@ hook_asm!(
 /// The effect's `DIEFFECT` and parameters, as the original writes them (in its order).
 pub fn fill_parameters(e: u32) {
     let w = |offset: u32, v: u32| put(e, offset, v);
-    w(0x34, 0x34);
-    w(0x38, 0x12);
-    w(0x3C, u32::MAX);
-    w(0x40, 0);
-    w(0x44, 10000);
-    w(0x48, u32::MAX);
-    w(0x4C, 0);
-    w(0x50, 1);
-    w(0x54, e.wrapping_add(0x80));
-    w(0x80, 0);
-    w(0x84, 4);
-    w(0x58, e.wrapping_add(0x88));
-    w(0x88, 0);
-    w(0x5C, 0);
-    w(0x60, 0);
-    w(0x64, 0);
-    for offset in [0x90, 0x94, 0x98, 0x9C, 0xA0] {
-        w(offset, if offset == 0x90 { 0x14 } else { 0 });
+    w(field!(F, effect.size), 0x34);
+    w(field!(F, effect.flags), 0x12);
+    w(field!(F, effect.duration), u32::MAX);
+    w(field!(F, effect.sample_period), 0);
+    w(field!(F, effect.gain), 10000);
+    w(field!(F, effect.trigger_button), u32::MAX);
+    w(field!(F, effect.trigger_repeat_interval), 0);
+    w(field!(F, effect.axes_count), 1);
+    w(field!(F, effect.axes), e.wrapping_add(field!(F, axes)));
+    w(field!(F, axes), 0);
+    w(field!(F, axes) + 4, 4);
+    w(
+        field!(F, effect.directions),
+        e.wrapping_add(field!(F, directions)),
+    );
+    w(field!(F, directions), 0);
+    w(field!(F, effect.envelope), 0);
+    w(field!(F, effect.type_specific_size), 0);
+    w(field!(F, effect.type_specific), 0);
+    // an envelope of its size, all 0, not linked
+    w(field!(F, envelope.size), 0x14);
+    for offset in [
+        field!(F, envelope.attack_level),
+        field!(F, envelope.attack_time),
+        field!(F, envelope.fade_level),
+        field!(F, envelope.fade_time),
+    ] {
+        w(offset, 0);
     }
-    let params: &[u32] = match at(e, 4) {
+    let params: &[u32] = match at(e, field!(F, kind)) {
         1 => &[10000],
         2 => &[10000, 10000],
         3 => &[10000, 0, 0, 50000],
         4 => &[0, 10000, 10000, 10000, 10000, 0],
         _ => return,
     };
-    w(0x60, 4 * params.len() as u32);
-    w(0x64, e.wrapping_add(0x68));
+    w(
+        field!(F, effect.type_specific_size),
+        4 * params.len() as u32,
+    );
+    w(
+        field!(F, effect.type_specific),
+        e.wrapping_add(field!(F, type_specific)),
+    );
     for (n, &v) in params.iter().enumerate() {
-        w(0x68 + 4 * n as u32, v);
+        w(field!(F, type_specific) + 4 * n as u32, v);
     }
 }
 
@@ -82,20 +100,20 @@ pub type Part<'a> = &'a mut dyn FnMut(usize, &mut Regs) -> Result<(), Refused>;
 /// The Rust version (see the header).
 pub fn make_effect(entry: &Regs, part: Part) -> Result<(), Refused> {
     let e = entry.edi;
-    if at(e, 0x30) != 0 {
+    if at(e, field!(F, object)) != 0 {
         crate::input::effect_objects::release_effect(e);
     }
     fill_parameters(e);
     let mut r = Regs { eax: 1, ..*entry };
-    part(at(e, 0) as usize, &mut r)?;
-    if at(e, 0xC) == 1 {
+    part(at(e, field!(F, change)) as usize, &mut r)?;
+    if at(e, field!(F, found)) == 1 {
         method(
-            at(entry.esi, 4),
+            at(entry.esi, field!(InputDevice, device)),
             slot::CREATE_EFFECT,
             &[
-                e.wrapping_add(0x10),
-                e.wrapping_add(0x34),
-                e.wrapping_add(0x30),
+                e.wrapping_add(field!(F, guid)),
+                e.wrapping_add(field!(F, effect)),
+                e.wrapping_add(field!(F, object)),
                 0,
             ],
         );
@@ -153,7 +171,7 @@ fn self_test() -> (usize, usize) {
             for found in [1u32, 0] {
                 for before in [false, true] {
                     // the third effect: ecx 2
-                    let e = rec + 0x3C + 2 * 0xA4;
+                    let e = rec + field!(InputDevice, effects) + 2 * EFFECT_LEN;
                     let prepare = || {
                         unsafe {
                             std::ptr::copy_nonoverlapping(
@@ -163,10 +181,14 @@ fn self_test() -> (usize, usize) {
                             )
                         };
                         crate::input::effect_objects::test_effect(e, before);
-                        put(e, 0, stand_in);
-                        put(e, 4, kind);
-                        put(e, 0xC, found);
-                        put(rec, 4, crate::input::di_objects::test_device(device));
+                        put(e, field!(F, change), stand_in);
+                        put(e, field!(F, kind), kind);
+                        put(e, field!(F, found), found);
+                        put(
+                            rec,
+                            field!(InputDevice, device),
+                            crate::input::di_objects::test_device(device),
+                        );
                         take_noted();
                     };
                     let entry = Regs {

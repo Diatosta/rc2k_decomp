@@ -57,6 +57,8 @@ pub mod create_player;
 pub mod destroy_connection;
 pub mod destroy_player;
 pub mod disable_new_players;
+pub mod dp_objects;
+pub mod dp_session;
 pub mod dplay;
 pub mod dplay_send;
 pub mod draw_button;
@@ -137,6 +139,7 @@ pub mod store_received;
 pub mod system_message;
 pub mod take_messages;
 pub mod take_player_settings;
+pub mod types;
 pub mod unlock_received;
 
 pub static HOOKS: &[&dyn GameHook] = &[
@@ -260,7 +263,7 @@ pub const PLAYER: usize = 0x52A920;
 pub const PLAYERS: usize = 0x52AD98;
 /// byte_52AD9C: each player's received messages, 0x804C bytes a player.
 pub const RECEIVED: usize = 0x52AD9C;
-pub const RECEIVED_LEN: u32 = 0x804C;
+pub const RECEIVED_LEN: u32 = std::mem::size_of::<types::NetPlayerBlock>() as u32;
 /// dword_52AB6C: the mutex of the received messages; dword_52AB68: the receiving
 /// thread's event.
 pub const MUTEX: usize = 0x52AB6C;

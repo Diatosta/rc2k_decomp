@@ -19,12 +19,15 @@
 //! with strength 0 and 50.
 
 use crate::errors::Refused;
+use crate::field;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva, shadow};
 use crate::input::devices::{RECORD_LEN, RECORDS, at, put};
 use crate::input::di_harness::{
     DWORD_PROP_RVA, EFFECT_LEN, EFFECTS_AT, a, compare, entry_of, fatal, method, regs_text,
     shared_regions, slot,
 };
+use crate::input::types::{Controller, DiPropDword, DiPropHeader, InputDevice};
+use std::mem::size_of;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -47,25 +50,33 @@ const DIPROP_AUTOCENTER: u32 = 9;
 /// The `DIPROPDWORD` for the whole device with `data`: its address.
 pub fn dword_property(data: u32) -> u32 {
     let prop = a(DWORD_PROP_RVA);
-    put(prop, 0, 0x14);
-    put(prop, 4, 0x10);
-    put(prop, 8, 0);
-    put(prop, 0xC, 0);
-    put(prop, 0x10, data);
+    put(
+        prop,
+        field!(DiPropDword, header.size),
+        size_of::<DiPropDword>() as u32,
+    );
+    put(
+        prop,
+        field!(DiPropDword, header.header_size),
+        size_of::<DiPropHeader>() as u32,
+    );
+    put(prop, field!(DiPropDword, header.object), 0);
+    put(prop, field!(DiPropDword, header.how), 0);
+    put(prop, field!(DiPropDword, data), data);
     prop
 }
 
 /// The Rust version (see the header).
 pub fn begin_force(record: u32, part: crate::input::make_effect::Part) -> Result<(), Refused> {
     let entry = entry_of(record);
-    if at(entry, 0x1C) != 1 {
+    if at(entry, field!(Controller, force_feedback)) != 1 {
         return Ok(());
     }
     unsafe {
         crate::logfile::log_write::log_write(game_addr(USING_TEXT_RVA) as *const u8, true, 2)
     };
-    let device = at(record, 4);
-    if at(record, 0xC) == 0 {
+    let device = at(record, field!(InputDevice, device));
+    if at(record, field!(InputDevice, strength)) == 0 {
         method(
             device,
             slot::SET_PROPERTY,
@@ -81,7 +92,7 @@ pub fn begin_force(record: u32, part: crate::input::make_effect::Part) -> Result
     {
         return Err(fatal(0x8023_8421).into());
     }
-    let gain = dword_property(at(record, 0xC).wrapping_mul(100));
+    let gain = dword_property(at(record, field!(InputDevice, strength)).wrapping_mul(100));
     if method(device, slot::SET_PROPERTY, &[DIPROP_FFGAIN, gain]) != 0 {
         return Err(fatal(0x8023_8422).into());
     }
@@ -96,7 +107,7 @@ pub fn begin_force(record: u32, part: crate::input::make_effect::Part) -> Result
         };
         crate::input::make_effect::make_effect(&r, part)?;
     }
-    put(record, 0x28, 1);
+    put(record, field!(InputDevice, effects_on), 1);
     Ok(())
 }
 
@@ -115,10 +126,18 @@ extern "C" fn dispatch(r: &mut Regs) {
 /// record of `start` for it with the device and the strength given.
 pub fn test_controller(rec: u32, start: &[u8], device: usize, force: bool, strength: u32) {
     unsafe { std::ptr::copy_nonoverlapping(start.as_ptr(), rec as *mut u8, RECORD_LEN) };
-    put(rec, 0, 2);
-    put(entry_of(rec), 0x1C, force as u32);
-    put(rec, 4, crate::input::di_objects::test_device(device));
-    put(rec, 0xC, strength);
+    put(rec, field!(InputDevice, controller), 2);
+    put(
+        entry_of(rec),
+        field!(Controller, force_feedback),
+        force as u32,
+    );
+    put(
+        rec,
+        field!(InputDevice, device),
+        crate::input::di_objects::test_device(device),
+    );
+    put(rec, field!(InputDevice, strength), strength);
 }
 
 fn self_test() -> (usize, usize) {

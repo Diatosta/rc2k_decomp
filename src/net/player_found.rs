@@ -12,11 +12,13 @@
 //! copied), against the Rust version: 0, 5 and 8 listed.
 
 use crate::errors::Refused;
+use crate::field;
 use crate::framework::{RawHook, Regs, SelfTest, rva};
 use crate::net::lobby::{
     COPY_PRINTABLE, PLAYERS, Part, Saved, answer, block, dispatch_callback, dword, g, p,
     run_callback,
 };
+use crate::net::types::NetPlayerBlock;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -48,7 +50,7 @@ pub fn player_found(args: &[u32], part: Part) -> Result<u32, Refused> {
     }
     p(PLAYERS, count + 1);
     let at = block(count);
-    unsafe { ((at + 0x20) as *mut u32).write_unaligned(args[0]) };
+    unsafe { ((at + field!(NetPlayerBlock, id)) as *mut u32).write_unaligned(args[0]) };
     let mut r = Regs {
         eax: unsafe { ((args[2] + 8) as *const u32).read_unaligned() },
         ebx: at,
@@ -76,7 +78,7 @@ fn self_test() -> (usize, usize) {
     };
     let mut all = vec![dword(PLAYERS)];
     for n in 0..8 {
-        all.push((block(n), 0x24));
+        all.push((block(n), field!(NetPlayerBlock, record) as usize));
     }
     let saved = Saved::new(&all);
     let name = b"Colin\0";

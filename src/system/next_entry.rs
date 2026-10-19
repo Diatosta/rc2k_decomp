@@ -48,8 +48,9 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     let left = Left::nothing().with(EBX, ebx).with(ECX, ecx);
     Ok(Left {
         carry: Some(carry),
-        // a next one: `dec ecx` not zero; none: the `dec ecx` that reached 0, or `cmp ecx, 1` on 0
-        zero: Some(carry && r.ecx != 0),
+        // `dec ecx`'s: set when it reached 0; with none left at the start `cmp ecx, 1`'s
+        // (clear). Not the carry: an entry that wraps sets that with entries left.
+        zero: Some(r.ecx != 0 && ecx == 0),
         ..left
     })
 }

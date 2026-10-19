@@ -10,11 +10,13 @@
 //! the Rust version.
 
 use crate::errors::Refused;
+use crate::field;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::net::lobby::{
     Part, SAVED_CONNECTION, SAVED_NAME, Saved, a, answer, dispatch_lobby, fill, movsb, region,
     run_both,
 };
+use crate::net::types::NetConnection;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -35,7 +37,11 @@ const CONNECTION_ENTRY: u32 = 0x418530; // net::connection_entry
 pub fn keep_connection(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
     part(CONNECTION_ENTRY, &mut r)?;
-    movsb(a(SAVED_CONNECTION), r.eax + 0x40, 0x10);
+    movsb(
+        a(SAVED_CONNECTION),
+        r.eax + field!(NetConnection, service_provider),
+        0x10,
+    );
     movsb(a(SAVED_NAME), r.eax, 0x40);
     Ok(Regs {
         eflags: r.eflags,
