@@ -377,6 +377,59 @@ pub mod whole_to_float;
 pub mod write_replay_block;
 pub mod write_replay_chunk;
 
+pub mod viewer;
+
+pub mod apply_replay_patches;
+pub mod copy_marked;
+pub mod edit_camera;
+pub mod edit_camera_1;
+pub mod edit_camera_2;
+pub mod find_snapshot_number;
+pub mod keep_undo;
+pub mod mark_viewer_items;
+pub mod next_camera;
+pub mod previous_camera;
+pub mod replay_patches;
+pub mod replay_path;
+pub mod reset_marks;
+pub mod restore_replay_patches;
+pub mod spread_camera;
+pub mod start_frame_pictures;
+pub mod step_viewed_replay;
+pub mod stop_frame_pictures;
+pub mod undo_edit;
+pub mod viewer_palettes;
+
+pub mod close_viewed_replay;
+pub mod open_viewed_replay;
+pub mod save_last_replay;
+pub mod save_viewed_replay;
+
+pub mod choose_save_slot;
+pub mod play_from_here;
+pub mod play_marked;
+pub mod play_movie;
+pub mod play_movie_loop;
+pub mod play_replay_range;
+pub mod read_replay_header;
+pub mod viewer_load_stage;
+pub mod viewer_snapshot;
+pub mod viewer_tidy_stage;
+
+pub mod viewer_action;
+
+pub mod replay_viewer;
+
+pub mod show_replay_still;
+pub mod step_replay_cars;
+
+pub mod draw_viewer_item;
+pub mod draw_viewer_panel;
+
+pub mod viewer_frame;
+
+pub mod replay_mode_2;
+
 pub static HOOKS: &[&dyn GameHook] = &[
     &create_controls::HOOK,
     &game_music::HOOK,
@@ -708,4 +761,44 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &draw_course_face_stub::HOOK,
     &draw_tinted_face::HOOK,
     &textures_alloc::HOOK,
+    &keep_undo::HOOK,
+    &spread_camera::HOOK,
+    &stop_frame_pictures::HOOK,
+    &copy_marked::HOOK,
+    &edit_camera_1::HOOK,
+    &edit_camera_2::HOOK,
+    &next_camera::HOOK,
+    &previous_camera::HOOK,
+    &reset_marks::HOOK,
+    &undo_edit::HOOK,
+    &mark_viewer_items::HOOK,
+    &viewer_palettes::HOOK,
+    &step_viewed_replay::HOOK,
+    &replay_path::HOOK,
+    &find_snapshot_number::HOOK,
+    &apply_replay_patches::HOOK,
+    &restore_replay_patches::HOOK,
+    &start_frame_pictures::HOOK,
+    &open_viewed_replay::HOOK,
+    &close_viewed_replay::HOOK,
+    &save_viewed_replay::HOOK,
+    &save_last_replay::HOOK,
+    &viewer_snapshot::HOOK,
+    &viewer_load_stage::HOOK,
+    &read_replay_header::HOOK,
+    &viewer_tidy_stage::HOOK,
+    &choose_save_slot::HOOK,
+    &play_movie_loop::HOOK,
+    &play_movie::HOOK,
+    &play_replay_range::HOOK,
+    &play_marked::HOOK,
+    &play_from_here::HOOK,
+    &viewer_action::HOOK,
+    &replay_viewer::HOOK,
+    &step_replay_cars::HOOK,
+    &show_replay_still::HOOK,
+    &draw_viewer_item::HOOK,
+    &draw_viewer_panel::HOOK,
+    &viewer_frame::HOOK,
+    &replay_mode_2::HOOK,
 ];

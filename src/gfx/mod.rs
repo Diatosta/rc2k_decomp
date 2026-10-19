@@ -12,6 +12,7 @@ pub mod build_fonts;
 pub mod build_game_fonts;
 pub mod build_glyphs;
 pub mod build_menu_sprites;
+pub mod clear_front_surface;
 pub mod clear_picture;
 pub mod components_to_4444_rows;
 pub mod components_to_pixel;
@@ -26,8 +27,10 @@ pub mod fade_colour;
 pub mod fill_rect;
 pub mod fill_row_table;
 pub mod fill_thirds_table;
+pub mod find_3d_cards;
 pub mod frame_rect;
 pub mod free_fonts;
+pub mod free_picture_buffer;
 pub mod glyph_builder;
 pub mod glyph_tables;
 pub mod grade_texture;
@@ -38,10 +41,13 @@ pub mod key_texture_colours;
 pub mod lay_out_pcx;
 pub mod lay_out_png;
 pub mod least_colour;
+pub mod list_primary_modes;
+pub mod list_secondary_modes;
 pub mod load_jade;
 pub mod load_picture;
 pub mod load_picture_to_texture;
 pub mod load_picture_with_overlay;
+pub mod mark_3d_modes;
 pub mod palette_pixels_to_dwords;
 pub mod palette_to_dwords;
 pub mod pcx;
@@ -72,6 +78,11 @@ pub mod surface;
 pub mod texture_pixels;
 pub mod texture_upload;
 pub mod upload_texture_picture;
+
+pub mod take_screenshot;
+pub mod write_screen_pcx;
+
+pub mod clear_back_surface;
 
 pub static HOOKS: &[&dyn GameHook] = &[
     &blit_glyph::HOOK,
@@ -134,4 +145,13 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &load_picture_with_overlay::HOOK,
     &put_surface_pixel::HOOK,
     &fade_colour::HOOK,
+    &mark_3d_modes::HOOK,
+    &list_primary_modes::HOOK,
+    &list_secondary_modes::HOOK,
+    &find_3d_cards::HOOK,
+    &clear_front_surface::HOOK,
+    &free_picture_buffer::HOOK,
+    &write_screen_pcx::HOOK,
+    &take_screenshot::HOOK,
+    &clear_back_surface::HOOK,
 ];

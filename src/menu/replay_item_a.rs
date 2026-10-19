@@ -3,8 +3,8 @@
 //! In:  nothing
 //! Out: the registers as its calls leave them; no flags read
 //!
-//! An item action in six menu tables. Shadow mode runs the original alone (the viewer
-//! plays the replay). Self-test: `replay_items::test_item`.
+//! An item action in six menu tables. Ungated (the viewer runs for long and gates its own frames).
+//! Shadow mode runs the original alone (the viewer plays the replay). Self-test: `replay_items::test_item`.
 
 use crate::framework::{RawHook, Regs, hook_asm, rva, shadow};
 use crate::menu::replay_items::{game_part, replay_item_a, test_item};
@@ -19,7 +19,8 @@ hook_asm!(
     thunk,
     call_original,
     dispatch = dispatch,
-    original = ORIGINAL
+    original = ORIGINAL,
+    ungated
 );
 
 extern "C" fn dispatch(r: &mut Regs) {

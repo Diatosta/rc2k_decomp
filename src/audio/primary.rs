@@ -7,7 +7,7 @@ use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, rva};
 
 pub const MIX_RATE_SETTING_RVA: usize = rva(0x4F82D4); // g_mixRateSetting
-pub const DS3D_SETTING_RVA: usize = rva(0x5183EC); // g_ds3dSetting
+pub const HAS_FPU_RVA: usize = rva(0x5183EC); // g_hasFpu (set by `system::test_processor` from `cpuid`)
 pub const NO_LISTENER_RVA: usize = rva(0x506B42); // an unaligned dword: 1 = no listener
 pub const IID_LISTENER_RVA: usize = rva(0x506A48); // g_iidListener3d
 pub const MASTER_SHOWN_RVA: usize = rva(0x755684); // g_masterVolumeShown
@@ -43,7 +43,7 @@ pub unsafe fn set_primary_format(primary: u32, mode: u32, rate: u32) -> Result<b
 }
 
 /// `audio::open_listener`: the 3D listener from the primary buffer (`QueryInterface`
-/// with `g_iidListener3d` into `listener`) when `g_ds3dSetting` is 1 and the dword at
+/// with `g_iidListener3d` into `listener`) when `g_hasFpu` is 1 and the dword at
 /// 0x506B42 is not; else, or failing, logged and `release_sound_listener`. False for the
 /// carry.
 pub unsafe fn open_listener(

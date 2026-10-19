@@ -7,7 +7,7 @@
 //! nothing. Else the last time = now, `dword_518088` = 1000 / now held to 1000 (unsigned
 //! `div`, as a float: the original divides by the clock, not by the time passed, so it
 //! is 1.0 once the clock is past a second; notes' bugs), `dword_51808C` counts up, and
-//! `input::update_effects` (DirectInput's effects: platform, through the game).
+//! `input::update_effects` (its Rust version in the game).
 //! One caller, `sound::race_turn`.
 //! Refuses (before anything) a clock of 0 when due (the original's `div` traps).
 //! Shadow mode runs the original alone (the clock moves, the effects are sent).

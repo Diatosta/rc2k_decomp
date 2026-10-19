@@ -109,7 +109,13 @@ impl Outside for Game {
         in_game(function as usize, regs);
     }
     fn screenshot(&mut self, regs: &Regs) {
-        in_game(game_addr(SCREENSHOT_RVA), regs);
+        // `gfx::take_screenshot`'s Rust version (what it refuses through its hook).
+        let mut r = *regs;
+        let _ = crate::race::loadlevel::or_in_game(0x407897, &mut r, |r| {
+            use crate::gfx::take_screenshot::{game_part, take_screenshot};
+            *r = take_screenshot(r, &mut game_part)?;
+            Ok(())
+        });
     }
     unsafe fn move_highlight(&mut self, direction: Direction, regs: &Regs) -> Result<(), BadInput> {
         unsafe { move_highlight(direction, regs, self) }

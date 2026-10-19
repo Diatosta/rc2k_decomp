@@ -5,6 +5,7 @@ use crate::framework::GameHook;
 pub mod append_key_name;
 pub mod axes;
 pub mod axis_moved;
+pub mod begin_effects;
 pub mod binding_place;
 pub mod buttons_to_keys;
 pub mod clear_device_readings;
@@ -13,6 +14,8 @@ pub mod device_command;
 pub mod device_effects;
 pub mod device_state;
 pub mod devices;
+pub mod effects;
+pub mod end_effects;
 pub mod end_frame;
 pub mod find_pressed_keys;
 pub mod first_device_state;
@@ -27,13 +30,20 @@ pub mod read_device;
 pub mod release_device;
 pub mod repeat_keys;
 pub mod screenshot_if_key;
+pub mod set_effect;
 pub mod set_up_device;
+pub mod start_device_effects;
+pub mod start_effects;
 pub mod step_effects_clock;
+pub mod stop_device_effects;
+pub mod stop_effects;
 pub mod take_key;
 pub mod take_mouse;
 pub mod take_mouse_clicks;
 pub mod unpack_mouse;
 pub mod update;
+pub mod update_car_effects;
+pub mod update_effects;
 pub mod yes_no_for_key;
 pub mod yes_no_key;
 
@@ -69,4 +79,13 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &device_command::HOOK,
     &input_tick::HOOK,
     &input_thread::HOOK,
+    &set_effect::HOOK,
+    &start_device_effects::HOOK,
+    &stop_device_effects::HOOK,
+    &start_effects::HOOK,
+    &stop_effects::HOOK,
+    &begin_effects::HOOK,
+    &end_effects::HOOK,
+    &update_car_effects::HOOK,
+    &update_effects::HOOK,
 ];

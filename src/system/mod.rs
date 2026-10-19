@@ -2,17 +2,31 @@
 
 use crate::framework::GameHook;
 
+pub mod api_stand_ins;
 pub mod check_developer_machine;
+pub mod exit_parts;
 pub mod find_entry;
 pub mod find_entry_by_value;
+pub mod find_entry_with_any_bit;
+pub mod find_entry_with_bits;
+pub mod find_running_game;
 pub mod keep_start_time;
 pub mod load_game_data;
 pub mod main_loop;
 pub mod next_argument;
+pub mod next_entry;
 pub mod packed_local_time;
 pub mod read_command_line;
+pub mod read_keyboard_type;
+pub mod read_volume_serial;
+pub mod read_windows_version;
+pub mod restore_error_mode;
 pub mod restore_window;
+pub mod set_error_mode;
+pub mod set_exception_filter;
+pub mod set_priority_class;
 pub mod sleep;
+pub mod test_processor;
 pub mod tick_count;
 pub mod wait_or_key;
 pub mod zero_memory;
@@ -31,4 +45,16 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &main_loop::HOOK,
     &wait_or_key::HOOK,
     &find_entry_by_value::HOOK,
+    &find_entry_with_bits::HOOK,
+    &find_entry_with_any_bit::HOOK,
+    &next_entry::HOOK,
+    &read_volume_serial::HOOK,
+    &set_exception_filter::HOOK,
+    &test_processor::HOOK,
+    &read_keyboard_type::HOOK,
+    &read_windows_version::HOOK,
+    &set_error_mode::HOOK,
+    &find_running_game::HOOK,
+    &set_priority_class::HOOK,
+    &restore_error_mode::HOOK,
 ];

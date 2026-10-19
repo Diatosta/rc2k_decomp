@@ -14,6 +14,7 @@ pub mod read_languages;
 pub mod read_record;
 pub mod read_registry;
 pub mod read_sku;
+pub mod run_after_exit;
 pub mod runs_from_source;
 pub mod stand_ins;
 
@@ -27,6 +28,7 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &runs_from_source::HOOK,
     &check_at_start::HOOK,
     &check_clio_disc::HOOK,
+    &run_after_exit::HOOK,
 ];
 
 /// byte_5189A8: base directory A (`cdrom` in the record), and byte_518AA8: what a `%` in a

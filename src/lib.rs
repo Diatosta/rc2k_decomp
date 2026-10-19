@@ -22,6 +22,7 @@ pub mod marks;
 pub mod math;
 pub mod memory;
 pub mod menu;
+pub mod net;
 pub mod physics;
 #[cfg(feature = "standalone")]
 pub mod platform;

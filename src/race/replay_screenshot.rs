@@ -12,8 +12,7 @@
 //!
 //! Caller: `drive::race_frame` (each frame drawn). Its calls through `part`: 0
 //! `GetTickCount` (eax), 1 the lock (carry), 2 the writer, 3 the unlock; in the game the
-//! system's clock, the platform's two (their hooks) and the writer through the game
-//! (section 15). Shadow mode runs the original alone (it writes a file). Self-test: a copy
+//! system's clock, the platform's two (their hooks) and the writer's Rust version. Shadow mode runs the original alone (it writes a file). Self-test: a copy
 //! whose four calls go to stand-ins (the lock failing or not), against the Rust version:
 //! recording or not, the clock started or not, names with digits to carry; the variables
 //! and the calls compared.
@@ -97,11 +96,12 @@ pub unsafe fn replay_screenshot(entry: &Regs, part: Part) -> Result<Regs, Refuse
 }
 
 /// In the game: the system's clock, the platform's lock and unlock (their hooks) and the
-/// PCX writer through the game.
+/// PCX writer's Rust version (`gfx::write_screen_pcx`).
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         match place {
             0 => r.eax = windows_sys::Win32::System::SystemInformation::GetTickCount(),
+            2 => crate::gfx::write_screen_pcx::write_screen_pcx_in_game(r)?,
             p => {
                 let at = [0, 0x4058AD, 0x411E0C, 0x405949][p as usize];
                 call_game(r, game_addr(rva(at)));

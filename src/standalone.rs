@@ -468,8 +468,7 @@ unsafe fn start() {
         for address in [0x40298A, 0x402B7C, 0x4114A6, 0x4114BB, 0x401135] {
             call(address, &mut r);
         }
-        // The processor's test (0x410883) is the platform's.
-        stand_in("the processor has an FPU", 0x5183EC, 1);
+        // `system::test_processor` (0x410883, called above) has set it from `cpuid`.
         if game_read::<u32>(rva(0x5183EC)) != 1 {
             finish("fatal error 0x900010FF, FPU is required", 1);
         }

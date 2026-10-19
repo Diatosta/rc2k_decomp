@@ -204,10 +204,14 @@ pub fn game_check() {
     unsafe { screenshot_if_key(&mut game_screenshot) };
 }
 
-/// In the game: `gfx::take_screenshot`, not ported (a call into the game, section 15).
+/// In the game: `gfx::take_screenshot`'s Rust version (what it refuses through its hook).
 pub fn game_screenshot() {
     let mut r = Regs::default();
-    unsafe { crate::framework::call_game(&mut r, game_addr(rva(0x407897))) };
+    let _ = crate::race::loadlevel::or_in_game(0x407897, &mut r, |r| {
+        use crate::gfx::take_screenshot::{game_part, take_screenshot};
+        *r = take_screenshot(r, &mut game_part)?;
+        Ok(())
+    });
 }
 
 // ---- for the self-tests ----

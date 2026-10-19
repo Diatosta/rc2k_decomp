@@ -6,7 +6,7 @@
 //! (`drive::car_input_words`, recorded or played: `record_inputs_if`, `play_inputs_if`),
 //! its block into `dword_71B404`, `drive::load_car`; running (`unk_71A234`): controls,
 //! gear rules, steering, pedals, the reset key, `physics::car_physics_step` and the
-//! network's step (`sub_464133`, DirectPlay: a call into the game); the work car's clocks
+//! network's step (`net::race_step`, its Rust version); the work car's clocks
 //! (`unk_719FE0`, `unk_719FEC`) + 1; `drive::store_car`. Then the stage's animation, the
 //! race-mode cars, the duel's sound levels, the count down's beeps, the two cars' order,
 //! the hold count, the replay written at its last tenth, the replay's clock.
@@ -23,9 +23,7 @@
 //! same state, logging off, no replay (`dword_5C5CE0` 0).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    EAX, ESI, RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva, shadow,
-};
+use crate::framework::{EAX, ESI, RawHook, Regs, SelfTest, game_addr, hook_asm, rva, shadow};
 use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::physics::flow::{g, p};
 use crate::race::stage_prefs::left_of;
@@ -57,8 +55,6 @@ const CALLS: [usize; 25] = [
 const B: usize = 0x70F3EC; // g_carBlockStore
 const CURRENT: usize = 0x71B3F8;
 const CARS: usize = 0x63DB90;
-/// `sub_464133`: the network's step (DirectPlay), the game's.
-const NETWORK: usize = 0x464133;
 
 fn car_step(r: &mut Regs) -> Result<(), Refused> {
     unsafe {
@@ -83,7 +79,7 @@ fn car_step(r: &mut Regs) -> Result<(), Refused> {
                 &mut crate::physics::reset_parts::game_part,
             )?;
             crate::physics::car_physics_step::car_physics_step(r)?.apply(r);
-            call_game(r, game_addr(rva(NETWORK)));
+            crate::net::race_step::race_step(r, &mut crate::net::game_part)?;
         }
         p(0x719FE0, g(0x719FE0).wrapping_add(1));
         p(0x719FEC, g(0x719FEC).wrapping_add(1));

@@ -4,14 +4,20 @@ use crate::framework::{GameHook, rva};
 
 pub mod allocate;
 pub mod free_list;
+pub mod free_own_heap;
 pub mod move_bytes;
+pub mod open_own_heap;
 pub mod take_from_list;
+pub mod virtual_alloc;
 
 pub static HOOKS: &[&dyn GameHook] = &[
     &allocate::HOOK,
     &free_list::HOOK,
     &move_bytes::HOOK,
     &take_from_list::HOOK,
+    &virtual_alloc::HOOK,
+    &open_own_heap::HOOK,
+    &free_own_heap::HOOK,
 ];
 
 /// A list of blocks: what `allocate` adds to and `free_list` gives back in one go. Every

@@ -304,6 +304,13 @@ pub mod visual_preferences_loop;
 pub mod walk_section_records;
 pub mod welcome_loop;
 
+pub mod list_clear_marks;
+pub mod list_item_unusable;
+pub mod list_step;
+pub mod list_take_key;
+
+pub mod replay_slot_loop;
+
 pub static HOOKS: &[&dyn GameHook] = &[
     &add_player_times::HOOK,
     &award_overall_points::HOOK,
@@ -584,4 +591,9 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &select_stage_loop::HOOK,
     &results_482e9b_loop::HOOK,
     &load_championship_46e899_loop::HOOK,
+    &list_step::HOOK,
+    &list_clear_marks::HOOK,
+    &list_item_unusable::HOOK,
+    &list_take_key::HOOK,
+    &replay_slot_loop::HOOK,
 ];

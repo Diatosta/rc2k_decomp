@@ -1,6 +1,6 @@
 //! The two replay starts the review menus' items lead to (`race::replay_mode_1`,
 //! `race::replay_mode_3`): with a replay there (`dword_5BEC84` not 0), the replay viewer
-//! `sub_41CF0C` (not ported: through the game) with eax the mode.
+//! `race::replay_viewer` (0x41CF0C) with eax the mode.
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_read, rva};
@@ -21,11 +21,10 @@ pub unsafe fn replay_mode(entry: &Regs, mode: u32, part: Part) -> Result<Regs, R
     Ok(r)
 }
 
-/// In the game: the viewer through the game.
+/// In the game: the viewer's Rust version (`race::replay_viewer`).
 pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        crate::framework::call_game(r, crate::framework::game_addr(rva(VIEWER)));
-    }
+    use crate::race::replay_viewer::{game_part, replay_viewer};
+    *r = replay_viewer(r, &mut game_part, true)?;
     Ok(())
 }
 

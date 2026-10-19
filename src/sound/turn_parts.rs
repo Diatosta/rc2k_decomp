@@ -32,7 +32,8 @@ pub const BELOW: u32 = 0x4018A2; // math::random_below
 pub const TICK: u32 = 0x411024; // system::tick_count
 /// `sound::step_race_clock`: carry set, no turn due.
 pub const STEP_CLOCK: u32 = 0x40F20E;
-/// `input::update_effects`: the force feedback (DirectInput), platform.
+/// `input::update_effects`: the force feedback's requests (the game's side; DirectInput
+/// gets them on the input thread).
 pub const EFFECTS: u32 = 0x40F2C0;
 
 /// unk_5124BC: the request the turn's sounds go with.
@@ -68,8 +69,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         RANDOM => r.eax = unsafe { crate::math::next_random::next_random() },
         BELOW => r.eax = unsafe { crate::math::random_below::random_below(r.eax) }?,
         TICK => r.eax = crate::system::tick_count::tick_count(),
-        // The force feedback, DirectInput: platform, left to the game.
-        EFFECTS => unsafe { call_game(r, game_addr(rva(EFFECTS as usize))) },
+        EFFECTS => {
+            crate::input::update_effects::update_effects(r, &mut crate::input::effects::game_part)?
+        }
         0x40E59E => crate::sound::play_timed_slot::play_timed_slot_in(r, &mut game_part)?,
         0x40D8E2 => crate::sound::car_engine_state::car_engine_state_in(r, &mut game_part)?,
         0x40DD19 => crate::sound::revs_sound::revs_sound_in(r, &mut game_part)?,

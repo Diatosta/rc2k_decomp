@@ -1,6 +1,6 @@
 //! A buffered file, as the picture readers use it: the block the four stream functions take
 //! in esi (`open_stream`, `close_stream`, `read_stream_byte`, `read_stream_block`; the two
-//! that write, `sub_402D53` and `sub_402DC9`, are not ported).
+//! that write are `files::write_stream_byte` and `files::write_stream_block`).
 
 use crate::files::read_file::LAST_FILE_PATH_RVA;
 use crate::framework::{game_read, game_write};

@@ -4,7 +4,7 @@
 //! Out: carry = none (logged, and `audio::release_sound_listener`); every register
 //!      preserved
 //!
-//! "AUD: open ds3d"; only with `g_ds3dSetting` 1 and the dword at 0x506B42 not 1:
+//! "AUD: open ds3d"; only with `g_hasFpu` 1 and the dword at 0x506B42 not 1:
 //! `QueryInterface` of `g_primaryBuffer` with `g_iidListener3d` into `g_soundListener`.
 //! Otherwise "AUD: open ds3d failed rc=" and the code (0xFFFFFF91 for the setting,
 //! 0xFFFFFF90 for 0x506B42, else the result). One caller, `audio::make_primary`. See
@@ -37,7 +37,7 @@ unsafe fn rust(r: &Regs) -> Result<Leaves, Refused> {
         open_listener(
             game_addr(crate::audio::voices::PRIMARY_RVA) as u32,
             game_addr(LISTENER_3D_RVA) as u32,
-            game_addr(DS3D_SETTING_RVA) as u32,
+            game_addr(HAS_FPU_RVA) as u32,
             game_addr(NO_LISTENER_RVA) as u32,
             &mut game_part,
         )

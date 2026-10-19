@@ -96,7 +96,7 @@ pub fn game_part(place: u32, eax: u32) -> Result<bool, Refused> {
                 return open_listener(
                     primary,
                     listener,
-                    game_addr(DS3D_SETTING_RVA) as u32,
+                    game_addr(HAS_FPU_RVA) as u32,
                     game_addr(NO_LISTENER_RVA) as u32,
                     &mut game_part,
                 )

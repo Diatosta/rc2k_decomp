@@ -15,8 +15,8 @@
 //! Caller: `input::input_tick` (when `g_inputCommand` was set). Its calls through `part`:
 //! 0 the release (esi), 1 the acquiring (esi), 2 the effects' end, 3 the tick, 4 the set-up
 //! (esi, edi), 5 the sleep (eax the milliseconds), 6 the effects' start; in the game the
-//! Rust versions of the release, the tick, the set-up and the sleep, the others through the
-//! game (DirectInput, section 15). Refuses (before anything) a device past 1 for command 1.
+//! Rust versions of the release, the tick, the set-up, the sleep and the effects' end and
+//! start, the acquiring through the game (DirectInput, section 15). Refuses (before anything) a device past 1 for command 1.
 //! Shadow mode runs the original alone (it acquires devices). Self-test: a copy whose
 //! calls go to stand-ins, against the Rust version: each command, each player setting.
 
@@ -132,6 +132,11 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 )?
             }
             5 => crate::system::sleep::sleep(r.eax),
+            2 => crate::input::end_effects::end_effects(r, &mut crate::input::effects::game_part)?,
+            6 => crate::input::begin_effects::begin_effects(
+                r,
+                &mut crate::input::effects::game_part,
+            )?,
             p => call_game(r, game_addr(rva(CALLEES[p as usize]))),
         }
     }
