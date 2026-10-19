@@ -4,10 +4,9 @@
 //! In:  nothing
 //! Out: the registers as the last call (`scene::find_object_of_kind`) leaves them
 //!
-//! One caller, `race::load_stage` (0x4440B1). Its calls are the Rust versions but three,
-//! which stay the game's (`call_game`, section 15): init mark (`sub_456EA7`), the pace
-//! notes (`sub_441A66`) and the loading bar's callback (`sub_4467C7`, a `call esi` on
-//! `dword_623704`). Its caller reads no flags after it (`pushf` follows). Shadow mode
+//! One caller, `race::load_stage` (0x4440B1). Its calls are the Rust versions but two,
+//! which go through the game (`call_game`, section 15): init mark (`sub_456EA7`) and the
+//! loading bar's callback (`sub_4467C7`, a `call esi` on `dword_623704`). Its caller reads no flags after it (`pushf` follows). Shadow mode
 //! runs the original alone (it logs and loads the stage). Self-test: a copy whose 57
 //! calls go to stand-ins that note them (the log and the loading bar too, the callback's
 //! address patched), its 59 references to `g_logIndent`, `g_logEnabled`, `g_inRace` and

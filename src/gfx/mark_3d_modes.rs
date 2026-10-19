@@ -22,7 +22,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva, shadow, standalone,
+    RawHook, Regs, SelfTest, call_game, game_addr, game_write, hook_asm, rva, shadow, standalone,
 };
 use crate::install::stand_ins::{act, set_handler, stand_in};
 use crate::system::find_entry_with_any_bit::find_entry_with_any_bit;
@@ -133,10 +133,22 @@ pub unsafe fn mark_3d_modes(entry: &Regs, v: &ModeVars, part: Part) -> Result<()
     }
 }
 
-/// In the game: Direct3D through the game; in the standalone program none fits.
+/// In the game: Direct3D through the game. In the standalone program its rasteriser
+/// answers as a device that draws in both pixel kinds with a depth buffer of 16 or 32
+/// bits and has every capability the game asks about (`sub_419853`'s results:
+/// `g_depthFormatBits`, `g_depthExtraFlags` and the `caps3d..` switches 0x5AB98C ..
+/// 0x5AB9AC that the graphics options read).
 pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     if standalone() {
-        r.set_carry(true);
+        unsafe {
+            // 16 and 32 bits (`g_pixelKinds`' 0x200 and 0x800) for both
+            game_write(rva(0x4F492C), 0xA00u32);
+            game_write(rva(0x4F4930), 0xA00u32);
+            for at in (0x5AB98C..=0x5AB9AC).step_by(4) {
+                game_write(rva(at), 1u32);
+            }
+        }
+        r.set_carry(false);
         return Ok(());
     }
     unsafe { call_game(r, game_addr(DETECT_RVA)) };

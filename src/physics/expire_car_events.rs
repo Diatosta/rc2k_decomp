@@ -12,7 +12,7 @@
 //!      flags read (the callers return)
 //!
 //! It jumps back to its own start: hooked by a private copy.
-//! Callers: `sub_4417EC`, and itself.
+//! Callers: `physics::pace_notes_step`, and itself.
 //! Refuses (before anything) a count above 7.
 //! Self-test: a copy of the original (the clock and the queue the test's) against the
 //! core: counts 0 .. 7 with times behind and not, +0xFA0 about +0xF9C.

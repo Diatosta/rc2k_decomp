@@ -6,6 +6,7 @@ pub mod draw_string_by_id;
 pub mod draw_text;
 pub mod draw_text_keep_regs;
 pub mod draw_time_fixed_pitch;
+pub mod draw_time_text;
 pub mod font;
 pub mod glyph_kerning;
 pub mod measure_string_by_id;
@@ -23,4 +24,5 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &measure_text::HOOK,
     &measure_string_by_id::HOOK,
     &blend_font::HOOK,
+    &draw_time_text::HOOK,
 ];

@@ -66,11 +66,11 @@ hook_asm!(
 
 const PAGE_RVA: usize = rva(0x755998); // dword_755998
 const CAR_RVA: usize = rva(0x755990); // dword_755990
-const NOTICE_KIND_RVA: usize = rva(0x4E07A0); // g_noticeKind
-const TEXT_KEPT_RVA: usize = rva(0x7559EC); // dword_7559EC
+pub const NOTICE_KIND_RVA: usize = rva(0x4E07A0); // g_noticeKind
+pub const TEXT_KEPT_RVA: usize = rva(0x7559EC); // dword_7559EC
 const LABELS: usize = 0x51E5A4;
 const FIGURES: usize = 0x51E584;
-const LINE_LEN: usize = 0x100;
+pub const LINE_LEN: usize = 0x100;
 const NOT_KNOWN: u32 = 0x578;
 const PAGES: u32 = 4;
 
@@ -164,8 +164,18 @@ pub unsafe fn draw_car_figures(canvas: &mut dyn Canvas) -> Result<bool, Refused>
     if page >= PAGES {
         return Err(BadInput("a page past the four").into());
     }
+    unsafe { draw_car_page(page, shown_description()?, canvas) }
+}
+
+/// One page (`sub_469C40`, `sub_469F12`, `sub_46A193`, `sub_469CA0` for 0 .. 3) of the
+/// record at `record`: the carry of the last text drawn.
+pub unsafe fn draw_car_page(
+    page: u32,
+    record: *mut CarDescription,
+    canvas: &mut dyn Canvas,
+) -> Result<bool, Refused> {
     let mut p = Page {
-        record: shown_description()?,
+        record,
         canvas,
         carry: false,
     };
@@ -275,7 +285,7 @@ fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     Ok(Left::carry(unsafe { draw_car_figures(canvas) }?))
 }
 
-fn state() -> Vec<u8> {
+pub fn state() -> Vec<u8> {
     capture(&[
         (game_addr(LINE_BUFFER_RVA) as u32, LINE_LEN),
         (text() as u32, TEXT_LEN),
@@ -290,7 +300,7 @@ extern "C" fn dispatch(r: &mut Regs) {
 // ---- self-test ----
 
 /// A record of the test's: string ids where the pages take strings, figures elsewhere.
-fn test_record(car: u32, seed: u32) -> [u32; 0x1D] {
+pub fn test_record(car: u32, seed: u32) -> [u32; 0x1D] {
     let mut lot = seed;
     let mut next = |below: u32| {
         lot = lot.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);

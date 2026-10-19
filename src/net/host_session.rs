@@ -1,0 +1,252 @@
+//! `net::host_session` (0x418B13): "NET: Host" and the machine's name logged; with
+//! DirectPlay's object there, the session kept (`unk_52AD00`: no GUID yet, the name
+//! `g_machineName`, the most players `dword_52ABD0`, `unk_52ABD4` as its user data) and
+//! described (`dword_5AB2AC`: zeroed, size 0x50, flags 0x44, the game's GUID, the most
+//! players, the name, the user data) and made (`Open` with DPOPEN_CREATE, or with
+//! `g_netPosting` 1 posted: the code at 0x418C5A); "NET: Open" and its result logged, the
+//! window restored (`system::restore_window`); then `dword_52ACFC` 1, the player made
+//! (`net::create_player`), the group made (`net::create_group`), "NET: Host complete".
+//!
+//! In:  nothing
+//! Out: every register kept (`pusha` .. `popa`); carry set if something failed, else the
+//!      flags of `test eax, eax`
+//! Caller: `net::hosting`. Its calls through `part`; `Open` from Rust (`net::dplay`; posted,
+//! `posted_open_host`). Shadow mode runs the original alone. Self-test: a copy whose calls go
+//! to stand-ins and whose DirectPlay is a test object, against the Rust version: no object,
+//! posting, each failure, done.
+
+use crate::errors::Refused;
+use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::net::dplay::{OPEN, call};
+use crate::net::find_sessions::zeroed_description;
+use crate::net::lobby::{
+    APP_GUID, DPLAY, DPLAY_METHOD, FLAGS, JOINED, JOINED_MOST, JOINED_NAME, JOINED_PASSWORD,
+    LOG_HEX_L2_NL, LOG_L2, LOG_L2_NL, MACHINE_NAME, MOST_PLAYERS, POST_CALL, POSTING, Part,
+    RESTORE_WINDOW, SESSION_DESC, SESSION_OPEN, SESSION_PASSWORD, Saved, TestObject, ZERO_MEMORY,
+    a, answer, cmp_flags, com_answer, dispatch_lobby, dword, fill, g, game, log_text, movsb, p,
+    region, run_both, test_eax,
+};
+use std::sync::atomic::AtomicUsize;
+
+static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
+
+pub static HOOK: RawHook =
+    RawHook::new("net::host_session", rva(0x418B13), thunk, &ORIGINAL).self_test(self_test);
+
+hook_asm!(
+    thunk,
+    call_original,
+    dispatch = dispatch,
+    original = ORIGINAL
+);
+
+const HOST: usize = 0x5C2EDA; // "NET: Host"
+pub const OPENED: usize = 0x5C2EE4; // "NET: Open"
+const COMPLETE: usize = 0x5C2EEE; // "NET: Host complete"
+pub const POSTED_CODE: u32 = 0x418C5A; // the piece posted: `Open` to create
+const CREATE_PLAYER: u32 = 0x4190FB; // net::create_player
+const CREATE_GROUP: u32 = 0x4192EA; // net::create_group
+const OPEN_CREATE: u32 = 2; // DPOPEN_CREATE
+pub const OPEN_JOIN: u32 = 1; // DPOPEN_JOIN
+
+/// `Open(dword_5AB2AC, flags)`.
+pub unsafe fn open(flags: u32) -> u32 {
+    unsafe { call(DPLAY, OPEN, &[a(SESSION_DESC), flags]) }
+}
+
+/// The code at 0x418C5A as the receiving thread calls it when it is posted.
+pub extern "C" fn posted_open_host() -> u32 {
+    unsafe { open(OPEN_CREATE) }
+}
+
+/// The Rust version: the registers it leaves (the entry's, the flags).
+pub fn host_session(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    let mut r = *entry;
+    let left = |r: &Regs| Regs {
+        eflags: r.eflags,
+        ..*entry
+    };
+    log_text(LOG_L2, a(HOST), &r, part)?;
+    log_text(LOG_L2_NL, a(MACHINE_NAME), &r, part)?;
+    cmp_flags(&mut r, g(DPLAY), 0);
+    if g(DPLAY) == 0 {
+        r.set_carry(true);
+        return Ok(left(&r));
+    }
+    let mut c = Regs {
+        ebx: a(JOINED),
+        ecx: 0x10,
+        ..r
+    };
+    part(ZERO_MEMORY, &mut c)?;
+    movsb(a(JOINED_NAME), a(MACHINE_NAME), 0x40);
+    r.eax = g(MOST_PLAYERS); // mov eax, g_netMostPlayers
+    p(JOINED_MOST, r.eax);
+    movsb(a(JOINED_PASSWORD), a(SESSION_PASSWORD), 0x10);
+    zeroed_description(&r, part)?;
+    p(SESSION_DESC + 4, 0x44);
+    movsb(a(SESSION_DESC) + 0x18, a(APP_GUID), 0x10);
+    p(SESSION_DESC + 0x28, g(MOST_PLAYERS));
+    p(SESSION_DESC + 0x30, a(MACHINE_NAME));
+    movsb(a(SESSION_DESC) + 0x40, a(SESSION_PASSWORD), 0x10);
+    finish(
+        &mut r,
+        OPEN_CREATE,
+        POSTED_CODE,
+        CREATE_GROUP,
+        COMPLETE,
+        part,
+    )?;
+    Ok(left(&r))
+}
+
+/// The session opened (directly, or posted as the code at `posted`), "NET: Open" and its
+/// result logged, the window restored; `dword_52ACFC` 1, the player made, then `then` (the
+/// group made or joined) and `done` logged. Shared with `net::join_session`.
+pub fn finish(
+    r: &mut Regs,
+    flags: u32,
+    posted: u32,
+    then: u32,
+    done: usize,
+    part: Part,
+) -> Result<(), Refused> {
+    if g(POSTING) == 1 {
+        r.eax = game(posted);
+        part(POST_CALL, r)?;
+    } else {
+        r.eax = unsafe { open(flags) };
+    }
+    log_text(LOG_L2, a(OPENED), r, part)?;
+    let mut l = *r;
+    part(LOG_HEX_L2_NL, &mut l)?;
+    part(RESTORE_WINDOW, r)?;
+    test_eax(r);
+    if r.eax != 0 {
+        r.set_carry(true);
+        return Ok(());
+    }
+    p(SESSION_OPEN, 1);
+    part(CREATE_PLAYER, r)?;
+    if r.carry() {
+        return Ok(());
+    }
+    part(then, r)?;
+    if r.carry() {
+        return Ok(());
+    }
+    log_text(LOG_L2_NL, a(done), r, part)?;
+    test_eax(r);
+    Ok(())
+}
+
+extern "C" fn dispatch(r: &mut Regs) {
+    dispatch_lobby(&HOOK, r, call_original, host_session);
+}
+
+/// The test of `net::host_session` and `net::join_session`: the cases on a copy.
+#[allow(clippy::too_many_arguments)] // one test's whole description
+pub fn session_test(
+    t: &mut SelfTest,
+    copy: usize,
+    entry: Regs,
+    then: u32,
+    record: u32,
+    rust: crate::net::lobby::Rust,
+) {
+    let dplay = TestObject::dplay();
+    let dp = dplay.addr();
+    let all = vec![
+        dword(DPLAY),
+        dword(POSTING),
+        dword(SESSION_OPEN),
+        region(JOINED, 0x64),
+        region(SESSION_DESC, 0x50),
+    ];
+    let saved = Saved::new(&all);
+    // (what, an object, posting, Open's result, the failing call)
+    let cases: [(&str, bool, u32, u32, u32); 7] = [
+        ("no object", false, 0, 0, 0),
+        ("done", true, 0, 0, 0),
+        ("posted", true, 1, 0, 0),
+        ("posted, failing", true, 1, 0x8877_0005, 0),
+        ("Open fails", true, 0, 0x8877_0005, 0),
+        ("no player", true, 0, 0, CREATE_PLAYER),
+        ("no group", true, 0, 0, then),
+    ];
+    for (what, object, posting, result, fails) in cases {
+        run_both(
+            t,
+            what,
+            copy,
+            entry,
+            &all,
+            FLAGS,
+            &[],
+            &|| {
+                p(DPLAY, if object { dp } else { 0 });
+                p(POSTING, posting);
+                p(SESSION_OPEN, 0);
+                fill(JOINED, 0x64, 93);
+                fill(SESSION_DESC, 0x50, 94);
+                answer(Box::new(move |place, r| {
+                    if place == POST_CALL {
+                        r.eax = result;
+                    }
+                    if place == 0x418553 {
+                        r.eax = record;
+                    }
+                    r.set_carry(place == fails);
+                }));
+                com_answer(Box::new(move |place, _| {
+                    if place == DPLAY_METHOD | OPEN {
+                        result
+                    } else {
+                        0
+                    }
+                }));
+            },
+            rust,
+        );
+    }
+    drop(saved);
+    drop(dplay);
+}
+
+fn self_test() -> (usize, usize) {
+    let Some(mut t) = SelfTest::begin(&HOOK) else {
+        return (0, 0);
+    };
+    let places = [
+        LOG_L2,
+        LOG_L2_NL,
+        ZERO_MEMORY,
+        POST_CALL,
+        LOG_HEX_L2_NL,
+        RESTORE_WINDOW,
+        CREATE_PLAYER,
+        CREATE_GROUP,
+    ];
+    // pusha; pusha; lea eax, aNetHost
+    let copy = match crate::net::lobby::copy(
+        0x418B13,
+        0x147,
+        &[0x60, 0x60, 0x8D, 0x05, 0xDA, 0x2E, 0x5C, 0x00],
+        &[
+            0x8, 0x15, 0x35, 0x7D, 0xE5, 0x105, 0x10C, 0x112, 0x125, 0x12C, 0x13A,
+        ],
+        &places,
+    ) {
+        Ok(c) => c,
+        Err(why) => return t.skip(why),
+    };
+    session_test(
+        &mut t,
+        copy.addr(),
+        Regs::SENTINEL,
+        CREATE_GROUP,
+        0,
+        &host_session,
+    );
+    t.finish()
+}

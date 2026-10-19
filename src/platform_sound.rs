@@ -9,8 +9,15 @@
 //! stereo; the primary buffer too, which in the Dolby mode is where the game's own mixer
 //! writes, so the music (a secondary buffer) is heard there as well (section 16's Dolby
 //! bug does not happen here). The primary buffer's volume is the whole output's.
-//! Not done (yet): 3D placing (the 3D calls are taken and do nothing), EAX (its set-up is
-//! unported game code, which the standalone passes by).
+//! 3D placing (2026-10-19; before, the 3D calls did nothing and every placed sound played
+//! as near): a buffer's 3D interface keeps its place, its least and greatest distances and
+//! its mode; the listener stays where the game leaves it (at the origin, facing +z: the
+//! game places the sounds around the listener itself) with its roll-off factor. A placed
+//! buffer is heard at DirectSound 3D's distance (the least distance over the distance,
+//! to the roll-off's power, held at the greatest distance) and panned by its direction
+//! (equal power); its own pan is not used then, as in DirectSound.
+//! Not done: Doppler, cones, EAX (its set-up is unported game code, which the standalone
+//! passes by).
 //! Every method has the arity of DirectSound's: these are `stdcall`, the callee takes the
 //! arguments off the stack.
 
@@ -75,12 +82,63 @@ struct Buffer {
     looping: bool,
     volume: i32,
     pan: i32,
+    /// Its place in 3D, once its 3D interface was asked for.
+    space: Option<Space>,
+}
+
+/// A buffer's 3D settings (DirectSound 3D's defaults at first).
+#[derive(Clone, Copy)]
+struct Space {
+    place: [f32; 3],
+    least: f32,
+    greatest: f32,
+    /// 0 normal, 1 around the listener, 2 not placed.
+    mode: u32,
+}
+
+impl Space {
+    const DEFAULT: Self = Self {
+        place: [0.0; 3],
+        least: 1.0,
+        greatest: 1.0e9,
+        mode: 0,
+    };
+
+    /// The gains for the left and right channels.
+    fn gains(&self, rolloff: f32) -> Option<(f32, f32)> {
+        if self.mode == 2 {
+            return None;
+        }
+        let [x, y, z] = self.place;
+        let distance = (x * x + y * y + z * z).sqrt();
+        if !distance.is_finite() {
+            return Some((0.0, 0.0));
+        }
+        let least = self.least.max(1.0e-6);
+        let held = distance.min(self.greatest.max(least));
+        let level = if held <= least {
+            1.0
+        } else {
+            (least / held).powf(rolloff.max(0.0))
+        };
+        // -1 all left .. 1 all right, by the direction's x.
+        let side = if distance > 1.0e-6 {
+            (x / distance).clamp(-1.0, 1.0)
+        } else {
+            0.0
+        };
+        let angle = (side + 1.0) * std::f32::consts::FRAC_PI_4;
+        let both = std::f32::consts::SQRT_2;
+        Some((level * angle.cos() * both, level * angle.sin() * both))
+    }
 }
 
 enum Kind {
     Device,
     Buffer(Buffer),
-    /// A buffer's 3D interface, or the listener: they take their calls and do nothing.
+    /// A buffer's 3D interface: the buffer's id.
+    Space(u32),
+    /// The listener (its roll-off is the state's).
     Quiet,
 }
 
@@ -94,6 +152,8 @@ struct State {
     entries: HashMap<u32, Entry>,
     next: u32,
     primary: Option<u32>,
+    /// The listener's roll-off factor.
+    rolloff: f32,
 }
 
 // The raw pointers in it are the game's to use; every access goes through the mutex.
@@ -107,6 +167,7 @@ fn with<R>(f: impl FnOnce(&mut State) -> R) -> R {
         entries: HashMap::new(),
         next: 1,
         primary: None,
+        rolloff: 1.0,
     }))
 }
 
@@ -143,6 +204,18 @@ fn new_object(s: &mut State, table: *const usize, kind: Kind) -> u32 {
 fn buffer(s: &mut State, this: u32) -> Option<&mut Buffer> {
     match &mut s.entries.get_mut(&id_of(this))?.kind {
         Kind::Buffer(b) => Some(b),
+        _ => None,
+    }
+}
+
+/// The 3D settings of the buffer whose 3D interface is `this`.
+fn space(s: &mut State, this: u32) -> Option<&mut Space> {
+    let id = match s.entries.get(&id_of(this))?.kind {
+        Kind::Space(id) => id,
+        _ => return None,
+    };
+    match &mut s.entries.get_mut(&id)?.kind {
+        Kind::Buffer(b) => b.space.as_mut(),
         _ => None,
     }
 }
@@ -184,9 +257,22 @@ unsafe extern "system" fn release(this: u32) -> u32 {
         if left == 0 {
             // The object's memory goes too: the game must not use it again (it does not).
             let _ = &e.object;
+            let owner = match e.kind {
+                Kind::Space(owner) => Some(owner),
+                _ => None,
+            };
             s.entries.remove(&id);
             if s.primary == Some(id) {
                 s.primary = None;
+            }
+            // A 3D interface held its buffer.
+            if let Some(owner) = owner
+                && let Some(b) = s.entries.get_mut(&owner)
+            {
+                b.refs -= 1;
+                if b.refs == 0 {
+                    s.entries.remove(&owner);
+                }
             }
         }
         left
@@ -280,6 +366,7 @@ unsafe extern "system" fn create_buffer(_: u32, desc: u32, out: u32, _outer: u32
                     looping: false,
                     volume: 0,
                     pan: 0,
+                    space: None,
                 }),
             );
             if primary {
@@ -351,7 +438,20 @@ unsafe extern "system" fn buffer_query(this: u32, iid: u32, out: u32) -> i32 {
                 return E_NOINTERFACE;
             }
         };
-        let at = new_object(s, table, Kind::Quiet);
+        let kind = if primary {
+            Kind::Quiet
+        } else {
+            let id = id_of(this);
+            if let Some(b) = buffer(s, this) {
+                b.space.get_or_insert(Space::DEFAULT);
+            }
+            // The buffer is kept while its 3D interface is.
+            if let Some(e) = s.entries.get_mut(&id) {
+                e.refs += 1;
+            }
+            Kind::Space(id)
+        };
+        let at = new_object(s, table, kind);
         unsafe { put(out, at) };
         OK
     })
@@ -574,7 +674,106 @@ static BUFFER: Table<21> = Table([
     ok0 as *const (), // Restore
 ]);
 
-// ---- 3D (IDirectSound3DBuffer, IDirectSound3DListener): taken, not done ----
+// ---- 3D (IDirectSound3DBuffer, IDirectSound3DListener) ----
+
+fn float(bits: u32) -> f32 {
+    f32::from_bits(bits)
+}
+
+/// `SetPosition(x, y, z, apply)`: deferred or not, taken at once (the game commits each
+/// turn).
+unsafe extern "system" fn set_place(this: u32, x: u32, y: u32, z: u32, _: u32) -> i32 {
+    with(|s| match space(s, this) {
+        Some(p) => {
+            p.place = [float(x), float(y), float(z)];
+            OK
+        }
+        None => E_INVALIDARG,
+    })
+}
+
+unsafe extern "system" fn get_place(this: u32, out: u32) -> i32 {
+    with(|s| match space(s, this) {
+        Some(p) => {
+            for (n, v) in p.place.iter().enumerate() {
+                unsafe { put(out + 4 * n as u32, v.to_bits()) };
+            }
+            OK
+        }
+        None => E_INVALIDARG,
+    })
+}
+
+unsafe extern "system" fn set_least(this: u32, value: u32, _: u32) -> i32 {
+    with(|s| match space(s, this) {
+        Some(p) => {
+            p.least = float(value);
+            OK
+        }
+        None => E_INVALIDARG,
+    })
+}
+
+unsafe extern "system" fn set_greatest(this: u32, value: u32, _: u32) -> i32 {
+    with(|s| match space(s, this) {
+        Some(p) => {
+            p.greatest = float(value);
+            OK
+        }
+        None => E_INVALIDARG,
+    })
+}
+
+unsafe extern "system" fn set_mode(this: u32, value: u32, _: u32) -> i32 {
+    with(|s| match space(s, this) {
+        Some(p) => {
+            p.mode = value;
+            OK
+        }
+        None => E_INVALIDARG,
+    })
+}
+
+macro_rules! get_space {
+    ($name:ident, $field:ident, $to:expr) => {
+        unsafe extern "system" fn $name(this: u32, out: u32) -> i32 {
+            with(|s| match space(s, this) {
+                Some(p) => {
+                    let v: u32 = $to(p.$field);
+                    unsafe { put(out, v) };
+                    OK
+                }
+                None => E_INVALIDARG,
+            })
+        }
+    };
+}
+
+get_space!(get_least, least, f32::to_bits);
+get_space!(get_greatest, greatest, f32::to_bits);
+get_space!(get_mode, mode, |m: u32| m);
+
+/// `SetAllParameters(DS3DBUFFER*, apply)`: dwSize, vPosition, vVelocity, the cone's two
+/// angles, its orientation, its outside volume, flMinDistance, flMaxDistance, dwMode.
+unsafe extern "system" fn set_all(this: u32, all: u32, _: u32) -> i32 {
+    if all == 0 {
+        return E_INVALIDARG;
+    }
+    with(|s| match space(s, this) {
+        Some(p) => unsafe {
+            p.place = [
+                float(get(all + 4)),
+                float(get(all + 8)),
+                float(get(all + 0xC)),
+            ];
+            p.least = float(get(all + 0x34));
+            p.greatest = float(get(all + 0x38));
+            p.mode = get(all + 0x3C);
+            OK
+        },
+        None => E_INVALIDARG,
+    })
+}
 
 static BUFFER_3D: Table<21> = Table([
     no_interface as *const (),
@@ -584,21 +783,32 @@ static BUFFER_3D: Table<21> = Table([
     zero2 as *const (), // GetConeAngles
     zero1 as *const (), // GetConeOrientation
     zero1 as *const (), // GetConeOutsideVolume
-    zero1 as *const (), // GetMaxDistance
-    zero1 as *const (), // GetMinDistance
-    zero1 as *const (), // GetMode
-    zero1 as *const (), // GetPosition
+    get_greatest as *const (),
+    get_least as *const (),
+    get_mode as *const (),
+    get_place as *const (),
     zero1 as *const (), // GetVelocity
-    ok2 as *const (),   // SetAllParameters
-    ok3 as *const (),   // SetConeAngles
-    ok4 as *const (),   // SetConeOrientation
-    ok2 as *const (),   // SetConeOutsideVolume
-    ok2 as *const (),   // SetMaxDistance
-    ok2 as *const (),   // SetMinDistance
-    ok2 as *const (),   // SetMode
-    ok4 as *const (),   // SetPosition
-    ok4 as *const (),   // SetVelocity
+    set_all as *const (),
+    ok3 as *const (), // SetConeAngles
+    ok4 as *const (), // SetConeOrientation
+    ok2 as *const (), // SetConeOutsideVolume
+    set_greatest as *const (),
+    set_least as *const (),
+    set_mode as *const (),
+    set_place as *const (),
+    ok4 as *const (), // SetVelocity
 ]);
+
+unsafe extern "system" fn set_rolloff(_: u32, value: u32, _: u32) -> i32 {
+    with(|s| s.rolloff = float(value));
+    OK
+}
+
+unsafe extern "system" fn get_rolloff(_: u32, out: u32) -> i32 {
+    let v = with(|s| s.rolloff);
+    unsafe { put(out, v.to_bits()) };
+    OK
+}
 
 static LISTENER: Table<18> = Table([
     no_interface as *const (),
@@ -609,16 +819,16 @@ static LISTENER: Table<18> = Table([
     zero1 as *const (), // GetDopplerFactor
     zero2 as *const (), // GetOrientation
     zero1 as *const (), // GetPosition
-    zero1 as *const (), // GetRolloffFactor
+    get_rolloff as *const (),
     zero1 as *const (), // GetVelocity
     ok2 as *const (),   // SetAllParameters
     ok2 as *const (),   // SetDistanceFactor
     ok2 as *const (),   // SetDopplerFactor
     ok7 as *const (),   // SetOrientation
     ok4 as *const (),   // SetPosition
-    ok2 as *const (),   // SetRolloffFactor
-    ok4 as *const (),   // SetVelocity
-    ok0 as *const (),   // CommitDeferredSettings
+    set_rolloff as *const (),
+    ok4 as *const (), // SetVelocity
+    ok0 as *const (), // CommitDeferredSettings
 ]);
 
 // ---- the mixer ----
@@ -629,7 +839,7 @@ fn gain(centibels: i32) -> f32 {
 }
 
 /// One buffer added into `out` (stereo frames at `OUT_RATE`), its position moved on.
-fn mix_into(b: &mut Buffer, master: f32, out: &mut [f32]) {
+fn mix_into(b: &mut Buffer, master: f32, rolloff: f32, out: &mut [f32]) {
     let f = b.format;
     let block = f.block() as usize;
     let frames = (b.bytes as usize / block).max(1);
@@ -640,10 +850,10 @@ fn mix_into(b: &mut Buffer, master: f32, out: &mut [f32]) {
     };
     let step = rate as f64 / OUT_RATE as f64;
     let g = gain(b.volume) * master;
-    let (left, right) = if b.pan < 0 {
-        (g, g * gain(b.pan))
-    } else {
-        (g * gain(-b.pan), g)
+    let (left, right) = match b.space.and_then(|p| p.gains(rolloff)) {
+        Some((l, r)) => (g * l, g * r),
+        None if b.pan < 0 => (g, g * gain(b.pan)),
+        None => (g * gain(-b.pan), g),
     };
     let data = b.data.as_ptr();
     let sample = |at: usize| -> f32 {
@@ -713,6 +923,7 @@ unsafe extern "C" fn feed(
                 _ => None,
             })
             .unwrap_or(1.0);
+        let rolloff = s.rolloff;
         for e in s.entries.values_mut() {
             if let Kind::Buffer(b) = &mut e.kind
                 && b.playing
@@ -720,7 +931,7 @@ unsafe extern "C" fn feed(
                 // The primary buffer's own volume is the master's; its data is not
                 // scaled twice.
                 let m = if b.flags & PRIMARY != 0 { 1.0 } else { master };
-                mix_into(b, m, &mut out);
+                mix_into(b, m, rolloff, &mut out);
             }
         }
     });

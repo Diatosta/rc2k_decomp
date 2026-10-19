@@ -21,10 +21,15 @@
 //!     the event is over or left;
 //!   - `menu::go_back`.
 //!
-//! The eight functions named `sub_...` here are not ported and are called with `call_game`,
-//! with the registers the original has at each call. Ten menu tables point at this function.
+//! `sub_471F7E` (`menu::ready_players`), `maybeCopySomeData` (`saves::keep_player_settings`,
+//! esi the saved cars) and the two event loops (`menu::run_championship`,
+//! `menu::run_a8_championship`) are their Rust versions; the other four (`sub_4748B6`,
+//! `sub_470D08`, `sub_47059E`, `sub_40F059`) are called with `call_game` (three of them
+//! through their hooks), with the registers the original has at each call. Ten menu tables
+//! point at this function.
 //! Refuses, before anything is done: a slot past 99, a missing player or a car without
-//! its pointer at +0x18.
+//! its pointer at +0x18; later, what its Rust callees refuse (the event loops when their
+//! callees refuse; the original then runs from the start).
 //! It runs the game, so shadow mode runs the original alone, and the thunk is not gated: a
 //! whole event runs inside this call, and a gated thunk would count the game's thread as
 //! "inside a hook" for all that time. The self-test runs a copy of the original whose eight
@@ -96,10 +101,32 @@ pub enum Callee {
 }
 
 /// Calls one of them with the registers given, and leaves the registers it returns.
-pub type Game<'a> = &'a mut dyn FnMut(Callee, &mut Regs);
+pub type Game<'a> = &'a mut dyn FnMut(Callee, &mut Regs) -> Result<(), Refused>;
 
-fn in_game(callee: Callee, regs: &mut Regs) {
-    unsafe { call_game(regs, game_addr(rva(callee as usize))) };
+fn in_game(callee: Callee, regs: &mut Regs) -> Result<(), Refused> {
+    use crate::menu::event_flow::game_call;
+    unsafe {
+        match callee {
+            Callee::Prepare => crate::menu::ready_players::ready_players()?,
+            Callee::CopySomeData => {
+                crate::saves::keep_player_settings::keep_player_settings(regs.esi)?
+            }
+            Callee::RunEvent => {
+                *regs = Regs {
+                    esp: regs.esp,
+                    ..crate::menu::run_championship::run_championship(regs, &mut game_call)?
+                }
+            }
+            Callee::RunEventMode13 => {
+                *regs = Regs {
+                    esp: regs.esp,
+                    ..crate::menu::run_a8_championship::run_a8_championship(regs, &mut game_call)?
+                }
+            }
+            _ => call_game(regs, game_addr(rva(callee as usize))),
+        }
+    }
+    Ok(())
 }
 
 /// The slot the highlighted menu item stands for.
@@ -123,7 +150,7 @@ pub unsafe fn load_savegame(entry: &Regs, game: Game) -> Result<(), Refused> {
     let mut g = *entry;
 
     unsafe {
-        game(Callee::Prepare, &mut g);
+        game(Callee::Prepare, &mut g)?;
         game_write(LOADING_RVA, 1u32);
         game_write(CLEARED_A_RVA, 0u32);
         game_write(CLEARED_B_RVA, 0u32);
@@ -131,7 +158,7 @@ pub unsafe fn load_savegame(entry: &Regs, game: Game) -> Result<(), Refused> {
         g.eax = 0;
         if !read_savegame_slot(slot)? {
             g.eax = 8;
-            game(Callee::Refuse, &mut g);
+            game(Callee::Refuse, &mut g)?;
             go_back::go_back();
             return Ok(());
         }
@@ -146,9 +173,9 @@ pub unsafe fn load_savegame(entry: &Regs, game: Game) -> Result<(), Refused> {
         game_write(SAVED_CARS_PTR_RVA, cursor as u32);
         g.esi = cursor as u32;
         if game_read::<u32>(SKIP_COPY_RVA) == 0 {
-            game(Callee::CopySomeData, &mut g);
+            game(Callee::CopySomeData, &mut g)?;
         }
-        game(Callee::AfterHead, &mut g);
+        game(Callee::AfterHead, &mut g)?;
 
         for car in cars {
             // The pointer as it is before the car is overwritten: the saved one may be stale.
@@ -169,7 +196,7 @@ pub unsafe fn load_savegame(entry: &Regs, game: Game) -> Result<(), Refused> {
         g.eax = ((cars[0] + 0x274) as *const u32).read_unaligned();
         game_write(CAR0_B_RVA, g.eax);
 
-        game(Callee::EventState, &mut g);
+        game(Callee::EventState, &mut g)?;
         match g.eax {
             4 | 5 => {
                 game_write(SECTION_RVA, game_read::<u32>(SECTION_RVA).wrapping_add(1));
@@ -189,11 +216,11 @@ pub unsafe fn load_savegame(entry: &Regs, game: Game) -> Result<(), Refused> {
             }
         }
         game_write(CONTINUING_RVA, 1u32);
-        game(Callee::BeforeEvent, &mut g);
+        game(Callee::BeforeEvent, &mut g)?;
         if game_read::<u32>(MODE_RVA) == 0x13 {
-            game(Callee::RunEventMode13, &mut g);
+            game(Callee::RunEventMode13, &mut g)?;
         } else {
-            game(Callee::RunEvent, &mut g);
+            game(Callee::RunEvent, &mut g)?;
         }
         go_back::go_back();
     }
@@ -275,12 +302,13 @@ stand_in!(
 );
 stand_in!(fake_refuse, Callee::Refuse, "test dword ptr [{state}], 0");
 
-fn noted(callee: Callee, regs: &mut Regs) {
+fn noted(callee: Callee, regs: &mut Regs) -> Result<(), Refused> {
     let n = CALL_COUNT.fetch_add(1, Ordering::SeqCst) & 15;
     CALLS[n as usize].store(callee as u32, Ordering::SeqCst);
     if callee == Callee::EventState {
         regs.eax = EVENT_STATE.load(Ordering::SeqCst);
     }
+    Ok(())
 }
 
 /// Everything a load writes in the game, to compare and to put back.

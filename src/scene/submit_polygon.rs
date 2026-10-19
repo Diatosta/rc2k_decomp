@@ -144,7 +144,13 @@ impl Outside for Game<'_> {
     }
     fn bad_vertex(&mut self) {
         self.call(LOG_L1_NL, game_addr(rva(ERROR_TEXT)) as u32);
-        self.call(SHOW_VERTICES, 0);
+        // The dump's Rust version; one it refuses (more than 64 vertices) goes to its hook,
+        // whose refusal runs the original.
+        let r = Regs { eax: 0, ..*self.0 };
+        use crate::scene::show_bad_polygon::{game_part, show_bad_polygon};
+        if unsafe { show_bad_polygon(&r, &mut game_part) }.is_err() {
+            self.call(SHOW_VERTICES, 0);
+        }
     }
     fn not_drawn(&mut self, result: u32) {
         self.call(LOG_L1, game_addr(rva(DRAWTRI_TEXT)) as u32);

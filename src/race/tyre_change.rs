@@ -1,5 +1,5 @@
 //! `race::tyre_change` (0x444F7A): copies `dword_5D1444` / `dword_5D2444` to
-//! `dword_5BEBE0` / `dword_5BEBE4`, then runs the tyre change's gauge `sub_41C1D6` for car
+//! `dword_5BEBE0` / `dword_5BEBE4`, then runs the tyre change's gauge `race::tyre_change_gauge` for car
 //! 0 (block at 0x70F3EC, "c1 tyrec" in the field table at 0x5ED068).
 //!
 //! In:  nothing
@@ -12,8 +12,8 @@
 //! not set before is set with its dword of +0x354 .. +0x360 cleared. A reading (the
 //! gauge's on-screen text not looked at): the roadside tyre change, timed by a button
 //! press on a gauge; see `notes/history.md`.
-//! `sub_41C1D6` is not ported (it draws through `sub_41C38C`'s DirectDraw lock): called in
-//! the game (section 15). Shadow mode runs the original alone (the gauge reads the clock
+//! The gauge is `race::tyre_change_gauge`'s Rust version (since 2026-10-19; before, a call
+//! into the game). Shadow mode runs the original alone (the gauge reads the clock
 //! and the buttons and has its own state: it must not run twice). Self-test: a copy whose
 //! variables are the test's and whose gauge call goes to a stand-in that notes eax and
 //! esi and gives a time, against the Rust version on the same.

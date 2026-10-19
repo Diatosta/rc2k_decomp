@@ -4,6 +4,8 @@ pub mod append_directory;
 pub mod append_file_name;
 pub mod close_stream;
 pub mod copy_file;
+pub mod directories;
+pub mod drive_free_space_kb;
 pub mod drive_type;
 pub mod file_exists;
 pub mod file_size;
@@ -47,6 +49,7 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &append_directory::HOOK,
     &append_file_name::HOOK,
     &copy_file::HOOK,
+    &drive_free_space_kb::HOOK,
     &write_stream_byte::HOOK,
     &write_stream_block::HOOK,
 ];

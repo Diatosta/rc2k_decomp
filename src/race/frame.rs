@@ -300,7 +300,7 @@ pub const TYRE_VARIABLES: [usize; 9] = [
 ];
 
 /// `race::tyre_change` (0x444F7A), on the variables at `v` (`TYRE_VARIABLES`' order; the
-/// last is the first of four dwords). Part 1 is `sub_41C1D6` (the change's gauge: eax 0
+/// last is the first of four dwords). Part 1 is `race::tyre_change_gauge` (eax 0
 /// starts it, 1 runs it and gives the time when done, else 0; esi the input device).
 /// Gives the registers it leaves (eax, esi).
 pub unsafe fn tyre_change_at(
@@ -348,7 +348,7 @@ pub fn tyre_variables() -> Vec<u32> {
         .collect()
 }
 
-/// What `tyre_change` writes (with `sub_41C1D6` stood in for).
+/// What `tyre_change` writes (with `race::tyre_change_gauge` stood in for).
 pub fn tyre_regions(v: &[u32]) -> Vec<Region> {
     [0usize, 1, 5, 6, 7]
         .iter()
@@ -357,10 +357,12 @@ pub fn tyre_regions(v: &[u32]) -> Vec<Region> {
         .collect()
 }
 
-/// `tyre_change`'s part in the game: `sub_41C1D6` (not ported: it draws through
-/// DirectDraw) in the game.
+/// `tyre_change`'s part in the game: `race::tyre_change_gauge`'s Rust version (eax its
+/// result, the rest kept).
 pub fn tyre_part(place: u32, r: &mut crate::framework::Regs) -> Result<(), Refused> {
     let _ = place;
-    unsafe { crate::framework::call_game(r, game_addr(rva(0x41C1D6))) };
-    Ok(())
+    crate::race::tyre_change_gauge::tyre_change_gauge_in(
+        r,
+        &mut crate::race::tyre_change_gauge::gauge_part,
+    )
 }

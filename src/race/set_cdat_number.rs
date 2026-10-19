@@ -3,7 +3,7 @@
 //! In:  al = the number
 //! Out: eax the tens' digit, edx the units', ebx 10; the rest preserved
 //!
-//! See `race/course_data.rs`. Callers `sub_4455FC` (with 0) and `sub_4394F8`. Self-test:
+//! See `race/course_data.rs`. Callers `sub_4455FC` (with 0) and `race::find_present_courses`. Self-test:
 //! the original and the Rust version on the game's paths, put back afterwards.
 
 use crate::errors::Refused;

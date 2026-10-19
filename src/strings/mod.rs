@@ -25,6 +25,8 @@ pub mod format_u32;
 pub mod hex_append;
 pub mod lexicon;
 pub mod load_language;
+pub mod maybe_compile_lexicon;
+pub mod rot13_into_text;
 pub mod same_text;
 pub mod str_append;
 pub mod str_append_indexed;
@@ -35,6 +37,7 @@ pub mod units;
 pub mod utils;
 
 pub static HOOKS: &[&dyn GameHook] = &[
+    &maybe_compile_lexicon::HOOK,
     &text_length::HOOK,
     &compile_lexicon::HOOK,
     &load_language::HOOK,
@@ -63,4 +66,5 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &append_power::HOOK,
     &append_torque::HOOK,
     &append_weight::HOOK,
+    &rot13_into_text::HOOK,
 ];

@@ -57,7 +57,9 @@ pub mod crash_contact;
 pub mod crossed_edge;
 pub mod crossed_edge_contact;
 pub mod cue_car_sound;
+pub mod cue_car_sound_last;
 pub mod cue_listed_car_sound;
+pub mod cue_listed_car_sound_last;
 pub mod damage_factors;
 pub mod damage_gauges;
 pub mod damage_model;
@@ -143,6 +145,7 @@ pub mod note_time_mark;
 pub mod object_hits_car;
 pub mod object_turn_matrix;
 pub mod off_line_warnings;
+pub mod pace_notes_step;
 pub mod passed_split_point;
 pub mod pick_start_gear;
 pub mod place_camera;
@@ -159,6 +162,7 @@ pub mod put_back_motion_vectors;
 pub mod queue_car_event;
 pub mod queue_listed_event;
 pub mod queue_notice;
+pub mod queue_pace_note;
 pub mod queue_sound_cue;
 pub mod race_timers;
 pub mod rank_split_time;
@@ -458,4 +462,8 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &car_physics_step::HOOK,
     &test_drive_run::HOOK,
     &test_drive::HOOK,
+    &cue_car_sound_last::HOOK,
+    &cue_listed_car_sound_last::HOOK,
+    &queue_pace_note::HOOK,
+    &pace_notes_step::HOOK,
 ];

@@ -11,6 +11,8 @@ pub mod drive;
 pub mod errors;
 pub mod fatal;
 pub mod files;
+#[cfg(feature = "standalone")]
+pub mod film;
 mod framework;
 pub mod gfx;
 pub mod hud;
@@ -85,7 +87,24 @@ fn run_self_tests(pat: &str, leftovers: bool) {
         let _paused = framework::pause_game();
         let before = leftovers.then(leftovers::Snapshot::take);
         framework::set_running_test(Some(h.name()));
-        let result = h.self_test();
+        // A test that panics is logged and the next one runs (a panic once ended the
+        // console thread, and with it every later test, 2026-10-19).
+        let result = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| h.self_test()))
+        {
+            Ok(result) => result,
+            Err(payload) => {
+                let why = payload
+                    .downcast_ref::<&str>()
+                    .map(|s| s.to_string())
+                    .or_else(|| payload.downcast_ref::<String>().cloned())
+                    .unwrap_or_default();
+                log(&format!(
+                    "SELFTEST FAIL {}: the test panicked: {why}",
+                    h.name()
+                ));
+                None
+            }
+        };
         framework::set_running_test(None);
         if let Some((cases, bad)) = result {
             log(&format!("{:<30} cases={cases} failures={bad}", h.name()));

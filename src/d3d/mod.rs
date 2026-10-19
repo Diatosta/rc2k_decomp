@@ -11,10 +11,13 @@
 use crate::framework::GameHook;
 
 pub mod copy_screen_to_texture;
+pub mod copy_to_device_texture;
 pub mod draw_fan;
 pub mod draw_fan_unclipped;
 pub mod draw_hud_batch;
 pub mod draw_indexed;
+pub mod draw_marks_hexagons;
+pub mod draw_vertex_strip;
 pub mod lock_texture;
 pub mod recorder;
 pub mod set_render_state;
@@ -38,6 +41,9 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &draw_indexed::HOOK,
     &draw_hud_batch::HOOK,
     &copy_screen_to_texture::HOOK,
+    &copy_to_device_texture::HOOK,
+    &draw_vertex_strip::HOOK,
+    &draw_marks_hexagons::HOOK,
     &texture_surface_info::HOOK,
     &lock_texture::HOOK,
     &unlock_texture::HOOK,

@@ -72,6 +72,7 @@ pub mod course_faces;
 pub mod course_grid;
 pub mod create_controls;
 pub mod credit_line;
+pub mod credits_race;
 pub mod distance_to_checkpoint;
 pub mod draw_back_face;
 pub mod draw_car;
@@ -108,6 +109,7 @@ pub mod draw_slot_object;
 pub mod draw_sorted_entries;
 pub mod draw_time_plate;
 pub mod draw_tinted_face;
+pub mod draw_tyre_change;
 pub mod draw_view_backdrop;
 pub mod draw_view_overlays;
 pub mod draw_view_scene;
@@ -136,6 +138,7 @@ pub mod face_switches;
 pub mod face_texture_coordinates;
 pub mod face_texture_coordinates_2;
 pub mod fetch_view_value;
+pub mod find_present_courses;
 pub mod find_sound_spots;
 pub mod first_check_checkpoint;
 pub mod flush_draw_batch;
@@ -172,6 +175,7 @@ pub mod index_of_kind;
 pub mod init_checkpoints;
 pub mod init_mud;
 pub mod init_overlay;
+pub mod init_pace_notes;
 pub mod init_skidmarks;
 pub mod invert_car_matrix;
 pub mod kind_past_table;
@@ -219,13 +223,19 @@ pub mod name_plates;
 pub mod nearest_checkpoint;
 pub mod nearest_checkpoint_in;
 pub mod next_map_anchor;
+pub mod next_pace_slot;
 pub mod nonzero_random;
 pub mod normalise_work_vector;
 pub mod norms;
+pub mod noted_calls;
 pub mod object_bytes;
 pub mod objects;
 pub mod objects_tidy;
 pub mod open_replay;
+pub mod pace_distance_word;
+pub mod pace_note_calls;
+pub mod pace_note_code;
+pub mod pace_notes;
 pub mod pack_runs;
 pub mod panel_marks;
 pub mod panel_motion;
@@ -264,6 +274,7 @@ pub mod replay_cameras_1;
 pub mod replay_cameras_2;
 pub mod replay_mode;
 pub mod replay_mode_1;
+pub mod replay_mode_2;
 pub mod replay_mode_3;
 pub mod replay_screenshot;
 pub mod reset_car_blocks;
@@ -302,6 +313,7 @@ pub mod set_start_states;
 pub mod set_up_arcade_cars;
 pub mod set_up_car_points;
 pub mod set_up_cars;
+pub mod set_up_credits_race;
 pub mod set_up_fog;
 pub mod set_up_mode_0_cars;
 pub mod set_up_mode_1_cars;
@@ -367,6 +379,7 @@ pub mod tidy_stage;
 pub mod tint_to_mud_colour;
 pub mod tweak_stage;
 pub mod tyre_change;
+pub mod tyre_change_gauge;
 pub mod update_mud_texture;
 pub mod update_name_plates;
 pub mod view_light;
@@ -427,8 +440,6 @@ pub mod draw_viewer_item;
 pub mod draw_viewer_panel;
 
 pub mod viewer_frame;
-
-pub mod replay_mode_2;
 
 pub static HOOKS: &[&dyn GameHook] = &[
     &create_controls::HOOK,
@@ -801,4 +812,14 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &draw_viewer_panel::HOOK,
     &viewer_frame::HOOK,
     &replay_mode_2::HOOK,
+    &pace_note_code::HOOK,
+    &next_pace_slot::HOOK,
+    &pace_distance_word::HOOK,
+    &pace_note_calls::HOOK,
+    &init_pace_notes::HOOK,
+    &draw_tyre_change::HOOK,
+    &tyre_change_gauge::HOOK,
+    &set_up_credits_race::HOOK,
+    &credits_race::HOOK,
+    &find_present_courses::HOOK,
 ];

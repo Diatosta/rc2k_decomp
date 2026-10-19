@@ -7,7 +7,7 @@
 //! Out: every register preserved (`pusha` .. `popa`); CF as above, else ZF by eax
 //!
 //! Callers: `sub_4547AE` (over the race with `dword_71C3E0`), the credits' screen
-//! (0x415F9F, 0x415FB7), `sub_463666`. Shadow mode runs the original alone (it draws,
+//! (0x415F9F, 0x415FB7), `race::credits_race`. Shadow mode runs the original alone (it draws,
 //! reads the clock and starts a tune). Self-test: the script drawn at tops above, on and
 //! below the screen with the clock ahead (so it does not move), the music on and off, by
 //! the drawing harness; the variables put back (skipped without the blitter's recording).

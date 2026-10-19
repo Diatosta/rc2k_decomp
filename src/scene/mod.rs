@@ -89,6 +89,7 @@ pub mod list_object_faces;
 pub mod list_object_textures;
 pub mod load_changed_texture_picture;
 pub mod load_front_end_objects;
+pub mod load_front_end_objects_logged;
 pub mod load_number_plates;
 pub mod load_object;
 pub mod load_slot_texture;
@@ -96,6 +97,7 @@ pub mod load_slot_textures;
 pub mod load_texture_picture;
 pub mod load_wanted_textures;
 pub mod lock_frame;
+pub mod log_bad_polygon;
 pub mod look_up_texture;
 pub mod make_object_matrix;
 pub mod map_texture_places;
@@ -117,6 +119,7 @@ pub mod project_point;
 pub mod project_polygon;
 pub mod raise_texture_needs;
 pub mod read_kind_records;
+pub mod rebuild_front_end;
 pub mod reflect_vector;
 pub mod reflection_coordinates;
 pub mod reload_slot_textures;
@@ -147,10 +150,12 @@ pub mod set_turn_z_16;
 pub mod set_up_carousel;
 pub mod set_up_engine;
 pub mod set_up_front_end_scene;
+pub mod set_up_lit_engine;
 pub mod set_up_object_memory;
 pub mod set_up_textures;
 pub mod set_view_matrices;
 pub mod set_view_window;
+pub mod show_bad_polygon;
 pub mod sort_listed_faces;
 pub mod square_matrix;
 pub mod step_loading_bar;
@@ -332,4 +337,9 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &turn_stage_object_point::HOOK,
     &widen_object_radius::HOOK,
     &texture_picture_folder::HOOK,
+    &set_up_lit_engine::HOOK,
+    &rebuild_front_end::HOOK,
+    &load_front_end_objects_logged::HOOK,
+    &log_bad_polygon::HOOK,
+    &show_bad_polygon::HOOK,
 ];

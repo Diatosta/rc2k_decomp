@@ -6,7 +6,7 @@
 //! `dword_529D94` = 0; the computer's name is asked for into the text buffer
 //! (`GetComputerNameA`, through `sub_410848`; if that fails the buffer is looked at as it
 //! is); if its first six characters are "andrew" in any case, `dword_529D94` = 1.
-//! (`sub_41C1D6` reads it.) One caller, `start`.
+//! (`race::tyre_change_gauge` reads it.) One caller, `start`.
 //! Shadow mode asks twice. Self-test: a redirected copy whose name comes from the test.
 
 use crate::errors::Refused;

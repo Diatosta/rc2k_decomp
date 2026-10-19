@@ -8,8 +8,8 @@
 //! "NETRXTDB:START" (log level 2); `dword_52A4B0` (done) not 0: the end. Else round and
 //! round: `threading::wait_for_object` on the event `dword_52AB68` (`net::set_up`'s) for
 //! 1000 ms; signalled (zero clear): `dword_52A918` (receiving) 1 and, with `dword_52A910`
-//! (a network session) 1, `sub_4194CC` (DirectPlay's messages taken in: the platform's,
-//! through the game; nothing in the standalone program, which has no network); then
+//! (a network session) 1, `net::take_messages` (DirectPlay's messages taken in; the
+//! Rust version, in the standalone program too); then
 //! `dword_52A918` 0; with `dword_52ACE4` 1 the call posted in `dword_52ACE8` (taken with an
 //! `xchg`, eax its address) is made and its eax kept in `dword_52ACEC`, `dword_52ACF0` 1
 //! (`sub_4184F8` posts them and waits); until `g_quitting` is 1. The end: done 1,
@@ -25,7 +25,7 @@
 use crate::errors::Refused;
 use crate::framework::{
     RawHook, Regs, SelfTest, ZERO_FLAG, call_game, game_addr, hook_asm, hook_enter, hook_leave,
-    rva, shadow, standalone,
+    rva, shadow,
 };
 use crate::install::stand_ins::{act, set_handler, stand_in};
 use std::sync::Mutex;
@@ -51,7 +51,7 @@ const QUIT_TEXT_RVA: usize = rva(0x4DACE1); // "NETRXTDB:QUIT"
 /// The wait for the event, in milliseconds.
 const WAIT: u32 = 1000;
 /// The calls by place: 0 `logfile::log_write_l2_nl` (eax), 1 `threading::wait_for_object`
-/// (eax, ebx -> the zero flag), 2 `sub_4194CC`, 3 the posted call (eax its address), 4
+/// (eax, ebx -> the zero flag), 2 `net::take_messages`, 3 the posted call (eax its address), 4
 /// `ExitThread(0)` (its thunk, 0x4D5D10).
 const CALLEES: [usize; 3] = [0x401439, 0x411063, 0x4194CC];
 const EXIT_THREAD: usize = 0x4D5D10;
@@ -170,9 +170,9 @@ pub unsafe fn receive_thread(entry: &Regs, v: &ReceiveVars, part: Part) -> Resul
     Ok(())
 }
 
-/// In the game: the log and the calls through the game, the wait from the Rust version; a
-/// turn's calls into the game hold the gate. In the standalone program there is no network
-/// (place 2 does nothing).
+/// In the game: the log, the wait and the messages (`net::take_messages`) from the Rust
+/// versions, the posted call through the game; a turn's messages and posted call hold the
+/// gate.
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     struct Gate;
     impl Drop for Gate {
@@ -187,16 +187,15 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             r.set_carry(carry);
             r.set_zero(zero);
         }
-        2 if standalone() => {}
-        2 | 3 => {
+        2 => {
             hook_enter();
             let _gate = Gate;
-            let to = if place == 2 {
-                game_addr(rva(CALLEES[2]))
-            } else {
-                r.eax as usize
-            };
-            unsafe { call_game(r, to) };
+            crate::net::take_messages::from_rust(r);
+        }
+        3 => {
+            hook_enter();
+            let _gate = Gate;
+            unsafe { call_game(r, r.eax as usize) };
         }
         4 => unsafe { windows_sys::Win32::System::Threading::ExitThread(0) },
         _ => unsafe { call_game(r, game_addr(rva(CALLEES[0]))) },

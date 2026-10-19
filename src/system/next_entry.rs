@@ -48,6 +48,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     let left = Left::nothing().with(EBX, ebx).with(ECX, ecx);
     Ok(Left {
         carry: Some(carry),
+        // a next one: `dec ecx` not zero; none: the `dec ecx` that reached 0, or `cmp ecx, 1` on 0
+        zero: Some(carry && r.ecx != 0),
         ..left
     })
 }

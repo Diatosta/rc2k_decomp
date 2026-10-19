@@ -10,7 +10,12 @@ pub mod best_scores_caption;
 pub mod buttons;
 pub mod car_caption;
 pub mod car_caption_2;
+pub mod car_page_description;
+pub mod car_page_dimensions;
+pub mod car_page_engine;
 pub mod car_page_title;
+pub mod car_page_transmission;
+pub mod car_pages;
 pub mod championship_table;
 pub mod classify_controller;
 pub mod controller;
@@ -24,6 +29,7 @@ pub mod draw_button_alt;
 pub mod draw_button_highlighted;
 pub mod draw_car_figures;
 pub mod draw_championship_table;
+pub mod draw_class_ranking;
 pub mod draw_class_times;
 pub mod draw_class_times_marked;
 pub mod draw_column_boxes;
@@ -69,6 +75,7 @@ pub mod draw_record_heading;
 pub mod draw_record_times;
 pub mod draw_redefined_keys;
 pub mod draw_repair_times;
+pub mod draw_replay_slot_names;
 pub mod draw_ride_height_installed_marker;
 pub mod draw_ride_height_marker;
 pub mod draw_save_setup_list;
@@ -154,6 +161,7 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &draw_ride_height_installed_marker::HOOK,
     &draw_suspension_stiffness_installed_marker::HOOK,
     &draw_service_area::HOOK,
+    &draw_replay_slot_names::HOOK,
     &draw_setup_slot_names::HOOK,
     &draw_save_setup_list::HOOK,
     &draw_load_setup_list::HOOK,
@@ -246,6 +254,11 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &draw_note_1fd::HOOK,
     &replay_range_caption::HOOK,
     &draw_visual_preferences::HOOK,
+    &draw_class_ranking::HOOK,
+    &car_page_description::HOOK,
+    &car_page_engine::HOOK,
+    &car_page_transmission::HOOK,
+    &car_page_dimensions::HOOK,
 ];
 
 /// Console switch `blank on [prefix]` / `blank off`, kept for every hook in this module: a

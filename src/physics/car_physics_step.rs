@@ -16,8 +16,8 @@
 //! it, else the car stalled when still, its motion redone and the round counted; all
 //! rounds used: `physics::limit_motion`, `physics::find_clear_place`, `dword_6141D0` + 1.
 //! With rounds done, the motion put back and limited. Then the ground, the stuck reset,
-//! the engine sound, the wheels' spin, the checkpoints, the pace notes (`sub_4417EC`,
-//! out of scope: a call into the game), the count down, the wheel angles, the mean drive
+//! the engine sound, the wheels' spin, the checkpoints, the pace notes
+//! (`physics::pace_notes_step`), the count down, the wheel angles, the mean drive
 //! speed (`unk_71A198`) and the height change (`unk_71A8E4`), the motion length, the
 //! damage model and its parts and notices, the notices, neutral, the word +0x234, the
 //! camera (`physics::camera_frame`, when the current car is listed in `dword_641680`), the
@@ -44,8 +44,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{
-    EAX, EBX, ECX, EDI, EDX, ESI, RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva,
-    shadow,
+    EAX, EBX, ECX, EDI, EDX, ESI, RawHook, Regs, SelfTest, game_addr, hook_asm, rva, shadow,
 };
 use crate::math::x87::loaded;
 use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
@@ -85,9 +84,6 @@ const CALLS: [usize; 83] = [
     0x2E4, 0x2E9, 0x318, 0x31D, 0x322, 0x327, 0x32C, 0x331, 0x336, 0x34C, 0x351, 0x356,
     0x35B, 0x360, 0x365, 0x36A, 0x36F, 0x374, 0x379,
 ];
-
-/// `sub_4417EC`: the pace notes, out of scope (a call into the game).
-const PACE_NOTES: usize = 0x4417EC;
 
 /// A callee that changes the registers it is given, of which its hook reports `regs`.
 fn keep(r: &mut Regs, regs: &[u8], f: unsafe fn(&mut Regs)) {
@@ -257,8 +253,7 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
         ph::engine_sound::engine_sound()?.apply(r);
         r.eax = ph::spin_wheels::spin_wheels();
         ph::track_checkpoints::track_checkpoints_in(r, &mut ph::track_checkpoints::game_part)?;
-        // The pace notes: out of scope, the game's.
-        call_game(r, game_addr(rva(PACE_NOTES)));
+        ph::pace_notes_step::pace_notes_step_in(r, &mut ph::queue_pace_note::pace_part)?;
     }
     keep(r, &[EAX], ph::count_down_notice::count_down_notice);
     unsafe { ph::turn_wheel_angles::turn_wheel_angles() }.apply(r);
@@ -365,7 +360,7 @@ fn self_test() -> (usize, usize) {
     if !ph::move_slot::in_race() || !(1..=0x40).contains(&g(0x71A238)) || g(0x71B3F8) > 7 {
         return t.skip("not in a race (no stage)");
     }
-    // The pace notes are the game's either way; logging off for the two runs.
+    // Logging off for the two runs.
     let mut all = test_regions();
     all.push((game_addr(rva(0x4E0094)) as u32, 4));
     let saved = capture(&all);

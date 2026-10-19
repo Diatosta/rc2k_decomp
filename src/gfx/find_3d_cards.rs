@@ -17,7 +17,8 @@
 
 use crate::errors::Refused;
 use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva, shadow, standalone,
+    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
+    standalone,
 };
 use crate::install::stand_ins::{act, set_handler, stand_in};
 use std::sync::Mutex;
@@ -92,7 +93,13 @@ pub unsafe fn find_3d_cards(entry: &Regs, v: &FindVars, part: Part) -> Result<()
 /// the enumeration does nothing.
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     match place {
-        1 if standalone() => {}
+        // DirectDraw's drivers: the standalone program's is its rasteriser, a 3D primary
+        // card (as the enumeration's callback sets it, unless `dword_5AB950` says not to).
+        1 if standalone() => unsafe {
+            if game_read::<u32>(rva(0x5AB950)) == 0 {
+                game_write(rva(0x5AB4AC), 1u32);
+            }
+        },
         1 => unsafe {
             let f: unsafe extern "system" fn(u32, u32) -> i32 =
                 std::mem::transmute(game_addr(ENUMERATE));

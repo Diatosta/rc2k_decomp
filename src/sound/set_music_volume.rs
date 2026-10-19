@@ -37,7 +37,7 @@ pub fn set_music_volume(entry: &Regs) -> Option<Regs> {
     })
 }
 
-const SENDER: Sender = Sender {
+pub const SENDER: Sender = Sender {
     address: 0x40F83E,
     len: 0x20,
     entry: [0x60, 0x3B, 0x05, 0x94, 0x69, 0x50, 0x00, 0x74],

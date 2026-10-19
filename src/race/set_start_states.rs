@@ -8,7 +8,7 @@
 //!      chosen car's block); the rest preserved
 //!
 //! See `race/race_shell.rs`. Callers: `sub_443F0B`, `sub_443F96`, code at 0x444005,
-//! `sub_463666`, `sub_463A94` (none reads flags after it). Refuses, with
+//! `race::credits_race`, `sub_463A94` (none reads flags after it). Refuses, with
 //! `dword_52A910` 1, a chosen car (`dword_52A920`) past 7, before anything. Shadow
 //! mode: the Rust version, the values put back, the original's, compared. Self-test: one
 //! player chosen and not, one and two players, kinds flagged and not and past the tables,

@@ -9,7 +9,8 @@
 //! - culling: the game never sets 0x16, so Direct3D's default holds, triangles wound
 //!   counter-clockwise on the screen are not drawn;
 //! - the depth test (0x07 on, 0x17 the comparison) and its writing (0x0E);
-//! - the texture (state 1 by `d3d::set_texture`), sampled at the nearest texel with
+//! - the texture (state 1 by `d3d::set_texture`), sampled at the nearest texel, or from
+//!   the four around it when the filters ask for linear (0x11 at 2, 0x12 at 2, 5 or 6), with
 //!   the perspective put right (u / w, v / w and 1 / w interpolated), wrapped (0x03
 //!   at 1) or clamped (3); mixed with the colour by 0x15 (2 modulate, 4 modulate
 //!   alpha, 1 and 7 the texture alone);
@@ -76,17 +77,23 @@ fn part(pixel: u32, mask: u32) -> f32 {
 }
 
 impl Texture<'_> {
-    /// The texel's raw pixel at (u, v), wrapped or clamped.
-    fn pixel(&self, u: f32, v: f32, clamp: bool) -> u32 {
-        let at = |t: f32, size: usize| -> usize {
-            let n = (t * size as f32).floor() as i64;
-            if clamp {
-                n.clamp(0, size as i64 - 1) as usize
-            } else {
-                n.rem_euclid(size as i64) as usize
-            }
-        };
-        let (x, y) = (at(u, self.width), at(v, self.height));
+    /// A texel place along an axis of `size`: wrapped or clamped.
+    fn place(n: i32, size: usize, clamp: bool) -> usize {
+        if clamp {
+            n.clamp(0, size as i32 - 1) as usize
+        } else if size.is_power_of_two() {
+            (n & (size as i32 - 1)) as usize
+        } else {
+            n.rem_euclid(size as i32) as usize
+        }
+    }
+
+    /// The raw pixel of texel (x, y), wrapped or clamped.
+    fn texel(&self, x: i32, y: i32, clamp: bool) -> u32 {
+        let (x, y) = (
+            Self::place(x, self.width, clamp),
+            Self::place(y, self.height, clamp),
+        );
         let place = y * self.pitch + x * self.bytes;
         match self.bytes {
             2 => self
@@ -152,7 +159,7 @@ unsafe fn read_target(target: &Target, x: usize, y: usize) -> Colour {
 }
 
 unsafe fn write_target(target: &Target, x: usize, y: usize, colour: &Colour) {
-    let to = |c: f32, most: f32| (c.clamp(0.0, 1.0) * most + 0.5) as u32;
+    let to = |c: f32, most: f32| (c.clamp(0.0, 1.0) * most + 0.5) as i32 as u32;
     unsafe {
         let row = target.pixels.add(y * target.pitch);
         if target.bits == 16 {
@@ -239,6 +246,7 @@ pub struct Clip {
 /// # Safety
 /// `target.pixels` must hold `target.height` rows of `target.pitch` bytes, `depth` a float
 /// a place of the target; no other thread may draw into `clip` meanwhile.
+/// Returns the pixels written.
 pub unsafe fn draw_fan_in(
     vertices: &[Vertex],
     target: &Target,
@@ -246,13 +254,14 @@ pub unsafe fn draw_fan_in(
     texture: Option<&Texture>,
     depth: *mut f32,
     clip: &Clip,
-) {
+) -> u64 {
     if vertices.len() < 3 {
-        return;
+        return 0;
     }
     let points: Vec<Point> = vertices.iter().map(point).collect();
+    let mut written = 0;
     for n in 1..points.len() - 1 {
-        unsafe {
+        written += unsafe {
             draw_triangle(
                 [&points[0], &points[n], &points[n + 1]],
                 target,
@@ -263,6 +272,7 @@ pub unsafe fn draw_fan_in(
             )
         };
     }
+    written
 }
 
 unsafe fn draw_triangle(
@@ -272,18 +282,18 @@ unsafe fn draw_triangle(
     texture: Option<&Texture>,
     depth: *mut f32,
     clip: &Clip,
-) {
+) -> u64 {
     // Positive: clockwise on the screen (y goes down).
     let area = (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
     if area == 0.0 || !area.is_finite() {
-        return;
+        return 0;
     }
     let cull = match states.get(0x16) {
         0 => 3,
         cull => cull,
     };
     if (cull == 3 && area < 0.0) || (cull == 2 && area > 0.0) {
-        return;
+        return 0;
     }
     // Wound the same way whatever the input, for the edges' signs.
     let (a, b, c, area) = if area < 0.0 {
@@ -292,18 +302,20 @@ unsafe fn draw_triangle(
         (a, b, c, area)
     };
     let left = (a.x.min(b.x).min(c.x).floor().max(0.0) as usize).max(clip.left);
-    let right = ((a.x.max(b.x).max(c.x).ceil() as i64).clamp(0, target.width as i64) as usize)
+    let right = ((a.x.max(b.x).max(c.x).ceil() as i32).clamp(0, target.width as i32) as usize)
         .min(clip.right);
     let top = (a.y.min(b.y).min(c.y).floor().max(0.0) as usize).max(clip.top);
-    let bottom = ((a.y.max(b.y).max(c.y).ceil() as i64).clamp(0, target.height as i64) as usize)
+    let bottom = ((a.y.max(b.y).max(c.y).ceil() as i32).clamp(0, target.height as i32) as usize)
         .min(clip.bottom);
     if left >= right || top >= bottom {
-        return;
+        return 0;
     }
     let edges = [(b, c), (c, a), (a, b)];
     let triangle = Triangle {
         points: [a, b, c],
-        area,
+        inverse_area: 1.0 / area,
+        uw: [a.u * a.w, b.u * b.w, c.u * c.w],
+        vw: [a.v * a.w, b.v * b.w, c.v * c.w],
         edges,
         biases: edges.map(|(p, q)| top_left(p, q)),
         left,
@@ -321,52 +333,149 @@ unsafe fn draw_triangle(
         fog_colour: unpack(states.get(0x22)),
         mixing: states.get(0x15),
         clamp: states.get(0x03) == 3,
-        texture: texture.map(|t| (t, Scales::of(t))),
+        // linear when either filter asks for it (0x11 magnifying 2, 0x12 minifying 2, 5
+        // or 6): which applies would be the pixel's footprint; the game sets both alike
+        linear: states.get(0x11) == 2 || matches!(states.get(0x12), 2 | 5 | 6),
+        texture: texture.map(Texels::of),
         target,
         depth,
     };
+    let mut written = 0;
     for y in top..bottom {
-        unsafe { triangle.row(y) };
+        written += unsafe { triangle.row(y) };
     }
+    written
 }
 
-/// A texture's four channels as shifts and greatest values (`part`'s, worked out once).
-struct Scales {
-    shift: [u32; 4],
-    most: [f32; 4],
+/// 0 .. 255 as 0 .. 1.
+const UNIT: [f32; 256] = {
+    let mut t = [0.0f32; 256];
+    let mut n = 0;
+    while n < 256 {
+        t[n] = n as f32 / 255.0;
+        n += 1;
+    }
+    t
+};
+
+/// The 16-bit formats' tables met so far: each pixel's 0xAARRGGBB, by the four masks.
+type Table = std::sync::Arc<Vec<u32>>;
+static TABLES: std::sync::Mutex<Vec<([u32; 4], Table)>> = std::sync::Mutex::new(Vec::new());
+
+/// A pixel of `masks` as 0xAARRGGBB (a channel without a mask: 0xFF).
+fn to_argb(pixel: u32, masks: &[u32; 4]) -> u32 {
+    let mut out = 0;
+    // masks: blue, green, red, alpha; out's bytes: blue, green, red, alpha
+    for (n, &mask) in masks.iter().enumerate() {
+        let c = if mask == 0 {
+            255
+        } else {
+            let shift = mask.trailing_zeros();
+            let most = mask >> shift;
+            (((pixel & mask) >> shift) * 255 + most / 2) / most
+        };
+        out |= c << (8 * n);
+    }
+    out
 }
 
-impl Scales {
-    fn of(texture: &Texture) -> Self {
-        let shift = texture
-            .masks
-            .map(|m| if m == 0 { 0 } else { m.trailing_zeros() });
-        let mut most = [0.0f32; 4];
-        for n in 0..4 {
-            most[n] = if texture.masks[n] == 0 {
-                0.0
-            } else {
-                (texture.masks[n] >> shift[n]) as f32
-            };
+fn table_for(masks: &[u32; 4]) -> Table {
+    let mut tables = TABLES.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((_, t)) = tables.iter().find(|(m, _)| m == masks) {
+        return t.clone();
+    }
+    let t: Table = std::sync::Arc::new((0..0x1_0000u32).map(|p| to_argb(p, masks)).collect());
+    tables.push((*masks, t.clone()));
+    t
+}
+
+/// A texture read as 0xAARRGGBB: a 16-bit one through its format's table, a 32-bit one of
+/// the usual masks as it is (the alpha made full where there is none), any other pixel by
+/// pixel.
+struct Texels<'a> {
+    texture: &'a Texture<'a>,
+    table: Option<Table>,
+    /// 0xFF000000 for a 32-bit texture without alpha, else 0.
+    full_alpha: u32,
+    usual: bool,
+}
+
+impl<'a> Texels<'a> {
+    fn of(texture: &'a Texture<'a>) -> Self {
+        let m = texture.masks;
+        let usual = texture.bytes == 4
+            && m[0] == 0xFF
+            && m[1] == 0xFF00
+            && m[2] == 0xFF_0000
+            && (m[3] == 0 || m[3] == 0xFF00_0000);
+        Self {
+            texture,
+            table: (texture.bytes == 2).then(|| table_for(&m)),
+            full_alpha: if m[3] == 0 { 0xFF00_0000 } else { 0 },
+            usual,
         }
-        Self { shift, most }
     }
 
-    /// `part` of each channel.
-    fn colour(&self, pixel: u32, masks: &[u32; 4]) -> Colour {
-        let mut c = [1.0f32; 4];
-        for n in 0..4 {
-            if masks[n] != 0 {
-                c[n] = ((pixel & masks[n]) >> self.shift[n]) as f32 / self.most[n];
-            }
+    /// Texel (x, y), wrapped or clamped, as 0xAARRGGBB.
+    fn argb(&self, x: i32, y: i32, clamp: bool) -> u32 {
+        let raw = self.texture.texel(x, y, clamp);
+        match &self.table {
+            Some(t) => t[raw as usize & 0xFFFF],
+            None if self.usual => raw | self.full_alpha,
+            None => to_argb(raw, &self.texture.masks),
         }
-        c
+    }
+
+    fn colour(argb: u32) -> Colour {
+        [
+            UNIT[(argb & 0xFF) as usize],
+            UNIT[(argb >> 8 & 0xFF) as usize],
+            UNIT[(argb >> 16 & 0xFF) as usize],
+            UNIT[(argb >> 24) as usize],
+        ]
+    }
+
+    /// The texel at (u, v), the nearest one.
+    fn nearest(&self, u: f32, v: f32, clamp: bool) -> Colour {
+        let t = self.texture;
+        let x = (u * t.width as f32).floor() as i32;
+        let y = (v * t.height as f32).floor() as i32;
+        Self::colour(self.argb(x, y, clamp))
+    }
+
+    /// The colour at (u, v) filtered from the four texels around it (Direct3D's linear
+    /// filter: texel centres at half places), with 8-bit weights, two channels at a time.
+    fn bilinear(&self, u: f32, v: f32, clamp: bool) -> Colour {
+        let t = self.texture;
+        let tx = u * t.width as f32 - 0.5;
+        let ty = v * t.height as f32 - 0.5;
+        let (fx, fy) = (tx.floor(), ty.floor());
+        let wx = ((tx - fx) * 256.0) as u32;
+        let wy = ((ty - fy) * 256.0) as u32;
+        let (x, y) = (fx as i32, fy as i32);
+        let lerp = |a: u32, b: u32, w: u32| -> u32 {
+            let rb = ((a & 0x00FF_00FF) * (256 - w) + (b & 0x00FF_00FF) * w) >> 8 & 0x00FF_00FF;
+            let ag =
+                ((a >> 8 & 0x00FF_00FF) * (256 - w) + (b >> 8 & 0x00FF_00FF) * w) & 0xFF00_FF00;
+            rb | ag
+        };
+        let top = lerp(self.argb(x, y, clamp), self.argb(x + 1, y, clamp), wx);
+        let bottom = lerp(
+            self.argb(x, y + 1, clamp),
+            self.argb(x + 1, y + 1, clamp),
+            wx,
+        );
+        Self::colour(lerp(top, bottom, wy))
     }
 }
 
 struct Triangle<'a> {
     points: [&'a Point; 3],
-    area: f32,
+    /// 1 over twice the area: an edge's function times it is the opposite corner's weight.
+    inverse_area: f32,
+    /// Each corner's u / w and v / w (u and v times its 1/w).
+    uw: [f32; 3],
+    vw: [f32; 3],
     edges: [(&'a Point, &'a Point); 3],
     biases: [bool; 3],
     left: usize,
@@ -378,13 +487,14 @@ struct Triangle<'a> {
     alpha_function: u32,
     alpha_reference: f32,
     blending: bool,
+    linear: bool,
     source_blend: u32,
     target_blend: u32,
     fog: bool,
     fog_colour: Colour,
     mixing: u32,
     clamp: bool,
-    texture: Option<(&'a Texture<'a>, Scales)>,
+    texture: Option<Texels<'a>>,
     target: &'a Target,
     depth: *mut f32,
 }
@@ -416,8 +526,10 @@ impl Triangle<'_> {
         (lo, hi.max(lo))
     }
 
-    unsafe fn row(&self, y: usize) {
+    /// Returns the pixels written.
+    unsafe fn row(&self, y: usize) -> u64 {
         let [a, b, c] = self.points;
+        let mut written = 0;
         let target = self.target;
         let py = y as f32;
         let (from, to) = self.span(py);
@@ -431,7 +543,7 @@ impl Triangle<'_> {
                     inside = false;
                     break;
                 }
-                weights[n] = e / self.area;
+                weights[n] = e * self.inverse_area;
             }
             if !inside {
                 continue;
@@ -446,17 +558,23 @@ impl Triangle<'_> {
             }
             let colour: Colour = [0, 1, 2, 3].map(|n| mix(a.colour[n], b.colour[n], c.colour[n]));
             let mut out = colour;
-            if let Some((texture, scales)) = &self.texture {
+            if let Some(texels) = &self.texture {
+                let texture = texels.texture;
                 let w = mix(a.w, b.w, c.w);
                 let (u, v) = if w != 0.0 {
+                    let over = 1.0 / w;
                     (
-                        mix(a.u * a.w, b.u * b.w, c.u * c.w) / w,
-                        mix(a.v * a.w, b.v * b.w, c.v * c.w) / w,
+                        mix(self.uw[0], self.uw[1], self.uw[2]) * over,
+                        mix(self.vw[0], self.vw[1], self.vw[2]) * over,
                     )
                 } else {
                     (mix(a.u, b.u, c.u), mix(a.v, b.v, c.v))
                 };
-                let texel = scales.colour(texture.pixel(u, v, self.clamp), &texture.masks);
+                let texel = if self.linear {
+                    texels.bilinear(u, v, self.clamp)
+                } else {
+                    texels.nearest(u, v, self.clamp)
+                };
                 out = match self.mixing {
                     1 | 7 => texel,
                     4 => [0, 1, 2, 3].map(|n| texel[n] * colour[n]),
@@ -493,9 +611,11 @@ impl Triangle<'_> {
                 out = [0, 1, 2, 3].map(|n| out[n] * s[n] + under[n] * d[n]);
             }
             unsafe { write_target(target, x, y, &out) };
+            written += 1;
             if self.depth_write {
                 unsafe { *depth = z };
             }
         }
+        written
     }
 }

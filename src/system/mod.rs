@@ -22,6 +22,7 @@ pub mod read_volume_serial;
 pub mod read_windows_version;
 pub mod restore_error_mode;
 pub mod restore_window;
+pub mod same_guid;
 pub mod set_error_mode;
 pub mod set_exception_filter;
 pub mod set_priority_class;
@@ -57,4 +58,5 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &find_running_game::HOOK,
     &set_priority_class::HOOK,
     &restore_error_mode::HOOK,
+    &same_guid::HOOK,
 ];

@@ -6,7 +6,7 @@
 //! Out: the registers as `choose_arcade_opponents` leaves them
 //!
 //! See `race/race_cars.rs`. Callers: `sub_443F0B`, `sub_443F96`, code at 0x444000,
-//! `sub_463666`, `sub_463A94` (`race::set_start_states` follows each; no flags read).
+//! `race::credits_race`, `sub_463A94` (`race::set_start_states` follows each; no flags read).
 //! Shadow mode runs the original alone (it logs). Self-test: a copy whose two calls go to
 //! stand-ins that note them, its two references to `g_logIndent` the test's, against the
 //! Rust version on the same, modes 2 and 0.

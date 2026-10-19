@@ -4,7 +4,12 @@ use crate::framework::GameHook;
 
 pub mod apply_repairs;
 pub mod backspace_setup_name;
+pub mod begin_edits;
+pub mod begin_gear_ratio_edit;
+pub mod begin_ride_height_edit;
 pub mod begin_setup_name;
+pub mod begin_suspension_stiffness_edit;
+pub mod begin_tyre_edit;
 pub mod choose_repair;
 pub mod choose_repair_marked;
 pub mod clear_repair_flags;
@@ -47,6 +52,7 @@ pub mod step_suspension_stiffness_up;
 pub mod step_tyre_down;
 pub mod step_tyre_up;
 pub mod toggle_gear_ratio_change;
+pub mod toggle_repair_choice;
 pub mod toggle_ride_height_change;
 pub mod toggle_suspension_stiffness_change;
 pub mod toggle_tyre_change;
@@ -101,4 +107,9 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &repair_car::HOOK,
     &apply_repairs::HOOK,
     &service_area_loop::HOOK,
+    &begin_gear_ratio_edit::HOOK,
+    &begin_tyre_edit::HOOK,
+    &begin_ride_height_edit::HOOK,
+    &begin_suspension_stiffness_edit::HOOK,
+    &toggle_repair_choice::HOOK,
 ];

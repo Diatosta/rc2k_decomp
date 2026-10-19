@@ -354,6 +354,36 @@ fn place(address: usize) -> String {
     }
 }
 
+/// The platform's functions `start` calls that SDL stands for: (the function, what it is).
+const SDL_DOES: [(usize, &str); 5] = [
+    (0x4103DE, "system::open_window"),
+    (0x404981, "gfx::probe_exclusive_mode"),
+    (0x404CD6, "gfx::release_screens"),
+    (0x40FA8B, "sound::close_cd_audio"),
+    (0x410509, "system::drain_messages"),
+];
+
+/// The log's wrappers: (the wrapper, its edx, the hooked function it jumps to), as IDA
+/// shows them (`logfile::log_write_l1` .. `logfile::log_hex4_l1`).
+const LOG_WRAPPERS: [(usize, u32, usize); 16] = [
+    (0x401427, 0x000, 0x4013CB), // log_write_l1
+    (0x40142B, 0x001, 0x4013CB), // log_write_l1_nl
+    (0x401432, 0x100, 0x4013CB), // log_write_l2
+    (0x401439, 0x101, 0x4013CB), // log_write_l2_nl
+    (0x401472, 0x000, 0x401440), // log_int_l1
+    (0x401476, 0x001, 0x401440), // log_int_l1_nl
+    (0x40147D, 0x100, 0x401440), // log_int_l2
+    (0x401484, 0x101, 0x401440), // log_int_l2_nl
+    (0x4014BF, 0x000, 0x40148B), // log_int_fmt_l1
+    (0x4015CF, 0x000, 0x4014D8), // log_float_l1
+    (0x4015D6, 0x001, 0x4014D8), // log_float_l1_nl
+    (0x401622, 0x000, 0x4015F4), // log_hex8_l1
+    (0x401626, 0x001, 0x4015F4), // log_hex8_l1_nl
+    (0x40162D, 0x100, 0x4015F4), // log_hex8_l2
+    (0x401634, 0x101, 0x4015F4), // log_hex8_l2_nl
+    (0x4016B0, 0x000, 0x401682), // log_hex4_l1
+];
+
 unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {
     const CONTINUE_EXECUTION: i32 = -1;
     const CONTINUE_SEARCH: i32 = 0;
@@ -393,6 +423,43 @@ unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {
                 finish(&format!("the hook at {at:#x} has no jump"), 1);
             };
             context.Eip = thunk as u32;
+            return CONTINUE_EXECUTION;
+        }
+        // The log's few-byte wrappers (edx the newline and level, then a jump into a
+        // hooked function): edx set and on at that function's thunk.
+        if let Some(&(_, edx, target)) = LOG_WRAPPERS.iter().find(|w| w.0 == at)
+            && let Some(thunk) = thunk_of(game_addr(rva(target)))
+        {
+            context.Edx = edx;
+            context.Eip = thunk as u32;
+            return CONTINUE_EXECUTION;
+        }
+        // `logfile::log_newline_l1` (0x4013DE): an empty text with a line break, at level
+        // 1, every register kept (`pusha` .. `popa`).
+        if at == 0x4013DE {
+            crate::logfile::log_write::log_write(game_addr(rva(0x4E00B7)) as *const u8, true, 1);
+            let from = (context.Esp as *const u32).read_unaligned();
+            context.Eip = from;
+            context.Esp += 4;
+            return CONTINUE_EXECUTION;
+        }
+        // The platform's own at the start and the end, which SDL does here: nothing.
+        if let Some(&(_, what)) = SDL_DOES.iter().find(|w| w.0 == at) {
+            log(&format!(
+                "standalone: {at:#x} ({what}): SDL does it, nothing to do"
+            ));
+            let from = (context.Esp as *const u32).read_unaligned();
+            context.Eip = from;
+            context.Esp += 4;
+            context.EFlags &= !1;
+            return CONTINUE_EXECUTION;
+        }
+        // An empty function of the game's (a lone `retn`, `nullsub_6` 0x44347E): it does
+        // nothing, so nothing is skipped by not running it.
+        if in_code(address) && (address as *const u8).read() == 0xC3 {
+            let from = (context.Esp as *const u32).read_unaligned();
+            context.Eip = from;
+            context.Esp += 4;
             return CONTINUE_EXECUTION;
         }
         if EXITS.contains(&at) {
@@ -468,6 +535,24 @@ unsafe fn start() {
         for address in [0x40298A, 0x402B7C, 0x4114A6, 0x4114BB, 0x401135] {
             call(address, &mut r);
         }
+        // The folders the game saves into but never makes (`notes`: `sub_413A97` makes
+        // them only from the installer's script): made here when missing, in the game's
+        // folder, as the path templates at 0x5296FB .. 0x52974B name them.
+        for folder in [
+            "savedata\\savegame",
+            "savedata\\carsetup",
+            "savedata\\snapshot",
+            "savedata\\replay",
+        ] {
+            if !Path::new(folder).is_dir() {
+                match std::fs::create_dir_all(folder) {
+                    Ok(()) => log(&format!("standalone: made the folder {folder}")),
+                    Err(e) => log(&format!(
+                        "standalone: the folder {folder} cannot be made: {e}"
+                    )),
+                }
+            }
+        }
         // `system::test_processor` (0x410883, called above) has set it from `cpuid`.
         if game_read::<u32>(rva(0x5183EC)) != 1 {
             finish("fatal error 0x900010FF, FPU is required", 1);
@@ -497,8 +582,8 @@ unsafe fn start() {
         for address in [0x40608F, 0x405DB4, 0x405580, 0x407062, 0x40F9DE] {
             call(address, &mut r);
         }
-        // What the window's procedure and the key thread tell the main loop, and the
-        // films, whose player is the platform's.
+        // What the window's procedure and the key thread tell the main loop (the films
+        // play since 2026-10-19: `film.rs`).
         stand_in("the window is the active one", 0x518374, 1);
         stand_in(
             "the window has the focus (until SDL says otherwise)",
@@ -506,7 +591,6 @@ unsafe fn start() {
             1,
         );
         stand_in("the key thread runs", 0x518998, 1);
-        stand_in("no films", 0x5BE870, 1);
         call(0x415383, &mut r);
         for address in [0x4184D6, 0x404CD6, 0x40FA8B, 0x4060B7, 0x410509] {
             call(address, &mut r);

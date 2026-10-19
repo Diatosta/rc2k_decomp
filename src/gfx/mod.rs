@@ -30,6 +30,7 @@ pub mod fill_thirds_table;
 pub mod find_3d_cards;
 pub mod frame_rect;
 pub mod free_fonts;
+pub mod free_glyph_tables;
 pub mod free_picture_buffer;
 pub mod glyph_builder;
 pub mod glyph_tables;
@@ -48,6 +49,7 @@ pub mod load_picture;
 pub mod load_picture_to_texture;
 pub mod load_picture_with_overlay;
 pub mod mark_3d_modes;
+pub mod mmx_converters;
 pub mod palette_pixels_to_dwords;
 pub mod palette_to_dwords;
 pub mod pcx;
@@ -79,7 +81,10 @@ pub mod texture_pixels;
 pub mod texture_upload;
 pub mod upload_texture_picture;
 
+pub mod keep_race_screen_mode;
+pub mod screen_mode_choices;
 pub mod take_screenshot;
+pub mod try_screen_mode;
 pub mod write_screen_pcx;
 
 pub mod clear_back_surface;
@@ -153,5 +158,9 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &free_picture_buffer::HOOK,
     &write_screen_pcx::HOOK,
     &take_screenshot::HOOK,
+    &keep_race_screen_mode::HOOK,
+    &screen_mode_choices::HOOK,
+    &try_screen_mode::HOOK,
     &clear_back_surface::HOOK,
+    &free_glyph_tables::HOOK,
 ];

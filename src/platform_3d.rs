@@ -162,9 +162,18 @@ fn object(number: usize) -> u32 {
 }
 
 unsafe extern "system" fn lock(this: u32, _: u32, description: u32, _: u32, _: u32) -> i32 {
-    // The texture is to be written: the noted drawing that reads it first.
-    flush();
     let number = unsafe { ((this + 4) as *const u32).read_unaligned() } as usize;
+    // The texture is to be written: the noted drawing that reads it first (only then:
+    // the mud's, the map's and the HUD's textures are locked every frame).
+    let pixels = LEVELS_MEMORY
+        .lock()
+        .unwrap()
+        .get(number)
+        .and_then(|l| l.as_ref())
+        .map(|l| l.pixels.as_ptr() as usize);
+    if pixels.is_none_or(reads_texture) {
+        flush();
+    }
     let mut memory = LEVELS_MEMORY.lock().unwrap();
     match memory.get_mut(number).and_then(|l| l.as_mut()) {
         Some(level) => unsafe {
@@ -241,12 +250,27 @@ struct Into {
 struct Pending {
     into: Option<Into>,
     noted: Vec<Noted>,
+    /// The memory of each texture the noted fans read.
+    textures: Vec<usize>,
 }
 
 static PENDING: Mutex<Pending> = Mutex::new(Pending {
     into: None,
     noted: Vec::new(),
+    textures: Vec::new(),
 });
+
+/// Whether a noted fan reads the texture whose memory is at `pixels`.
+fn reads_texture(pixels: usize) -> bool {
+    PENDING.lock().unwrap().textures.contains(&pixels)
+}
+
+/// The flushes that drew something and the pixels written (for `platform::report_timing`).
+pub static FLUSHES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static PIXELS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Below this many noted fans a flush draws on its own thread, the screen one tile.
+const FEW: usize = 48;
 // Safety: the pointers in it are the game's memory and ours, used only by the game's
 // thread and, during a flush, by the tiles' threads it waits for.
 unsafe impl Send for Pending {}
@@ -278,6 +302,13 @@ fn note(what: Noted) {
         draw_noted(&mut pending);
     }
     pending.into = Some(into);
+    if let Noted::Fan {
+        texture: Some(t), ..
+    } = &what
+        && !pending.textures.contains(&t.pixels)
+    {
+        pending.textures.push(t.pixels);
+    }
     pending.noted.push(what);
 }
 
@@ -291,12 +322,14 @@ fn draw_noted(pending: &mut Pending) {
     use crate::rasteriser::{Clip, States, Target, Texture};
     use rayon::prelude::*;
     let noted = std::mem::take(&mut pending.noted);
+    pending.textures.clear();
     let Some(into) = pending.into.take() else {
         return;
     };
     if noted.is_empty() {
         return;
     }
+    FLUSHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let started = std::time::Instant::now();
     let fans = noted
         .iter()
@@ -307,18 +340,27 @@ fn draw_noted(pending: &mut Pending) {
             return;
         }
         let depth_at = depth.values.as_mut_ptr() as usize;
-        let tiles: Vec<Clip> = (0..into.height.div_ceil(TILE))
-            .flat_map(|ty| {
-                (0..into.width.div_ceil(TILE)).map(move |tx| Clip {
-                    left: tx * TILE,
-                    top: ty * TILE,
-                    right: ((tx + 1) * TILE).min(into.width),
-                    bottom: ((ty + 1) * TILE).min(into.height),
+        let tiles: Vec<Clip> = if noted.len() < FEW {
+            vec![Clip {
+                left: 0,
+                top: 0,
+                right: into.width,
+                bottom: into.height,
+            }]
+        } else {
+            (0..into.height.div_ceil(TILE))
+                .flat_map(|ty| {
+                    (0..into.width.div_ceil(TILE)).map(move |tx| Clip {
+                        left: tx * TILE,
+                        top: ty * TILE,
+                        right: ((tx + 1) * TILE).min(into.width),
+                        bottom: ((ty + 1) * TILE).min(into.height),
+                    })
                 })
-            })
-            .collect();
+                .collect()
+        };
         let noted = &noted;
-        tiles.par_iter().for_each(move |clip| {
+        let draw_tile = move |clip: &Clip| {
             let target = Target {
                 pixels: into.pixels as *mut u8,
                 pitch: into.pitch,
@@ -327,6 +369,7 @@ fn draw_noted(pending: &mut Pending) {
                 bits: into.bits,
             };
             let depth = depth_at as *mut f32;
+            let mut written = 0u64;
             for what in noted {
                 match what {
                     Noted::Fan {
@@ -353,7 +396,7 @@ fn draw_noted(pending: &mut Pending) {
                             bytes: t.bytes,
                             masks: t.masks,
                         });
-                        unsafe {
+                        written += unsafe {
                             crate::rasteriser::draw_fan_in(
                                 vertices,
                                 &target,
@@ -375,7 +418,13 @@ fn draw_noted(pending: &mut Pending) {
                     }
                 }
             }
-        });
+            PIXELS.fetch_add(written, std::sync::atomic::Ordering::Relaxed);
+        };
+        if tiles.len() == 1 {
+            draw_tile(&tiles[0]);
+        } else {
+            tiles.par_iter().for_each(draw_tile);
+        }
     });
     use std::sync::atomic::Ordering::Relaxed;
     FANS.fetch_add(fans, Relaxed);
@@ -385,6 +434,19 @@ fn draw_noted(pending: &mut Pending) {
 /// A fan into the screen, with the states and the current texture
 /// (`g_currentTexture`, a video texture's number) as the game set them: noted, drawn at
 /// the next flush.
+/// A triangle strip (`D3DPT_TRIANGLESTRIP`): triangle n of vertices n, n + 1, n + 2, every
+/// second one's first two swapped so that all keep the strip's winding (as Direct3D does).
+pub fn draw_strip(vertices: &[crate::rasteriser::Vertex]) {
+    for n in 0..vertices.len().saturating_sub(2) {
+        let (a, b, c) = (vertices[n], vertices[n + 1], vertices[n + 2]);
+        if n % 2 == 0 {
+            draw_fan(&[a, b, c]);
+        } else {
+            draw_fan(&[b, a, c]);
+        }
+    }
+}
+
 pub fn draw_fan(vertices: &[crate::rasteriser::Vertex]) {
     if vertices.len() < 3 {
         return;
@@ -718,6 +780,12 @@ unsafe fn release_pool(pool: usize) {
 
 extern "C" fn release(_r: &mut Regs) {
     RELEASE.count_call();
+    release_all_textures();
+}
+
+/// `gfx::release_all_textures`: the drawing noted flushed, both pools emptied (also what
+/// `gfx::set_screen_mode` does first, 0x404C55).
+pub fn release_all_textures() {
     flush();
     unsafe {
         log_write(game_ptr(RELEASE_TEXT_RVA), true, 2);
@@ -746,11 +814,17 @@ hook_asm!(
 /// level where both have the level.
 extern "C" fn load(r: &mut Regs) {
     LOAD.count_call();
+    hold_texture("scene::load_texture", r.eax, r.ebx);
+}
+
+/// Video texture `video` made to hold system texture `system` (`scene::load_texture`,
+/// `d3d::copy_to_device_texture`): its record's +0x64 the system one, its levels the
+/// system one's where both have the level.
+pub fn hold_texture(caller: &str, system: u32, video: u32) {
     flush();
-    let (system, video) = (r.eax, r.ebx);
     if system >= MOST || video >= MOST {
         log(&format!(
-            "platform: scene::load_texture: texture {system:#x} into {video:#x} is past the records"
+            "platform: {caller}: texture {system:#x} into {video:#x} is past the records"
         ));
         return;
     }

@@ -17,9 +17,9 @@
 //! variables are put back then. Shadow mode runs the original alone (as
 //! `car_physics_step`).
 //! Self-test (in a race; skipped otherwise): the original and the Rust version from the
-//! same state (everything written saved and put back), logging off. The pace notes
-//! (`sub_4417EC`, the game's) keep state of their own that is not put back between the
-//! two runs: a mismatch there would show in their variables only.
+//! same state (everything written saved and put back), logging off. The pace notes'
+//! sound cues (`physics::pace_notes_step` -> the sound objects' queues) are not put back
+//! between the two runs: a mismatch there would show in those queues only.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{EAX, ESI, RawHook, Regs, SelfTest, game_addr, hook_asm, rva, shadow};

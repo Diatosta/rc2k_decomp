@@ -69,6 +69,9 @@ pub struct Left {
     pub carry: Option<bool>,
     /// (register, value): `EAX` and so on.
     pub regs: Vec<(u8, u32)>,
+    /// The zero flag, where it is not `!carry` (which `apply` sets otherwise) and the
+    /// callers could read it.
+    pub zero: Option<bool>,
 }
 
 impl Left {
@@ -82,6 +85,7 @@ impl Left {
         Self {
             carry: Some(carry),
             regs: Vec::new(),
+            zero: None,
         }
     }
 
@@ -95,6 +99,7 @@ impl Left {
                 (ECX, out.x as u32),
                 (EDX, out.y as u32),
             ],
+            zero: None,
         }
     }
 
@@ -116,6 +121,9 @@ impl Left {
             r.set_carry(carry);
             r.set_zero(!carry);
         }
+        if let Some(zero) = self.zero {
+            r.set_zero(zero);
+        }
     }
 
     /// True if `after` is what this says, starting from `before`.
@@ -126,6 +134,9 @@ impl Left {
             .all(|&(reg, value)| *field(&mut copy, reg) == value)
             && after.preserved_except(before, self.changed())
             && self.carry.is_none_or(|c| after.carry() == c)
+            && self
+                .zero
+                .is_none_or(|z| (after.eflags & crate::framework::ZERO_FLAG != 0) == z)
     }
 }
 

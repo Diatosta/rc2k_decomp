@@ -42,12 +42,9 @@
 
 use crate::errors::Refused;
 use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_ptr, game_read, game_write, hook_asm, rva,
-    shadow,
+    RawHook, Regs, SelfTest, call_game, game_addr, game_write, hook_asm, rva, shadow,
 };
 use crate::install::stand_ins::{act, set_handler, stand_in};
-use crate::logfile::log_hex8::log_hex8;
-use crate::logfile::log_write::log_write;
 use crate::redirect::RedirectedCopy;
 use crate::scene::allocate_point_records::allocate_point_records_in_game;
 use crate::scene::clear_fog::clear_fog;
@@ -56,7 +53,6 @@ use crate::scene::fill_light_tables::fill_light_tables;
 use crate::scene::fill_scene_light_tables::fill_scene_light_tables;
 use crate::scene::known_kind::known_kind;
 use crate::scene::known_kind_picture::known_kind_picture;
-use crate::scene::objects::{FACE_COUNT_RVA, POINT_COUNT_RVA};
 use crate::scene::reload_slot_textures::reload_slot_textures_in_game;
 use crate::scene::reset_texture_places::reset_texture_places;
 use crate::scene::reset_texture_tables::reset_texture_tables;
@@ -95,8 +91,6 @@ const OTHER_WAY_RVA: usize = rva(0x621480); // dword_621480
 const SET_UP_RVA: usize = rva(0x6238AC); // dword_6238AC
 const SLOT_KINDS_RVA: usize = rva(0x5CCE7C); // g_slotKinds
 const KIND_PICTURES_RVA: usize = rva(0x5D7968); // g_kindPictures
-const USED_POINTS_RVA: usize = rva(0x634FA4); // dword_634FA4
-const USED_FACES_RVA: usize = rva(0x634FA8); // dword_634FA8
 const TEXTURES: usize = 0x400;
 
 /// The textures needed: how many, the first, the levels' table, the tag.
@@ -278,8 +272,8 @@ pub unsafe fn set_up_front_end_scene_in_game(r: &mut Regs) -> Result<(), Refused
                 Call::FillLightTables => fill_light_tables().apply(r),
                 Call::KnownKind => r.eax = known_kind(r.eax),
                 Call::LoadObjects => {
-                    call_game(r, game_addr(rva(0x425CA9)));
-                    log_loaded_objects();
+                    use crate::scene::load_front_end_objects_logged as logged;
+                    *r = logged::load_front_end_objects_logged(r, &mut logged::game_part)?;
                 }
                 Call::ResetTexturePlaces => reset_texture_places().apply(r),
                 Call::KnownKindPicture => r.eax = known_kind_picture(r.eax),
@@ -291,24 +285,6 @@ pub unsafe fn set_up_front_end_scene_in_game(r: &mut Regs) -> Result<(), Refused
             }
             Ok(())
         })
-    }
-}
-
-/// The lines `sub_4433DA` writes after the loading.
-unsafe fn log_loaded_objects() {
-    unsafe {
-        log_write(game_ptr(rva(0x4DBC2F)), true, 1);
-        log_write(game_ptr(rva(0x4DBC4B)), true, 1);
-        for (text, value) in [
-            (rva(0x4DBC64), POINT_COUNT_RVA),
-            (rva(0x4DBC71), USED_POINTS_RVA),
-            (rva(0x4DBC80), FACE_COUNT_RVA),
-            (rva(0x4DBC8C), USED_FACES_RVA),
-        ] {
-            log_write(game_ptr(text), false, 1);
-            log_hex8(game_read(value), true, 1);
-        }
-        log_write(game_ptr(rva(0x4DBC9A)), true, 1);
     }
 }
 

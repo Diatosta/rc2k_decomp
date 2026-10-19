@@ -13,6 +13,7 @@ pub mod default_times;
 pub mod drivers;
 pub mod free_best_times;
 pub mod gather_savegame;
+pub mod keep_player_settings;
 pub mod list_car_numbers;
 pub mod load_best_times;
 pub mod load_options;
@@ -46,4 +47,5 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &save_options::HOOK,
     &save_best_times::HOOK,
     &free_best_times::HOOK,
+    &keep_player_settings::HOOK,
 ];

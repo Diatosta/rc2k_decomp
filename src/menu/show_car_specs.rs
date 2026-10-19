@@ -1,0 +1,135 @@
+//! `menu::show_car_specs` (0x46FD31): the car specifications screen for the kind of event
+//! (`dword_755954`): 1 .. 3 the list `off_75A042`, 4 `off_759CAE`, each through
+//! `menu::secret_car_list` (with cheat bit 1 `off_75A412` instead), then
+//! `menu::car_specs_47af4c_loop` and, unless it was left (`dword_758806` 1),
+//! `take_shown_car`; 5 `off_759D16` and the screen alone. Another kind is the original's
+//! fatal error 0x80713214, "No GameMode Defined".
+//!
+//! In:  nothing
+//! Out: the registers as its callees leave them (not `pusha`'d); esi the list
+//! An item action (a reading: the main menu's "car specifications"). Its calls through
+//! `part`: the list's choice and the car's taking in Rust, the screen at the game's
+//! address (its hook chooses). Ungated thunk (a screen); shadow mode runs the original
+//! alone. Self-test: a copy whose calls go to stand-ins (the screen answering
+//! `dword_758806`), against the Rust version, kinds 1 .. 5 (not the fatal one: the copy
+//! has no `pusha` for `fatal_landing`).
+
+use crate::errors::{FatalError, Refused};
+use crate::framework::{
+    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva,
+};
+use crate::menu::parts::{Answer, Part, answers, copy, dispatch_parted, run_both, test_part};
+use crate::service::harness::{Region, at, capture, restore};
+use std::sync::atomic::AtomicUsize;
+
+static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
+
+pub static HOOK: RawHook =
+    RawHook::new("menu::show_car_specs", rva(0x46FD31), thunk, &ORIGINAL).self_test(self_test);
+
+hook_asm!(
+    thunk,
+    call_original,
+    dispatch = dispatch,
+    original = ORIGINAL,
+    ungated
+);
+
+const CALLEES: [usize; 3] = [
+    0x480D35, // 0 menu::secret_car_list
+    0x47AF4C, // 1 menu::car_specs_47af4c_loop
+    0x47B29D, // 2 menu::take_shown_car
+];
+const KIND_RVA: usize = rva(0x755954); // dword_755954
+const LEFT_RVA: usize = rva(0x758806); // dword_758806
+
+/// The Rust version: the registers it leaves.
+pub unsafe fn show_car_specs(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    let mut r = *entry;
+    let kind: u32 = unsafe { game_read(KIND_RVA) };
+    let list = match kind {
+        1..=3 => 0x75A042,
+        4 => 0x759CAE,
+        5 => 0x759D16,
+        _ => {
+            return Err(FatalError {
+                code: 0x8071_3214,
+                message: "No GameMode Defined",
+            }
+            .into());
+        }
+    };
+    r.esi = game_addr(rva(list)) as u32;
+    if kind == 5 {
+        part(1, &mut r)?;
+        return Ok(r);
+    }
+    part(0, &mut r)?;
+    part(1, &mut r)?;
+    if unsafe { game_read::<u32>(LEFT_RVA) } != 1 {
+        part(2, &mut r)?;
+    }
+    Ok(r)
+}
+
+pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
+    match place {
+        0 => crate::menu::arcade_steps::secret_car_list().apply(r),
+        2 => unsafe { crate::menu::take_shown_car::take_shown_car(r.esi) }?,
+        _ => unsafe { call_game(r, game_addr(rva(CALLEES[place as usize]))) },
+    }
+    Ok(())
+}
+
+extern "C" fn dispatch(r: &mut Regs) {
+    dispatch_parted(
+        &HOOK,
+        r,
+        call_original,
+        &|r, part| unsafe { show_car_specs(r, part) },
+        game_part,
+    );
+}
+
+fn self_test() -> (usize, usize) {
+    let Some(mut t) = SelfTest::begin(&HOOK) else {
+        return (0, 0);
+    };
+    let calls = [
+        0x3C, 0x41, 0x4F, 0x5B, 0x60, 0x6E, 0x7A, 0x7F, 0x8D, 0x99, 0x9E, 0xAC, 0xB8,
+    ];
+    let copy = match copy(
+        0x46FD31,
+        0xBF,
+        &[0x83, 0x3D, 0x54, 0x59, 0x75, 0x00, 0x01],
+        &calls,
+        &CALLEES,
+        &[],
+    ) {
+        Ok(c) => c,
+        Err(why) => return t.skip(why),
+    };
+    let regions: [Region; 2] = [at(KIND_RVA), at(LEFT_RVA)];
+    let saved = capture(&regions);
+    for kind in 1..=5u32 {
+        for left in [0u32, 1] {
+            answers(&[(1, &[Answer::sets(LEFT_RVA, left)])]);
+            run_both(
+                &mut t,
+                &format!("kind {kind}, left {left}"),
+                &copy,
+                &regions,
+                &|| unsafe {
+                    game_write(KIND_RVA, kind);
+                    game_write(LEFT_RVA, 0xAAAA_AAAAu32);
+                },
+                Regs::SENTINEL,
+                false,
+                &|r| unsafe { show_car_specs(r, &mut test_part) },
+            );
+        }
+    }
+    answers(&[]);
+    restore(&regions, &saved);
+    t.finish()
+}

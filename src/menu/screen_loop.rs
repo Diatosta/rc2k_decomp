@@ -82,6 +82,8 @@ pub const RUN_ITEM_ACTION: usize = rva(0x474683); // menu::run_item_action
 pub const HANDLE_KEYS: usize = rva(0x465FCC); // menu::handle_keys
 pub const CONFIRM_LEAVING: usize = rva(0x46FA90); // menu::confirm_leaving
 pub const FRAME_CALLBACK: usize = rva(0x474D4B); // menu::frame_callback
+const NULLSUB_83: usize = rva(0x471391); // nullsub_83: a lone `retn`
+const NULLSUB_84: usize = rva(0x4713DD); // nullsub_84: a lone `retn`
 
 // ---- game data ----
 
@@ -339,13 +341,15 @@ impl Env for Real {
                 }
                 RUN_LIST => run_list(regs.esi, &entry, &mut in_game).is_ok(),
                 RUN_ITEM_ACTION => run_item_action(regs.edi, &entry, &mut in_game).is_ok(),
+                // `nullsub_83`, `nullsub_84` (the review options' set-up and leaving).
+                NULLSUB_83 | NULLSUB_84 => true,
                 HANDLE_KEYS => {
                     crate::fatal::raise::raise_test_if_armed(regs);
                     handle_keys(&entry, &mut Game)
                         .map(|left| left.apply(regs))
                         .is_ok()
                 }
-                _ => false,
+                f => crate::menu::set_up_calls::call(f, regs),
             }
         };
         if !done {

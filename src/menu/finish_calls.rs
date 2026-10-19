@@ -81,6 +81,10 @@ pub fn calls(g: &mut Regs, places: &[u32], part: &mut Part) -> Result<(), Refuse
 
 /// In the game: each through the game at its address.
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
+    // `nullsub_6`: nothing.
+    if place == 6 {
+        return Ok(());
+    }
     unsafe { call_game(r, game_addr(rva(CALLED[place as usize]))) };
     Ok(())
 }

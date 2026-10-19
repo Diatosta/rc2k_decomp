@@ -220,6 +220,17 @@ extern "C" fn choose(r: &mut Regs) {
             game_read::<u32>(RACE_MODE_RVA)
         ));
     }
+    // The graphics options' choices made, as the original ends (`loc_4045CA`): the list
+    // the options page shows its resolution from.
+    let made = crate::gfx::screen_mode_choices::screen_mode_choices(
+        r,
+        &mut crate::gfx::screen_mode_choices::game_part,
+    );
+    if let Err(e) = made {
+        log(&format!(
+            "platform: the screen mode choices are not made: {e:?}"
+        ));
+    }
     r.set_carry(false);
 }
 
@@ -256,6 +267,9 @@ unsafe fn set_screen_mode(mode: u32) -> Result<(), String> {
             .ok_or("a kind of pixel that is not known")?;
         let kind = looked_up(mode & 0xF_0000, KINDS_RVA, 3).ok_or("a kind that is not known")?;
         let bytes = bits >> 3;
+        // As the original (0x404C55): every texture given back before the screen changes;
+        // the game loads again what it needs (a trial's 0x40 more found the pool full).
+        crate::platform_3d::release_all_textures();
         game_write(WIDTH_RVA, width);
         game_write(HEIGHT_RVA, height);
         game_write(BITS_RVA, bits);
@@ -469,6 +483,125 @@ hook_asm!(
     original = SHOW_ORIGINAL
 );
 
+// ---- where the time goes: the main thread sampled every millisecond ----
+
+/// Where the main thread was, by address, since the last report.
+static SAMPLES: std::sync::Mutex<Option<std::collections::HashMap<u32, u32>>> =
+    std::sync::Mutex::new(None);
+
+/// Starts the sampler on the calling thread (the main one), once: a thread of its own
+/// stops it every millisecond, notes its instruction pointer and lets it go on.
+fn start_sampler() {
+    use std::sync::Once;
+    use windows_sys::Win32::System::Diagnostics::Debug::{
+        CONTEXT, CONTEXT_CONTROL_X86, GetThreadContext,
+    };
+    use windows_sys::Win32::System::Threading::{
+        GetCurrentThreadId, OpenThread, ResumeThread, SuspendThread, THREAD_GET_CONTEXT,
+        THREAD_SUSPEND_RESUME,
+    };
+    static STARTED: Once = Once::new();
+    STARTED.call_once(|| {
+        let id = unsafe { GetCurrentThreadId() };
+        let thread = unsafe { OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT, 0, id) };
+        if thread.is_null() {
+            return;
+        }
+        let thread = thread as usize;
+        *SAMPLES.lock().unwrap() = Some(Default::default());
+        std::thread::spawn(move || {
+            let thread = thread as windows_sys::Win32::Foundation::HANDLE;
+            loop {
+                std::thread::sleep(std::time::Duration::from_millis(1));
+                unsafe {
+                    if SuspendThread(thread) == u32::MAX {
+                        return;
+                    }
+                    let mut context: CONTEXT = std::mem::zeroed();
+                    context.ContextFlags = CONTEXT_CONTROL_X86;
+                    let got = GetThreadContext(thread, &mut context) != 0;
+                    ResumeThread(thread);
+                    if got
+                        && let Ok(mut samples) = SAMPLES.lock()
+                        && let Some(samples) = samples.as_mut()
+                    {
+                        *samples.entry(context.Eip).or_insert(0) += 1;
+                    }
+                }
+            }
+        });
+    });
+}
+
+/// The samples since the last report, as a line of the hottest places: the program's
+/// (`rc2k+offset`, for `llvm-symbolizer`), the game's (its IDA address) or a DLL's.
+fn hot_places() -> String {
+    use windows_sys::Win32::System::LibraryLoader::{
+        GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+        GetModuleFileNameA, GetModuleHandleA, GetModuleHandleExA,
+    };
+    let Some(samples) = SAMPLES
+        .lock()
+        .ok()
+        .and_then(|mut s| s.as_mut().map(std::mem::take))
+    else {
+        return String::new();
+    };
+    let total: u32 = samples.values().sum();
+    if total == 0 {
+        return String::new();
+    }
+    let program = unsafe { GetModuleHandleA(std::ptr::null()) } as u32;
+    let game = crate::framework::game_addr(0) as u32;
+    // by function-sized buckets would need symbols: by address, the top 24
+    let mut places: Vec<(u32, u32)> = samples.into_iter().collect();
+    places.sort_by_key(|p| std::cmp::Reverse(p.1));
+    let name = |at: u32| -> String {
+        unsafe {
+            let mut module = std::ptr::null_mut();
+            if GetModuleHandleExA(
+                GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
+                    | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                at as usize as *const u8,
+                &mut module,
+            ) == 0
+            {
+                return format!("{at:#x}");
+            }
+            let base = module as u32;
+            if base == program {
+                return format!("rc2k+{:#x}", at - base);
+            }
+            if base == game.wrapping_add(0x40_0000) || base == game {
+                return format!("game {:#x}", at.wrapping_sub(game));
+            }
+            let mut file = [0u8; 260];
+            let n = GetModuleFileNameA(module, file.as_mut_ptr(), 260) as usize;
+            let file = String::from_utf8_lossy(&file[..n]);
+            let file = file.rsplit(['\\', '/']).next().unwrap_or("?").to_string();
+            format!("{file}+{:#x}", at - base)
+        }
+    };
+    // Every place, for adding up by function offline (`llvm-symbolizer` on rc2k.exe).
+    let all: String = places
+        .iter()
+        .map(|&(at, n)| format!("{} {n}\n", name(at)))
+        .collect();
+    let _ = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("rc2k_profile.txt")
+        .and_then(|mut f| {
+            use std::io::Write;
+            write!(f, "# {total} samples\n{all}")
+        });
+    let mut line = format!("platform: {total} samples, the hottest:");
+    for &(at, n) in places.iter().take(24) {
+        line += &format!(" {} {:.1}%,", name(at), n as f64 * 100.0 / total as f64);
+    }
+    line
+}
+
 /// Every five seconds a line on where the time went: the frames shown, the fans drawn and
 /// the time in the rasteriser, the calls of functions that are not ported (each a fault).
 fn report_timing() {
@@ -476,34 +609,46 @@ fn report_timing() {
     use std::sync::atomic::Ordering::Relaxed;
     use std::time::Instant;
     /// When, and the four counts then.
-    type Mark = (Instant, u64, u64, u64, u64);
+    type Mark = (Instant, u64, u64, u64, u64, u64, u64);
     static LAST: Mutex<Option<Mark>> = Mutex::new(None);
     let now = Instant::now();
-    let (frames, fans, micros, faults) = (
+    let (frames, fans, micros, faults, flushes, pixels) = (
         SHOWN.load(Ordering::SeqCst) as u64,
         crate::platform_3d::FANS.load(Relaxed),
         crate::platform_3d::RASTER_MICROS.load(Relaxed),
         crate::standalone::FAULTS.load(Relaxed),
+        crate::platform_3d::FLUSHES.load(Relaxed),
+        crate::platform_3d::PIXELS.load(Relaxed),
     );
+    // The screen's places, for the pixels a frame in screens.
+    let screen = unsafe {
+        (game_read::<u32>(rva(0x4F494C)).max(1) * game_read::<u32>(rva(0x4F4950)).max(1)) as f64
+    };
     let Ok(mut last) = LAST.lock() else {
         return;
     };
     match *last {
-        Some((at, f0, n0, m0, x0)) if now.duration_since(at).as_secs() >= 5 => {
+        Some((at, f0, n0, m0, x0, l0, p0)) if now.duration_since(at).as_secs() >= 5 => {
             let seconds = now.duration_since(at).as_secs_f64();
             log(&format!(
-                "platform: the last {seconds:.1} s: {} frames ({:.1} a second), {} fans ({:.0} ms in the rasteriser, {:.0}%), {} calls not ported",
+                "platform: the last {seconds:.1} s: {} frames ({:.1} a second), {} fans in {} flushes, {:.1} screens of pixels a frame ({:.0} ms in the rasteriser, {:.0}%), {} calls not ported",
                 frames - f0,
                 (frames - f0) as f64 / seconds,
                 fans - n0,
+                flushes - l0,
+                (pixels - p0) as f64 / (frames - f0).max(1) as f64 / screen,
                 (micros - m0) as f64 / 1000.0,
                 (micros - m0) as f64 / 10000.0 / seconds,
                 faults - x0
             ));
-            *last = Some((now, frames, fans, micros, faults));
+            *last = Some((now, frames, fans, micros, faults, flushes, pixels));
+            let hot = hot_places();
+            if !hot.is_empty() {
+                log(&hot);
+            }
         }
         Some(_) => {}
-        None => *last = Some((now, frames, fans, micros, faults)),
+        None => *last = Some((now, frames, fans, micros, faults, flushes, pixels)),
     }
 }
 
@@ -572,6 +717,7 @@ extern "C" fn show(r: &mut Regs) {
                 game_write(QUIT_RVA, 1u32);
             }
         }
+        start_sampler();
         report_timing();
         // A flip waits for the screen: some sixty frames a second at most.
         let now = SDL_GetTicks() as usize;
@@ -656,5 +802,13 @@ const _: [unsafe extern "C" fn(*mut Regs); 8] = [
 ];
 
 pub static HOOKS: &[&dyn GameHook] = &[
-    &CHOOSE, &SET_MODE, &MENU_MODE, &LOCK, &UNLOCK, &SHOW, &PUMP, &RUN_FRAME,
+    &CHOOSE,
+    &SET_MODE,
+    &MENU_MODE,
+    &LOCK,
+    &UNLOCK,
+    &SHOW,
+    &PUMP,
+    &RUN_FRAME,
+    &crate::film::HOOK,
 ];

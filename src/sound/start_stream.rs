@@ -34,7 +34,7 @@ pub fn start_stream(entry: &Regs) -> Option<Regs> {
     })
 }
 
-const SENDER: Sender = Sender {
+pub const SENDER: Sender = Sender {
     address: 0x40F743,
     len: 0x14,
     entry: [0x60, 0x33, 0xDB, 0xBA, 0x02, 0x00, 0x00, 0x00],

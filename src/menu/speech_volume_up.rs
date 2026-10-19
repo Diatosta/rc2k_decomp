@@ -1,0 +1,40 @@
+//! `menu::speech_volume_up` (0x468055): the speech's volume one more, heard (see `menu/option_steps.rs`).
+//!
+//! In:  nothing
+//! Out: as `option_steps` says (not `pusha`'d)
+//! A left/right handler of the sound options page's items. Shadow mode runs the original
+//! alone (it sends a sound command). Self-test: `option_steps::test_volume`.
+
+use crate::framework::{RawHook, Regs, hook_asm, rva};
+use crate::menu::option_steps::{SPEECH_LEVEL_RVA, Then, Volume, dispatch_volume, test_volume};
+use std::sync::atomic::AtomicUsize;
+
+static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
+
+pub static HOOK: RawHook =
+    RawHook::new("menu::speech_volume_up", rva(0x468055), thunk, &ORIGINAL).self_test(self_test);
+
+hook_asm!(
+    thunk,
+    call_original,
+    dispatch = dispatch,
+    original = ORIGINAL
+);
+
+const STEP: Volume = Volume {
+    address: 0x468055,
+    len: 0x2B,
+    entry: [0xFF, 0x05, 0x98, 0x56, 0x75, 0x00],
+    call: 0x25,
+    value_rva: SPEECH_LEVEL_RVA,
+    up: true,
+    then: Then::Speech,
+};
+
+extern "C" fn dispatch(r: &mut Regs) {
+    dispatch_volume(&HOOK, r, call_original, STEP);
+}
+
+fn self_test() -> (usize, usize) {
+    test_volume(&HOOK, STEP)
+}

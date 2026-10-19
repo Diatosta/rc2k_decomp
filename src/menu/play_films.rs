@@ -19,8 +19,10 @@
 //!
 //! What the unnamed ones do has not been read. Callers: `menu::run_front_end` (with 0),
 //! `menu::main_menu_loop`'s idle step (with 1), and 0x470593.
-//! Every call goes through the game's address, the registers handed from one to the
-//! next as they come back. Ungated thunk: a film runs for a long time. Shadow mode runs
+//! Every call goes through the game's address (hooks where ported), the registers handed
+//! from one to the next as they come back; but `nullsub_6` is not called, and
+//! `scene::set_up_lit_engine` (`sub_415515`) and `race::credits_race` (`sub_463666`) are
+//! their Rust versions (2026-10-19). Ungated thunk: a film runs for a long time. Shadow mode runs
 //! the original alone. Each real call writes a line to hook.log saying which version
 //! runs. Manual patch with a private copy (0xC5 bytes, 23 calls relocated): a call
 //! starts at the fourth byte.
@@ -163,11 +165,39 @@ extern "C" fn dispatch(r: &mut Regs) {
     let mut running = *r;
     let settings = [NO_FMV_RVA, SCREEN_BITS_RVA].map(|at| game_addr(at) as *const u32);
     unsafe {
-        play_films(&mut running, settings, &mut |at, regs| {
-            call_game(regs, game_addr(rva(at)))
+        play_films(&mut running, settings, &mut |at, regs| match at {
+            // `nullsub_6`.
+            0x44347E => {}
+            0x415515 => in_game_unless(at, regs, |r| {
+                crate::scene::set_up_lit_engine::set_up_lit_engine_in(
+                    r,
+                    &mut crate::scene::set_up_lit_engine::lit_part,
+                )
+            }),
+            DEMONSTRATION => in_game_unless(at, regs, |r| {
+                crate::race::credits_race::credits_race_in(
+                    r,
+                    &mut crate::race::credits_race::credits_part,
+                )
+            }),
+            _ => call_game(regs, game_addr(rva(at))),
         });
     }
     log("menu::play_films: the Rust version has come back");
+}
+
+/// A ported callee's Rust version; when it refuses, the callee at its hook (which refuses
+/// again, logs it and runs its original), from the registers it was given.
+fn in_game_unless(
+    at: usize,
+    regs: &mut Regs,
+    rust: impl FnOnce(&mut Regs) -> Result<(), crate::errors::Refused>,
+) {
+    let entry = *regs;
+    if rust(regs).is_err() {
+        *regs = entry;
+        unsafe { call_game(regs, game_addr(rva(at))) };
+    }
 }
 
 // ---- self-test ----

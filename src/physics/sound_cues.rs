@@ -2,8 +2,10 @@
 //! the car off its line and turned from it and, now and then, cues a sound by
 //! `physics::cue_listed_car_sound` (0x45D1BC) -> `physics::cue_car_sound` (0x40ECE7) ->
 //! `physics::queue_sound_cue` (0x40EE5C), which may stop the playing one by
-//! `sound::play_sound`. This file: their calls by place (0 `play_sound`, 1
-//! `queue_sound_cue`, 2 `cue_car_sound`, 3 `cue_listed_car_sound`): in the game the Rust
+//! `sound::play_sound`; the pace notes by `physics::cue_listed_car_sound_last` (0x45D1D3)
+//! -> `physics::cue_car_sound_last` (0x40ECBB) -> the same queue. This file: their calls by
+//! place (0 `play_sound`, 1 `queue_sound_cue`, 2 `cue_car_sound`, 3
+//! `cue_listed_car_sound`, 4 `cue_car_sound_last`, 5 `cue_listed_car_sound_last`): in the game the Rust
 //! versions, in the tests stand-ins that note the calls and their registers (and change
 //! none), and copies of the originals whose calls go to them.
 //!
@@ -21,7 +23,10 @@ pub const PLAY: u32 = 0;
 pub const QUEUE: u32 = 1;
 pub const CUE: u32 = 2;
 pub const LISTED: u32 = 3;
-const PLACES: [usize; 4] = [0x409B36, 0x40EE5C, 0x40ECE7, 0x45D1BC];
+/// The pace notes' pair (`physics::cue_car_sound_last`, `physics::cue_listed_car_sound_last`).
+pub const CUE_LAST: u32 = 4;
+pub const LISTED_LAST: u32 = 5;
+const PLACES: [usize; 6] = [0x409B36, 0x40EE5C, 0x40ECE7, 0x45D1BC, 0x40ECBB, 0x45D1D3];
 
 /// The calls in the game.
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
@@ -29,7 +34,12 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         PLAY => crate::sound::play_sound::play_sound_in_game(r),
         QUEUE => crate::physics::queue_sound_cue::queue_sound_cue_in(r, &mut game_part)?,
         CUE => crate::physics::cue_car_sound::cue_car_sound_in(r, &mut game_part)?,
-        _ => crate::physics::cue_listed_car_sound::cue_listed_car_sound_in(r, &mut game_part)?,
+        LISTED => crate::physics::cue_listed_car_sound::cue_listed_car_sound_in(r, &mut game_part)?,
+        CUE_LAST => crate::physics::cue_car_sound_last::cue_car_sound_last_in(r, &mut game_part)?,
+        _ => crate::physics::cue_listed_car_sound_last::cue_listed_car_sound_last_in(
+            r,
+            &mut game_part,
+        )?,
     }
     Ok(())
 }

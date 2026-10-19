@@ -14,6 +14,13 @@ pub mod device_command;
 pub mod device_effects;
 pub mod device_state;
 pub mod devices;
+pub mod effect_0_change;
+pub mod effect_1_change;
+pub mod effect_2_change;
+pub mod effect_3_change;
+pub mod effect_4_change;
+pub mod effect_5_change;
+pub mod effect_changes;
 pub mod effects;
 pub mod end_effects;
 pub mod end_frame;
@@ -29,6 +36,8 @@ pub mod poll_device;
 pub mod read_device;
 pub mod release_device;
 pub mod repeat_keys;
+pub mod request_device_release;
+pub mod request_device_setup;
 pub mod screenshot_if_key;
 pub mod set_effect;
 pub mod set_up_device;
@@ -88,4 +97,12 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &end_effects::HOOK,
     &update_car_effects::HOOK,
     &update_effects::HOOK,
+    &request_device_setup::HOOK,
+    &request_device_release::HOOK,
+    &effect_0_change::HOOK,
+    &effect_1_change::HOOK,
+    &effect_2_change::HOOK,
+    &effect_3_change::HOOK,
+    &effect_4_change::HOOK,
+    &effect_5_change::HOOK,
 ];

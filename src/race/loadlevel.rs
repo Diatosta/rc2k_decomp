@@ -1,9 +1,10 @@
 //! `race::loadlevel_init` (0x44426F, IDA 2026-10-17): the stage's loading proper, step by
 //! step, each step's word logged ("LOADLEVEL_INIT : ...") with the log indented round it
 //! and the loading bar moved on (`dword_623700` the step's mark, then the callback in
-//! `dword_623704`, `sub_4467C7`, called with esi it). Every step is Rust but three, which
-//! stay the game's (`call_game`): init mark (`sub_456EA7`, the marks), the pace notes
-//! (`sub_441A66`) and the loading bar's callback. A step that refuses is run in the game
+//! `dword_623704`, `sub_4467C7`, called with esi it). Every step is Rust but two, which
+//! are called through the game (`call_game`, at their hooks): init mark (`sub_456EA7`,
+//! the marks) and the loading bar's callback (`nullsub_8` after the loading: nothing). The
+//! pace notes are `race::init_pace_notes` since 2026-10-19. A step that refuses is run in the game
 //! through its own hook (`or_in_game`), so the function itself refuses nothing.
 
 use crate::errors::Refused;
@@ -40,7 +41,7 @@ pub const CALLEES: [usize; 28] = [
     0x43D43E, // 22 race::get_mat_crash
     0x421F02, // 23 race::store_norms
     0x45A98F, // 24 race::init_checkpoints
-    0x441A66, // 25 sub_441A66 (the pace notes: the game's)
+    0x441A66, // 25 race::init_pace_notes
     0x45A9DE, // 26 race::init_overlay
     0x422298, // 27 scene::find_object_of_kind
 ];
@@ -329,8 +330,8 @@ pub fn or_in_game(
     }
 }
 
-/// The calls in the game: the Rust versions (each through `or_in_game`); init mark, the
-/// pace notes and the loading bar the game's.
+/// The calls in the game: the Rust versions (each through `or_in_game`); init mark and the
+/// loading bar through the game.
 pub fn game_part(callee: u32, r: &mut Regs) -> Result<(), Refused> {
     match callee {
         0..28 => or_in_game(CALLEES[callee as usize], r, |r| step_part(callee, r)),
@@ -418,7 +419,8 @@ fn step_part(callee: u32, r: &mut Regs) -> Result<(), Refused> {
                     pixels_b,
                 )?;
             }
-            15 | 25 => call_game(r, game_addr(rva(CALLEES[callee as usize]))),
+            15 => call_game(r, game_addr(rva(CALLEES[callee as usize]))),
+            25 => crate::race::init_pace_notes::init_pace_notes(r)?,
             16 => crate::race::level_init::reset_refresh(&Vars::game()),
             17 => *r = crate::race::stage_prefs::init_skidmarks(r),
             18 => crate::race::level_init::game_part(2, r)?,
@@ -444,6 +446,8 @@ fn step_part(callee: u32, r: &mut Regs) -> Result<(), Refused> {
             }
             27 => r.eax = crate::scene::find_object_of_kind::find_object_of_kind(r.eax),
             LOG => crate::logfile::log_write::log_write(r.eax as *const u8, true, 1),
+            // The loading bar's callback; `nullsub_8` (after the loading) does nothing.
+            _ if r.esi == game_addr(BAR_DONE_RVA) as u32 => {}
             _ => call_game(r, r.esi as usize),
         }
     }

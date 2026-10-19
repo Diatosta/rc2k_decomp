@@ -17,7 +17,8 @@
 
 use crate::errors::Refused;
 use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva, shadow, standalone,
+    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
+    standalone,
 };
 use crate::gfx::mark_3d_modes::{ModeVars, mark_3d_modes};
 use crate::install::stand_ins::{act, set_handler, stand_in};
@@ -104,8 +105,42 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     }
     if !standalone() {
         unsafe { call_game(r, game_addr(rva(CALLEES[place as usize]))) };
+    } else if place == 1 {
+        unsafe { standalone_modes(r.eax) };
     }
     Ok(())
+}
+
+const MODE_TABLE_RVA: usize = rva(0x4F4F3C); // g_screenModeTable: 8 bytes an entry
+const MODE_COUNT_RVA: usize = rva(0x4F4F38); // g_screenModeCount
+const SIZES_RVA: usize = rva(0x4F4E50); // g_screenSizes: 8 of (bit, width, height)
+const PIXEL_KINDS_RVA: usize = rva(0x4F4E40); // g_pixelKinds: (0x200, 16), (0x800, 32)
+const TABLE_ROOM: u32 = 0x20;
+
+/// The standalone program's DirectDraw `EnumDisplayModes` for card `card` (0x1000 the
+/// primary): every screen size the game knows in both pixel kinds (its window takes
+/// any), entered as `gfx::mode_callback` (0x404A56) enters a mode: the card's, the kind's
+/// and the size's bits, once each, while the table has room.
+pub unsafe fn standalone_modes(card: u32) {
+    unsafe {
+        let table = game_addr(MODE_TABLE_RVA) as *mut u32;
+        for size in 0..8usize {
+            let size_bit: u32 = game_read(SIZES_RVA + 8 * size);
+            for kind in 0..2usize {
+                let kind_bit: u32 = game_read(PIXEL_KINDS_RVA + 8 * kind);
+                let mode = card | kind_bit | size_bit;
+                let count: u32 = game_read(MODE_COUNT_RVA);
+                if (0..count as usize).any(|n| table.add(2 * n).read_unaligned() & mode == mode) {
+                    continue;
+                }
+                if count >= TABLE_ROOM {
+                    return;
+                }
+                table.add(2 * count as usize).write_unaligned(mode);
+                game_write(MODE_COUNT_RVA, count + 1);
+            }
+        }
+    }
 }
 
 // ---- hook ----

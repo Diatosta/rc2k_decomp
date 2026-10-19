@@ -158,11 +158,17 @@ pub unsafe fn input_thread(part: Part) -> Result<(), Refused> {
     Ok(())
 }
 
-/// In the game: through the game (place 1 then says whether DirectInput was made). In the
-/// standalone program the platform's parts are SDL's: DirectInput counts as made and
-/// nothing else is done but the priority.
+/// In the game: through the game (place 1 then says whether DirectInput was made), but the
+/// priority (5), which is `threading::set_priority`'s Rust version. In the standalone
+/// program the platform's parts are SDL's: DirectInput counts as made and nothing else is
+/// done but the priority.
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    if standalone() && place != 5 {
+    if place == 5 {
+        // `threading::set_priority`'s Rust version (eax, ecx, edx kept, as there).
+        crate::threading::set_priority::set_priority(r.eax as i32);
+        return Ok(());
+    }
+    if standalone() {
         if place == 1 {
             r.eax = 1;
         }

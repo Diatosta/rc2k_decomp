@@ -5,7 +5,7 @@
 //! In:  nothing
 //! Out: the registers as `race_loop` leaves them; no flags read
 //!
-//! Callers: `race::run_race`, `sub_443F96`, 0x44402F, `sub_463666`, `sub_4640AA`. It
+//! Callers: `race::run_race`, `sub_443F96`, 0x44402F, `race::credits_race`, `sub_4640AA`. It
 //! begins with a call: hooked by a private copy of its 0x58 bytes (seven calls relocated)
 //! and a hand-made patch; ungated (it holds the race's step loop).
 //! Refuses what `race_loop` refuses. Shadow mode runs the original alone.

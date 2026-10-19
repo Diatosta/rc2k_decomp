@@ -2,7 +2,7 @@
 //! to 7 (`g_car` +0xF98 the count): eax = `g_sceneClock` + esi; unless the count is 7,
 //! the time into +0xF58[count], ebx into +0xF78[count], the count up by one; then +0xF9C
 //! 0 and +0xFA0 0 for the first entry, else +0xF9C less 0x20. A reading: timed events
-//! of the car (under `sub_4417EC`).
+//! of the car (under `physics::pace_notes_step`).
 //!
 //! In:  esi a delay, ebx the event
 //! Out: eax the time, ecx the count before; the rest kept; no flags read (the caller
