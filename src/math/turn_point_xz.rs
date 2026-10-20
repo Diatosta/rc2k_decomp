@@ -56,13 +56,13 @@ unsafe fn turn_point_with(
     turn: unsafe fn(u32) -> u32,
 ) -> [u32; 4] {
     unsafe {
-        // Converted: `rc2k_core::geometry` (`fild` / `fstp` is `as f32`, `fistp` below).
+        // Converted: `rc2k_core::math::geometry` (`fild` / `fstp` is `as f32`, `fistp` below).
         game_write(X_RVA, (x as f32).to_bits());
         game_write(Y_RVA, (y as f32).to_bits());
         game_write(Z_RVA, (z as f32).to_bits());
         let entry = turn(angle);
         let back = |r: usize| {
-            let v = rc2k_core::geometry::fistp(f32::from_bits(game_read(r))) as u32;
+            let v = rc2k_core::math::geometry::fistp(f32::from_bits(game_read(r))) as u32;
             game_write(r, v);
             v
         };

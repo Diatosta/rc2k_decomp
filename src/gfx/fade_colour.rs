@@ -29,8 +29,8 @@ hook_asm!(
 );
 
 /// One byte's step: (the byte, the high dword of the `imul`). Converted:
-/// `rc2k_core::pixels::fade_step`.
-use rc2k_core::pixels::fade_step as step;
+/// `rc2k_core::gfx::pixels::fade_step`.
+use rc2k_core::gfx::pixels::fade_step as step;
 
 /// The three low bytes of `from` brought toward `to` (their places' values, whole: the
 /// mud's tint gives dwords), `amount` of 0x100; the registers it leaves on `entry`.

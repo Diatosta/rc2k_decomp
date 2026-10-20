@@ -22,7 +22,7 @@ use crate::strings::string_table::{blob, is_table_id};
 use crate::strings::utils::bytes_str;
 use crate::text::draw_text::{Canvas, GameCanvas, RecordingCanvas};
 use crate::text::glyph_kerning::state_ptr;
-use rc2k_core::stage_panel::stage_line;
+use rc2k_core::screens::stage_panel::stage_line;
 use std::slice::from_raw_parts;
 use std::sync::atomic::AtomicUsize;
 
@@ -60,7 +60,7 @@ pub unsafe fn stage_heading_text(record: *const u8) -> Result<Vec<u8>, FatalErro
 }
 
 /// The same line starting with another label string (the stage panels build one with 0x482).
-/// Converted: `rc2k_core::stage_panel::stage_line`.
+/// Converted: `rc2k_core::screens::stage_panel::stage_line`.
 pub unsafe fn heading_text(record: *const u8, label: u32) -> Result<Vec<u8>, FatalError> {
     unsafe {
         let name = || -> Result<u32, FatalError> { Ok(dword(record_entry(record)? as *const u8)) };
@@ -78,14 +78,14 @@ pub fn string_bytes(id: u32) -> Vec<u8> {
 }
 
 /// Builds the line in the game's line buffer and draws it. Returns the carry flag.
-/// Converted: `rc2k_core::stage_panel::heading`.
+/// Converted: `rc2k_core::screens::stage_panel::heading`.
 pub unsafe fn draw_stage_heading(
     record: *const u8,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
     unsafe {
         let name = || -> Result<u32, Refused> { Ok(dword(record_entry(record)? as *const u8)) };
-        rc2k_core::stage_panel::heading(
+        rc2k_core::screens::stage_panel::heading(
             &mut PanelScreen::new(canvas),
             dword(record.add(0x40)),
             &name,

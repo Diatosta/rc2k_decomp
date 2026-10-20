@@ -125,7 +125,7 @@ pub unsafe fn glyph_record(
 }
 
 // ---- Rust version ----
-// Converted: `rc2k_core::blit`. Here the record is read as raw game memory and the core's
+// Converted: `rc2k_core::gfx::blit`. Here the record is read as raw game memory and the core's
 // offsets from the surface's start are made addresses again.
 
 /// The four registers the original does not preserve, as it leaves them.
@@ -161,7 +161,7 @@ pub unsafe fn blit_glyph(
     scratch: &mut Scratch,
     put: &mut dyn FnMut(u32, &[u8]),
 ) -> (Exit, Option<Area>) {
-    use rc2k_core::blit as core;
+    use rc2k_core::gfx::blit as core;
     let base = surface.base;
     let mut work = core::Scratch {
         left_skip: scratch.left_skip,
@@ -175,12 +175,12 @@ pub unsafe fn blit_glyph(
         x,
         y,
         &colour,
-        &rc2k_core::raster::Surface {
+        &rc2k_core::gfx::raster::Surface {
             bits: surface.bits_per_pixel,
             bytes_per_pixel: surface.bytes_per_pixel,
             pitch: surface.pitch,
         },
-        &rc2k_core::raster::Clip {
+        &rc2k_core::gfx::raster::Clip {
             left: clip.left,
             right: clip.right,
             top: clip.top,

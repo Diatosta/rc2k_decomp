@@ -80,14 +80,14 @@ pub fn resolve_path(
     base_b: &[u8],
     pct: &[u8],
 ) -> Result<Option<Vec<u8>>, BadInput> {
-    // Converted: `rc2k_core::paths::resolve`.
-    let bases = rc2k_core::paths::Bases {
+    // Converted: `rc2k_core::files::paths::resolve`.
+    let bases = rc2k_core::files::paths::Bases {
         media_mode,
         a: base_a,
         b: base_b,
         percent: pct,
     };
-    let Some(out) = rc2k_core::paths::resolve(path, &bases) else {
+    let Some(out) = rc2k_core::files::paths::resolve(path, &bases) else {
         return Ok(None);
     };
     if out.len() > BUF_LEN {

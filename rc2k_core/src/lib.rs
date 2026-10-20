@@ -4,53 +4,15 @@
 //! DLL checks the conversion, the hook crate's adapters (`src/bridge.rs`) load these
 //! structures from the game's memory and store them back.
 
-pub mod best_scores;
-pub mod blit;
-pub mod buttons;
-pub mod bytes;
-pub mod captions;
-pub mod car_pages;
-pub mod case;
-pub mod devices;
-pub mod duel_result;
-pub mod extended;
-pub mod feedback;
-pub mod format;
-pub mod geometry;
-pub mod glyphs;
+pub mod audio;
+pub mod files;
+pub mod gfx;
 pub mod input;
-pub mod itinerary;
-pub mod keyboard;
-pub mod language;
-pub mod lexicon;
-pub mod log;
-pub mod mixer;
-pub mod packed;
-pub mod paths;
-pub mod pcx;
-pub mod picture;
-pub mod pixels;
-pub mod player_result;
-pub mod players_results;
-pub mod png;
-pub mod random;
-pub mod raster;
-pub mod records;
-pub mod results_pages;
-pub mod samples;
-pub mod savegame_preview;
-pub mod screen;
-pub mod settings;
-pub mod settings_pages;
-pub mod setup_markers;
-pub mod slot_lists;
-pub mod spot_voices;
-pub mod stage_panel;
-pub mod stage_results;
+pub mod math;
+pub mod screens;
+pub mod sound;
 pub mod strings;
 pub mod text;
-pub mod units;
-pub mod vector;
 
 /// An input the core does not take: one the original goes wrong on (a read past a table, a
 /// division that traps) or whose handling was not worked out; the reason in words.

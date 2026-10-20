@@ -89,8 +89,8 @@ pub unsafe fn draw_duel_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
             return Err(BadInput("a stage line past the line buffer").into());
         }
         let (label1, label2) = (label(k(0x758768))?, label(k(0x75876C))?);
-        // Converted: `rc2k_core::duel_result`.
-        use rc2k_core::player_result::Player;
+        // Converted: `rc2k_core::screens::duel_result`.
+        use rc2k_core::screens::player_result::Player;
         let units = crate::strings::units::units();
         let player = |p: u32| -> Result<Player<u32>, Refused> {
             Ok(Player {
@@ -102,7 +102,7 @@ pub unsafe fn draw_duel_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
             })
         };
         let players = [player(p1)?, player(p2)?];
-        let figures = rc2k_core::duel_result::Figures {
+        let figures = rc2k_core::screens::duel_result::Figures {
             labels: [label1, label2],
             best: [k(0x758758), k(0x75875C)],
             columns: [
@@ -110,7 +110,7 @@ pub unsafe fn draw_duel_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
                 [0x75877C, 0x75875C, 0x75878C, 0x75879C, 0x7587AC, 0x7587BC].map(k),
             ],
         };
-        rc2k_core::duel_result::duel_result(
+        rc2k_core::screens::duel_result::duel_result(
             &mut crate::screens::game_screen::GameScreen::new(canvas),
             &players,
             get(base + 0x38),

@@ -58,9 +58,9 @@ pub unsafe fn read_sample(
         if !read.ok {
             return Ok(false);
         }
-        // Converted: `rc2k_core::samples::parse`, on the work buffer's memory as the
+        // Converted: `rc2k_core::audio::samples::parse`, on the work buffer's memory as the
         // original reads it.
-        let mut core = rc2k_core::samples::SampleFile {
+        let mut core = rc2k_core::audio::samples::SampleFile {
             data: f.data.wrapping_sub(buffer),
             length: f.length,
             format: f.format,
@@ -71,7 +71,7 @@ pub unsafe fn read_sample(
             frames: f.frames,
         };
         let file = crate::bridge::Raw::new(buffer as *const u8);
-        let found = rc2k_core::samples::parse(
+        let found = rc2k_core::audio::samples::parse(
             &file,
             read.bytes_read.unwrap_or(0),
             &mut core,
@@ -94,7 +94,7 @@ pub unsafe fn read_sample(
 }
 
 /// A table of two {flag, value} entries, as the core takes it.
-pub fn flags(table: usize) -> rc2k_core::samples::Flags {
+pub fn flags(table: usize) -> rc2k_core::audio::samples::Flags {
     let t: [u32; 4] = unsafe { game_read(table) };
     [(t[0], t[1]), (t[2], t[3])]
 }
@@ -198,19 +198,19 @@ pub unsafe fn fill_voice(
 }
 
 /// `audio::sample_mode`: the mode a voice's sample is prepared for. Converted:
-/// `rc2k_core::samples::sample_mode`.
+/// `rc2k_core::audio::samples::sample_mode`.
 pub fn sample_mode(mode: u32, record: Option<&SampleRecord>) -> u32 {
-    rc2k_core::samples::sample_mode(mode, record.map(|r| (r.number, r.group)))
+    rc2k_core::audio::samples::sample_mode(mode, record.map(|r| (r.number, r.group)))
 }
 
 /// `audio::prepare_sample`: the voice's data, in place, scaled by `scale` / 64, halved
 /// until its shift is the mode's, and made eight bits if the mode asks. Converted:
-/// `rc2k_core::samples::prepare`, on the voice's data in game memory.
+/// `rc2k_core::audio::samples::prepare`, on the voice's data in game memory.
 pub unsafe fn prepare_sample(v: &mut Voice, mode: u32) -> Result<(), Refused> {
     if v.data == 0 || v.length == 0 || v.data_key == 0 {
         return Ok(());
     }
-    let mut shape = rc2k_core::samples::Shape {
+    let mut shape = rc2k_core::audio::samples::Shape {
         length: v.length,
         format: v.format,
         frames: v.frames,
@@ -218,7 +218,7 @@ pub unsafe fn prepare_sample(v: &mut Voice, mode: u32) -> Result<(), Refused> {
         own_frequency: v.own_frequency,
     };
     let mut data = unsafe { crate::bridge::RawMut::new(v.data as *mut u8) };
-    rc2k_core::samples::prepare(&mut shape, mode, &mut data)?;
+    rc2k_core::audio::samples::prepare(&mut shape, mode, &mut data)?;
     v.length = shape.length;
     v.format = shape.format;
     v.frames = shape.frames;

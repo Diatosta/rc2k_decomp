@@ -35,9 +35,9 @@ hook_asm!(
 // ---- Rust version ----
 
 pub fn sample_duration(sample: u32, rate: u32) -> Result<u32, BadInput> {
-    // Converted: `rc2k_core::samples::duration_ms`.
+    // Converted: `rc2k_core::audio::samples::duration_ms`.
     let record = record(sample)?;
-    Ok(rc2k_core::samples::duration_ms(
+    Ok(rc2k_core::audio::samples::duration_ms(
         rate,
         loaded(record).as_ref(),
     )?)

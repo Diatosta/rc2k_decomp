@@ -50,8 +50,8 @@ pub unsafe fn yes_no_caption() -> Result<(u32, u32), Refused> {
         let eax = append_string_by_id(id, &mut |p, n| {
             text.extend_from_slice(std::slice::from_raw_parts(p, n))
         });
-        // Converted: `rc2k_core::captions::fit`.
-        let text = rc2k_core::captions::fit(text, CAPTION_LEN)?;
+        // Converted: `rc2k_core::screens::captions::fit`.
+        let text = rc2k_core::screens::captions::fit(text, CAPTION_LEN)?;
         let caption = game_addr(CAPTION_RVA) as *mut u8;
         std::ptr::copy_nonoverlapping(text.as_ptr(), caption, text.len());
         Ok((eax, caption as u32 + text.len() as u32))

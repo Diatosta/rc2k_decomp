@@ -98,11 +98,11 @@ pub unsafe fn scale_vector(v: u32, factor: [u8; 10]) {
     unsafe { scale_by_80(v as *mut u32, factor) }
 }
 
-/// The converted version (`rc2k_core::vector`, plain floats): the hook's.
+/// The converted version (`rc2k_core::math::vector`, plain floats): the hook's.
 pub unsafe fn scale_vector_plain(v: u32, factor: [u8; 10]) {
     use crate::scene::vector3::{read_floats, write_floats};
-    let factor = rc2k_core::extended::to_f64(factor);
-    unsafe { write_floats(v, &rc2k_core::vector::scale(read_floats(v), factor)) };
+    let factor = rc2k_core::math::extended::to_f64(factor);
+    unsafe { write_floats(v, &rc2k_core::math::vector::scale(read_floats(v), factor)) };
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

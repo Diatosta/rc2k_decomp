@@ -28,8 +28,8 @@ hook_asm!(
 // ---- game data ----
 
 const FORMAT_RVA: usize = rva(0x4F3FAC); // unk_4F3FAC
-/// Converted: `rc2k_core::pixels::COMPONENT_MASKS`.
-const MASKS: [u32; 4] = rc2k_core::pixels::COMPONENT_MASKS;
+/// Converted: `rc2k_core::gfx::pixels::COMPONENT_MASKS`.
+const MASKS: [u32; 4] = rc2k_core::gfx::pixels::COMPONENT_MASKS;
 
 // ---- Rust version ----
 

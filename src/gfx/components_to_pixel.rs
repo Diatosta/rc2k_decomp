@@ -42,8 +42,8 @@ hook_asm!(
 // ---- Rust version ----
 
 /// The pixel, and what is left in the scratch bytes if they are used (converted:
-/// `rc2k_core::pixels::pack`).
-pub use rc2k_core::pixels::pack as packed;
+/// `rc2k_core::gfx::pixels::pack`).
+pub use rc2k_core::gfx::pixels::pack as packed;
 
 pub unsafe fn components_to_pixel(format: &PixelFormat, components: u32) -> u32 {
     let (pixel, scratch) = packed(format, components);

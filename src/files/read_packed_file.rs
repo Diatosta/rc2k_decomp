@@ -41,7 +41,7 @@ hook_asm!(
     original = ORIGINAL
 );
 
-use rc2k_core::packed::MAGIC;
+use rc2k_core::files::packed::MAGIC;
 const READ_FILE: usize = 0x402BB6; // files::read_file
 
 /// What the original leaves: eax and two flags.
@@ -88,10 +88,10 @@ unsafe fn get(at: u32) -> u32 {
 }
 
 /// The unpacking of a file of `size` bytes read into the buffer of `room`: the bytes
-/// written (from the buffer's start). Converted: `rc2k_core::packed::unpack`.
+/// written (from the buffer's start). Converted: `rc2k_core::files::packed::unpack`.
 pub unsafe fn unpack(buffer: u32, room: u32, size: u32) -> Result<u32, Refused> {
     let bytes = unsafe { std::slice::from_raw_parts_mut(buffer as *mut u8, room as usize) };
-    Ok(rc2k_core::packed::unpack(bytes, size as usize)? as u32)
+    Ok(rc2k_core::files::packed::unpack(bytes, size as usize)? as u32)
 }
 
 /// `files::read_packed_file` (see the header): eax the path, ebx the buffer, ecx its bytes.

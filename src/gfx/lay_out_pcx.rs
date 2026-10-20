@@ -45,11 +45,11 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// Converted: `rc2k_core::pcx::lay_out`, on the header and the variables in game memory.
+/// Converted: `rc2k_core::gfx::pcx::lay_out`, on the header and the variables in game memory.
 /// Returns the layout it stored.
-pub unsafe fn lay_out_pcx() -> rc2k_core::pcx::Layout {
+pub unsafe fn lay_out_pcx() -> rc2k_core::gfx::pcx::Layout {
     unsafe {
-        let target = rc2k_core::pcx::Target {
+        let target = rc2k_core::gfx::pcx::Target {
             width: game_read(WIDTH_RVA),
             height: game_read(HEIGHT_RVA),
             width_limit: game_read(WIDTH_LIMIT_RVA),
@@ -57,7 +57,7 @@ pub unsafe fn lay_out_pcx() -> rc2k_core::pcx::Layout {
             flags: game_read(FLAGS_RVA),
             row_bytes: game_read(ROW_BYTES_RVA),
         };
-        let l = rc2k_core::pcx::lay_out(&game_read(HEADER_RVA), &target);
+        let l = rc2k_core::gfx::pcx::lay_out(&game_read(HEADER_RVA), &target);
         for (at, value) in [
             (PLANES_RVA, l.planes),
             (LINE_BYTES_RVA, l.line_bytes),

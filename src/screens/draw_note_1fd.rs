@@ -4,17 +4,17 @@
 //! In:  nothing
 //! Out: as `draw_string_by_id` leaves them
 //!
-//! In a menu loop's draw list (0x758C62). Compared in shadow mode (`dispatch_draw`).
+//! In the draw list 0x758C52 of `menu::unused_cspecs_loop` (0x4AA1A3), which nothing reaches
+//! (no code or data refers to it, 2026-10-20): only the self-test runs it. Compared in shadow
+//! mode (`dispatch_draw`).
 //! Self-test: once, nothing drawn (skipped without the fonts).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::font_at;
 use crate::screens::harness::{Left, check_draw, dispatch_draw};
 use crate::service::harness::capture;
 use crate::strings::text_from_ids::{TEXT_LEN, text};
-use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::Canvas;
 use std::sync::atomic::AtomicUsize;
 
@@ -32,16 +32,8 @@ hook_asm!(
 
 /// The Rust version: the outcome's registers.
 pub unsafe fn draw_note_1fd(canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    use crate::framework::{EAX, EBX, ECX, EDX};
-    unsafe {
-        let font = font_at(0x51E8A4);
-        let out = draw_string_by_id_at(0x1FD, font, 0x19A, 0x118, canvas)?;
-        Ok(Left::carry(out.too_wide)
-            .with(EAX, 0)
-            .with(EBX, out.text as u32)
-            .with(ECX, out.x as u32)
-            .with(EDX, out.y as u32))
-    }
+    // Converted: `rc2k_core::screens::notes::NOTE_1FD`.
+    crate::screens::game_screen::draw_note(canvas, &rc2k_core::screens::notes::NOTE_1FD)
 }
 
 fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {

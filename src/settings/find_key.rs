@@ -43,10 +43,10 @@ pub unsafe fn find_key(text: *const u8, key: *const u8) -> Result<Option<*const 
     if text.is_null() || key.is_null() {
         return Err(BadInput("no settings text or no key"));
     }
-    // Converted: `rc2k_core::settings::find_key`, on the text in game memory.
+    // Converted: `rc2k_core::files::settings::find_key`, on the text in game memory.
     let key = unsafe { std::ffi::CStr::from_ptr(key as *const std::ffi::c_char) }.to_bytes();
     let words = unsafe { Raw::new(text) };
-    let found = rc2k_core::settings::find_key(&words, key, &case_table())?;
+    let found = rc2k_core::files::settings::find_key(&words, key, &case_table())?;
     Ok(found.map(|place| text.wrapping_add(place)))
 }
 

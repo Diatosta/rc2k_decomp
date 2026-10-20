@@ -39,7 +39,7 @@ pub fn show_hours() -> bool {
 const HOUR: u32 = 360_000;
 
 pub fn append_time(hundredths: u32, show_hours: bool) -> Vec<u8> {
-    rc2k_core::format::time(hundredths, show_hours)
+    rc2k_core::strings::format::time(hundredths, show_hours)
 }
 
 // ---- hook ----

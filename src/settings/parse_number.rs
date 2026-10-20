@@ -31,9 +31,9 @@ pub unsafe fn parse_number(text: *const u8) -> u32 {
     if text.is_null() {
         return 0;
     }
-    // Converted: `rc2k_core::settings::number`.
+    // Converted: `rc2k_core::files::settings::number`.
     let words = unsafe { Raw::new(text) };
-    read_through(rc2k_core::settings::number(&words, 0))
+    read_through(rc2k_core::files::settings::number(&words, 0))
 }
 
 // ---- hook ----

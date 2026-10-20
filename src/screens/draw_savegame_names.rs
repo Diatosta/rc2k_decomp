@@ -44,12 +44,12 @@ const PAGES: u32 = 10;
 // ---- Rust version ----
 
 pub unsafe fn draw_savegame_names(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    // Converted: `rc2k_core::slot_lists::names`.
+    // Converted: `rc2k_core::screens::slot_lists::names`.
     let page: u32 = unsafe { game_read(SAVEGAME_PAGE_RVA) };
     let names = game_addr(SAVEGAME_NAMES_RVA) as u32;
-    rc2k_core::slot_lists::names(
+    rc2k_core::screens::slot_lists::names(
         &mut crate::screens::game_screen::SlotScreen::new(canvas),
-        &rc2k_core::slot_lists::SAVED_GAMES,
+        &rc2k_core::screens::slot_lists::SAVED_GAMES,
         page,
         |slot| names.wrapping_add(slot * NAME_LEN as u32),
     )

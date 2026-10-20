@@ -128,8 +128,8 @@ fn rows() -> Result<Rows, Refused> {
 pub unsafe fn draw_class_ranking(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let (rows, last_place) = rows()?;
     let first_time = find_class_time(g(LIST_RVA), g(CLASS_RVA), true)?;
-    // Converted: `rc2k_core::results_pages::class_ranking` (the rows found here).
-    use rc2k_core::results_pages::{Name, RankedRow, class_ranking};
+    // Converted: `rc2k_core::screens::results_pages::class_ranking` (the rows found here).
+    use rc2k_core::screens::results_pages::{Name, RankedRow, class_ranking};
     let player = g(PLAYER_RVA);
     let rows: Vec<RankedRow<u32>> = rows
         .iter()

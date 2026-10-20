@@ -184,16 +184,9 @@ pub fn learn_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// 0x51E8C4. Gives the registers `draw_string_by_id` leaves.
 pub unsafe fn draw_no_controller(
     canvas: &mut dyn crate::text::draw_text::Canvas,
-) -> Result<crate::text::draw_text::Outcome, Refused> {
-    unsafe {
-        crate::text::draw_string_by_id::draw_string_by_id_at(
-            0x56D,
-            crate::framework::game_addr(rva(0x51E8C4)) as *mut crate::text::font::Font,
-            0x1BC,
-            0xD5,
-            canvas,
-        )
-    }
+) -> Result<crate::screens::harness::Left, Refused> {
+    // Converted: `rc2k_core::screens::notes::NO_CONTROLLER`.
+    crate::screens::game_screen::draw_note(canvas, &rc2k_core::screens::notes::NO_CONTROLLER)
 }
 
 /// What the controller page reads: refused before anything.

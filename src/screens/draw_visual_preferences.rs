@@ -67,10 +67,10 @@ fn rows(p: &Player) -> [(u32, u32); 9] {
 
 /// Returns the carry.
 pub unsafe fn draw_visual_preferences(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    // Converted: `rc2k_core::settings_pages::visual_preferences`.
+    // Converted: `rc2k_core::screens::settings_pages::visual_preferences`.
     let player = unsafe { current()?.read_unaligned() };
     let ids = rows(&player).map(|(value, first)| value.wrapping_add(first));
-    rc2k_core::settings_pages::visual_preferences(
+    rc2k_core::screens::settings_pages::visual_preferences(
         &mut crate::screens::game_screen::SettingsScreen::new(canvas),
         ids,
     )

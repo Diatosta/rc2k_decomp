@@ -30,7 +30,7 @@ hook_asm!(
 
 /// The low `digits` bits of `value` as '0' and '1', most significant first.
 pub fn bin_append(value: u32, digits: u32) -> Result<Vec<u8>, BadInput> {
-    rc2k_core::format::binary(value, digits).ok_or(BadInput(
+    rc2k_core::strings::format::binary(value, digits).ok_or(BadInput(
         "more than 32 binary digits: the original reads below its stack buffer",
     ))
 }

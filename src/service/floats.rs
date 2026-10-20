@@ -111,7 +111,7 @@ pub fn close(theirs: u32, mine: u32, tolerance: Tolerance) -> bool {
 
 /// Two 80-bit values within `relative` of the larger magnitude, or within `absolute`.
 pub fn close_extended(theirs: [u8; 10], mine: [u8; 10], relative: f64, absolute: f64) -> bool {
-    use rc2k_core::extended::to_f64;
+    use rc2k_core::math::extended::to_f64;
     if theirs == mine {
         return true;
     }

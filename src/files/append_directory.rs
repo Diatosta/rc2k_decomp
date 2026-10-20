@@ -29,8 +29,8 @@ hook_asm!(
     original = ORIGINAL
 );
 
-/// Converted: `rc2k_core::paths`.
-pub use rc2k_core::paths::{is_separator, last_separator};
+/// Converted: `rc2k_core::files::paths`.
+pub use rc2k_core::files::paths::{is_separator, last_separator};
 
 /// The bytes of a NUL-terminated text, without the NUL (an unbounded scan, as the
 /// original's).
@@ -46,8 +46,8 @@ pub unsafe fn append_directory(
     if path.is_null() {
         return Err(BadInput("a null path"));
     }
-    // Converted: `rc2k_core::paths::directory`.
-    let Some(directory) = rc2k_core::paths::directory(unsafe { text_of(path) }) else {
+    // Converted: `rc2k_core::files::paths::directory`.
+    let Some(directory) = rc2k_core::files::paths::directory(unsafe { text_of(path) }) else {
         return Ok((cursor, false));
     };
     unsafe {

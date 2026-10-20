@@ -58,7 +58,7 @@ pub const FILE_RVA: usize = rva(0x5BEC30);
 pub const FILE_LEN_RVA: usize = rva(0x5BEC34);
 
 // ---- Rust version ----
-// Converted: `rc2k_core::png`. Here the game's variables for the header, the pixel area
+// Converted: `rc2k_core::gfx::png`. Here the game's variables for the header, the pixel area
 // (with the row before it, which the first row's filters read) and the info block.
 
 /// Returns what the original returns in eax.
@@ -67,7 +67,7 @@ pub unsafe fn decode_png(
     pixels: *mut u8,
     info: *mut PngInfo,
 ) -> Result<u32, BadInput> {
-    use rc2k_core::png;
+    use rc2k_core::gfx::png;
     if pixels.is_null() || info.is_null() {
         return Ok(1);
     }

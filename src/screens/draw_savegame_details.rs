@@ -84,9 +84,9 @@ const SECTION_TITLES_RVA: usize = rva(0x75A28A); // dword_75A28A[section]: title
 
 /// Returns the carry flag of the last text drawn.
 pub unsafe fn draw_savegame_details(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    // Converted: `rc2k_core::savegame_preview::details`; the saved game's dwords copied
+    // Converted: `rc2k_core::screens::savegame_preview::details`; the saved game's dwords copied
     // into the preview's variables first (the original after the frame, which reads none).
-    use rc2k_core::savegame_preview::{Car, Title, details};
+    use rc2k_core::screens::savegame_preview::{Car, Title, details};
     unsafe {
         let payload = (game_addr(FILE_RVA) + PAYLOAD_OFFSET) as u32;
         for (n, at) in PREVIEW_RVAS.into_iter().enumerate() {

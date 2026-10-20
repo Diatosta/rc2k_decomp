@@ -58,10 +58,10 @@ const NAMES: [(u32, u32, i32); 8] = [
 
 /// The Rust version: the registers the last name leaves.
 pub unsafe fn draw_graphics_settings(canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    // Converted: `rc2k_core::settings_pages::{graphics_item, graphics}`.
+    // Converted: `rc2k_core::screens::settings_pages::{graphics_item, graphics}`.
     use crate::screens::game_screen::{SettingsScreen, left_of};
     unsafe {
-        if rc2k_core::settings_pages::graphics_item(k(0x4F50D4), k(0x4F50D8)) {
+        if rc2k_core::screens::settings_pages::graphics_item(k(0x4F50D4), k(0x4F50D8)) {
             enable_item(2)?;
         } else {
             disable_item(2)?;
@@ -69,7 +69,7 @@ pub unsafe fn draw_graphics_settings(canvas: &mut dyn Canvas) -> Result<Left, Re
         let mode = game_addr(rva(0x4F50E8)) as u32 + 0x10 * k(0x4F50C8);
         let v = |i: u32| ((mode + 4 * i) as *const u32).read_unaligned();
         let ids = NAMES.map(|(setting, first, _)| k(setting).wrapping_add(first));
-        let out = rc2k_core::settings_pages::graphics(
+        let out = rc2k_core::screens::settings_pages::graphics(
             &mut SettingsScreen::new(canvas),
             ids,
             [v(0), v(1), v(2)],

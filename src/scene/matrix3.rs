@@ -13,7 +13,7 @@ use std::cell::UnsafeCell;
 /// `scene::identity_matrix3` (0x46574E): the matrix at esi the identity (1.0 from `fld1`).
 /// Every register kept.
 pub unsafe fn identity_matrix3(at: u32) {
-    unsafe { write_floats(at, &rc2k_core::vector::IDENTITY) };
+    unsafe { write_floats(at, &rc2k_core::math::vector::IDENTITY) };
 }
 
 /// `scene::multiply_matrices3` (0x4657EC): ebp = esi x edi, column by column, each written
@@ -39,9 +39,9 @@ pub unsafe fn multiply_matrices3(entry: &Regs) -> Regs {
     g
 }
 
-/// The converted `multiply_matrices3` (`rc2k_core::vector`, plain floats): the hook's.
+/// The converted `multiply_matrices3` (`rc2k_core::math::vector`, plain floats): the hook's.
 pub unsafe fn multiply_matrices3_plain(entry: &Regs) -> Regs {
-    use rc2k_core::vector::row_times_column;
+    use rc2k_core::math::vector::row_times_column;
     let mut g = *entry;
     unsafe {
         for column in 0..3 {
@@ -95,7 +95,7 @@ pub unsafe fn transform_int_points_plain(entry: &Regs) -> Result<Regs, Refused> 
             let m: [f32; 9] = read_floats(g.ebp);
             let p: [i32; 3] =
                 std::array::from_fn(|n| ((g.esi + 4 * n as u32) as *const i32).read_unaligned());
-            let out = rc2k_core::vector::turn_int_point(p, &m);
+            let out = rc2k_core::math::vector::turn_int_point(p, &m);
             for (n, v) in out.into_iter().enumerate() {
                 ((g.edi + 4 * n as u32) as *mut i32).write_unaligned(v);
             }
@@ -261,16 +261,16 @@ pub unsafe fn turn_matrix3(axis: Axis, at: u32, angle: [u8; 10]) -> Result<(), R
     Ok(())
 }
 
-/// The converted `turn_matrix3` (`rc2k_core::vector`, plain floats): the hooks'.
+/// The converted `turn_matrix3` (`rc2k_core::math::vector`, plain floats): the hooks'.
 pub unsafe fn turn_matrix3_plain(axis: Axis, at: u32, angle: [u8; 10]) -> Result<(), Refused> {
-    use rc2k_core::vector::{Axis as A, turn_matrix};
+    use rc2k_core::math::vector::{Axis as A, turn_matrix};
     turnable(&angle)?;
     let axis = match axis {
         Axis::X => A::X,
         Axis::Y => A::Y,
         Axis::Z => A::Z,
     };
-    let m = turn_matrix(axis, rc2k_core::extended::to_f64(angle));
+    let m = turn_matrix(axis, rc2k_core::math::extended::to_f64(angle));
     unsafe { write_floats(at, &m) };
     Ok(())
 }

@@ -37,10 +37,10 @@ hook_asm!(
 pub unsafe fn palette_pixels_to_dwords() -> Result<(), BadInput> {
     unsafe {
         let count = pixel_count()?;
-        // Converted: `rc2k_core::pixels::palette_to_dwords`.
+        // Converted: `rc2k_core::gfx::pixels::palette_to_dwords`.
         let buffer = std::slice::from_raw_parts_mut(picture(), count * 4);
         let palette: [u32; 256] = game_read(PALETTE_RVA);
-        rc2k_core::pixels::palette_to_dwords(buffer, count, &palette)
+        rc2k_core::gfx::pixels::palette_to_dwords(buffer, count, &palette)
             .ok_or(BadInput("a picture buffer shorter than its dwords"))
     }
 }

@@ -33,8 +33,8 @@ const HAT_RVA: usize = STATE_RVA + 0x20; // dword_4F6A48
 
 /// The Rust version (see the header): (eax, the `div`'s ecx and edx when it was reached).
 pub fn hat_reading(record: u32) -> (u32, Option<(u32, u32)>) {
-    // Converted: `rc2k_core::devices::hat_reading`.
-    rc2k_core::devices::hat_reading(&record_bytes(record), &joy_state())
+    // Converted: `rc2k_core::input::devices::hat_reading`.
+    rc2k_core::input::devices::hat_reading(&record_bytes(record), &joy_state())
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

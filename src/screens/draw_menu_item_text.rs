@@ -13,15 +13,15 @@
 //! 2026-10-14). Refuses, in the spaced-out way, a string of 0x100 bytes or more (it would
 //! run into the one-character text).
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_ptr, game_write, hook_asm, rva};
+use crate::errors::Refused;
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_ptr, hook_asm, rva};
 use crate::screens::harness::{Left, check_draw, dispatch_draw, drawing_unavailable};
 use crate::screens::{LINE_BUFFER_RVA, font_at, font_is_loaded, set_line};
 use crate::service::harness::{Region, at, capture, restore};
 use crate::strings::string_table::{blob, is_table_id};
 use crate::strings::text_from_ids::{TEXT_LEN, text};
-use crate::text::draw_string_by_id::{draw_string_by_id_at, string_text};
-use crate::text::draw_text::{Canvas, draw_text_at};
+use crate::text::draw_string_by_id::string_text;
+use crate::text::draw_text::Canvas;
 use crate::text::font::Font;
 use crate::text::measure_string_by_id::TEST_STRINGS;
 use std::sync::atomic::AtomicUsize;
@@ -72,39 +72,24 @@ pub unsafe fn draw_menu_item_text(
     spaced: bool,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    unsafe {
-        if !spaced {
-            draw_string_by_id_at(id, font, x, y, canvas)?;
-            return Ok(());
-        }
-        let line = string_text(id)?;
-        if line.len() > LINE_LEN {
-            return Err(BadInput("a string longer than the line buffer").into());
-        }
-        game_write(SPACED_FONT_RVA, font as u32);
-        set_line(&line);
-        let one: *mut u8 = game_ptr(ONE_CHARACTER_RVA);
-        let mut x = x.wrapping_sub(0x1A);
-        // One character, then on while the next byte is not a NUL: the first is drawn
-        // even when it is the NUL of an empty string, and then the loop goes on into
-        // what the line buffer held after it. It ends at the latest in the
-        // one-character text right after the buffer, which is cleared before it is read.
-        let mut place: *const u8 = game_ptr(LINE_BUFFER_RVA);
-        loop {
-            // The text is cleared before the byte is read: at the last place the byte
-            // is that text's own, so a NUL.
-            game_write(ONE_CHARACTER_RVA, 0u32);
-            let character = *place;
-            game_write(ONE_CHARACTER_RVA, character as u32);
-            draw_text_at(font, one, x, y, canvas)?;
-            x = x.wrapping_add(0x12);
-            place = place.add(1);
-            if *place == 0 {
-                break;
-            }
-        }
+    // Converted: `rc2k_core::screens::menus::item_text`; the line buffer past the string read where
+    // the original reads it.
+    use crate::screens::game_screen::{FontAt, MenuScreen};
+    if spaced {
+        // What the original refuses first: a string past the text buffer.
+        unsafe { string_text(id) }?;
     }
-    Ok(())
+    let line: *const u8 = game_ptr(LINE_BUFFER_RVA);
+    rc2k_core::screens::menus::item_text(
+        &mut MenuScreen::new(canvas),
+        id,
+        FontAt(font as u32),
+        font as u32,
+        x,
+        y,
+        spaced,
+        &|n| unsafe { *line.add(n) },
+    )
 }
 
 // ---- hook ----

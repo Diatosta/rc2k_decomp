@@ -2,7 +2,7 @@
 
 use crate::errors::BadInput;
 use crate::framework::{game_read, rva};
-pub use rc2k_core::units::{Figure, Units};
+pub use rc2k_core::math::units::{Figure, Units};
 
 // 0 = imperial (Fahrenheit, miles) and non-zero = metric.
 const UNITS_RVA: usize = rva(0x51DE2C);

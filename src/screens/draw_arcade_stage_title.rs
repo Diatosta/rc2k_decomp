@@ -12,11 +12,9 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::font_at;
 use crate::screens::harness::{Left, check_draw, dispatch_draw};
 use crate::service::harness::capture;
 use crate::strings::text_from_ids::{TEXT_LEN, text};
-use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::Canvas;
 use std::sync::atomic::AtomicUsize;
 
@@ -37,14 +35,15 @@ hook_asm!(
     original = ORIGINAL
 );
 
-const FONT: usize = 0x51E8A4;
-const TITLE: u32 = 0x1FC;
-
 // ---- Rust version ----
 
 pub unsafe fn draw_arcade_stage_title(canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    let out = unsafe { draw_string_by_id_at(TITLE, font_at(FONT), 0x19A, 0x118, canvas) }?;
-    Ok(Left::carry(out.too_wide))
+    // Converted: `rc2k_core::screens::notes::ARCADE_STAGE_TITLE`; the registers are kept (`pusha`).
+    let out = crate::screens::game_screen::draw_note(
+        canvas,
+        &rc2k_core::screens::notes::ARCADE_STAGE_TITLE,
+    )?;
+    Ok(Left::carry(out.carry == Some(true)))
 }
 
 // ---- hook ----

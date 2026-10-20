@@ -148,13 +148,13 @@ pub unsafe fn draw_stage_records(entry: u32, canvas: &mut dyn Canvas) -> Result<
 }
 
 /// `draw_stage_records` with the top-speed row's places given. Converted:
-/// `rc2k_core::stage_panel::records`.
+/// `rc2k_core::screens::stage_panel::records`.
 pub unsafe fn draw_records_rows(
     entry: u32,
     rows: &Rows,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
-    use rc2k_core::stage_panel::{CarRow, Holder};
+    use rc2k_core::screens::stage_panel::{CarRow, Holder};
     unsafe {
         // Without it the original reads through a null pointer after drawing the first row.
         let Some((record, sub)) = selected_record() else {
@@ -181,7 +181,7 @@ pub unsafe fn draw_records_rows(
             CarRow::Second
         };
         // The top speed's flag takes the selection's third value as its palette (ebx).
-        rc2k_core::stage_panel::records(
+        rc2k_core::screens::stage_panel::records(
             &mut PanelScreen::new(canvas),
             best,
             top,

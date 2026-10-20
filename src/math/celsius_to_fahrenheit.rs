@@ -25,8 +25,8 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// Converted: `rc2k_core::units`.
-pub use rc2k_core::units::celsius_to_fahrenheit;
+/// Converted: `rc2k_core::math::units`.
+pub use rc2k_core::math::units::celsius_to_fahrenheit;
 
 // ---- hook ----
 

@@ -43,8 +43,8 @@ hook_asm!(
 pub unsafe fn lay_out_png() {
     unsafe {
         let info: *mut PngInfo = game_ptr(INFO_RVA);
-        // Converted: `rc2k_core::png::layout`.
-        let layout = rc2k_core::png::layout(
+        // Converted: `rc2k_core::gfx::png::layout`.
+        let layout = rc2k_core::gfx::png::layout(
             (&raw const (*info).width).read_unaligned(),
             (&raw const (*info).height).read_unaligned(),
             game_read(FLAGS_RVA),

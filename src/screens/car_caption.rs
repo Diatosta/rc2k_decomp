@@ -47,8 +47,8 @@ pub unsafe fn put_string(id: u32, place: usize, room: usize) -> Result<(), Refus
         append_string_by_id(id, &mut |p, n| {
             text.extend_from_slice(std::slice::from_raw_parts(p, n))
         });
-        // Converted: `rc2k_core::captions::fit`.
-        let text = rc2k_core::captions::fit(text, room)?;
+        // Converted: `rc2k_core::screens::captions::fit`.
+        let text = rc2k_core::screens::captions::fit(text, room)?;
         std::ptr::copy_nonoverlapping(text.as_ptr(), game_addr(place) as *mut u8, text.len());
         Ok(())
     }

@@ -33,9 +33,9 @@ pub unsafe fn value_at(value: *const u8) -> Vec<u8> {
     if value.is_null() {
         return Vec::new();
     }
-    // Converted: `rc2k_core::settings::value`.
+    // Converted: `rc2k_core::files::settings::value`.
     let text = unsafe { Raw::new(value) };
-    read_through(rc2k_core::settings::value(&text, 0))
+    read_through(rc2k_core::files::settings::value(&text, 0))
 }
 
 /// The cursor after the value.

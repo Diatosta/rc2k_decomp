@@ -17,9 +17,7 @@ use crate::screens::harness::{Left, check_draw, dispatch_draw, drawing_unavailab
 use crate::screens::{font_at, font_is_loaded};
 use crate::strings::string_table::{blob, is_table_id};
 use crate::strings::text_from_ids::{TEXT_LEN, text};
-use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::Canvas;
-use crate::text::font::Font;
 use std::slice::from_raw_parts;
 use std::sync::atomic::AtomicUsize;
 
@@ -58,16 +56,24 @@ pub unsafe fn draw_menu_labels(menu: u32, canvas: &mut dyn Canvas) -> Result<(),
         if !(1..=LABEL_LIMIT).any(|n| dword(labels + n * LABEL_LEN) == END) {
             return Err(BadInput("a label list without an end").into());
         }
+        // Converted: `rc2k_core::screens::menus::labels` (the list read here: the first label
+        // drawn without being checked for the end, as the original).
+        use crate::screens::game_screen::{FontAt, MenuScreen};
+        let mut list = Vec::new();
         let mut label = labels;
         loop {
-            let (x, y) = (dword(label) as i32, dword(label + 4) as i32);
-            let font = dword(label + 8) as *mut Font;
-            draw_string_by_id_at(dword(label + 0xC), font, x, y, canvas)?;
+            list.push(rc2k_core::screens::menus::Label {
+                x: dword(label) as i32,
+                y: dword(label + 4) as i32,
+                font: FontAt(dword(label + 8)),
+                id: dword(label + 0xC),
+            });
             label += LABEL_LEN;
             if dword(label) == END {
-                return Ok(());
+                break;
             }
         }
+        rc2k_core::screens::menus::labels(&mut MenuScreen::new(canvas), &list)
     }
 }
 

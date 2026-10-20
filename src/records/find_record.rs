@@ -22,20 +22,22 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// The record, as the original finds it (converted: `rc2k_core::records::find_record`, on
+/// The record, as the original finds it (converted: `rc2k_core::files::records::find_record`, on
 /// the table in game memory: no end test, as the original).
 pub fn find_record_in(table: u32, index: i32, section: u32) -> u32 {
     let records = unsafe { Raw::new(table as usize as *const u8) };
-    let place = read_through(rc2k_core::records::find_record(&records, index, section));
+    let place = read_through(rc2k_core::files::records::find_record(
+        &records, index, section,
+    ));
     table.wrapping_add(place as u32)
 }
 
 /// True if `table` has at least `section` section headers among its first `limit` records:
 /// a bounded check that `find_record_in` will not run off the table (converted:
-/// `rc2k_core::records::has_section`).
+/// `rc2k_core::files::records::has_section`).
 pub fn has_section(table: u32, section: u32, limit: u32) -> bool {
     let records = unsafe { Raw::new(table as usize as *const u8) };
-    rc2k_core::records::has_section(&records, section, limit as usize)
+    rc2k_core::files::records::has_section(&records, section, limit as usize)
 }
 
 // ---- hook ----
@@ -65,20 +67,21 @@ extern "C" fn dispatch(r: &mut Regs) {
 
 // ---- self-test: synthetic tables ----
 
-/// First dword of each record is rc2k_core::records::SECTION at `markers`, never 4 elsewhere (including near
+/// First dword of each record is rc2k_core::files::records::SECTION at `markers`, never 4 elsewhere (including near
 /// misses). A 4 in another field must not count.
 fn make_table(records: usize, markers: &[usize]) -> Vec<u8> {
     const FILLER: [u32; 8] = [0, 1, 2, 3, 5, 0x0400_0000, 0xFFFF_FFFF, 0x104];
-    let size = rc2k_core::records::RECORD_LEN;
+    let size = rc2k_core::files::records::RECORD_LEN;
     let mut t = vec![0u8; records * size];
     for i in 0..records {
         let tag = if markers.contains(&i) {
-            rc2k_core::records::SECTION
+            rc2k_core::files::records::SECTION
         } else {
             FILLER[i % 8]
         };
         t[i * size..i * size + 4].copy_from_slice(&tag.to_le_bytes());
-        t[i * size + 4..i * size + 8].copy_from_slice(&rc2k_core::records::SECTION.to_le_bytes());
+        t[i * size + 4..i * size + 8]
+            .copy_from_slice(&rc2k_core::files::records::SECTION.to_le_bytes());
     }
     t
 }

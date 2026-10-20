@@ -57,17 +57,17 @@ pub unsafe fn draw_player_stage_result(canvas: &mut dyn Canvas) -> Result<(), Re
         if (STAGE_TIMES.records)() == 0 {
             return Err(crate::errors::BadInput("no stage records").into());
         }
-        // Converted: `rc2k_core::player_result::stage_result`.
+        // Converted: `rc2k_core::screens::player_result::stage_result`.
         use crate::screens::game_screen::PlayerResultScreen;
         speed.pop();
-        let p = rc2k_core::player_result::Player {
+        let p = rc2k_core::screens::player_result::Player {
             name: name as u32,
             nation: f(4),
             car: f(8),
             time: f(0x88),
             speed,
         };
-        rc2k_core::player_result::stage_result(
+        rc2k_core::screens::player_result::stage_result(
             &mut PlayerResultScreen::new(canvas),
             &mut |s: &mut PlayerResultScreen| draw_times_heading(&STAGE_TIMES, s.canvas),
             &p,

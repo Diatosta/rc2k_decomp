@@ -50,9 +50,12 @@ const MOST_RECORDS: usize = 0x1000;
 /// How many records the table has before its -1 (the first is not looked at for the
 /// end, as in the original).
 unsafe fn records(table: u32) -> Result<usize, BadInput> {
-    // Converted: `rc2k_core::records::record_count`.
+    // Converted: `rc2k_core::files::records::record_count`.
     let records = unsafe { Raw::new(table as usize as *const u8) };
-    Ok(rc2k_core::records::record_count(&records, MOST_RECORDS)?)
+    Ok(rc2k_core::files::records::record_count(
+        &records,
+        MOST_RECORDS,
+    )?)
 }
 
 pub unsafe fn default_stage_records(table: u32) -> Result<(), Refused> {

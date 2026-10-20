@@ -51,8 +51,8 @@ use crate::settings::find_key::LOWER_RVA;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::compile_lexicon::{compile_lexicon, compiled};
 use crate::strings::text_from_ids::text;
-use rc2k_core::case::CaseTable;
-use rc2k_core::language::Locale;
+use rc2k_core::strings::case::CaseTable;
+use rc2k_core::strings::language::Locale;
 use std::sync::atomic::AtomicUsize;
 use windows_sys::Win32::Globalization::GetSystemDefaultLCID;
 
@@ -125,7 +125,7 @@ unsafe fn built(id: u32, with_nul: bool) -> Result<Vec<u8>, BadInput> {
     }
 }
 
-/// `sub_4034C2` (converted: `rc2k_core::case::CaseTable::{for_language, plain_letters}`).
+/// `sub_4034C2` (converted: `rc2k_core::strings::case::CaseTable::{for_language, plain_letters}`).
 unsafe fn make_case_tables() -> Result<(), BadInput> {
     unsafe {
         let lower = CaseTable::for_language(&built(2, true)?)?;
@@ -140,11 +140,11 @@ unsafe fn make_case_tables() -> Result<(), BadInput> {
     }
 }
 
-/// `sub_416389` (converted: `rc2k_core::lexicon::correct`), on the lexicon's room.
+/// `sub_416389` (converted: `rc2k_core::strings::lexicon::correct`), on the lexicon's room.
 unsafe fn correct_lexicon() -> Result<(), BadInput> {
     let table =
         unsafe { std::slice::from_raw_parts_mut(game_addr(LEXICON_RVA) as *mut u8, LEXICON_ROOM) };
-    Ok(rc2k_core::lexicon::correct(table)?)
+    Ok(rc2k_core::strings::lexicon::correct(table)?)
 }
 
 /// `compile` stands for `strings::compile_lexicon`.
@@ -163,7 +163,7 @@ pub unsafe fn load_language(
         if read_first_match(pattern, locale, LOCALE_LEN as u32, 0)?.is_none() {
             return Err(fatal(0x80E3_8381, ""));
         }
-        // Converted: `rc2k_core::language::Locale`.
+        // Converted: `rc2k_core::strings::language::Locale`.
         let Ok(file) = Locale::parse(&game_read::<[u8; LOCALE_LEN]>(LOCALE_RVA)) else {
             return Err(fatal(0x80E3_8382, ""));
         };

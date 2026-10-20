@@ -26,8 +26,11 @@ hook_asm!(
 
 /// The text of a signed number, with `flags` for `format_u32`.
 pub fn signed_text(value: u32, flags: u8) -> Vec<u8> {
-    // Converted: `rc2k_core::log::signed`.
-    rc2k_core::log::signed(value as i32, rc2k_core::format::Pad::from_flags(flags))
+    // Converted: `rc2k_core::files::log::signed`.
+    rc2k_core::files::log::signed(
+        value as i32,
+        rc2k_core::strings::format::Pad::from_flags(flags),
+    )
 }
 
 fn text(r: &Regs) -> Result<NumberText, BadInput> {

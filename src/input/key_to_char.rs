@@ -73,12 +73,12 @@ pub fn regions() -> [Region; 2] {
 
 /// eax as the original leaves it; the character is its low byte.
 pub unsafe fn key_to_char(eax: u32) -> Result<u32, BadInput> {
-    use rc2k_core::keyboard::{self, Layout, Switch};
+    use rc2k_core::input::keyboard::{self, Layout, Switch};
     let key = eax as u8;
     if key & 0x80 != 0 {
         return Ok(eax & !0xFF);
     }
-    // Converted: `rc2k_core::keyboard`; here the layout block's pointers as tables, and
+    // Converted: `rc2k_core::input::keyboard`; here the layout block's pointers as tables, and
     // the switch and the pending key stored.
     unsafe {
         let switched = keyboard::switch(
@@ -101,8 +101,9 @@ pub unsafe fn key_to_char(eax: u32) -> Result<u32, BadInput> {
             (p != 0).then(|| Raw::new(p as *const u8))
         };
         let tables = [table(0), table(4), table(8), table(0xC)];
-        fn as_bytes(t: &Option<Raw>) -> Option<&dyn rc2k_core::bytes::Bytes> {
-            t.as_ref().map(|t| t as &dyn rc2k_core::bytes::Bytes)
+        fn as_bytes(t: &Option<Raw>) -> Option<&dyn rc2k_core::strings::bytes::Bytes> {
+            t.as_ref()
+                .map(|t| t as &dyn rc2k_core::strings::bytes::Bytes)
         }
         let typed = keyboard::key_to_char(
             key,

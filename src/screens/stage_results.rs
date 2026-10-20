@@ -104,8 +104,8 @@ pub unsafe fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused>
             game_addr(rva(0xA8BD54)) as *mut u8,
             stage.len(),
         );
-        // Converted: `rc2k_core::stage_results`.
-        use rc2k_core::stage_results::{Entry, Fastest, stage_results};
+        // Converted: `rc2k_core::screens::stage_results`.
+        use rc2k_core::screens::stage_results::{Entry, Fastest, stage_results};
         let rows = std::array::from_fn(|n| {
             let entry = first.wrapping_add(0x9C * n as u32);
             let f = |o: u32| get(entry + o);

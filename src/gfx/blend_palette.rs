@@ -51,10 +51,10 @@ pub unsafe fn blend_palette(
     }
     for n in 0..count as usize {
         unsafe {
-            // Converted: `rc2k_core::pixels::blend_entry`; the scratch bytes as
+            // Converted: `rc2k_core::gfx::pixels::blend_entry`; the scratch bytes as
             // `components_to_pixel` leaves them.
             let entry = out.add(n);
-            let (pixel, scratch) = rc2k_core::pixels::blend_entry(
+            let (pixel, scratch) = rc2k_core::gfx::pixels::blend_entry(
                 format,
                 first.add(n).read_unaligned(),
                 second.add(n).read_unaligned(),

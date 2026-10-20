@@ -66,8 +66,8 @@ unsafe fn write_stream_block(stream: *mut Stream, bytes: &[u8]) -> bool {
 }
 
 /// The header's first 0x80 bytes for a surface `width` x `height` (converted:
-/// `rc2k_core::pcx::screen_header`).
-pub use rc2k_core::pcx::screen_header as header;
+/// `rc2k_core::gfx::pcx::screen_header`).
+pub use rc2k_core::gfx::pcx::screen_header as header;
 
 /// The Rust version: whether it worked (carry clear).
 pub unsafe fn write_screen_pcx() -> Result<bool, Refused> {
@@ -98,7 +98,7 @@ pub unsafe fn write_screen_pcx() -> Result<bool, Refused> {
     }
 }
 
-/// The rows; false when a write failed. Converted: `rc2k_core::pcx::screen_planes` and
+/// The rows; false when a write failed. Converted: `rc2k_core::gfx::pcx::screen_planes` and
 /// `encode_line`; the planes are left in the game's buffer, as the original leaves them.
 unsafe fn rows(stream: *mut Stream) -> bool {
     unsafe {
@@ -110,7 +110,7 @@ unsafe fn rows(stream: *mut Stream) -> bool {
         loop {
             let format = (g(FORMAT) as *const PixelFormat).read_unaligned();
             let planes =
-                rc2k_core::pcx::screen_planes(width, &mut eax, &mut |x, eax| match g(BITS) {
+                rc2k_core::gfx::pcx::screen_planes(width, &mut eax, &mut |x, eax| match g(BITS) {
                     0x10 => crate::gfx::pixel_to_components::pixel_to_components(
                         &format,
                         eax & 0xFFFF_0000 | ((row + 2 * x) as *const u16).read_unaligned() as u32,
@@ -122,7 +122,7 @@ unsafe fn rows(stream: *mut Stream) -> bool {
                     _ => eax,
                 });
             std::ptr::copy_nonoverlapping(planes.as_ptr(), a(PLANES) as *mut u8, planes.len());
-            for byte in rc2k_core::pcx::encode_line(&planes, &mut eax) {
+            for byte in rc2k_core::gfx::pcx::encode_line(&planes, &mut eax) {
                 if !write_stream_byte(stream, byte) {
                     return false;
                 }

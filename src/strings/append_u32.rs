@@ -30,7 +30,7 @@ hook_asm!(
 // ---- Rust version ----
 
 pub fn append_u32(value: u32) -> Vec<u8> {
-    rc2k_core::format::decimal(value, rc2k_core::format::Pad::None)
+    rc2k_core::strings::format::decimal(value, rc2k_core::strings::format::Pad::None)
 }
 
 // ---- hook ----

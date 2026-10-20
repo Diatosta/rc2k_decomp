@@ -57,11 +57,11 @@ fn slot_name(slot: u32) -> *const u8 {
 // ---- Rust version ----
 
 pub unsafe fn draw_replay_slot_names(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    // Converted: `rc2k_core::slot_lists::names`.
+    // Converted: `rc2k_core::screens::slot_lists::names`.
     let page: u32 = unsafe { game_read(SLOT_PAGE_RVA) };
-    rc2k_core::slot_lists::names(
+    rc2k_core::screens::slot_lists::names(
         &mut crate::screens::game_screen::SlotScreen::new(canvas),
-        &rc2k_core::slot_lists::REPLAYS,
+        &rc2k_core::screens::slot_lists::REPLAYS,
         page,
         |slot| slot_name(slot) as u32,
     )

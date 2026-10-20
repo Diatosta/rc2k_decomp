@@ -32,8 +32,8 @@ hook_asm!(
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn binding_place(entry: &Regs) -> Regs {
-    // Converted: `rc2k_core::devices::binding_place`.
-    let place = rc2k_core::devices::binding_place(entry.eax, at(entry.esi, 0x24) == 1);
+    // Converted: `rc2k_core::input::devices::binding_place`.
+    let place = rc2k_core::input::devices::binding_place(entry.eax, at(entry.esi, 0x24) == 1);
     Regs {
         eax: place.axis,
         edx: place.sign,

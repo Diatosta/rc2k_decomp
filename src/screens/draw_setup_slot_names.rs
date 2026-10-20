@@ -50,11 +50,11 @@ pub const PAGES: u32 = 3;
 // ---- Rust version ----
 
 pub unsafe fn draw_setup_slot_names(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    // Converted: `rc2k_core::slot_lists::names`.
+    // Converted: `rc2k_core::screens::slot_lists::names`.
     let page: u32 = unsafe { game_read(SLOT_PAGE_RVA) };
-    rc2k_core::slot_lists::names(
+    rc2k_core::screens::slot_lists::names(
         &mut crate::screens::game_screen::SlotScreen::new(canvas),
-        &rc2k_core::slot_lists::SETUPS,
+        &rc2k_core::screens::slot_lists::SETUPS,
         page,
         |slot| slot_name(slot) as u32,
     )

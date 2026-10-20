@@ -20,9 +20,9 @@ const MODE_3D: u32 = crate::audio::voices::MODE_3D;
 /// `audio::volume_index`: the first index of `g_volumeTable` whose volume is at least
 /// `volume` (signed), or 0x40.
 pub fn volume_index(volume: i32) -> u32 {
-    // Converted: `rc2k_core::samples::volume_index`.
+    // Converted: `rc2k_core::audio::samples::volume_index`.
     let table: [i32; 0x40] = unsafe { game_read(crate::audio::voices::VOLUMES_RVA) };
-    rc2k_core::samples::volume_index(volume, &table)
+    rc2k_core::audio::samples::volume_index(volume, &table)
 }
 
 /// `audio::set_primary_format`: `describe_wave_format` (the mode, `rate`), `SetFormat`

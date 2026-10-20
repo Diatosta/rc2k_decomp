@@ -30,10 +30,10 @@ pub unsafe fn mix_channels(
     channels: u32,
     count: u32,
 ) -> Result<(), Refused> {
-    use rc2k_core::mixer::Channel;
+    use rc2k_core::audio::mixer::Channel;
     let size = std::mem::size_of::<MixerChannel>() as u32;
     let at = |n: u32| channels.wrapping_add(n.wrapping_mul(size));
-    // Converted: `rc2k_core::mixer`; here the channels loaded and stored, the data read
+    // Converted: `rc2k_core::audio::mixer`; here the channels loaded and stored, the data read
     // where the channels point.
     let mut loaded: Vec<(Channel, u32)> = (0..count)
         .map(|n| {
@@ -58,7 +58,7 @@ pub unsafe fn mix_channels(
     let buffer =
         unsafe { std::slice::from_raw_parts_mut(mix as *mut i32, MIX_BUFFER_LEN as usize / 4) };
     let byte = |n: usize, offset: u32| unsafe { *(data[n].wrapping_add(offset) as *const u8) };
-    rc2k_core::mixer::mix_channels(bytes >> (shift & 0x1F), &mut cores, &byte, buffer)?;
+    rc2k_core::audio::mixer::mix_channels(bytes >> (shift & 0x1F), &mut cores, &byte, buffer)?;
     for (n, core) in cores.iter().enumerate() {
         // Only the channels that played: the original stores no others.
         let c = unsafe { channel(at(n as u32)) };
@@ -80,8 +80,8 @@ pub unsafe fn mix_channels(
 /// original's clamp there goes back to the left sample's store and reads the same right
 /// sample again, for ever.
 pub unsafe fn write_mix(mode: u32, mix: u32, parts: [u32; 4]) -> Result<(), Refused> {
-    // Converted: `rc2k_core::mixer`; here the parts as slices of the locked buffer.
-    let size = rc2k_core::mixer::frame_bytes(mode) as u32;
+    // Converted: `rc2k_core::audio::mixer`; here the parts as slices of the locked buffer.
+    let size = rc2k_core::audio::mixer::frame_bytes(mode) as u32;
     let mut slices: Vec<&mut [u8]> = vec![unsafe {
         std::slice::from_raw_parts_mut(parts[0] as *mut u8, (parts[1] / size * size) as usize)
     }];
@@ -92,5 +92,9 @@ pub unsafe fn write_mix(mode: u32, mix: u32, parts: [u32; 4]) -> Result<(), Refu
     }
     let buffer =
         unsafe { std::slice::from_raw_parts(mix as *const i32, MIX_BUFFER_LEN as usize / 4) };
-    Ok(rc2k_core::mixer::write_mix(mode, buffer, &mut slices)?)
+    Ok(rc2k_core::audio::mixer::write_mix(
+        mode,
+        buffer,
+        &mut slices,
+    )?)
 }

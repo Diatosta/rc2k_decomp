@@ -31,8 +31,8 @@ hook_asm!(
 // ---- Rust version ----
 
 /// (left, top, right, bottom) for a rectangle of x, y, width, height. Converted:
-/// `rc2k_core::raster::clip_of`.
-pub use rc2k_core::raster::clip_of;
+/// `rc2k_core::gfx::raster::clip_of`.
+pub use rc2k_core::gfx::raster::clip_of;
 
 unsafe fn clip_now() -> [u32; 4] {
     unsafe {

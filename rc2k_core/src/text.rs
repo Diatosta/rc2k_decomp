@@ -20,7 +20,7 @@
 //! pixels, the gap before them, the pixels; a count of 0 ends the row).
 
 use crate::Invalid;
-use crate::bytes::{self, Bytes};
+use crate::strings::bytes::{self, Bytes};
 
 /// The game's 0x20-byte font object. Two fields change meaning with `mode`.
 #[repr(C)]

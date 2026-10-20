@@ -81,15 +81,15 @@ pub unsafe fn rescale_to_surface(surface: *const u32) -> Result<(), Refused> {
         }
         // The count was checked above.
         let _ = fill_row_table(from, game_read(DECODED_STRIDE_RVA), from_height);
-        // Converted: `rc2k_core::picture::rescale`; each pixel's parts through the
+        // Converted: `rc2k_core::gfx::picture::rescale`; each pixel's parts through the
         // components variable, the last left there with its fourth byte as it was.
         let format = (field(FORMAT) as *const PixelFormat).read_unaligned();
         let words = field(BITS) == 0x10;
         let mut out = field(PIXELS) as *mut u8;
         let (width_pixels, gap) = (width, field(ROW_GAP) as usize);
         let mut column = 0u32;
-        let work = rc2k_core::picture::rescale(
-            &rc2k_core::picture::Sizes {
+        let work = rc2k_core::gfx::picture::rescale(
+            &rc2k_core::gfx::picture::Sizes {
                 from_width,
                 from_height,
                 width,

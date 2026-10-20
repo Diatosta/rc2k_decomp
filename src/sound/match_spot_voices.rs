@@ -37,8 +37,8 @@ hook_asm!(
 // ---- Rust version ----
 
 pub fn match_spot_voices_in(_: &mut Regs, _: Part) -> Result<(), Refused> {
-    use rc2k_core::spot_voices::Spot;
-    // Converted: `rc2k_core::spot_voices::match_spots`.
+    use rc2k_core::sound::spot_voices::Spot;
+    // Converted: `rc2k_core::sound::spot_voices::match_spots`.
     let count = g(SPOT_COUNT);
     if count > MOST_SPOTS {
         return Err(BadInput("more than 36 shared spots").into());
@@ -57,7 +57,7 @@ pub fn match_spot_voices_in(_: &mut Regs, _: Part) -> Result<(), Refused> {
     let kinds: [u32; MOST_KIND as usize + 1] =
         unsafe { crate::framework::game_read(rva(SOUND_OF_KIND)) };
     let mut voices = load_voices();
-    rc2k_core::spot_voices::match_spots(&spots, &mut voices, &kinds)?;
+    rc2k_core::sound::spot_voices::match_spots(&spots, &mut voices, &kinds)?;
     store_voices(&voices);
     Ok(())
 }

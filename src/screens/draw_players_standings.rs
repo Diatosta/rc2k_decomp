@@ -68,18 +68,18 @@ pub unsafe fn draw_players_standings(canvas: &mut dyn Canvas) -> Result<(), Refu
                 return Err(BadInput("a standings row without its player, name or points").into());
             }
         }
-        // Converted: `rc2k_core::players_results::standings`.
+        // Converted: `rc2k_core::screens::players_results::standings`.
         let field =
             |row: usize, o: u32| ((table(0x75647C, row) + o) as *const u32).read_unaligned();
-        let rows: Vec<rc2k_core::players_results::Standing<u32>> = (0..rows)
-            .map(|row| rc2k_core::players_results::Standing {
+        let rows: Vec<rc2k_core::screens::players_results::Standing<u32>> = (0..rows)
+            .map(|row| rc2k_core::screens::players_results::Standing {
                 name: field(row, 0x18),
                 nation: field(row, 4),
                 car: field(row, 8),
                 points: (table(0x7589A6, row) as *const u32).read_unaligned(),
             })
             .collect();
-        rc2k_core::players_results::standings(
+        rc2k_core::screens::players_results::standings(
             &mut crate::screens::game_screen::GameScreen::new(canvas),
             &rows,
         )?;

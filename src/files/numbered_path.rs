@@ -43,8 +43,8 @@ pub fn buffer() -> *mut u8 {
 /// What the buffer holds afterwards, from its start to the last byte written. `template`
 /// excludes the NUL.
 pub fn numbered_path(template: &[u8], number: u32) -> Result<Vec<u8>, Refused> {
-    // Converted: `rc2k_core::paths::numbered`.
-    let Some(out) = rc2k_core::paths::numbered(template, number)? else {
+    // Converted: `rc2k_core::files::paths::numbered`.
+    let Some(out) = rc2k_core::files::paths::numbered(template, number)? else {
         return Err(FatalError {
             code: 0x80F1_9001,
             message: "",

@@ -31,7 +31,7 @@ hook_asm!(
 // ---- Rust version ----
 
 pub fn append_fraction(first: u32, second: u32) -> Vec<u8> {
-    rc2k_core::format::fraction(first, second)
+    rc2k_core::strings::format::fraction(first, second)
 }
 
 // ---- hook ----

@@ -90,6 +90,20 @@ impl Left {
     }
 
     /// What `draw_text` leaves: carry, eax = 0, ebx, ecx and edx.
+    /// What a converted text drawer leaves (as `of_text`: the x is the one passed in).
+    pub fn of_drawn(out: rc2k_core::screens::screen::Drawn, x: i32) -> Self {
+        Self {
+            carry: Some(out.too_wide),
+            regs: vec![
+                (EAX, 0),
+                (EBX, out.after),
+                (ECX, x as u32),
+                (EDX, out.y as u32),
+            ],
+            zero: None,
+        }
+    }
+
     pub fn of_text(out: &Outcome) -> Self {
         Self {
             carry: Some(out.too_wide),

@@ -28,7 +28,7 @@ pub fn stage_record() -> u32 {
 }
 
 /// `screens::draw_stage_best_and_fastest` (0x4744A9): the "best" and "fastest" lines
-/// (`rc2k_core::stage_panel::records`, converted 2026-10-20): the best of the times at edi
+/// (`rc2k_core::screens::stage_panel::records`, converted 2026-10-20): the best of the times at edi
 /// and the stage record's fastest (+0x74 nationality, +0x54 name, +0x78 car, +0x30 speed).
 /// The fastest's flag sprite gets `dword_7587EC` as its palette (ebx as the original loads
 /// it). The speed is formatted before anything is drawn (its refusals first). Every
@@ -37,7 +37,7 @@ pub unsafe fn draw_stage_best_and_fastest(
     times: u32,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    use rc2k_core::stage_panel::{CarRow, Holder};
+    use rc2k_core::screens::stage_panel::{CarRow, Holder};
     unsafe {
         let record = stage_record();
         if record == 0 {
@@ -57,7 +57,7 @@ pub unsafe fn draw_stage_best_and_fastest(
             car: get(record + 0x78),
             figure: get(record + 0x30),
         };
-        rc2k_core::stage_panel::records(
+        rc2k_core::screens::stage_panel::records(
             &mut crate::screens::stage_panel::PanelScreen::new(canvas),
             best,
             top,

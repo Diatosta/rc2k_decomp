@@ -34,16 +34,16 @@ pub const STATE_RVA: usize = rva(0x4E0140);
 
 // ---- Rust version ----
 
-/// `sub_4018C8` (converted: `rc2k_core::random::step`).
+/// `sub_4018C8` (converted: `rc2k_core::math::random::step`).
 pub fn random_step(state: u32, mixed_in: u32) -> u32 {
-    rc2k_core::random::step(state, mixed_in)
+    rc2k_core::math::random::step(state, mixed_in)
 }
 
 /// The bridge (`src/bridge.rs`): the generator loaded from `dword_4E0140`, `f` run on it,
 /// its state stored back.
-pub fn with_random<R>(f: impl FnOnce(&mut rc2k_core::random::Random) -> R) -> R {
+pub fn with_random<R>(f: impl FnOnce(&mut rc2k_core::math::random::Random) -> R) -> R {
     static STATE: crate::bridge::Global<u32> = crate::bridge::Global::at(0x4E_0140);
-    let mut random = rc2k_core::random::Random { state: STATE.get() };
+    let mut random = rc2k_core::math::random::Random { state: STATE.get() };
     let value = f(&mut random);
     STATE.set(random.state);
     value

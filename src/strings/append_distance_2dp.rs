@@ -34,14 +34,14 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// Refuses what `miles_to_km` refuses. Converted: `rc2k_core::units::distance_2dp`.
+/// Refuses what `miles_to_km` refuses. Converted: `rc2k_core::math::units::distance_2dp`.
 pub fn append_distance_2dp(hundredths: u32, metric: bool) -> Result<Vec<u8>, BadInput> {
     let units = if metric {
         Units::Metric
     } else {
         Units::Imperial
     };
-    rc2k_core::units::distance_2dp(hundredths, units).ok_or(BadInput(
+    rc2k_core::math::units::distance_2dp(hundredths, units).ok_or(BadInput(
         "result does not fit 32 bits: the original's div traps",
     ))
 }

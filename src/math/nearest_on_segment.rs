@@ -7,7 +7,7 @@
 //! With x and z only (A - O, B - O and A - B into `flt_71C3B8` .. `flt_71C3D4`): t =
 //! (A - O).(A - B) over |A - B|^2, 0 when that is equal to `flt_71C3C8` (0.0); held to
 //! `flt_5C5D90` (0) .. `flt_5C5D38` (1) into `flt_71C3B4`; the point = A + (B - A) t in
-//! all three. Converted 2026-10-20: `rc2k_core::geometry::nearest_on_segment`, plain `f32`.
+//! all three. Converted 2026-10-20: `rc2k_core::math::geometry::nearest_on_segment`, plain `f32`.
 //! Callers: `sound::merge_spot_voices` (and unreached code at 0x463349).
 //! Shadow mode: both, the variables compared (floats within `service::floats::FLOAT`).
 //! Self-test: the original against the Rust version on points of the test's, under three
@@ -25,7 +25,7 @@ use crate::screens::harness::Left;
 use crate::service::floats::{FLOAT, Floats, check_state_floats, dispatch_state_floats};
 use crate::service::harness::{Region, capture, restore};
 use crate::sound::turn_parts::Part;
-use rc2k_core::geometry::nearest;
+use rc2k_core::math::geometry::nearest;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -53,14 +53,14 @@ fn block() -> Region {
 
 // ---- Rust version ----
 
-/// The converted version (`rc2k_core::geometry`, plain floats): the block's floats as the
+/// The converted version (`rc2k_core::math::geometry`, plain floats): the block's floats as the
 /// original writes them, the work, t and the point. The hook's; converted callers use it.
 pub fn nearest_on_segment_plain() {
     unsafe {
         let bits: [u32; nearest::LEN] = game_read(rva(VARS));
         let mut block = bits.map(f32::from_bits);
         let float = |at: usize| f32::from_bits(game_read(at));
-        rc2k_core::geometry::nearest_on_segment(&mut block, float(LOW_RVA), float(HIGH_RVA));
+        rc2k_core::math::geometry::nearest_on_segment(&mut block, float(LOW_RVA), float(HIGH_RVA));
         let written = (nearest::RESULT..nearest::RESULT + 3)
             .chain([nearest::T])
             .chain(nearest::AO..nearest::AO + 4)

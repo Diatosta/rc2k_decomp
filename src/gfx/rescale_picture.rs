@@ -60,9 +60,9 @@ const ROWS_LEFT_RVA: usize = rva(0x4F50B8); // dword_4F50B8
 
 // ---- Rust version ----
 
-// Converted: `rc2k_core::picture` (the arithmetic); here the copy, the row table and the
+// Converted: `rc2k_core::gfx::picture` (the arithmetic); here the copy, the row table and the
 // work variables.
-pub use rc2k_core::picture::{blend, step};
+pub use rc2k_core::gfx::picture::{blend, step};
 
 pub unsafe fn rescale_picture() -> Result<(), Refused> {
     unsafe {
@@ -93,8 +93,8 @@ pub unsafe fn rescale_picture() -> Result<(), Refused> {
         // The count was checked above.
         let _ = fill_row_table(copy, from_width << 2, from_height);
         let mut out = to;
-        let work = rc2k_core::picture::rescale(
-            &rc2k_core::picture::Sizes {
+        let work = rc2k_core::gfx::picture::rescale(
+            &rc2k_core::gfx::picture::Sizes {
                 from_width,
                 from_height,
                 width,

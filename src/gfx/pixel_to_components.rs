@@ -36,8 +36,8 @@ hook_asm!(
 // ---- Rust version ----
 
 pub fn pixel_to_components(format: &PixelFormat, pixel: u32) -> u32 {
-    // Converted: `rc2k_core::pixels::unpack`.
-    rc2k_core::pixels::unpack(format, pixel)
+    // Converted: `rc2k_core::gfx::pixels::unpack`.
+    rc2k_core::gfx::pixels::unpack(format, pixel)
 }
 
 // ---- hook ----

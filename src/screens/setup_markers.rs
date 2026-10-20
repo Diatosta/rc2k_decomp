@@ -24,7 +24,7 @@ use crate::service::state::{
 };
 use crate::text::draw_text::Canvas;
 
-pub use rc2k_core::setup_markers::{
+pub use rc2k_core::screens::setup_markers::{
     BAR_WIDTH, LEFT_X, LOWER_Y, MARKER_GLYPH, RIGHT_X, SECOND_MARKER_GLYPH, UPPER_Y,
 };
 
@@ -80,8 +80,8 @@ pub unsafe fn draw_marker(
     r: &Regs,
     canvas: &mut dyn Canvas,
 ) -> Result<Left, Refused> {
-    // Converted: `rc2k_core::setup_markers::plan`; here the values read and the bar drawn.
-    use rc2k_core::setup_markers::{Marker as M, Menu, Plan};
+    // Converted: `rc2k_core::screens::setup_markers::plan`; here the values read and the bar drawn.
+    use rc2k_core::screens::setup_markers::{Marker as M, Menu, Plan};
     let menu = Menu {
         edit_mode: edit_mode(),
         item: menu_item(),
@@ -112,7 +112,9 @@ pub unsafe fn draw_marker(
         _ => 0,
     };
     let (plan, looked) =
-        rc2k_core::setup_markers::plan(core, menu, &percent, &installed, &|| repair_flag(item))?;
+        rc2k_core::screens::setup_markers::plan(core, menu, &percent, &installed, &|| {
+            repair_flag(item)
+        })?;
     // The flag's address stays in esi whether the marker is drawn or not.
     let left = if looked {
         Left::nothing().with(ESI, repair_flag_addr(item))

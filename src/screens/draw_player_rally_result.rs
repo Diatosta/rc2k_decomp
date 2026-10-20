@@ -61,21 +61,21 @@ pub unsafe fn draw_player_rally_result(canvas: &mut dyn Canvas) -> Result<(), Re
             true,
             crate::strings::units::units(),
         )?;
-        // Converted: `rc2k_core::player_result::rally_result`.
+        // Converted: `rc2k_core::screens::player_result::rally_result`.
         use crate::screens::game_screen::PlayerResultScreen;
-        let p = rc2k_core::player_result::Player {
+        let p = rc2k_core::screens::player_result::Player {
             name: name as u32,
             nation: f(4),
             car: f(8),
             time: f(0x88),
             speed,
         };
-        let figures = rc2k_core::player_result::RallyFigures {
+        let figures = rc2k_core::screens::player_result::RallyFigures {
             position: k(0x758768),
             best: k(0x758758),
             column: [0x758778, 0x758758, 0x758788, 0x758798, 0x7587A8, 0x7587B8].map(k),
         };
-        rc2k_core::player_result::rally_result(
+        rc2k_core::screens::player_result::rally_result(
             &mut PlayerResultScreen::new(canvas),
             &mut |s: &mut PlayerResultScreen| draw_times_heading(&RALLY_STAGE_TIMES, s.canvas),
             &p,

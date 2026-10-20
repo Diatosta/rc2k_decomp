@@ -158,10 +158,10 @@ pub unsafe fn normalise(sse: bool) -> Result<Option<u32>, BadInput> {
     }
 }
 
-/// The converted version (`rc2k_core::geometry`, plain floats): the hook's.
+/// The converted version (`rc2k_core::math::geometry`, plain floats): the hook's.
 pub unsafe fn normalise_plain(sse: bool) -> Result<Option<u32>, BadInput> {
-    use rc2k_core::geometry;
-    // Converted: `rc2k_core::geometry::normalise` and `normalise_four`.
+    use rc2k_core::math::geometry;
+    // Converted: `rc2k_core::math::geometry::normalise` and `normalise_four`.
     unsafe {
         let v = game_read::<[u32; 4]>(VECTOR_RVA).map(f32::from_bits);
         if sse {

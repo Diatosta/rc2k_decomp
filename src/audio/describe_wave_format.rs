@@ -56,11 +56,11 @@ const _: () = assert!(std::mem::size_of::<WaveFormat>() == WAVE_FORMAT_LEN);
 /// The value a table of two {flag, value} entries has for the flag (`system::find_entry`).
 pub fn wave_format(format: u32, frequency: u32) -> Result<WaveFormat, Refused> {
     use crate::audio::samples::flags;
-    use rc2k_core::samples::FormatError;
-    // Converted: `rc2k_core::samples::wave_format`.
+    use rc2k_core::audio::samples::FormatError;
+    // Converted: `rc2k_core::audio::samples::wave_format`.
     let bits = flags(SAMPLE_BITS_FLAGS_RVA);
     let channels = flags(SAMPLE_CHANNEL_FLAGS_RVA);
-    match rc2k_core::samples::wave_format(format, frequency, &bits, &channels) {
+    match rc2k_core::audio::samples::wave_format(format, frequency, &bits, &channels) {
         Ok(w) => Ok(WaveFormat {
             tag: 1,
             channels: w.channels,

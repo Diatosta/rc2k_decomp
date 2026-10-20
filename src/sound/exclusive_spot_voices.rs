@@ -36,9 +36,9 @@ hook_asm!(
 // ---- Rust version ----
 
 pub fn exclusive_spot_voices_in(_: &mut Regs, _: Part) -> Result<(), Refused> {
-    // Converted: `rc2k_core::spot_voices::keep_exclusive`.
+    // Converted: `rc2k_core::sound::spot_voices::keep_exclusive`.
     let mut voices = load_voices();
-    rc2k_core::spot_voices::keep_exclusive(&mut voices);
+    rc2k_core::sound::spot_voices::keep_exclusive(&mut voices);
     store_voices(&voices);
     Ok(())
 }

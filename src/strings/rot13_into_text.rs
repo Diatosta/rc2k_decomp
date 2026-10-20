@@ -31,7 +31,7 @@ hook_asm!(
 
 /// One byte coded.
 pub fn rot13(b: u8) -> u8 {
-    rc2k_core::format::rot13(b)
+    rc2k_core::strings::format::rot13(b)
 }
 
 /// The Rust version: the text buffer's address.

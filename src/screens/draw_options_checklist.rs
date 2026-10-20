@@ -45,7 +45,7 @@ fn k(a: usize) -> u32 {
 /// (id, x, y, font) of the page's lines.
 /// The Rust version.
 pub unsafe fn draw_options_checklist(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    // Converted: `rc2k_core::settings_pages::options_checklist`.
+    // Converted: `rc2k_core::screens::settings_pages::options_checklist`.
     unsafe {
         let mut at = game_addr(rva(0x759C76)) as u32;
         let mut ticks = Vec::new();
@@ -53,7 +53,7 @@ pub unsafe fn draw_options_checklist(canvas: &mut dyn Canvas) -> Result<(), Refu
             ticks.push((at as *const u32).read_unaligned());
             at += 4;
         }
-        rc2k_core::settings_pages::options_checklist(
+        rc2k_core::screens::settings_pages::options_checklist(
             &mut crate::screens::game_screen::SettingsScreen::new(canvas),
             k(0x75598C),
             k(0x75AC80) as i32,

@@ -33,8 +33,8 @@ pub unsafe fn append_file_name(path: *const u8, cursor: *mut u8) -> Result<*mut 
     if path.is_null() {
         return Err(BadInput("a null path"));
     }
-    // Converted: `rc2k_core::paths::file_name`.
-    let name = rc2k_core::paths::file_name(unsafe { text_of(path) });
+    // Converted: `rc2k_core::files::paths::file_name`.
+    let name = rc2k_core::files::paths::file_name(unsafe { text_of(path) });
     unsafe {
         std::ptr::copy(name.as_ptr(), cursor, name.len());
         Ok(cursor.add(name.len()))

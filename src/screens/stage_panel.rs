@@ -152,8 +152,8 @@ pub unsafe fn draw_stage_body_in(
     heading_font: usize,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    // Converted: `rc2k_core::stage_panel::body`.
-    use rc2k_core::stage_panel::{Entry, Font};
+    // Converted: `rc2k_core::screens::stage_panel::body`.
+    use rc2k_core::screens::stage_panel::{Entry, Font};
     unsafe {
         // The two markers on the map.
         for call in marker_calls(record as *const u8, marker_palette, sprite_table()) {
@@ -182,7 +182,7 @@ pub unsafe fn draw_stage_body_in(
             Font::RallyHeading
         };
         let mut screen = PanelScreen::new(canvas);
-        rc2k_core::stage_panel::body(
+        rc2k_core::screens::stage_panel::body(
             &mut screen,
             dword(record.wrapping_add(0x10)),
             &entry,
@@ -193,9 +193,9 @@ pub unsafe fn draw_stage_body_in(
     }
 }
 
-/// The panel's screen for `rc2k_core::stage_panel`.
+/// The panel's screen for `rc2k_core::screens::stage_panel`.
 pub type PanelScreen<'a> =
-    GameScreen<'a, rc2k_core::stage_panel::Font, rc2k_core::stage_panel::Work>;
+    GameScreen<'a, rc2k_core::screens::stage_panel::Font, rc2k_core::screens::stage_panel::Work>;
 
 /// The record rows, with the stage's best-time entry taken from the table at `table`.
 /// Returns the carry flag.

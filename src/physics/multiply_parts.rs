@@ -41,12 +41,12 @@ pub unsafe fn multiply_parts(a: u32, b: u32, out: u32) {
     }
 }
 
-/// The converted version (`rc2k_core::vector`, plain floats): the hook's. A product of
+/// The converted version (`rc2k_core::math::vector`, plain floats): the hook's. A product of
 /// two floats rounded once to a float: the same bits at every precision.
 pub unsafe fn multiply_parts_plain(a: u32, b: u32, out: u32) {
     use crate::scene::vector3::{read_floats, write_floats};
     unsafe {
-        let product = rc2k_core::vector::multiply_parts(read_floats(a), read_floats(b));
+        let product = rc2k_core::math::vector::multiply_parts(read_floats(a), read_floats(b));
         write_floats(out, &product);
     }
 }

@@ -57,10 +57,10 @@ const NAMES: [(u32, u32); 6] = [
 
 /// The Rust version: the registers the last name leaves.
 pub unsafe fn draw_sound_settings(canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    // Converted: `rc2k_core::settings_pages::{sound_items, sound}`.
+    // Converted: `rc2k_core::screens::settings_pages::{sound_items, sound}`.
     use crate::screens::game_screen::{SettingsScreen, left_of};
     let [a, b, c] = SWITCHES.map(|(switch, _)| k(switch) == 1);
-    for (item, on) in rc2k_core::settings_pages::sound_items(a, b, c) {
+    for (item, on) in rc2k_core::screens::settings_pages::sound_items(a, b, c) {
         if on {
             enable_item(item)?;
         } else {
@@ -68,7 +68,7 @@ pub unsafe fn draw_sound_settings(canvas: &mut dyn Canvas) -> Result<Left, Refus
         }
     }
     let ids = NAMES.map(|(setting, first)| k(setting).wrapping_add(first));
-    let out = rc2k_core::settings_pages::sound(&mut SettingsScreen::new(canvas), ids)?;
+    let out = rc2k_core::screens::settings_pages::sound(&mut SettingsScreen::new(canvas), ids)?;
     Ok(left_of(out))
 }
 

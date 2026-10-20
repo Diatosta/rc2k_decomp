@@ -1,4 +1,4 @@
-//! The game's side of `rc2k_core::screen::Screen` (2026-10-20, the screens' conversion): a
+//! The game's side of `rc2k_core::screens::screen::Screen` (2026-10-20, the screens' conversion): a
 //! family's fonts are font records in game memory, its texts game addresses, its work
 //! variables game dwords; drawn through the text functions and the canvas.
 
@@ -8,12 +8,29 @@ use crate::gfx::blit_glyph::BlitCall;
 use crate::screens::{font_at, line_buffer};
 use crate::text::draw_text::{Canvas, draw_text_at};
 use crate::text::font::Font;
-use rc2k_core::screen::{Buffer, Drawn, Screen};
+use rc2k_core::screens::screen::{Buffer, Drawn, Screen};
 use std::marker::PhantomData;
 
 /// A family's font: the address of its record (as IDA shows it).
 pub trait GameFont: Copy {
     fn address(self) -> usize;
+    /// The font record in the game.
+    fn pointer(self) -> *mut Font {
+        font_at(self.address())
+    }
+}
+
+/// A font the game hands over as a pointer (the menu tables' fonts).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FontAt(pub u32);
+
+impl GameFont for FontAt {
+    fn address(self) -> usize {
+        self.0 as usize
+    }
+    fn pointer(self) -> *mut Font {
+        self.0 as *mut Font
+    }
 }
 
 /// A family's work variable: its address (as IDA shows it).
@@ -38,7 +55,7 @@ impl<'a, F, W> GameScreen<'a, F, W> {
 }
 
 fn font_of(f: impl GameFont) -> *mut Font {
-    font_at(f.address())
+    f.pointer()
 }
 
 /// Where a shared buffer is.
@@ -129,7 +146,7 @@ impl<F: GameFont, W: GameWork> Screen for GameScreen<'_, F, W> {
         Ok(unsafe { self.canvas.blit_glyph(call) }?)
     }
 
-    fn bar(&mut self, bar: rc2k_core::screen::Bar) -> Result<(), Refused> {
+    fn bar(&mut self, bar: rc2k_core::screens::screen::Bar) -> Result<(), Refused> {
         use crate::gfx::blit_bar::{Bar, blit_bar};
         Bar {
             x: bar.x,
@@ -146,6 +163,18 @@ impl<F: GameFont, W: GameWork> Screen for GameScreen<'_, F, W> {
 
     fn buffer_address(&mut self, buffer: Buffer) -> u32 {
         buffer_at(buffer) as u32
+    }
+
+    fn measure_string(&mut self, font: F, id: u32, x: i32) -> Result<(u32, u32), Refused> {
+        let m = unsafe {
+            crate::text::measure_string_by_id::measure_string_by_id_at(
+                id,
+                font_of(font),
+                x,
+                self.canvas,
+            )
+        }?;
+        Ok((m.width, m.lines))
     }
 
     fn measure(&mut self, font: F, text: u32, x: i32) -> Result<(u32, u32), Refused> {
@@ -186,9 +215,9 @@ impl<F: GameFont, W: GameWork> Screen for GameScreen<'_, F, W> {
     }
 }
 
-impl GameFont for rc2k_core::best_scores::Font {
+impl GameFont for rc2k_core::screens::best_scores::Font {
     fn address(self) -> usize {
-        use rc2k_core::best_scores::Font as F;
+        use rc2k_core::screens::best_scores::Font as F;
         match self {
             F::Name => 0x51E584,
             F::Rank => 0x51E5A4,
@@ -202,9 +231,9 @@ impl GameFont for rc2k_core::best_scores::Font {
     }
 }
 
-impl GameWork for rc2k_core::best_scores::Work {
+impl GameWork for rc2k_core::screens::best_scores::Work {
     fn address(self) -> usize {
-        use rc2k_core::best_scores::Work as W;
+        use rc2k_core::screens::best_scores::Work as W;
         match self {
             W::Rank => 0x7559AC,
             W::RowY => 0x7559B0,
@@ -214,9 +243,9 @@ impl GameWork for rc2k_core::best_scores::Work {
     }
 }
 
-impl GameFont for rc2k_core::stage_panel::Font {
+impl GameFont for rc2k_core::screens::stage_panel::Font {
     fn address(self) -> usize {
-        use rc2k_core::stage_panel::Font as F;
+        use rc2k_core::screens::stage_panel::Font as F;
         match self {
             F::Label => 0x51E5A4,
             F::Value => 0x51E584,
@@ -230,9 +259,9 @@ impl GameFont for rc2k_core::stage_panel::Font {
     }
 }
 
-impl GameWork for rc2k_core::stage_panel::Work {
+impl GameWork for rc2k_core::screens::stage_panel::Work {
     fn address(self) -> usize {
-        use rc2k_core::stage_panel::Work as W;
+        use rc2k_core::screens::stage_panel::Work as W;
         match self {
             W::Scratch => 0x7559EC,
             W::Finish => 0x7559F0,
@@ -241,9 +270,9 @@ impl GameWork for rc2k_core::stage_panel::Work {
     }
 }
 
-impl GameFont for rc2k_core::itinerary::Font {
+impl GameFont for rc2k_core::screens::itinerary::Font {
     fn address(self) -> usize {
-        use rc2k_core::itinerary::Font as F;
+        use rc2k_core::screens::itinerary::Font as F;
         match self {
             F::Heading => 0x51E9A4,
             F::Plain => 0x51E584,
@@ -254,9 +283,9 @@ impl GameFont for rc2k_core::itinerary::Font {
     }
 }
 
-impl GameWork for rc2k_core::itinerary::Work {
+impl GameWork for rc2k_core::screens::itinerary::Work {
     fn address(self) -> usize {
-        use rc2k_core::itinerary::Work as W;
+        use rc2k_core::screens::itinerary::Work as W;
         match self {
             W::Y => 0x7559AC,
             W::Row => 0x7559B0,
@@ -267,9 +296,9 @@ impl GameWork for rc2k_core::itinerary::Work {
     }
 }
 
-impl GameFont for rc2k_core::settings_pages::Font {
+impl GameFont for rc2k_core::screens::settings_pages::Font {
     fn address(self) -> usize {
-        use rc2k_core::settings_pages::Font as F;
+        use rc2k_core::screens::settings_pages::Font as F;
         match self {
             F::Value => 0x51E8C4,
             F::Small => 0x51E3C4,
@@ -280,9 +309,9 @@ impl GameFont for rc2k_core::settings_pages::Font {
     }
 }
 
-impl GameWork for rc2k_core::settings_pages::Work {
+impl GameWork for rc2k_core::screens::settings_pages::Work {
     fn address(self) -> usize {
-        use rc2k_core::settings_pages::Work as W;
+        use rc2k_core::screens::settings_pages::Work as W;
         match self {
             W::Scratch => 0x7559EC,
             W::Seconds => 0x7559AC,
@@ -293,11 +322,14 @@ impl GameWork for rc2k_core::settings_pages::Work {
 }
 
 /// The settings pages' screen.
-pub type SettingsScreen<'a> =
-    GameScreen<'a, rc2k_core::settings_pages::Font, rc2k_core::settings_pages::Work>;
+pub type SettingsScreen<'a> = GameScreen<
+    'a,
+    rc2k_core::screens::settings_pages::Font,
+    rc2k_core::screens::settings_pages::Work,
+>;
 
 /// What a name drawn at x 0x1D1 leaves in the registers (carry, eax 0, ebx, ecx, edx).
-pub fn left_of(out: rc2k_core::screen::Drawn) -> crate::screens::harness::Left {
+pub fn left_of(out: rc2k_core::screens::screen::Drawn) -> crate::screens::harness::Left {
     use crate::framework::{EAX, EBX, ECX, EDX};
     crate::screens::harness::Left::carry(out.too_wide)
         .with(EAX, 0)
@@ -306,48 +338,49 @@ pub fn left_of(out: rc2k_core::screen::Drawn) -> crate::screens::harness::Left {
         .with(EDX, out.y as u32)
 }
 
-impl GameFont for rc2k_core::car_pages::Font {
+impl GameFont for rc2k_core::screens::car_pages::Font {
     fn address(self) -> usize {
         match self {
-            rc2k_core::car_pages::Font::Labels => 0x51E5A4,
-            rc2k_core::car_pages::Font::Figures => 0x51E584,
+            rc2k_core::screens::car_pages::Font::Labels => 0x51E5A4,
+            rc2k_core::screens::car_pages::Font::Figures => 0x51E584,
         }
     }
 }
 
-impl GameWork for rc2k_core::car_pages::Work {
+impl GameWork for rc2k_core::screens::car_pages::Work {
     fn address(self) -> usize {
         match self {
-            rc2k_core::car_pages::Work::TextKept => 0x7559EC,
+            rc2k_core::screens::car_pages::Work::TextKept => 0x7559EC,
         }
     }
 }
 
-impl GameFont for rc2k_core::slot_lists::Font {
+impl GameFont for rc2k_core::screens::slot_lists::Font {
     fn address(self) -> usize {
         match self {
-            rc2k_core::slot_lists::Font::Names => 0x51E8C4,
-            rc2k_core::slot_lists::Font::Setups => 0x51E8A4,
+            rc2k_core::screens::slot_lists::Font::Names => 0x51E8C4,
+            rc2k_core::screens::slot_lists::Font::Setups => 0x51E8A4,
         }
     }
 }
 
-impl GameWork for rc2k_core::slot_lists::Work {
+impl GameWork for rc2k_core::screens::slot_lists::Work {
     fn address(self) -> usize {
         match self {
-            rc2k_core::slot_lists::Work::X => 0x755A18,
-            rc2k_core::slot_lists::Work::Y => 0x755A1C,
-            rc2k_core::slot_lists::Work::Row => 0x7559EC,
+            rc2k_core::screens::slot_lists::Work::X => 0x755A18,
+            rc2k_core::screens::slot_lists::Work::Y => 0x755A1C,
+            rc2k_core::screens::slot_lists::Work::Row => 0x7559EC,
         }
     }
 }
 
 /// The load and save pages' lists' screen.
-pub type SlotScreen<'a> = GameScreen<'a, rc2k_core::slot_lists::Font, rc2k_core::slot_lists::Work>;
+pub type SlotScreen<'a> =
+    GameScreen<'a, rc2k_core::screens::slot_lists::Font, rc2k_core::screens::slot_lists::Work>;
 
-impl GameFont for rc2k_core::savegame_preview::Font {
+impl GameFont for rc2k_core::screens::savegame_preview::Font {
     fn address(self) -> usize {
-        use rc2k_core::savegame_preview::Font as F;
+        use rc2k_core::screens::savegame_preview::Font as F;
         match self {
             F::Rows => 0x51E584,
             F::Title => 0x51E5E4,
@@ -356,19 +389,22 @@ impl GameFont for rc2k_core::savegame_preview::Font {
     }
 }
 
-impl GameWork for rc2k_core::savegame_preview::Work {
+impl GameWork for rc2k_core::screens::savegame_preview::Work {
     fn address(self) -> usize {
         match self {}
     }
 }
 
 /// The load-game preview's screen.
-pub type PreviewScreen<'a> =
-    GameScreen<'a, rc2k_core::savegame_preview::Font, rc2k_core::savegame_preview::Work>;
+pub type PreviewScreen<'a> = GameScreen<
+    'a,
+    rc2k_core::screens::savegame_preview::Font,
+    rc2k_core::screens::savegame_preview::Work,
+>;
 
-impl GameFont for rc2k_core::players_results::Font {
+impl GameFont for rc2k_core::screens::players_results::Font {
     fn address(self) -> usize {
-        use rc2k_core::players_results::Font as F;
+        use rc2k_core::screens::players_results::Font as F;
         match self {
             F::Rows => 0x51E584,
             F::Small => 0x51E564,
@@ -377,18 +413,18 @@ impl GameFont for rc2k_core::players_results::Font {
     }
 }
 
-impl GameWork for rc2k_core::players_results::Work {
+impl GameWork for rc2k_core::screens::players_results::Work {
     fn address(self) -> usize {
         match self {
-            rc2k_core::players_results::Work::Gap => 0x7559B8,
-            rc2k_core::players_results::Work::FirstTime => 0x7559BC,
+            rc2k_core::screens::players_results::Work::Gap => 0x7559B8,
+            rc2k_core::screens::players_results::Work::FirstTime => 0x7559BC,
         }
     }
 }
 
-impl GameFont for rc2k_core::stage_results::Font {
+impl GameFont for rc2k_core::screens::stage_results::Font {
     fn address(self) -> usize {
-        use rc2k_core::stage_results::Font as F;
+        use rc2k_core::screens::stage_results::Font as F;
         match self {
             F::Rows => 0x51E584,
             F::Small => 0x51E564,
@@ -398,9 +434,9 @@ impl GameFont for rc2k_core::stage_results::Font {
     }
 }
 
-impl GameWork for rc2k_core::stage_results::Work {
+impl GameWork for rc2k_core::screens::stage_results::Work {
     fn address(self) -> usize {
-        use rc2k_core::stage_results::Work as W;
+        use rc2k_core::screens::stage_results::Work as W;
         match self {
             W::Rank => 0x7559AC,
             W::Scratch => 0x7559EC,
@@ -411,9 +447,9 @@ impl GameWork for rc2k_core::stage_results::Work {
     }
 }
 
-impl GameFont for rc2k_core::results_pages::Font {
+impl GameFont for rc2k_core::screens::results_pages::Font {
     fn address(self) -> usize {
-        use rc2k_core::results_pages::Font as F;
+        use rc2k_core::screens::results_pages::Font as F;
         match self {
             F::Title => 0x51E944,
             F::StageName => 0x51E9A4,
@@ -427,9 +463,9 @@ impl GameFont for rc2k_core::results_pages::Font {
     }
 }
 
-impl GameWork for rc2k_core::results_pages::Work {
+impl GameWork for rc2k_core::screens::results_pages::Work {
     fn address(self) -> usize {
-        use rc2k_core::results_pages::Work as W;
+        use rc2k_core::screens::results_pages::Work as W;
         match self {
             W::FirstTime => 0x7559BC,
             W::OverallFirst => 0x7559D4,
@@ -440,9 +476,9 @@ impl GameWork for rc2k_core::results_pages::Work {
     }
 }
 
-impl GameWork for rc2k_core::results_pages::RankingWork {
+impl GameWork for rc2k_core::screens::results_pages::RankingWork {
     fn address(self) -> usize {
-        use rc2k_core::results_pages::RankingWork as W;
+        use rc2k_core::screens::results_pages::RankingWork as W;
         match self {
             W::FirstTime => 0x7559BC,
             W::Place => 0x7559AC,
@@ -452,9 +488,9 @@ impl GameWork for rc2k_core::results_pages::RankingWork {
     }
 }
 
-impl GameFont for rc2k_core::player_result::Font {
+impl GameFont for rc2k_core::screens::player_result::Font {
     fn address(self) -> usize {
-        use rc2k_core::player_result::Font as F;
+        use rc2k_core::screens::player_result::Font as F;
         match self {
             F::Labels => 0x51E6E4,
             F::Values => 0x51E6C4,
@@ -464,19 +500,22 @@ impl GameFont for rc2k_core::player_result::Font {
     }
 }
 
-impl GameWork for rc2k_core::player_result::Work {
+impl GameWork for rc2k_core::screens::player_result::Work {
     fn address(self) -> usize {
         match self {}
     }
 }
 
 /// The player's result pages' screen.
-pub type PlayerResultScreen<'a> =
-    GameScreen<'a, rc2k_core::player_result::Font, rc2k_core::player_result::Work>;
+pub type PlayerResultScreen<'a> = GameScreen<
+    'a,
+    rc2k_core::screens::player_result::Font,
+    rc2k_core::screens::player_result::Work,
+>;
 
-impl GameFont for rc2k_core::duel_result::Font {
+impl GameFont for rc2k_core::screens::duel_result::Font {
     fn address(self) -> usize {
-        use rc2k_core::duel_result::Font as F;
+        use rc2k_core::screens::duel_result::Font as F;
         match self {
             F::Big => 0x51E584,
             F::Small => 0x51E5A4,
@@ -486,11 +525,76 @@ impl GameFont for rc2k_core::duel_result::Font {
     }
 }
 
-impl GameWork for rc2k_core::duel_result::Work {
+impl GameWork for rc2k_core::screens::duel_result::Work {
     fn address(self) -> usize {
         match self {
-            rc2k_core::duel_result::Work::First => 0x758720,
-            rc2k_core::duel_result::Work::Second => 0x758724,
+            rc2k_core::screens::duel_result::Work::First => 0x758720,
+            rc2k_core::screens::duel_result::Work::Second => 0x758724,
         }
     }
 }
+
+impl GameFont for rc2k_core::screens::notes::Font {
+    fn address(self) -> usize {
+        match self {
+            rc2k_core::screens::notes::Font::Question => 0x51E8A4,
+            rc2k_core::screens::notes::Font::Value => 0x51E8C4,
+        }
+    }
+}
+
+impl GameWork for rc2k_core::screens::notes::Work {
+    fn address(self) -> usize {
+        match self {}
+    }
+}
+
+/// A one-string screen drawn: what it leaves in the registers.
+pub fn draw_note(
+    canvas: &mut dyn Canvas,
+    note: &rc2k_core::screens::notes::Note,
+) -> Result<crate::screens::harness::Left, Refused> {
+    let out = rc2k_core::screens::notes::note(
+        &mut GameScreen::<rc2k_core::screens::notes::Font, rc2k_core::screens::notes::Work>::new(
+            canvas,
+        ),
+        note,
+    )?;
+    Ok(crate::screens::harness::Left::of_drawn(out, note.x))
+}
+
+impl GameFont for rc2k_core::screens::player_details::Font {
+    fn address(self) -> usize {
+        match self {
+            rc2k_core::screens::player_details::Font::Value => 0x51E8C4,
+            rc2k_core::screens::player_details::Font::Measure => 0x51E824,
+        }
+    }
+}
+
+impl GameWork for rc2k_core::screens::player_details::Work {
+    fn address(self) -> usize {
+        match self {
+            rc2k_core::screens::player_details::Work::Seconds => 0x7559AC,
+            rc2k_core::screens::player_details::Work::Kept => 0x7559EC,
+        }
+    }
+}
+
+/// The players' details pages' screen.
+pub type DetailsScreen<'a> = GameScreen<
+    'a,
+    rc2k_core::screens::player_details::Font,
+    rc2k_core::screens::player_details::Work,
+>;
+
+impl GameWork for rc2k_core::screens::menus::Work {
+    fn address(self) -> usize {
+        match self {
+            rc2k_core::screens::menus::Work::SpacedFont => 0x7559EC,
+        }
+    }
+}
+
+/// The menus' screen: fonts by pointer.
+pub type MenuScreen<'a> = GameScreen<'a, FontAt, rc2k_core::screens::menus::Work>;

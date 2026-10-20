@@ -80,7 +80,7 @@ impl Raw {
     }
 }
 
-impl rc2k_core::bytes::Bytes for Raw {
+impl rc2k_core::strings::bytes::Bytes for Raw {
     fn byte(&self, at: usize) -> Option<u8> {
         Some(unsafe { self.0.wrapping_add(at).read() })
     }
@@ -98,7 +98,7 @@ impl RawMut {
     }
 }
 
-impl rc2k_core::samples::SampleData for RawMut {
+impl rc2k_core::audio::samples::SampleData for RawMut {
     fn get(&self, at: u32) -> Option<u8> {
         Some(unsafe { self.0.wrapping_add(at as usize).read() })
     }

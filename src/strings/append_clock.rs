@@ -28,7 +28,7 @@ hook_asm!(
 
 /// The quotient unpadded, the remainder as two digits.
 pub fn append_clock(value: u32) -> Vec<u8> {
-    rc2k_core::format::clock(value)
+    rc2k_core::strings::format::clock(value)
 }
 
 // ---- hook ----

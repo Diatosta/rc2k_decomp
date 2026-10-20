@@ -24,8 +24,8 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// Converted: `rc2k_core::units`.
-pub use rc2k_core::units::hhmm_to_minutes;
+/// Converted: `rc2k_core::math::units`.
+pub use rc2k_core::math::units::hhmm_to_minutes;
 
 // ---- hook ----
 

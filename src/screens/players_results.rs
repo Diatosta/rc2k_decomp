@@ -10,7 +10,7 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, rva};
 use crate::text::draw_text::Canvas;
 
-pub use rc2k_core::players_results::{Layout, NO_TIME, WITH_POINTS, WITHOUT_POINTS};
+pub use rc2k_core::screens::players_results::{Layout, NO_TIME, WITH_POINTS, WITHOUT_POINTS};
 
 fn k(a: usize) -> u32 {
     unsafe { game_read(rva(a)) }
@@ -21,7 +21,7 @@ unsafe fn get(a: u32) -> u32 {
 }
 
 fn rows(layout: &Layout) -> usize {
-    rc2k_core::players_results::rows(layout, k(0x755984))
+    rc2k_core::screens::players_results::rows(layout, k(0x755984))
 }
 
 fn offset(row: usize) -> u32 {
@@ -113,13 +113,13 @@ pub unsafe fn refuses(layout: &Layout) -> bool {
     unsafe { prepare(layout) }.is_err()
 }
 
-/// The page. Converted: `rc2k_core::players_results` (what it needs read and checked
+/// The page. Converted: `rc2k_core::screens::players_results` (what it needs read and checked
 /// first, before anything is drawn).
 pub unsafe fn draw_players_results(
     layout: &Layout,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    use rc2k_core::players_results::{Page, Row, players_results};
+    use rc2k_core::screens::players_results::{Page, Row, players_results};
     unsafe {
         let Prepared {
             players,

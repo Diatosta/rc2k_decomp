@@ -34,9 +34,9 @@ hook_asm!(
 // ---- Rust version ----
 
 /// `units` is the game's unit setting (0 = imperial). Refuses what `miles_to_km` refuses, and
-/// a setting past 1. Converted: `rc2k_core::units::speed`.
+/// a setting past 1. Converted: `rc2k_core::math::units::speed`.
 pub fn append_speed(tenths: u32, with_label: bool, units: u32) -> Result<Vec<u8>, BadInput> {
-    let mut figure = rc2k_core::units::speed(tenths, setting(units)?).ok_or(BadInput(
+    let mut figure = rc2k_core::math::units::speed(tenths, setting(units)?).ok_or(BadInput(
         "result does not fit 32 bits: the original's div traps",
     ))?;
     if !with_label {

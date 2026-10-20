@@ -41,14 +41,14 @@ pub fn text() -> *mut u8 {
 // ---- Rust version ----
 
 /// The bytes the original leaves in the text buffer, including the NUL (converted:
-/// `rc2k_core::strings::text_from_ids`).
+/// `rc2k_core::strings::table::text_from_ids`).
 pub unsafe fn text_from_ids(first_id: u32, count: u32) -> Result<Vec<u8>, BadInput> {
     if count == 0 {
         return Err(BadInput(
             "count 0: the original's counter wraps and it never ends",
         ));
     }
-    rc2k_core::strings::text_from_ids(first_id, count, TEXT_LEN, |id, out| unsafe {
+    rc2k_core::strings::table::text_from_ids(first_id, count, TEXT_LEN, |id, out| unsafe {
         append_string_by_id(id, &mut |p, n| out.extend_from_slice(from_raw_parts(p, n)))
     })
     .ok_or(BadInput(

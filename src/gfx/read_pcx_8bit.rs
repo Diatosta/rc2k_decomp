@@ -69,10 +69,10 @@ unsafe fn read_rows() -> Result<bool, BadInput> {
         }
         game_write(FLAGS_RVA, 0x800u32);
         let layout = lay_out_pcx();
-        // Converted: `rc2k_core::pcx::decode_8bit`.
+        // Converted: `rc2k_core::gfx::pcx::decode_8bit`.
         let palette: [u32; 256] = game_read(PALETTE_RVA);
         let pixels: u32 = game_read(PIXELS_RVA);
-        rc2k_core::pcx::decode_8bit(
+        rc2k_core::gfx::pcx::decode_8bit(
             &layout,
             &palette,
             |eax| read_stream_byte(stream, eax).eax,

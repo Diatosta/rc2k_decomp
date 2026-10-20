@@ -129,15 +129,15 @@ pub unsafe fn write_floats(at: u32, v: &[f32]) {
     }
 }
 
-/// The converted `normalise_vector3` (`rc2k_core::vector`, plain floats): the hook's.
+/// The converted `normalise_vector3` (`rc2k_core::math::vector`, plain floats): the hook's.
 pub unsafe fn normalise_vector3_plain(v: u32) {
-    unsafe { write_floats(v, &rc2k_core::vector::normalise(read_floats(v))) };
+    unsafe { write_floats(v, &rc2k_core::math::vector::normalise(read_floats(v))) };
 }
 
 /// The converted `dot_product3`: the hook's.
 pub unsafe fn dot_product3_plain(a: u32, b: u32) -> [u8; 10] {
-    let dot = unsafe { rc2k_core::vector::dot(read_floats(a), read_floats(b)) };
-    rc2k_core::extended::from_f64(dot)
+    let dot = unsafe { rc2k_core::math::vector::dot(read_floats(a), read_floats(b)) };
+    rc2k_core::math::extended::from_f64(dot)
 }
 
 const START_RVA: usize = rva(0x71CA36); // flt_71CA36, pi / 2
@@ -185,7 +185,7 @@ pub unsafe fn angle_between_vectors(a: u32, b: u32) -> [u8; 10] {
 /// The converted `angle_between_vectors`: the hook's. The vectors normalised through
 /// memory in the original's order (so that overlapping ones behave as there).
 pub unsafe fn angle_between_vectors_plain(a: u32, b: u32) -> [u8; 10] {
-    use rc2k_core::vector::{Search, dot, search_angle};
+    use rc2k_core::math::vector::{Search, dot, search_angle};
     unsafe {
         normalise_vector3_plain(b);
         normalise_vector3_plain(a);
@@ -198,7 +198,7 @@ pub unsafe fn angle_between_vectors_plain(a: u32, b: u32) -> [u8; 10] {
         };
         let (angle, status) = search_angle(cosine, search);
         game_write(STATUS_RVA, status);
-        rc2k_core::extended::from_f64(angle as f64)
+        rc2k_core::math::extended::from_f64(angle as f64)
     }
 }
 

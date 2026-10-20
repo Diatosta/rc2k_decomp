@@ -1,11 +1,11 @@
 //! The sprite and font builder's work on one sheet: converted 2026-10-20 to
-//! `rc2k_core::glyphs` (finding, coding and tabling a sheet's glyphs, in the original's
+//! `rc2k_core::gfx::glyphs` (finding, coding and tabling a sheet's glyphs, in the original's
 //! order). Here the game's side: the sheet's pixels through the row table (`g_rowTable`).
 
 use crate::framework::game_read;
 use crate::gfx::fill_row_table::row_address;
 
-pub use rc2k_core::glyphs::{
+pub use rc2k_core::gfx::glyphs::{
     DIRECT_COLOUR, Glyph, ONE_FILE, RUN_LENGTHS, Sheet, SheetPixels, WIDE_HEAD, WITH_ALPHA, append,
     backdrop_of, direct_pixel_size, table_of,
 };
@@ -30,7 +30,7 @@ impl SheetPixels for RowTable {
     }
 }
 
-/// `sub_412232` on the palette at `palette` (an RVA): see `rc2k_core::glyphs::transparent_of`.
+/// `sub_412232` on the palette at `palette` (an RVA): see `rc2k_core::gfx::glyphs::transparent_of`.
 pub unsafe fn transparent_of(flags: u32, backdrop: u32, palette: usize) -> u32 {
-    rc2k_core::glyphs::transparent_of(flags, backdrop, &unsafe { game_read(palette) })
+    rc2k_core::gfx::glyphs::transparent_of(flags, backdrop, &unsafe { game_read(palette) })
 }

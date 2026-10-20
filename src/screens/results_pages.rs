@@ -159,9 +159,11 @@ pub unsafe fn draw_results_page(page: &Page, canvas: &mut dyn Canvas) -> Result<
             break;
         }
     }
-    // Converted: `rc2k_core::results_pages` (the rows' entries read here, the record
+    // Converted: `rc2k_core::screens::results_pages` (the rows' entries read here, the record
     // heading drawn here first).
-    use rc2k_core::results_pages::{Heading as Drawn, NOT_TIMED as NONE, Row, results_page};
+    use rc2k_core::screens::results_pages::{
+        Heading as Drawn, NOT_TIMED as NONE, Row, results_page,
+    };
     unsafe {
         let heading = match page.heading {
             Heading::Titles(normal, alternative) => Drawn::Titles {

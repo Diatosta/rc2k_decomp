@@ -32,7 +32,7 @@ hook_asm!(
 
 /// The quotient with a '0' before it below 10, the remainder as two digits.
 pub fn append_clock_padded(value: u32) -> Vec<u8> {
-    rc2k_core::format::clock_padded(value)
+    rc2k_core::strings::format::clock_padded(value)
 }
 
 // ---- hook ----

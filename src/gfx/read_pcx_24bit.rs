@@ -56,9 +56,9 @@ unsafe fn read_rows() -> Result<bool, BadInput> {
         }
         game_write(FLAGS_RVA, 0x800u32);
         let layout = lay_out_pcx();
-        // Converted: `rc2k_core::pcx::decode_planes`.
+        // Converted: `rc2k_core::gfx::pcx::decode_planes`.
         let pixels: u32 = game_read(PIXELS_RVA);
-        rc2k_core::pcx::decode_planes(
+        rc2k_core::gfx::pcx::decode_planes(
             &layout,
             |eax| read_stream_byte(stream, eax).eax,
             |to, byte| (pixels.wrapping_add(to) as *mut u8).write(byte),

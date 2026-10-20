@@ -62,10 +62,10 @@ unsafe fn x87_turn(entry: u32) {
     };
 }
 
-/// The converted version (`rc2k_core::geometry`, plain floats): the hook's, and what
+/// The converted version (`rc2k_core::math::geometry`, plain floats): the hook's, and what
 /// converted callers use. The entry left in edx.
 pub unsafe fn turn_scratch_xz_plain(angle: u32) -> u32 {
-    use rc2k_core::geometry;
+    use rc2k_core::math::geometry;
     let entry = geometry::turn_entry(angle);
     unsafe {
         let float = |rva: usize| f32::from_bits(game_read(rva));

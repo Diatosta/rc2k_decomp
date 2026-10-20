@@ -23,15 +23,15 @@ pub const PRESSED_RVA: usize = rva(0x4F6CDC); // g_keysPressed
 pub const REPEAT_RVA: usize = rva(0x4F6D5C); // g_keyRepeat
 /// The key tables, `g_keysDown` .. `g_keyRepeat` (0x80 each; 0x4F6C5C .. unused here).
 pub const KEY_TABLES: (usize, usize) = (DOWN_RVA, 0x300);
-const KEYS: u32 = rc2k_core::input::KEYS as u32;
-const SCREENSHOT_KEY: u32 = rc2k_core::input::SCREENSHOT_KEY as u32; // byte_4F6BAE
+const KEYS: u32 = rc2k_core::input::frame::KEYS as u32;
+const SCREENSHOT_KEY: u32 = rc2k_core::input::frame::SCREENSHOT_KEY as u32; // byte_4F6BAE
 pub const SCREENSHOTS_RVA: usize = rva(0x4F52B4); // g_screenshotsOn
 pub const FRAME_CLEARED_RVA: [usize; 2] = [rva(0x6138F4), rva(0x6138F8)];
 
-// Converted: `rc2k_core::input`. Here the tables are loaded from the game and only those
+// Converted: `rc2k_core::input::frame`. Here the tables are loaded from the game and only those
 // a function writes are stored back (`g_keysDown` never: the window's messages write it).
 
-use rc2k_core::input::KeyTables;
+use rc2k_core::input::frame::KeyTables;
 
 unsafe fn byte(table: usize, n: u32) -> u8 {
     unsafe { game_read(table + n as usize) }
@@ -55,7 +55,8 @@ fn tables() -> KeyTables {
 /// `input::unpack_mouse` (0x4081FC): `g_mouseWord` as ebx the buttons (low byte), ecx the
 /// x (bits 8 .. 19), edx the y (bits 20 .. 31), both signed.
 pub unsafe fn unpack_mouse(entry: &Regs) -> Regs {
-    let (buttons, x, y) = rc2k_core::input::unpack_mouse(unsafe { game_read(MOUSE_WORD_RVA) });
+    let (buttons, x, y) =
+        rc2k_core::input::frame::unpack_mouse(unsafe { game_read(MOUSE_WORD_RVA) });
     Regs {
         ebx: buttons,
         ecx: x as u32,
@@ -71,7 +72,7 @@ pub unsafe fn take_mouse(entry: &Regs) -> Regs {
     let g = unsafe { unpack_mouse(entry) };
     unsafe {
         game_write(MOUSE_RVA, [g.ecx, g.edx]);
-        game_write(BUTTONS_RVA, rc2k_core::input::buttons(g.ebx));
+        game_write(BUTTONS_RVA, rc2k_core::input::frame::buttons(g.ebx));
     }
     g
 }

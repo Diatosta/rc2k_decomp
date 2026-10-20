@@ -25,9 +25,9 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// Converted: `rc2k_core::format::decimal` (the flags byte as `Pad`).
+/// Converted: `rc2k_core::strings::format::decimal` (the flags byte as `Pad`).
 pub fn format_u32(value: u32, flags: u8) -> Vec<u8> {
-    rc2k_core::format::decimal(value, rc2k_core::format::Pad::from_flags(flags))
+    rc2k_core::strings::format::decimal(value, rc2k_core::strings::format::Pad::from_flags(flags))
 }
 
 // ---- hook ----

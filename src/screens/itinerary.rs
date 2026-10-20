@@ -29,8 +29,8 @@ const INVALID_STAGE: FatalError = FatalError {
 /// "Invalid Stage ID". Every register kept. Refuses (before anything) a section past the
 /// table.
 pub unsafe fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    // Converted: `rc2k_core::itinerary`.
-    use rc2k_core::itinerary::Row;
+    // Converted: `rc2k_core::screens::itinerary`.
+    use rc2k_core::screens::itinerary::Row;
     unsafe {
         if !section_there() {
             return Err(crate::errors::BadInput("a section past the record table").into());
@@ -63,8 +63,11 @@ pub unsafe fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
             }
         };
         let ends_at = |n: u32| get(record(n)) == u32::MAX;
-        rc2k_core::itinerary::itinerary(
-            &mut GameScreen::<rc2k_core::itinerary::Font, rc2k_core::itinerary::Work>::new(canvas),
+        rc2k_core::screens::itinerary::itinerary(
+            &mut GameScreen::<
+                rc2k_core::screens::itinerary::Font,
+                rc2k_core::screens::itinerary::Work,
+            >::new(canvas),
             heading,
             &row,
             &ends_at,

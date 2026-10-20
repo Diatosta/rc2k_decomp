@@ -29,10 +29,10 @@ hook_asm!(
 // ---- Rust version ----
 
 pub unsafe fn rgb_pixels_to_dwords() -> Result<(), BadInput> {
-    // Converted: `rc2k_core::pixels::rgb_to_dwords`.
+    // Converted: `rc2k_core::gfx::pixels::rgb_to_dwords`.
     let count = unsafe { pixel_count() }?;
     let buffer = unsafe { std::slice::from_raw_parts_mut(picture(), count * 4) };
-    rc2k_core::pixels::rgb_to_dwords(buffer, count).expect("the slice holds the dwords");
+    rc2k_core::gfx::pixels::rgb_to_dwords(buffer, count).expect("the slice holds the dwords");
     Ok(())
 }
 

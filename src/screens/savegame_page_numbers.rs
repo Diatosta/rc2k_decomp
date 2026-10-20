@@ -44,9 +44,9 @@ const NUMBERS_RVA: usize = rva(0xA8C158); // byte_A8C158: ten texts of four byte
 
 /// A number with a 0 before it under 10.
 pub fn savegame_page_numbers() -> Result<(), Refused> {
-    // Converted: `rc2k_core::captions::savegame_numbers`.
+    // Converted: `rc2k_core::screens::captions::savegame_numbers`.
     let page = unsafe { game_read::<u32>(SAVEGAME_PAGE_RVA) };
-    let (caption, numbers) = rc2k_core::captions::savegame_numbers(page)?;
+    let (caption, numbers) = rc2k_core::screens::captions::savegame_numbers(page)?;
     unsafe {
         std::ptr::copy_nonoverlapping(
             caption.as_ptr(),

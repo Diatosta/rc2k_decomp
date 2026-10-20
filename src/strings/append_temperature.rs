@@ -32,9 +32,9 @@ hook_asm!(
 // ---- Rust version ----
 
 /// Returns (bytes to append, the eax the original leaves behind); refuses a setting past 1.
-/// Converted: `rc2k_core::units::temperature`.
+/// Converted: `rc2k_core::math::units::temperature`.
 pub fn append_temperature(celsius: i32) -> Result<(Vec<u8>, u32), BadInput> {
-    let figure = rc2k_core::units::temperature(celsius, setting(units())?);
+    let figure = rc2k_core::math::units::temperature(celsius, setting(units())?);
     let mut out = figure.text;
     let mut eax = 0;
     if let Some(id) = figure.label {

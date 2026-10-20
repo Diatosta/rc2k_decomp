@@ -4,7 +4,8 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! In two of `menu::view_best_scores_loop`'s lists. Shadow mode: by state (the caption).
+//! In two of `menu::view_best_scores_loop`'s lists. Refuses a caption past its 0x100 bytes
+//! (the original writes on). Shadow mode: by state (the caption).
 //! Self-test: each page, the caption put back.
 
 use crate::errors::Refused;
@@ -32,7 +33,7 @@ hook_asm!(
 );
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { best_scores_caption() };
+    unsafe { best_scores_caption() }?;
     Ok(Left::nothing())
 }
 

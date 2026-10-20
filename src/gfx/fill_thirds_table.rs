@@ -31,8 +31,8 @@ const TABLE_LEN: usize = 0x300;
 // ---- Rust version ----
 
 pub unsafe fn fill_thirds_table() {
-    // Converted: `rc2k_core::pixels::thirds_table`.
-    let table: [u8; TABLE_LEN] = rc2k_core::pixels::thirds_table();
+    // Converted: `rc2k_core::gfx::pixels::thirds_table`.
+    let table: [u8; TABLE_LEN] = rc2k_core::gfx::pixels::thirds_table();
     unsafe { game_write(TABLE_RVA, table) };
 }
 

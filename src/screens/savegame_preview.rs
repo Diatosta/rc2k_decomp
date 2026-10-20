@@ -1,5 +1,5 @@
 //! What the two panels of the load-game screen's preview need loaded (their tests check
-//! it). The drawing is `rc2k_core::savegame_preview` (converted 2026-10-20).
+//! it). The drawing is `rc2k_core::screens::savegame_preview` (converted 2026-10-20).
 
 /// The fonts both panels draw with: rows, title, row numbers.
 pub const FONTS: [usize; 3] = [0x51E584, 0x51E5E4, 0x51E5A4];

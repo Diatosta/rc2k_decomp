@@ -43,11 +43,11 @@ const APPLY_SETTINGS: usize = rva(0x4114FF); // sub_4114FF
 
 // ---- Rust version ----
 
-/// `sub_4114FF`: the settings a text names. Converted: `rc2k_core::settings::table` and
+/// `sub_4114FF`: the settings a text names. Converted: `rc2k_core::files::settings::table` and
 /// `apply`; here the variables (the table's dwords are their addresses) are stored.
 unsafe fn settings() -> Result<Vec<(Vec<u8>, u32)>, BadInput> {
     let table = unsafe { Raw::new(game_addr(TABLE_RVA) as *const u8) };
-    Ok(rc2k_core::settings::table(
+    Ok(rc2k_core::files::settings::table(
         &table,
         TABLE_END_RVA - TABLE_RVA,
     )?)
@@ -61,7 +61,7 @@ pub unsafe fn apply_settings(text: *const u8) -> Result<(), BadInput> {
         let table = settings()?;
         let keys: Vec<&[u8]> = table.iter().map(|(key, _)| key.as_slice()).collect();
         // Found first, stored after: nothing is written if a key is refused.
-        let found = rc2k_core::settings::apply(&Raw::new(text), &keys, &case_table())?;
+        let found = rc2k_core::files::settings::apply(&Raw::new(text), &keys, &case_table())?;
         for (n, number) in found {
             (table[n].1 as *mut u32).write_unaligned(number);
         }

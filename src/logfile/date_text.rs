@@ -12,7 +12,7 @@
 use crate::errors::BadInput;
 use crate::framework::{EBX, RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, rva, shadow};
 use crate::service::harness::{capture, restore};
-use rc2k_core::log::Started;
+use rc2k_core::files::log::Started;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -38,7 +38,7 @@ const STARTED_LEN: usize = 9;
 
 // ---- Rust version ----
 
-/// The text, without what is written after it (converted: `rc2k_core::log::date`, on the
+/// The text, without what is written after it (converted: `rc2k_core::files::log::date`, on the
 /// start's moment as the game keeps it). Refuses a weekday, day or month past the tables.
 pub unsafe fn date_text() -> Result<Vec<u8>, BadInput> {
     let started = unsafe {
@@ -54,7 +54,7 @@ pub unsafe fn date_text() -> Result<Vec<u8>, BadInput> {
             hundredths,
         }
     };
-    rc2k_core::log::date(&started).ok_or(BadInput(
+    rc2k_core::files::log::date(&started).ok_or(BadInput(
         "a start date whose weekday, day or month is past the name tables",
     ))
 }

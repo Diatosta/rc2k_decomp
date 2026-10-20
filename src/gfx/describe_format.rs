@@ -42,8 +42,8 @@ pub const FORMAT_LEN: usize = 0x18;
 
 // ---- Rust version ----
 
-/// Converted: `rc2k_core::pixels::describe`.
-pub use rc2k_core::pixels::describe;
+/// Converted: `rc2k_core::gfx::pixels::describe`.
+pub use rc2k_core::gfx::pixels::describe;
 
 /// On the format at `format`, with the game's table.
 pub unsafe fn describe_format(format: *mut u32) -> Result<(), BadInput> {

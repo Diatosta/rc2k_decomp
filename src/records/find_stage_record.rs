@@ -37,10 +37,10 @@ hook_asm!(
 const RECORD: u32 = 0xA4;
 
 /// The record, as the original finds it (refused where it would run away). Converted:
-/// `rc2k_core::records::find_stage_record`.
+/// `rc2k_core::files::records::find_stage_record`.
 pub unsafe fn find_stage_record(table: u32, section: u32, number: u32) -> Result<u32, Refused> {
     let records = unsafe { Raw::new(table as usize as *const u8) };
-    let place = rc2k_core::records::find_stage_record(&records, section, number)?;
+    let place = rc2k_core::files::records::find_stage_record(&records, section, number)?;
     Ok(table.wrapping_add(place as u32))
 }
 

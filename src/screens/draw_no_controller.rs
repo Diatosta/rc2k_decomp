@@ -8,7 +8,7 @@
 //! Self-test: once, nothing drawn (skipped without the fonts).
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, ECX, EDX, RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::screens::controller::draw_no_controller;
 use crate::screens::draw_menu_item_text::text_unavailable;
 use crate::screens::harness::{Left, check_draw, dispatch_draw};
@@ -34,12 +34,7 @@ hook_asm!(
 );
 
 fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    let out = unsafe { draw_no_controller(canvas) }?;
-    Ok(Left::carry(out.too_wide)
-        .with(EAX, 0)
-        .with(EBX, out.text as u32)
-        .with(ECX, out.x as u32)
-        .with(EDX, out.y as u32))
+    unsafe { draw_no_controller(canvas) }
 }
 
 fn state() -> Vec<u8> {

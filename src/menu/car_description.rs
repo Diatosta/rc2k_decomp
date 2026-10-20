@@ -9,7 +9,7 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::game_read;
 use crate::scene::carousel_pictures::ENTRIES_RVA;
 
-pub use rc2k_core::car_pages::CarDescription;
+pub use rc2k_core::screens::car_pages::CarDescription;
 
 const _: () = assert!(std::mem::size_of::<CarDescription>() == 0x78);
 

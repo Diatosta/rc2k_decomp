@@ -21,7 +21,7 @@ pub struct PngInfo {
     pub palette: [u8; 0x300],
 }
 
-pub use rc2k_core::png::SIGNATURE;
+pub use rc2k_core::gfx::png::SIGNATURE;
 
 // ---- for the self-tests ----
 

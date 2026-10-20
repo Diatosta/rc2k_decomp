@@ -32,7 +32,7 @@ const KEEP_CASE_RVA: usize = rva(0x4E0144);
 
 // ---- Rust version ----
 
-/// What is written, with its NUL (converted: `rc2k_core::case::CaseTable::printable`).
+/// What is written, with its NUL (converted: `rc2k_core::strings::case::CaseTable::printable`).
 pub unsafe fn printable(text: *const u8, room: u32) -> Result<Vec<u8>, BadInput> {
     let mut looked_at = Vec::new();
     if !text.is_null() {

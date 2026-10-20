@@ -27,7 +27,7 @@ hook_asm!(
 
 /// The low `digits` hex digits of `value`, most significant first.
 pub fn hex_append(value: u32, digits: u32) -> Result<Vec<u8>, BadInput> {
-    rc2k_core::format::hex(value, digits).ok_or(BadInput(
+    rc2k_core::strings::format::hex(value, digits).ok_or(BadInput(
         "more than 8 hex digits: not worked out in the original",
     ))
 }

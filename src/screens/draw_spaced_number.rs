@@ -54,9 +54,9 @@ pub unsafe fn draw_spaced_number(
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     unsafe {
-        // Converted: `rc2k_core::captions::spaced_places`.
+        // Converted: `rc2k_core::screens::captions::spaced_places`.
         let n = (end as u32).wrapping_sub(text as u32);
-        let places = rc2k_core::captions::spaced_places(n, x, CELLS_LEN)?;
+        let places = rc2k_core::screens::captions::spaced_places(n, x, CELLS_LEN)?;
         game_write(LENGTH_RVA, n);
         let cells = game_addr(CELLS_RVA) as *mut u8;
         for i in 0..n as usize {

@@ -34,7 +34,7 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// String `index` of the list at `table` (converted: `rc2k_core::strings::nth_string`, on
+/// String `index` of the list at `table` (converted: `rc2k_core::strings::table::nth_string`, on
 /// the list as far as the original reads it).
 pub unsafe fn indexed_text<'a>(table: *const u8, index: i32) -> &'a [u8] {
     unsafe {
@@ -44,7 +44,7 @@ pub unsafe fn indexed_text<'a>(table: *const u8, index: i32) -> &'a [u8] {
                 .to_bytes_with_nul()
                 .len();
         }
-        rc2k_core::strings::nth_string(std::slice::from_raw_parts(table, length), index)
+        rc2k_core::strings::table::nth_string(std::slice::from_raw_parts(table, length), index)
     }
 }
 

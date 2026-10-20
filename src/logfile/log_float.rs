@@ -34,8 +34,8 @@ hook_asm!(
 // ---- Rust version ----
 
 pub fn float_text(bits: u32, decimals: u32) -> NumberText {
-    // Converted: `rc2k_core::log::float`.
-    let text = rc2k_core::log::float(bits, decimals);
+    // Converted: `rc2k_core::files::log::float`.
+    let text = rc2k_core::files::log::float(bits, decimals);
     NumberText {
         bytes: text.bytes,
         nul_at: text.nul_at,

@@ -10,11 +10,9 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::font_at;
 use crate::screens::harness::{Left, check_draw, dispatch_draw};
 use crate::service::harness::capture;
 use crate::strings::text_from_ids::{TEXT_LEN, text};
-use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::Canvas;
 use std::sync::atomic::AtomicUsize;
 
@@ -35,14 +33,11 @@ hook_asm!(
     original = ORIGINAL
 );
 
-const FONT: usize = 0x51E8A4;
-const QUESTION: u32 = 0x537;
-
 // ---- Rust version ----
 
 pub unsafe fn draw_leave_question(canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    let out = unsafe { draw_string_by_id_at(QUESTION, font_at(FONT), 0x197, 0x122, canvas) }?;
-    Ok(Left::of_text(&out))
+    // Converted: `rc2k_core::screens::notes::LEAVE_QUESTION`.
+    crate::screens::game_screen::draw_note(canvas, &rc2k_core::screens::notes::LEAVE_QUESTION)
 }
 
 // ---- hook ----

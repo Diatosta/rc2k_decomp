@@ -43,11 +43,11 @@ const VOLUMES_RVA: usize = rva(0x755684); // g_masterVolumeShown, then dword_755
 const NAME_SWITCH_RVA: usize = rva(0x5180F4); // dword_5180F4
 
 pub unsafe fn draw_volume_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    // Converted: `rc2k_core::settings_pages::volume`.
+    // Converted: `rc2k_core::screens::settings_pages::volume`.
     unsafe {
         let id = game_read::<u32>(NAME_SWITCH_RVA).wrapping_add(0x56D);
         let volumes: [u32; 8] = std::array::from_fn(|n| game_read(VOLUMES_RVA + 4 * n));
-        rc2k_core::settings_pages::volume(
+        rc2k_core::screens::settings_pages::volume(
             &mut crate::screens::game_screen::SettingsScreen::new(canvas),
             id,
             volumes,

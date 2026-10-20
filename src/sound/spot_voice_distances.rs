@@ -41,18 +41,18 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// The converted version (`rc2k_core::spot_voices::hear`, plain floats): the hook's. The
+/// The converted version (`rc2k_core::sound::spot_voices::hear`, plain floats): the hook's. The
 /// exact one below stays for the race sound's turn (`turn_parts`), compared exactly.
 pub fn spot_voice_distances_plain(_: &mut Regs, _: Part) -> Result<(), Refused> {
     let float = |x: usize| f32::from_bits(crate::sound::spot_voices::g(x));
-    let hearing = rc2k_core::spot_voices::Hearing {
+    let hearing = rc2k_core::sound::spot_voices::Hearing {
         turns_a_second: float(0x5124EC),
         offset: float(0x5124F8),
         factor: float(0x5124FC),
         ease: float(0x516360),
     };
     let mut voices = load_voices();
-    rc2k_core::spot_voices::hear(&mut voices, &hearing);
+    rc2k_core::sound::spot_voices::hear(&mut voices, &hearing);
     store_voices(&voices);
     Ok(())
 }

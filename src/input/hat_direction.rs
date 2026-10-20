@@ -33,8 +33,8 @@ hook_asm!(
 
 /// The Rust version (see the header).
 pub fn hat_direction(record: u32) -> u32 {
-    // Converted: `rc2k_core::devices::hat_direction`.
-    rc2k_core::devices::hat_direction(&record_bytes(record), &joy_state())
+    // Converted: `rc2k_core::input::devices::hat_direction`.
+    rc2k_core::input::devices::hat_direction(&record_bytes(record), &joy_state())
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

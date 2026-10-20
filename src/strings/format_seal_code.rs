@@ -30,7 +30,7 @@ hook_asm!(
 
 /// The 19 characters.
 pub fn seal_code(a: u32, b: u32) -> Vec<u8> {
-    rc2k_core::format::seal_code(a, b)
+    rc2k_core::strings::format::seal_code(a, b)
 }
 
 /// The Rust version on the game's variables.

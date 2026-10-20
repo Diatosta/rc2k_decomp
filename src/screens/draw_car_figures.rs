@@ -79,7 +79,7 @@ pub unsafe fn draw_car_figures(canvas: &mut dyn Canvas) -> Result<bool, Refused>
 
 /// One page (`sub_469C40`, `sub_469F12`, `sub_46A193`, `sub_469CA0` for 0 .. 3) of the
 /// record at `record`: the carry of the last text drawn. Converted:
-/// `rc2k_core::car_pages::page` (the record written back when it changed it: the Clio's
+/// `rc2k_core::screens::car_pages::page` (the record written back when it changed it: the Clio's
 /// strings).
 pub unsafe fn draw_car_page(
     page: u32,
@@ -87,12 +87,12 @@ pub unsafe fn draw_car_page(
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
     use crate::screens::game_screen::GameScreen;
-    use rc2k_core::car_pages::{Font, Work};
+    use rc2k_core::screens::car_pages::{Font, Work};
     unsafe {
         let before = read(record);
         let mut d = before;
         let notice: u8 = game_read(NOTICE_KIND_RVA);
-        let carry = rc2k_core::car_pages::page(
+        let carry = rc2k_core::screens::car_pages::page(
             &mut GameScreen::<Font, Work>::new(canvas),
             page,
             &mut d,

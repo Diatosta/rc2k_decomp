@@ -59,12 +59,12 @@ pub fn word(p: *const u32, at: usize) -> u32 {
 /// The rate as both leaves take it: -0x6F the record's +0x30, then -0x70 the buffer's
 /// +0x24; held to 100 .. 200000.
 /// The record's and its first voice's figures (`None`: no voice, not loaded).
-pub fn loaded(record: *const u32) -> Option<rc2k_core::samples::Loaded> {
+pub fn loaded(record: *const u32) -> Option<rc2k_core::audio::samples::Loaded> {
     let voice = word(record, 8) as *const u32;
     if voice.is_null() {
         return None;
     }
-    Some(rc2k_core::samples::Loaded {
+    Some(rc2k_core::audio::samples::Loaded {
         voice_kind: word(record, 0x14),
         volume: word(record, 0x28),
         frequency: word(record, 0x30),
@@ -78,9 +78,9 @@ pub fn loaded(record: *const u32) -> Option<rc2k_core::samples::Loaded> {
 
 /// (volume, rate).
 pub fn sample_settings(sample: u32, volume: u32, rate: u32) -> Result<(u32, u32), BadInput> {
-    // Converted: `rc2k_core::samples::settings`.
+    // Converted: `rc2k_core::audio::samples::settings`.
     let record = record(sample)?;
-    Ok(rc2k_core::samples::settings(
+    Ok(rc2k_core::audio::samples::settings(
         volume,
         rate,
         loaded(record).as_ref(),

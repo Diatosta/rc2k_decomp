@@ -23,12 +23,15 @@ fn setting() -> Result<Units, Refused> {
     Ok(crate::strings::units::setting(units())?)
 }
 
-/// `strings::append_power` (0x401CBA). Converted: `rc2k_core::units::power`.
+/// `strings::append_power` (0x401CBA). Converted: `rc2k_core::math::units::power`.
 pub fn append_power(value: u32) -> Result<Vec<u8>, Refused> {
-    Ok(figure_bytes(rc2k_core::units::power(value, setting()?)))
+    Ok(figure_bytes(rc2k_core::math::units::power(
+        value,
+        setting()?,
+    )))
 }
 
-/// `strings::append_length` (0x401C42). Converted: `rc2k_core::units::length`; the
+/// `strings::append_length` (0x401C42). Converted: `rc2k_core::math::units::length`; the
 /// not-known figure needs no setting.
 pub fn append_length(value: u32) -> Result<Vec<u8>, Refused> {
     let units = if (value >> 8) & 0xFF == 0xFF {
@@ -36,17 +39,23 @@ pub fn append_length(value: u32) -> Result<Vec<u8>, Refused> {
     } else {
         setting()?
     };
-    Ok(figure_bytes(rc2k_core::units::length(value, units)))
+    Ok(figure_bytes(rc2k_core::math::units::length(value, units)))
 }
 
-/// `strings::append_weight` (0x401CF1). Converted: `rc2k_core::units::weight`.
+/// `strings::append_weight` (0x401CF1). Converted: `rc2k_core::math::units::weight`.
 pub fn append_weight(value: u32) -> Result<Vec<u8>, Refused> {
-    Ok(figure_bytes(rc2k_core::units::weight(value, setting()?)))
+    Ok(figure_bytes(rc2k_core::math::units::weight(
+        value,
+        setting()?,
+    )))
 }
 
-/// `strings::append_torque` (0x401D28). Converted: `rc2k_core::units::torque`.
+/// `strings::append_torque` (0x401D28). Converted: `rc2k_core::math::units::torque`.
 pub fn append_torque(value: u32) -> Result<Vec<u8>, Refused> {
-    Ok(figure_bytes(rc2k_core::units::torque(value, setting()?)))
+    Ok(figure_bytes(rc2k_core::math::units::torque(
+        value,
+        setting()?,
+    )))
 }
 
 /// A formatter's `dispatch`: written at the cursor, the cursor moved on.

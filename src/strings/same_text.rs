@@ -7,7 +7,7 @@
 
 use crate::bridge::Global;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
-use rc2k_core::case::CaseTable;
+use rc2k_core::strings::case::CaseTable;
 use std::cmp::Ordering;
 use std::ffi::{CStr, c_char};
 use std::sync::atomic::AtomicUsize;
@@ -33,7 +33,7 @@ pub fn case_table() -> CaseTable {
 }
 
 /// How the first text's first differing character stands to the second's (converted:
-/// `rc2k_core::case::CaseTable::compare`).
+/// `rc2k_core::strings::case::CaseTable::compare`).
 pub unsafe fn compare_texts(a: *const u8, b: *const u8) -> Ordering {
     let (a, b) = unsafe {
         (

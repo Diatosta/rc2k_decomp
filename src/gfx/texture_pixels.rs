@@ -27,21 +27,21 @@ pub const SCALE_RVA: usize = rva(0x4F4A28); // dword_4F4A28
 pub const SATURATION_RVA: usize = rva(0x4F4A2C); // dword_4F4A2C
 pub const GRADES_RVA: usize = rva(0x4F4A30); // byte_4F4A30
 /// The second picture's place, in bytes from the first's start.
-pub const KEPT: usize = rc2k_core::pixels::KEPT;
+pub const KEPT: usize = rc2k_core::gfx::pixels::KEPT;
 
-// Converted: `rc2k_core::pixels` (the pixels as slices of the counts given).
+// Converted: `rc2k_core::gfx::pixels` (the pixels as slices of the counts given).
 
 pub unsafe fn alpha_from_kept(pixels: *mut u8, count: u32) {
     let buffer = unsafe { std::slice::from_raw_parts_mut(pixels, KEPT + count as usize * 4) };
-    rc2k_core::pixels::alpha_from_kept(buffer, count as usize).expect("the slice holds both");
+    rc2k_core::gfx::pixels::alpha_from_kept(buffer, count as usize).expect("the slice holds both");
 }
 
 pub unsafe fn key_texture_colours(pixels: *mut u32, count: u32, key: u32) {
     let pixels = unsafe { std::slice::from_raw_parts_mut(pixels, count as usize) };
-    rc2k_core::pixels::key_colours(pixels, key);
+    rc2k_core::gfx::pixels::key_colours(pixels, key);
 }
 
-pub use rc2k_core::pixels::{grades, grading, halvable, least_colour};
+pub use rc2k_core::gfx::pixels::{grades, grading, halvable, least_colour};
 
 /// `table` gets the grades (the game's `byte_4F4A30`).
 pub unsafe fn grade_texture(
@@ -54,14 +54,14 @@ pub unsafe fn grade_texture(
 ) {
     *table = grades(scale);
     let pixels = unsafe { std::slice::from_raw_parts_mut(pixels as *mut u32, count as usize) };
-    rc2k_core::pixels::grade(pixels, key, saturation, table);
+    rc2k_core::gfx::pixels::grade(pixels, key, saturation, table);
 }
 
 /// Returns the size after the last pass (as it was for no pass).
 pub unsafe fn halve_texture(pixels: *mut u32, width: u32, height: u32, times: u32) -> (u32, u32) {
     let pixels =
         unsafe { std::slice::from_raw_parts_mut(pixels, width as usize * height as usize) };
-    rc2k_core::pixels::halve(pixels, width, height, times).expect("the slice is the picture")
+    rc2k_core::gfx::pixels::halve(pixels, width, height, times).expect("the slice is the picture")
 }
 
 /// Pixels for the self-tests, by lot: some of alpha 0, some near black, some magenta,

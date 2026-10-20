@@ -54,10 +54,10 @@ const BINDINGS_COUNT: u32 = 12;
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 /// The Rust version (see the header): the registers it leaves (`popa`'s: the entry's).
-/// Converted: `rc2k_core::devices::read_device`; the bindings are checked before the poll,
+/// Converted: `rc2k_core::input::devices::read_device`; the bindings are checked before the poll,
 /// the record read again after it.
 pub unsafe fn read_device(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    use rc2k_core::devices;
+    use rc2k_core::input::devices;
     let record = entry.esi;
     devices::check_bindings(&record_bytes(record))?;
     let mut poll = *entry;

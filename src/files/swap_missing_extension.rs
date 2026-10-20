@@ -37,7 +37,7 @@ hook_asm!(
     original = ORIGINAL
 );
 
-// aPngPcxAviMpg (0x4E0744), the endings and what they become: `rc2k_core::paths::missing_partner`.
+// aPngPcxAviMpg (0x4E0744), the endings and what they become: `rc2k_core::files::paths::missing_partner`.
 
 // ---- Rust version ----
 
@@ -52,10 +52,10 @@ pub unsafe fn swap_missing_extension(path: *mut u8) -> Result<(), BadInput> {
         let Some(ending) = ending(path)? else {
             return Ok(());
         };
-        // Converted: `rc2k_core::paths::missing_partner`.
+        // Converted: `rc2k_core::files::paths::missing_partner`.
         let length = text_length(path)? as usize;
         let Some(partner) =
-            rc2k_core::paths::missing_partner(std::slice::from_raw_parts(path, length))
+            rc2k_core::files::paths::missing_partner(std::slice::from_raw_parts(path, length))
         else {
             return Ok(());
         };

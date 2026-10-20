@@ -228,14 +228,14 @@ pub fn update_car_effects_with(r: &mut Regs, scratch: u32, part: Part) -> Result
     set(r, 5, change as u32, edx)
 }
 
-/// The converted version (`rc2k_core::feedback`, plain floats), the angle written to
+/// The converted version (`rc2k_core::input::feedback`, plain floats), the angle written to
 /// `scratch` (an address): the hook's. Here the fields loaded and stored, the requests sent.
 pub fn update_car_effects_plain_with(
     r: &mut Regs,
     scratch: u32,
     part: Part,
 ) -> Result<(), Refused> {
-    use rc2k_core::feedback::{Constants, Feel, View, update_car_effects};
+    use rc2k_core::input::feedback::{Constants, Feel, View, update_car_effects};
     let (view, object) = (r.ebx, r.edi);
     let float = |v: u32| f32::from_bits(v);
     let mut feel = Feel {

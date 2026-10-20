@@ -27,7 +27,7 @@ hook_asm!(
 // ---- Rust version ----
 
 /// Entry `id` of the string table `g_stringTable` points at, given to `emit` (converted:
-/// `rc2k_core::strings::StringTable::expand`). `blob` is that pointer, as the callers read
+/// `rc2k_core::strings::table::StringTable::expand`). `blob` is that pointer, as the callers read
 /// it. A bad entry or a table the core does not know is logged once and gives nothing (the
 /// original read wherever it pointed: fixed, `notes/bugs.md`).
 pub unsafe fn expand_entry(blob: *const u8, id: u32, emit: &mut impl FnMut(*const u8, usize)) {

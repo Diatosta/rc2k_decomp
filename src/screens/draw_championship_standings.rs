@@ -87,8 +87,8 @@ pub unsafe fn draw_championship_standings(canvas: &mut dyn Canvas) -> Result<(),
             break;
         }
     }
-    // Converted: `rc2k_core::results_pages::championship_standings` (the rows found here).
-    use rc2k_core::results_pages::{StandingRow, championship_standings};
+    // Converted: `rc2k_core::screens::results_pages::championship_standings` (the rows found here).
+    use rc2k_core::screens::results_pages::{StandingRow, championship_standings};
     let rows: Vec<StandingRow<u32>> = rows
         .into_iter()
         .map(|e| StandingRow {

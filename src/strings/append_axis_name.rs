@@ -32,8 +32,8 @@ hook_asm!(
     original = ORIGINAL
 );
 
-/// The bytes appended for axis `al` (converted: `rc2k_core::format::axis_name`).
-pub use rc2k_core::format::axis_name as append_axis_name;
+/// The bytes appended for axis `al` (converted: `rc2k_core::strings::format::axis_name`).
+pub use rc2k_core::strings::format::axis_name as append_axis_name;
 
 extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();

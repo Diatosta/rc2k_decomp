@@ -161,18 +161,18 @@ pub unsafe fn draw_button(
         game_write(kind.left_rva, sprites[0]);
         game_write(kind.right_rva, sprites[1]);
         game_write(MIDDLE_RVA, sprites[2]);
-        // Converted: `rc2k_core::buttons::draw`; the pieces blitted from the sprite table.
-        use rc2k_core::buttons::{Borrowed, Error};
+        // Converted: `rc2k_core::screens::buttons::draw`; the pieces blitted from the sprite table.
+        use rc2k_core::screens::buttons::{Borrowed, Error};
         let table = sprite_table();
         let borrowed = Borrowed {
             y: game_read(PLAIN.y_rva),
             x: game_read(PLAIN.x_rva),
         };
-        let core = rc2k_core::buttons::Kind {
+        let core = rc2k_core::screens::buttons::Kind {
             slips: kind.slips,
             borrows: kind.borrows,
         };
-        let (end, drawn) = rc2k_core::buttons::draw(
+        let (end, drawn) = rc2k_core::screens::buttons::draw(
             core,
             width,
             x,
@@ -233,7 +233,7 @@ pub unsafe fn draw_text_button(
         let measured = measure_string_by_id_at(dword(item + ITEM_STRING), font, measure_x, canvas)?;
         draw_button(
             kind,
-            rc2k_core::buttons::text_width(measured.width),
+            rc2k_core::screens::buttons::text_width(measured.width),
             dword(item + ITEM_X) as i32,
             dword(item + ITEM_Y) as i32,
             align,

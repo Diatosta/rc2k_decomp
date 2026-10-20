@@ -57,12 +57,12 @@ pub unsafe fn turn_point_by(m: u32, v: u32) {
     }
 }
 
-/// The converted `turn_point_by` (`rc2k_core::vector`, plain floats): the hooks'.
+/// The converted `turn_point_by` (`rc2k_core::math::vector`, plain floats): the hooks'.
 pub unsafe fn turn_point_by_plain(m: u32, v: u32) {
     use crate::scene::vector3::{read_floats, write_floats};
     unsafe {
         let p: [f32; 3] = read_floats(v);
-        let out = rc2k_core::vector::rotate_point(&read_floats(m), p.map(f64::from));
+        let out = rc2k_core::math::vector::rotate_point(&read_floats(m), p.map(f64::from));
         write_floats(v, &out.map(|x| x as f32));
     }
 }

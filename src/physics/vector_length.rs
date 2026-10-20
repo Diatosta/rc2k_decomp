@@ -40,10 +40,10 @@ pub unsafe fn vector_length(v: u32) -> [u8; 10] {
     unsafe { length_80(v as *const u32) }
 }
 
-/// The converted version (`rc2k_core::vector`, plain floats): the hook's.
+/// The converted version (`rc2k_core::math::vector`, plain floats): the hook's.
 pub unsafe fn vector_length_plain(v: u32) -> [u8; 10] {
-    let length = rc2k_core::vector::length(unsafe { read_floats(v) });
-    rc2k_core::extended::from_f64(length)
+    let length = rc2k_core::math::vector::length(unsafe { read_floats(v) });
+    rc2k_core::math::extended::from_f64(length)
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

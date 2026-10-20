@@ -40,7 +40,7 @@ pub unsafe fn seed_random() {
     static TIME: Global<u32> = Global::at(0x51_83A4);
     static DATE: Global<u32> = Global::at(0x51_83A0);
     static WEEKDAY: Global<u8> = Global::at(0x51_839F);
-    let clock = rc2k_core::random::StartClock {
+    let clock = rc2k_core::math::random::StartClock {
         time: TIME.get(),
         date: DATE.get(),
         weekday: WEEKDAY.get(),

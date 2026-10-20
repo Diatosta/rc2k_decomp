@@ -45,11 +45,11 @@ const COLUMN_LABELS: [u32; 2] = [0x4E3, 0x4E4];
 // ---- Rust version ----
 
 pub unsafe fn draw_load_setup_list(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    // Converted: `rc2k_core::slot_lists::setup_page`.
+    // Converted: `rc2k_core::screens::slot_lists::setup_page`.
     let page: u32 = unsafe { crate::framework::game_read(SLOT_PAGE_RVA) };
-    rc2k_core::slot_lists::setup_page(
+    rc2k_core::screens::slot_lists::setup_page(
         &mut crate::screens::game_screen::SlotScreen::new(canvas),
-        rc2k_core::slot_lists::LOAD_SETUP_TITLE,
+        rc2k_core::screens::slot_lists::LOAD_SETUP_TITLE,
         page,
         |slot| crate::service::read_setup_slot::slot_name(slot) as u32,
     )
