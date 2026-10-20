@@ -32,23 +32,8 @@ hook_asm!(
     original = ORIGINAL
 );
 
-/// The bytes appended for axis `al`.
-pub fn append_axis_name(mut al: u8) -> Vec<u8> {
-    let mut out = b" (".to_vec();
-    let mut sign = b'-';
-    if al & 0x10 != 0 {
-        al = al.wrapping_sub(0x10);
-        sign = b'+';
-    }
-    out.push(sign);
-    if al >= 3 {
-        out.push(b'r');
-        al = al.wrapping_sub(3);
-    }
-    out.push(al.wrapping_add(b'x'));
-    out.push(b')');
-    out
-}
+/// The bytes appended for axis `al` (converted: `rc2k_core::format::axis_name`).
+pub use rc2k_core::format::axis_name as append_axis_name;
 
 extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();

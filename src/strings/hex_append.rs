@@ -25,19 +25,11 @@ hook_asm!(
 
 // ---- Rust version ----
 
-const HEX_DIGITS: &[u8; 16] = b"0123456789ABCDEF";
-
 /// The low `digits` hex digits of `value`, most significant first.
 pub fn hex_append(value: u32, digits: u32) -> Result<Vec<u8>, BadInput> {
-    if digits > 8 {
-        return Err(BadInput(
-            "more than 8 hex digits: not worked out in the original",
-        ));
-    }
-    Ok((0..digits)
-        .rev()
-        .map(|i| HEX_DIGITS[((value >> (i * 4)) & 0xF) as usize])
-        .collect())
+    rc2k_core::format::hex(value, digits).ok_or(BadInput(
+        "more than 8 hex digits: not worked out in the original",
+    ))
 }
 
 // ---- hook ----

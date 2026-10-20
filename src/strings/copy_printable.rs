@@ -10,7 +10,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
-use crate::settings::find_key::LOWER_RVA;
+use crate::strings::same_text::case_table;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -32,33 +32,23 @@ const KEEP_CASE_RVA: usize = rva(0x4E0144);
 
 // ---- Rust version ----
 
-/// What is written, with its NUL.
+/// What is written, with its NUL (converted: `rc2k_core::case::CaseTable::printable`).
 pub unsafe fn printable(text: *const u8, room: u32) -> Result<Vec<u8>, BadInput> {
-    if room == 0 {
-        return Err(BadInput("no room for a name: the original runs on"));
-    }
-    let mut out = Vec::new();
+    let mut looked_at = Vec::new();
     if !text.is_null() {
-        unsafe {
-            let keep_case = game_read::<u32>(KEEP_CASE_RVA) == 1;
-            for n in 0..room as usize - 1 {
-                let c = text.add(n).read();
-                if c == 0 {
-                    break;
-                }
-                if c & 0x7F < 0x20 {
-                    continue;
-                }
-                out.push(if keep_case {
-                    c
-                } else {
-                    game_read(LOWER_RVA + c as usize)
-                });
+        // As far as the original reads: room - 1 characters or the NUL.
+        for n in 0..(room as usize).saturating_sub(1) {
+            let c = unsafe { text.add(n).read() };
+            if c == 0 {
+                break;
             }
+            looked_at.push(c);
         }
     }
-    out.push(0);
-    Ok(out)
+    let keep_case = unsafe { game_read::<u32>(KEEP_CASE_RVA) } == 1;
+    case_table()
+        .printable(&looked_at, room as usize, keep_case)
+        .ok_or(BadInput("no room for a name: the original runs on"))
 }
 
 pub unsafe fn copy_printable(text: *const u8, to: *mut u8, room: u32) -> Result<(), BadInput> {

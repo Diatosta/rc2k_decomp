@@ -30,19 +30,7 @@ hook_asm!(
 
 /// The 19 characters.
 pub fn seal_code(a: u32, b: u32) -> Vec<u8> {
-    let mut out = Vec::new();
-    for (n, v) in [a, b].into_iter().enumerate() {
-        if n > 0 {
-            out.push(b'-');
-        }
-        for k in 0..4 {
-            if k == 2 {
-                out.push(b'-');
-            }
-            out.extend(crate::strings::hex_append::hex_append(v >> (8 * k), 2).unwrap_or_default());
-        }
-    }
-    out
+    rc2k_core::format::seal_code(a, b)
 }
 
 /// The Rust version on the game's variables.

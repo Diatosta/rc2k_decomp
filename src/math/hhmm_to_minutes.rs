@@ -24,10 +24,8 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// Unsigned, and cannot overflow: u32::MAX / 100 * 60 + 99 fits in 32 bits.
-pub fn hhmm_to_minutes(hhmm: u32) -> u32 {
-    (hhmm / 100) * 60 + hhmm % 100
-}
+/// Converted: `rc2k_core::units`.
+pub use rc2k_core::units::hhmm_to_minutes;
 
 // ---- hook ----
 

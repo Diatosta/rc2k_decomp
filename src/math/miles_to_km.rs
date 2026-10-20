@@ -24,17 +24,14 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// Largest input whose result fits in 32 bits.
-pub const MAX_INPUT: u32 = (((1u64 << 32) * 10_000 - 1 - 5_000) / 16_093) as u32;
+/// Largest input whose result fits in 32 bits (converted: `rc2k_core::units`).
+pub const MAX_INPUT: u32 = rc2k_core::units::MAX_MILES;
 
-/// (miles * 16093 + 5000) / 10000 with a 64-bit intermediate, like `mul` / `div`.
+/// (miles * 16093 + 5000) / 10000 (converted: `rc2k_core::units::miles_to_km`).
 pub fn miles_to_km(miles: u32) -> Result<u32, BadInput> {
-    if miles > MAX_INPUT {
-        return Err(BadInput(
-            "result does not fit 32 bits: the original's div traps",
-        ));
-    }
-    Ok(((miles as u64 * 16_093 + 5_000) / 10_000) as u32)
+    rc2k_core::units::miles_to_km(miles).ok_or(BadInput(
+        "result does not fit 32 bits: the original's div traps",
+    ))
 }
 
 // ---- hook ----

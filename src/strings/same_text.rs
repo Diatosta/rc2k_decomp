@@ -5,9 +5,11 @@
 //!      differing character is the lower; every register preserved
 //! Character by character, each through `g_lowerCase`. Five callers.
 
-use crate::framework::{RawHook, Regs, SelfTest, game_read, hook_asm, rva, shadow};
-use crate::settings::find_key::LOWER_RVA;
+use crate::bridge::Global;
+use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
+use rc2k_core::case::CaseTable;
 use std::cmp::Ordering;
+use std::ffi::{CStr, c_char};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -24,22 +26,22 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// How the first text's first differing character stands to the second's.
+/// The language's lower-case table (`g_lowerCase`, set up by `strings::load_language`).
+pub fn case_table() -> CaseTable {
+    static LOWER: Global<[u8; 256]> = Global::at(0x4F_0BC8);
+    CaseTable { lower: LOWER.get() }
+}
+
+/// How the first text's first differing character stands to the second's (converted:
+/// `rc2k_core::case::CaseTable::compare`).
 pub unsafe fn compare_texts(a: *const u8, b: *const u8) -> Ordering {
-    unsafe {
-        let lower = |c: u8| game_read::<u8>(LOWER_RVA + c as usize);
-        let (mut a, mut b) = (a, b);
-        loop {
-            let (x, y) = (lower(a.read()), lower(b.read()));
-            if x != y {
-                return x.cmp(&y);
-            }
-            if x == 0 {
-                return Ordering::Equal;
-            }
-            (a, b) = (a.add(1), b.add(1));
-        }
-    }
+    let (a, b) = unsafe {
+        (
+            CStr::from_ptr(a as *const c_char),
+            CStr::from_ptr(b as *const c_char),
+        )
+    };
+    case_table().compare(a.to_bytes(), b.to_bytes())
 }
 
 pub unsafe fn same_text(a: *const u8, b: *const u8) -> bool {

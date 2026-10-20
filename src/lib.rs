@@ -6,6 +6,7 @@
 #![allow(clippy::missing_safety_doc)]
 
 pub mod audio;
+pub mod bridge;
 pub mod d3d;
 pub mod drive;
 pub mod errors;
@@ -84,7 +85,29 @@ static INSTALLED: OnceLock<Vec<bool>> = OnceLock::new();
 
 /// The self-tests of the hooks `pat` selects (as `on`/`off` do), each with the game paused;
 /// with `leftovers`, each also logs what it left changed in the game's writable sections.
+/// `selftest both <pattern>`: the tests with shadow on, then off, in one go (each pass
+/// headed and summed up in hook.log); shadow is left as it was.
+fn run_self_tests_both(pat: &str, leftovers: bool) {
+    let was = SHADOW_MODE.load(Ordering::Relaxed);
+    for on in [true, false] {
+        SHADOW_MODE.store(on, Ordering::Relaxed);
+        run_self_tests(pat, leftovers);
+    }
+    SHADOW_MODE.store(was, Ordering::Relaxed);
+    log(&format!(
+        "shadow = {} (as before)",
+        if was { "on" } else { "off" }
+    ));
+}
+
 fn run_self_tests(pat: &str, leftovers: bool) {
+    let shadow = if SHADOW_MODE.load(Ordering::Relaxed) {
+        "on"
+    } else {
+        "off"
+    };
+    log(&format!("==== selftest {pat}, shadow {shadow}"));
+    let (mut tests, mut failing) = (0, 0);
     for h in ALL.iter().filter(|h| registry::selects(pat, h.name())) {
         let _paused = framework::pause_game();
         let before = leftovers.then(leftovers::Snapshot::take);
@@ -104,17 +127,23 @@ fn run_self_tests(pat: &str, leftovers: bool) {
                     "SELFTEST FAIL {}: the test panicked: {why}",
                     h.name()
                 ));
+                failing += 1;
                 None
             }
         };
         framework::set_running_test(None);
         if let Some((cases, bad)) = result {
+            tests += 1;
+            failing += (bad > 0) as usize;
             log(&format!("{:<30} cases={cases} failures={bad}", h.name()));
         }
         if let Some(before) = &before {
             leftovers::report(h.name(), before);
         }
     }
+    log(&format!(
+        "==== selftest {pat}, shadow {shadow}: {tests} tests, {failing} failing"
+    ));
 }
 
 fn apply(pat: &str, on: bool, enabled: &mut [bool], out: &mut impl Write) {
@@ -142,7 +171,7 @@ fn apply(pat: &str, on: bool, enabled: &mut [bool], out: &mut impl Write) {
 
 fn console_loop(input: File, mut out: File, mut enabled: Vec<bool>) {
     log(
-        "commands: list | on <name|prefix|all> | off <name|prefix|all> | shadow on|off | trace on|off | blank on|off [prefix] | stats | reload | selftest [name|prefix [leftovers]] | fatal",
+        "commands: list | on <name|prefix|all> | off <name|prefix|all> | shadow on|off | trace on|off | blank on|off [prefix] | stats | reload | selftest [both] [name|prefix [leftovers]] | fatal",
     );
 
     for line in BufReader::new(input).lines().map_while(Result::ok) {
@@ -181,6 +210,8 @@ fn console_loop(input: File, mut out: File, mut enabled: Vec<bool>) {
             }
             ["selftest"] => run_self_tests("all", false),
             ["selftest", pat] => run_self_tests(pat, false),
+            ["selftest", "both", pat] => run_self_tests_both(pat, false),
+            ["selftest", "both", pat, "leftovers"] => run_self_tests_both(pat, true),
             ["selftest", pat, "leftovers"] => run_self_tests(pat, true),
             ["blank", v] => {
                 screens::set_blank(*v == "on", "");

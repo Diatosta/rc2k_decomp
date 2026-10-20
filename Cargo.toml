@@ -1,3 +1,7 @@
+# The game's logic, platform-free (Linux and Windows tests): `rc2k_core/`.
+[workspace]
+members = ["rc2k_core"]
+
 [package]
 name = "rc2k_hook"
 version = "0.1.0"
@@ -16,6 +20,7 @@ required-features = ["standalone"]
 standalone = ["dep:sdl3-sys", "dep:rayon"]
 
 [dependencies]
+rc2k_core = { path = "rc2k_core" }
 detour = "0.10.0"
 # Already built for `detour`: `RedirectedCopy` checks its copies with the decoder.
 iced-x86 = { version = "1.21", default-features = false, features = ["decoder", "std"] }

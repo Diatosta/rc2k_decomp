@@ -7,7 +7,6 @@
 //! The stage panel functions use it on minutes, for times of day ("13:00").
 
 use crate::framework::{EBX, RawHook, Regs, SelfTest, hook_asm, rva, shadow};
-use crate::strings::format_u32::format_u32;
 use crate::strings::utils::bytes_str;
 use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts;
@@ -29,10 +28,7 @@ hook_asm!(
 
 /// The quotient unpadded, the remainder as two digits.
 pub fn append_clock(value: u32) -> Vec<u8> {
-    let mut out = format_u32(value / 60, 0);
-    out.push(b':');
-    out.extend(format_u32(value % 60, 0x12));
-    out
+    rc2k_core::format::clock(value)
 }
 
 // ---- hook ----

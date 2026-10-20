@@ -28,23 +28,11 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// The 32 binary digits of `value`, MSB first.
-fn bits(value: u32) -> [u8; 32] {
-    let mut out = [0u8; 32];
-    for (i, b) in out.iter_mut().enumerate() {
-        *b = b'0' + ((value >> (31 - i)) & 1) as u8;
-    }
-    out
-}
-
 /// The low `digits` bits of `value` as '0' and '1', most significant first.
 pub fn bin_append(value: u32, digits: u32) -> Result<Vec<u8>, BadInput> {
-    if digits > 32 {
-        return Err(BadInput(
-            "more than 32 binary digits: the original reads below its stack buffer",
-        ));
-    }
-    Ok(bits(value)[32 - digits as usize..].to_vec())
+    rc2k_core::format::binary(value, digits).ok_or(BadInput(
+        "more than 32 binary digits: the original reads below its stack buffer",
+    ))
 }
 
 // ---- hook ----

@@ -8,7 +8,6 @@
 use crate::framework::{
     EBX, RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow,
 };
-use crate::strings::format_u32::format_u32;
 use crate::strings::utils::bytes_str;
 use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts;
@@ -36,26 +35,11 @@ pub fn show_hours() -> bool {
 
 // ---- Rust version ----
 
+/// An hour in hundredths (the self-test's cases).
 const HOUR: u32 = 360_000;
-const MINUTE: u32 = 6_000;
-const SECOND: u32 = 100;
-const TWO_DIGITS: u8 = 0x12; // format_u32: zero-padded, width 2
 
 pub fn append_time(hundredths: u32, show_hours: bool) -> Vec<u8> {
-    let mut out = Vec::new();
-    let mut rest = hundredths;
-    if show_hours || rest >= HOUR {
-        out.extend(format_u32(rest / HOUR, TWO_DIGITS));
-        out.push(b':');
-        rest %= HOUR;
-    }
-    out.extend(format_u32(rest / MINUTE, TWO_DIGITS));
-    out.push(b':');
-    rest %= MINUTE;
-    out.extend(format_u32(rest / SECOND, TWO_DIGITS));
-    out.push(b'.');
-    out.extend(format_u32(rest % SECOND, TWO_DIGITS));
-    out
+    rc2k_core::format::time(hundredths, show_hours)
 }
 
 // ---- hook ----

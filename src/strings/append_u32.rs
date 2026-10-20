@@ -5,7 +5,6 @@
 //! Out: ebx = new cursor; everything else preserved
 
 use crate::framework::{EBX, RawHook, Regs, SelfTest, hook_asm, rva, shadow};
-use crate::strings::format_u32::format_u32;
 use crate::strings::utils::bytes_str;
 use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts;
@@ -31,7 +30,7 @@ hook_asm!(
 // ---- Rust version ----
 
 pub fn append_u32(value: u32) -> Vec<u8> {
-    format_u32(value, 0)
+    rc2k_core::format::decimal(value, rc2k_core::format::Pad::None)
 }
 
 // ---- hook ----

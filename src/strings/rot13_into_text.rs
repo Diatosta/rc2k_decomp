@@ -31,11 +31,7 @@ hook_asm!(
 
 /// One byte coded.
 pub fn rot13(b: u8) -> u8 {
-    match b {
-        b'A'..=b'Z' => (b - b'A' + 13) % 26 + b'A',
-        b'a'..=b'z' => (b - b'a' + 13) % 26 + b'a',
-        _ => b,
-    }
+    rc2k_core::format::rot13(b)
 }
 
 /// The Rust version: the text buffer's address.

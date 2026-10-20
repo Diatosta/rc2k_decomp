@@ -12,10 +12,8 @@
 
 use crate::errors::BadInput;
 use crate::framework::{EBX, RawHook, Regs, SelfTest, hook_asm, rva, shadow};
-use crate::math::miles_to_km::{MAX_INPUT, miles_to_km};
-use crate::strings::append_string_by_id::append_string_by_id;
-use crate::strings::format_u32::format_u32;
-use crate::strings::units::{speed_label_id, units};
+use crate::math::miles_to_km::MAX_INPUT;
+use crate::strings::units::{figure_bytes, setting, units};
 use crate::strings::utils::bytes_str;
 use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts;
@@ -35,24 +33,16 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// `units` is the game's unit setting (0 = imperial). Refuses what `miles_to_km` refuses.
+/// `units` is the game's unit setting (0 = imperial). Refuses what `miles_to_km` refuses, and
+/// a setting past 1. Converted: `rc2k_core::units::speed`.
 pub fn append_speed(tenths: u32, with_label: bool, units: u32) -> Result<Vec<u8>, BadInput> {
-    let v = if units != 0 {
-        miles_to_km(tenths)?
-    } else {
-        tenths
-    };
-    let mut out = format_u32(v / 10, 0);
-    out.push(b'.');
-    out.extend(format_u32(v % 10, 0));
-    if with_label {
-        unsafe {
-            append_string_by_id(speed_label_id(units), &mut |p, n| {
-                out.extend_from_slice(from_raw_parts(p, n))
-            });
-        }
+    let mut figure = rc2k_core::units::speed(tenths, setting(units)?).ok_or(BadInput(
+        "result does not fit 32 bits: the original's div traps",
+    ))?;
+    if !with_label {
+        figure.label = None;
     }
-    Ok(out)
+    Ok(figure_bytes(figure))
 }
 
 /// Whether the original traps on this speed (metric, past `miles_to_km::MAX_INPUT`): tests

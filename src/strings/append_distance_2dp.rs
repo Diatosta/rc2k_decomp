@@ -8,9 +8,8 @@
 
 use crate::errors::BadInput;
 use crate::framework::{EBX, RawHook, Regs, SelfTest, hook_asm, rva, shadow};
-use crate::math::miles_to_km::{MAX_INPUT, miles_to_km};
-use crate::strings::format_u32::format_u32;
-use crate::strings::units::is_metric;
+use crate::math::miles_to_km::MAX_INPUT;
+use crate::strings::units::{Units, is_metric};
 use crate::strings::utils::bytes_str;
 use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts;
@@ -35,17 +34,16 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// Refuses what `miles_to_km` refuses.
+/// Refuses what `miles_to_km` refuses. Converted: `rc2k_core::units::distance_2dp`.
 pub fn append_distance_2dp(hundredths: u32, metric: bool) -> Result<Vec<u8>, BadInput> {
-    let v = if metric {
-        miles_to_km(hundredths)?
+    let units = if metric {
+        Units::Metric
     } else {
-        hundredths
+        Units::Imperial
     };
-    let mut out = format_u32(v / 100, 0);
-    out.push(b'.');
-    out.extend(format_u32(v % 100, 0x12));
-    Ok(out)
+    rc2k_core::units::distance_2dp(hundredths, units).ok_or(BadInput(
+        "result does not fit 32 bits: the original's div traps",
+    ))
 }
 
 // ---- hook ----

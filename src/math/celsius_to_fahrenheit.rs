@@ -25,10 +25,8 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// F = trunc(C * 9 / 5) + 32. i64 division truncates toward zero, like `idiv`.
-pub fn celsius_to_fahrenheit(celsius: i32) -> i32 {
-    (((celsius as i64) * 9 / 5) as i32).wrapping_add(32)
-}
+/// Converted: `rc2k_core::units`.
+pub use rc2k_core::units::celsius_to_fahrenheit;
 
 // ---- hook ----
 

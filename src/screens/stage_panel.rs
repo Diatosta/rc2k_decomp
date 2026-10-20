@@ -249,7 +249,7 @@ pub unsafe fn draw_stage_body_in(
 
         // Weather: temperature and wind, then the weather line.
         label(canvas, WEATHER_HEADING, heading_font, CENTRE_X, 0x156)?;
-        let (temperature, _) = append_temperature(dword(entry.wrapping_add(0x1C)) as i32);
+        let (temperature, _) = append_temperature(dword(entry.wrapping_add(0x1C)) as i32)?;
         value(canvas, temperature, LEFT_VALUE_X, 0x16F)?;
         label(canvas, TEMPERATURE_LABEL, LABEL_FONT, LEFT_LABEL_X, 0x16F)?;
         let wind = append_speed(dword(entry.wrapping_add(0x20)), true, units())?;

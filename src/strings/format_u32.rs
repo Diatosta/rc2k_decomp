@@ -25,35 +25,9 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// Mirrors the original's 16-byte stack buffer: 5 filler '0', 10 digits, NUL.
+/// Converted: `rc2k_core::format::decimal` (the flags byte as `Pad`).
 pub fn format_u32(value: u32, flags: u8) -> Vec<u8> {
-    let mut buf = [b'0'; 16];
-    buf[5..15].copy_from_slice(format!("{value:010}").as_bytes());
-    buf[15] = 0;
-
-    let width = (flags & 0x0F) as usize;
-    let mut start = 15 - width;
-    if flags & 0x10 != 0 {
-        // fixed width, zero padded: print the last `width` characters as they are
-    } else if flags & 0x20 != 0 {
-        let mut s = start;
-        while buf[s] == b'0' {
-            buf[s] = b' ';
-            s += 1;
-        }
-        if buf[s] == 0 {
-            buf[s - 1] = b'0'; // all zeros: keep a final '0'
-        }
-    } else {
-        start = 5;
-        while buf[start] == b'0' {
-            start += 1;
-        }
-        if buf[start] == 0 {
-            start -= 1; // all zeros: keep a single '0'
-        }
-    }
-    buf[start..15].to_vec()
+    rc2k_core::format::decimal(value, rc2k_core::format::Pad::from_flags(flags))
 }
 
 // ---- hook ----

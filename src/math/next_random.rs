@@ -12,7 +12,7 @@
 //! thread drawing a number in between would show as a mismatch that is none.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::framework::{EAX, RawHook, Regs, SelfTest, game_write, hook_asm, rva};
 use crate::screens::harness::Left;
 use crate::service::harness::{at, capture, check_state, dispatch_state, restore};
 use std::sync::atomic::AtomicUsize;
@@ -34,13 +34,19 @@ pub const STATE_RVA: usize = rva(0x4E0140);
 
 // ---- Rust version ----
 
-/// `sub_4018C8`.
+/// `sub_4018C8` (converted: `rc2k_core::random::step`).
 pub fn random_step(state: u32, mixed_in: u32) -> u32 {
-    let mut low = state as u8;
-    low ^= (state & 0x40_0000 != 0) as u8;
-    low ^= (low & 4 != 0) as u8;
-    low ^= (low & 2 != 0) as u8;
-    (state & !0xFF | low as u32).rotate_right(1) ^ mixed_in
+    rc2k_core::random::step(state, mixed_in)
+}
+
+/// The bridge (`src/bridge.rs`): the generator loaded from `dword_4E0140`, `f` run on it,
+/// its state stored back.
+pub fn with_random<R>(f: impl FnOnce(&mut rc2k_core::random::Random) -> R) -> R {
+    static STATE: crate::bridge::Global<u32> = crate::bridge::Global::at(0x4E_0140);
+    let mut random = rc2k_core::random::Random { state: STATE.get() };
+    let value = f(&mut random);
+    STATE.set(random.state);
+    value
 }
 
 /// The thread that owns the generator during a self-test that draws (0: none). Another
@@ -85,11 +91,7 @@ pub static DRAWS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::n
 pub unsafe fn next_random() -> u32 {
     wait_for_random();
     DRAWS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-    unsafe {
-        let next = random_step(game_read(STATE_RVA), 0);
-        game_write(STATE_RVA, next);
-        next
-    }
+    with_random(|r| r.draw())
 }
 
 // ---- hook ----

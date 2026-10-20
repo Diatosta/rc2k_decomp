@@ -6,7 +6,6 @@
 //! Three callers (the itinerary pages' times of day).
 
 use crate::framework::{EBX, RawHook, Regs, SelfTest, hook_asm, rva, shadow};
-use crate::strings::format_u32::format_u32;
 use crate::strings::utils::bytes_str;
 use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts;
@@ -33,14 +32,7 @@ hook_asm!(
 
 /// The quotient with a '0' before it below 10, the remainder as two digits.
 pub fn append_clock_padded(value: u32) -> Vec<u8> {
-    let mut out = Vec::new();
-    if ((value / 60) as i32) < 10 {
-        out.push(b'0');
-    }
-    out.extend(format_u32(value / 60, 0));
-    out.push(b':');
-    out.extend(format_u32(value % 60, 0x12));
-    out
+    rc2k_core::format::clock_padded(value)
 }
 
 // ---- hook ----

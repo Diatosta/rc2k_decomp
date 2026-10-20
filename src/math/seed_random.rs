@@ -8,8 +8,8 @@
 //! state. One caller, `start`, right after the time is taken.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::math::next_random::{STATE_RVA, TEST_STATES, random_step};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva};
+use crate::math::next_random::{STATE_RVA, TEST_STATES};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
 use std::sync::atomic::AtomicUsize;
@@ -36,13 +36,16 @@ const TIME_RVA: usize = rva(0x5183A4); // dword_5183A4
 
 pub unsafe fn seed_random() {
     crate::math::next_random::wait_for_random();
-    unsafe {
-        let seed = random_step(game_read(TIME_RVA), game_read(DATE_RVA));
-        if seed != 0 {
-            let turns = game_read::<u8>(WEEKDAY_RVA).wrapping_add(8) as u32;
-            game_write(STATE_RVA, seed.rotate_left(turns & 31));
-        }
-    }
+    use crate::bridge::Global;
+    static TIME: Global<u32> = Global::at(0x51_83A4);
+    static DATE: Global<u32> = Global::at(0x51_83A0);
+    static WEEKDAY: Global<u8> = Global::at(0x51_839F);
+    let clock = rc2k_core::random::StartClock {
+        time: TIME.get(),
+        date: DATE.get(),
+        weekday: WEEKDAY.get(),
+    };
+    crate::math::next_random::with_random(|r| r.seed(clock));
 }
 
 // ---- hook ----

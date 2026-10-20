@@ -8,8 +8,8 @@
 //! whatever esi was at the process's start, not the volume's number).
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::math::next_random::{STATE_RVA, TEST_STATES, random_step};
+use crate::framework::{RawHook, Regs, SelfTest, game_write, hook_asm, rva};
+use crate::math::next_random::{STATE_RVA, TEST_STATES};
 use crate::screens::harness::Left;
 use crate::service::harness::{at, capture, check_state, dispatch_state, restore};
 use std::sync::atomic::AtomicUsize;
@@ -30,12 +30,7 @@ hook_asm!(
 
 pub unsafe fn stir_random(number: u32) {
     crate::math::next_random::wait_for_random();
-    unsafe {
-        let stirred = random_step(number, game_read(STATE_RVA));
-        if stirred != 0 {
-            game_write(STATE_RVA, stirred);
-        }
-    }
+    crate::math::next_random::with_random(|r| r.stir(number));
 }
 
 // ---- hook ----

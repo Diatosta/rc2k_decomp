@@ -11,103 +11,42 @@
 //! Each formatter: eax = the figure, ebx = the cursor; ebx moved on; everything else
 //! preserved (`push`/`pop` around).
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{EBX, RawHook, Regs, SelfTest, game_write, rva};
-use crate::strings::append_string_by_id::push_string;
-use crate::strings::format_u32::format_u32;
-use crate::strings::units::units;
+use crate::strings::units::{Units, figure_bytes, units};
 use crate::strings::utils::bytes_str;
 
 pub const UNITS_RVA: usize = rva(0x51DE2C); // g_isImperialUnits
-/// `word_51EB8C`, `word_51EB90`, `word_51EB94`: a label for each setting.
-pub const POWER_LABELS: [u32; 2] = [0x557, 0x558];
-pub const TORQUE_LABELS: [u32; 2] = [0x55C, 0x55D];
-pub const WEIGHT_LABELS: [u32; 2] = [0x55F, 0x55E];
-const NOT_KNOWN: u32 = 0x578;
-const MM: u32 = 0x55A;
-
-/// (v * factor + 5000) / 10000, as the original's `mul` and `div`.
-pub fn convert(value: u32, factor: u32) -> u32 {
-    ((value as u64 * factor as u64 + 5000) / 10000) as u32
-}
 
 /// The setting, refused when it is neither of the two labels' places.
-fn setting() -> Result<u32, Refused> {
-    let units = units();
-    if units > 1 {
-        return Err(BadInput("a unit setting with no label").into());
-    }
-    Ok(units)
+fn setting() -> Result<Units, Refused> {
+    Ok(crate::strings::units::setting(units())?)
 }
 
-fn label(out: &mut Vec<u8>, id: u32) {
-    unsafe { push_string(out, id) };
-}
-
-/// `strings::append_power` (0x401CBA).
+/// `strings::append_power` (0x401CBA). Converted: `rc2k_core::units::power`.
 pub fn append_power(value: u32) -> Result<Vec<u8>, Refused> {
-    let units = setting()?;
-    let value = if units != 0 {
-        convert(value, 7460)
-    } else {
-        value
-    };
-    let mut out = format_u32(value / 10, 0);
-    label(&mut out, POWER_LABELS[units as usize]);
-    Ok(out)
+    Ok(figure_bytes(rc2k_core::units::power(value, setting()?)))
 }
 
-/// `strings::append_length` (0x401C42).
+/// `strings::append_length` (0x401C42). Converted: `rc2k_core::units::length`; the
+/// not-known figure needs no setting.
 pub fn append_length(value: u32) -> Result<Vec<u8>, Refused> {
-    let mut out = Vec::new();
-    if (value >> 8) & 0xFF == 0xFF {
-        label(&mut out, NOT_KNOWN);
-        return Ok(out);
-    }
-    if setting()? != 0 {
-        let value = convert(value, 9144);
-        out.extend(format_u32(value / 10, 0));
-        out.push(b'.');
-        out.extend(format_u32(value % 10, 0));
-        label(&mut out, MM);
+    let units = if (value >> 8) & 0xFF == 0xFF {
+        Units::Imperial
     } else {
-        let hundredths = (value as u64 * 36 / 100) as u32;
-        out.extend(format_u32(hundredths / 100, 0));
-        out.push(b'.');
-        out.extend(format_u32(hundredths % 100, 0x12));
-        out.push(b'"');
-    }
-    Ok(out)
+        setting()?
+    };
+    Ok(figure_bytes(rc2k_core::units::length(value, units)))
 }
 
-/// `strings::append_weight` (0x401CF1).
+/// `strings::append_weight` (0x401CF1). Converted: `rc2k_core::units::weight`.
 pub fn append_weight(value: u32) -> Result<Vec<u8>, Refused> {
-    let units = setting()?;
-    let value = if units != 0 {
-        convert(value, 4536)
-    } else {
-        value
-    };
-    let mut out = format_u32(value / 10, 0);
-    label(&mut out, WEIGHT_LABELS[units as usize]);
-    Ok(out)
+    Ok(figure_bytes(rc2k_core::units::weight(value, setting()?)))
 }
 
-/// `strings::append_torque` (0x401D28).
+/// `strings::append_torque` (0x401D28). Converted: `rc2k_core::units::torque`.
 pub fn append_torque(value: u32) -> Result<Vec<u8>, Refused> {
-    let units = setting()?;
-    let value = if units != 0 {
-        convert(value, 1383)
-    } else {
-        value
-    };
-    let mut out = format_u32(value / 10, 0);
-    if units != 0 {
-        out.push(b'.');
-        out.extend(format_u32(value % 10, 0));
-    }
-    label(&mut out, TORQUE_LABELS[units as usize]);
-    Ok(out)
+    Ok(figure_bytes(rc2k_core::units::torque(value, setting()?)))
 }
 
 /// A formatter's `dispatch`: written at the cursor, the cursor moved on.

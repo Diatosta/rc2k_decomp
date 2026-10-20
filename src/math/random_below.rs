@@ -8,7 +8,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{EAX, RawHook, Regs, SelfTest, game_write, hook_asm, rva};
-use crate::math::next_random::{STATE_RVA, TEST_STATES, next_random};
+use crate::math::next_random::{STATE_RVA, TEST_STATES};
 use crate::screens::harness::Left;
 use crate::service::harness::{at, capture, check_state, dispatch_state, restore};
 use std::sync::atomic::AtomicUsize;
@@ -36,7 +36,10 @@ pub unsafe fn random_below(limit: u32) -> Result<u32, BadInput> {
             "a random number under 0: the original divides by it",
         ));
     }
-    Ok(unsafe { next_random() } % limit)
+    crate::math::next_random::wait_for_random();
+    crate::math::next_random::DRAWS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    crate::math::next_random::with_random(|r| r.below(limit))
+        .ok_or(BadInput("unreachable: the limit is not 0"))
 }
 
 // ---- hook ----
