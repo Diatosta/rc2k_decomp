@@ -12,12 +12,12 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, rva};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, length_80, with_control_word};
+use crate::math::x87_run::length_80;
 use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::test_floats;
 use crate::scene::vector3::*;
 use crate::screens::harness::Left;
-use crate::service::harness::{check_state, dispatch_state};
+use crate::service::floats::*;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -40,13 +40,30 @@ pub unsafe fn vector_length(v: u32) -> [u8; 10] {
     unsafe { length_80(v as *const u32) }
 }
 
+/// The converted version (`rc2k_core::vector`, plain floats): the hook's.
+pub unsafe fn vector_length_plain(v: u32) -> [u8; 10] {
+    let length = rc2k_core::vector::length(unsafe { read_floats(v) });
+    rc2k_core::extended::from_f64(length)
+}
+
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    RESULT.set(unsafe { vector_length(r.esi) });
+    RESULT.set(unsafe { vector_length_plain(r.esi) });
     Ok(left_of(r))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, original_keeping_result, &[RESULT.region()], &rust);
+    let floats = Floats {
+        memory: &[(RESULT.region(), EXTENDED)],
+        regs: &[],
+    };
+    dispatch_state_floats(
+        &HOOK,
+        r,
+        original_keeping_result,
+        &[RESULT.region()],
+        &floats,
+        &rust,
+    );
 }
 
 fn self_test() -> (usize, usize) {
@@ -55,28 +72,32 @@ fn self_test() -> (usize, usize) {
     };
     let mut v = [0u32; 3];
     let p = v.as_mut_ptr() as u32;
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 1..=12u32 {
-                check_state(
-                    &mut t,
-                    &format!("control word {word:#x}, seed {seed}"),
-                    original_keeping_result,
-                    Regs {
-                        esi: p,
-                        ..Regs::SENTINEL
-                    },
-                    &|| {
-                        let mut x = [0u32; 3];
-                        test_floats(seed, &mut x);
-                        unsafe { (p as *mut [u32; 3]).write(x) };
-                        RESULT.set([0xAA; 10]);
-                    },
-                    &[RESULT.region(), (p, 12)],
-                    &rust,
-                );
-            }
-        });
-    }
+    let tolerant = Floats {
+        memory: &[(RESULT.region(), EXTENDED)],
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, floats| {
+        for seed in 1..=12u32 {
+            check_state_floats(
+                &mut t,
+                "physics::vector_length",
+                &format!("control word {word:#x}, seed {seed}"),
+                original_keeping_result,
+                Regs {
+                    esi: p,
+                    ..Regs::SENTINEL
+                },
+                &|| {
+                    let mut x = [0u32; 3];
+                    test_floats(seed, &mut x);
+                    unsafe { (p as *mut [u32; 3]).write(x) };
+                    RESULT.set([0xAA; 10]);
+                },
+                &[RESULT.region(), (p, 12)],
+                floats,
+                &rust,
+            );
+        }
+    });
     t.finish()
 }

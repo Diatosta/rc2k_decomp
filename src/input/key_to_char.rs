@@ -49,11 +49,7 @@ pub const ALT_GR_RVA: usize = rva(0x4F6B40); // byte_4F6B40
 const SILENT_KEYS_RVA: usize = rva(0x4F7FF0); // dword_4F7FF0: one bit per key
 const COMPOSE_RVA: usize = rva(0x4F8000); // unk_4F8000
 
-const LIST_LIMIT: usize = 256;
-
-unsafe fn byte(addr: u32) -> u8 {
-    unsafe { (addr as *const u8).read() }
-}
+use crate::bridge::Raw;
 
 unsafe fn dword(addr: u32) -> u32 {
     unsafe { (addr as *const u32).read_unaligned() }
@@ -77,114 +73,58 @@ pub fn regions() -> [Region; 2] {
 
 /// eax as the original leaves it; the character is its low byte.
 pub unsafe fn key_to_char(eax: u32) -> Result<u32, BadInput> {
+    use rc2k_core::keyboard::{self, Layout, Switch};
     let key = eax as u8;
     if key & 0x80 != 0 {
         return Ok(eax & !0xFF);
     }
+    // Converted: `rc2k_core::keyboard`; here the layout block's pointers as tables, and
+    // the switch and the pending key stored.
     unsafe {
-        let mut layout: u32 = game_read(LAYOUT_RVA);
-        let mut switched = false;
-        if game_read::<u8>(LAYOUT_MODE_RVA) == 2 && (down(ALT_RVA) || down(ALT_GR_RVA)) {
-            if down(LEFT_SHIFT_RVA) {
-                (layout, switched) = (game_addr(LAYOUT_A_RVA) as u32, true);
-            } else if down(RIGHT_SHIFT_RVA) {
-                (layout, switched) = (game_addr(LAYOUT_B_RVA) as u32, true);
-            }
-        }
+        let switched = keyboard::switch(
+            game_read(LAYOUT_MODE_RVA),
+            down(ALT_RVA),
+            down(ALT_GR_RVA),
+            down(LEFT_SHIFT_RVA),
+            down(RIGHT_SHIFT_RVA),
+        );
+        let layout: u32 = match switched {
+            Some(Switch::First) => game_addr(LAYOUT_A_RVA) as u32,
+            Some(Switch::Second) => game_addr(LAYOUT_B_RVA) as u32,
+            None => game_read(LAYOUT_RVA),
+        };
         if layout == 0 {
             return Err(BadInput("no keyboard layout"));
         }
-        let shift = down(LEFT_SHIFT_RVA) || down(RIGHT_SHIFT_RVA);
-        let plain_table = dword(layout + 4);
-        let pending: u8 = game_read(DEAD_KEY_RVA);
-
-        // Is this key a dead key?
-        let mut dead = 0u8;
-        let list = dword(layout);
-        if list != 0 {
-            let mut entry = list;
-            let mut ended = false;
-            for _ in 0..LIST_LIMIT {
-                if byte(entry) == key {
-                    dead = byte(entry + if shift { 2 } else { 1 });
-                    ended = true;
-                    break;
-                }
-                entry += 3;
-                if byte(entry) == 0 {
-                    ended = true;
-                    break;
-                }
-            }
-            if !ended {
-                return Err(BadInput("dead key list without an end"));
-            }
-        }
-        let silent = dead == 0 && {
-            let bits = (game_addr(SILENT_KEYS_RVA) as *const u8)
-                .add(key as usize / 8)
-                .read();
-            bits & (1 << (key % 8)) != 0
+        let table = |at: u32| {
+            let p = dword(layout + at);
+            (p != 0).then(|| Raw::new(p as *const u8))
         };
-        // The last thing that can be refused, checked before anything is written.
-        let composing = dead == 0 && !silent && pending != 0;
-        let mut composed = None;
-        if composing {
-            if plain_table == 0 {
-                return Err(BadInput(
-                    "a dead key is pending and there is no plain table",
-                ));
-            }
-            let base = byte(plain_table + key as u32);
-            let mut entry = game_addr(COMPOSE_RVA) as u32;
-            let mut ended = false;
-            for _ in 0..LIST_LIMIT {
-                if byte(entry) == pending && byte(entry + 1) == base {
-                    composed = Some(byte(entry + if shift { 3 } else { 2 }));
-                    ended = true;
-                    break;
-                }
-                entry += 4;
-                if byte(entry) == 0 {
-                    ended = true;
-                    break;
-                }
-            }
-            if !ended {
-                return Err(BadInput("compose list without an end"));
-            }
+        let tables = [table(0), table(4), table(8), table(0xC)];
+        fn as_bytes(t: &Option<Raw>) -> Option<&dyn rc2k_core::bytes::Bytes> {
+            t.as_ref().map(|t| t as &dyn rc2k_core::bytes::Bytes)
         }
-
-        if switched {
+        let typed = keyboard::key_to_char(
+            key,
+            &Layout {
+                dead_keys: as_bytes(&tables[0]),
+                plain: as_bytes(&tables[1]),
+                shifted: as_bytes(&tables[2]),
+                alt_gr: as_bytes(&tables[3]),
+            },
+            &Raw::new(game_addr(COMPOSE_RVA) as *const u8),
+            &Raw::new(game_addr(SILENT_KEYS_RVA) as *const u8),
+            down(LEFT_SHIFT_RVA) || down(RIGHT_SHIFT_RVA),
+            down(ALT_GR_RVA),
+            game_read(DEAD_KEY_RVA),
+        )?;
+        if switched.is_some() {
             game_write(LAYOUT_RVA, layout);
         }
-        if dead != 0 {
-            game_write(DEAD_KEY_RVA, dead);
-            return Ok((dead as u32) << 8);
+        if let Some(pending) = typed.pending {
+            game_write(DEAD_KEY_RVA, pending);
         }
-        if silent {
-            return Ok(0);
-        }
-        let mut high = 0u32;
-        if composing {
-            game_write(DEAD_KEY_RVA, 0u8);
-            high = (pending as u32) << 8;
-            if let Some(c) = composed {
-                return Ok(high | c as u32);
-            }
-        }
-        let mut table = if shift {
-            dword(layout + 8)
-        } else {
-            plain_table
-        };
-        if down(ALT_GR_RVA) {
-            table = dword(layout + 0xC);
-        }
-        if table == 0 {
-            return Ok(high);
-        }
-        Ok(high | byte(table + key as u32) as u32)
+        Ok(typed.eax)
     }
 }
 
@@ -251,8 +191,8 @@ fn self_test() -> (usize, usize) {
     // Dead keys to leave pending: the first few different ones of the compose list.
     let mut pendings = vec![0u8];
     let mut entry = game_addr(COMPOSE_RVA) as u32;
-    for _ in 0..LIST_LIMIT {
-        let dead = unsafe { byte(entry) };
+    for _ in 0..256 {
+        let dead = unsafe { (entry as *const u8).read() };
         if dead == 0 || pendings.len() >= 4 {
             break;
         }

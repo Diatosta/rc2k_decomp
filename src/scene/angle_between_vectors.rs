@@ -15,7 +15,8 @@ use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::test_floats;
 use crate::scene::vector3::*;
 use crate::screens::harness::Left;
-use crate::service::harness::{at, capture, check_state, dispatch_state, restore};
+use crate::service::floats::*;
+use crate::service::harness::{at, capture, restore};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -39,13 +40,23 @@ result_hook!(
 );
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    RESULT.set(unsafe { angle_between_vectors(r.esi, r.edi) });
+    RESULT.set(unsafe { angle_between_vectors_plain(r.esi, r.edi) });
     Ok(left_of(r))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let regions = [RESULT.region(), (r.esi, 12), (r.edi, 12), at(STATUS_RVA)];
-    dispatch_state(&HOOK, r, original_keeping_result, &regions, &rust);
+    let memory = [
+        (regions[0], ANGLE),
+        (regions[1], FLOAT),
+        (regions[2], FLOAT),
+        (regions[3], ANY),
+    ];
+    let floats = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, original_keeping_result, &regions, &floats, &rust);
 }
 
 fn self_test() -> (usize, usize) {
@@ -56,36 +67,44 @@ fn self_test() -> (usize, usize) {
     let saved = capture(&status);
     let mut v = [0u32; 6];
     let p = v.as_mut_ptr() as u32;
-    for seed in 0..14u32 {
-        check_state(
-            &mut t,
-            &format!("seed {seed}"),
-            original_keeping_result,
-            Regs {
-                esi: p,
-                edi: p + 12,
-                ..Regs::SENTINEL
-            },
-            &|| {
-                let mut x = [0u32; 6];
-                test_floats(seed + 1, &mut x);
-                match seed {
-                    0 => x.copy_within(0..3, 3),
-                    1 => {
-                        for n in 0..3 {
-                            x[3 + n] = x[n] ^ 0x8000_0000;
+    let tolerant = Floats {
+        memory: &[(RESULT.region(), ANGLE), ((p, 24), FLOAT), (status[0], ANY)],
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, floats| {
+        for seed in 0..14u32 {
+            check_state_floats(
+                &mut t,
+                "scene::angle_between_vectors",
+                &format!("control word {word:#x}, seed {seed}"),
+                original_keeping_result,
+                Regs {
+                    esi: p,
+                    edi: p + 12,
+                    ..Regs::SENTINEL
+                },
+                &|| {
+                    let mut x = [0u32; 6];
+                    test_floats(seed + 1, &mut x);
+                    match seed {
+                        0 => x.copy_within(0..3, 3),
+                        1 => {
+                            for n in 0..3 {
+                                x[3 + n] = x[n] ^ 0x8000_0000;
+                            }
                         }
+                        2 => x[3..].fill(0),
+                        _ => {}
                     }
-                    2 => x[3..].fill(0),
-                    _ => {}
-                }
-                unsafe { (p as *mut [u32; 6]).write(x) };
-                RESULT.set([0xAA; 10]);
-            },
-            &[RESULT.region(), (p, 24), status[0]],
-            &rust,
-        );
-    }
+                    unsafe { (p as *mut [u32; 6]).write(x) };
+                    RESULT.set([0xAA; 10]);
+                },
+                &[RESULT.region(), (p, 24), status[0]],
+                floats,
+                &rust,
+            );
+        }
+    });
     restore(&status, &saved);
     t.finish()
 }

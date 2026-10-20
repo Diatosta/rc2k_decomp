@@ -19,16 +19,13 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{GameHook, RawHook, Regs, SelfTest, game_read, hook_asm, rva, shadow};
-use crate::gfx::blit_glyph::{BlitCall, record_calls, recording_works};
-use crate::gfx::blit_marker_pair::sprite_table;
-use crate::screens::{blanked, font_at, font_is_loaded, line_buffer, set_line};
-use crate::strings::append_speed::append_speed;
-use crate::strings::append_string_by_id::push_string;
-use crate::strings::append_time::{append_time, show_hours};
+use crate::gfx::blit_glyph::{record_calls, recording_works};
+use crate::screens::stage_panel::PanelScreen;
+use crate::screens::{blanked, font_is_loaded, line_buffer, set_line};
+use crate::strings::append_time::show_hours;
 use crate::strings::string_table::{blob, is_table_id};
 use crate::strings::units::units;
-use crate::text::draw_text::{Canvas, GameCanvas, RecordingCanvas, draw_text_at};
-use crate::text::draw_time_fixed_pitch::draw_time_fixed_pitch_at;
+use crate::text::draw_text::{Canvas, GameCanvas, RecordingCanvas};
 use crate::text::glyph_kerning::state_ptr;
 use std::slice::from_raw_parts;
 use std::sync::atomic::AtomicUsize;
@@ -64,12 +61,6 @@ const RECORD_SIZE: u32 = 0xA4;
 
 const ROW_1_Y: i32 = 0x1FC;
 const ROW_2_Y: i32 = 0x213;
-const LABEL_X: i32 = 0x188;
-const FLAG_X: i32 = 0x18A;
-const NAME_X: i32 = 0x1A6;
-const CAR_X: i32 = 0x266;
-const TIME_X: i32 = 0x314;
-const SPEED_X: i32 = 0x2A8;
 
 unsafe fn dword(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
@@ -122,28 +113,6 @@ pub fn has_selected_record() -> bool {
 
 // ---- Rust version ----
 
-/// The car sprite for a car number: the number + 0x44, with numbers 0x18 and 0x19 swapped.
-fn car_sprite(number: u32) -> u32 {
-    (if (0x18..=0x19).contains(&number) {
-        number ^ 1
-    } else {
-        number
-    })
-    .wrapping_add(0x44)
-}
-
-/// "<string id>:  <string 0>" with its NUL.
-unsafe fn label(id: u32) -> Vec<u8> {
-    let mut out = Vec::new();
-    unsafe {
-        push_string(&mut out, id);
-        out.extend_from_slice(b":  ");
-        push_string(&mut out, 0);
-    }
-    out.push(0);
-    out
-}
-
 /// Where the top-speed row's values are in the selected record, and the y its car's sprite
 /// is drawn at: the stage panels' (`draw_stage_records`) and the time trial's
 /// (`screens::draw_time_trial_records` 0x48DE45, whose car sprite sits on the first row's
@@ -178,12 +147,14 @@ pub unsafe fn draw_stage_records(entry: u32, canvas: &mut dyn Canvas) -> Result<
     unsafe { draw_records_rows(entry, &STAGE_ROWS, canvas) }
 }
 
-/// `draw_stage_records` with the top-speed row's places given.
+/// `draw_stage_records` with the top-speed row's places given. Converted:
+/// `rc2k_core::stage_panel::records`.
 pub unsafe fn draw_records_rows(
     entry: u32,
     rows: &Rows,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
+    use rc2k_core::stage_panel::{CarRow, Holder};
     unsafe {
         // Without it the original reads through a null pointer after drawing the first row.
         let Some((record, sub)) = selected_record() else {
@@ -191,43 +162,34 @@ pub unsafe fn draw_records_rows(
                 BadInput("no record table is selected: the original reads through null").into(),
             );
         };
-        let sprites = sprite_table();
-        let sprite = |canvas: &mut dyn Canvas, glyph: u32, x: i32, y: i32, palette: u32| {
-            canvas.blit_glyph(BlitCall::new(glyph, x, y, palette, sprites))
+        let at = |base: u32, o: u32| dword(base.wrapping_add(o));
+        let best = Holder {
+            nation: at(entry, 8),
+            name: entry.wrapping_add(0x20),
+            car: at(entry, 0x10),
+            figure: at(entry, 0x14),
         };
-        let label_font = font_at(LABEL_FONT);
-        let text_font = font_at(TEXT_FONT);
-
-        // Both labels.
-        set_line(&label(0x34B));
-        draw_text_at(label_font, line_buffer(), LABEL_X, ROW_1_Y, canvas)?;
-        set_line(&label(0x34C));
-        let out = draw_text_at(label_font, line_buffer(), LABEL_X, ROW_2_Y, canvas)?;
-
-        // Best time. ebx still holds what draw_text returned when each sprite is drawn.
-        let flag = 0x1Cu32.wrapping_add(dword(entry.wrapping_add(8)));
-        sprite(canvas, flag, FLAG_X, ROW_1_Y, out.text as u32)?;
-        let name = entry.wrapping_add(0x20) as *const u8;
-        let out = draw_text_at(text_font, name, NAME_X, ROW_1_Y, canvas)?;
-        let car = car_sprite(dword(entry.wrapping_add(0x10)));
-        sprite(canvas, car, CAR_X, ROW_1_Y, out.text as u32)?;
-        let mut time = append_time(dword(entry.wrapping_add(0x14)), show_hours());
-        time.push(0);
-        set_line(&time);
-        draw_time_fixed_pitch_at(font_at(TIME_FONT), line_buffer(), TIME_X, ROW_1_Y, canvas)?;
-
-        // Top speed: the selected record. Here ebx is the selection's third value.
-        let flag = 0x1Cu32.wrapping_add(dword(record.wrapping_add(rows.nationality)));
-        sprite(canvas, flag, FLAG_X, ROW_2_Y, sub)?;
-        let name = record.wrapping_add(rows.name) as *const u8;
-        let out = draw_text_at(text_font, name, NAME_X, ROW_2_Y, canvas)?;
-        let car = car_sprite(dword(record.wrapping_add(rows.car)));
-        sprite(canvas, car, CAR_X, rows.car_y, out.text as u32)?;
-        let mut speed = append_speed(dword(record.wrapping_add(rows.speed)), true, units())?;
-        speed.push(0);
-        set_line(&speed);
-        let out = draw_text_at(text_font, line_buffer(), SPEED_X, ROW_2_Y, canvas)?;
-        Ok(out.too_wide)
+        let top = Holder {
+            nation: at(record, rows.nationality),
+            name: record.wrapping_add(rows.name),
+            car: at(record, rows.car),
+            figure: at(record, rows.speed),
+        };
+        let car_row = if rows.car_y == ROW_1_Y {
+            CarRow::First
+        } else {
+            CarRow::Second
+        };
+        // The top speed's flag takes the selection's third value as its palette (ebx).
+        rc2k_core::stage_panel::records(
+            &mut PanelScreen::new(canvas),
+            best,
+            top,
+            sub,
+            car_row,
+            show_hours(),
+            units(),
+        )
     }
 }
 

@@ -149,9 +149,60 @@ pub fn number(text: &(impl Bytes + ?Sized), place: usize) -> Result<u32, Invalid
     Ok(if negative { n.wrapping_neg() } else { n })
 }
 
+/// The game's settings table (0x518C09: for each a key, its NUL, then a dword naming its
+/// variable), read up to the empty key; `limit` the bytes it may take (refused past it).
+/// The dword is the caller's to interpret.
+pub fn table(bytes: &(impl Bytes + ?Sized), limit: usize) -> Result<Vec<(Vec<u8>, u32)>, Invalid> {
+    const END: Invalid = Invalid("the settings table has no end");
+    let mut entries = Vec::new();
+    let mut at = 0usize;
+    while bytes.byte(at).ok_or(END)? != 0 {
+        let mut key = Vec::new();
+        while let byte @ 1.. = bytes.byte(at).ok_or(END)? {
+            key.push(byte);
+            at += 1;
+        }
+        entries.push((key, bytes.u32_le(at + 1).ok_or(END)?));
+        at += 5;
+        if at > limit {
+            return Err(END);
+        }
+    }
+    Ok(entries)
+}
+
+/// What a settings text sets (`settings::apply_settings`, `sub_4114FF`): for each key it
+/// has, in the table's order, the key's index and the number of its value (0 for a value
+/// that is no number). A key the text lacks sets nothing; of two keys with one variable
+/// the later one wins, as the caller stores in order.
+pub fn apply(
+    text: &(impl Bytes + ?Sized),
+    keys: &[&[u8]],
+    case: &CaseTable,
+) -> Result<Vec<(usize, u32)>, Invalid> {
+    let mut found = Vec::new();
+    for (n, key) in keys.iter().enumerate() {
+        if let Some(place) = find_key(text, key, case)? {
+            found.push((n, number(text, place)?));
+        }
+    }
+    Ok(found)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tables_and_applying() {
+        let raw = b"one\0\x01\0\0\0two\0\x02\0\0\0\0";
+        let t = table(&raw[..], raw.len()).unwrap();
+        assert_eq!(t, [(b"one".to_vec(), 1), (b"two".to_vec(), 2)]);
+        assert!(table(&raw[..], 4).is_err());
+        let keys: Vec<&[u8]> = t.iter().map(|(k, _)| k.as_slice()).collect();
+        let found = apply(b"two\t5\r\n\0", &keys, &CaseTable::ascii()).unwrap();
+        assert_eq!(found, [(1, 5)]);
+    }
 
     const TEXT: &[u8] = b"; ral.cfg\r\n  LogFile=10\r\nscreen 800\r\nempty\r\nname000 \"A B\"\tx\r\nhex=$1F\r\nneg = -0x10\r\nlast\0";
 

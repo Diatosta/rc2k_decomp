@@ -110,6 +110,7 @@ pub mod draw_two_column_panel;
 pub mod draw_visual_preferences;
 pub mod draw_volume_settings;
 pub mod find_history_entry;
+pub mod game_screen;
 pub mod gearing_text;
 pub mod harness;
 pub mod itinerary;

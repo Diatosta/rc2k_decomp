@@ -24,14 +24,9 @@ use crate::service::state::{
 };
 use crate::text::draw_text::Canvas;
 
-pub const LEFT_X: i32 = 0x81;
-pub const RIGHT_X: i32 = 0x1D0;
-pub const UPPER_Y: i32 = 0x199;
-pub const LOWER_Y: i32 = 0x1D1;
-const BAR_WIDTH: i32 = 0xCC;
-
-pub const MARKER_GLYPH: u32 = 0x76;
-pub const SECOND_MARKER_GLYPH: u32 = 0x77;
+pub use rc2k_core::setup_markers::{
+    BAR_WIDTH, LEFT_X, LOWER_Y, MARKER_GLYPH, RIGHT_X, SECOND_MARKER_GLYPH, UPPER_Y,
+};
 
 pub const LOWER_LEFT_CHOSEN_RVA: usize = rva(0x75ACA8); // dword_75ACA8
 pub const LOWER_LEFT_INSTALLED_RVA: usize = rva(0x75ACAC); // dword_75ACAC
@@ -78,11 +73,6 @@ unsafe fn place(
     Ok(left.with(EAX, percent as u32))
 }
 
-/// True if the marker of `item` is in the hidden half of its blink.
-fn blinked_out(item: u32) -> bool {
-    edit_mode() && menu_item() == item && !blink_on()
-}
-
 /// `r` holds the registers at entry: ebx goes to the blitter as the palette when the
 /// percentage is 0 or less, and edi is the player for the upper bars.
 pub unsafe fn draw_marker(
@@ -90,59 +80,53 @@ pub unsafe fn draw_marker(
     r: &Regs,
     canvas: &mut dyn Canvas,
 ) -> Result<Left, Refused> {
-    unsafe {
+    // Converted: `rc2k_core::setup_markers::plan`; here the values read and the bar drawn.
+    use rc2k_core::setup_markers::{Marker as M, Menu, Plan};
+    let menu = Menu {
+        edit_mode: edit_mode(),
+        item: menu_item(),
+        blink_on: blink_on(),
+    };
+    let read = |rva: usize| -> Result<i32, Refused> { Ok(unsafe { game_read(rva) }) };
+    let (core, item): (M, u32) = match marker {
+        Marker::Always { x, .. } => (M::Always { x }, 0),
+        Marker::Lower { item, x, .. } => (M::Lower { item, x }, item),
+        Marker::Upper { item, x, .. } => (M::Upper { item, x }, item),
+    };
+    let percent = || -> Result<i32, Refused> {
         match marker {
-            Marker::Always { x, percent_rva } => place(
-                canvas,
-                r.ebx,
-                (x, LOWER_Y, SECOND_MARKER_GLYPH),
-                game_read(percent_rva),
-                Left::nothing(),
-            ),
-            Marker::Lower {
-                item,
-                x,
-                chosen_rva,
-                installed_rva,
-            } => {
-                let chosen: i32 = game_read(chosen_rva);
-                let mut left = Left::nothing();
-                if edit_mode() && menu_item() == item {
-                    if !blink_on() {
-                        return Ok(left.with(EAX, item));
-                    }
-                } else if game_read::<i32>(installed_rva) == chosen {
-                    // The flag's address stays in esi whether the marker is drawn or not.
-                    left = left.with(ESI, repair_flag_addr(item));
-                    if repair_flag(item) != 1 {
-                        return Ok(left.with(EAX, item));
-                    }
-                }
-                place(canvas, r.ebx, (x, LOWER_Y, MARKER_GLYPH), chosen, left)
-            }
-            Marker::Upper {
-                item,
-                x,
-                car_offset,
-            } => {
-                if blinked_out(item) {
-                    return Ok(Left::nothing().with(EAX, item));
-                }
+            Marker::Always { percent_rva, .. } => read(percent_rva),
+            Marker::Lower { chosen_rva, .. } => read(chosen_rva),
+            Marker::Upper { car_offset, .. } => {
                 if r.edi == 0 {
                     return Err(
                         BadInput("no player in edi: the original reads through null").into(),
                     );
                 }
-                let percent = (r.edi.wrapping_add(car_offset) as *const i32).read_unaligned();
-                place(
-                    canvas,
-                    r.ebx,
-                    (x, UPPER_Y, MARKER_GLYPH),
-                    percent,
-                    Left::nothing(),
-                )
+                Ok(unsafe { (r.edi.wrapping_add(car_offset) as *const i32).read_unaligned() })
             }
         }
+    };
+    let installed = || match marker {
+        Marker::Lower { installed_rva, .. } => unsafe { game_read::<i32>(installed_rva) },
+        _ => 0,
+    };
+    let (plan, looked) =
+        rc2k_core::setup_markers::plan(core, menu, &percent, &installed, &|| repair_flag(item))?;
+    // The flag's address stays in esi whether the marker is drawn or not.
+    let left = if looked {
+        Left::nothing().with(ESI, repair_flag_addr(item))
+    } else {
+        Left::nothing()
+    };
+    match plan {
+        Plan::Hidden { item } => Ok(left.with(EAX, item)),
+        Plan::Draw {
+            x,
+            y,
+            glyph,
+            percent,
+        } => unsafe { place(canvas, r.ebx, (x, y, glyph), percent, left) },
     }
 }
 

@@ -35,7 +35,7 @@
 //! The screens and the race are called at the game's addresses (their hooks choose); the
 //! small steps are their Rust versions. Refuses (before anything) a missing player 0.
 //! Ungated thunk; shadow mode runs the original alone. Manual patch with a private copy
-//! (a call at the second byte; its 25 calls relocated). Self-test: a copy whose calls go
+//! (a call at the second byte; its 26 calls relocated). Self-test: a copy whose calls go
 //! to stand-ins that answer by scripts (the screens' choices, the race's result), against
 //! the Rust version on the same answers.
 
@@ -65,11 +65,14 @@ hook_asm!(
 );
 
 const LEN: usize = 0x329;
-const CALLS: [usize; 25] = [
+// The call sites (26: `secret_car_list` is called from two). 0x323, the call of
+// `show_in_game_options` after the `popa`, was missing until 2026-10-20: the private copy
+// called 0x027C7DB7 when shadow mode left the arcade ("Branch to Alpha Centauri").
+const CALLS: [usize; 26] = [
     0x1, 0x28, 0x8D, 0x92, 0xAB, 0xB0, 0xBF, 0xD1, 0x10D, 0x117, 0x159, 0x16B, 0x197, 0x1A5, 0x1B3,
-    0x1B8, 0x1BD, 0x1E2, 0x1F0, 0x1F5, 0x1FA, 0x20C, 0x227, 0x282, 0x2E8,
+    0x1B8, 0x1BD, 0x1E2, 0x1F0, 0x1F5, 0x1FA, 0x20C, 0x227, 0x282, 0x2E8, 0x323,
 ];
-/// The callees by place.
+/// The callees, each once (the parts' numbers).
 pub const CALLEES: [usize; 25] = [
     0x4A9679, // 0 menu::clear_players_284
     0x46FC52, // 1 menu::reset_cars_750724

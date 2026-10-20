@@ -65,20 +65,9 @@ unsafe fn write_stream_block(stream: *mut Stream, bytes: &[u8]) -> bool {
     unsafe { crate::files::write_stream_block::write_stream_all(stream, bytes) }
 }
 
-/// The header's first 0x80 bytes for a surface `width` x `height`.
-pub fn header(width: u32, height: u32) -> [u8; 0x80] {
-    let mut h = [0u8; 0x80];
-    h[..4].copy_from_slice(&0x0801_050Au32.to_le_bytes());
-    h[8..10].copy_from_slice(&(width.wrapping_sub(1) as u16).to_le_bytes());
-    h[0xA..0xC].copy_from_slice(&(height.wrapping_sub(1) as u16).to_le_bytes());
-    h[0xC..0x10].copy_from_slice(&0x012C_012Cu32.to_le_bytes());
-    for n in 0..16 {
-        h[0x10 + 3 * n..0x13 + 3 * n].fill(n as u8);
-    }
-    h[0x41] = 3;
-    h[0x42..0x44].copy_from_slice(&(width as u16).to_le_bytes());
-    h
-}
+/// The header's first 0x80 bytes for a surface `width` x `height` (converted:
+/// `rc2k_core::pcx::screen_header`).
+pub use rc2k_core::pcx::screen_header as header;
 
 /// The Rust version: whether it worked (carry clear).
 pub unsafe fn write_screen_pcx() -> Result<bool, Refused> {
@@ -109,10 +98,10 @@ pub unsafe fn write_screen_pcx() -> Result<bool, Refused> {
     }
 }
 
-/// The rows; false when a write failed.
+/// The rows; false when a write failed. Converted: `rc2k_core::pcx::screen_planes` and
+/// `encode_line`; the planes are left in the game's buffer, as the original leaves them.
 unsafe fn rows(stream: *mut Stream) -> bool {
     unsafe {
-        let planes = a(PLANES) as *mut u8;
         let mut row = g(PIXELS);
         // eax as the original has it: the block's byte count after the header (0x80).
         let mut eax: u32 = 0x80;
@@ -120,70 +109,24 @@ unsafe fn rows(stream: *mut Stream) -> bool {
         let mut y = 0u32;
         loop {
             let format = (g(FORMAT) as *const PixelFormat).read_unaligned();
-            for x in 0..width {
-                let bits = g(BITS);
-                if bits == 0x10 {
-                    let pixel = ((row + 2 * x) as *const u16).read_unaligned();
-                    eax = crate::gfx::pixel_to_components::pixel_to_components(
+            let planes =
+                rc2k_core::pcx::screen_planes(width, &mut eax, &mut |x, eax| match g(BITS) {
+                    0x10 => crate::gfx::pixel_to_components::pixel_to_components(
                         &format,
-                        eax & 0xFFFF_0000 | pixel as u32,
-                    );
-                } else if bits == 0x20 {
-                    eax = crate::gfx::pixel_to_components::pixel_to_components(
+                        eax & 0xFFFF_0000 | ((row + 2 * x) as *const u16).read_unaligned() as u32,
+                    ),
+                    0x20 => crate::gfx::pixel_to_components::pixel_to_components(
                         &format,
                         ((row + 4 * x) as *const u32).read_unaligned(),
-                    );
-                }
-                planes.add((x + 2 * width) as usize).write(eax as u8);
-                eax >>= 8;
-                planes.add((width + x) as usize).write(eax as u8);
-                planes.add(x as usize).write((eax >> 8) as u8);
-            }
-            // The line run coded.
-            let line = 3 * width;
-            let mut al = planes.read();
-            let mut count = 1u32;
-            let put = |stream: *mut Stream, count: u32, al: u8| -> bool {
-                if count < 1 {
-                    return true;
-                }
-                if (count > 1 || al >= 0xC0) && !write_stream_byte(stream, (count + 0xC0) as u8) {
+                    ),
+                    _ => eax,
+                });
+            std::ptr::copy_nonoverlapping(planes.as_ptr(), a(PLANES) as *mut u8, planes.len());
+            for byte in rc2k_core::pcx::encode_line(&planes, &mut eax) {
+                if !write_stream_byte(stream, byte) {
                     return false;
                 }
-                write_stream_byte(stream, al)
-            };
-            let mut at = 1u32;
-            while at < line {
-                let ah = planes.add(at as usize).read();
-                if al == ah {
-                    count += 1;
-                    if count >= 0x3F {
-                        if !write_stream_byte(stream, (count + 0xC0) as u8)
-                            || !write_stream_byte(stream, al)
-                        {
-                            return false;
-                        }
-                        count = 0;
-                    }
-                } else {
-                    if !put(stream, count, al) {
-                        return false;
-                    }
-                    al = ah;
-                    count = 1;
-                }
-                at += 1;
             }
-            if !put(stream, count, al) {
-                return false;
-            }
-            // eax's low half as the coding left it: al the last byte, ah the line's last.
-            let ah = if line > 1 {
-                planes.add(line as usize - 1).read()
-            } else {
-                (eax >> 8) as u8
-            };
-            eax = eax & 0xFFFF_0000 | (ah as u32) << 8 | al as u32;
             row = row.wrapping_add(g(PITCH));
             y += 1;
             if y == g(HEIGHT) {

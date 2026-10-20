@@ -193,6 +193,87 @@ pub fn decode_planes(
     Some(())
 }
 
+/// The header of a screenshot (`gfx::write_screen_pcx` 0x411E0C): run coded, 8 bits, 300
+/// dpi both ways, right and bottom the size less one, the 16-colour palette greys 0 .. 15,
+/// three planes of `width` bytes.
+pub fn screen_header(width: u32, height: u32) -> [u8; HEADER_LEN] {
+    let mut h = [0u8; HEADER_LEN];
+    h[..4].copy_from_slice(&0x0801_050Au32.to_le_bytes());
+    h[8..10].copy_from_slice(&(width.wrapping_sub(1) as u16).to_le_bytes());
+    h[0xA..0xC].copy_from_slice(&(height.wrapping_sub(1) as u16).to_le_bytes());
+    h[0xC..0x10].copy_from_slice(&0x012C_012Cu32.to_le_bytes());
+    for n in 0..16 {
+        h[0x10 + 3 * n..0x13 + 3 * n].fill(n as u8);
+    }
+    h[0x41] = 3;
+    h[0x42..0x44].copy_from_slice(&(width as u16).to_le_bytes());
+    h
+}
+
+/// A screenshot's row as its three planes, red, green, blue (`width` bytes each). `eax` is
+/// the original's register, carried from pixel to pixel and row to row: `components(x,
+/// eax)` gives the pixel's components (a 16-bit pixel keeps eax's upper half, a pixel of
+/// another size is not read and eax stays).
+pub fn screen_planes(
+    width: u32,
+    eax: &mut u32,
+    components: &mut dyn FnMut(u32, u32) -> u32,
+) -> Vec<u8> {
+    let w = width as usize;
+    let mut planes = vec![0u8; 3 * w];
+    for x in 0..w {
+        *eax = components(x as u32, *eax);
+        planes[x + 2 * w] = *eax as u8;
+        *eax >>= 8;
+        planes[w + x] = *eax as u8;
+        planes[x] = (*eax >> 8) as u8;
+    }
+    planes
+}
+
+/// One line run coded as the screenshot writer does it: runs up to 63 (the counter is
+/// checked as it reaches 0x3F, so a run that long is written and the counting starts again
+/// from none), a lone byte below 0xC0 as itself. The runs go over the planes' ends. Then
+/// eax's low half as the coding leaves it (al the last byte, ah the line's last byte).
+pub fn encode_line(line: &[u8], eax: &mut u32) -> Vec<u8> {
+    let mut coded = Vec::new();
+    let Some(&first) = line.first() else {
+        return coded;
+    };
+    let put = |coded: &mut Vec<u8>, count: u32, al: u8| {
+        if count < 1 {
+            return;
+        }
+        if count > 1 || al >= 0xC0 {
+            coded.push((count + 0xC0) as u8);
+        }
+        coded.push(al);
+    };
+    let (mut al, mut count) = (first, 1u32);
+    for &ah in &line[1..] {
+        if al == ah {
+            count += 1;
+            if count >= 0x3F {
+                coded.push((count + 0xC0) as u8);
+                coded.push(al);
+                count = 0;
+            }
+        } else {
+            put(&mut coded, count, al);
+            al = ah;
+            count = 1;
+        }
+    }
+    put(&mut coded, count, al);
+    let ah = if line.len() > 1 {
+        line[line.len() - 1]
+    } else {
+        (*eax >> 8) as u8
+    };
+    *eax = *eax & 0xFFFF_0000 | (ah as u32) << 8 | al as u32;
+    coded
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -290,5 +371,37 @@ mod tests {
         .unwrap();
         assert_eq!(out, [5, 3, 1, 0, 6, 4, 2, 0]);
         assert_eq!(decode_planes(&Layout::default(), |e| e, |_, _| ()), None);
+    }
+
+    #[test]
+    fn encodes_screens() {
+        let mut eax = 0;
+        let planes = screen_planes(2, &mut eax, &mut |x, _| 0x0010_2030 + x);
+        assert_eq!(planes, [0x10, 0x10, 0x20, 0x20, 0x30, 0x31]);
+        let coded = encode_line(&planes, &mut eax);
+        assert_eq!(coded, [0xC2, 0x10, 0xC2, 0x20, 0x30, 0x31]);
+        assert_eq!(eax & 0xFFFF, 0x3131);
+        // A run of 64: 63 written at once, then one more.
+        let coded = encode_line(&[7u8; 64], &mut eax);
+        assert_eq!(coded, [0xFF, 7, 7]);
+        // The screenshot's own reader takes back what is written.
+        let header = screen_header(2, 1);
+        let layout = lay_out(&header, &TARGET);
+        let mut at = 0;
+        let mut out = vec![0u8; 8];
+        let file = encode_line(&planes, &mut eax);
+        decode_planes(
+            &layout,
+            |e| match file.get(at) {
+                Some(&b) => {
+                    at += 1;
+                    b as u32
+                }
+                None => e,
+            },
+            |to, b| out[to as usize] = b,
+        )
+        .unwrap();
+        assert_eq!(out, [0x30, 0x20, 0x10, 0, 0x31, 0x20, 0x10, 0]);
     }
 }

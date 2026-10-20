@@ -13,7 +13,7 @@ use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::test_floats;
 use crate::scene::vector3::*;
 use crate::screens::harness::Left;
-use crate::service::harness::{check_state, dispatch_state};
+use crate::service::floats::*;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -29,13 +29,18 @@ hook_asm!(
 );
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { normalise_vector3(r.esi) };
+    unsafe { normalise_vector3_plain(r.esi) };
     Ok(left_of(r))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let regions = [(r.esi, 12)];
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
+    let memory = [(regions[0], FLOAT)];
+    let floats = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions, &floats, &rust);
 }
 
 fn self_test() -> (usize, usize) {
@@ -44,25 +49,33 @@ fn self_test() -> (usize, usize) {
     };
     let mut v = [0u32; 3];
     let p = v.as_mut_ptr() as u32;
-    for seed in 0..12u32 {
-        check_state(
-            &mut t,
-            &format!("seed {seed}"),
-            call_original,
-            Regs {
-                esi: p,
-                ..Regs::SENTINEL
-            },
-            &|| {
-                let mut x = [0u32; 3];
-                if seed != 0 {
-                    test_floats(seed, &mut x);
-                }
-                unsafe { (p as *mut [u32; 3]).write(x) };
-            },
-            &[(p, 12)],
-            &rust,
-        );
-    }
+    let tolerant = Floats {
+        memory: &[((p, 12), FLOAT)],
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, floats| {
+        for seed in 0..12u32 {
+            check_state_floats(
+                &mut t,
+                "scene::normalise_vector3",
+                &format!("control word {word:#x}, seed {seed}"),
+                call_original,
+                Regs {
+                    esi: p,
+                    ..Regs::SENTINEL
+                },
+                &|| {
+                    let mut x = [0u32; 3];
+                    if seed != 0 {
+                        test_floats(seed, &mut x);
+                    }
+                    unsafe { (p as *mut [u32; 3]).write(x) };
+                },
+                &[(p, 12)],
+                floats,
+                &rust,
+            );
+        }
+    });
     t.finish()
 }

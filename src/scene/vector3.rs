@@ -117,6 +117,29 @@ pub unsafe fn dot_product3(a: u32, b: u32) -> [u8; 10] {
     out
 }
 
+/// `n` floats at `at` (the game's memory, unaligned).
+pub unsafe fn read_floats<const N: usize>(at: u32) -> [f32; N] {
+    std::array::from_fn(|n| unsafe { ((at + 4 * n as u32) as *const f32).read_unaligned() })
+}
+
+/// The floats written at `at`.
+pub unsafe fn write_floats(at: u32, v: &[f32]) {
+    for (n, x) in v.iter().enumerate() {
+        unsafe { ((at + 4 * n as u32) as *mut f32).write_unaligned(*x) };
+    }
+}
+
+/// The converted `normalise_vector3` (`rc2k_core::vector`, plain floats): the hook's.
+pub unsafe fn normalise_vector3_plain(v: u32) {
+    unsafe { write_floats(v, &rc2k_core::vector::normalise(read_floats(v))) };
+}
+
+/// The converted `dot_product3`: the hook's.
+pub unsafe fn dot_product3_plain(a: u32, b: u32) -> [u8; 10] {
+    let dot = unsafe { rc2k_core::vector::dot(read_floats(a), read_floats(b)) };
+    rc2k_core::extended::from_f64(dot)
+}
+
 const START_RVA: usize = rva(0x71CA36); // flt_71CA36, pi / 2
 const STEP_RVA: usize = rva(0x71CA3A); // flt_71CA3A, pi / 4
 const HALF_RVA: usize = rva(0x71CA3E); // flt_71CA3E, 0.5
@@ -156,6 +179,26 @@ pub unsafe fn angle_between_vectors(a: u32, b: u32) -> [u8; 10] {
             step = crate::math::x87::mul(step, half);
         }
         crate::scene::matrix3::extended(angle)
+    }
+}
+
+/// The converted `angle_between_vectors`: the hook's. The vectors normalised through
+/// memory in the original's order (so that overlapping ones behave as there).
+pub unsafe fn angle_between_vectors_plain(a: u32, b: u32) -> [u8; 10] {
+    use rc2k_core::vector::{Search, dot, search_angle};
+    unsafe {
+        normalise_vector3_plain(b);
+        normalise_vector3_plain(a);
+        let cosine = dot(read_floats(a), read_floats(b)) as f32;
+        let float = |r: usize| f32::from_bits(game_read(r));
+        let search = Search {
+            start: float(START_RVA),
+            step: float(STEP_RVA),
+            half: float(HALF_RVA),
+        };
+        let (angle, status) = search_angle(cosine, search);
+        game_write(STATUS_RVA, status);
+        rc2k_core::extended::from_f64(angle as f64)
     }
 }
 

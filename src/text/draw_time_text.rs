@@ -47,13 +47,12 @@ pub fn draw_time_text(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
     r.edi = 0;
     r.ebp = 11;
-    loop {
-        let c = unsafe { (r.ebx as *const u8).read() };
-        if c == 0 {
-            break;
-        }
+    // Converted: `rc2k_core::text::time_text_widths`; here the original's way of drawing
+    // one character at a time (the dword after it swapped for 0 around the call).
+    let text = unsafe { crate::bridge::Raw::new(r.ebx as *const u8) };
+    for width in crate::bridge::read_through(rc2k_core::text::time_text_widths(&text)) {
         let x = r.ecx;
-        r.esi = if c == b':' || c == b'.' { 6 } else { 0x10 };
+        r.esi = width;
         write32(r.eax + WIDTH, r.esi);
         let kept = read32(r.ebx + 1);
         write32(r.ebx + 1, r.edi);
@@ -65,9 +64,6 @@ pub fn draw_time_text(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         r.ecx = x.wrapping_add(r.esi);
         r.ebx = r.ebx.wrapping_add(1);
         r.ebp = r.ebp.wrapping_sub(1);
-        if r.ebp == 0 {
-            break;
-        }
     }
     write32(r.eax + WIDTH, 0);
     Ok(Regs {

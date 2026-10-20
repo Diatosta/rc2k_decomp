@@ -60,19 +60,9 @@ const ROWS_LEFT_RVA: usize = rva(0x4F50B8); // dword_4F50B8
 
 // ---- Rust version ----
 
-/// One part towards another: `from + ((to - from) * weight >> 8)`, as the original computes
-/// it in 32 bits.
-pub fn blend(from: i32, to: i32, weight: i32) -> i32 {
-    from.wrapping_add(to.wrapping_sub(from).wrapping_mul(weight) >> 8)
-}
-
-/// (whole part, fraction as 32 bits) of `a / b`.
-pub fn step(a: u32, b: u32) -> (u32, u32) {
-    (
-        a / b,
-        (((a % b) as u64) << 32).wrapping_div(b as u64) as u32,
-    )
-}
+// Converted: `rc2k_core::picture` (the arithmetic); here the copy, the row table and the
+// work variables.
+pub use rc2k_core::picture::{blend, step};
 
 pub unsafe fn rescale_picture() -> Result<(), Refused> {
     unsafe {
@@ -86,7 +76,6 @@ pub unsafe fn rescale_picture() -> Result<(), Refused> {
         if from_height > ROW_TABLE_ROOM || from == 0 || to.is_null() {
             return Err(BadInput("a decoded picture the rescaler cannot take").into());
         }
-
         // The original calls a failed allocation fatal error 0x80A01112, but the allocator
         // never comes back failed: it raises its own.
         let list = game_addr(COPY_MEMORY_RVA) as *mut MemoryList;
@@ -103,51 +92,29 @@ pub unsafe fn rescale_picture() -> Result<(), Refused> {
         }
         // The count was checked above.
         let _ = fill_row_table(copy, from_width << 2, from_height);
-
-        let (step_x, step_x_fraction) = step(from_width, width);
-        let (step_y, step_y_fraction) = step(from_height, height);
-        game_write(STEP_X_RVA, step_x);
-        game_write(STEP_X_FRACTION_RVA, step_x_fraction);
-        game_write(STEP_Y_RVA, step_y);
-        game_write(STEP_Y_FRACTION_RVA, step_y_fraction);
-
         let mut out = to;
-        let (mut y, mut y_fraction) = (0u32, 0u32);
-        for _ in 0..height {
-            let weight_y = (y_fraction >> 24) as i32;
-            game_write(WEIGHT_Y_RVA, weight_y as u32);
-            let row = row_address(y);
-            let below = if y.wrapping_add(1) != from_height {
-                row_address(y.wrapping_add(1))
-            } else {
-                row
-            };
-            let (mut x, mut x_fraction) = (0u32, 0u32);
-            for _ in 0..width {
-                let weight_x = (x_fraction >> 24) as i32;
-                game_write(WEIGHT_X_RVA, weight_x as u32);
-                let at = |row: u32, part: u32| {
-                    (row.wrapping_add(x.wrapping_mul(4)).wrapping_add(part) as *const u8).read()
-                        as i32
-                };
-                for part in 0..3u32 {
-                    let upper = blend(at(row, part), at(row, part + 4), weight_x);
-                    let lower = blend(at(below, part), at(below, part + 4), weight_x);
-                    out.add(part as usize)
-                        .write(blend(upper, lower, weight_y) as u8);
-                }
+        let work = rc2k_core::picture::rescale(
+            &rc2k_core::picture::Sizes {
+                from_width,
+                from_height,
+                width,
+                height,
+            },
+            &|row, byte| (row_address(row).wrapping_add(byte) as *const u8).read(),
+            &mut |parts| {
+                std::ptr::copy_nonoverlapping(parts.as_ptr(), out, 3);
                 out = out.add(4);
-                let (fraction, carry) = x_fraction.overflowing_add(step_x_fraction);
-                x_fraction = fraction;
-                x = x.wrapping_add(step_x).wrapping_add(carry as u32);
-            }
-            let (fraction, carry) = y_fraction.overflowing_add(step_y_fraction);
-            y_fraction = fraction;
-            y = y.wrapping_add(step_y).wrapping_add(carry as u32);
-        }
+            },
+        )
+        .expect("the sizes were checked");
+        game_write(STEP_X_RVA, work.step_x);
+        game_write(STEP_X_FRACTION_RVA, work.step_x_fraction);
+        game_write(STEP_Y_RVA, work.step_y);
+        game_write(STEP_Y_FRACTION_RVA, work.step_y_fraction);
+        game_write(WEIGHT_X_RVA, work.weight_x);
+        game_write(WEIGHT_Y_RVA, work.weight_y);
         game_write(COLUMNS_LEFT_RVA, 0u32);
         game_write(ROWS_LEFT_RVA, 0u32);
-
         free_list(list)?;
         Ok(())
     }

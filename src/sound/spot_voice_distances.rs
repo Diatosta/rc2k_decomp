@@ -16,8 +16,10 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::{base, x87_run};
 use crate::service::harness::{Region, capture, restore};
-use crate::sound::spot_voices::{VOICE_COUNT, fill_voices, set, voice, voice_regions, vw};
-use crate::sound::turn_parts::{Part, both, dispatch_turn};
+use crate::sound::spot_voices::{
+    VOICE_COUNT, fill_voices, load_voices, set, store_voices, voice, voice_regions, vw,
+};
+use crate::sound::turn_parts::{Part, both_floats, dispatch_turn_floats};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -38,6 +40,22 @@ hook_asm!(
 );
 
 // ---- Rust version ----
+
+/// The converted version (`rc2k_core::spot_voices::hear`, plain floats): the hook's. The
+/// exact one below stays for the race sound's turn (`turn_parts`), compared exactly.
+pub fn spot_voice_distances_plain(_: &mut Regs, _: Part) -> Result<(), Refused> {
+    let float = |x: usize| f32::from_bits(crate::sound::spot_voices::g(x));
+    let hearing = rc2k_core::spot_voices::Hearing {
+        turns_a_second: float(0x5124EC),
+        offset: float(0x5124F8),
+        factor: float(0x5124FC),
+        ease: float(0x516360),
+    };
+    let mut voices = load_voices();
+    rc2k_core::spot_voices::hear(&mut voices, &hearing);
+    store_voices(&voices);
+    Ok(())
+}
 
 pub fn spot_voice_distances_in(_: &mut Regs, _: Part) -> Result<(), Refused> {
     let b = base();
@@ -98,13 +116,31 @@ fn regions(_: &Regs) -> Vec<Region> {
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_turn(
+    dispatch_turn_floats(
         &HOOK,
         r,
         call_original,
-        spot_voice_distances_in,
+        spot_voice_distances_plain,
         Some(&regions),
+        &|_| hearing_floats(),
     );
+}
+
+/// The voices' float places: the distance, the pitch and loudness within `FLOAT`; the
+/// change (+0x44, a difference of near distances times the turns a second) within 1/1024
+/// either way (seen 2026-10-20: cancelled last bits at extended precision).
+fn hearing_floats() -> Vec<(Region, crate::service::floats::Tolerance)> {
+    use crate::service::floats::{FLOAT, Tolerance};
+    (0..VOICE_COUNT)
+        .flat_map(|n| {
+            let v = voice(n);
+            [
+                ((v + 0x38, 0xC), FLOAT),
+                ((v + 0x44, 4), Tolerance::Absolute(1.0 / 1024.0)),
+                ((v + 0x48, 8), FLOAT),
+            ]
+        })
+        .collect()
 }
 
 // ---- self-test ----
@@ -115,30 +151,38 @@ fn self_test() -> (usize, usize) {
     };
     let all = voice_regions();
     let saved = capture(&all);
-    for seed in 0..4u32 {
-        let fill = || {
-            fill_voices(seed, &|n, v| {
-                let k = n.wrapping_add(seed);
-                set(v, 4, [1, 0, 1][k as usize % 3]);
-                set(v, 0x20, [0, 1][k as usize % 2]);
-                set(
-                    v,
-                    8,
-                    [0x3F00_0000, 0x4120_0000, 0xC2C8_0000, 0][k as usize % 4],
-                );
-            });
-        };
-        both(
-            &mut t,
-            &format!("voices {seed}"),
-            &|r| unsafe { call_original(r) },
-            Regs::SENTINEL,
-            &fill,
-            &all,
-            spot_voice_distances_in,
-            false,
-        );
-    }
+    let places = hearing_floats();
+    let tolerant = crate::service::floats::Floats {
+        memory: &places,
+        regs: &[],
+    };
+    crate::service::floats::at_test_precisions(&tolerant, &mut |word, floats| {
+        for seed in 0..4u32 {
+            let fill = || {
+                fill_voices(seed, &|n, v| {
+                    let k = n.wrapping_add(seed);
+                    set(v, 4, [1, 0, 1][k as usize % 3]);
+                    set(v, 0x20, [0, 1][k as usize % 2]);
+                    set(
+                        v,
+                        8,
+                        [0x3F00_0000, 0x4120_0000, 0xC2C8_0000, 0][k as usize % 4],
+                    );
+                });
+            };
+            both_floats(
+                &mut t,
+                &format!("control word {word:#x}, voices {seed}"),
+                &|r| unsafe { call_original(r) },
+                Regs::SENTINEL,
+                &fill,
+                &all,
+                spot_voice_distances_plain,
+                false,
+                floats,
+            );
+        }
+    });
     restore(&all, &saved);
     t.finish()
 }

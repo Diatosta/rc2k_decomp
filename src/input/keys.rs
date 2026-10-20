@@ -23,11 +23,15 @@ pub const PRESSED_RVA: usize = rva(0x4F6CDC); // g_keysPressed
 pub const REPEAT_RVA: usize = rva(0x4F6D5C); // g_keyRepeat
 /// The key tables, `g_keysDown` .. `g_keyRepeat` (0x80 each; 0x4F6C5C .. unused here).
 pub const KEY_TABLES: (usize, usize) = (DOWN_RVA, 0x300);
-const KEYS: u32 = 0x80;
-const SCREENSHOT_KEY: u32 = 0x52; // g_keysNow + 0x52 (byte_4F6BAE)
+const KEYS: u32 = rc2k_core::input::KEYS as u32;
+const SCREENSHOT_KEY: u32 = rc2k_core::input::SCREENSHOT_KEY as u32; // byte_4F6BAE
 pub const SCREENSHOTS_RVA: usize = rva(0x4F52B4); // g_screenshotsOn
 pub const FRAME_CLEARED_RVA: [usize; 2] = [rva(0x6138F4), rva(0x6138F8)];
-const PAIRS: [(u32, u32); 2] = [(0x1D, 0x61), (0x2A, 0x36)];
+
+// Converted: `rc2k_core::input`. Here the tables are loaded from the game and only those
+// a function writes are stored back (`g_keysDown` never: the window's messages write it).
+
+use rc2k_core::input::KeyTables;
 
 unsafe fn byte(table: usize, n: u32) -> u8 {
     unsafe { game_read(table + n as usize) }
@@ -37,14 +41,25 @@ unsafe fn set_byte(table: usize, n: u32, v: u8) {
     unsafe { game_write(table + n as usize, v) };
 }
 
+fn tables() -> KeyTables {
+    unsafe {
+        KeyTables {
+            now: game_read(NOW_RVA),
+            before: game_read(BEFORE_RVA),
+            pressed: game_read(PRESSED_RVA),
+            repeat: game_read(REPEAT_RVA),
+        }
+    }
+}
+
 /// `input::unpack_mouse` (0x4081FC): `g_mouseWord` as ebx the buttons (low byte), ecx the
 /// x (bits 8 .. 19), edx the y (bits 20 .. 31), both signed.
 pub unsafe fn unpack_mouse(entry: &Regs) -> Regs {
-    let m: u32 = unsafe { game_read(MOUSE_WORD_RVA) };
+    let (buttons, x, y) = rc2k_core::input::unpack_mouse(unsafe { game_read(MOUSE_WORD_RVA) });
     Regs {
-        ebx: m & 0xFF,
-        ecx: (((m << 12) as i32) >> 20) as u32,
-        edx: ((m as i32) >> 20) as u32,
+        ebx: buttons,
+        ecx: x as u32,
+        edx: y as u32,
         ..*entry
     }
 }
@@ -56,7 +71,7 @@ pub unsafe fn take_mouse(entry: &Regs) -> Regs {
     let g = unsafe { unpack_mouse(entry) };
     unsafe {
         game_write(MOUSE_RVA, [g.ecx, g.edx]);
-        game_write(BUTTONS_RVA, [g.ebx, g.ebx & 1, (g.ebx >> 1) & 1]);
+        game_write(BUTTONS_RVA, rc2k_core::input::buttons(g.ebx));
     }
     g
 }
@@ -81,8 +96,9 @@ pub unsafe fn copy_keys(entry: &Regs) -> Regs {
 pub unsafe fn buttons_to_keys(entry: &Regs) -> Regs {
     unsafe {
         let [_, left, right]: [u32; 3] = game_read(BUTTONS_RVA);
-        set_byte(NOW_RVA, 0x73, left as u8);
-        set_byte(NOW_RVA, 0x74, right as u8);
+        let mut t = tables();
+        t.buttons_to_keys(left, right);
+        game_write(NOW_RVA, t.now);
         Regs {
             eax: right,
             ..*entry
@@ -94,38 +110,30 @@ pub unsafe fn buttons_to_keys(entry: &Regs) -> Regs {
 /// before (their low bits only, a dword at a time), `g_keysBefore` = `g_keysNow`. Leaves
 /// ebx 0x80, ecx 0, eax and edx the last dword's pressed and now.
 pub unsafe fn find_pressed_keys(entry: &Regs) -> Regs {
-    let mut g = *entry;
+    let mut t = tables();
+    let (eax, edx) = t.find_pressed();
     unsafe {
-        for k in 0..KEYS / 4 {
-            let at = 4 * k as usize;
-            let before: u32 = game_read(BEFORE_RVA + at);
-            g.edx = game_read(NOW_RVA + at);
-            game_write(BEFORE_RVA + at, g.edx);
-            g.eax = !before & g.edx & 0x0101_0101;
-            game_write(PRESSED_RVA + at, g.eax);
-        }
+        game_write(BEFORE_RVA, t.before);
+        game_write(PRESSED_RVA, t.pressed);
     }
-    g.ebx = KEYS;
-    g.ecx = 0;
-    g
+    Regs {
+        eax,
+        edx,
+        ebx: KEYS,
+        ecx: 0,
+        ..*entry
+    }
 }
 
 /// `input::repeat_keys` (0x420247): for keys 1 .. 0x7F, the count of frames held (0 when
 /// up); at 0x41 the key is pressed again and the count goes back to 0x40. Leaves ebx
 /// 0x80.
 pub unsafe fn repeat_keys(entry: &Regs) -> Regs {
+    let mut t = tables();
+    t.repeat();
     unsafe {
-        for k in 1..KEYS {
-            if byte(NOW_RVA, k) == 0 {
-                set_byte(REPEAT_RVA, k, 0);
-            } else {
-                set_byte(REPEAT_RVA, k, byte(REPEAT_RVA, k).wrapping_add(1));
-            }
-            if byte(REPEAT_RVA, k) == 0x41 {
-                set_byte(PRESSED_RVA, k, 1);
-                set_byte(REPEAT_RVA, k, 0x40);
-            }
-        }
+        game_write(REPEAT_RVA, t.repeat);
+        game_write(PRESSED_RVA, t.pressed);
     }
     Regs {
         ebx: KEYS,
@@ -136,14 +144,11 @@ pub unsafe fn repeat_keys(entry: &Regs) -> Regs {
 /// `input::take_mouse_clicks` (0x42028C): `g_leftClick` and `g_rightClick` from keys
 /// 0x73 and 0x74 pressed (low bits). Leaves eax the right.
 pub unsafe fn take_mouse_clicks(entry: &Regs) -> Regs {
-    unsafe {
-        let left = byte(PRESSED_RVA, 0x73) as u32 & 1;
-        let right = byte(PRESSED_RVA, 0x74) as u32 & 1;
-        game_write(CLICKS_RVA, [left, right]);
-        Regs {
-            eax: right,
-            ..*entry
-        }
+    let clicks = tables().clicks();
+    unsafe { game_write(CLICKS_RVA, clicks) };
+    Regs {
+        eax: clicks[1],
+        ..*entry
     }
 }
 
@@ -185,11 +190,9 @@ pub unsafe fn update(entry: &Regs, shot: Screenshot) -> Regs {
         game_write(PRESSED_RVA, [0u8; KEYS as usize]);
         let mut g = take_mouse(entry);
         g = copy_keys(&g);
-        for (a, b) in PAIRS {
-            let both = byte(NOW_RVA, a) | byte(NOW_RVA, b);
-            set_byte(NOW_RVA, a, both);
-            set_byte(NOW_RVA, b, both);
-        }
+        let mut t = tables();
+        t.join_pairs();
+        game_write(NOW_RVA, t.now);
         g = buttons_to_keys(&g);
         g = find_pressed_keys(&g);
         g = repeat_keys(&g);

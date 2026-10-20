@@ -305,6 +305,50 @@ pub fn halve(pixels: &mut [u32], width: u32, height: u32, times: u32) -> Option<
     Some((width, height))
 }
 
+/// The masks of the game's own components (`gfx::set_component_format` 0x405DB4).
+pub const COMPONENT_MASKS: [u32; 4] = [0xFF, 0xFF00, 0xFF_0000, 0xFF00_0000];
+
+/// The table of n / 3 for n = 0 .. 0x2FF (`gfx::fill_thirds_table` 0x405580).
+pub fn thirds_table() -> [u8; 0x300] {
+    std::array::from_fn(|n| (n / 3) as u8)
+}
+
+/// `count` pixels of three bytes turned into dwords in place, from the last down (the
+/// first byte up 16, the second up 8, the top byte 0: `gfx::rgb_pixels_to_dwords`
+/// 0x41CC96). `None` if the buffer is shorter than the dwords.
+pub fn rgb_to_dwords(buffer: &mut [u8], count: usize) -> Option<()> {
+    if buffer.len() < count.checked_mul(4)? {
+        return None;
+    }
+    for n in (0..count).rev() {
+        let dword = palette_entry([buffer[n * 3], buffer[n * 3 + 1], buffer[n * 3 + 2]]);
+        buffer[n * 4..n * 4 + 4].copy_from_slice(&dword.to_le_bytes());
+    }
+    Some(())
+}
+
+/// `count` palette numbers (a byte a pixel) turned into the palette's dwords in place, from
+/// the last down (`gfx::palette_pixels_to_dwords` 0x41CCCB). `None` if the buffer is
+/// shorter than the dwords.
+pub fn palette_to_dwords(buffer: &mut [u8], count: usize, palette: &[u32; 256]) -> Option<()> {
+    if buffer.len() < count.checked_mul(4)? {
+        return None;
+    }
+    for n in (0..count).rev() {
+        let dword = palette[buffer[n] as usize];
+        buffer[n * 4..n * 4 + 4].copy_from_slice(&dword.to_le_bytes());
+    }
+    Some(())
+}
+
+/// A pixel of four eight-bit components as format 4's two bytes (`gfx::
+/// components_to_4444_rows` 0x40750D): the top four bits of the first and second
+/// component in the first byte (low half, high half), of the third and fourth in the
+/// second.
+pub fn to_4444(c: [u8; 4]) -> [u8; 2] {
+    [c[0] >> 4 | c[1] & 0xF0, c[2] >> 4 | c[3] & 0xF0]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -347,6 +391,11 @@ mod tests {
         assert_eq!(fade_step(0x80, 0, 0x100).0, 0);
         assert_eq!(fade_step(0x10, 0xFF, 0x200).0, 0xFF);
         assert_eq!(palette_entry([1, 2, 3]), 0x01_0203);
+        let mut rgb = [1u8, 2, 3, 4, 5, 6, 0, 0];
+        rgb_to_dwords(&mut rgb, 2).unwrap();
+        assert_eq!(rgb, [3, 2, 1, 0, 6, 5, 4, 0]);
+        assert_eq!(rgb_to_dwords(&mut [0u8; 7], 2), None);
+        assert_eq!(thirds_table()[0x2FF], 0xFF);
         let format = PixelFormat {
             layout: 0x8000_0000,
             masks: [0xFF, 0xFF00, 0xFF_0000, 0],
@@ -378,5 +427,17 @@ mod tests {
         alpha_from_kept(&mut buffer, 2).unwrap();
         assert_eq!(buffer[3], 0xF0);
         assert_eq!(buffer[7], 0xFF);
+    }
+
+    #[test]
+    fn palette_and_4444() {
+        let mut palette = [0u32; 256];
+        palette[2] = 0x0011_2233;
+        palette[7] = 0xAABB_CCDD;
+        let mut buffer = [2u8, 7, 0, 0, 0, 0, 0, 0];
+        palette_to_dwords(&mut buffer, 2, &palette).unwrap();
+        assert_eq!(buffer, [0x33, 0x22, 0x11, 0, 0xDD, 0xCC, 0xBB, 0xAA]);
+        assert!(palette_to_dwords(&mut buffer, 3, &palette).is_none());
+        assert_eq!(to_4444([0x12, 0x34, 0x56, 0x78]), [0x31, 0x75]);
     }
 }

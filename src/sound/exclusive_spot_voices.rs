@@ -12,7 +12,7 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::service::harness::{Region, capture, restore};
-use crate::sound::spot_voices::{VOICE_COUNT, fill_voices, set, voice, voice_regions, vw};
+use crate::sound::spot_voices::{fill_voices, load_voices, set, store_voices, voice_regions};
 use crate::sound::turn_parts::{Part, both, dispatch_turn};
 use std::sync::atomic::AtomicUsize;
 
@@ -36,21 +36,10 @@ hook_asm!(
 // ---- Rust version ----
 
 pub fn exclusive_spot_voices_in(_: &mut Regs, _: Part) -> Result<(), Refused> {
-    let voices: Vec<u32> = (0..VOICE_COUNT).map(voice).collect();
-    let mut bits = 0u32;
-    for &v in &voices {
-        if vw(v, 4) == 1 && vw(v, 0x28) == 1 {
-            bits |= vw(v, 0x1C);
-        }
-    }
-    for &v in &voices {
-        if vw(v, 4) == 1 && vw(v, 0x28) != 1 {
-            if vw(v, 0x1C) & bits != 0 {
-                set(v, 4, 0);
-            }
-            bits |= vw(v, 0x1C);
-        }
-    }
+    // Converted: `rc2k_core::spot_voices::keep_exclusive`.
+    let mut voices = load_voices();
+    rc2k_core::spot_voices::keep_exclusive(&mut voices);
+    store_voices(&voices);
     Ok(())
 }
 

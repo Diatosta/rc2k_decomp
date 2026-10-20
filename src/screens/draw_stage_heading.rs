@@ -11,17 +11,18 @@
 //! 2026-10-10 as the stage details screen shown before each stage of a championship. Its other
 //! caller, `sub_480064`, has not been seen in the game.
 
-use crate::errors::FatalError;
+use crate::errors::{FatalError, Refused};
 use crate::framework::{GameHook, RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::gfx::blit_glyph::{record_calls, recording_works};
 use crate::records::trakpak_entry::record_entry;
-use crate::screens::{blanked, font_at, font_is_loaded, line_buffer, set_line};
-use crate::strings::append_fraction::append_fraction;
+use crate::screens::stage_panel::PanelScreen;
+use crate::screens::{blanked, font_is_loaded, line_buffer, set_line};
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::string_table::{blob, is_table_id};
 use crate::strings::utils::bytes_str;
-use crate::text::draw_text::{Canvas, GameCanvas, RecordingCanvas, draw_text_at};
+use crate::text::draw_text::{Canvas, GameCanvas, RecordingCanvas};
 use crate::text::glyph_kerning::state_ptr;
+use rc2k_core::stage_panel::stage_line;
 use std::slice::from_raw_parts;
 use std::sync::atomic::AtomicUsize;
 
@@ -46,9 +47,6 @@ hook_asm!(
 
 const FONT: usize = 0x51E9A4;
 const HEADING_STRING: u32 = 0x481;
-const OUT_OF: u32 = 6;
-const X: i32 = 0x2EB;
-const Y: i32 = 0x91;
 
 unsafe fn dword(at: *const u8) -> u32 {
     unsafe { at.cast::<u32>().read_unaligned() }
@@ -62,28 +60,36 @@ pub unsafe fn stage_heading_text(record: *const u8) -> Result<Vec<u8>, FatalErro
 }
 
 /// The same line starting with another label string (the stage panels build one with 0x482).
+/// Converted: `rc2k_core::stage_panel::stage_line`.
 pub unsafe fn heading_text(record: *const u8, label: u32) -> Result<Vec<u8>, FatalError> {
     unsafe {
-        let mut out = Vec::new();
-        push_string(&mut out, label);
-        out.push(b' ');
-        out.extend(append_fraction(dword(record.add(0x40)), OUT_OF));
-        out.extend_from_slice(b": ");
-        let entry = record_entry(record)? as *const u8;
-        push_string(&mut out, dword(entry));
-        out.push(0);
-        Ok(out)
+        let name = || -> Result<u32, FatalError> { Ok(dword(record_entry(record)? as *const u8)) };
+        let mut line = stage_line(&mut string_bytes, label, dword(record.add(0x40)), &name)?;
+        line.push(0);
+        Ok(line)
     }
 }
 
+/// String `id`'s bytes.
+pub fn string_bytes(id: u32) -> Vec<u8> {
+    let mut out = Vec::new();
+    unsafe { push_string(&mut out, id) };
+    out
+}
+
 /// Builds the line in the game's line buffer and draws it. Returns the carry flag.
+/// Converted: `rc2k_core::stage_panel::heading`.
 pub unsafe fn draw_stage_heading(
     record: *const u8,
     canvas: &mut dyn Canvas,
-) -> Result<bool, FatalError> {
+) -> Result<bool, Refused> {
     unsafe {
-        set_line(&stage_heading_text(record)?);
-        Ok(draw_text_at(font_at(FONT), line_buffer(), X, Y, canvas)?.too_wide)
+        let name = || -> Result<u32, Refused> { Ok(dword(record_entry(record)? as *const u8)) };
+        rc2k_core::stage_panel::heading(
+            &mut PanelScreen::new(canvas),
+            dword(record.add(0x40)),
+            &name,
+        )
     }
 }
 

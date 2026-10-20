@@ -15,7 +15,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::*;
 use crate::screens::harness::Left;
-use crate::service::harness::{check_state, dispatch_state};
+use crate::service::floats::*;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -38,12 +38,17 @@ hook_asm!(
 );
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { transform_int_points(r) }?))
+    Ok(left_of(&unsafe { transform_int_points_plain(r) }?))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let regions = [(r.edi, 12 * (r.ecx as i32).max(0) as usize)];
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
+    let memory = [(regions[0], ROUNDED)];
+    let floats = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions, &floats, &rust);
 }
 
 const POINTS: u32 = 8;
@@ -55,43 +60,51 @@ fn self_test() -> (usize, usize) {
     let buffer = vec![0u32; (9 + 6 * POINTS) as usize];
     let b = buffer.as_ptr() as u32;
     let (from, apart) = (b + 0x24, b + 0x24 + 12 * POINTS);
-    for count in [0u32, 1, POINTS, 0xFFFF_FFFE] {
-        for seed in 1..=3u32 {
-            for (what, to) in [("apart", apart), ("in place", from)] {
-                check_state(
-                    &mut t,
-                    &format!("{count:#x} points, seed {seed}, {what}"),
-                    call_original,
-                    Regs {
-                        ecx: count,
-                        esi: from,
-                        edi: to,
-                        ebp: b,
-                        ..Regs::SENTINEL
-                    },
-                    &|| unsafe {
-                        let mut m = [0u32; 9];
-                        test_floats(seed, &mut m);
-                        std::ptr::copy(m.as_ptr(), b as *mut u32, 9);
-                        let mut s = seed;
-                        for n in 0..6 * POINTS {
-                            s = s.wrapping_mul(1_103_515_245).wrapping_add(12345);
-                            let v = match s % 7 {
-                                0 => (s as i32) >> 4,
-                                _ => ((s >> 8) % 0x4_0000) as i32 - 0x2_0000,
-                            };
-                            ((from + 4 * n) as *mut i32).write_unaligned(v);
-                        }
-                    },
-                    &[(b, buffer.len() * 4)],
-                    &rust,
-                );
+    let tolerant = Floats {
+        memory: &[((b, buffer.len() * 4), ROUNDED)],
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, floats| {
+        for count in [0u32, 1, POINTS, 0xFFFF_FFFE] {
+            for seed in 1..=3u32 {
+                for (what, to) in [("apart", apart), ("in place", from)] {
+                    check_state_floats(
+                        &mut t,
+                        "scene::transform_int_points",
+                        &format!("control word {word:#x}, {count:#x} points, seed {seed}, {what}"),
+                        call_original,
+                        Regs {
+                            ecx: count,
+                            esi: from,
+                            edi: to,
+                            ebp: b,
+                            ..Regs::SENTINEL
+                        },
+                        &|| unsafe {
+                            let mut m = [0u32; 9];
+                            test_floats(seed, &mut m);
+                            std::ptr::copy(m.as_ptr(), b as *mut u32, 9);
+                            let mut s = seed;
+                            for n in 0..6 * POINTS {
+                                s = s.wrapping_mul(1_103_515_245).wrapping_add(12345);
+                                let v = match s % 7 {
+                                    0 => (s as i32) >> 4,
+                                    _ => ((s >> 8) % 0x4_0000) as i32 - 0x2_0000,
+                                };
+                                ((from + 4 * n) as *mut i32).write_unaligned(v);
+                            }
+                        },
+                        &[(b, buffer.len() * 4)],
+                        floats,
+                        &rust,
+                    );
+                }
             }
         }
-    }
+    });
     t.check(
         unsafe {
-            transform_int_points(&Regs {
+            transform_int_points_plain(&Regs {
                 ecx: 0x8000_0000,
                 ..Regs::SENTINEL
             })

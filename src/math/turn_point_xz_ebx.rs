@@ -12,12 +12,15 @@
 //! points and angles as `turn_point_xz`'s, under three precisions.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, EDX, RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::math::turn_point_xz::turn_point_xz;
-use crate::math::turn_scratch_xz::scratch;
+use crate::framework::{EAX, EBX, EDX, GameHook, RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::math::turn_point_xz::{turn_point_xz, turn_point_xz_plain};
+use crate::math::turn_scratch_xz::{point_floats, scratch};
 use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, check_state, dispatch_state, restore};
+use crate::service::floats::{
+    Floats, ROUNDED, Tolerance, check_state_floats, dispatch_state_floats,
+};
+use crate::service::harness::{capture, restore};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -38,14 +41,27 @@ pub unsafe fn turn_point_xz_ebx(x: i32, y: i32, z: i32, angle: u32) -> [u32; 3] 
     [x, z, entry]
 }
 
+/// The converted version (`turn_point_xz_plain`).
+pub unsafe fn turn_point_xz_ebx_plain(x: i32, y: i32, z: i32, angle: u32) -> [u32; 3] {
+    let [x, _, z, entry] = unsafe { turn_point_xz_plain(x, y, z, angle) };
+    [x, z, entry]
+}
+
 fn rust(r: &Regs) -> Result<Left, Refused> {
     let [x, z, entry] =
-        unsafe { turn_point_xz_ebx(r.ebx as i32, r.ecx as i32, r.eax as i32, r.edx) };
+        unsafe { turn_point_xz_ebx_plain(r.ebx as i32, r.ecx as i32, r.eax as i32, r.edx) };
     Ok(Left::nothing().with(EBX, x).with(EAX, z).with(EDX, entry))
 }
 
+/// The results' places that come from floats.
+const REGS: [(u8, Tolerance); 2] = [(EBX, ROUNDED), (EAX, ROUNDED)];
+
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &[scratch()], &rust);
+    let floats = Floats {
+        memory: &[(scratch(), ROUNDED)],
+        regs: &REGS,
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &[scratch()], &floats, &rust);
 }
 
 fn self_test() -> (usize, usize) {
@@ -63,8 +79,9 @@ fn self_test() -> (usize, usize) {
                 (3, -2, 1, 0xFFF8_0000),
                 (0x10_0000, 0x0100_0001, -0x20_0000, 0xC000_0000),
             ] {
-                check_state(
+                check_state_floats(
                     &mut t,
+                    HOOK.name(),
                     &format!("control word {word:#x}, ({x}, {y}, {z}) by {angle:#x}"),
                     call_original,
                     Regs {
@@ -76,6 +93,7 @@ fn self_test() -> (usize, usize) {
                     },
                     &|| {},
                     &regions,
+                    &point_floats(word, &[(scratch(), ROUNDED)], &REGS),
                     &rust,
                 );
             }

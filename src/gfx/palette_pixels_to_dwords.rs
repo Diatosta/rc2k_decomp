@@ -9,7 +9,7 @@
 //! Refuses what `pixels_to_dwords::pixel_count` refuses. The name is a reading.
 
 use crate::errors::BadInput;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest, game_read, hook_asm, rva};
 use crate::gfx::pcx::PALETTE_RVA;
 use crate::gfx::picture::picture;
 use crate::gfx::pixels_to_dwords::{check_spread, dispatch_spread, pixel_count};
@@ -37,12 +37,11 @@ hook_asm!(
 pub unsafe fn palette_pixels_to_dwords() -> Result<(), BadInput> {
     unsafe {
         let count = pixel_count()?;
-        let (buffer, palette) = (picture(), game_addr(PALETTE_RVA) as *const u32);
-        for n in (0..count).rev() {
-            let entry = palette.add(buffer.add(n).read() as usize).read_unaligned();
-            (buffer.add(n * 4) as *mut u32).write_unaligned(entry);
-        }
-        Ok(())
+        // Converted: `rc2k_core::pixels::palette_to_dwords`.
+        let buffer = std::slice::from_raw_parts_mut(picture(), count * 4);
+        let palette: [u32; 256] = game_read(PALETTE_RVA);
+        rc2k_core::pixels::palette_to_dwords(buffer, count, &palette)
+            .ok_or(BadInput("a picture buffer shorter than its dwords"))
     }
 }
 

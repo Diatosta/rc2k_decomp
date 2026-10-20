@@ -12,7 +12,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::*;
 use crate::screens::harness::Left;
-use crate::service::harness::{check_state, dispatch_state};
+use crate::service::floats::*;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -28,12 +28,17 @@ hook_asm!(
 );
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { multiply_matrices3(r) }))
+    Ok(left_of(&unsafe { multiply_matrices3_plain(r) }))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let regions = [(r.ebp, 0x24)];
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
+    let memory = [(regions[0], FLOAT)];
+    let floats = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions, &floats, &rust);
 }
 
 fn self_test() -> (usize, usize) {
@@ -42,27 +47,35 @@ fn self_test() -> (usize, usize) {
     };
     let mut buffer = [0u32; 27];
     let b = buffer.as_mut_ptr() as u32;
-    for seed in 1..=4u32 {
-        for (what, out) in [("apart", b + 0x48), ("on the first", b)] {
-            check_state(
-                &mut t,
-                &format!("seed {seed}, the result {what}"),
-                call_original,
-                Regs {
-                    esi: b,
-                    edi: b + 0x24,
-                    ebp: out,
-                    ..Regs::SENTINEL
-                },
-                &|| {
-                    let mut v = [0u32; 27];
-                    test_floats(seed, &mut v);
-                    unsafe { std::ptr::copy(v.as_ptr(), b as *mut u32, 27) };
-                },
-                &[(b, 0x6C)],
-                &rust,
-            );
+    let tolerant = Floats {
+        memory: &[((b, 0x6C), FLOAT)],
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, floats| {
+        for seed in 1..=4u32 {
+            for (what, out) in [("apart", b + 0x48), ("on the first", b)] {
+                check_state_floats(
+                    &mut t,
+                    "scene::multiply_matrices3",
+                    &format!("control word {word:#x}, seed {seed}, the result {what}"),
+                    call_original,
+                    Regs {
+                        esi: b,
+                        edi: b + 0x24,
+                        ebp: out,
+                        ..Regs::SENTINEL
+                    },
+                    &|| {
+                        let mut v = [0u32; 27];
+                        test_floats(seed, &mut v);
+                        unsafe { std::ptr::copy(v.as_ptr(), b as *mut u32, 27) };
+                    },
+                    &[(b, 0x6C)],
+                    floats,
+                    &rust,
+                );
+            }
         }
-    }
+    });
     t.finish()
 }

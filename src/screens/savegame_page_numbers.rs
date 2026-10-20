@@ -11,12 +11,11 @@
 //! Refuses a page whose numbers would not fit their four bytes (100 or more).
 //! Self-test: twelve pages.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::menu::name_lists::SAVEGAME_PAGE_RVA;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
-use crate::strings::append_u32::append_u32;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -44,26 +43,10 @@ const NUMBERS_RVA: usize = rva(0xA8C158); // byte_A8C158: ten texts of four byte
 // ---- Rust version ----
 
 /// A number with a 0 before it under 10.
-fn two_digits(n: u32) -> Vec<u8> {
-    let mut text = if n < 10 { append_u32(0) } else { Vec::new() };
-    text.extend(append_u32(n));
-    text
-}
-
 pub fn savegame_page_numbers() -> Result<(), Refused> {
-    let first = unsafe { game_read::<u32>(SAVEGAME_PAGE_RVA) }.wrapping_mul(10);
-    // Signed in the original's comparisons: a negative number is "under 10" too.
-    if (first as i32) < 0 || first.wrapping_add(9) >= 1000 {
-        return Err(BadInput("a page whose numbers do not fit their places").into());
-    }
-    let numbers: Vec<Vec<u8>> = (0..10).map(|n| two_digits(first + n)).collect();
-    if numbers.iter().any(|text| text.len() > 3) {
-        return Err(BadInput("a number longer than its four bytes").into());
-    }
-    let mut caption = two_digits(first);
-    caption.push(b'-');
-    caption.extend(two_digits(first + 9));
-    caption.push(0);
+    // Converted: `rc2k_core::captions::savegame_numbers`.
+    let page = unsafe { game_read::<u32>(SAVEGAME_PAGE_RVA) };
+    let (caption, numbers) = rc2k_core::captions::savegame_numbers(page)?;
     unsafe {
         std::ptr::copy_nonoverlapping(
             caption.as_ptr(),
@@ -78,8 +61,6 @@ pub fn savegame_page_numbers() -> Result<(), Refused> {
     }
     Ok(())
 }
-
-// ---- hook ----
 
 fn regions() -> [Region; 2] {
     [

@@ -12,13 +12,13 @@
 //! Self-test: `apply_settings` against the original's `sub_4114FF` on texts of its own,
 //! and the whole function on the game's own file.
 
+use crate::bridge::Raw;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
-use crate::settings::find_key::find_key;
-use crate::settings::parse_number::parse_number;
 use crate::settings::read_text::read_text;
+use crate::strings::same_text::case_table;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -43,38 +43,27 @@ const APPLY_SETTINGS: usize = rva(0x4114FF); // sub_4114FF
 
 // ---- Rust version ----
 
-/// The table: (key, the variable's address).
-unsafe fn settings() -> Result<Vec<(*const u8, *mut u32)>, BadInput> {
-    unsafe {
-        let mut entries = Vec::new();
-        let mut at = TABLE_RVA;
-        while game_read::<u8>(at) != 0 {
-            let key = game_addr(at) as *const u8;
-            while game_read::<u8>(at) != 0 {
-                at += 1;
-            }
-            entries.push((key, game_read::<u32>(at + 1) as *mut u32));
-            at += 5;
-            if at > TABLE_END_RVA {
-                return Err(BadInput("the settings table has no end"));
-            }
-        }
-        Ok(entries)
-    }
+/// `sub_4114FF`: the settings a text names. Converted: `rc2k_core::settings::table` and
+/// `apply`; here the variables (the table's dwords are their addresses) are stored.
+unsafe fn settings() -> Result<Vec<(Vec<u8>, u32)>, BadInput> {
+    let table = unsafe { Raw::new(game_addr(TABLE_RVA) as *const u8) };
+    Ok(rc2k_core::settings::table(
+        &table,
+        TABLE_END_RVA - TABLE_RVA,
+    )?)
 }
 
-/// `sub_4114FF`: the settings a text names.
 pub unsafe fn apply_settings(text: *const u8) -> Result<(), BadInput> {
+    if text.is_null() {
+        return Err(BadInput("no settings text or no key"));
+    }
     unsafe {
+        let table = settings()?;
+        let keys: Vec<&[u8]> = table.iter().map(|(key, _)| key.as_slice()).collect();
         // Found first, stored after: nothing is written if a key is refused.
-        let mut found = Vec::new();
-        for (key, variable) in settings()? {
-            if let Some(value) = find_key(text, key)? {
-                found.push((variable, parse_number(value)));
-            }
-        }
-        for (variable, number) in found {
-            variable.write_unaligned(number);
+        let found = rc2k_core::settings::apply(&Raw::new(text), &keys, &case_table())?;
+        for (n, number) in found {
+            (table[n].1 as *mut u32).write_unaligned(number);
         }
         Ok(())
     }
@@ -95,7 +84,7 @@ fn regions() -> Vec<Region> {
     let mut regions: Vec<Region> = unsafe { settings() }
         .unwrap_or_default()
         .into_iter()
-        .map(|(_, variable)| (variable as u32, 4))
+        .map(|(_, variable)| (variable, 4))
         .collect();
     regions.sort();
     regions.dedup();

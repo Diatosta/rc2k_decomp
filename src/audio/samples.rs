@@ -42,18 +42,6 @@ unsafe fn dword(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
 }
 
-unsafe fn word(at: u32) -> u32 {
-    unsafe { (at as *const u16).read_unaligned() as u32 }
-}
-
-/// The flag a table of two {flag, value} entries has for `value`.
-unsafe fn flag_for(table: usize, value: u32) -> Option<u32> {
-    (0..2u32).find_map(|n| unsafe {
-        let entry = game_addr(table) as u32 + n * 8;
-        (dword(entry + 4) == value).then(|| dword(entry))
-    })
-}
-
 /// Reads and parses a sample file: true for the carry clear (a sample was found).
 pub unsafe fn read_sample(
     path: *const u8,
@@ -70,71 +58,45 @@ pub unsafe fn read_sample(
         if !read.ok {
             return Ok(false);
         }
-        let mut n = read.bytes_read.unwrap_or(0) as i32;
-        let mut p = buffer;
-        let mut raw = true;
-        if dword(p) == 0x4646_4952 && dword(p + 8) == 0x4556_4157 {
-            raw = false;
-            p += 12;
-            n -= 12;
-            if n <= 0 {
-                return Ok(false);
-            }
-            loop {
-                let (id, len) = (dword(p), dword(p + 4));
-                p += 8;
-                n -= 8;
-                if n <= 0 {
-                    return Ok(false);
-                }
-                if id == 0x2074_6D66 {
-                    if word(p) != 1 {
-                        return Ok(false);
-                    }
-                    f.channels = word(p + 2);
-                    if len == 0xC {
-                        f.rate = word(p + 4);
-                        f.bits = word(p + 0xA);
-                    } else {
-                        f.rate = dword(p + 4);
-                        f.bits = word(p + 0xE);
-                    }
-                } else if id == 0x6174_6164 {
-                    if len <= n as u32 {
-                        n = len as i32;
-                    }
-                    break;
-                }
-                p = p.wrapping_add(len);
-                n = n.wrapping_sub(len as i32);
-                if n <= 0 {
-                    return Ok(false);
-                }
-            }
-        }
-        let _ = raw;
-        let length = (n as u32) & !3;
-        f.data = p;
-        f.length = length;
-        if !(4..=0x1000_0000).contains(&length) {
-            return Ok(false);
-        }
-        let Some(bits) = flag_for(SAMPLE_BITS_FLAGS_RVA, f.bits) else {
-            return Ok(false);
+        // Converted: `rc2k_core::samples::parse`, on the work buffer's memory as the
+        // original reads it.
+        let mut core = rc2k_core::samples::SampleFile {
+            data: f.data.wrapping_sub(buffer),
+            length: f.length,
+            format: f.format,
+            channels: f.channels,
+            rate: f.rate,
+            bits: f.bits,
+            frame_bytes: f.frame_bytes,
+            frames: f.frames,
         };
-        let Some(channels) = flag_for(SAMPLE_CHANNEL_FLAGS_RVA, f.channels) else {
-            return Ok(false);
+        let file = crate::bridge::Raw::new(buffer as *const u8);
+        let found = rc2k_core::samples::parse(
+            &file,
+            read.bytes_read.unwrap_or(0),
+            &mut core,
+            &flags(SAMPLE_BITS_FLAGS_RVA),
+            &flags(SAMPLE_CHANNEL_FLAGS_RVA),
+        );
+        let found = crate::bridge::read_through(found);
+        *f = SampleFile {
+            data: core.data.wrapping_add(buffer),
+            length: core.length,
+            format: core.format,
+            channels: core.channels,
+            rate: core.rate,
+            bits: core.bits,
+            frame_bytes: core.frame_bytes,
+            frames: core.frames,
         };
-        f.format = bits | channels;
-        f.rate = f.rate.clamp(100, 200_000);
-        let frame_bytes = f.bits.wrapping_mul(f.channels) >> 3;
-        f.frame_bytes = frame_bytes;
-        if frame_bytes == 0 {
-            return Ok(false);
-        }
-        f.frames = length / frame_bytes;
-        Ok(true)
+        Ok(found)
     }
+}
+
+/// A table of two {flag, value} entries, as the core takes it.
+pub fn flags(table: usize) -> rc2k_core::samples::Flags {
+    let t: [u32; 4] = unsafe { game_read(table) };
+    [(t[0], t[1]), (t[2], t[3])]
 }
 
 /// The game's: the work buffer and `g_sampleFile`.
@@ -235,165 +197,30 @@ pub unsafe fn fill_voice(
     Ok(())
 }
 
-/// `audio::sample_mode`: the mode a voice's sample is prepared for.
+/// `audio::sample_mode`: the mode a voice's sample is prepared for. Converted:
+/// `rc2k_core::samples::sample_mode`.
 pub fn sample_mode(mode: u32, record: Option<&SampleRecord>) -> u32 {
-    let Some(r) = record else { return mode };
-    let at_least = |n: u32| {
-        if mode & SHIFT < n {
-            mode - (mode & SHIFT) + n
-        } else {
-            mode
-        }
-    };
-    if r.number == 0x1C4 {
-        mode & SHIFT
-    } else {
-        match r.group {
-            1 | 2 => at_least(1),
-            3 => at_least(2),
-            _ => mode,
-        }
-    }
+    rc2k_core::samples::sample_mode(mode, record.map(|r| (r.number, r.group)))
 }
 
 /// `audio::prepare_sample`: the voice's data, in place, scaled by `scale` / 64, halved
-/// until its shift is the mode's, and made eight bits if the mode asks.
-fn stereo_doubles(frames: u32, format: u32) -> u32 {
-    if format & MONO != 0 {
-        frames
-    } else {
-        frames.wrapping_add(frames)
-    }
-}
-
-/// The counts `prepare_sample`'s loops would run with: a count of 0 runs the original's
-/// `dec ecx; jnz` through 2^32 steps.
-fn counts_sound(v: &Voice, mode: u32) -> bool {
-    if v.scale != 0x40 && stereo_doubles(v.frames, v.format) == 0 {
-        return false;
-    }
-    let (mut frames, mut length, mut format) = (v.frames, v.length, v.format);
-    if mode & 3 != 0 {
-        while v.own_frequency >= 0xC8 && length >= 8 {
-            if frames >> 1 == 0 {
-                return false;
-            }
-            format = format.wrapping_add(1);
-            length >>= 1;
-            frames >>= 1;
-            if (format ^ mode) & SHIFT == 0 {
-                break;
-            }
-        }
-    }
-    !(mode & EIGHT_BITS != 0
-        && format & EIGHT_BITS == 0
-        && length >= 8
-        && stereo_doubles(frames, format) == 0)
-}
-
+/// until its shift is the mode's, and made eight bits if the mode asks. Converted:
+/// `rc2k_core::samples::prepare`, on the voice's data in game memory.
 pub unsafe fn prepare_sample(v: &mut Voice, mode: u32) -> Result<(), Refused> {
-    unsafe {
-        if v.data == 0 || v.length == 0 || v.data_key == 0 {
-            return Ok(());
-        }
-        if !counts_sound(v, mode) {
-            return Err(BadInput("a count of 0 for one of the sample's loops").into());
-        }
-        if v.scale != 0x40 {
-            let scale = v.scale as i32;
-            let mut count = stereo_doubles(v.frames, v.format);
-            let (mut from, mut to) = (v.data, v.data);
-            if v.format & EIGHT_BITS != 0 {
-                loop {
-                    let s = ((*(from as *const u8) as i32 - 0x80).wrapping_mul(scale) >> 6)
-                        .clamp(-0x80, 0x7F);
-                    from += 1;
-                    *(to as *mut u8) = (s + 0x80) as u8;
-                    to += 1;
-                    count = count.wrapping_sub(1);
-                    if count == 0 {
-                        break;
-                    }
-                }
-            } else {
-                loop {
-                    let s = (((from as *const i16).read_unaligned() as i32).wrapping_mul(scale)
-                        >> 6)
-                        .clamp(-0x8000, 0x7FFF);
-                    from += 2;
-                    (to as *mut i16).write_unaligned(s as i16);
-                    to += 2;
-                    count = count.wrapping_sub(1);
-                    if count == 0 {
-                        break;
-                    }
-                }
-            }
-        }
-        if mode & 3 != 0 {
-            loop {
-                if v.own_frequency < 0xC8 || v.length < 8 {
-                    break;
-                }
-                let mut count = v.frames >> 1;
-                let (mut from, mut to) = (v.data, v.data);
-                let b = |at: u32| *(at as *const u8) as u32;
-                let w = |at: u32| (at as *const i16).read_unaligned() as i32;
-                loop {
-                    match (v.format & EIGHT_BITS != 0, v.format & MONO != 0) {
-                        (true, true) => {
-                            *(to as *mut u8) = ((b(from) + b(from + 1)) >> 1) as u8;
-                            from += 2;
-                            to += 1;
-                        }
-                        (true, false) => {
-                            *(to as *mut u8) = ((b(from) + b(from + 2)) >> 1) as u8;
-                            *((to + 1) as *mut u8) = ((b(from + 1) + b(from + 3)) >> 1) as u8;
-                            from += 4;
-                            to += 2;
-                        }
-                        (false, true) => {
-                            (to as *mut i16).write_unaligned(((w(from) + w(from + 2)) >> 1) as i16);
-                            from += 4;
-                            to += 2;
-                        }
-                        (false, false) => {
-                            (to as *mut i16).write_unaligned(((w(from) + w(from + 4)) >> 1) as i16);
-                            ((to + 2) as *mut i16)
-                                .write_unaligned(((w(from + 2) + w(from + 6)) >> 1) as i16);
-                            from += 8;
-                            to += 4;
-                        }
-                    }
-                    count = count.wrapping_sub(1);
-                    if count == 0 {
-                        break;
-                    }
-                }
-                v.format = v.format.wrapping_add(1);
-                v.length >>= 1;
-                v.frames >>= 1;
-                if (v.format ^ mode) & SHIFT == 0 {
-                    break;
-                }
-            }
-        }
-        if mode & EIGHT_BITS != 0 && v.format & EIGHT_BITS == 0 && v.length >= 8 {
-            let mut count = stereo_doubles(v.frames, v.format);
-            let (mut from, mut to) = (v.data, v.data);
-            loop {
-                *(to as *mut u8) = (*((from + 1) as *const u8)).wrapping_add(0x80);
-                from += 2;
-                to += 1;
-                count = count.wrapping_sub(1);
-                if count == 0 {
-                    break;
-                }
-            }
-            v.format = (v.format & 0xFFFF_FF0F) | EIGHT_BITS;
-            v.length >>= 1;
-        }
+    if v.data == 0 || v.length == 0 || v.data_key == 0 {
+        return Ok(());
     }
+    let mut shape = rc2k_core::samples::Shape {
+        length: v.length,
+        format: v.format,
+        frames: v.frames,
+        scale: v.scale,
+        own_frequency: v.own_frequency,
+    };
+    let mut data = unsafe { crate::bridge::RawMut::new(v.data as *mut u8) };
+    rc2k_core::samples::prepare(&mut shape, mode, &mut data)?;
+    v.length = shape.length;
+    v.format = shape.format;
+    v.frames = shape.frames;
     Ok(())
 }

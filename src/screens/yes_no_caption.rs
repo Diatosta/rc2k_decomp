@@ -11,7 +11,7 @@
 //! Refuses a caption longer than its place.
 //! Self-test: four answers.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{
     EAX, EBX, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
 };
@@ -50,10 +50,8 @@ pub unsafe fn yes_no_caption() -> Result<(u32, u32), Refused> {
         let eax = append_string_by_id(id, &mut |p, n| {
             text.extend_from_slice(std::slice::from_raw_parts(p, n))
         });
-        if text.len() >= CAPTION_LEN {
-            return Err(BadInput("a caption longer than its place").into());
-        }
-        text.push(0);
+        // Converted: `rc2k_core::captions::fit`.
+        let text = rc2k_core::captions::fit(text, CAPTION_LEN)?;
         let caption = game_addr(CAPTION_RVA) as *mut u8;
         std::ptr::copy_nonoverlapping(text.as_ptr(), caption, text.len());
         Ok((eax, caption as u32 + text.len() as u32))

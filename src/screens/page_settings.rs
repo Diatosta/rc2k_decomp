@@ -59,20 +59,7 @@ unsafe fn push_id(out: &mut Vec<u8>, id: u32) {
 /// (`strings::append_fraction`), ": ", the name of its track-pack entry
 /// (`records::trakpak_entry`'s first dword, a string id), and its NUL.
 pub unsafe fn stage_line_bytes(id: u32, record: u32) -> Result<Vec<u8>, Refused> {
-    unsafe {
-        let mut line = Vec::new();
-        push_id(&mut line, id);
-        line.push(b' ');
-        line.extend(crate::strings::append_fraction::append_fraction(
-            ((record + 0x40) as *const u32).read_unaligned(),
-            6,
-        ));
-        line.extend(b": ");
-        let entry = crate::records::trakpak_entry::record_entry(record as *const u8)?;
-        push_id(&mut line, (entry as *const u32).read_unaligned());
-        line.push(0);
-        Ok(line)
-    }
+    Ok(unsafe { crate::screens::draw_stage_heading::heading_text(record as *const u8, id) }?)
 }
 
 /// The stage line both stage pages build in `byte_A8BD54`.

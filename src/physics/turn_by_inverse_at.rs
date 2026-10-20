@@ -14,10 +14,11 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
-use crate::physics::turn_by_car_matrix::turn_point_by;
+use crate::math::x87_run::{DOUBLE, TEST_CONTROL_WORDS, with_control_word};
+use crate::physics::turn_by_car_matrix::{turn_point_by, turn_point_by_plain};
 use crate::scene::matrix3::test_floats;
 use crate::screens::harness::Left;
+use crate::service::floats::{FLOAT, close};
 use crate::service::harness::dispatch_state;
 use std::sync::atomic::AtomicUsize;
 
@@ -46,8 +47,13 @@ pub unsafe fn turn_by_inverse_at(v: u32, car: u32) {
     unsafe { turn_point_by(car + INVERSE_OFFSET, v) }
 }
 
+/// The converted version (`turn_point_by_plain`): the hook's.
+pub unsafe fn turn_by_inverse_at_plain(v: u32, car: u32) {
+    unsafe { turn_point_by_plain(car + INVERSE_OFFSET, v) }
+}
+
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { turn_by_inverse_at(r.esi, r.edi) };
+    unsafe { turn_by_inverse_at_plain(r.esi, r.edi) };
     Ok(Left::nothing())
 }
 
@@ -97,10 +103,16 @@ pub fn test_turn_at(
                 unsafe { original(&mut ro) };
                 let theirs = unsafe { (v as *const [u32; 3]).read() };
                 fill(seed);
-                unsafe { turn_point_by(car + offset, v as u32) };
+                unsafe { turn_point_by_plain(car + offset, v as u32) };
                 let mine = unsafe { (v as *const [u32; 3]).read() };
                 let regs_ok = ro.preserved_except(&before, 0);
-                t.check(regs_ok && theirs == mine, || {
+                // Exact at the game's double precision, within the tolerance at extended.
+                let same = if word == DOUBLE {
+                    theirs == mine
+                } else {
+                    theirs.iter().zip(&mine).all(|(&a, &b)| close(a, b, FLOAT))
+                };
+                t.check(regs_ok && same, || {
                     format!(
                         "control word {word:#x}, seed {seed}: regs_ok={regs_ok} original {theirs:x?}; rust {mine:x?}"
                     )

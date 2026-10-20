@@ -62,13 +62,8 @@ pub unsafe fn step_gearing(on: bool) -> Result<(), Refused> {
     let p = current()?;
     unsafe {
         let kept: i32 = game_read(KEPT_RVA);
-        let value = if on {
-            let v = kept.wrapping_add(1);
-            if v > 2 { 0 } else { v }
-        } else {
-            let v = kept.wrapping_sub(1);
-            if v < 0 { 2 } else { v }
-        } as u32;
+        // Converted: `rc2k_core::captions::step_gearing`.
+        let value = rc2k_core::captions::step_gearing(kept, on);
         put_string(FIRST_STRING.wrapping_add(value), TEXT_RVA, TEXT_LEN)?;
         game_write(KEPT_RVA, value);
         (*(p as *mut Player)).gearing = value;

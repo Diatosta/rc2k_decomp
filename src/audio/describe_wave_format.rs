@@ -14,7 +14,7 @@
 
 use crate::audio::samples::{SAMPLE_BITS_FLAGS_RVA, SAMPLE_CHANNEL_FLAGS_RVA};
 use crate::errors::{FatalError, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
 use crate::screens::harness::Left;
 use crate::service::harness::{capture, dispatch_state, restore};
 use std::sync::atomic::AtomicUsize;
@@ -54,32 +54,30 @@ pub struct WaveFormat {
 const _: () = assert!(std::mem::size_of::<WaveFormat>() == WAVE_FORMAT_LEN);
 
 /// The value a table of two {flag, value} entries has for the flag (`system::find_entry`).
-fn value_for(table: usize, flag: u32) -> Option<u32> {
-    (0..2usize).find_map(|n| unsafe {
-        let key: u32 = game_read(table + n * 8);
-        (key == flag).then(|| game_read(table + n * 8 + 4))
-    })
-}
-
 pub fn wave_format(format: u32, frequency: u32) -> Result<WaveFormat, Refused> {
-    let fatal = |code| Err(FatalError { code, message: "" }.into());
-    let Some(channels) = value_for(SAMPLE_CHANNEL_FLAGS_RVA, format & 0xF00) else {
-        return fatal(0x80A2_8541);
-    };
-    let Some(bits) = value_for(SAMPLE_BITS_FLAGS_RVA, format & 0xF0) else {
-        return fatal(0x80A2_8542);
-    };
-    let rate = frequency >> (format & 0xF);
-    let block = bits.wrapping_mul(channels as u16 as u32) >> 3;
-    Ok(WaveFormat {
-        tag: 1,
-        channels: channels as u16,
-        samples_per_second: rate,
-        bytes_per_second: block.wrapping_mul(rate),
-        block_align: block as u16,
-        bits: bits as u16,
-        extra: 0,
-    })
+    use crate::audio::samples::flags;
+    use rc2k_core::samples::FormatError;
+    // Converted: `rc2k_core::samples::wave_format`.
+    let bits = flags(SAMPLE_BITS_FLAGS_RVA);
+    let channels = flags(SAMPLE_CHANNEL_FLAGS_RVA);
+    match rc2k_core::samples::wave_format(format, frequency, &bits, &channels) {
+        Ok(w) => Ok(WaveFormat {
+            tag: 1,
+            channels: w.channels,
+            samples_per_second: w.samples_per_second,
+            bytes_per_second: w.bytes_per_second,
+            block_align: w.block_align,
+            bits: w.bits,
+            extra: 0,
+        }),
+        Err(e) => {
+            let code = match e {
+                FormatError::Channels => 0x80A2_8541,
+                FormatError::Bits => 0x80A2_8542,
+            };
+            Err(FatalError { code, message: "" }.into())
+        }
+    }
 }
 
 pub unsafe fn describe_wave_format(format: u32, frequency: u32) -> Result<(), Refused> {

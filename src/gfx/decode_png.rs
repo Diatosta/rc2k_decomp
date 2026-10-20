@@ -28,9 +28,7 @@
 use crate::errors::BadInput;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
 use crate::gfx::picture::PICTURE_DWORDS;
-use crate::gfx::png::{PngInfo, SIGNATURE, test_png};
-use miniz_oxide::inflate::TINFLStatus;
-use miniz_oxide::inflate::core::{DecompressorOxide, decompress, inflate_flags};
+use crate::gfx::png::{PngInfo, test_png};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -59,94 +57,9 @@ const COLOUR_TYPE_RVA: usize = rva(0xA8C1A0); // dword_A8C1A0
 pub const FILE_RVA: usize = rva(0x5BEC30);
 pub const FILE_LEN_RVA: usize = rva(0x5BEC34);
 
-/// dword_4DEE88: bytes a pixel by colour type.
-const PIXEL_BYTES: [u32; 8] = [1, 0, 3, 1, 2, 0, 4, 0];
-
 // ---- Rust version ----
-
-fn paeth(a: u8, b: u8, c: u8) -> u8 {
-    let p = a as i32 + b as i32 - c as i32;
-    let (pa, pb, pc) = (
-        (p - a as i32).abs(),
-        (p - b as i32).abs(),
-        (p - c as i32).abs(),
-    );
-    if pa <= pb && pa <= pc {
-        a
-    } else if pb <= pc {
-        b
-    } else {
-        c
-    }
-}
-
-/// Takes the filter bytes out of `rows` rows at `area` and undoes the filters, in place.
-/// `step` is the bytes of one pixel as the filters see it. The row above the first is the
-/// memory before `area`.
-unsafe fn unfilter(
-    area: *mut u8,
-    row_bytes: usize,
-    rows: u32,
-    step: usize,
-) -> Result<(), BadInput> {
-    unsafe {
-        let (mut from, mut to) = (area as *const u8, area);
-        for _ in 0..rows {
-            let filter = from.read();
-            from = from.add(1);
-            let above = to.wrapping_sub(row_bytes) as *const u8;
-            match filter {
-                0 => std::ptr::copy(from, to, row_bytes),
-                1 => {
-                    for i in 0..row_bytes {
-                        let left = if i >= step {
-                            to.add(i - step).read()
-                        } else {
-                            0
-                        };
-                        to.add(i).write(from.add(i).read().wrapping_add(left));
-                    }
-                }
-                2 => {
-                    for i in 0..row_bytes {
-                        to.add(i)
-                            .write(from.add(i).read().wrapping_add(above.add(i).read()));
-                    }
-                }
-                3 => {
-                    for i in 0..row_bytes {
-                        let up = above.add(i).read();
-                        let predicted = if i >= step {
-                            ((up as u32 + to.add(i - step).read() as u32) >> 1) as u8
-                        } else {
-                            up >> 1
-                        };
-                        to.add(i).write(from.add(i).read().wrapping_add(predicted));
-                    }
-                }
-                4 => {
-                    for i in 0..row_bytes {
-                        let up = above.add(i).read();
-                        let predicted = if i >= step {
-                            paeth(to.add(i - step).read(), up, above.add(i - step).read())
-                        } else {
-                            paeth(0, up, 0)
-                        };
-                        to.add(i).write(from.add(i).read().wrapping_add(predicted));
-                    }
-                }
-                _ => return Err(BadInput("a PNG row filter above 4")),
-            }
-            from = from.add(row_bytes);
-            to = to.add(row_bytes);
-        }
-        Ok(())
-    }
-}
-
-fn be(bytes: &[u8]) -> u32 {
-    u32::from_be_bytes(bytes[..4].try_into().unwrap())
-}
+// Converted: `rc2k_core::png`. Here the game's variables for the header, the pixel area
+// (with the row before it, which the first row's filters read) and the info block.
 
 /// Returns what the original returns in eax.
 pub unsafe fn decode_png(
@@ -154,126 +67,53 @@ pub unsafe fn decode_png(
     pixels: *mut u8,
     info: *mut PngInfo,
 ) -> Result<u32, BadInput> {
+    use rc2k_core::png;
     if pixels.is_null() || info.is_null() {
         return Ok(1);
     }
-    if file.len() < 8 {
-        return Err(BadInput("a PNG file shorter than its signature"));
-    }
-    if file[..8] != SIGNATURE {
+    // First the whole walk and the checks without writing anything: what is refused here
+    // leaves no trace. (Data that does not inflate, and a row filter above 4, are found
+    // out later, with the pixel area written to; the file is untouched, and the original
+    // starts from it.)
+    let Some(found) = png::chunks(file)? else {
         return Ok(2);
-    }
-    // First the whole walk without writing anything: what is refused here leaves no trace.
-    // (Data that does not inflate, and a row filter above 4, are found out later, with the
-    // pixel area written to; the file is untouched, and the original starts from it.)
-    let mut header: Option<(u32, u32, u32, u8)> = None;
-    let mut palette: Option<usize> = None;
-    let mut data: Option<(usize, usize)> = None;
-    let mut at = 8usize;
-    loop {
-        if at + 8 > file.len() {
-            return Err(BadInput("a PNG chunk past the end of the file"));
-        }
-        let length = be(&file[at..]) as usize;
-        let kind = &file[at + 4..at + 8];
-        let start = at + 8;
-        if start.checked_add(length).is_none_or(|end| end > file.len()) {
-            return Err(BadInput("a PNG chunk past the end of the file"));
-        }
-        match kind {
-            b"IHDR" => {
-                if length < 11 || data.is_some() {
-                    return Err(BadInput("a PNG header out of place"));
-                }
-                if file[start + 8] != 8 {
-                    return Err(BadInput("a PNG bit depth other than 8"));
-                }
-                header = Some((
-                    be(&file[start..]),
-                    be(&file[start + 4..]),
-                    file[start + 9] as u32 & 7,
-                    file[start + 10],
-                ));
-            }
-            b"PLTE" => palette = Some(start),
-            b"IDAT" => {
-                if data.is_some() || header.is_none() {
-                    return Err(BadInput(
-                        "more than one PNG data chunk, or one before the header",
-                    ));
-                }
-                data = Some((start, length));
-            }
-            _ => {}
-        }
-        if kind == b"IEND" {
-            break;
-        }
-        at = start + length + 4;
-    }
-    // Without a header in the file the variables keep what the last file left in them.
-    let (width, height, colour_type) = match header {
-        Some((width, height, colour_type, _)) => (width, height, colour_type),
-        None => unsafe {
-            (
-                game_read(WIDTH_RVA),
-                game_read(HEIGHT_RVA),
-                game_read(COLOUR_TYPE_RVA),
-            )
-        },
     };
-    if palette.is_some_and(|start| start + 0x300 > file.len()) {
-        return Err(BadInput("a PNG palette past the end of the file"));
-    }
-    let pixel_bytes = PIXEL_BYTES[colour_type as usize & 7];
-    if data.is_some() {
-        if !matches!(colour_type, 0 | 2 | 3) {
-            return Err(BadInput(
-                "a PNG colour type the original takes for one byte a pixel",
-            ));
+    // Without a header in the file the variables keep what the last file left in them.
+    let header = found.header.unwrap_or_else(|| unsafe {
+        png::Header {
+            width: game_read(WIDTH_RVA),
+            height: game_read(HEIGHT_RVA),
+            colour_type: game_read(COLOUR_TYPE_RVA),
+            compression: 0,
         }
-        if width < 2 || height == 0 {
-            return Err(BadInput("a PNG picture without width or height"));
-        }
-        if (pixel_bytes as u64 * width as u64 + 1) * height as u64 > PICTURE_DWORDS as u64 * 4 {
-            return Err(BadInput("a PNG picture too big for the picture buffer"));
-        }
-    }
-
+    });
+    let pixel_bytes = png::PIXEL_BYTES[header.colour_type as usize & 7];
+    let area = match found.data {
+        Some(_) => png::area_for(&header, PICTURE_DWORDS * 4)?,
+        None => 0,
+    };
     unsafe {
-        if let Some((_, _, _, compression)) = header {
-            game_write(WIDTH_RVA, width);
-            game_write(HEIGHT_RVA, height);
-            game_write(COMPRESSION_RVA, compression);
-            game_write(COLOUR_TYPE_RVA, colour_type);
+        if let Some(h) = found.header {
+            game_write(WIDTH_RVA, h.width);
+            game_write(HEIGHT_RVA, h.height);
+            game_write(COMPRESSION_RVA, h.compression);
+            game_write(COLOUR_TYPE_RVA, h.colour_type);
         }
-        if let Some((start, length)) = data {
-            let room = ((pixel_bytes * width + 1) * height) as usize;
-            let out = std::slice::from_raw_parts_mut(pixels, room);
-            let mut inflater = DecompressorOxide::new();
-            let flags = inflate_flags::TINFL_FLAG_PARSE_ZLIB_HEADER
-                | inflate_flags::TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF;
-            let (status, _, _) =
-                decompress(&mut inflater, &file[start..start + length], out, 0, flags);
-            // Done, the area full, or all there but for zlib's check sum: in each the
-            // original has written the same bytes.
-            if !matches!(
-                status,
-                TINFLStatus::Done | TINFLStatus::HasMoreOutput | TINFLStatus::Adler32Mismatch
-            ) {
-                return Err(BadInput("PNG data that does not inflate cleanly"));
-            }
-            let (row_bytes, step) = if colour_type == 2 {
-                (width as usize * 3, 3)
-            } else {
-                (width as usize, 1)
-            };
-            unfilter(pixels, row_bytes, height, step)?;
+        if let Some((start, length)) = found.data {
+            let (row_bytes, step) = png::row_layout(&header);
+            let buffer = std::slice::from_raw_parts_mut(pixels, area);
+            png::inflate(&file[start..start + length], buffer)?;
+            // The row above the first is the memory before the area, read only where the
+            // original reads it.
+            let before = pixels.wrapping_sub(row_bytes) as *const u8;
+            png::unfilter(buffer, row_bytes, header.height, step, &|i| {
+                before.wrapping_add(i).read()
+            })?;
         }
         (&raw mut (*info).has_palette).write(0);
-        (&raw mut (*info).width).write_unaligned(width);
-        (&raw mut (*info).height).write_unaligned(height);
-        if let Some(start) = palette {
+        (&raw mut (*info).width).write_unaligned(header.width);
+        (&raw mut (*info).height).write_unaligned(header.height);
+        if let Some(start) = found.palette {
             (&raw mut (*info).has_palette).write(1);
             std::ptr::copy(
                 file[start..].as_ptr(),
@@ -284,8 +124,8 @@ pub unsafe fn decode_png(
     }
     let (info, pixels) = (info as u32, pixels as u32);
     let end = pixel_bytes
-        .wrapping_mul(width)
-        .wrapping_mul(height)
+        .wrapping_mul(header.width)
+        .wrapping_mul(header.height)
         .wrapping_add(pixels);
     Ok(if info >= pixels && info < end { 3 } else { 0 })
 }

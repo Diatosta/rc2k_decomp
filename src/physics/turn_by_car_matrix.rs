@@ -14,10 +14,11 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
+use crate::math::x87_run::{DOUBLE, TEST_CONTROL_WORDS, with_control_word};
 use crate::scene::matrix3::{extended, rounded, test_floats};
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
+use crate::service::floats::{FLOAT, close};
 use crate::service::harness::dispatch_state;
 use std::sync::atomic::AtomicUsize;
 
@@ -57,13 +58,28 @@ pub unsafe fn turn_point_by(m: u32, v: u32) {
     }
 }
 
+/// The converted `turn_point_by` (`rc2k_core::vector`, plain floats): the hooks'.
+pub unsafe fn turn_point_by_plain(m: u32, v: u32) {
+    use crate::scene::vector3::{read_floats, write_floats};
+    unsafe {
+        let p: [f32; 3] = read_floats(v);
+        let out = rc2k_core::vector::rotate_point(&read_floats(m), p.map(f64::from));
+        write_floats(v, &out.map(|x| x as f32));
+    }
+}
+
 /// The Rust version.
 pub unsafe fn turn_by_car_matrix(v: u32) {
     unsafe { turn_point_by(game_addr(CRASH_MATRIX_RVA) as u32, v) }
 }
 
+/// The converted version.
+pub unsafe fn turn_by_car_matrix_plain(v: u32) {
+    unsafe { turn_point_by_plain(game_addr(CRASH_MATRIX_RVA) as u32, v) }
+}
+
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { turn_by_car_matrix(r.esi) };
+    unsafe { turn_by_car_matrix_plain(r.esi) };
     Ok(Left::nothing())
 }
 
@@ -124,10 +140,16 @@ pub fn test_turn(hook: &RawHook, address: usize, entry: &[u8], variable: usize) 
                 unsafe { call_game(&mut ro, copy.addr()) };
                 let theirs = unsafe { (v as *const [u32; 3]).read() };
                 fill(seed);
-                unsafe { turn_point_by(m as u32, v as u32) };
+                unsafe { turn_point_by_plain(m as u32, v as u32) };
                 let mine = unsafe { (v as *const [u32; 3]).read() };
                 let regs_ok = ro.preserved_except(&before, 0);
-                t.check(regs_ok && theirs == mine, || {
+                // Exact at the game's double precision, within the tolerance at extended.
+                let same = if word == DOUBLE {
+                    theirs == mine
+                } else {
+                    theirs.iter().zip(&mine).all(|(&a, &b)| close(a, b, FLOAT))
+                };
+                t.check(regs_ok && same, || {
                     format!(
                         "control word {word:#x}, seed {seed}: regs_ok={regs_ok} original {theirs:x?}; rust {mine:x?}"
                     )

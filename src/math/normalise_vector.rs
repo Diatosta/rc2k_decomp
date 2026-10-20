@@ -25,11 +25,16 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{
-    EAX, RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva,
+    EAX, GameHook, RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm,
+    rva,
 };
+use crate::math::x87_run::{DOUBLE, TEST_CONTROL_WORDS, with_control_word};
 use crate::redirect::RedirectedCopy;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, dispatch_state, restore};
+use crate::service::floats::{
+    Agreement, FLOAT, Floats, Tolerance, close, compare_memory, dispatch_state_floats, note_drift,
+};
+use crate::service::harness::{Region, at, capture, restore};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -62,6 +67,8 @@ pub unsafe fn normalise_vector() -> Result<Option<u32>, BadInput> {
     unsafe { normalise(game_read::<u32>(SSE_RVA) != 0) }
 }
 
+/// Exactly as the original (the x87 at its precision, the SSE instructions): what the
+/// Rust callers in modules not yet converted use.
 pub unsafe fn normalise(sse: bool) -> Result<Option<u32>, BadInput> {
     unsafe {
         let v: [u32; 4] = game_read(VECTOR_RVA);
@@ -151,6 +158,31 @@ pub unsafe fn normalise(sse: bool) -> Result<Option<u32>, BadInput> {
     }
 }
 
+/// The converted version (`rc2k_core::geometry`, plain floats): the hook's.
+pub unsafe fn normalise_plain(sse: bool) -> Result<Option<u32>, BadInput> {
+    use rc2k_core::geometry;
+    // Converted: `rc2k_core::geometry::normalise` and `normalise_four`.
+    unsafe {
+        let v = game_read::<[u32; 4]>(VECTOR_RVA).map(f32::from_bits);
+        if sse {
+            let n = geometry::normalise_four(v);
+            game_write(SQUARES_RVA, n.squares.map(f32::to_bits));
+            game_write(LENGTH_RVA, n.length.to_bits());
+            game_write(VECTOR_RVA, n.vector.map(f32::to_bits));
+            return Ok(None);
+        }
+        let roots = game_read::<[u32; 256]>(ROOTS_RVA).map(f32::from_bits);
+        let exponent_roots = game_read::<[u32; 256]>(EXPONENT_ROOTS_RVA).map(f32::from_bits);
+        let nothing = f32::from_bits(game_read(NOTHING_RVA));
+        let n = geometry::normalise([v[0], v[1], v[2]], &roots, &exponent_roots, nothing)
+            .ok_or(BadInput("a vector of no length"))?;
+        game_write(LENGTH_RVA, n.length.to_bits());
+        game_write(VECTOR_RVA, n.vector.map(f32::to_bits));
+        game_write(CHECKED_RVA, n.reciprocal.to_bits());
+        Ok(Some(n.sum.to_bits()))
+    }
+}
+
 // ---- hook ----
 
 fn regions() -> [Region; 4] {
@@ -163,14 +195,29 @@ fn regions() -> [Region; 4] {
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(match unsafe { normalise_vector() }? {
+    let sse = unsafe { game_read::<u32>(SSE_RVA) != 0 };
+    Ok(match unsafe { normalise_plain(sse) }? {
         Some(eax) => Left::nothing().with(EAX, eax),
         None => Left::nothing(),
     })
 }
 
+/// Floats within `FLOAT`; the SSE way's approximations within `APPROXIMATE`.
+const APPROXIMATE: Tolerance = Tolerance::Relative(1.0 / 1024.0);
+
+fn floats(sse: bool) -> [(Region, Tolerance); 4] {
+    let tolerance = if sse { APPROXIMATE } else { FLOAT };
+    regions().map(|region| (region, tolerance))
+}
+
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+    let sse = unsafe { game_read::<u32>(SSE_RVA) != 0 };
+    let memory = floats(sse);
+    let floats = Floats {
+        memory: &memory,
+        regs: &[(EAX, FLOAT)],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
 }
 
 // ---- self-test ----
@@ -231,32 +278,60 @@ fn self_test() -> (usize, usize) {
     } else {
         &[false, true]
     };
-    for &sse in ways {
-        for vector in vectors {
-            if !sse && vector[..3].iter().all(|&part| part == 0.0) {
-                continue;
-            }
-            let run = |rust: bool, switch: &mut u32| unsafe {
-                restore(&regions, &vec![0xAA; saved.len()]);
-                game_write(VECTOR_RVA, vector.map(f32::to_bits));
-                *switch = sse as u32;
-                // What is left in eax, or None if another register changed.
-                let done = if rust {
-                    normalise(sse)
-                        .ok()
-                        .map(|eax| eax.unwrap_or(Regs::SENTINEL.eax))
+    for word in TEST_CONTROL_WORDS {
+        with_control_word(word, &mut || {
+            for &sse in ways {
+                // The x87 way at double precision: the same bits.
+                let memory = floats(sse);
+                let floats = if word == DOUBLE && !sse {
+                    Floats::EXACT
                 } else {
-                    let mut ro = Regs::SENTINEL;
-                    call_game(&mut ro, copy.addr() + ENTRY_AT);
-                    ro.preserved_except(&Regs::SENTINEL, EAX).then_some(ro.eax)
+                    Floats {
+                        memory: &memory,
+                        regs: &[],
+                    }
                 };
-                (done, capture(&regions))
-            };
-            let (theirs, mine) = (run(false, &mut switch), run(true, &mut switch));
-            t.check(theirs == mine && theirs.0.is_some(), || {
-                format!("sse {sse}, vector {vector:?}: original {theirs:x?}; rust {mine:x?}")
-            });
-        }
+                for vector in vectors {
+                    if !sse && vector[..3].iter().all(|&part| part == 0.0) {
+                        continue;
+                    }
+                    let run = |rust: bool, switch: &mut u32| unsafe {
+                        restore(&regions, &vec![0xAA; saved.len()]);
+                        game_write(VECTOR_RVA, vector.map(f32::to_bits));
+                        *switch = sse as u32;
+                        // What is left in eax, or None if another register changed.
+                        let done = if rust {
+                            normalise_plain(sse)
+                                .ok()
+                                .map(|eax| eax.unwrap_or(Regs::SENTINEL.eax))
+                        } else {
+                            let mut ro = Regs::SENTINEL;
+                            call_game(&mut ro, copy.addr() + ENTRY_AT);
+                            ro.preserved_except(&Regs::SENTINEL, EAX).then_some(ro.eax)
+                        };
+                        (done, capture(&regions))
+                    };
+                    let (theirs, mine) = (run(false, &mut switch), run(true, &mut switch));
+                    let eax_ok = match (theirs.0, mine.0) {
+                        (Some(a), Some(b)) if word == DOUBLE || sse => a == b,
+                        (Some(a), Some(b)) => close(a, b, FLOAT),
+                        _ => false,
+                    };
+                    let memory = compare_memory(&regions, &theirs.1, &mine.1, &floats);
+                    if let Agreement::Drift(n) = memory {
+                        note_drift(HOOK.name(), || {
+                            format!("self-test sse {sse}, vector {vector:?}: {n} places")
+                        });
+                    }
+                    t.check(eax_ok && memory != Agreement::Differ, || {
+                        format!(
+                            "control word {word:#x}, sse {sse}, vector {vector:?}: \
+                             original {theirs:x?}; rust {mine:x?}"
+                        )
+                    });
+                }
+            }
+        });
     }
     restore(&regions, &saved);
     t.finish()

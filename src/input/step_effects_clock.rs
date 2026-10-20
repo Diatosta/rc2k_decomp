@@ -16,7 +16,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::math::x87::from_int;
 use crate::service::harness::{Region, capture, restore};
 use crate::sound::turn_parts::{
     EFFECTS, Part, TEST_TICK, TICK, both, copy_of, dispatch_turn, run_copy,
@@ -68,7 +67,8 @@ pub fn step_effects_clock_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     }
     p(LAST, c.ebx);
     (c.eax, c.edx, c.ebx) = (1000 / divisor, 1000 % divisor, divisor);
-    p(RATE, from_int(c.eax as i32));
+    // `fild` / `fstp`: `as f32` at every precision.
+    p(RATE, (c.eax as i32 as f32).to_bits());
     p(STEPS, g(STEPS).wrapping_add(1));
     part(EFFECTS, &mut c)
 }

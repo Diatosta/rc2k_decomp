@@ -26,13 +26,10 @@
 //! stand-in, against the Rust version, on records of the test's: keys, axes and buttons by
 //! lot, each kind, read or not.
 
-use crate::errors::{BadInput, Refused};
-use crate::field;
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva, shadow};
-use crate::input::devices::{KEYS_DOWN_RVA, RECORD_LEN, at, key_down, put, test_record};
-use crate::input::hat_direction::hat_direction;
-use crate::input::hat_reading::hat_reading;
-use crate::input::types::InputDevice;
+use crate::input::devices::{KEYS_DOWN_RVA, RECORD_LEN, put, test_record};
+use crate::input::devices::{joy_state, key_table, record_bytes};
 use crate::race::mud::{copy, run_both_from, test_part};
 use crate::service::harness::{Region, capture, restore};
 use std::sync::atomic::AtomicUsize;
@@ -52,127 +49,27 @@ hook_asm!(
 const POLL_RVA: usize = rva(0x408869); // sub_408869: the device polled (DirectInput)
 const BINDINGS: u32 = 0x41C;
 const BINDINGS_COUNT: u32 = 12;
-const FULL_LEFT: u32 = 0xFFFF_FF00;
-const FULL: u32 = 0x100;
 
 /// A call by place: 0 the poll (esi the record).
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
-/// The bindings' keys and places, or the refusal.
-fn check_bindings(record: u32) -> Result<(), Refused> {
-    for k in 0..BINDINGS_COUNT {
-        let g = BINDINGS + 0x10 * k;
-        if at(record, g) > 0xFF {
-            return Err(BadInput("a bound key past 0xFF").into());
-        }
-        if at(record, g + 4) > RECORD_LEN as u32 - 4 {
-            return Err(BadInput("a bound axis's place past the record").into());
-        }
-    }
-    Ok(())
-}
-
-/// An axis's value: the record's dword at the binding's place times its sign (`imul`).
-fn axis_value(record: u32, g: u32) -> i32 {
-    (at(record, at(record, g + 4)) as i32).wrapping_mul(at(record, g + 8) as i32)
-}
-
-/// One of the four readings (binding at `g`): (the value, all of it pressed).
-fn reading(record: u32, g: u32, full: u32, negate_axis: bool) -> (u32, bool) {
-    let buttons = at(record, field!(InputDevice, buttons));
-    if key_down(at(record, g)) {
-        return (full, true);
-    }
-    let button = at(record, g + 0xC);
-    if at(record, g + 4) != 0 {
-        let v = axis_value(record, g).max(0);
-        if button == 0 {
-            let v = v as u32;
-            return (if negate_axis { v.wrapping_neg() } else { v }, false);
-        }
-        if v > 0x40 && buttons & button != 0 {
-            return (full, true);
-        }
-        return (0, false);
-    }
-    if button != 0 && buttons & button != 0 {
-        return (full, true);
-    }
-    (0, false)
-}
-
-/// One of the eight buttons (binding at `g`).
-fn pressed(record: u32, g: u32) -> bool {
-    if key_down(at(record, g)) {
-        return true;
-    }
-    let button = at(record, g + 0xC);
-    if at(record, g + 4) != 0 {
-        if axis_value(record, g) <= 0x40 {
-            return false;
-        }
-        return button == 0 || at(record, field!(InputDevice, buttons)) & button != 0;
-    }
-    button != 0 && at(record, field!(InputDevice, buttons)) & button != 0
-}
-
-/// `test ecx, ecx` then `mov ecx, 0FFFFFF00h; js` .. `mov ecx, 100h`: not 0 made all of it.
-fn whole_steering(v: u32) -> u32 {
-    match v {
-        0 => 0,
-        v if (v as i32) < 0 => FULL_LEFT,
-        _ => FULL,
-    }
-}
-
 /// The Rust version (see the header): the registers it leaves (`popa`'s: the entry's).
+/// Converted: `rc2k_core::devices::read_device`; the bindings are checked before the poll,
+/// the record read again after it.
 pub unsafe fn read_device(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    use rc2k_core::devices;
     let record = entry.esi;
-    check_bindings(record)?;
+    devices::check_bindings(&record_bytes(record))?;
     let mut poll = *entry;
     part(0, &mut poll)?;
-    if at(record, field!(InputDevice, reading)) != 1 {
+    let Some(r) = devices::read_device(&record_bytes(record), &key_table(), &joy_state())? else {
         return Ok(*entry);
-    }
-    let mut bits = (hat_reading(record).0 << 24) | hat_direction(record);
-    let mut steering = {
-        let (left, l) = reading(record, 0x41C, FULL_LEFT, true);
-        let (right, r) = reading(record, 0x42C, FULL, false);
-        if l || r {
-            bits |= 0x1000;
-        }
-        left.wrapping_add(right)
     };
-    if bits & 0x1000 != 0 {
-        steering = whole_steering(steering);
-    }
-    let (mut throttle, t) = reading(record, 0x43C, FULL, false);
-    if t {
-        bits |= 0x4000;
-    }
-    let (mut brake, b) = reading(record, 0x44C, FULL, false);
-    if b {
-        bits |= 0x2000;
-    }
-    if at(record, field!(InputDevice, kind)) == 1 {
-        bits |= 0x7000;
-        steering = whole_steering(steering);
-        if brake != 0 {
-            brake = FULL;
-        }
-        if throttle != 0 {
-            throttle = FULL;
-        }
-    }
-    for k in 0..8 {
-        if pressed(record, 0x45C + 0x10 * k) {
-            bits |= 1 << k;
-        }
-    }
-    put(record, field!(InputDevice, readings), steering);
-    put(record, field!(InputDevice, readings) + 4, brake);
-    put(record, field!(InputDevice, readings) + 8, throttle);
-    put(record, field!(InputDevice, bits), bits);
+    let readings = devices::READINGS as u32;
+    put(record, readings, r.steering);
+    put(record, readings + 4, r.brake);
+    put(record, readings + 8, r.throttle);
+    put(record, devices::BITS as u32, r.bits);
     Ok(*entry)
 }
 

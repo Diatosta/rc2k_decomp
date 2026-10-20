@@ -439,9 +439,31 @@ pub fn pulse(time: u32, half_pulse: u32, eased: bool) -> (bool, u32) {
     (half_pulse & time != 0, t)
 }
 
+/// The fixed widths a time's characters are drawn at, one by one (`text::draw_time_text`
+/// 0x402395): 6 for ':' and '.', 0x10 for the others, so that the digits keep their
+/// columns; at most 11 characters, up to the NUL.
+pub fn time_text_widths(text: &(impl Bytes + ?Sized)) -> Result<Vec<u32>, Invalid> {
+    let mut widths = Vec::new();
+    for at in 0..11 {
+        match text.byte(at).ok_or(Invalid("a time's text past its end"))? {
+            0 => break,
+            b':' | b'.' => widths.push(6),
+            _ => widths.push(0x10),
+        }
+    }
+    Ok(widths)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn time_widths() {
+        assert_eq!(time_text_widths(b"1:2.3\0").unwrap(), [16, 6, 16, 6, 16]);
+        assert_eq!(time_text_widths(b"123456789012345").unwrap().len(), 11);
+        assert!(time_text_widths(b"12").is_err());
+    }
 
     /// Glyph records without bitmaps rows: the advance is the width byte.
     fn table(widths: &[u8]) -> Vec<u8> {

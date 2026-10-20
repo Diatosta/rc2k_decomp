@@ -11,7 +11,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::physics::turn_by_car_matrix::turn_point_by;
+use crate::physics::turn_by_car_matrix::{turn_point_by, turn_point_by_plain};
 use crate::physics::turn_by_inverse_at::test_turn_at;
 use crate::screens::harness::Left;
 use crate::service::harness::dispatch_state;
@@ -42,8 +42,13 @@ pub unsafe fn turn_by_matrix_at(v: u32, car: u32) {
     unsafe { turn_point_by(car + MATRIX_OFFSET, v) }
 }
 
+/// The converted version (`turn_point_by_plain`): the hook's.
+pub unsafe fn turn_by_matrix_at_plain(v: u32, car: u32) {
+    unsafe { turn_point_by_plain(car + MATRIX_OFFSET, v) }
+}
+
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { turn_by_matrix_at(r.esi, r.edi) };
+    unsafe { turn_by_matrix_at_plain(r.esi, r.edi) };
     Ok(Left::nothing())
 }
 

@@ -49,9 +49,13 @@ pub fn with_control_word(word: u16, f: &mut dyn FnMut()) {
     }
 }
 
-/// Control words for those tests: single, double and extended precision, all exceptions
-/// masked, rounding to nearest.
-pub const TEST_CONTROL_WORDS: [u16; 3] = [0x007F, 0x027F, 0x037F];
+/// Control words for those tests: double and extended precision (the game's two; it never
+/// runs at single, 2026-10-20), all exceptions masked, rounding to nearest.
+pub const TEST_CONTROL_WORDS: [u16; 2] = [DOUBLE, 0x037F];
+/// Single precision, all exceptions masked.
+pub const SINGLE: u16 = 0x007F;
+/// Double precision: what the game runs at most of the time (2026-10-20, hook.log).
+pub const DOUBLE: u16 = 0x027F;
 
 /// `fild a; fild c; fsubp; fmul f; fild b; fild c; fsubp; fmul g; fild c; faddp; faddp;
 /// fistp`: c + (a - c) f + (b - c) g as a whole number (the sums in that order).

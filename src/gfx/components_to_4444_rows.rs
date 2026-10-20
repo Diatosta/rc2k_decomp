@@ -61,11 +61,12 @@ pub unsafe fn components_to_4444_rows(
     for _ in 0..rows {
         for _ in 0..row_pixels {
             unsafe {
-                let [first, second, third, fourth] = (from as *const [u8; 4]).read_unaligned();
-                (to as *mut u8).write(first >> 4 | second & 0xF0);
-                let high = third >> 4 | fourth & 0xF0;
+                // Converted: `rc2k_core::pixels::to_4444`.
+                let components = (from as *const [u8; 4]).read_unaligned();
+                let [low, high] = rc2k_core::pixels::to_4444(components);
+                (to as *mut u8).write(low);
                 (to.wrapping_add(1) as *mut u8).write(high);
-                ax = u16::from_le_bytes([high, fourth & 0xF0]);
+                ax = u16::from_le_bytes([high, components[3] & 0xF0]);
             }
             from = from.wrapping_add(4);
             to = to.wrapping_add(2);

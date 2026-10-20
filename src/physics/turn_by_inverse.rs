@@ -11,7 +11,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, game_addr, hook_asm, rva};
-use crate::physics::turn_by_car_matrix::{test_turn, turn_point_by};
+use crate::physics::turn_by_car_matrix::{test_turn, turn_point_by, turn_point_by_plain};
 use crate::screens::harness::Left;
 use crate::service::harness::dispatch_state;
 use std::sync::atomic::AtomicUsize;
@@ -35,8 +35,13 @@ pub unsafe fn turn_by_inverse(v: u32) {
     unsafe { turn_point_by(game_addr(INVERSE_RVA) as u32, v) }
 }
 
+/// The converted version (`turn_point_by_plain`): the hook's.
+pub unsafe fn turn_by_inverse_plain(v: u32) {
+    unsafe { turn_point_by_plain(game_addr(INVERSE_RVA) as u32, v) }
+}
+
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { turn_by_inverse(r.esi) };
+    unsafe { turn_by_inverse_plain(r.esi) };
     Ok(Left::nothing())
 }
 

@@ -35,6 +35,7 @@ use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, 
 use crate::input::devices::{at, put};
 use crate::input::effects::{Part, SET_EFFECT, compare, dispatch_effects};
 use crate::math::x87::{mul_to_int, x87};
+use crate::math::x87_run::{DOUBLE, with_control_word};
 use crate::sound::turn_parts::SCRATCH;
 use crate::system::api_stand_ins::copy_with;
 use std::sync::atomic::AtomicUsize;
@@ -87,7 +88,8 @@ fn knock(y: u32, x: u32, s: u32, full: u32, d: u32, tenth: u32) -> (u32, i32) {
     (out[0], out[1] as i32)
 }
 
-/// The Rust version, the angle written to `scratch` (an address).
+/// Exactly as the original (the x87 at its precision), the angle written to `scratch` (an
+/// address): what `input::update_effects` (not converted) calls.
 pub fn update_car_effects_with(r: &mut Regs, scratch: u32, part: Part) -> Result<(), Refused> {
     let (view, object, device) = (r.ebx, r.edi, r.esi);
     let surface = at(object, 0x294);
@@ -226,13 +228,81 @@ pub fn update_car_effects_with(r: &mut Regs, scratch: u32, part: Part) -> Result
     set(r, 5, change as u32, edx)
 }
 
+/// The converted version (`rc2k_core::feedback`, plain floats), the angle written to
+/// `scratch` (an address): the hook's. Here the fields loaded and stored, the requests sent.
+pub fn update_car_effects_plain_with(
+    r: &mut Regs,
+    scratch: u32,
+    part: Part,
+) -> Result<(), Refused> {
+    use rc2k_core::feedback::{Constants, Feel, View, update_car_effects};
+    let (view, object) = (r.ebx, r.edi);
+    let float = |v: u32| f32::from_bits(v);
+    let mut feel = Feel {
+        speed_14: at(object, 0x14),
+        airborne: at(object, 0xAC),
+        figures: [0xB0, 0xB4, 0xB8, 0xBC].map(|o| at(object, o)),
+        knock: at(object, 0xC0),
+        hit: [0xC4, 0xC8, 0xCC, 0xD0].map(|o| at(object, o)),
+        strength: at(object, 0xD8),
+        knock_count: at(object, 0xDC),
+        landing: at(object, 0x278),
+        last_figure: at(object, 0x27C),
+        speed: at(object, 0x284),
+        surface: at(object, 0x294),
+    };
+    let plan = update_car_effects(
+        &mut feel,
+        &View {
+            airborne: at(view, 0x248),
+            a4: float(at(view, 0x1A4)),
+            ac: float(at(view, 0x1AC)),
+            b8: float(at(view, 0x1B8)),
+        },
+        &Constants {
+            ten: float(k(TEN)),
+            angle_scale: float(k(ANGLE_SCALE)),
+            full: float(k(FULL)),
+            tenth: float(k(TENTH)),
+            kinds: unsafe { game_read(rva(KINDS)) },
+        },
+    )?;
+    put(object, 0xAC, feel.airborne);
+    for (o, v) in [0xB0, 0xB4, 0xB8, 0xBC].into_iter().zip(feel.figures) {
+        put(object, o, v);
+    }
+    put(object, 0xC0, feel.knock);
+    for (o, v) in [0xC4, 0xC8, 0xCC, 0xD0].into_iter().zip(feel.hit) {
+        put(object, o, v);
+    }
+    put(object, 0xDC, feel.knock_count);
+    put(object, 0x278, feel.landing);
+    put(object, 0x27C, feel.last_figure);
+    if let Some(angle) = plan.angle {
+        unsafe { (scratch as *mut u32).write_volatile(angle) };
+    }
+    for request in plan.requests {
+        r.eax = request.effect;
+        r.ebx = 3;
+        r.ecx = request.ecx;
+        r.edx = request.edx;
+        part(SET_EFFECT, r)?;
+    }
+    Ok(())
+}
+
 /// The Rust version.
 pub fn update_car_effects(r: &mut Regs, part: Part) -> Result<(), Refused> {
     update_car_effects_with(r, game_addr(rva(SCRATCH)) as u32, part)
 }
 
+/// The converted version: the hook's.
+pub fn update_car_effects_plain(r: &mut Regs, part: Part) -> Result<(), Refused> {
+    update_car_effects_plain_with(r, game_addr(rva(SCRATCH)) as u32, part)
+}
+
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_effects(&HOOK, r, call_original, update_car_effects);
+    dispatch_effects(&HOOK, r, call_original, update_car_effects_plain);
 }
 
 // ---- self-test ----
@@ -279,71 +349,75 @@ fn self_test() -> (usize, usize) {
         seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
         seed
     };
-    for case in 0..160u32 {
-        let surface = case % 14; // 13 .. 15 read the table's zeros
-        let speed =
-            [0u32, 3, 5, 6, 0xFFFF_FFFB, 0x150, 0xFFFF_FE00, 0x8000_0000][(case / 14) as usize % 8];
-        let r1 = next();
-        let r2 = next();
-        let r3 = next();
-        let fill = || unsafe {
-            let w = |base: u32, o: u32, v: u32| ((base + o) as *mut u32).write_volatile(v);
-            for o in (0..0x250).step_by(4) {
-                w(vb, o, 0xA5A5_0000 | o);
-            }
-            for o in (0..0x300).step_by(4) {
-                w(ob, o, 0x5A5A_0000 | o);
-            }
-            w(vb, 0x248, (r1 >> 3) & 1);
-            w(vb, 0x1A4, f(((r1 >> 8) % 400) as f32 / 37.0 - 5.0));
-            w(vb, 0x1AC, f(((r2 >> 8) % 400) as f32 / 29.0 - 7.0));
-            w(vb, 0x1B8, f(((r3 >> 8) % 400) as f32 / 31.0 - 6.0));
-            w(
-                ob,
-                0xC4,
-                if r1 & 0x10 != 0 {
-                    0x8000_0000
-                } else {
-                    f(((r2 >> 4) % 200) as f32 / 9.0 - 11.0)
-                },
+    // At double precision, the game's: the same bits (at the others a rounding may send
+    // other requests, which no tolerance makes sense of).
+    with_control_word(DOUBLE, &mut || {
+        for case in 0..160u32 {
+            let surface = case % 14; // 13 .. 15 read the table's zeros
+            let speed = [0u32, 3, 5, 6, 0xFFFF_FFFB, 0x150, 0xFFFF_FE00, 0x8000_0000]
+                [(case / 14) as usize % 8];
+            let r1 = next();
+            let r2 = next();
+            let r3 = next();
+            let fill = || unsafe {
+                let w = |base: u32, o: u32, v: u32| ((base + o) as *mut u32).write_volatile(v);
+                for o in (0..0x250).step_by(4) {
+                    w(vb, o, 0xA5A5_0000 | o);
+                }
+                for o in (0..0x300).step_by(4) {
+                    w(ob, o, 0x5A5A_0000 | o);
+                }
+                w(vb, 0x248, (r1 >> 3) & 1);
+                w(vb, 0x1A4, f(((r1 >> 8) % 400) as f32 / 37.0 - 5.0));
+                w(vb, 0x1AC, f(((r2 >> 8) % 400) as f32 / 29.0 - 7.0));
+                w(vb, 0x1B8, f(((r3 >> 8) % 400) as f32 / 31.0 - 6.0));
+                w(
+                    ob,
+                    0xC4,
+                    if r1 & 0x10 != 0 {
+                        0x8000_0000
+                    } else {
+                        f(((r2 >> 4) % 200) as f32 / 9.0 - 11.0)
+                    },
+                );
+                w(ob, 0xCC, f(((r3 >> 4) % 200) as f32 / 7.0 - 14.0));
+                w(
+                    ob,
+                    0xD0,
+                    if r1 & 0x20 != 0 {
+                        0
+                    } else {
+                        f(((r1 >> 12) % 100) as f32 / 3.0)
+                    },
+                );
+                w(ob, 0x14, r2 >> 18);
+                w(ob, 0x284, speed);
+                w(ob, 0x294, surface);
+                w(ob, 0x278, (r2 >> 2) & 1);
+                w(ob, 0xDC, (r3 >> 1) % 5);
+                w(ob, 0xD8, r3 >> 20);
+                w(ob, 0x27C, (r1 >> 21).wrapping_sub(0x200));
+                w(db, 0, r2 & 0xF);
+                (scratch_at as *mut u32).write_volatile(0xAAAA_AAAA);
+            };
+            let entry = Regs {
+                ebx: vb,
+                edi: ob,
+                esi: db,
+                ..Regs::SENTINEL
+            };
+            compare(
+                &mut t,
+                &format!("case {case} (surface {surface}, speed {speed:#x})"),
+                &copy,
+                entry,
+                &fill,
+                &all,
+                &|r, part| update_car_effects_plain_with(r, scratch_at, part),
+                false,
             );
-            w(ob, 0xCC, f(((r3 >> 4) % 200) as f32 / 7.0 - 14.0));
-            w(
-                ob,
-                0xD0,
-                if r1 & 0x20 != 0 {
-                    0
-                } else {
-                    f(((r1 >> 12) % 100) as f32 / 3.0)
-                },
-            );
-            w(ob, 0x14, r2 >> 18);
-            w(ob, 0x284, speed);
-            w(ob, 0x294, surface);
-            w(ob, 0x278, (r2 >> 2) & 1);
-            w(ob, 0xDC, (r3 >> 1) % 5);
-            w(ob, 0xD8, r3 >> 20);
-            w(ob, 0x27C, (r1 >> 21).wrapping_sub(0x200));
-            w(db, 0, r2 & 0xF);
-            (scratch_at as *mut u32).write_volatile(0xAAAA_AAAA);
-        };
-        let entry = Regs {
-            ebx: vb,
-            edi: ob,
-            esi: db,
-            ..Regs::SENTINEL
-        };
-        compare(
-            &mut t,
-            &format!("case {case} (surface {surface}, speed {speed:#x})"),
-            &copy,
-            entry,
-            &fill,
-            &all,
-            &|r, part| update_car_effects_with(r, scratch_at, part),
-            false,
-        );
-    }
+        }
+    });
     // A surface past the table is refused.
     object[0x294 / 4] = 16;
     let mut r = Regs {

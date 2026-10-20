@@ -10,7 +10,7 @@
 //! than its place.
 //! Self-test: records of the test's, twelve cars.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::menu::car_description::{read, shown_description};
 use crate::scene::carousel_pictures::ENTRIES_RVA;
@@ -47,10 +47,8 @@ pub unsafe fn put_string(id: u32, place: usize, room: usize) -> Result<(), Refus
         append_string_by_id(id, &mut |p, n| {
             text.extend_from_slice(std::slice::from_raw_parts(p, n))
         });
-        if text.len() >= room {
-            return Err(BadInput("a string longer than its place").into());
-        }
-        text.push(0);
+        // Converted: `rc2k_core::captions::fit`.
+        let text = rc2k_core::captions::fit(text, room)?;
         std::ptr::copy_nonoverlapping(text.as_ptr(), game_addr(place) as *mut u8, text.len());
         Ok(())
     }

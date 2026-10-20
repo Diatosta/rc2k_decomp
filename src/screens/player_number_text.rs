@@ -8,7 +8,7 @@
 //! NUL, into `byte_A8C054`. In six entry and draw lists (the car choice's). Refuses a text
 //! longer than its place (0x100). Self-test: the four players, the game's strings.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::menu::take_shown_car::CURRENT_PLAYER_RVA;
 use crate::screens::harness::Left;
@@ -50,10 +50,8 @@ pub unsafe fn player_number_text() -> Result<(), Refused> {
         let mut emit =
             |p: *const u8, len: usize| text.extend_from_slice(std::slice::from_raw_parts(p, len));
         append_string_by_id(SECOND_STRING, &mut emit);
-        if text.len() >= TEXT_LEN {
-            return Err(BadInput("a text longer than its place").into());
-        }
-        text.push(0);
+        // Converted: `rc2k_core::captions::fit`.
+        let text = rc2k_core::captions::fit(text, TEXT_LEN)?;
         std::ptr::copy_nonoverlapping(text.as_ptr(), game_addr(TEXT_RVA) as *mut u8, text.len());
     }
     Ok(())

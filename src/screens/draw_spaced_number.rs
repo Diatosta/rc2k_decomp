@@ -13,7 +13,7 @@
 //! shadow mode (`dispatch_draw`). Self-test: lengths 3 .. 8 of digit texts, two fonts and
 //! places, nothing drawn.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva};
 use crate::screens::draw_menu_item_text::text_unavailable;
 use crate::screens::font_at;
@@ -54,23 +54,17 @@ pub unsafe fn draw_spaced_number(
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     unsafe {
+        // Converted: `rc2k_core::captions::spaced_places`.
         let n = (end as u32).wrapping_sub(text as u32);
-        if n < 3 {
-            return Err(BadInput("a spaced number shorter than 3: the original runs on").into());
-        }
-        if n as usize * 2 > CELLS_LEN {
-            return Err(BadInput("a spaced number past byte_A8BC54").into());
-        }
+        let places = rc2k_core::captions::spaced_places(n, x, CELLS_LEN)?;
         game_write(LENGTH_RVA, n);
         let cells = game_addr(CELLS_RVA) as *mut u8;
         for i in 0..n as usize {
             *cells.add(2 * i) = *text.add(i);
             *cells.add(2 * i + 1) = 0;
         }
-        let mut x = x.wrapping_add(0x32);
-        for (k, i) in (0..n as usize).rev().enumerate() {
+        for (i, x) in places {
             draw_text_at(font, cells.add(2 * i), x, y, canvas)?;
-            x = x.wrapping_sub(if k < 2 { 9 } else { 0xD });
         }
         Ok(())
     }

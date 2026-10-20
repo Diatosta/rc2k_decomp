@@ -12,10 +12,9 @@
 //! lot and at each case, with and without a device, each hat kind.
 
 use crate::errors::Refused;
-use crate::field;
 use crate::framework::{EAX, RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva};
-use crate::input::devices::{STATE_LEN, STATE_RVA, at, state_byte, test_record};
-use crate::input::types::InputDevice;
+use crate::input::devices::{STATE_LEN, STATE_RVA, test_record};
+use crate::input::devices::{joy_state, record_bytes};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
 use std::sync::atomic::AtomicUsize;
@@ -34,24 +33,8 @@ hook_asm!(
 
 /// The Rust version (see the header).
 pub fn hat_direction(record: u32) -> u32 {
-    if at(record, field!(InputDevice, device)) == 0
-        || at(record, field!(InputDevice, hat_kind)) == 0
-    {
-        return 0xE00;
-    }
-    for (button, code) in [(0x35, 0x100), (0x36, 0x200), (0x30, 0x300), (0x31, 0x400)] {
-        if state_byte(button) != 0 {
-            return code;
-        }
-    }
-    let hat: u32 = unsafe { crate::framework::game_read(STATE_RVA + 0x20) };
-    match hat {
-        0 => 0x500,
-        0x6978 => 0x600,
-        0x4650 => 0x700,
-        0x2328 => 0xF00,
-        _ => 0,
-    }
+    // Converted: `rc2k_core::devices::hat_direction`.
+    rc2k_core::devices::hat_direction(&record_bytes(record), &joy_state())
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

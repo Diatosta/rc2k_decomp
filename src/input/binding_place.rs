@@ -32,35 +32,15 @@ hook_asm!(
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn binding_place(entry: &Regs) -> Regs {
-    let mut r = *entry;
-    if at(r.esi, 0x24) != 1 {
-        r.edx = 0;
-        r.eax = 0;
-        r.ebx = 0;
-        return r;
+    // Converted: `rc2k_core::devices::binding_place`.
+    let place = rc2k_core::devices::binding_place(entry.eax, at(entry.esi, 0x24) == 1);
+    Regs {
+        eax: place.axis,
+        edx: place.sign,
+        ebx: place.button,
+        ecx: place.ecx.unwrap_or(entry.ecx),
+        ..*entry
     }
-    r.edx = 1;
-    r.ecx = r.eax;
-    r.eax = if r.eax & 0x400 != 0 {
-        r.edx = u32::MAX;
-        0x2C
-    } else if r.eax & 0x800 != 0 {
-        0x2C
-    } else if r.eax & 0x200 != 0 {
-        0x34
-    } else if r.eax & 0x100 != 0 {
-        0x30
-    } else {
-        0
-    };
-    r.ecx &= 0xFF;
-    r.ebx = if r.ecx == 0 {
-        0
-    } else {
-        r.ecx -= 1;
-        1u32.wrapping_shl(r.ecx)
-    };
-    r
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

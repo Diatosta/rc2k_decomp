@@ -166,6 +166,9 @@ dependencies = [
 [[package]]
 name = "rc2k_core"
 version = "0.1.0"
+dependencies = [
+ "miniz_oxide",
+]
 
 [[package]]
 name = "rc2k_hook"

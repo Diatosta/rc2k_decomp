@@ -78,3 +78,15 @@ pub fn fill_voices(seed: u32, each: &dyn Fn(u32, u32)) {
         each(n, v);
     }
 }
+
+/// The voices as the core's (`rc2k_core::spot_voices`).
+pub fn load_voices() -> [rc2k_core::spot_voices::Voice; VOICE_COUNT as usize] {
+    let words: [[u32; 20]; VOICE_COUNT as usize] = unsafe { game_read(rva(VOICES)) };
+    words.map(rc2k_core::spot_voices::Voice::from_words)
+}
+
+/// The voices stored back.
+pub fn store_voices(voices: &[rc2k_core::spot_voices::Voice; VOICE_COUNT as usize]) {
+    let words = voices.map(|v| v.to_words());
+    unsafe { game_write(rva(VOICES), words) };
+}

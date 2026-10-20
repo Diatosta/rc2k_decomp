@@ -201,6 +201,9 @@ fn console_loop(input: File, mut out: File, mut enabled: Vec<bool>) {
                         h.stats().mismatches.load(Ordering::Relaxed)
                     ));
                 }
+                for (name, n) in service::floats::drift_counts() {
+                    log(&format!("{name:<30} drifts={n}"));
+                }
             }
             ["reload"] => {
                 if let Some(cfg) = load_config() {
@@ -209,6 +212,7 @@ fn console_loop(input: File, mut out: File, mut enabled: Vec<bool>) {
                 log("reload done");
             }
             ["selftest"] => run_self_tests("all", false),
+            ["selftest", "both"] => run_self_tests_both("all", false),
             ["selftest", pat] => run_self_tests(pat, false),
             ["selftest", "both", pat] => run_self_tests_both(pat, false),
             ["selftest", "both", pat, "leftovers"] => run_self_tests_both(pat, true),

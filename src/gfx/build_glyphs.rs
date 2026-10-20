@@ -41,8 +41,8 @@ use crate::framework::{
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::fill_row_table::fill_row_table;
 use crate::gfx::glyph_builder::{
-    DIRECT_COLOUR, Glyph, ONE_FILE, RUN_LENGTHS, Sheet, WIDE_HEAD, WITH_ALPHA, append, backdrop_of,
-    direct_pixel_size, table_of, transparent_of,
+    DIRECT_COLOUR, Glyph, ONE_FILE, RUN_LENGTHS, RowTable, Sheet, WIDE_HEAD, WITH_ALPHA, append,
+    backdrop_of, direct_pixel_size, table_of, transparent_of,
 };
 use crate::gfx::load_picture::LoaderTest;
 use crate::gfx::pcx::{
@@ -248,6 +248,7 @@ unsafe fn read_alpha_sheet(template: *const u8) -> Result<(), Refused> {
                 backdrop: 0,
                 transparent: 0,
                 convert: &mut convert,
+                pixels: &mut RowTable,
                 soften: false,
             };
             if sheet.width == 0 {
@@ -333,6 +334,7 @@ pub unsafe fn build_glyphs(template: *const u8, list: *mut MemoryList) -> Result
                 backdrop: 0,
                 transparent: 0,
                 convert: &mut convert,
+                pixels: &mut RowTable,
                 soften: flags & WITH_ALPHA != 0 && game_read::<u32>(ALPHA_LOADED_RVA) != 1,
             };
             if sheet.width == 0 {

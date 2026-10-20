@@ -14,7 +14,7 @@ use crate::math::x87::x87;
 use crate::race::stage_prefs::left_of;
 use crate::scene::vector3::{Triple80, triple_hook};
 use crate::screens::harness::Left;
-use crate::service::harness::{check_state, dispatch_state};
+use crate::service::floats::*;
 use std::cell::Cell;
 use std::sync::atomic::AtomicUsize;
 
@@ -56,20 +56,32 @@ pub unsafe fn rotate_point(m: u32, p: [[u8; 10]; 3]) -> [[u8; 10]; 3] {
     out
 }
 
+/// The converted version (`rc2k_core::vector`, plain floats): the hook's.
+pub unsafe fn rotate_point_plain(m: u32, p: [[u8; 10]; 3]) -> [[u8; 10]; 3] {
+    use rc2k_core::extended::{from_f64, to_f64};
+    let m = unsafe { crate::scene::vector3::read_floats(m) };
+    rc2k_core::vector::rotate_point(&m, p.map(to_f64)).map(from_f64)
+}
+
 fn rust(r: &Regs) -> Result<Left, Refused> {
     if r.esi == 0 {
         return Err(BadInput("a null matrix").into());
     }
-    TRIPLE.set_outputs(unsafe { rotate_point(r.esi, TRIPLE.inputs()) });
+    TRIPLE.set_outputs(unsafe { rotate_point_plain(r.esi, TRIPLE.inputs()) });
     Ok(left_of(r))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(
+    let floats = Floats {
+        memory: &[(TRIPLE.output_region(), EXTENDED)],
+        regs: &[],
+    };
+    dispatch_state_floats(
         &HOOK,
         r,
         original_with_triple,
         &[TRIPLE.output_region()],
+        &floats,
         &rust,
     );
 }
@@ -80,35 +92,43 @@ fn self_test() -> (usize, usize) {
         return (0, 0);
     };
     let matrix: Cell<[u32; 16]> = Cell::new([0; 16]);
-    for seed in 1..=40u32 {
-        let mut m = [0u32; 16];
-        test_floats(seed * 7 + 3, &mut m);
-        let mut f = [0u32; 6];
-        test_floats(seed * 11 + 5, &mut f);
-        // Every other case unrounded: a float less another, kept at 80 bits.
-        let point: [[u8; 10]; 3] = std::array::from_fn(|n| {
-            if seed % 2 == 0 {
-                extended(f[n])
-            } else {
-                crate::math::x87::sub_80(f[n], f[n + 3])
-            }
-        });
-        check_state(
-            &mut t,
-            &format!("seed {seed}: matrix {m:x?}, point {point:x?}"),
-            original_with_triple,
-            Regs {
-                esi: matrix.as_ptr() as u32,
-                ..Regs::SENTINEL
-            },
-            &|| {
-                matrix.set(m);
-                TRIPLE.set_inputs(point);
-                TRIPLE.set_outputs([[0xAA; 10]; 3]);
-            },
-            &[TRIPLE.output_region()],
-            &rust,
-        );
-    }
+    let tolerant = Floats {
+        memory: &[(TRIPLE.output_region(), EXTENDED)],
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, floats| {
+        for seed in 1..=40u32 {
+            let mut m = [0u32; 16];
+            test_floats(seed * 7 + 3, &mut m);
+            let mut f = [0u32; 6];
+            test_floats(seed * 11 + 5, &mut f);
+            // Every other case unrounded: a float less another, kept at 80 bits.
+            let point: [[u8; 10]; 3] = std::array::from_fn(|n| {
+                if seed % 2 == 0 {
+                    extended(f[n])
+                } else {
+                    crate::math::x87::sub_80(f[n], f[n + 3])
+                }
+            });
+            check_state_floats(
+                &mut t,
+                "scene::rotate_point",
+                &format!("control word {word:#x}, seed {seed}: matrix {m:x?}, point {point:x?}"),
+                original_with_triple,
+                Regs {
+                    esi: matrix.as_ptr() as u32,
+                    ..Regs::SENTINEL
+                },
+                &|| {
+                    matrix.set(m);
+                    TRIPLE.set_inputs(point);
+                    TRIPLE.set_outputs([[0xAA; 10]; 3]);
+                },
+                &[TRIPLE.output_region()],
+                floats,
+                &rust,
+            );
+        }
+    });
     t.finish()
 }

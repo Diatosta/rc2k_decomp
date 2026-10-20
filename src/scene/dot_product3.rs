@@ -12,7 +12,7 @@ use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::test_floats;
 use crate::scene::vector3::*;
 use crate::screens::harness::Left;
-use crate::service::harness::{check_state, dispatch_state};
+use crate::service::floats::*;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -31,12 +31,23 @@ result_hook!(
 );
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    RESULT.set(unsafe { dot_product3(r.esi, r.edi) });
+    RESULT.set(unsafe { dot_product3_plain(r.esi, r.edi) });
     Ok(left_of(r))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, original_keeping_result, &[RESULT.region()], &rust);
+    let floats = Floats {
+        memory: &[(RESULT.region(), EXTENDED)],
+        regs: &[],
+    };
+    dispatch_state_floats(
+        &HOOK,
+        r,
+        original_keeping_result,
+        &[RESULT.region()],
+        &floats,
+        &rust,
+    );
 }
 
 fn self_test() -> (usize, usize) {
@@ -45,25 +56,33 @@ fn self_test() -> (usize, usize) {
     };
     let mut v = [0u32; 6];
     let p = v.as_mut_ptr() as u32;
-    for seed in 1..=12u32 {
-        check_state(
-            &mut t,
-            &format!("seed {seed}"),
-            original_keeping_result,
-            Regs {
-                esi: p,
-                edi: p + 12,
-                ..Regs::SENTINEL
-            },
-            &|| {
-                let mut x = [0u32; 6];
-                test_floats(seed, &mut x);
-                unsafe { (p as *mut [u32; 6]).write(x) };
-                RESULT.set([0xAA; 10]);
-            },
-            &[RESULT.region(), (p, 24)],
-            &rust,
-        );
-    }
+    let tolerant = Floats {
+        memory: &[(RESULT.region(), EXTENDED)],
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, floats| {
+        for seed in 1..=12u32 {
+            check_state_floats(
+                &mut t,
+                "scene::dot_product3",
+                &format!("control word {word:#x}, seed {seed}"),
+                original_keeping_result,
+                Regs {
+                    esi: p,
+                    edi: p + 12,
+                    ..Regs::SENTINEL
+                },
+                &|| {
+                    let mut x = [0u32; 6];
+                    test_floats(seed, &mut x);
+                    unsafe { (p as *mut [u32; 6]).write(x) };
+                    RESULT.set([0xAA; 10]);
+                },
+                &[RESULT.region(), (p, 24)],
+                floats,
+                &rust,
+            );
+        }
+    });
     t.finish()
 }

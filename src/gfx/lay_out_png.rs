@@ -43,24 +43,27 @@ hook_asm!(
 pub unsafe fn lay_out_png() {
     unsafe {
         let info: *mut PngInfo = game_ptr(INFO_RVA);
-        let width = (&raw const (*info).width).read_unaligned();
-        game_write(DECODED_WIDTH_RVA, width);
-        game_write(
-            DECODED_HEIGHT_RVA,
+        // Converted: `rc2k_core::png::layout`.
+        let layout = rc2k_core::png::layout(
+            (&raw const (*info).width).read_unaligned(),
             (&raw const (*info).height).read_unaligned(),
+            game_read(FLAGS_RVA),
         );
-        let bits: u32 = if game_read::<u32>(FLAGS_RVA) & 0x100 != 0 {
-            8
-        } else {
-            32
-        };
-        game_write(PIXEL_BITS_RVA, bits);
-        game_write(PIXEL_BYTES_RVA, bits >> 3);
-        let row_bytes = (bits >> 3).wrapping_mul(width);
-        game_write(DECODED_ROW_BYTES_RVA, row_bytes);
-        game_write(DECODED_ROW_DWORDS_RVA, row_bytes >> 2);
-        game_write(STRIDE_RVA, row_bytes);
-        game_write(ROW_GAP_RVA, 0u32);
+        for (at, value) in [
+            DECODED_WIDTH_RVA,
+            DECODED_HEIGHT_RVA,
+            PIXEL_BITS_RVA,
+            PIXEL_BYTES_RVA,
+            DECODED_ROW_BYTES_RVA,
+            DECODED_ROW_DWORDS_RVA,
+            STRIDE_RVA,
+            ROW_GAP_RVA,
+        ]
+        .into_iter()
+        .zip(layout)
+        {
+            game_write(at, value);
+        }
         game_write(PIXELS_RVA, game_read::<u32>(PICTURE_RVA));
         // Neither is null: both are the game's own tables.
         let _ = palette_to_dwords(

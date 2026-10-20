@@ -23,7 +23,7 @@ use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::fill_row_table::{ROW_TABLE_ROOM, ROW_TABLE_RVA, fill_row_table, row_address};
 use crate::gfx::harness::dispatch_pixels;
 use crate::gfx::pixel_format::{PixelFormat, SCRATCH_RVA, TEST_FORMATS};
-use crate::gfx::rescale_picture::{STEP_X_RVA, blend, step};
+use crate::gfx::rescale_picture::STEP_X_RVA;
 use crate::redirect::RedirectedCopy;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, restore};
@@ -50,8 +50,6 @@ const DECODED_PIXELS_RVA: usize = rva(0x519140); // g_decodedPixels
 /// The work variables from `g_rescaleStepX` on: four steps, two weights, two counters,
 /// the components.
 const WORK_LEN: usize = 0x24;
-const WEIGHT_X: usize = 0x10;
-const WEIGHT_Y: usize = 0x14;
 const COLUMNS_LEFT: usize = 0x18;
 const ROWS_LEFT: usize = 0x1C;
 const COMPONENTS: usize = 0x20;
@@ -83,42 +81,24 @@ pub unsafe fn rescale_to_surface(surface: *const u32) -> Result<(), Refused> {
         }
         // The count was checked above.
         let _ = fill_row_table(from, game_read(DECODED_STRIDE_RVA), from_height);
+        // Converted: `rc2k_core::picture::rescale`; each pixel's parts through the
+        // components variable, the last left there with its fourth byte as it was.
         let format = (field(FORMAT) as *const PixelFormat).read_unaligned();
         let words = field(BITS) == 0x10;
-
-        let (step_x, step_x_fraction) = step(from_width, width);
-        let (step_y, step_y_fraction) = step(from_height, height);
-        game_write(
-            STEP_X_RVA,
-            [step_x, step_x_fraction, step_y, step_y_fraction],
-        );
-
         let mut out = field(PIXELS) as *mut u8;
-        let (mut y, mut y_fraction) = (0u32, 0u32);
-        for _ in 0..height {
-            let weight_y = (y_fraction >> 24) as i32;
-            game_write(STEP_X_RVA + WEIGHT_Y, weight_y as u32);
-            let row = row_address(y);
-            let below = if y.wrapping_add(1) != from_height {
-                row_address(y.wrapping_add(1))
-            } else {
-                row
-            };
-            let (mut x, mut x_fraction) = (0u32, 0u32);
-            for _ in 0..width {
-                let weight_x = (x_fraction >> 24) as i32;
-                game_write(STEP_X_RVA + WEIGHT_X, weight_x as u32);
-                let at = |row: u32, part: u32| {
-                    (row.wrapping_add(x.wrapping_mul(4)).wrapping_add(part) as *const u8).read()
-                        as i32
-                };
-                for part in 0..3u32 {
-                    let upper = blend(at(row, part), at(row, part + 4), weight_x);
-                    let lower = blend(at(below, part), at(below, part + 4), weight_x);
-                    game_write(
-                        STEP_X_RVA + COMPONENTS + part as usize,
-                        blend(upper, lower, weight_y) as u8,
-                    );
+        let (width_pixels, gap) = (width, field(ROW_GAP) as usize);
+        let mut column = 0u32;
+        let work = rc2k_core::picture::rescale(
+            &rc2k_core::picture::Sizes {
+                from_width,
+                from_height,
+                width,
+                height,
+            },
+            &|row, byte| (row_address(row).wrapping_add(byte) as *const u8).read(),
+            &mut |parts| {
+                for (part, &byte) in parts.iter().enumerate() {
+                    game_write(STEP_X_RVA + COMPONENTS + part, byte);
                 }
                 let pixel = components_to_pixel(&format, game_read(STEP_X_RVA + COMPONENTS));
                 if words {
@@ -128,15 +108,25 @@ pub unsafe fn rescale_to_surface(surface: *const u32) -> Result<(), Refused> {
                     (out as *mut u32).write_unaligned(pixel);
                     out = out.add(4);
                 }
-                let (fraction, carry) = x_fraction.overflowing_add(step_x_fraction);
-                x_fraction = fraction;
-                x = x.wrapping_add(step_x).wrapping_add(carry as u32);
-            }
-            out = out.wrapping_add(field(ROW_GAP) as usize);
-            let (fraction, carry) = y_fraction.overflowing_add(step_y_fraction);
-            y_fraction = fraction;
-            y = y.wrapping_add(step_y).wrapping_add(carry as u32);
-        }
+                column += 1;
+                if column == width_pixels {
+                    column = 0;
+                    out = out.wrapping_add(gap);
+                }
+            },
+        )
+        .expect("the sizes were checked");
+        game_write(
+            STEP_X_RVA,
+            [
+                work.step_x,
+                work.step_x_fraction,
+                work.step_y,
+                work.step_y_fraction,
+                work.weight_x,
+                work.weight_y,
+            ],
+        );
         game_write(STEP_X_RVA + COLUMNS_LEFT, 0u32);
         game_write(STEP_X_RVA + ROWS_LEFT, 0u32);
         Ok(())

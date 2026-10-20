@@ -16,7 +16,7 @@ use crate::framework::{EAX, RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
 use crate::screens::harness::Left;
 use crate::service::harness::{capture, check_state, dispatch_state, restore};
 use crate::sound::sample_settings::{
-    BUFFER_RATE, OWN, RECORD_LEN, RECORDS, RECORDS_RVA, TEST_RATES, rate_of, record, word,
+    BUFFER_RATE, OWN, RECORD_LEN, RECORDS, RECORDS_RVA, TEST_RATES, loaded, record,
 };
 use std::sync::atomic::AtomicUsize;
 
@@ -35,21 +35,12 @@ hook_asm!(
 // ---- Rust version ----
 
 pub fn sample_duration(sample: u32, rate: u32) -> Result<u32, BadInput> {
+    // Converted: `rc2k_core::samples::duration_ms`.
     let record = record(sample)?;
-    let buffer = word(record, 8) as *const u32;
-    if buffer.is_null() {
-        return Ok(0);
-    }
-    if word(record, 0x14) == 1 {
-        return Ok(0x7FFF_FFFF);
-    }
-    let rate = rate_of(record, buffer, rate) >> (word(buffer, 0x28) & 0xF);
-    if rate == 0 {
-        return Err(BadInput(
-            "a rate the shift makes 0: the original divides by it",
-        ));
-    }
-    Ok(word(buffer, 0x2C).wrapping_mul(1000) / rate)
+    Ok(rc2k_core::samples::duration_ms(
+        rate,
+        loaded(record).as_ref(),
+    )?)
 }
 
 // ---- hook ----

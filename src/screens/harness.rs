@@ -140,6 +140,12 @@ impl Left {
     }
 }
 
+/// The value of one register (`EAX` and so on).
+pub fn reg_value(r: &Regs, reg: u8) -> u32 {
+    let mut copy = *r;
+    *field(&mut copy, reg)
+}
+
 fn field(r: &mut Regs, reg: u8) -> &mut u32 {
     match reg {
         EAX => &mut r.eax,

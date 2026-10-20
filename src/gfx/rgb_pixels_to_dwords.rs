@@ -29,16 +29,11 @@ hook_asm!(
 // ---- Rust version ----
 
 pub unsafe fn rgb_pixels_to_dwords() -> Result<(), BadInput> {
-    unsafe {
-        let count = pixel_count()?;
-        let buffer = picture();
-        for n in (0..count).rev() {
-            let [first, second, third] = (buffer.add(n * 3) as *const [u8; 3]).read();
-            (buffer.add(n * 4) as *mut u32)
-                .write_unaligned((first as u32) << 16 | (second as u32) << 8 | third as u32);
-        }
-        Ok(())
-    }
+    // Converted: `rc2k_core::pixels::rgb_to_dwords`.
+    let count = unsafe { pixel_count() }?;
+    let buffer = unsafe { std::slice::from_raw_parts_mut(picture(), count * 4) };
+    rc2k_core::pixels::rgb_to_dwords(buffer, count).expect("the slice holds the dwords");
+    Ok(())
 }
 
 // ---- hook ----

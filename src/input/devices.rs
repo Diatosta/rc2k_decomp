@@ -40,6 +40,20 @@ pub fn state_byte(offset: usize) -> u8 {
 }
 
 /// Whether key `key` is down.
+/// A record's bytes, for the core (`rc2k_core::devices`).
+pub fn record_bytes(record: u32) -> rc2k_core::devices::Record {
+    unsafe { (record as *const rc2k_core::devices::Record).read_unaligned() }
+}
+
+/// The key table and the device's state, for the core.
+pub fn key_table() -> rc2k_core::devices::KeyTable {
+    unsafe { game_read(KEYS_DOWN_RVA) }
+}
+
+pub fn joy_state() -> rc2k_core::devices::State {
+    unsafe { game_read(STATE_RVA) }
+}
+
 pub fn key_down(key: u32) -> bool {
     unsafe { game_read::<u8>(KEYS_DOWN_RVA + (key as usize & 0xFF)) & 0x80 != 0 }
 }
