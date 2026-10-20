@@ -21,7 +21,7 @@
 //! streams of the test's (every code, the refill edges, the odd sizes, a file filling the
 //! buffer, bad magic, a failed read), and the stage 1 course data read by both.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva, shadow};
 use std::sync::Mutex;
 use std::sync::atomic::AtomicUsize;
@@ -41,7 +41,7 @@ hook_asm!(
     original = ORIGINAL
 );
 
-const MAGIC: u32 = 0x4C53_5153; // "SQSL"
+use rc2k_core::packed::MAGIC;
 const READ_FILE: usize = 0x402BB6; // files::read_file
 
 /// What the original leaves: eax and two flags.
@@ -87,97 +87,11 @@ unsafe fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
 }
 
-unsafe fn put(at: u32, value: u32) {
-    unsafe { (at as *mut u32).write_unaligned(value) };
-}
-
-/// The bits, each dword's highest first, read as the original reads them: a dword fetched
-/// when the last one's 32 are used.
-struct Bits {
-    start: u32,
-    at: u32,
-    end: u32,
-    word: u32,
-    left: u32,
-}
-
-impl Bits {
-    unsafe fn bit(&mut self) -> Result<u32, Refused> {
-        self.left -= 1;
-        if self.left == 0 {
-            if self.at < self.start || self.at.wrapping_add(4) > self.end {
-                return Err(BadInput("a packed stream read past the buffer").into());
-            }
-            self.word = unsafe { get(self.at) };
-            self.left = 32;
-            self.at += 4;
-        }
-        let bit = self.word >> 31;
-        self.word <<= 1;
-        Ok(bit)
-    }
-
-    unsafe fn bits(&mut self, mut value: u32, n: u32) -> Result<u32, Refused> {
-        for _ in 0..n {
-            value = value.wrapping_mul(2) | unsafe { self.bit() }?;
-        }
-        Ok(value)
-    }
-}
-
 /// The unpacking of a file of `size` bytes read into the buffer of `room`: the bytes
-/// written (from the buffer's start).
+/// written (from the buffer's start). Converted: `rc2k_core::packed::unpack`.
 pub unsafe fn unpack(buffer: u32, room: u32, size: u32) -> Result<u32, Refused> {
-    unsafe {
-        let words = size >> 2;
-        let end = buffer + room;
-        for k in 1..=words {
-            put(end - 4 * k, get(buffer + size - 4 * k));
-        }
-        let mut bits = Bits {
-            start: buffer,
-            at: end - 4 * words + 0x10,
-            end,
-            word: 0,
-            left: 1,
-        };
-        let mut out = buffer + (size & 3);
-        let count = get(buffer + 0xC);
-        if count == 0 {
-            return Err(BadInput("a packed file of no dwords: the original counts round").into());
-        }
-        let back = |out: u32, n: u32| -> Result<u32, Refused> {
-            let from = out.wrapping_sub(4 * (n + 1));
-            if from < buffer || from > out {
-                return Err(BadInput("a packed stream referring back past the buffer").into());
-            }
-            Ok(get(from))
-        };
-        for _ in 0..count {
-            let value = if bits.bit()? == 0 {
-                0
-            } else if bits.bit()? == 0 {
-                back(out, bits.bits(0, 8)?)?
-            } else if bits.bit()? == 0 {
-                if bits.bit()? == 0 {
-                    back(out, bits.bits(0, 12)?)?
-                } else {
-                    bits.bits(0, 17)?
-                }
-            } else if bits.bit()? == 0 {
-                let sign = bits.bit()?;
-                bits.bits(0u32.wrapping_sub(sign), 27)?
-            } else {
-                bits.bits(0, 32)?
-            };
-            if out.wrapping_add(4) > end || out < buffer {
-                return Err(BadInput("a packed stream writing past the buffer").into());
-            }
-            put(out, value);
-            out += 4;
-        }
-        Ok(out - buffer)
-    }
+    let bytes = unsafe { std::slice::from_raw_parts_mut(buffer as *mut u8, room as usize) };
+    Ok(rc2k_core::packed::unpack(bytes, size as usize)? as u32)
 }
 
 /// `files::read_packed_file` (see the header): eax the path, ebx the buffer, ecx its bytes.

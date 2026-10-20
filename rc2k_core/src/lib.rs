@@ -4,7 +4,25 @@
 //! DLL checks the conversion, the hook crate's adapters (`src/bridge.rs`) load these
 //! structures from the game's memory and store them back.
 
+pub mod bytes;
 pub mod case;
 pub mod format;
+pub mod language;
+pub mod lexicon;
+pub mod log;
+pub mod packed;
+pub mod paths;
+pub mod pcx;
+pub mod pixels;
 pub mod random;
+pub mod raster;
+pub mod records;
+pub mod settings;
+pub mod strings;
+pub mod text;
 pub mod units;
+
+/// An input the core does not take: one the original goes wrong on (a read past a table, a
+/// division that traps) or whose handling was not worked out; the reason in words.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Invalid(pub &'static str);

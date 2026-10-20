@@ -17,6 +17,38 @@ impl CaseTable {
         }
     }
 
+    /// The language's table (RAL.EXE `sub_4034C2`): ASCII's letters, then `pairs` (the
+    /// language's string 2) as "lower, upper" pairs. An odd length is refused (the original
+    /// reads on past the string).
+    pub fn for_language(pairs: &[u8]) -> Result<Self, crate::Invalid> {
+        if !pairs.len().is_multiple_of(2) {
+            return Err(crate::Invalid("the lower case string has an odd length"));
+        }
+        let mut table = CaseTable::ascii();
+        for pair in pairs.chunks(2) {
+            table.lower[pair[1] as usize] = pair[0];
+        }
+        Ok(table)
+    }
+
+    /// This table with accented letters made plain: in `accents` (the language's string 3,
+    /// "a\xE0\xE1..e\xE8.."), each byte of 0x80 or more becomes the plain letter before it
+    /// wherever it is a lower-case form.
+    pub fn plain_letters(&self, accents: &[u8]) -> Self {
+        let mut plain = *self;
+        let mut letter = 0u8;
+        for &c in accents {
+            if c < 0x80 {
+                letter = c;
+            } else {
+                for entry in plain.lower.iter_mut().filter(|entry| **entry == c) {
+                    *entry = letter;
+                }
+            }
+        }
+        plain
+    }
+
     pub fn lower(&self, c: u8) -> u8 {
         self.lower[c as usize]
     }
@@ -72,6 +104,19 @@ mod tests {
         assert_eq!(t.compare(b"abc", b"ab"), Ordering::Greater);
         assert_eq!(t.compare(b"", b""), Ordering::Equal);
         assert_eq!(t.compare(b"a", b"B"), Ordering::Less);
+    }
+
+    #[test]
+    fn language_tables() {
+        let t = CaseTable::for_language(b"\xE9\xC9\xE8\xC8").unwrap();
+        assert_eq!(t.lower(0xC9), 0xE9);
+        assert_eq!(t.lower(b'Q'), b'q');
+        assert!(CaseTable::for_language(b"\xE9").is_err());
+        let plain = t.plain_letters(b"e\xE9\xE8a\xE0");
+        assert_eq!(plain.lower(0xC9), b'e');
+        assert_eq!(plain.lower(0xE8), b'e');
+        assert_eq!(plain.lower(0xE0), b'a');
+        assert_eq!(plain.lower(b'E'), b'e');
     }
 
     #[test]

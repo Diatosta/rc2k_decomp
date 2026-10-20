@@ -25,19 +25,13 @@ hook_asm!(
 
 // ---- Rust version ----
 
-pub unsafe fn str_append(mut src: *const u8, mut cursor: *mut u8) -> *mut u8 {
+/// The text at `src` copied to `cursor` without its NUL; the cursor after it.
+pub unsafe fn str_append(src: *const u8, cursor: *mut u8) -> *mut u8 {
     unsafe {
-        loop {
-            let c = *src;
-            src = src.add(1);
-            if c == 0 {
-                break;
-            }
-            *cursor = c;
-            cursor = cursor.add(1);
-        }
+        let text = CStr::from_ptr(src as *const c_char).to_bytes();
+        std::ptr::copy(text.as_ptr(), cursor, text.len());
+        cursor.add(text.len())
     }
-    cursor
 }
 
 // ---- hook ----

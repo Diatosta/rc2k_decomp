@@ -12,7 +12,7 @@
 //! Self-test: the original and the Rust version on the paths of `append_directory`'s test.
 
 use crate::errors::BadInput;
-use crate::files::append_directory::{last_separator, shadow_compare, test_paths, text_of};
+use crate::files::append_directory::{shadow_compare, test_paths, text_of};
 use crate::framework::{CARRY_FLAG, RawHook, Regs, ZERO_FLAG, hook_asm, rva, shadow};
 use std::sync::atomic::AtomicUsize;
 
@@ -33,9 +33,8 @@ pub unsafe fn append_file_name(path: *const u8, cursor: *mut u8) -> Result<*mut 
     if path.is_null() {
         return Err(BadInput("a null path"));
     }
-    let bytes = unsafe { text_of(path) };
-    let from = last_separator(bytes).map_or(0, |k| k + 1);
-    let name = &bytes[from..];
+    // Converted: `rc2k_core::paths::file_name`.
+    let name = rc2k_core::paths::file_name(unsafe { text_of(path) });
     unsafe {
         std::ptr::copy(name.as_ptr(), cursor, name.len());
         Ok(cursor.add(name.len()))

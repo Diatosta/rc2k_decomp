@@ -35,11 +35,11 @@ pub unsafe fn text_length(text: *const u8) -> Result<u32, BadInput> {
     if text.is_null() {
         return Err(BadInput("no text"));
     }
-    let mut length = 0u32;
-    while unsafe { text.add(length as usize).read() } != 0 {
-        length = length.wrapping_add(1);
-    }
-    Ok(length)
+    Ok(
+        unsafe { std::ffi::CStr::from_ptr(text as *const std::ffi::c_char) }
+            .to_bytes()
+            .len() as u32,
+    )
 }
 
 // ---- hook ----

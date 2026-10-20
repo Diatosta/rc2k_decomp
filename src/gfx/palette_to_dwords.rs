@@ -36,9 +36,10 @@ pub unsafe fn palette_to_dwords(from: *const u8, to: *mut u32) -> Result<(), Bad
     // From the last entry down, as the original goes: it matters if the two overlap.
     for entry in (0..ENTRIES).rev() {
         unsafe {
-            let [first, second, third] = (from.add(entry * 3) as *const [u8; 3]).read();
+            // Converted: `rc2k_core::pixels::palette_entry`.
+            let bytes = (from.add(entry * 3) as *const [u8; 3]).read();
             to.add(entry)
-                .write_unaligned((first as u32) << 16 | (second as u32) << 8 | third as u32);
+                .write_unaligned(rc2k_core::pixels::palette_entry(bytes));
         }
     }
     Ok(())

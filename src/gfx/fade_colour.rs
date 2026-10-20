@@ -28,19 +28,9 @@ hook_asm!(
     original = ORIGINAL
 );
 
-/// One byte's step: (the byte, the high dword of the `imul`).
-fn step(s: u32, t: u32, amount: u32) -> (u32, u32) {
-    let p = i64::from(t.wrapping_sub(s) as i32) * i64::from(amount as i32);
-    let v = ((p as u32 as i32) >> 8).wrapping_add(s as i32);
-    let v = if v < 0 {
-        0
-    } else if v.wrapping_sub(0xFF) < 0 {
-        v as u32
-    } else {
-        0xFF
-    };
-    (v, (p >> 32) as u32)
-}
+/// One byte's step: (the byte, the high dword of the `imul`). Converted:
+/// `rc2k_core::pixels::fade_step`.
+use rc2k_core::pixels::fade_step as step;
 
 /// The three low bytes of `from` brought toward `to` (their places' values, whole: the
 /// mud's tint gives dwords), `amount` of 0x100; the registers it leaves on `entry`.

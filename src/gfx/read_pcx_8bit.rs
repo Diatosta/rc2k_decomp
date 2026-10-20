@@ -26,10 +26,9 @@ use crate::files::read_stream_byte::read_stream_byte;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::gfx::lay_out_pcx::lay_out_pcx;
 use crate::gfx::pcx::{
-    DECODED_HEIGHT_RVA, DECODED_WIDTH_RVA, FILE_PALETTE_LEN, FILE_PALETTE_RVA, HEADER_LEN,
-    HEADER_RVA, LINE_BYTES_RVA, MISSING_PATH, PALETTE_RVA, PIXELS_RVA, ROW_GAP_RVA, TEST_PATH,
-    remove_test_file, stream, test_header, test_palette, test_plane_bytes, test_runs,
-    write_test_file,
+    FILE_PALETTE_LEN, FILE_PALETTE_RVA, HEADER_LEN, HEADER_RVA, MISSING_PATH, PALETTE_RVA,
+    PIXELS_RVA, TEST_PATH, remove_test_file, stream, test_header, test_palette, test_plane_bytes,
+    test_runs, write_test_file,
 };
 use crate::gfx::pcx_reader::{ReaderTest, dispatch_reader};
 use crate::gfx::picture::FLAGS_RVA;
@@ -69,45 +68,17 @@ unsafe fn read_rows() -> Result<bool, BadInput> {
             return Ok(false);
         }
         game_write(FLAGS_RVA, 0x800u32);
-        lay_out_pcx();
-
-        let (width, height, line_bytes): (u32, u32, u32) = (
-            game_read(DECODED_WIDTH_RVA),
-            game_read(DECODED_HEIGHT_RVA),
-            game_read(LINE_BYTES_RVA),
-        );
-        if height == 0 {
-            return Err(BadInput("a PCX picture without rows"));
-        }
-        let palette = game_addr(PALETTE_RVA) as *const u32;
-        let gap: u32 = game_read(ROW_GAP_RVA);
-        let mut to: u32 = game_read(PIXELS_RVA);
-        // The pixel a run repeats, and how much of the run is left.
-        let (mut pixel, mut run) = (0u32, 0u32);
-        for _ in 0..height {
-            let mut column = 0u32;
-            loop {
-                if run == 0 {
-                    let mut byte = read_stream_byte(stream, pixel).eax as u8;
-                    run = 1;
-                    if byte >= 0xC0 {
-                        run = byte as u32 - 0xC0;
-                        byte = read_stream_byte(stream, byte as u32).eax as u8;
-                    }
-                    pixel = palette.add(byte as usize).read_unaligned();
-                }
-                if column < width {
-                    (to as *mut u32).write_unaligned(pixel);
-                    to = to.wrapping_add(4);
-                }
-                run = run.wrapping_sub(1);
-                column = column.wrapping_add(1);
-                if column >= line_bytes {
-                    break;
-                }
-            }
-            to = to.wrapping_add(gap);
-        }
+        let layout = lay_out_pcx();
+        // Converted: `rc2k_core::pcx::decode_8bit`.
+        let palette: [u32; 256] = game_read(PALETTE_RVA);
+        let pixels: u32 = game_read(PIXELS_RVA);
+        rc2k_core::pcx::decode_8bit(
+            &layout,
+            &palette,
+            |eax| read_stream_byte(stream, eax).eax,
+            |to, pixel| (pixels.wrapping_add(to) as *mut u32).write_unaligned(pixel),
+        )
+        .ok_or(BadInput("a PCX picture without rows"))?;
         Ok(true)
     }
 }

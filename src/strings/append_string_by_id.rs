@@ -9,6 +9,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::strings::expand_entry::expand_entry;
 use crate::strings::string_table::{LOW_IDS, blob, entry_count, ptr_high, ptr_low};
 use crate::strings::utils::bytes_str;
+use rc2k_core::strings::Source;
 use std::ffi::{CStr, c_char};
 use std::ops::Range;
 use std::ptr::copy_nonoverlapping;
@@ -37,13 +38,11 @@ hook_asm!(
 /// `emit` receives each run of bytes to append. Returns the `eax` the original leaves behind.
 pub unsafe fn append_string_by_id(id: u32, emit: &mut impl FnMut(*const u8, usize)) -> u32 {
     unsafe {
-        let direct = if id & 0x1000 != 0 {
-            Some(ptr_high(id))
-        } else if LOW_IDS.contains(&id) {
-            let p = ptr_low(id);
-            (!p.is_null()).then_some(p)
-        } else {
-            None
+        // Converted: `rc2k_core::strings::Source`.
+        let direct = match Source::of(id, || !ptr_low(id).is_null()) {
+            Source::Made => Some(ptr_high(id)),
+            Source::Pointer => Some(ptr_low(id)),
+            Source::Table => None,
         };
         match direct {
             Some(p) => {

@@ -1,6 +1,6 @@
-//! The lexicon compiler's work, apart from the game: from the text of a language file to
-//! the packed string table and the counts the game logs. `strings::compile_lexicon` is the
-//! hook; what the original's 25 functions do is here as plain functions, in their order.
+//! The lexicon compiler (RAL.EXE 0x40356E and its 25 functions, in their order; moved to
+//! the core 2026-10-20): from the text of a language file to the packed string table
+//! (`strings::StringTable` reads it) and the counts the game logs.
 //!
 //! The language file: one message a line, a label and then the text; `;` starts a comment.
 //! The text is cut into words: a run of letters, digits and bytes of 0x80 and more (with
@@ -18,7 +18,7 @@
 //! Whatever the original would report as an error in the file, or would run into, is
 //! refused here, and the original left to say so.
 
-use crate::errors::BadInput;
+use crate::Invalid;
 use std::collections::HashMap;
 
 /// What `compile` makes.
@@ -65,9 +65,9 @@ struct Phrase {
 struct Arena(u32);
 
 impl Arena {
-    fn take(&mut self, bytes: u32) -> Result<(), BadInput> {
+    fn take(&mut self, bytes: u32) -> Result<(), Invalid> {
         if bytes > self.0 {
-            return Err(BadInput("the lexicon's memory ran out"));
+            return Err(Invalid("the lexicon's memory ran out"));
         }
         self.0 -= bytes;
         Ok(())
@@ -98,9 +98,9 @@ impl Source<'_> {
     }
 
     /// For the loops that do not stop at a zero byte: past the text they would run on.
-    fn within(&self, place: usize) -> Result<u8, BadInput> {
+    fn within(&self, place: usize) -> Result<u8, Invalid> {
         if place > self.0.len() {
-            return Err(BadInput(
+            return Err(Invalid(
                 "the language file ends in the middle of a comment or a group",
             ));
         }
@@ -108,7 +108,7 @@ impl Source<'_> {
     }
 
     /// `sub_403889`: the next word from `scan` on.
-    fn next_word(&self, scan: usize) -> Result<Token, BadInput> {
+    fn next_word(&self, scan: usize) -> Result<Token, Invalid> {
         let mut place = scan;
         loop {
             let byte = self.at(place);
@@ -136,15 +136,15 @@ impl Source<'_> {
         let start = place;
         let first = self.at(place);
         place += 1;
-        let escaped = |place: &mut usize, length: &mut u32| -> Result<(), BadInput> {
+        let escaped = |place: &mut usize, length: &mut u32| -> Result<(), Invalid> {
             let kind = self.at(*place);
             *place += 1;
             if kind <= 0x20 {
-                return Err(BadInput("language file: Invalid special symbol type"));
+                return Err(Invalid("language file: Invalid special symbol type"));
             }
             if kind == b'#' {
                 if self.at(*place) <= 0x20 || self.at(*place + 1) <= 0x20 {
-                    return Err(BadInput("language file: Invalid special symbol type"));
+                    return Err(Invalid("language file: Invalid special symbol type"));
                 }
                 *length += 2;
                 *place += 2;
@@ -163,7 +163,7 @@ impl Source<'_> {
                     place += 1;
                     match byte {
                         b'{' | b';' | 0x0A | 0x0D => {
-                            return Err(BadInput("language file: Missing start or end of group"));
+                            return Err(Invalid("language file: Missing start or end of group"));
                         }
                         b'\\' => {
                             read += 1;
@@ -180,7 +180,7 @@ impl Source<'_> {
                     after: place,
                 })
             }
-            b'}' => Err(BadInput("language file: Missing start or end of group")),
+            b'}' => Err(Invalid("language file: Missing start or end of group")),
             b'\\' => {
                 let mut length = 2;
                 escaped(&mut place, &mut length)?;
@@ -194,7 +194,7 @@ impl Source<'_> {
             b'~' => {
                 for _ in 0..3 {
                     if self.at(place) <= 0x20 {
-                        return Err(BadInput("language file: Invalid DBCS type"));
+                        return Err(Invalid("language file: Invalid DBCS type"));
                     }
                     place += 1;
                 }
@@ -234,14 +234,14 @@ impl Source<'_> {
 }
 
 /// `sub_403B85` after its `#`: two hex digits.
-fn hex_pair(digits: &[u8]) -> Result<u8, BadInput> {
+fn hex_pair(digits: &[u8]) -> Result<u8, Invalid> {
     let mut value = 0u8;
     for n in 0..2 {
         let digit = match digits.get(n).copied().unwrap_or(0) {
             byte @ b'0'..=b'9' => byte - b'0',
             byte @ b'A'..=b'F' => byte - b'A' + 10,
             byte @ b'a'..=b'f' => byte - b'a' + 10,
-            _ => return Err(BadInput("language file: Invalid hex string")),
+            _ => return Err(Invalid("language file: Invalid hex string")),
         };
         value = value << 4 | digit;
     }
@@ -249,7 +249,7 @@ fn hex_pair(digits: &[u8]) -> Result<u8, BadInput> {
 }
 
 /// `sub_403AC2` for one word: the escapes of the file become the bytes of the table.
-fn unescaped(raw: &[u8]) -> Result<Vec<u8>, BadInput> {
+fn unescaped(raw: &[u8]) -> Result<Vec<u8>, Invalid> {
     let mut text = raw.to_vec();
     let mut place = 0;
     while place < text.len() {
@@ -283,7 +283,7 @@ fn unescaped(raw: &[u8]) -> Result<Vec<u8>, BadInput> {
             for n in 0..3 {
                 let digit = text.get(place + n).copied().unwrap_or(0).wrapping_sub(b'0');
                 if digit >= 10 {
-                    return Err(BadInput("language file: Invalid decimal string"));
+                    return Err(Invalid("language file: Invalid decimal string"));
                 }
                 number = number * 10 + digit as u32;
             }
@@ -304,7 +304,7 @@ fn sort_by_length<T>(list: &mut [T], length: impl Fn(&T) -> usize) {
 }
 
 /// `arena_bytes` is the memory the original gives itself (`dword_519554` * 0x400).
-pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, BadInput> {
+pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, Invalid> {
     let source = Source(text);
     let mut arena = Arena(arena_bytes);
     arena.take((text.len() as u32 + 4) & !3)?;
@@ -351,7 +351,7 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, BadInput> {
         loop {
             let byte = source.at(place);
             if byte == b';' {
-                return Err(BadInput("language file: Message body not defined"));
+                return Err(Invalid("language file: Message body not defined"));
             }
             if byte <= 0x20 {
                 break;
@@ -360,14 +360,14 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, BadInput> {
             place += 1;
         }
         if counted == 0 {
-            return Err(BadInput("language file: Label not defined"));
+            return Err(Invalid("language file: Label not defined"));
         }
         loop {
             counted += 1;
             let byte = source.at(place);
             place += 1;
             if byte == b';' {
-                return Err(BadInput("language file: Message body not defined"));
+                return Err(Invalid("language file: Message body not defined"));
             }
             if byte != 9 && byte != 0x20 {
                 break;
@@ -387,18 +387,18 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, BadInput> {
                         || source.at(token.left - 1) != b'{'
                         || source.at(token.left) != b'}')
                 {
-                    return Err(BadInput("language file: Zero length phrase"));
+                    return Err(Invalid("language file: Zero length phrase"));
                 }
                 break token.after;
             }
             if token.length > 0x7F {
-                return Err(BadInput("language file: Word too long"));
+                return Err(Invalid("language file: Word too long"));
             }
             // `sub_403A10`: the word, kept once.
             let raw: &[u8] = match token.start {
                 Some(start) => text
                     .get(start..start + token.length as usize)
-                    .ok_or(BadInput("the language file ends in the middle of a word"))?,
+                    .ok_or(Invalid("the language file ends in the middle of a word"))?,
                 None => SPACE,
             };
             source_size += if token.start.is_some() {
@@ -423,7 +423,7 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, BadInput> {
                 }
             };
             if message.len() == 0x80 {
-                return Err(BadInput("language file: Phrase too long"));
+                return Err(Invalid("language file: Phrase too long"));
             }
             message.push(word);
             scan = token.after;
@@ -463,13 +463,13 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, BadInput> {
     let mut phrase_order: Vec<usize> = phrase_buckets.into_iter().flatten().collect();
     sort_by_length(&mut phrase_order, |&phrase| phrases[phrase].words.len());
     if word_order.is_empty() || phrase_order.is_empty() {
-        return Err(BadInput("a language file without words"));
+        return Err(Invalid("a language file without words"));
     }
 
     // `sub_403DA7`: offsets and numbers.
     let entries = messages.len() + words.len();
     if entries > 0x10000 {
-        return Err(BadInput("language file: More than 64K indices in bundle"));
+        return Err(Invalid("language file: More than 64K indices in bundle"));
     }
     let index_size = entries as u32 * 4;
     arena.take(index_size)?;
@@ -482,7 +482,7 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, BadInput> {
     }
     let highest_word = word_order.len() as u32;
     if highest_word as u16 >= 0x8000 {
-        return Err(BadInput("language file: Token range overflow"));
+        return Err(Invalid("language file: Token range overflow"));
     }
     let padded = offset & 1;
     offset += padded;
@@ -499,11 +499,11 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, BadInput> {
         }
     }
     if highest_phrase as u16 & 0x8000 == 0 {
-        return Err(BadInput("language file: Token range overflow"));
+        return Err(Invalid("language file: Token range overflow"));
     }
     let total = offset as usize;
     if total > TABLE_ROOM {
-        return Err(BadInput("the compiled lexicon is larger than its table"));
+        return Err(Invalid("the compiled lexicon is larger than its table"));
     }
 
     // The index, and `sub_403F0B`: the table.
@@ -541,7 +541,7 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, BadInput> {
         }
     }
     if table.len() != total {
-        return Err(BadInput(
+        return Err(Invalid(
             "the compiled lexicon is not the size its offsets say",
         ));
     }
@@ -561,4 +561,111 @@ pub fn compile(text: &[u8], arena_bytes: u32) -> Result<Compiled, BadInput> {
         index_size,
         empty_messages,
     })
+}
+
+/// A word of a string as the corrections meet it: the index entry and the place of the
+/// phrase's number that names it (none for a string that is one word).
+struct WordAt {
+    entry: usize,
+    named_at: Option<usize>,
+}
+
+/// Every word of string `id` (RAL.EXE `sub_4163CE`), in order.
+fn words_of(
+    table: &[u8],
+    id: u32,
+    named_at: Option<usize>,
+    depth: u32,
+    out: &mut Vec<WordAt>,
+) -> Result<(), Invalid> {
+    if depth > 32 {
+        return Err(Invalid("a string of the lexicon that contains itself"));
+    }
+    let entry = id as usize * 4;
+    let head = read_u32(table, entry)?;
+    let flag = (head >> 24) as usize;
+    if flag < 0x80 {
+        out.push(WordAt { entry, named_at });
+        return Ok(());
+    }
+    let at = (head & 0x00FF_FFFF) as usize;
+    for child in 0..0x100 - flag {
+        let name = at + child * 2;
+        let id = u16::from_le_bytes([byte(table, name)?, byte(table, name + 1)?]);
+        words_of(table, id as u32, Some(name), depth + 1, out)?;
+    }
+    Ok(())
+}
+
+fn byte(table: &[u8], at: usize) -> Result<u8, Invalid> {
+    table
+        .get(at)
+        .copied()
+        .ok_or(Invalid("a lexicon entry past the table"))
+}
+
+fn read_u32(table: &[u8], at: usize) -> Result<u32, Invalid> {
+    let b = table
+        .get(at..at + 4)
+        .ok_or(Invalid("a lexicon entry past the table"))?;
+    Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+}
+
+/// A word's bytes as the table holds them now.
+fn word_text(table: &[u8], entry: usize) -> Result<&[u8], Invalid> {
+    let head = read_u32(table, entry)?;
+    let (at, len) = ((head & 0x00FF_FFFF) as usize, (head >> 24) as usize);
+    table
+        .get(at..at + len)
+        .ok_or(Invalid("a lexicon word past the table"))
+}
+
+/// The four corrections the game makes in its lexicon after loading it (RAL.EXE
+/// `sub_416389`): in string 0x6CA "Bowland" loses its `w`, in 0x6AB "Laukennen" becomes
+/// "Laukkanen", and in 0x23B the word "A7" or "(A7)" names string 0x23A's "A8" or "(A8)"
+/// instead. A correction meeting its word where the string is that word alone is refused.
+pub fn correct(table: &mut [u8]) -> Result<(), Invalid> {
+    const ALONE: Invalid = Invalid("a correction's word is its whole string");
+    let words = |table: &[u8], id| -> Result<Vec<WordAt>, Invalid> {
+        let mut out = Vec::new();
+        words_of(table, id, None, 0, &mut out)?;
+        Ok(out)
+    };
+    let place = |table: &[u8], entry| -> Result<usize, Invalid> {
+        Ok((read_u32(table, entry)? & 0x00FF_FFFF) as usize)
+    };
+
+    for w in words(table, 0x6CA)? {
+        let text = word_text(table, w.entry)?;
+        if text.len() == 7 && text.starts_with(b"Bowl") {
+            let at = place(table, w.entry)?;
+            table.copy_within(at + 3..at + 7, at + 2);
+            table[w.entry + 3] = 6;
+        }
+    }
+    for w in words(table, 0x6AB)? {
+        let text = word_text(table, w.entry)?;
+        if text.len() == 9 && text.starts_with(b"Lauk") {
+            let at = place(table, w.entry)?;
+            table[at + 4] = b'k';
+            table[at + 5] = b'a';
+        }
+    }
+    let mut a8: Option<usize> = None;
+    for w in words(table, 0x23A)? {
+        let text = word_text(table, w.entry)?;
+        if text == b"A8" || text == b"(A8)" {
+            a8 = Some(w.named_at.ok_or(ALONE)?);
+        }
+    }
+    if let Some(a8) = a8 {
+        for w in words(table, 0x23B)? {
+            let text = word_text(table, w.entry)?;
+            if text == b"A7" || text == b"(A7)" {
+                let at = w.named_at.ok_or(ALONE)?;
+                table.copy_within(a8..a8 + 2, at);
+            }
+        }
+    }
+    Ok(())
 }

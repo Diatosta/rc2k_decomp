@@ -37,8 +37,7 @@ hook_asm!(
     original = ORIGINAL
 );
 
-/// aPngPcxAviMpg (0x4E0744): an ending, and what it becomes.
-const PARTNERS: [(&[u8; 4], &[u8; 4]); 2] = [(b".png", b".pcx"), (b".avi", b".mpg")];
+// aPngPcxAviMpg (0x4E0744), the endings and what they become: `rc2k_core::paths::missing_partner`.
 
 // ---- Rust version ----
 
@@ -53,11 +52,15 @@ pub unsafe fn swap_missing_extension(path: *mut u8) -> Result<(), BadInput> {
         let Some(ending) = ending(path)? else {
             return Ok(());
         };
-        let Some((_, partner)) = PARTNERS.iter().find(|(from, _)| ending.read() == **from) else {
+        // Converted: `rc2k_core::paths::missing_partner`.
+        let length = text_length(path)? as usize;
+        let Some(partner) =
+            rc2k_core::paths::missing_partner(std::slice::from_raw_parts(path, length))
+        else {
             return Ok(());
         };
         if !file_exists(path)? {
-            ending.write(**partner);
+            ending.write(*partner);
         }
         Ok(())
     }

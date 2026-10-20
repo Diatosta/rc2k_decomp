@@ -15,6 +15,7 @@
 //! nothing; both versions add a head to the log, and what each added is compared but for
 //! the two lines about memory, whose numbers move.
 
+use crate::errors::BadInput;
 use crate::framework::{
     RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
@@ -96,16 +97,18 @@ unsafe fn text(text: &[u8], newline: bool) {
     unsafe { log_write(text.as_ptr(), newline, 1) };
 }
 
-/// `delete` stands for the deleting of the log's file.
-pub unsafe fn start_log(delete: &mut dyn FnMut()) {
+/// `delete` stands for the deleting of the log's file. Refuses, before doing anything, a
+/// start date the date's text refuses.
+pub unsafe fn start_log(delete: &mut dyn FnMut()) -> Result<(), BadInput> {
     unsafe {
         if game_read::<u32>(LOG_LEVEL_RVA) == 0 {
-            return;
+            return Ok(());
         }
+        crate::logfile::date_text::date_text()?;
         delete();
         text(b"Log started\0", false);
         let scratch = game_addr(SCRATCH_RVA) as *mut u8;
-        write_date_text(scratch);
+        write_date_text(scratch)?;
         log_write(scratch, true, 1);
         log_write(game_addr(VERSION_RVA) as *const u8, true, 1);
         if game_read::<u8>(SECOND_TEXT_RVA) != 0 {
@@ -153,6 +156,7 @@ pub unsafe fn start_log(delete: &mut dyn FnMut()) {
         text(b"Kb\0", true);
         text(b"\0", true);
         text(b"\0", true);
+        Ok(())
     }
 }
 
@@ -164,11 +168,14 @@ extern "C" fn dispatch(r: &mut Regs) {
         unsafe { call_original(r) };
         return;
     }
-    unsafe {
+    let done = unsafe {
         start_log(&mut || {
             DeleteFileA(game_addr(LOG_PATH_RVA) as *const u8);
         })
     };
+    if let Err(e) = done {
+        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
+    }
 }
 
 // ---- self-test ----
@@ -236,8 +243,7 @@ fn self_test() -> (usize, usize) {
         frame_test::begin(u32::MAX, 0);
         let mut deletes = 0usize;
         let done = if rust {
-            start_log(&mut || deletes += 1);
-            true
+            start_log(&mut || deletes += 1).is_ok()
         } else {
             let mut ro = before;
             call_game(&mut ro, copy.addr());

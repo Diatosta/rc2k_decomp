@@ -40,32 +40,20 @@ pub fn text() -> *mut u8 {
 
 // ---- Rust version ----
 
-/// The bytes the original leaves in the text buffer, including the NUL.
+/// The bytes the original leaves in the text buffer, including the NUL (converted:
+/// `rc2k_core::strings::text_from_ids`).
 pub unsafe fn text_from_ids(first_id: u32, count: u32) -> Result<Vec<u8>, BadInput> {
     if count == 0 {
         return Err(BadInput(
             "count 0: the original's counter wraps and it never ends",
         ));
     }
-    let mut out = Vec::new();
-    let (mut id, mut left) = (first_id, count);
-    loop {
-        let eax = unsafe {
-            append_string_by_id(id, &mut |p, n| out.extend_from_slice(from_raw_parts(p, n)))
-        };
-        id = eax.wrapping_add(1);
-        left -= 1;
-        if left == 0 {
-            break;
-        }
-    }
-    out.push(0);
-    if out.len() > TEXT_LEN {
-        return Err(BadInput(
-            "text longer than the text buffer: the original writes past it",
-        ));
-    }
-    Ok(out)
+    rc2k_core::strings::text_from_ids(first_id, count, TEXT_LEN, |id, out| unsafe {
+        append_string_by_id(id, &mut |p, n| out.extend_from_slice(from_raw_parts(p, n)))
+    })
+    .ok_or(BadInput(
+        "text longer than the text buffer: the original writes past it",
+    ))
 }
 
 // ---- hook ----

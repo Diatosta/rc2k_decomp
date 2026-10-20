@@ -36,35 +36,8 @@ hook_asm!(
 // ---- Rust version ----
 
 pub fn pixel_to_components(format: &PixelFormat, pixel: u32) -> u32 {
-    if pixel == 0 {
-        return 0;
-    }
-    if let Some(rotations) = format.rotations() {
-        return (0..4).fold(0, |all, n| {
-            all | (pixel & format.masks[n]).rotate_right(rotations[n])
-        });
-    }
-    let mut components = [0u8; 4];
-    for (n, component) in components.iter_mut().enumerate() {
-        // A 1 marks how far the byte has been filled: when it falls out, there are eight.
-        let mut bits: u8 = 1;
-        let mut full = false;
-        let mut bit = format.layout as i32;
-        while bit >= 0 && !full {
-            let at = bit as u32 & 31;
-            if format.masks[n] >> at & 1 != 0 {
-                full = bits & 0x80 != 0;
-                bits = bits << 1 | (pixel >> at & 1) as u8;
-            }
-            bit -= 1;
-        }
-        while !full {
-            full = bits & 0x80 != 0;
-            bits <<= 1;
-        }
-        *component = bits;
-    }
-    u32::from_le_bytes(components)
+    // Converted: `rc2k_core::pixels::unpack`.
+    rc2k_core::pixels::unpack(format, pixel)
 }
 
 // ---- hook ----

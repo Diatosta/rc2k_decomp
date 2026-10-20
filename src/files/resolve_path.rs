@@ -71,10 +71,6 @@ fn out_buffer() -> *mut u8 {
 
 // ---- Rust version ----
 
-fn at(p: &[u8], i: usize) -> u8 {
-    p.get(i).copied().unwrap_or(0)
-}
-
 /// Ok(None) = the path is used as it is. `path` excludes the NUL; the result includes one.
 /// A result that does not fit the 0x100-byte buffer is refused: the original writes past it.
 pub fn resolve_path(
@@ -84,27 +80,16 @@ pub fn resolve_path(
     base_b: &[u8],
     pct: &[u8],
 ) -> Result<Option<Vec<u8>>, BadInput> {
-    if path.starts_with(b"var\\") || path.starts_with(b"save") || at(path, 1) == b':' {
-        return Ok(None);
-    }
-    let (semi3, semi4) = (path.starts_with(b";3"), path.starts_with(b";4"));
-    let use_b = !semi4 && (media_mode >= 3 || (!semi3 && media_mode == 2)); // unsigned compares
-    let base = if use_b { base_b } else { base_a };
-    let rel = if at(path, 0) == b';' {
-        &path[2.min(path.len())..]
-    } else {
-        path
+    // Converted: `rc2k_core::paths::resolve`.
+    let bases = rc2k_core::paths::Bases {
+        media_mode,
+        a: base_a,
+        b: base_b,
+        percent: pct,
     };
-
-    let mut out = base.to_vec();
-    for &c in rel {
-        if c == b'%' {
-            out.extend_from_slice(pct)
-        } else {
-            out.push(c)
-        }
-    }
-    out.push(0);
+    let Some(out) = rc2k_core::paths::resolve(path, &bases) else {
+        return Ok(None);
+    };
     if out.len() > BUF_LEN {
         return Err(BadInput(
             "resolved path longer than the buffer: the original writes past it",

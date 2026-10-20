@@ -16,7 +16,6 @@
 use crate::errors::BadInput;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::logfile::numeric::{Body, NumberText, check_number, dispatch_number, log_number};
-use crate::strings::format_u32::format_u32;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -34,81 +33,12 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// The sign, or "=" and nothing else decided yet, with the 32.32 fixed-point magnitude; or a
-/// text that is complete as it is.
-enum Parts {
-    Number { lead: u8, whole: u32, fraction: u32 },
-    Special(Vec<u8>),
-}
-
-fn parts(bits: u32) -> Parts {
-    if bits & 0x7FFF_FFFF == 0 {
-        return Parts::Number {
-            lead: b'=',
-            whole: 0,
-            fraction: 0,
-        };
-    }
-    let sign = if (bits as i32) < 0 { b'-' } else { b'+' };
-    let exponent = (bits >> 23) & 0xFF;
-    let mut whole = (exponent != 0) as u32; // the hidden bit; none for a denormal
-    let mut fraction = (bits & 0x7F_FFFF) << 9;
-    let special = |text: &[u8]| {
-        let mut out = vec![sign];
-        out.extend_from_slice(text);
-        Parts::Special(out)
-    };
-    if exponent == 0xFF {
-        return special(if fraction == 0 { b"infinity" } else { b"nan" });
-    }
-    let shift = exponent as i32 - 0x7F;
-    for _ in 0..shift.max(0) {
-        let carry = whole >> 31;
-        whole = whole << 1 | fraction >> 31;
-        fraction <<= 1;
-        if carry != 0 {
-            return special(b">=2^32");
-        }
-    }
-    for _ in 0..(-shift).max(0) {
-        fraction = fraction >> 1 | whole << 31;
-        whole >>= 1;
-    }
-    Parts::Number {
-        lead: sign,
-        whole,
-        fraction,
-    }
-}
-
-/// Nine decimal digits for a 32-bit binary fraction, as the original adds them up.
-fn fraction_digits(mut fraction: u32) -> u32 {
-    let (mut step, mut sum) = (500_000_000u32, 0u32);
-    while fraction != 0 {
-        if fraction & 0x8000_0000 != 0 {
-            sum += step;
-        }
-        step >>= 1;
-        fraction <<= 1;
-    }
-    sum
-}
-
 pub fn float_text(bits: u32, decimals: u32) -> NumberText {
-    match parts(bits) {
-        Parts::Special(text) => NumberText::plain(text),
-        Parts::Number {
-            lead,
-            whole,
-            fraction,
-        } => {
-            let mut bytes = vec![lead];
-            bytes.extend(format_u32(whole, 0));
-            bytes.push(b'.');
-            let nul_at = bytes.len().wrapping_add(decimals as usize);
-            bytes.extend(format_u32(fraction_digits(fraction), 0x19));
-            NumberText { bytes, nul_at }
-        }
+    // Converted: `rc2k_core::log::float`.
+    let text = rc2k_core::log::float(bits, decimals);
+    NumberText {
+        bytes: text.bytes,
+        nul_at: text.nul_at,
     }
 }
 

@@ -3,15 +3,14 @@
 //!
 //! In:  eax = template, ebx = number
 //! Out: eax = the buffer; everything else preserved
-//! The number is written with `format_u32` flags 0x12: two digits, zero-padded, and more
-//! digits if it needs them, which then run over what follows (reproduced). A template with
+//! The number is written with `format_u32` flags 0x12: two digits, zero-padded (a larger
+//! number's last two). A template with
 //! neither marker is fatal error 0x80F19001 in the original. The search never looks at the
 //! template's first character. Refuses an empty template (the original reads before the
 //! buffer) and anything that does not fit the buffer's 0x100 bytes.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::{EAX, RawHook, Regs, SelfTest, game_ptr, hook_asm, rva, shadow};
-use crate::strings::format_u32::format_u32;
 use crate::strings::utils::bytes_str;
 use std::ffi::{CStr, c_char};
 use std::ptr::copy_nonoverlapping;
@@ -44,29 +43,14 @@ pub fn buffer() -> *mut u8 {
 /// What the buffer holds afterwards, from its start to the last byte written. `template`
 /// excludes the NUL.
 pub fn numbered_path(template: &[u8], number: u32) -> Result<Vec<u8>, Refused> {
-    if template.is_empty() {
-        return Err(BadInput("empty template: the original reads before its buffer").into());
-    }
-    // From the last character down to the second: the first is never looked at.
-    let last = |mark: u8| {
-        (1..template.len())
-            .rev()
-            .find(|&at| template[at] == mark && template.get(at + 1) == Some(&mark))
-    };
-    let Some(at) = last(b'!').or_else(|| last(b'0')) else {
+    // Converted: `rc2k_core::paths::numbered`.
+    let Some(out) = rc2k_core::paths::numbered(template, number)? else {
         return Err(FatalError {
             code: 0x80F1_9001,
             message: "",
         }
         .into());
     };
-    let digits = format_u32(number, 0x12);
-    let mut out = template.to_vec();
-    out.push(0);
-    if out.len() < at + digits.len() {
-        out.resize(at + digits.len(), 0);
-    }
-    out[at..at + digits.len()].copy_from_slice(&digits);
     if out.len() > BUFFER_LEN {
         return Err(BadInput("longer than the buffer: the original writes past it").into());
     }

@@ -10,7 +10,8 @@
 //! nothing within 0x1000 records. Shadow mode: by state. Self-test: a test table, sections and
 //! numbers.
 
-use crate::errors::{BadInput, Refused};
+use crate::bridge::Raw;
+use crate::errors::Refused;
 use crate::framework::{EDI, RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::screens::harness::Left;
 use crate::service::harness::{check_state, dispatch_state};
@@ -34,50 +35,13 @@ hook_asm!(
 );
 
 const RECORD: u32 = 0xA4;
-const LIMIT: u32 = 0x1000;
 
-/// The record, as the original finds it (refused where it would run away).
+/// The record, as the original finds it (refused where it would run away). Converted:
+/// `rc2k_core::records::find_stage_record`.
 pub unsafe fn find_stage_record(table: u32, section: u32, number: u32) -> Result<u32, Refused> {
-    unsafe {
-        let tag = |p: u32| (p as *const u32).read_unaligned();
-        let mut p = table;
-        let mut steps = 0u32;
-        let mut step = |p: &mut u32| -> Result<(), Refused> {
-            *p = p.wrapping_add(RECORD);
-            steps += 1;
-            if steps > LIMIT {
-                return Err(BadInput("no such stage record within 0x1000 records").into());
-            }
-            Ok(())
-        };
-        if number == 0 {
-            return Err(BadInput("stage number 0: the original runs on").into());
-        }
-        if section != 0 {
-            let mut seen = 0u32;
-            loop {
-                while tag(p) != 4 {
-                    step(&mut p)?;
-                }
-                seen += 1;
-                if seen == section {
-                    break;
-                }
-                step(&mut p)?;
-            }
-        }
-        let mut seen = 0u32;
-        loop {
-            while tag(p) != 0 {
-                step(&mut p)?;
-            }
-            seen += 1;
-            if seen == number {
-                return Ok(p);
-            }
-            step(&mut p)?;
-        }
-    }
+    let records = unsafe { Raw::new(table as usize as *const u8) };
+    let place = rc2k_core::records::find_stage_record(&records, section, number)?;
+    Ok(table.wrapping_add(place as u32))
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

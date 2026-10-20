@@ -7,7 +7,6 @@
 use crate::errors::BadInput;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::logfile::numeric::{Body, NumberText, check_number, dispatch_number, log_number};
-use crate::strings::format_u32::format_u32;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -27,14 +26,8 @@ hook_asm!(
 
 /// The text of a signed number, with `flags` for `format_u32`.
 pub fn signed_text(value: u32, flags: u8) -> Vec<u8> {
-    let mut text = Vec::new();
-    let mut magnitude = value;
-    if (value as i32) < 0 {
-        text.push(b'-');
-        magnitude = value.wrapping_neg();
-    }
-    text.extend(format_u32(magnitude, flags));
-    text
+    // Converted: `rc2k_core::log::signed`.
+    rc2k_core::log::signed(value as i32, rc2k_core::format::Pad::from_flags(flags))
 }
 
 fn text(r: &Regs) -> Result<NumberText, BadInput> {

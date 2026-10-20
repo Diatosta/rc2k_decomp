@@ -4,6 +4,7 @@
 //! In:  eax = glyph index, esi = glyph table
 //! Out: eax = kerning (amount to subtract from x); everything else preserved
 
+use crate::bridge::{Raw, read_through};
 use crate::framework::{EAX, RawHook, Regs, SelfTest, game_ptr, hook_asm, rva, shadow};
 use std::sync::atomic::AtomicUsize;
 
@@ -22,10 +23,9 @@ hook_asm!(
 // ---- game data ----
 
 const STATE_RVA: usize = rva(0x93E830); // g_textLineState: the kerning row table
-const ROWS: usize = 64;
-pub const STATE_LEN: usize = ROWS * 2;
+pub const STATE_LEN: usize = rc2k_core::text::KERNING_ROWS * 2;
 /// The kerning row table: for each of 64 rows, trailing blank pixels and gap.
-pub type State = [u8; STATE_LEN];
+pub type State = rc2k_core::text::Kerning;
 
 pub fn state_ptr() -> *mut State {
     game_ptr(STATE_RVA)
@@ -44,69 +44,12 @@ pub unsafe fn glyph_ptr(table: *const u8, index: u32) -> *const u8 {
     }
 }
 
-fn put(state: &mut State, row: usize, trailing: u8, gap: u8) {
-    if row < ROWS {
-        state[row * 2] = trailing;
-        state[row * 2 + 1] = gap;
-    }
-}
-fn trailing_of(state: &State, row: usize) -> u8 {
-    if row < ROWS { state[row * 2] } else { 0 }
-}
-
-/// Updates `state` for one glyph record and returns the amount to subtract from x.
-/// Malformed glyphs (top rows + data rows > 64, or 0 data rows) are clamped, while the
-/// original would write outside the table or loop 256 times.
+/// Updates `state` for one glyph record and returns the amount to subtract from x
+/// (converted: `rc2k_core::text::add_record`). Rows past the 64th are left out, while the
+/// original would write outside the table.
 pub unsafe fn glyph_kerning(glyph: *const u8, state: &mut State) -> u32 {
-    unsafe {
-        let adv = *glyph.add(2);
-        if adv == 0 {
-            return 0; // no contour data: table untouched
-        }
-        let mut row = 0usize;
-
-        for _ in 0..*glyph.add(1) {
-            let old = trailing_of(state, row);
-            put(state, row, 0, old.wrapping_add(adv));
-            row += 1;
-        }
-
-        let mut p = glyph.add(4);
-        for _ in 0..*glyph.add(3) {
-            let (mut lead_gap, mut trail) = (adv, adv);
-            let mut count = *p;
-            p = p.add(1);
-            if count != 0 {
-                lead_gap = *p;
-                p = p.add(1);
-                trail = adv.wrapping_sub(count).wrapping_sub(lead_gap);
-                p = p.add(count as usize);
-                loop {
-                    count = *p;
-                    p = p.add(1);
-                    if count == 0 {
-                        break;
-                    }
-                    let gap = *p;
-                    p = p.add(1);
-                    trail = trail.wrapping_sub(count).wrapping_sub(gap);
-                    p = p.add(count as usize);
-                }
-            }
-            let old = trailing_of(state, row);
-            put(state, row, trail, lead_gap.wrapping_add(old));
-            row += 1;
-        }
-
-        let half = adv >> 1;
-        while row < ROWS {
-            let old = trailing_of(state, row);
-            put(state, row, half, old);
-            row += 1;
-        }
-
-        (0..ROWS).map(|r| state[r * 2 + 1]).min().unwrap_or(0xFF) as u32
-    }
+    let record = unsafe { Raw::new(glyph) };
+    read_through(rc2k_core::text::add_record(state, &record))
 }
 
 // ---- hook ----

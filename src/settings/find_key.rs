@@ -12,8 +12,10 @@
 //! refused. Seven callers. Private copy (0x78 bytes): the line loop comes back into the
 //! first bytes.
 
+use crate::bridge::Raw;
 use crate::errors::BadInput;
-use crate::framework::{EAX, RawHook, Regs, SelfTest, game_read, hook_asm, rva, shadow};
+use crate::framework::{EAX, RawHook, Regs, SelfTest, hook_asm, rva, shadow};
+use crate::strings::same_text::case_table;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -41,66 +43,11 @@ pub unsafe fn find_key(text: *const u8, key: *const u8) -> Result<Option<*const 
     if text.is_null() || key.is_null() {
         return Err(BadInput("no settings text or no key"));
     }
-    unsafe {
-        let lower = |c: u8| game_read::<u8>(LOWER_RVA + c as usize);
-        let at = std::cell::Cell::new(text);
-        let next = || {
-            let c = at.get().read();
-            at.set(at.get().add(1));
-            c
-        };
-        'line: loop {
-            // The line's first character above a space.
-            let mut c = loop {
-                match next() {
-                    0 => return Ok(None),
-                    c if c > b' ' => break c,
-                    _ => {}
-                }
-            };
-            // The key, character by character.
-            let mut key_at = key;
-            let key_left = loop {
-                let k = key_at.read();
-                key_at = key_at.add(1);
-                c = lower(c);
-                if c != k {
-                    break k;
-                }
-                if k == 0 {
-                    return Err(BadInput("the settings text ends with the key"));
-                }
-                c = next();
-            };
-            let mut after_equals = c == b'=';
-            if key_left != 0 || (!after_equals && c > b' ') {
-                // Not this line: on to the next.
-                loop {
-                    match c {
-                        0 => return Ok(None),
-                        b'\n' => continue 'line,
-                        _ => c = next(),
-                    }
-                }
-            }
-            while !after_equals {
-                match c {
-                    0 => return Ok(None),
-                    b'\n' => return Ok(Some(at.get().sub(1))),
-                    b'=' => after_equals = true,
-                    c if c > b' ' => return Ok(Some(at.get().sub(1))),
-                    _ => c = next(),
-                }
-            }
-            loop {
-                match next() {
-                    0 => return Ok(None),
-                    c if c == b'\n' || c > b' ' => return Ok(Some(at.get().sub(1))),
-                    _ => {}
-                }
-            }
-        }
-    }
+    // Converted: `rc2k_core::settings::find_key`, on the text in game memory.
+    let key = unsafe { std::ffi::CStr::from_ptr(key as *const std::ffi::c_char) }.to_bytes();
+    let words = unsafe { Raw::new(text) };
+    let found = rc2k_core::settings::find_key(&words, key, &case_table())?;
+    Ok(found.map(|place| text.wrapping_add(place)))
 }
 
 // ---- hook ----

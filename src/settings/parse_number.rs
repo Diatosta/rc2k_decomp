@@ -7,6 +7,7 @@
 //! number wraps. Eight callers. Manual patch with a private copy (0x73 bytes): a short
 //! jump in the first bytes.
 
+use crate::bridge::{Raw, read_through};
 use crate::framework::{EAX, RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use std::sync::atomic::AtomicUsize;
 
@@ -30,49 +31,9 @@ pub unsafe fn parse_number(text: *const u8) -> u32 {
     if text.is_null() {
         return 0;
     }
-    unsafe {
-        let mut at = text;
-        let negative = at.read() == b'-';
-        if negative || at.read() == b'+' {
-            at = at.add(1);
-        }
-        let mut number = 0u32;
-        let hex = if at.read() == b'$' {
-            Some(1)
-        } else if at.read() == b'0' && at.add(1).read() == b'x' {
-            Some(2)
-        } else {
-            None
-        };
-        match hex {
-            None => loop {
-                let digit = at.read().wrapping_sub(b'0');
-                at = at.add(1);
-                if digit >= 10 {
-                    break;
-                }
-                number = number.wrapping_mul(10).wrapping_add(digit as u32);
-            },
-            Some(prefix) => {
-                at = at.add(prefix);
-                loop {
-                    let digit = match at.read() {
-                        c @ b'0'..=b'9' => c - b'0',
-                        c @ b'A'..=b'F' => c - b'A' + 10,
-                        c @ b'a'..=b'f' => c - b'a' + 10,
-                        _ => break,
-                    };
-                    at = at.add(1);
-                    number = number << 4 | digit as u32;
-                }
-            }
-        }
-        if negative {
-            number.wrapping_neg()
-        } else {
-            number
-        }
-    }
+    // Converted: `rc2k_core::settings::number`.
+    let words = unsafe { Raw::new(text) };
+    read_through(rc2k_core::settings::number(&words, 0))
 }
 
 // ---- hook ----

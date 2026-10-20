@@ -21,8 +21,7 @@ use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write
 use crate::gfx::palette_to_dwords::palette_to_dwords;
 use crate::gfx::pcx::{
     DECODED_HEIGHT_RVA, DECODED_ROW_BYTES_RVA, DECODED_ROW_DWORDS_RVA, DECODED_WIDTH_RVA,
-    FILE_HEIGHT_RVA, FILE_PALETTE_RVA, FILE_WIDTH_RVA, HEADER_BOTTOM, HEADER_LEFT, HEADER_LEN,
-    HEADER_LINE_BYTES, HEADER_PLANES, HEADER_RIGHT, HEADER_RVA, HEADER_TOP, HEIGHT_LIMIT_RVA,
+    FILE_HEIGHT_RVA, FILE_PALETTE_RVA, FILE_WIDTH_RVA, HEADER_LEN, HEADER_RVA, HEIGHT_LIMIT_RVA,
     LINE_BYTES_RVA, PALETTE_RVA, PIXEL_BITS_RVA, PIXEL_BYTES_RVA, PIXELS_RVA, PLANES_RVA,
     ROW_GAP_RVA, STRIDE_RVA, WIDTH_LIMIT_RVA, layout_regions, reader_inputs, test_header,
     test_palette,
@@ -44,76 +43,44 @@ hook_asm!(
     original = ORIGINAL
 );
 
-const SCREEN_WIDTH: u32 = 800;
-
 // ---- Rust version ----
 
-unsafe fn header_word(at: usize) -> u16 {
-    unsafe { game_read(HEADER_RVA + at) }
-}
-
-pub unsafe fn lay_out_pcx() {
+/// Converted: `rc2k_core::pcx::lay_out`, on the header and the variables in game memory.
+/// Returns the layout it stored.
+pub unsafe fn lay_out_pcx() -> rc2k_core::pcx::Layout {
     unsafe {
-        let mut eax = game_read::<u8>(HEADER_RVA + HEADER_PLANES) as u32;
-        game_write(PLANES_RVA, eax);
-        // From here on only ax is loaded: the high half stays what it was.
-        let low = |eax: u32, word: u16| eax & 0xFFFF_0000 | word as u32;
-        eax = low(eax, header_word(HEADER_LINE_BYTES));
-        game_write(LINE_BYTES_RVA, eax);
-
-        let width = header_word(HEADER_RIGHT)
-            .wrapping_sub(header_word(HEADER_LEFT))
-            .wrapping_add(1);
-        eax = low(eax, width);
-        game_write(FILE_WIDTH_RVA, eax);
-        eax = eax
-            .min(game_read(WIDTH_RVA))
-            .min(game_read(WIDTH_LIMIT_RVA));
-        game_write(DECODED_WIDTH_RVA, eax);
-        let decoded_width = eax;
-
-        let height = header_word(HEADER_BOTTOM)
-            .wrapping_sub(header_word(HEADER_TOP))
-            .wrapping_add(1);
-        eax = low(eax, height);
-        game_write(FILE_HEIGHT_RVA, eax);
-        eax = eax
-            .min(game_read(HEIGHT_RVA))
-            .min(game_read(HEIGHT_LIMIT_RVA));
-        game_write(DECODED_HEIGHT_RVA, eax);
-
-        let bits: u32 = if game_read::<u32>(FLAGS_RVA) & 0x100 != 0 {
-            8
-        } else {
-            32
+        let target = rc2k_core::pcx::Target {
+            width: game_read(WIDTH_RVA),
+            height: game_read(HEIGHT_RVA),
+            width_limit: game_read(WIDTH_LIMIT_RVA),
+            height_limit: game_read(HEIGHT_LIMIT_RVA),
+            flags: game_read(FLAGS_RVA),
+            row_bytes: game_read(ROW_BYTES_RVA),
         };
-        game_write(PIXEL_BITS_RVA, bits);
-        let pixel_bytes = bits >> 3;
-        game_write(PIXEL_BYTES_RVA, pixel_bytes);
-        let row_bytes = pixel_bytes.wrapping_mul(decoded_width);
-        game_write(DECODED_ROW_BYTES_RVA, row_bytes);
-        game_write(DECODED_ROW_DWORDS_RVA, row_bytes >> 2);
-
-        // Three compares one after the other, each on what the one before left.
-        let mut stride: u32 = game_read(ROW_BYTES_RVA);
-        if stride == 0xFFFF_FFFF {
-            stride = pixel_bytes.wrapping_mul(SCREEN_WIDTH);
+        let l = rc2k_core::pcx::lay_out(&game_read(HEADER_RVA), &target);
+        for (at, value) in [
+            (PLANES_RVA, l.planes),
+            (LINE_BYTES_RVA, l.line_bytes),
+            (FILE_WIDTH_RVA, l.file_width),
+            (DECODED_WIDTH_RVA, l.width),
+            (FILE_HEIGHT_RVA, l.file_height),
+            (DECODED_HEIGHT_RVA, l.height),
+            (PIXEL_BITS_RVA, l.pixel_bits),
+            (PIXEL_BYTES_RVA, l.pixel_bytes),
+            (DECODED_ROW_BYTES_RVA, l.row_bytes),
+            (DECODED_ROW_DWORDS_RVA, l.row_dwords),
+            (STRIDE_RVA, l.stride),
+            (ROW_GAP_RVA, l.row_gap),
+        ] {
+            game_write(at, value);
         }
-        if stride == 0xFFFF_FFFE {
-            stride = game_read::<u32>(WIDTH_RVA).wrapping_mul(pixel_bytes);
-        }
-        if stride == 0xFFFF_FFFD {
-            stride = row_bytes;
-        }
-        game_write(STRIDE_RVA, stride);
-        game_write(ROW_GAP_RVA, stride.wrapping_sub(row_bytes));
         game_write(PIXELS_RVA, game_read::<u32>(PICTURE_RVA));
-
         // Neither is null: both are the game's own tables.
         let _ = palette_to_dwords(
             game_addr(FILE_PALETTE_RVA) as *const u8,
             game_addr(PALETTE_RVA) as *mut u32,
         );
+        l
     }
 }
 

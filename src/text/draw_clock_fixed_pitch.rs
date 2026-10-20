@@ -15,6 +15,7 @@ use crate::text::draw_text::{Canvas, GameCanvas, RecordingCanvas, test_font, tes
 use crate::text::draw_text_keep_regs::draw_text_keep_regs;
 use crate::text::font::{FLAG_FAIL_IF_WIDER, FLAG_KERNING, Font};
 use crate::text::glyph_kerning::state_ptr;
+use rc2k_core::text::{CLOCK_STEPS, columns};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -38,9 +39,6 @@ hook_asm!(
 
 /// Where the one-character text is built, relative to the text.
 pub const CELL_OFFSET: usize = crate::text::draw_time_fixed_pitch::CELL_OFFSET;
-/// Pixels from each column to the next: digit to digit 13, to or from punctuation 10 (the
-/// last one too: the original adds it after the fifth character).
-const STEPS: [i32; 5] = [13, 10, 10, 13, 10];
 
 /// Returns the flags the original leaves: (carry, zero) of its last `add` (draw_text's
 /// own carry is lost there).
@@ -51,20 +49,19 @@ pub unsafe fn draw_clock_fixed_pitch(
     y: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<(bool, bool), FatalError> {
-    let mut x = x.wrapping_sub(100);
-    let mut flags = (false, false);
+    let at = columns(x, &CLOCK_STEPS);
     unsafe {
         let cell = text.add(CELL_OFFSET);
-        for (i, step) in STEPS.iter().enumerate() {
+        // Converted: `rc2k_core::text::{columns, CLOCK_STEPS}`.
+        for (i, &x) in at.iter().enumerate() {
             *cell = *text.add(i);
             *cell.add(1) = 0;
             draw_text_keep_regs(font, cell, x, y, canvas)?;
-            let (sum, carry) = (x as u32).overflowing_add(*step as u32);
-            flags = (carry, sum == 0);
-            x = sum as i32;
         }
     }
-    Ok(flags)
+    // The flags of the original's last `add`, after the fifth character.
+    let (sum, carry) = (at[4] as u32).overflowing_add(CLOCK_STEPS[4] as u32);
+    Ok((carry, sum == 0))
 }
 
 /// The same with a font object in game memory, for Rust callers.

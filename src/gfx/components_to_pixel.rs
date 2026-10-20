@@ -41,34 +41,9 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// The pixel, and what is left in the scratch bytes if they are used.
-pub fn packed(format: &PixelFormat, components: u32) -> (u32, Option<[u8; 4]>) {
-    if components == 0 {
-        return (0, None);
-    }
-    if let Some(rotations) = format.rotations() {
-        let pixel = (0..4).fold(0, |all, n| {
-            all | components.rotate_left(rotations[n]) & format.masks[n]
-        });
-        return (pixel, None);
-    }
-    let mut left = components.to_le_bytes();
-    let mut pixel = 0u32;
-    let mut bit = 1u32 << (format.layout & 31);
-    while bit != 0 {
-        let next = match format.masks.iter().position(|mask| mask & bit != 0) {
-            Some(n) => {
-                let top = left[n] >> 7;
-                left[n] <<= 1;
-                top as u32
-            }
-            None => 0,
-        };
-        pixel = pixel << 1 | next;
-        bit >>= 1;
-    }
-    (pixel, Some(left))
-}
+/// The pixel, and what is left in the scratch bytes if they are used (converted:
+/// `rc2k_core::pixels::pack`).
+pub use rc2k_core::pixels::pack as packed;
 
 pub unsafe fn components_to_pixel(format: &PixelFormat, components: u32) -> u32 {
     let (pixel, scratch) = packed(format, components);

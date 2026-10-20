@@ -16,19 +16,15 @@
 //! Except in `MODE_AT_X` each line is measured before it is drawn. In `MODE_MEASURE` nothing
 //! is drawn and the font object is updated instead.
 
+use crate::bridge::{Raw, read_through};
 use crate::errors::FatalError;
 use crate::framework::{EAX, EBX, ECX, EDX, RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::gfx::blit_glyph::{
     BlitCall, blit_glyph_on_surface, glyph_record, record_calls, recording_works,
 };
 use crate::gfx::surface::surface;
-use crate::text::font::{
-    FLAG_FAIL_IF_WIDER, FLAG_KERNING, Font, MODE_AT_X, MODE_LEFT, MODE_MEASURE, MODE_RIGHT,
-};
-use crate::text::glyph_kerning::{
-    STATE_LEN, State, build_table, glyph_kerning, glyph_ptr, state_ptr, test_glyphs,
-};
-use crate::text::reset_line_state::reset_line_state;
+use crate::text::font::{FLAG_FAIL_IF_WIDER, FLAG_KERNING, Font};
+use crate::text::glyph_kerning::{State, build_table, state_ptr, test_glyphs};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -49,8 +45,8 @@ hook_asm!(
 pub trait Canvas {
     /// False for a canvas that only predicts: font objects in game memory are then left alone.
     fn keeps_font_changes(&self) -> bool;
-    fn reset_line_state(&mut self);
-    unsafe fn glyph_kerning(&mut self, table: *const u8, glyph: u32) -> u32;
+    /// The kerning row table the canvas keeps.
+    fn kerning(&mut self) -> &mut State;
     unsafe fn blit_glyph(&mut self, call: BlitCall) -> Result<(), FatalError>;
 }
 
@@ -61,11 +57,8 @@ impl Canvas for GameCanvas {
     fn keeps_font_changes(&self) -> bool {
         true
     }
-    fn reset_line_state(&mut self) {
-        unsafe { reset_line_state() }
-    }
-    unsafe fn glyph_kerning(&mut self, table: *const u8, glyph: u32) -> u32 {
-        unsafe { glyph_kerning(glyph_ptr(table, glyph), &mut *state_ptr()) }
+    fn kerning(&mut self) -> &mut State {
+        unsafe { &mut *state_ptr() }
     }
     unsafe fn blit_glyph(&mut self, c: BlitCall) -> Result<(), FatalError> {
         unsafe {
@@ -104,11 +97,8 @@ impl Canvas for RecordingCanvas {
     fn keeps_font_changes(&self) -> bool {
         false
     }
-    fn reset_line_state(&mut self) {
-        self.state = [0; STATE_LEN];
-    }
-    unsafe fn glyph_kerning(&mut self, table: *const u8, glyph: u32) -> u32 {
-        unsafe { glyph_kerning(glyph_ptr(table, glyph), &mut self.state) }
+    fn kerning(&mut self) -> &mut State {
+        &mut self.state
     }
     unsafe fn blit_glyph(&mut self, c: BlitCall) -> Result<(), FatalError> {
         if self.check_glyphs {
@@ -132,22 +122,59 @@ pub struct Outcome {
     pub y: i32,
 }
 
-/// Pixels to the next glyph: the bitmap width, or the x offset byte for a glyph with none.
-unsafe fn advance(table: *const u8, glyph: u32) -> i32 {
-    unsafe {
-        let record = glyph_ptr(table, glyph);
-        let width = *record.add(2);
-        (if width != 0 { width } else { *record }) as i32
+/// A canvas of this crate as the core's.
+pub struct Adapt<'a>(&'a mut dyn Canvas);
+
+pub enum AdaptError {
+    Fatal(FatalError),
+    Invalid(rc2k_core::Invalid),
+}
+
+impl From<rc2k_core::Invalid> for AdaptError {
+    fn from(e: rc2k_core::Invalid) -> Self {
+        AdaptError::Invalid(e)
     }
 }
 
-fn extended_glyph(font: &Font, code: u8, next: u8) -> u32 {
-    ((((code - 0x10) as u32) << 8 | next as u32) >> 1)
-        + (font.last_char.wrapping_sub(font.first_char) as u32 + 1)
+impl rc2k_core::text::Canvas for Adapt<'_> {
+    type Error = AdaptError;
+    fn kerning(&mut self) -> &mut State {
+        self.0.kerning()
+    }
+    fn blit(&mut self, font: &Font, glyph: u32, x: i32, y: i32) -> Result<(), AdaptError> {
+        let call = BlitCall::new(glyph, x, y, font.palette, font.glyph_table);
+        unsafe { self.0.blit_glyph(call) }.map_err(AdaptError::Fatal)
+    }
+}
+
+/// A core text function run on a text and a font's glyph table in game memory, with a
+/// canvas of this crate.
+pub unsafe fn run_core<T>(
+    font: &Font,
+    text: *const u8,
+    canvas: &mut dyn Canvas,
+    f: impl FnOnce(&Raw, &Raw, &mut Adapt) -> Result<T, AdaptError>,
+) -> Result<T, FatalError> {
+    let (words, glyphs) = unsafe { (Raw::new(text), Raw::new(font.glyph_table as *const u8)) };
+    match f(&words, &glyphs, &mut Adapt(canvas)) {
+        Ok(value) => Ok(value),
+        Err(AdaptError::Fatal(e)) => Err(e),
+        Err(AdaptError::Invalid(e)) => Ok(read_through(Err(e))),
+    }
+}
+
+/// The core's outcome with the text as a pointer.
+pub fn outcome(text: *const u8, out: rc2k_core::text::Outcome) -> Outcome {
+    Outcome {
+        too_wide: out.too_wide,
+        text: text.wrapping_add(out.next),
+        x: out.x,
+        y: out.y,
+    }
 }
 
 /// `font` is changed only in `MODE_MEASURE`. An error can only come from the blitter; by then
-/// earlier glyphs are drawn.
+/// earlier glyphs are drawn. Converted: `rc2k_core::text::draw`.
 pub unsafe fn draw_text(
     font: &mut Font,
     text: *const u8,
@@ -155,158 +182,13 @@ pub unsafe fn draw_text(
     y: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Outcome, FatalError> {
-    let table = font.glyph_table as *const u8;
-    let kerning = font.flags & FLAG_KERNING != 0;
-    let line_x = x;
-    let mut text = text;
-    let mut y = y.wrapping_add(font.y_offset);
-    // Spacing of the glyph before: the original's ebp. It survives from line to line, except
-    // that an aligned line clears it before it is drawn.
-    let mut spacing = 0i32;
-
-    unsafe {
-        'line: loop {
-            let mut x = line_x;
-            if kerning {
-                canvas.reset_line_state();
-            }
-
-            if font.mode != MODE_AT_X {
-                // Measure the line.
-                let line_start = text;
-                let mut width = 0i32;
-                let end = loop {
-                    let c = *text;
-                    text = text.add(1);
-                    let glyph = if c < font.first_char {
-                        match c {
-                            0 | 0x0A => break c,
-                            0x0E => {
-                                width = width.wrapping_add(*text as i8 as i32);
-                                text = text.add(1);
-                                continue;
-                            }
-                            0x0F => {
-                                text = text.add(1);
-                                continue;
-                            }
-                            0x10.. => {
-                                let next = *text;
-                                text = text.add(1);
-                                spacing = font.extended_spacing;
-                                extended_glyph(font, c, next)
-                            }
-                            _ => {
-                                width = width.wrapping_sub(c as i32);
-                                continue;
-                            }
-                        }
-                    } else if c > font.last_char {
-                        continue;
-                    } else {
-                        spacing = font.spacing;
-                        (c - font.first_char) as u32
-                    };
-                    if kerning {
-                        width = width.wrapping_sub(canvas.glyph_kerning(table, glyph) as i32);
-                    }
-                    width = width
-                        .wrapping_add(advance(table, glyph))
-                        .wrapping_add(spacing);
-                    if font.flags & FLAG_FAIL_IF_WIDER != 0 && width as u32 > font.box_width {
-                        return Ok(Outcome {
-                            too_wide: true,
-                            text: line_start,
-                            x: line_x,
-                            y,
-                        });
-                    }
-                };
-                width = width.wrapping_sub(spacing);
-
-                if font.mode == MODE_MEASURE {
-                    font.palette = font.palette.wrapping_add(1);
-                    if font.box_width < width as u32 {
-                        font.box_width = width as u32;
-                    }
-                    if end == 0 {
-                        return Ok(Outcome {
-                            too_wide: false,
-                            text,
-                            x: line_x,
-                            y,
-                        });
-                    }
-                    y = y.wrapping_add(font.line_height);
-                    continue 'line;
-                }
-
-                let slack = (font.box_width as i32).wrapping_sub(width);
-                match font.mode {
-                    MODE_LEFT => {}
-                    MODE_RIGHT => x = x.wrapping_add(slack),
-                    _ => x = x.wrapping_add(slack >> 1),
-                }
-                text = line_start;
-                spacing = 0;
-                if kerning {
-                    canvas.reset_line_state();
-                }
-            }
-
-            // Draw the line.
-            loop {
-                let c = *text;
-                text = text.add(1);
-                let glyph = if c < font.first_char {
-                    match c {
-                        0 => {
-                            return Ok(Outcome {
-                                too_wide: false,
-                                text,
-                                x: line_x,
-                                y,
-                            });
-                        }
-                        0x0A => {
-                            y = y.wrapping_add(font.line_height);
-                            continue 'line;
-                        }
-                        0x0E => {
-                            x = x.wrapping_add(*text as i8 as i32);
-                            text = text.add(1);
-                            continue;
-                        }
-                        0x0F => {
-                            y = y.wrapping_add(*text as i8 as i32);
-                            text = text.add(1);
-                            continue;
-                        }
-                        0x10.. => {
-                            let next = *text;
-                            text = text.add(1);
-                            spacing = font.extended_spacing;
-                            extended_glyph(font, c, next)
-                        }
-                        _ => {
-                            x = x.wrapping_sub(c as i32);
-                            continue;
-                        }
-                    }
-                } else if c > font.last_char {
-                    continue;
-                } else {
-                    spacing = font.spacing;
-                    (c - font.first_char) as u32
-                };
-                if kerning {
-                    x = x.wrapping_sub(canvas.glyph_kerning(table, glyph) as i32);
-                }
-                canvas.blit_glyph(BlitCall::new(glyph, x, y, font.palette, font.glyph_table))?;
-                x = x.wrapping_add(advance(table, glyph)).wrapping_add(spacing);
-            }
-        }
-    }
+    let copy = *font;
+    let out = unsafe {
+        run_core(&copy, text, canvas, |words, glyphs, c| {
+            rc2k_core::text::draw(font, words, glyphs, x, y, c)
+        })
+    }?;
+    Ok(outcome(text, out))
 }
 
 /// `draw_text` with a font object in game memory, for Rust callers. The object is only

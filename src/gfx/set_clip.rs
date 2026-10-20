@@ -30,16 +30,9 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// (left, top, right, bottom) for a rectangle of x, y, width, height.
-pub fn clip_of(rectangle: [u32; 4]) -> [u32; 4] {
-    let [x, y, width, height] = rectangle;
-    [
-        x,
-        y,
-        x.wrapping_add(width).wrapping_sub(1),
-        y.wrapping_add(height).wrapping_sub(1),
-    ]
-}
+/// (left, top, right, bottom) for a rectangle of x, y, width, height. Converted:
+/// `rc2k_core::raster::clip_of`.
+pub use rc2k_core::raster::clip_of;
 
 unsafe fn clip_now() -> [u32; 4] {
     unsafe {

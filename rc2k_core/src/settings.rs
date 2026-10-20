@@ -1,0 +1,181 @@
+//! The game's settings texts (`var\ral.cfg`, `var\name.cfg`): lines of `key=value` or
+//! `key value` (converted 2026-10-20 from `settings::find_key` 0x41157D,
+//! `settings::copy_value` 0x4115F5, `settings::parse_number` 0x411623). Places are offsets
+//! into the text; a text ends at its NUL.
+
+use crate::Invalid;
+use crate::bytes::Bytes;
+use crate::case::CaseTable;
+
+fn at(text: &(impl Bytes + ?Sized), place: usize) -> Result<u8, Invalid> {
+    text.byte(place)
+        .ok_or(Invalid("a settings text without its NUL"))
+}
+
+/// Where key `key`'s value starts, or `None` (`find_key`). A line is looked at from its
+/// first character above a space; the key must be there in any case (the text is lowered
+/// through `case`; the key is given in lower case) and be followed by `=` or a character
+/// of a space or less. The value starts at the first character above a space after that,
+/// an `=` between them skipped once; a line that ends first has its value at its line feed
+/// (empty). A text that ends with the key itself is refused (the original compares on
+/// past both ends).
+pub fn find_key(
+    text: &(impl Bytes + ?Sized),
+    key: &[u8],
+    case: &CaseTable,
+) -> Result<Option<usize>, Invalid> {
+    let mut place = 0usize;
+    let mut next = || -> Result<u8, Invalid> {
+        let c = at(text, place)?;
+        place += 1;
+        Ok(c)
+    };
+    // Where the character `next` gave last was.
+    macro_rules! last {
+        () => {
+            place - 1
+        };
+    }
+    'line: loop {
+        let mut c = loop {
+            match next()? {
+                0 => return Ok(None),
+                c if c > b' ' => break c,
+                _ => {}
+            }
+        };
+        let mut k_at = 0usize;
+        let key_left = loop {
+            let k = key.get(k_at).copied().unwrap_or(0);
+            k_at += 1;
+            c = case.lower(c);
+            if c != k {
+                break k;
+            }
+            if k == 0 {
+                return Err(Invalid("the settings text ends with the key"));
+            }
+            c = next()?;
+        };
+        let mut after_equals = c == b'=';
+        if key_left != 0 || (!after_equals && c > b' ') {
+            loop {
+                match c {
+                    0 => return Ok(None),
+                    b'\n' => continue 'line,
+                    _ => c = next()?,
+                }
+            }
+        }
+        while !after_equals {
+            match c {
+                0 => return Ok(None),
+                b'\n' => return Ok(Some(last!())),
+                b'=' => after_equals = true,
+                c if c > b' ' => return Ok(Some(last!())),
+                _ => c = next()?,
+            }
+        }
+        loop {
+            match next()? {
+                0 => return Ok(None),
+                c if c == b'\n' || c > b' ' => return Ok(Some(last!())),
+                _ => {}
+            }
+        }
+    }
+}
+
+/// The value at `place` (`copy_value`): up to a NUL, a carriage return, a line feed or a
+/// tab; one that starts with `"` without it and up to the next `"` in place of a tab.
+pub fn value(text: &(impl Bytes + ?Sized), place: usize) -> Result<Vec<u8>, Invalid> {
+    let mut place = place;
+    let mut end = b'\t';
+    if at(text, place)? == b'"' {
+        end = b'"';
+        place += 1;
+    }
+    let mut out = Vec::new();
+    loop {
+        let c = at(text, place)?;
+        place += 1;
+        if c == 0 || c == b'\r' || c == b'\n' || c == end {
+            return Ok(out);
+        }
+        out.push(c);
+    }
+}
+
+/// The number at `place` (`parse_number`): an optional `+` or `-`, then hexadecimal after
+/// `$` or `0x` (upper or lower case), decimal otherwise, up to the first character that is
+/// no digit. It wraps, as the original's.
+pub fn number(text: &(impl Bytes + ?Sized), place: usize) -> Result<u32, Invalid> {
+    let mut place = place;
+    let negative = at(text, place)? == b'-';
+    if negative || at(text, place)? == b'+' {
+        place += 1;
+    }
+    let mut n = 0u32;
+    let prefix = if at(text, place)? == b'$' {
+        Some(1)
+    } else if at(text, place)? == b'0' && at(text, place + 1)? == b'x' {
+        Some(2)
+    } else {
+        None
+    };
+    match prefix {
+        None => loop {
+            let digit = at(text, place)?.wrapping_sub(b'0');
+            place += 1;
+            if digit >= 10 {
+                break;
+            }
+            n = n.wrapping_mul(10).wrapping_add(digit as u32);
+        },
+        Some(prefix) => {
+            place += prefix;
+            loop {
+                let digit = match at(text, place)? {
+                    c @ b'0'..=b'9' => c - b'0',
+                    c @ b'A'..=b'F' => c - b'A' + 10,
+                    c @ b'a'..=b'f' => c - b'a' + 10,
+                    _ => break,
+                };
+                place += 1;
+                n = n << 4 | digit as u32;
+            }
+        }
+    }
+    Ok(if negative { n.wrapping_neg() } else { n })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const TEXT: &[u8] = b"; ral.cfg\r\n  LogFile=10\r\nscreen 800\r\nempty\r\nname000 \"A B\"\tx\r\nhex=$1F\r\nneg = -0x10\r\nlast\0";
+
+    fn find(key: &[u8]) -> Option<usize> {
+        find_key(TEXT, key, &CaseTable::ascii()).unwrap()
+    }
+
+    #[test]
+    fn keys_values_numbers() {
+        let at = find(b"logfile").unwrap();
+        assert_eq!(number(TEXT, at).unwrap(), 10);
+        assert_eq!(number(TEXT, find(b"screen").unwrap()).unwrap(), 800);
+        assert_eq!(TEXT[find(b"empty").unwrap()], b'\n');
+        assert_eq!(value(TEXT, find(b"name000").unwrap()).unwrap(), b"A B");
+        assert_eq!(number(TEXT, find(b"hex").unwrap()).unwrap(), 0x1F);
+        assert_eq!(
+            number(TEXT, find(b"neg").unwrap()).unwrap(),
+            0x10u32.wrapping_neg()
+        );
+        assert_eq!(find(b"log"), None);
+        assert_eq!(find(b"missing"), None);
+        assert!(find_key(TEXT, b"last", &CaseTable::ascii()).is_err());
+        assert!(find_key(&b"no nul"[..], b"x", &CaseTable::ascii()).is_err());
+        assert_eq!(value(b"plain\tnext\0", 0).unwrap(), b"plain");
+        assert_eq!(number(b"12x\0", 0).unwrap(), 12);
+    }
+}

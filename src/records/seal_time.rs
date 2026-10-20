@@ -32,28 +32,13 @@ hook_asm!(
 
 const CHEATS_RVA: usize = rva(0x75870C); // g_cheats
 const PATCH_SWITCH_RVA: usize = rva(0x71C6D0); // g_patchSwitch
-const LONGEST: u32 = 0x22550FF;
-
-/// The time as sealed (see the header).
+/// The time as sealed (converted: `rc2k_core::records::sealed_value`).
 pub fn sealed_value(time: u32, cheats: u32, patch_switch: u32) -> u32 {
-    let time = time.min(LONGEST);
-    if cheats & 0x16000 != 0 {
-        time.wrapping_neg()
-    } else if cheats & 0x40000 != 0 || patch_switch != 0 {
-        time.wrapping_neg() & 0xBFFF_FFFF
-    } else {
-        time
-    }
+    rc2k_core::records::sealed_value(time, cheats, patch_switch != 0)
 }
 
-/// The block's eight bytes (see the header).
-pub fn block(value: u32, bytes: [u8; 3]) -> [u8; 8] {
-    let mut b = [0u8; 8];
-    b[..4].copy_from_slice(&value.to_le_bytes());
-    b[4..7].copy_from_slice(&bytes);
-    b[7] = b[..7].iter().fold(0x5Au8, |s, &x| s.wrapping_add(!x));
-    b
-}
+/// The block's eight bytes (converted: `rc2k_core::records::seal_block`).
+pub use rc2k_core::records::seal_block as block;
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn seal_time(entry: &Regs) -> Regs {
@@ -100,7 +85,7 @@ fn self_test() -> (usize, usize) {
         0u32,
         1,
         0x1234_5678,
-        LONGEST,
+        rc2k_core::records::LONGEST_TIME,
         0x22551000,
         0x7FFF_FFFF,
         0xFFFF_FFFF,

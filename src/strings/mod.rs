@@ -23,7 +23,6 @@ pub mod expand_entry;
 pub mod format_seal_code;
 pub mod format_u32;
 pub mod hex_append;
-pub mod lexicon;
 pub mod load_language;
 pub mod maybe_compile_lexicon;
 pub mod rot13_into_text;

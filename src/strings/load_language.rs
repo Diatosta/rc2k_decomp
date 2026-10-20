@@ -51,6 +51,8 @@ use crate::settings::find_key::LOWER_RVA;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::compile_lexicon::{compile_lexicon, compiled};
 use crate::strings::text_from_ids::text;
+use rc2k_core::case::CaseTable;
+use rc2k_core::language::Locale;
 use std::sync::atomic::AtomicUsize;
 use windows_sys::Win32::Globalization::GetSystemDefaultLCID;
 
@@ -82,8 +84,6 @@ const KEYBOARD_FILES_RVA: usize = rva(0x4E0784); // "files\%locale\*.kim"
 /// dword_4E0798: the `.loc` file's 0x30 bytes. +0 "LOCL", +8 the notice kind, +0xF units.
 const LOCALE_RVA: usize = rva(0x4E0798);
 const LOCALE_LEN: usize = 0x30;
-const NOTICE_KIND_RVA: usize = rva(0x4E07A0); // g_noticeKind
-const LOCALE_UNITS_RVA: usize = rva(0x4E07A7); // byte_4E07A7
 /// dword_4F07C8: the `.kim` file, 0x400 bytes. +0 "KEYB", +8 a kind, +9 and +0xA two modes,
 /// +0xB the layout's number, +0xC the layout chosen (written here), +0x30 the layouts.
 const KEYBOARD_RVA: usize = rva(0x4F07C8);
@@ -125,102 +125,26 @@ unsafe fn built(id: u32, with_nul: bool) -> Result<Vec<u8>, BadInput> {
     }
 }
 
-/// `sub_4034C2`.
+/// `sub_4034C2` (converted: `rc2k_core::case::CaseTable::{for_language, plain_letters}`).
 unsafe fn make_case_tables() -> Result<(), BadInput> {
     unsafe {
-        let mut lower: [u8; 256] = std::array::from_fn(|c| (c as u8).to_ascii_lowercase());
-        let pairs = built(2, true)?;
-        if pairs.len() % 2 != 0 {
-            return Err(BadInput("the lower case string has an odd length"));
-        }
-        for pair in pairs.chunks(2) {
-            lower[pair[1] as usize] = pair[0];
-        }
-        std::ptr::copy(lower.as_ptr(), game_addr(LOWER_RVA) as *mut u8, 256);
-
-        let mut plain = lower;
-        let mut letter = 0u8;
-        for c in built(3, true)? {
-            if c < 0x80 {
-                letter = c;
-            } else {
-                for entry in plain.iter_mut().filter(|entry| **entry == c) {
-                    *entry = letter;
-                }
-            }
-        }
-        std::ptr::copy(plain.as_ptr(), game_addr(PLAIN_LETTERS_RVA) as *mut u8, 256);
+        let lower = CaseTable::for_language(&built(2, true)?)?;
+        std::ptr::copy(lower.lower.as_ptr(), game_addr(LOWER_RVA) as *mut u8, 256);
+        let plain = lower.plain_letters(&built(3, true)?);
+        std::ptr::copy(
+            plain.lower.as_ptr(),
+            game_addr(PLAIN_LETTERS_RVA) as *mut u8,
+            256,
+        );
         Ok(())
     }
 }
 
-/// `sub_4163CE`: every word of a string, with the place in a phrase that names it (none
-/// for a string that is one word) and its entry in the lexicon's index.
-unsafe fn each_word(
-    id: u32,
-    named_at: Option<*mut u16>,
-    depth: u32,
-    word: &mut dyn FnMut(*mut u8, u8, *mut u8, Option<*mut u16>) -> Result<(), BadInput>,
-) -> Result<(), BadInput> {
-    unsafe {
-        if depth > 32 {
-            return Err(BadInput("a string of the lexicon that contains itself"));
-        }
-        let table = game_read::<u32>(STRING_TABLE_RVA) as *mut u8;
-        let entry = table.add(id as usize * 4);
-        let head = (entry as *const u32).read_unaligned();
-        let at = table.add((head & 0x00FF_FFFF) as usize);
-        let flag = (head >> 24) as u8;
-        if flag < 0x80 {
-            return word(at, flag, entry, named_at);
-        }
-        for child in 0..(256 - flag as usize) {
-            let name = at.add(child * 2) as *mut u16;
-            each_word(name.read_unaligned() as u32, Some(name), depth + 1, word)?;
-        }
-        Ok(())
-    }
-}
-
-/// `sub_416389`.
+/// `sub_416389` (converted: `rc2k_core::lexicon::correct`), on the lexicon's room.
 unsafe fn correct_lexicon() -> Result<(), BadInput> {
-    unsafe {
-        let is = |at: *mut u8, len: u8, text: &[u8]| {
-            len as usize == text.len() && std::slice::from_raw_parts(at, text.len()) == text
-        };
-        let starts = |at: *mut u8, text: &[u8; 4]| std::slice::from_raw_parts(at, 4) == text;
-        const ALONE: BadInput = BadInput("a correction's word is its whole string");
-
-        each_word(0x6CA, None, 0, &mut |at, len, entry, _| {
-            if len == 7 && starts(at, b"Bowl") {
-                std::ptr::copy(at.add(3), at.add(2), 4);
-                entry.add(3).write(len - 1);
-            }
-            Ok(())
-        })?;
-        each_word(0x6AB, None, 0, &mut |at, len, _, _| {
-            if len == 9 && starts(at, b"Lauk") {
-                at.add(4).write(b'k');
-                at.add(5).write(b'a');
-            }
-            Ok(())
-        })?;
-        let mut a8: Option<*mut u16> = None;
-        each_word(0x23A, None, 0, &mut |at, len, _, named_at| {
-            if is(at, len, b"A8") || is(at, len, b"(A8)") {
-                a8 = Some(named_at.ok_or(ALONE)?);
-            }
-            Ok(())
-        })?;
-        each_word(0x23B, None, 0, &mut |at, len, _, named_at| {
-            if let Some(a8) = a8
-                && (is(at, len, b"A7") || is(at, len, b"(A7)"))
-            {
-                named_at.ok_or(ALONE)?.write_unaligned(a8.read_unaligned());
-            }
-            Ok(())
-        })
-    }
+    let table =
+        unsafe { std::slice::from_raw_parts_mut(game_addr(LEXICON_RVA) as *mut u8, LEXICON_ROOM) };
+    Ok(rc2k_core::lexicon::correct(table)?)
 }
 
 /// `compile` stands for `strings::compile_lexicon`.
@@ -239,10 +163,11 @@ pub unsafe fn load_language(
         if read_first_match(pattern, locale, LOCALE_LEN as u32, 0)?.is_none() {
             return Err(fatal(0x80E3_8381, ""));
         }
-        if &game_read::<[u8; 4]>(LOCALE_RVA) != b"LOCL" {
+        // Converted: `rc2k_core::language::Locale`.
+        let Ok(file) = Locale::parse(&game_read::<[u8; LOCALE_LEN]>(LOCALE_RVA)) else {
             return Err(fatal(0x80E3_8382, ""));
-        }
-        let units = game_read::<u8>(LOCALE_UNITS_RVA) as u32;
+        };
+        let units = file.units as u32;
         game_write(UNITS_RVA, units);
         for car in CAR_UNITS {
             game_write(car, units);
@@ -285,7 +210,7 @@ pub unsafe fn load_language(
         }
 
         // `sub_403495`
-        let kind: u8 = game_read(NOTICE_KIND_RVA);
+        let kind = file.notice_kind;
         if GetSystemDefaultLCID() & 0x3FF == 0x11 && kind != 7 {
             return Err(fatal(
                 0x9000_6044,

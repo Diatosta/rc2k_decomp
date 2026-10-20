@@ -36,7 +36,7 @@ use crate::logfile::write_line::LOG_LEVEL_RVA;
 use crate::memory::MemoryList;
 use crate::memory::allocate::allocate;
 use crate::memory::free_list::free_list;
-use crate::strings::lexicon::{Compiled, compile};
+use rc2k_core::lexicon::{Compiled, compile};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);

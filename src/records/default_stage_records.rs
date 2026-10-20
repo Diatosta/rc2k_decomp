@@ -12,6 +12,7 @@
 //! `var\ral.dat` was not loaded.
 //! Refuses a null table, a table without its end, and a name that does not fit.
 
+use crate::bridge::Raw;
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_write, hook_asm, rva};
 use crate::math::next_random::STATE_RVA;
@@ -49,11 +50,9 @@ const MOST_RECORDS: usize = 0x1000;
 /// How many records the table has before its -1 (the first is not looked at for the
 /// end, as in the original).
 unsafe fn records(table: u32) -> Result<usize, BadInput> {
-    (1..=MOST_RECORDS)
-        .find(|&n| unsafe {
-            ((table as usize + n * RECORD_LEN) as *const u32).read_unaligned() == u32::MAX
-        })
-        .ok_or(BadInput("a record table without its end"))
+    // Converted: `rc2k_core::records::record_count`.
+    let records = unsafe { Raw::new(table as usize as *const u8) };
+    Ok(rc2k_core::records::record_count(&records, MOST_RECORDS)?)
 }
 
 pub unsafe fn default_stage_records(table: u32) -> Result<(), Refused> {

@@ -12,7 +12,7 @@
 use crate::errors::FatalError;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::gfx::blit_glyph::{BlitCall, record_calls, recording_works};
-use crate::text::draw_text::{Canvas, GameCanvas, Outcome, RecordingCanvas, draw_text};
+use crate::text::draw_text::{Canvas, GameCanvas, Outcome, RecordingCanvas, outcome, run_core};
 use crate::text::font::Font;
 use crate::text::glyph_kerning::state_ptr;
 use std::sync::atomic::AtomicUsize;
@@ -40,20 +40,24 @@ pub struct Measured {
     pub width: u32,
 }
 
-/// `font` is changed as the original changes the font object.
+/// `font` is changed as the original changes the font object. Converted:
+/// `rc2k_core::text::measure`.
 pub unsafe fn measure_text(
     font: &mut Font,
     text: *const u8,
     x: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Measured, FatalError> {
-    font.box_width = 0;
-    font.palette = 0;
-    let outcome = unsafe { draw_text(font, text, x, font.line_height, canvas) }?;
+    let copy = *font;
+    let m = unsafe {
+        run_core(&copy, text, canvas, |words, glyphs, c| {
+            rc2k_core::text::measure(font, words, glyphs, x, c)
+        })
+    }?;
     Ok(Measured {
-        outcome,
-        lines: font.palette,
-        width: font.box_width,
+        outcome: outcome(text, m.outcome),
+        lines: m.lines,
+        width: m.width,
     })
 }
 

@@ -67,3 +67,30 @@ impl<T: Plain> Global<T> {
         }
     }
 }
+
+/// Game memory from a pointer, of an extent nobody here knows (a text up to its NUL, a
+/// glyph table): every read answers, as the original's did.
+pub struct Raw(*const u8);
+
+impl Raw {
+    /// # Safety
+    /// Every byte the core will ask for must be readable.
+    pub unsafe fn new(at: *const u8) -> Self {
+        Raw(at)
+    }
+}
+
+impl rc2k_core::bytes::Bytes for Raw {
+    fn byte(&self, at: usize) -> Option<u8> {
+        Some(unsafe { self.0.wrapping_add(at).read() })
+    }
+}
+
+/// A core result whose only failure is a read past the end, from `Raw` memory that never
+/// has one.
+pub fn read_through<T>(result: Result<T, rc2k_core::Invalid>) -> T {
+    match result {
+        Ok(value) => value,
+        Err(e) => unreachable!("a read of raw game memory refused: {}", e.0),
+    }
+}

@@ -7,6 +7,7 @@
 //! Three callers. Manual patch with a private copy (0x2E bytes): a short jump in the
 //! first bytes.
 
+use crate::bridge::{Raw, read_through};
 use crate::framework::{EBX, RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::settings::find_key::TEST_TEXTS;
 use std::sync::atomic::AtomicUsize;
@@ -29,26 +30,12 @@ hook_asm!(
 
 /// The value's bytes; none for a null pointer.
 pub unsafe fn value_at(value: *const u8) -> Vec<u8> {
-    let mut bytes = Vec::new();
     if value.is_null() {
-        return bytes;
+        return Vec::new();
     }
-    unsafe {
-        let mut at = value;
-        let mut end = b'\t';
-        if at.read() == b'"' {
-            end = b'"';
-            at = at.add(1);
-        }
-        loop {
-            let c = at.read();
-            at = at.add(1);
-            if c == 0 || c == b'\r' || c == b'\n' || c == end {
-                return bytes;
-            }
-            bytes.push(c);
-        }
-    }
+    // Converted: `rc2k_core::settings::value`.
+    let text = unsafe { Raw::new(value) };
+    read_through(rc2k_core::settings::value(&text, 0))
 }
 
 /// The cursor after the value.

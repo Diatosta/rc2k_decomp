@@ -1,0 +1,48 @@
+//! Reading the game's packed data (texts, glyph tables) a byte at a time. A slice answers
+//! `None` past its end, so the core never reads out of bounds; while the hooked game runs,
+//! the hook crate also answers from game memory, whose extent it does not know.
+
+/// Bytes at offsets from a start.
+pub trait Bytes {
+    /// The byte at `at`, `None` past the end.
+    fn byte(&self, at: usize) -> Option<u8>;
+
+    fn u32_le(&self, at: usize) -> Option<u32> {
+        Some(u32::from_le_bytes([
+            self.byte(at)?,
+            self.byte(at + 1)?,
+            self.byte(at + 2)?,
+            self.byte(at + 3)?,
+        ]))
+    }
+}
+
+impl Bytes for [u8] {
+    fn byte(&self, at: usize) -> Option<u8> {
+        self.get(at).copied()
+    }
+}
+
+impl<const N: usize> Bytes for [u8; N] {
+    fn byte(&self, at: usize) -> Option<u8> {
+        self.get(at).copied()
+    }
+}
+
+impl Bytes for Vec<u8> {
+    fn byte(&self, at: usize) -> Option<u8> {
+        self.get(at).copied()
+    }
+}
+
+/// The bytes of `B` from offset `start` on.
+pub struct Offset<'a, B: ?Sized> {
+    pub bytes: &'a B,
+    pub start: usize,
+}
+
+impl<B: Bytes + ?Sized> Bytes for Offset<'_, B> {
+    fn byte(&self, at: usize) -> Option<u8> {
+        self.bytes.byte(self.start.checked_add(at)?)
+    }
+}

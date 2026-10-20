@@ -25,9 +25,8 @@ use crate::files::read_stream_byte::read_stream_byte;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::gfx::lay_out_pcx::lay_out_pcx;
 use crate::gfx::pcx::{
-    DECODED_HEIGHT_RVA, DECODED_WIDTH_RVA, HEADER_LEN, HEADER_RVA, LINE_BYTES_RVA, MISSING_PATH,
-    PIXELS_RVA, PLANES_RVA, STRIDE_RVA, TEST_PATH, remove_test_file, stream, test_header,
-    test_plane_bytes, test_runs, write_test_file,
+    HEADER_LEN, HEADER_RVA, MISSING_PATH, PIXELS_RVA, TEST_PATH, remove_test_file, stream,
+    test_header, test_plane_bytes, test_runs, write_test_file,
 };
 use crate::gfx::pcx_reader::{ReaderTest, dispatch_reader};
 use crate::gfx::picture::FLAGS_RVA;
@@ -56,58 +55,15 @@ unsafe fn read_rows() -> Result<bool, BadInput> {
             return Ok(false);
         }
         game_write(FLAGS_RVA, 0x800u32);
-        lay_out_pcx();
-
-        let (width, height, line_bytes, planes): (u32, u32, u32, u32) = (
-            game_read(DECODED_WIDTH_RVA),
-            game_read(DECODED_HEIGHT_RVA),
-            game_read(LINE_BYTES_RVA),
-            game_read(PLANES_RVA),
-        );
-        if width == 0 || height == 0 {
-            return Err(BadInput("a PCX picture without rows or columns"));
-        }
-        let stride: u32 = game_read(STRIDE_RVA);
-        let mut to: u32 = game_read(PIXELS_RVA);
-        // eax as the original keeps it (al is the byte a run repeats), and what is left of
-        // the run, which is counted down before it is looked at, as a signed number.
-        let (mut eax, mut run) = (0u32, 0i32);
-        for _ in 0..height {
-            to = to.wrapping_add(planes);
-            let mut plane = 0u32;
-            loop {
-                to = to.wrapping_sub(1);
-                let mut column = 0u32;
-                loop {
-                    run = run.wrapping_sub(1);
-                    if run <= 0 {
-                        eax = read_stream_byte(stream, eax).eax;
-                        run = 1;
-                        if eax as u8 >= 0xC0 {
-                            run = (eax as u8 - 0xC0) as i32;
-                            eax = read_stream_byte(stream, eax).eax;
-                        }
-                    }
-                    if column < width {
-                        (to.wrapping_add(column.wrapping_mul(4)) as *mut u8).write(eax as u8);
-                    }
-                    column = column.wrapping_add(1);
-                    if column >= line_bytes {
-                        break;
-                    }
-                }
-                plane = plane.wrapping_add(1);
-                if plane >= planes {
-                    break;
-                }
-            }
-            // The fourth byte of every pixel, from the last one down.
-            eax = 0;
-            for pixel in (1..=width).rev() {
-                (to.wrapping_add(pixel.wrapping_mul(4)).wrapping_sub(1) as *mut u8).write(0);
-            }
-            to = to.wrapping_add(stride);
-        }
+        let layout = lay_out_pcx();
+        // Converted: `rc2k_core::pcx::decode_planes`.
+        let pixels: u32 = game_read(PIXELS_RVA);
+        rc2k_core::pcx::decode_planes(
+            &layout,
+            |eax| read_stream_byte(stream, eax).eax,
+            |to, byte| (pixels.wrapping_add(to) as *mut u8).write(byte),
+        )
+        .ok_or(BadInput("a PCX picture without rows or columns"))?;
         Ok(true)
     }
 }

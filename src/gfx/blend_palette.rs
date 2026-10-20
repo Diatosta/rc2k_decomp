@@ -13,10 +13,8 @@
 //! Refuses a count of 0 (the original goes through all 32 bits) and null pointers.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::gfx::components_to_pixel::components_to_pixel;
+use crate::framework::{RawHook, Regs, SelfTest, game_write, hook_asm, rva};
 use crate::gfx::pixel_format::{PixelFormat, SCRATCH_RVA, TEST_FORMATS, surface_format};
-use crate::gfx::pixel_to_components::pixel_to_components;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
 use std::sync::atomic::AtomicUsize;
@@ -53,17 +51,20 @@ pub unsafe fn blend_palette(
     }
     for n in 0..count as usize {
         unsafe {
-            let a = pixel_to_components(format, first.add(n).read_unaligned()).to_le_bytes();
-            let b = pixel_to_components(format, second.add(n).read_unaligned()).to_le_bytes();
+            // Converted: `rc2k_core::pixels::blend_entry`; the scratch bytes as
+            // `components_to_pixel` leaves them.
             let entry = out.add(n);
-            for c in 0..3 {
-                let (from, to) = (a[c] as i32, b[c] as i32);
-                let step = (to - from).wrapping_mul(towards_second as i32) >> 8;
-                (entry as *mut u8)
-                    .add(c)
-                    .write(from.wrapping_add(step) as u8);
+            let (pixel, scratch) = rc2k_core::pixels::blend_entry(
+                format,
+                first.add(n).read_unaligned(),
+                second.add(n).read_unaligned(),
+                entry.read_unaligned(),
+                towards_second,
+            );
+            if let Some(scratch) = scratch {
+                game_write(SCRATCH_RVA, scratch);
             }
-            entry.write_unaligned(components_to_pixel(format, entry.read_unaligned()));
+            entry.write_unaligned(pixel);
         }
     }
     Ok(())

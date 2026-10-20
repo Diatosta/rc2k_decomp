@@ -6,7 +6,7 @@
 //! The original also clobbers eax, ecx and esi; its callers save those around the call.
 
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
-use crate::strings::string_table::{blob, entry_count};
+use crate::strings::string_table::{blob, entry_count, table};
 use crate::strings::utils::bytes_str;
 use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts;
@@ -26,26 +26,19 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// Entry = 4 bytes at blob + 4*id: [flag: 8 bits | offset: 24 bits].
-/// flag < 0x80: `flag` literal bytes at blob + offset.
-/// flag >= 0x80: (256 - flag) 16-bit child ids at blob + offset, expanded in order.
-/// No cycle or bounds check, like the original. `emit` receives each run of literal bytes.
+/// Entry `id` of the string table `g_stringTable` points at, given to `emit` (converted:
+/// `rc2k_core::strings::StringTable::expand`). `blob` is that pointer, as the callers read
+/// it. A bad entry or a table the core does not know is logged once and gives nothing (the
+/// original read wherever it pointed: fixed, `notes/bugs.md`).
 pub unsafe fn expand_entry(blob: *const u8, id: u32, emit: &mut impl FnMut(*const u8, usize)) {
-    unsafe {
-        let entry = blob
-            .wrapping_add((id as usize).wrapping_mul(4))
-            .cast::<u32>()
-            .read_unaligned();
-        let flag = (entry >> 24) as u8;
-        let data = blob.wrapping_add((entry & 0x00FF_FFFF) as usize);
-        if flag < 0x80 {
-            emit(data, flag as usize);
-        } else {
-            for i in 0..(256 - flag as usize) {
-                let child = data.wrapping_add(2 * i).cast::<u16>().read_unaligned();
-                expand_entry(blob, child as u32, emit);
-            }
-        }
+    let mut out = Vec::new();
+    let done = match table() {
+        Some(t) if t.bytes.as_ptr() == blob => t.expand(id, &mut out).map_err(|e| e.0),
+        _ => Err("the string table is not the lexicon's"),
+    };
+    match done {
+        Ok(()) => emit(out.as_ptr(), out.len()),
+        Err(why) => HOOK.mismatch(|| format!("id={id}: {why}; nothing written")),
     }
 }
 

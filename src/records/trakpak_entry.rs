@@ -31,8 +31,7 @@ hook_asm!(
 
 const HEADER_RVA: usize = rva(0x734BC6); // g_trakPakHeader: +0 link, +4 pack id, +0x34 entries
 
-const ENTRIES_OFFSET: u32 = 0x34;
-const ENTRY_SIZE: u32 = 0x40;
+const ENTRY_SIZE: u32 = rc2k_core::records::PACK_ENTRY_LEN as u32;
 
 pub fn loaded_pack_id() -> u32 {
     unsafe { game_read(HEADER_RVA + 4) }
@@ -55,12 +54,10 @@ pub fn trakpak_entry(
     pack_id: u32,
     loaded_pack_id: u32,
 ) -> Result<u32, FatalError> {
-    if pack_id != loaded_pack_id {
-        return Err(INVALID_HEADER);
-    }
-    Ok(header
-        .wrapping_add(ENTRIES_OFFSET)
-        .wrapping_add(index.wrapping_mul(ENTRY_SIZE)))
+    // Converted: `rc2k_core::records::pack_entry`.
+    rc2k_core::records::pack_entry(index, pack_id, loaded_pack_id)
+        .map(|place| header.wrapping_add(place as u32))
+        .ok_or(INVALID_HEADER)
 }
 
 /// The entry for the record at `record`, in the pack the game has loaded.

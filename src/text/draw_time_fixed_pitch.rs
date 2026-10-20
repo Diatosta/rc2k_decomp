@@ -14,6 +14,7 @@ use crate::text::draw_text::{Canvas, GameCanvas, RecordingCanvas, test_font, tes
 use crate::text::draw_text_keep_regs::draw_text_keep_regs;
 use crate::text::font::{FLAG_FAIL_IF_WIDER, FLAG_KERNING, Font};
 use crate::text::glyph_kerning::state_ptr;
+use rc2k_core::text::{TIME_STEPS, columns};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -37,8 +38,6 @@ hook_asm!(
 
 /// Where the one-character text is built, relative to the text.
 pub const CELL_OFFSET: usize = 0x40;
-/// Pixels from each column to the next: digit to digit 13, to or from punctuation 10.
-const STEPS: [i32; 8] = [13, 10, 10, 13, 10, 10, 13, 0];
 
 /// Returns whether the last character was too wide: the carry flag.
 pub unsafe fn draw_time_fixed_pitch(
@@ -48,15 +47,14 @@ pub unsafe fn draw_time_fixed_pitch(
     y: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, FatalError> {
-    let mut x = x.wrapping_sub(100);
     let mut too_wide = false;
     unsafe {
         let cell = text.add(CELL_OFFSET);
-        for (i, step) in STEPS.iter().enumerate() {
+        // Converted: `rc2k_core::text::{columns, TIME_STEPS}`.
+        for (i, x) in columns(x, &TIME_STEPS).into_iter().enumerate() {
             *cell = *text.add(i);
             *cell.add(1) = 0;
             too_wide = draw_text_keep_regs(font, cell, x, y, canvas)?;
-            x = x.wrapping_add(*step);
         }
     }
     Ok(too_wide)

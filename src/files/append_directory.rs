@@ -29,16 +29,8 @@ hook_asm!(
     original = ORIGINAL
 );
 
-/// Whether a byte ends a directory.
-pub fn is_separator(b: u8) -> bool {
-    matches!(b, b'/' | b'\\' | b':')
-}
-
-/// The offset of the last separator of the path's bytes (without its NUL), searched from
-/// the end down to offset 1, as both functions search.
-pub fn last_separator(path: &[u8]) -> Option<usize> {
-    (1..path.len()).rev().find(|&k| is_separator(path[k]))
-}
+/// Converted: `rc2k_core::paths`.
+pub use rc2k_core::paths::{is_separator, last_separator};
 
 /// The bytes of a NUL-terminated text, without the NUL (an unbounded scan, as the
 /// original's).
@@ -54,13 +46,13 @@ pub unsafe fn append_directory(
     if path.is_null() {
         return Err(BadInput("a null path"));
     }
-    let bytes = unsafe { text_of(path) };
-    let Some(end) = last_separator(bytes) else {
+    // Converted: `rc2k_core::paths::directory`.
+    let Some(directory) = rc2k_core::paths::directory(unsafe { text_of(path) }) else {
         return Ok((cursor, false));
     };
     unsafe {
-        std::ptr::copy(path, cursor, end + 1);
-        Ok((cursor.add(end + 1), true))
+        std::ptr::copy(directory.as_ptr(), cursor, directory.len());
+        Ok((cursor.add(directory.len()), true))
     }
 }
 

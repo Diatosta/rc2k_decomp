@@ -42,36 +42,8 @@ pub const FORMAT_LEN: usize = 0x18;
 
 // ---- Rust version ----
 
-/// Empty, or one run of bits.
-fn one_run(mask: u32) -> bool {
-    let run = mask.checked_shr(mask.trailing_zeros()).unwrap_or(0);
-    run & run.wrapping_add(1) == 0
-}
-
-/// The number of the top bit, 0xFF for none.
-fn top_bit(mask: u32) -> u8 {
-    if mask == 0 {
-        0xFF
-    } else {
-        31 - mask.leading_zeros() as u8
-    }
-}
-
-/// The layout and the number for four masks. `numbers` is the table of (number, layout).
-pub fn describe(masks: [u32; 4], numbers: &[(u32, u32)]) -> (u32, u32) {
-    let all = masks.iter().fold(0, |all, &mask| all | mask);
-    if !masks.iter().all(|&mask| one_run(mask)) {
-        return (top_bit(all) as u32, 0);
-    }
-    let counts = [7u8, 15, 23, 31];
-    let bytes: [u8; 4] = std::array::from_fn(|n| top_bit(masks[n]).wrapping_sub(counts[n]));
-    let layout = u32::from_le_bytes(bytes) | 0x8000_0000;
-    let number = one_run(all)
-        .then(|| numbers.iter().find(|&&(_, known)| known == layout))
-        .flatten()
-        .map_or(0, |&(number, _)| number);
-    (layout, number)
-}
+/// Converted: `rc2k_core::pixels::describe`.
+pub use rc2k_core::pixels::describe;
 
 /// On the format at `format`, with the game's table.
 pub unsafe fn describe_format(format: *mut u32) -> Result<(), BadInput> {

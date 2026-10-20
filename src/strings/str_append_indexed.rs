@@ -5,7 +5,6 @@
 //! Out: ebx = new cursor
 
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
-use crate::strings::str_append::str_append;
 use crate::strings::utils::written;
 use std::ffi::{CStr, c_char};
 use std::slice::from_raw_parts;
@@ -35,23 +34,27 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// Pointer to string number `index` in the packed table.
-unsafe fn nth(mut table: *const u8, index: i32) -> *const u8 {
-    let mut skip = index;
-    while skip > 0 {
-        unsafe {
-            while *table != 0 {
-                table = table.add(1);
-            }
-            table = table.add(1); // step past the NUL
+/// String `index` of the list at `table` (converted: `rc2k_core::strings::nth_string`, on
+/// the list as far as the original reads it).
+pub unsafe fn indexed_text<'a>(table: *const u8, index: i32) -> &'a [u8] {
+    unsafe {
+        let mut length = 0;
+        for _ in 0..=index.max(0) {
+            length += CStr::from_ptr(table.add(length) as *const c_char)
+                .to_bytes_with_nul()
+                .len();
         }
-        skip -= 1;
+        rc2k_core::strings::nth_string(std::slice::from_raw_parts(table, length), index)
     }
-    table
 }
 
+/// String `index` of the list at `table` appended at `cursor`; the cursor after it.
 pub unsafe fn str_append_indexed(table: *const u8, index: i32, cursor: *mut u8) -> *mut u8 {
-    unsafe { str_append(nth(table, index), cursor) }
+    unsafe {
+        let text = indexed_text(table, index);
+        std::ptr::copy(text.as_ptr(), cursor, text.len());
+        cursor.add(text.len())
+    }
 }
 
 // ---- hook ----
@@ -66,13 +69,8 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 
     // Shadow: Rust writes into scratch, the original does the real writing.
-    let s = unsafe { nth(table, index) };
-    let len = unsafe { CStr::from_ptr(s as *const c_char) }
-        .to_bytes()
-        .len();
-    let mut scratch = vec![0u8; len + 1];
-    let mine = unsafe { str_append(s, scratch.as_mut_ptr()) };
-    let mine_len = mine as usize - scratch.as_ptr() as usize;
+    let scratch = unsafe { indexed_text(table, index) }.to_vec();
+    let mine_len = scratch.len();
 
     let mut o = *r;
     unsafe { call_original(&mut o) };

@@ -66,13 +66,11 @@ pub unsafe fn blend_font(
     if a.is_null() || b.is_null() {
         return Err(BadInput("a null font"));
     }
-    let (from, to) = if half_pulse & time != 0 {
-        (a, b)
-    } else {
-        (b, a)
-    };
+    let mode: u32 = unsafe { game_read(BLEND_MODE_RVA) };
+    // Converted: `rc2k_core::text::pulse`.
+    let (from_a, t) = rc2k_core::text::pulse(time, half_pulse, mode == 2);
+    let (from, to) = if from_a { (a, b) } else { (b, a) };
     unsafe {
-        let mode: u32 = game_read(BLEND_MODE_RVA);
         let blended: *mut Font = game_ptr(BLENDED_FONT_RVA);
         // The original reads the palettes after the copy, so if the second font is the
         // blended font itself, its palette is by then the first one's.
@@ -88,13 +86,6 @@ pub unsafe fn blend_font(
         std::ptr::copy(from as *const u8, blended as *mut u8, FONT_LEN);
         if mode == 0 {
             return Ok(());
-        }
-        let mut t = time & half_pulse.wrapping_sub(1);
-        if mode == 2 {
-            t = t.wrapping_mul(t) >> 8;
-            t ^= 0xFF;
-            t = t.wrapping_mul(t) >> 8;
-            t ^= 0xFF;
         }
         let palette: *mut u32 = game_ptr(BLENDED_PALETTE_RVA);
         blend_palette(
