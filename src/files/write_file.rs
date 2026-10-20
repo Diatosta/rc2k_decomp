@@ -12,13 +12,10 @@
 
 use crate::errors::BadInput;
 use crate::files::read_file::LAST_FILE_PATH_RVA;
-use crate::files::resolve_path::resolve_path_in_game;
 use crate::framework::{
     EAX, RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow,
 };
 use std::sync::atomic::AtomicUsize;
-use windows_sys::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
-use windows_sys::Win32::Storage::FileSystem::{CreateFileA, WriteFile};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
@@ -35,18 +32,11 @@ hook_asm!(
 // ---- game data ----
 
 // Mode 1 of the file mode table (16 bytes per mode).
-const WRITE_ACCESS_RVA: usize = rva(0x4E06FA); // dword_4E06EA[4]
-const WRITE_DISPOSITION_RVA: usize = rva(0x4E06FE); // dword_4E06EE[4]
-const WRITE_SHARE_RVA: usize = rva(0x4E0702); // dword_4E06F2[4]
 
 // ---- Rust version ----
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct WriteResult {
-    pub ok: bool,
-    /// None if the write was not reached (the open failed).
-    pub bytes_written: Option<u32>,
-}
+use crate::files::handle::GameFiles;
+pub use rc2k_core::files::io::WriteResult;
 
 /// Refuses what `resolve_path` refuses.
 pub unsafe fn write_file(
@@ -54,33 +44,14 @@ pub unsafe fn write_file(
     buffer: *const u8,
     count: u32,
 ) -> Result<WriteResult, BadInput> {
+    // Converted: `rc2k_core::files::io::write_file`.
     unsafe {
-        let resolved = resolve_path_in_game(path)?;
-        game_write(LAST_FILE_PATH_RVA, resolved as u32);
-        let file = CreateFileA(
-            resolved,
-            game_read(WRITE_ACCESS_RVA),
-            game_read(WRITE_SHARE_RVA),
-            std::ptr::null(),
-            game_read(WRITE_DISPOSITION_RVA),
-            0x80,
-            0 as _,
-        );
-        if file == INVALID_HANDLE_VALUE {
-            return Ok(WriteResult {
-                ok: false,
-                bytes_written: None,
-            });
-        }
-        let mut n = 0u32;
-        let written =
-            WriteFile(file, buffer.cast(), count, &mut n, std::ptr::null_mut()) != 0 && n >= count;
-        game_write(LAST_FILE_PATH_RVA, 0u32);
-        let closed = CloseHandle(file) != 0;
-        Ok(WriteResult {
-            ok: closed && written,
-            bytes_written: Some(n),
-        })
+        let data = std::slice::from_raw_parts(buffer, count as usize);
+        Ok(rc2k_core::files::io::write_file(
+            &mut GameFiles::new(),
+            path,
+            data,
+        )?)
     }
 }
 

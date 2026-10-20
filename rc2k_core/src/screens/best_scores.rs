@@ -87,6 +87,48 @@ fn fonts(marked: bool) -> (Font, Font, Font) {
     }
 }
 
+/// A row of a section's best times (an entry of 0x9C bytes): the name (+0x20), the time
+/// (+0x18), the nationality (+8), the car (+0x10), a player's (+0x40 is 1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SectionRow<T> {
+    pub name: T,
+    pub time: u32,
+    pub nation: u32,
+    pub car: u32,
+    pub player: bool,
+}
+
+/// A section's best times (`screens::draw_section_best_times` 0x46762B): ten rows from y
+/// 0xF0, 0x19 apart, row n kept: the name at 0xF0, the time at 0x1E0, n at 0xC8, each from
+/// the last text's y; then the flag's sprite at 0xD2 and the car's at 0x276, and again at
+/// 0x276 the sprite of the car's number swapped once more and 0x44 on it (sic,
+/// `notes/bugs.md`), their palette where the number's text ended.
+pub fn section_best_times<S: Screen<Font = Font, Work = Work>>(
+    s: &mut S,
+    rows: &[SectionRow<S::Text>; 10],
+    show_hours: bool,
+) -> Result<(), S::Error> {
+    let mut y = 0xF0;
+    for (n, r) in (1u32..).zip(rows) {
+        s.keep(Work::Rank, n);
+        let (font, place_font) = if r.player {
+            (Font::MarkedName, Font::MarkedRank)
+        } else {
+            (Font::Name, Font::Rank)
+        };
+        y = s.text(font, r.name, 0xF0, y)?.y;
+        y = s.line(font, &time(r.time, show_hours), 0x1E0, y)?.y;
+        let place = s.line(place_font, &decimal(n, Pad::None), 0xC8, y)?;
+        y = place.y;
+        s.sprite(flag_glyph(r.nation), 0xD2, y, place.after)?;
+        let car = car_glyph(r.car);
+        s.sprite(car, 0x276, y, place.after)?;
+        s.sprite(car_glyph(car), 0x276, y, place.after)?;
+        y = y.wrapping_add(0x19);
+    }
+    Ok(())
+}
+
 /// A score list (`draw_scores`): from rank 1 until ten or a list's end: the name (x 0xF0),
 /// the score (x 0x21C), the rank (x 0xC8), each from the last text's y; the flag's sprite
 /// (x 0xD2) and the car's (x 0x1CC) `sprite_dy` below, their palette where the rank's

@@ -31,25 +31,18 @@
 //! Refuses a menu without an end in its first 256 items.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_ptr, game_read, game_write, hook_asm, rva,
-};
-use crate::gfx::blit_glyph::BlitCall;
-use crate::gfx::blit_marker_pair::{MARKER_X_RVA, MARKER_Y_RVA, sprite_table};
+use crate::framework::{RawHook, Regs, SelfTest, game_ptr, game_read, game_write, hook_asm, rva};
+use crate::gfx::blit_marker_pair::{MARKER_X_RVA, MARKER_Y_RVA};
 use crate::menu::item_at::{ITEM_LEN, MENU_HEAD_LEN};
 use crate::menu::update_blink::{BLINK_OFF_RVA, LAST_KEY_TIME_RVA};
 use crate::menu::update_frame_clock::CLOCK_RVA;
-use crate::screens::buttons::{
-    ALIGN_CENTRE, ALIGN_RIGHT, ALT, HIGHLIGHTED, PLAIN, draw_item_button, draw_text_button, dword,
-};
-use crate::screens::draw_menu_item_text::{
-    TEST_FONT, draw_menu_item_text, item_text_regions, text_unavailable,
-};
+use crate::screens::buttons::{ALT, PLAIN, dword};
+use crate::screens::draw_menu_item_text::{TEST_FONT, item_text_regions, text_unavailable};
 use crate::screens::font_at;
 use crate::screens::harness::{Left, check_draw, dispatch_draw_rewound};
 use crate::service::harness::{Region, at, capture, restore};
 use crate::service::state::MENU_ITEM_RVA;
-use crate::text::blend_font::{BLENDED_FONT_RVA, blend_font, blend_regions};
+use crate::text::blend_font::blend_regions;
 use crate::text::draw_text::Canvas;
 use crate::text::font::Font;
 use crate::text::measure_string_by_id::{MEASURING_FONT, TEST_STRINGS, measuring_unavailable};
@@ -76,23 +69,20 @@ hook_asm!(
 const HIGHLIGHTED_RVA: usize = rva(0x7559D0); // dword_7559D0: 1 while the highlighted item is drawn
 
 // What an item's +0x1C says goes behind its text.
-const NOTHING: u32 = 0xFFFF_FFA9;
-const OWN_BUTTON: u32 = 0xFFFF_FFA5;
-const RIGHT_BUTTON: u32 = 0xFFFF_FFA7;
-const CENTRED_BUTTON: u32 = 0xFFFF_FFA6;
-const NOTHING_EITHER: u32 = 0xFFFF_FFAA;
+use rc2k_core::screens::menus::{
+    CENTRED_BUTTON, NOTHING, NOTHING_EITHER, OWN_BUTTON, RIGHT_BUTTON,
+};
 
 const END: u32 = u32::MAX;
 const ITEM_LIMIT: u32 = 256;
-const HALF_PULSE: u32 = 0x100;
 
 // ---- Rust version ----
 
 /// `ebx` and `ecx` are those registers at entry.
 pub unsafe fn draw_menu_items(
     menu: u32,
-    mut ebx: u32,
-    mut ecx: u32,
+    ebx: u32,
+    ecx: u32,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     unsafe {
@@ -100,95 +90,48 @@ pub unsafe fn draw_menu_items(
         if menu == 0 || !(1..=ITEM_LIMIT).any(|n| dword(first + n * ITEM_LEN) == END) {
             return Err(BadInput("a menu without an end").into());
         }
+        // Converted: `rc2k_core::screens::menus::items` (the items read here: the first
+        // drawn without being checked for the end, as the original).
+        use crate::screens::game_screen::{FontAt, MenuScreen};
+        use rc2k_core::screens::menus::Item;
+        let mut list = Vec::new();
         let mut item = first;
         loop {
-            let (x, y) = (dword(item), dword(item + 4));
-            let (behind, sprite) = (dword(item + 0x1C), dword(item + 0x20));
-            let highlighted = game_read::<u32>(MENU_ITEM_RVA) == dword(item + 0x10);
-            game_write(HIGHLIGHTED_RVA, highlighted as u32);
-
-            if !highlighted {
-                if behind != NOTHING {
-                    game_write(MARKER_X_RVA, x);
-                    game_write(MARKER_Y_RVA, y);
-                }
-                match behind {
-                    NOTHING | NOTHING_EITHER => {}
-                    OWN_BUTTON => draw_item_button(item, canvas)?,
-                    RIGHT_BUTTON => draw_text_button(&ALT, ALIGN_RIGHT, item, ecx as i32, canvas)?,
-                    CENTRED_BUTTON => {
-                        draw_text_button(&PLAIN, ALIGN_CENTRE, item, ecx as i32, canvas)?
-                    }
-                    _ => canvas.blit_glyph(BlitCall::new(
-                        sprite,
-                        x as i32,
-                        y as i32,
-                        sprite,
-                        sprite_table(),
-                    ))?,
-                }
-            } else if sprite != NOTHING_EITHER {
-                match behind {
-                    NOTHING => {}
-                    OWN_BUTTON => draw_item_button(item, canvas)?,
-                    RIGHT_BUTTON => {
-                        draw_text_button(&HIGHLIGHTED, ALIGN_RIGHT, item, ecx as i32, canvas)?
-                    }
-                    CENTRED_BUTTON => {
-                        draw_text_button(&HIGHLIGHTED, ALIGN_CENTRE, item, ecx as i32, canvas)?
-                    }
-                    _ => canvas.blit_glyph(BlitCall::new(
-                        sprite,
-                        x as i32,
-                        y as i32,
-                        ebx,
-                        sprite_table(),
-                    ))?,
-                }
-            }
-
-            let is_button = matches!(behind, OWN_BUTTON | RIGHT_BUTTON | CENTRED_BUTTON);
-            let (mut text_x, text_y) = if is_button {
-                (x, y.wrapping_sub(3))
-            } else {
-                (dword(item + 8), dword(item + 0xC))
-            };
-            if behind == RIGHT_BUTTON {
-                text_x = text_x.wrapping_sub(4);
-            }
-            game_write(MARKER_X_RVA, text_x);
-            game_write(MARKER_Y_RVA, text_y);
-
-            let mut font = dword(item + 0x18);
-            if highlighted {
-                let since_key = if game_read::<u32>(BLINK_OFF_RVA) == 1 {
-                    0
-                } else {
-                    game_read::<u32>(CLOCK_RVA).wrapping_sub(game_read(LAST_KEY_TIME_RVA))
-                };
-                blend_font(
-                    since_key,
-                    HALF_PULSE,
-                    font as *const Font,
-                    dword(item + 0x50) as *const Font,
-                )?;
-                font = game_addr(BLENDED_FONT_RVA) as u32;
-            }
-            draw_menu_item_text(
-                dword(item + 0x14),
-                font as *mut Font,
-                text_x as i32,
-                text_y as i32,
-                dword(item + 0x58) == 1,
-                canvas,
-            )?;
-            (ebx, ecx) = (font, text_x);
-
+            list.push(Item {
+                x: dword(item),
+                y: dword(item + 4),
+                text_x: dword(item + 8),
+                text_y: dword(item + 0xC),
+                kind: dword(item + 0x10),
+                id: dword(item + 0x14),
+                font: FontAt(dword(item + 0x18)),
+                pulse_font: FontAt(dword(item + 0x50)),
+                behind: dword(item + 0x1C),
+                sprite: dword(item + 0x20),
+                spaced: dword(item + 0x58) == 1,
+            });
             item = item.wrapping_add(ITEM_LEN);
             if dword(item) == END {
-                return Ok(());
+                break;
             }
         }
+        let since_key = if game_read::<u32>(BLINK_OFF_RVA) == 1 {
+            0
+        } else {
+            game_read::<u32>(CLOCK_RVA).wrapping_sub(game_read(LAST_KEY_TIME_RVA))
+        };
+        let mut screen = MenuScreen::new(canvas);
+        screen.menu_items = first;
+        let line: *const u8 = crate::framework::game_ptr(crate::screens::LINE_BUFFER_RVA);
+        rc2k_core::screens::menus::items(
+            &mut screen,
+            &list,
+            game_read(MENU_ITEM_RVA),
+            since_key,
+            ebx,
+            ecx,
+            &|n| *line.add(n),
+        )
     }
 }
 

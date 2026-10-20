@@ -51,28 +51,29 @@ hook_asm!(
 
 const SHOWN_SLOT_RVA: usize = rva(0x755148); // dword_755148
 const NOTHING_TO_SHOW_RVA: usize = rva(0x75514C); // dword_75514C
-const NO_SLOT: u32 = 999;
 
 // ---- Rust version ----
 
 /// Returns the carry flag of the panel drawn.
 pub unsafe fn draw_savegame_preview(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+    // Converted: `rc2k_core::screens::savegame_preview::preview` (the slot); the panels
+    // are converted in their own hooks.
+    use rc2k_core::screens::savegame_preview::{NO_SLOT, Preview, preview};
     unsafe {
-        let item = menu_item();
-        if (item as i32) > 10 {
-            game_write(NOTHING_TO_SHOW_RVA, 1u32);
-            game_write(SHOWN_SLOT_RVA, NO_SLOT);
-            return draw_empty_savegame(canvas);
-        }
-        let slot = game_read::<u32>(SAVEGAME_PAGE_RVA)
-            .wrapping_mul(10)
-            .wrapping_add(item)
-            .wrapping_sub(1);
-        if game_read::<u32>(SHOWN_SLOT_RVA) != slot {
-            // Refused before anything is written: a slot past the list.
-            let found = read_savegame_slot(slot)?;
-            game_write(SHOWN_SLOT_RVA, slot);
-            game_write(NOTHING_TO_SHOW_RVA, !found as u32);
+        let page = game_read::<u32>(SAVEGAME_PAGE_RVA);
+        match preview(menu_item(), page, game_read(SHOWN_SLOT_RVA)) {
+            Preview::NoSlot => {
+                game_write(NOTHING_TO_SHOW_RVA, 1u32);
+                game_write(SHOWN_SLOT_RVA, NO_SLOT);
+                return draw_empty_savegame(canvas);
+            }
+            Preview::Slot { slot, read: true } => {
+                // Refused before anything is written: a slot past the list.
+                let found = read_savegame_slot(slot)?;
+                game_write(SHOWN_SLOT_RVA, slot);
+                game_write(NOTHING_TO_SHOW_RVA, !found as u32);
+            }
+            Preview::Slot { .. } => {}
         }
         if game_read::<u32>(NOTHING_TO_SHOW_RVA) == 1 {
             draw_empty_savegame(canvas)

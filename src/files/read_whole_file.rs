@@ -15,7 +15,7 @@
 //! there.
 
 use crate::errors::{BadInput, Refused};
-use crate::files::handle::{NO_HANDLE, close, open_by_mode, read};
+use crate::files::handle::NO_HANDLE;
 use crate::framework::{
     EAX, EBX, RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow,
 };
@@ -47,20 +47,22 @@ pub unsafe fn read_whole_file(
     count: u32,
     ebx: u32,
 ) -> Result<Left, BadInput> {
+    // Converted: `rc2k_core::files::io::read_whole_file`.
     unsafe {
-        let Some(file) = open_by_mode(path, 0)? else {
+        let into = std::slice::from_raw_parts_mut(buffer, count as usize);
+        let w = rc2k_core::files::io::read_whole_file(
+            &mut crate::files::handle::GameFiles::new(),
+            path,
+            into,
+        )?;
+        if !w.opened {
             game_write(BYTES_READ_RVA, 0u32);
             return Ok(Left::carry(true).with(EAX, NO_HANDLE));
-        };
-        let (bytes, read_ok) = read(file, buffer, count);
-        game_write(BYTES_READ_RVA, bytes);
-        let closed = close(file);
-        if !closed {
-            game_write(BYTES_READ_RVA, 0u32);
         }
-        Ok(Left::carry(!closed || !read_ok)
-            .with(EAX, closed as u32)
-            .with(EBX, (ebx & !0xFF) | read_ok as u32))
+        game_write(BYTES_READ_RVA, if w.closed { w.bytes } else { 0 });
+        Ok(Left::carry(!w.closed || !w.read_ok)
+            .with(EAX, w.closed as u32)
+            .with(EBX, (ebx & !0xFF) | w.read_ok as u32))
     }
 }
 

@@ -52,7 +52,8 @@ pub fn maybe_compile_lexicon_with(
             (key as *const u8).read_volatile(),
         )
     };
-    if level as i32 >= 1 && key != 0 {
+    // Converted: `rc2k_core::strings::lexicon::recompile_wanted`.
+    if rc2k_core::strings::lexicon::recompile_wanted(level, key) {
         part(COMPILE_LEXICON, &mut r)?;
     }
     Ok(r)

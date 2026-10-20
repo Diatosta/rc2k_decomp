@@ -9,7 +9,8 @@
 //! Shadow mode runs the original alone. Manual patch with a private copy (0x1C bytes, both
 //! calls relocated): a conditional jump sits in the first bytes. The name is a reading.
 
-use crate::files::handle::{NO_HANDLE, close, open_by_mode, write};
+use crate::errors::BadInput;
+use crate::files::handle::{NO_HANDLE, open_by_mode};
 use crate::files::stream::{LastPath, Stream, TEST_PATH, make_test_file, remove_test_file};
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use std::sync::atomic::AtomicUsize;
@@ -32,15 +33,14 @@ hook_asm!(
 // ---- Rust version ----
 
 /// Returns whether the handle was closed.
-pub unsafe fn close_stream(stream: *mut Stream) -> bool {
+pub unsafe fn close_stream(stream: *mut Stream) -> Result<bool, BadInput> {
+    // Converted: `rc2k_core::files::io::close_stream`.
     unsafe {
-        let s = &mut *stream;
-        if s.mode == 1 && s.filled != 0 {
-            write(s.file, s.buffer.as_ptr(), s.filled);
-        }
-        let closed = close(s.file);
-        s.file = NO_HANDLE;
-        closed
+        Ok(rc2k_core::files::io::close_stream(
+            &mut crate::files::handle::GameFiles::new(),
+            crate::files::stream::core_stream(stream),
+            NO_HANDLE,
+        )?)
     }
 }
 
@@ -50,7 +50,10 @@ extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
     let stream = r.esi as *mut Stream;
     if !shadow() {
-        let closed = unsafe { close_stream(stream) };
+        let closed = match unsafe { close_stream(stream) } {
+            Ok(closed) => closed,
+            Err(e) => return unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
+        };
         r.set_carry(!closed);
         r.set_zero(closed);
         return;
@@ -146,7 +149,7 @@ fn self_test() -> (usize, usize) {
                     ro.preserved_except(&before, 0),
                 )
             } else {
-                let closed = unsafe { close_stream(&mut *stream) };
+                let closed = unsafe { close_stream(&mut *stream) } == Ok(true);
                 (closed, closed, true)
             };
             let written = (mode == 1).then(|| std::fs::read(WRITTEN_FILE).unwrap_or_default());

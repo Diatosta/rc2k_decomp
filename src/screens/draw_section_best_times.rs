@@ -11,19 +11,20 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! In the best times screen's draw list (0x758E4E). Refuses (before anything) a section past
+//! In the draw list 0x758E4E of `menu::unused_section_times_loop_1` / `_2` (0x466E50,
+//! 0x467392), which nothing reaches (no code or data refers to them, 2026-10-20): only the
+//! self-test runs it. Refuses (before anything) a section past
 //! the six or with no table, and a line past the line buffer. Compared in shadow mode
 //! (`dispatch_draw`). Self-test: each section, nothing drawn (skipped without the fonts).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::gfx::blit_glyph::BlitCall;
+use crate::screens::LINE_BUFFER_RVA;
 use crate::screens::draw_menu_item_text::text_unavailable;
 use crate::screens::harness::{Left, check_draw, dispatch_draw};
-use crate::screens::{LINE_BUFFER_RVA, font_at, line_buffer};
 use crate::service::harness::{Region, at, capture, restore};
-use crate::strings::append_time::{append_time, show_hours};
-use crate::text::draw_text::{Canvas, draw_text_at};
+use crate::strings::append_time::show_hours;
+use crate::text::draw_text::Canvas;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -54,17 +55,6 @@ fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
 
-unsafe fn line(bytes: &[u8]) -> Result<*mut u8, Refused> {
-    if bytes.len() + 1 > LINE_LEN {
-        return Err(BadInput("a line past the line buffer").into());
-    }
-    unsafe {
-        std::ptr::copy_nonoverlapping(bytes.as_ptr(), line_buffer(), bytes.len());
-        line_buffer().add(bytes.len()).write(0);
-    }
-    Ok(line_buffer())
-}
-
 /// The Rust version.
 pub unsafe fn draw_section_best_times(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     unsafe {
@@ -72,37 +62,27 @@ pub unsafe fn draw_section_best_times(canvas: &mut dyn Canvas) -> Result<(), Ref
         if section >= SECTIONS {
             return Err(BadInput("a section past the six best-times tables").into());
         }
-        let mut e: u32 = game_read(TABLES_RVA + 4 * section as usize);
+        let e: u32 = game_read(TABLES_RVA + 4 * section as usize);
         if e == 0 {
             return Err(BadInput("a section with no best-times table").into());
         }
-        let sprites = crate::gfx::blit_marker_pair::sprite_table();
-        let mut y = 0xF0i32;
-        for n in 1..=10u32 {
-            game_write(ROW_RVA, n);
-            let (font, place_font) = if get(e + 0x40) == 1 {
-                (0x51E524, 0x51E544)
-            } else {
-                (0x51E584, 0x51E5A4)
-            };
-            y = draw_text_at(font_at(font), (e + 0x20) as *const u8, 0xF0, y, canvas)?.y;
-            let time = line(&append_time(get(e + 0x18), show_hours()))?;
-            y = draw_text_at(font_at(font), time, 0x1E0, y, canvas)?.y;
-            let place = line(&crate::strings::append_u32::append_u32(n))?;
-            let o = draw_text_at(font_at(place_font), place, 0xC8, y, canvas)?;
-            y = o.y;
-            let palette = o.text as u32;
-            let blit = |canvas: &mut dyn Canvas, glyph: u32, x: i32| {
-                canvas.blit_glyph(BlitCall::new(glyph, x, y, palette, sprites))
-            };
-            blit(canvas, get(e + 8).wrapping_add(0x1C), 0xD2)?;
-            let swapped = |v: u32| if (0x18..=0x19).contains(&v) { v ^ 1 } else { v };
-            let flag = swapped(get(e + 0x10)).wrapping_add(0x44);
-            blit(canvas, flag, 0x276)?;
-            blit(canvas, swapped(flag).wrapping_add(0x44), 0x276)?;
-            y = y.wrapping_add(0x19);
-            e += ENTRY_LEN;
-        }
+        // Converted: `rc2k_core::screens::best_scores::section_best_times`.
+        use rc2k_core::screens::best_scores::SectionRow;
+        let rows: [SectionRow<u32>; 10] = std::array::from_fn(|n| {
+            let e = e + n as u32 * ENTRY_LEN;
+            SectionRow {
+                name: e + 0x20,
+                time: get(e + 0x18),
+                nation: get(e + 8),
+                car: get(e + 0x10),
+                player: get(e + 0x40) == 1,
+            }
+        });
+        rc2k_core::screens::best_scores::section_best_times(
+            &mut crate::screens::best_scores::ScoresScreen::new(canvas),
+            &rows,
+            show_hours(),
+        )?;
     }
     Ok(())
 }

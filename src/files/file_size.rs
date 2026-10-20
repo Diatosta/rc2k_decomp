@@ -9,7 +9,6 @@
 //! reading.
 
 use crate::errors::BadInput;
-use crate::files::handle::{NO_HANDLE, close, handle_size, open_by_mode};
 use crate::files::stream::{
     LastPath, MISSING_PATH, TEST_LEN, TEST_PATH, make_test_file, remove_test_file,
 };
@@ -32,13 +31,12 @@ hook_asm!(
 
 /// (eax, whether it worked).
 pub unsafe fn file_size(path: *const u8) -> Result<(u32, bool), BadInput> {
+    // Converted: `rc2k_core::files::io::file_size`.
     unsafe {
-        let Some(file) = open_by_mode(path, 0)? else {
-            return Ok((NO_HANDLE, false));
-        };
-        let size = handle_size(file);
-        let closed = close(file);
-        Ok((size.unwrap_or(u32::MAX), closed && size.is_some()))
+        Ok(rc2k_core::files::io::file_size(
+            &mut crate::files::handle::GameFiles::new(),
+            path,
+        )?)
     }
 }
 

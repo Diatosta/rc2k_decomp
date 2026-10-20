@@ -80,15 +80,12 @@ pub unsafe fn free_space_kb() -> u32 {
             return u32::MAX;
         }
         // The cluster's bytes as 32 bits, times the free clusters as 64.
-        let cluster_bytes = cluster_sectors
-            .read_unaligned()
-            .wrapping_mul(sector_bytes.read_unaligned());
-        let bytes = cluster_bytes as u64 * free.read_unaligned() as u64;
-        if bytes >> 42 != 0 {
-            u32::MAX
-        } else {
-            (bytes >> 10) as u32
-        }
+        // Converted: `rc2k_core::files::log::free_kb`.
+        rc2k_core::files::log::free_kb(
+            cluster_sectors.read_unaligned(),
+            sector_bytes.read_unaligned(),
+            free.read_unaligned(),
+        )
     }
 }
 
@@ -106,56 +103,61 @@ pub unsafe fn start_log(delete: &mut dyn FnMut()) -> Result<(), BadInput> {
         }
         crate::logfile::date_text::date_text()?;
         delete();
-        text(b"Log started\0", false);
+        // Converted: `rc2k_core::files::log::head`; the values gathered (the date text,
+        // the memory and the drive's numbers left in game memory as the original leaves
+        // them), then each message logged as the original's call.
+        use rc2k_core::files::log::{Machine, Message, head};
+        let c_text = |p: *const u8| {
+            std::ffi::CStr::from_ptr(p as *const std::ffi::c_char)
+                .to_bytes()
+                .to_vec()
+        };
         let scratch = game_addr(SCRATCH_RVA) as *mut u8;
         write_date_text(scratch)?;
-        log_write(scratch, true, 1);
-        log_write(game_addr(VERSION_RVA) as *const u8, true, 1);
-        if game_read::<u8>(SECOND_TEXT_RVA) != 0 {
-            log_write(game_addr(SECOND_TEXT_RVA) as *const u8, true, 1);
-        }
-        text(b"\0", true);
-
-        let number = |name: &[u8], at: usize| {
-            text(name, false);
-            log_int(game_read(at), true, 1);
-        };
-        text(b"cpu=\0", false);
-        log_int(game_read(CPU_FAMILY_RVA), false, 1);
-        log_hex8(game_read(CPU_FLAGS_RVA), false, 1);
-        log_write(game_addr(CPU_NAME_RVA) as *const u8, true, 1);
-        number(b"clk=\0", CLOCK_RVA);
-        number(b"fpu=\0", FPU_RVA);
-        number(b"mmx=\0", MMX_RVA);
-        number(b"amdk3d=\0", AMD_3D_RVA);
-        number(b"katmai=\0", KATMAI_RVA);
-        number(b"machinetype=\0", KEYBOARD_TYPE_RVA);
-        text(b"platform=\0", false);
-        log_int(game_read(VERSION_INFO_RVA + 0x10), false, 1);
-        log_int(game_read(VERSION_INFO_RVA + 4), false, 1);
-        log_int(game_read(VERSION_INFO_RVA + 8), false, 1);
-        log_int(game_read::<u16>(VERSION_INFO_RVA + 0xC) as i32, false, 1);
-        log_write(game_addr(VERSION_INFO_RVA + 0x14) as *const u8, true, 1);
-
         let memory = game_addr(MEMORY_RVA) as *mut MEMORYSTATUS;
         (*memory).dwLength = 0x20;
         GlobalMemoryStatus(memory);
-        let kb = |bytes: usize| log_int((bytes as u32 >> 10) as i32, false, 1);
-        text(b"ram avail/total:\0", false);
-        kb((*memory).dwAvailPhys);
-        kb((*memory).dwTotalPhys);
-        text(b"Kb\0", true);
-        text(b"swp avail/total:\0", false);
-        kb((*memory).dwAvailPageFile);
-        kb((*memory).dwTotalPageFile);
-        text(b"Kb\0", true);
-        text(b"free space on partition=\0", false);
         let free = free_space_kb();
         game_write(FREE_SPACE_RVA, free);
-        log_int(free as i32, false, 1);
-        text(b"Kb\0", true);
-        text(b"\0", true);
-        text(b"\0", true);
+        let m = Machine {
+            date: c_text(scratch),
+            version: c_text(game_addr(VERSION_RVA) as *const u8),
+            second: (game_read::<u8>(SECOND_TEXT_RVA) != 0)
+                .then(|| c_text(game_addr(SECOND_TEXT_RVA) as *const u8)),
+            cpu_family: game_read(CPU_FAMILY_RVA),
+            cpu_flags: game_read(CPU_FLAGS_RVA),
+            cpu_name: c_text(game_addr(CPU_NAME_RVA) as *const u8),
+            clock: game_read(CLOCK_RVA),
+            fpu: game_read(FPU_RVA),
+            mmx: game_read(MMX_RVA),
+            amd_3d: game_read(AMD_3D_RVA),
+            katmai: game_read(KATMAI_RVA),
+            machine_type: game_read(KEYBOARD_TYPE_RVA),
+            platform: [
+                game_read(VERSION_INFO_RVA + 0x10),
+                game_read(VERSION_INFO_RVA + 4),
+                game_read(VERSION_INFO_RVA + 8),
+                game_read::<u16>(VERSION_INFO_RVA + 0xC) as i32,
+            ],
+            platform_text: c_text(game_addr(VERSION_INFO_RVA + 0x14) as *const u8),
+            memory: [
+                (*memory).dwAvailPhys as u32,
+                (*memory).dwTotalPhys as u32,
+                (*memory).dwAvailPageFile as u32,
+                (*memory).dwTotalPageFile as u32,
+            ],
+            free_kb: free,
+        };
+        for (message, newline) in head(&m) {
+            match message {
+                Message::Text(mut t) => {
+                    t.push(0);
+                    text(&t, newline);
+                }
+                Message::Int(v) => log_int(v, newline, 1),
+                Message::Hex8(v) => log_hex8(v, newline, 1),
+            }
+        }
         Ok(())
     }
 }

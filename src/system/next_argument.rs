@@ -32,31 +32,17 @@ hook_asm!(
 
 /// (the word's start, its length, where to go on from).
 pub unsafe fn next_argument(text: *const u8) -> (*const u8, u32, *const u8) {
-    unsafe {
-        let mut start = text;
-        while matches!(start.read(), b' ' | b'\t') {
-            start = start.add(1);
-        }
-        let quoted = start.read() == b'"';
-        if quoted {
-            start = start.add(1);
-        }
-        let mut at = start;
-        loop {
-            let c = at.read();
-            let ends = match c {
-                0 => return (start, at.offset_from(start) as u32, at),
-                b'\r' => true,
-                b'"' => quoted,
-                b' ' | b'\t' => !quoted,
-                _ => false,
-            };
-            if ends {
-                return (start, at.offset_from(start) as u32, at.add(1));
-            }
-            at = at.add(1);
-        }
-    }
+    // Converted: `rc2k_core::strings::words::next_argument`, on the text in game memory
+    // (whose NUL the original stops at too).
+    let raw = unsafe { crate::bridge::Raw::new(text) };
+    // `Raw` answers every byte, so the core never meets the end of its bytes.
+    let w = rc2k_core::strings::words::next_argument(&raw, 0)
+        .unwrap_or_else(|_| unreachable!("game memory answers every byte"));
+    (
+        text.wrapping_add(w.start),
+        w.len as u32,
+        text.wrapping_add(w.next),
+    )
 }
 
 // ---- hook ----

@@ -218,102 +218,31 @@ pub unsafe fn controller_page_refuses() -> Result<u32, Refused> {
 pub unsafe fn draw_controller_page(
     canvas: &mut dyn crate::text::draw_text::Canvas,
 ) -> Result<(), Refused> {
-    use crate::gfx::blit_glyph::BlitCall;
-    use crate::gfx::surface::{CLIP_LEFT_RVA, CLIP_RIGHT_RVA};
-    use crate::menu::disable_item::disable_item;
-    use crate::menu::enable_item::enable_item;
-    use crate::text::draw_string_by_id::draw_string_by_id_at;
-    use crate::text::draw_text::draw_text_at;
+    // Converted: `rc2k_core::screens::controller_page::controller_page`.
+    use rc2k_core::screens::controller_page::{Controller, Font, Work, controller_page};
     unsafe {
         let player = controller_page_refuses()?;
         let f = |o: u32| ((player + o) as *const u32).read_unaligned();
-        let font = crate::screens::font_at(0x51E8C4);
         let device = f(0x2C);
+        let mut screen = crate::screens::game_screen::GameScreen::<Font, Work>::new(canvas);
         if device == 0 {
-            for n in 3..=8 {
-                disable_item(n)?;
-            }
-            draw_no_controller(canvas)?;
-            return Ok(());
-        }
-        for n in 3..=8 {
-            enable_item(n)?;
+            return controller_page(&mut screen, None);
         }
         let record = crate::framework::game_addr(rva(0x4F78E4)) as u32
             + device.wrapping_sub(1).wrapping_mul(0x50);
-        w(0x755A0C, record);
-        draw_text_at(font, (record + 0x30) as *const u8, 0x1BC, 0xD5, canvas)?;
-        w(0x7559AC, f(0x3C).wrapping_add(0x56D));
-        draw_string_by_id_at(k(0x7559AC), font, 0x1BC, 0xF0, canvas)?;
-        let has = ((record + 0x1C) as *const u32).read_unaligned() == 1;
-        if has {
-            enable_item(4)?;
-        } else {
-            disable_item(4)?;
-        }
-        if !has || (f(0x48) as i32) <= 0 {
-            draw_string_by_id_at(0x56D, font, 0x1BC, 0x10B, canvas)?;
-        } else {
-            let mut line = crate::strings::append_percent::append_percent(f(0x48));
-            line.push(0);
-            std::ptr::copy_nonoverlapping(line.as_ptr(), crate::screens::line_buffer(), line.len());
-            draw_text_at(font, crate::screens::line_buffer(), 0x1BC, 0x10B, canvas)?;
-        }
-        w(0x7559AC, f(0x34).wrapping_add(0x3A1));
-        let out = draw_string_by_id_at(k(0x7559AC), font, 0x1BC, 0x126, canvas)?;
-        let sprites = crate::gfx::blit_marker_pair::sprite_table();
-        canvas.blit_glyph(BlitCall::new(5, 0x1B8, 0x14C, out.text as u32, sprites))?;
-        let (right, left) = (k(0x4F5040), k(0x4F503C));
-        let a = f(0x40);
-        game_write(CLIP_RIGHT_RVA, 0x281u32.wrapping_sub(a).wrapping_sub(1));
-        w(0x7559E0, 0x281u32.wrapping_sub(a));
-        game_write(CLIP_LEFT_RVA, 0x1C0u32.wrapping_add(a));
-        w(0x7559DC, 0x1C0u32.wrapping_add(a).wrapping_sub(4));
-        let done = (|| -> Result<(), Refused> {
-            canvas.blit_glyph(BlitCall::new(3, 0x1BC, 0x14C, k(0x7559DC), sprites))?;
-            let t = 100u32.wrapping_sub(f(0x44));
-            game_write(CLIP_RIGHT_RVA, 0x285u32.wrapping_sub(t).wrapping_sub(1));
-            w(0x7559E8, 0x285u32.wrapping_sub(t));
-            game_write(CLIP_LEFT_RVA, 0x1BCu32.wrapping_add(t));
-            w(0x7559E4, 0x1BCu32.wrapping_add(t).wrapping_sub(4));
-            canvas.blit_glyph(BlitCall::new(4, 0x1BC, 0x14C, k(0x7559E4), sprites))?;
-            Ok(())
-        })();
-        game_write(CLIP_LEFT_RVA, left);
-        game_write(CLIP_RIGHT_RVA, right);
-        done?;
-        let palette = k(0x7559E4);
-        for (glyph, x) in [
-            (7u32, 0x7559DCusize),
-            (7, 0x7559E0),
-            (6, 0x7559E4),
-            (6, 0x7559E8),
-        ] {
-            canvas.blit_glyph(BlitCall::new(glyph, k(x) as i32, 0x14C, palette, sprites))?;
-        }
-        let [x, _, _, buttons] = crate::input::axes::first_device_state();
-        w(0x7559F0, buttons);
-        let place = if x == 0 {
-            0x21A
-        } else if (x as i32) > 0 {
-            let v = x.wrapping_mul(100);
-            if v == 0 {
-                return Err(crate::gfx::blit_bar::BAR_HAS_NO_LENGTH.into());
-            }
-            (v / 0x100).wrapping_add(0x21A)
-        } else {
-            let v = x.wrapping_neg().wrapping_mul(100);
-            if v == 0 {
-                return Err(crate::gfx::blit_bar::BAR_HAS_NO_LENGTH.into());
-            }
-            (v / 0x100)
-                .wrapping_neg()
-                .wrapping_add(1)
-                .wrapping_add(0x21A)
+        let [stick_x, _, _, buttons] = crate::input::axes::first_device_state();
+        let c = Controller {
+            record,
+            name: record + 0x30,
+            has_strength: ((record + 0x1C) as *const u32).read_unaligned() == 1,
+            mode: f(0x3C),
+            strength: f(0x48),
+            sensitivity: f(0x34),
+            first: f(0x40),
+            second: f(0x44),
+            stick_x,
+            buttons,
         };
-        w(0x7559EC, place);
-        let glyph = if buttons != 0 { 9 } else { 8 };
-        canvas.blit_glyph(BlitCall::new(glyph, place as i32, 0x156, buttons, sprites))?;
-        Ok(())
+        controller_page(&mut screen, Some(&c))
     }
 }

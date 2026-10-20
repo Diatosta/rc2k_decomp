@@ -10,7 +10,6 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::blit_marker_pair::sprite_table;
 use crate::gfx::surface::{CLIP_BOTTOM_RVA, CLIP_TOP_RVA};
 use crate::screens::harness::{Left, check_draw, dispatch_draw, drawing_unavailable};
@@ -38,25 +37,17 @@ hook_asm!(
 // ---- game data ----
 
 const SWITCH_RVA: usize = rva(0x7554E4); // dword_7554E4
-const BACKGROUND: u32 = 0xA0;
-const TOP: u32 = 0xCB;
-const BOTTOM: u32 = 0x1C6;
 
 // ---- Rust version ----
 
 pub unsafe fn draw_background_band(palette: u32, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    unsafe {
-        if game_read::<u32>(SWITCH_RVA) != 1 {
-            return Ok(());
-        }
-        let (top, bottom): (u32, u32) = (game_read(CLIP_TOP_RVA), game_read(CLIP_BOTTOM_RVA));
-        game_write(CLIP_TOP_RVA, TOP);
-        game_write(CLIP_BOTTOM_RVA, BOTTOM);
-        let drawn = canvas.blit_glyph(BlitCall::new(BACKGROUND, 0, 0, palette, sprite_table()));
-        game_write(CLIP_BOTTOM_RVA, bottom);
-        game_write(CLIP_TOP_RVA, top);
-        Ok(drawn?)
-    }
+    // Converted: `rc2k_core::screens::controller_page::background_band`.
+    use rc2k_core::screens::controller_page::{Font, Work, background_band};
+    background_band(
+        &mut crate::screens::game_screen::GameScreen::<Font, Work>::new(canvas),
+        unsafe { game_read::<u32>(SWITCH_RVA) } == 1,
+        palette,
+    )
 }
 
 // ---- hook ----

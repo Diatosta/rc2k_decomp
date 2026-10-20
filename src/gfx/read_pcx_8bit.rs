@@ -64,7 +64,7 @@ unsafe fn read_rows() -> Result<bool, BadInput> {
             return Ok(false);
         }
         let header = game_addr(HEADER_RVA) as *mut u8;
-        if read_stream_block(stream, header, HEADER_LEN as u32).1 {
+        if read_stream_block(stream, header, HEADER_LEN as u32)?.1 {
             return Ok(false);
         }
         game_write(FLAGS_RVA, 0x800u32);
@@ -75,9 +75,9 @@ unsafe fn read_rows() -> Result<bool, BadInput> {
         rc2k_core::gfx::pcx::decode_8bit(
             &layout,
             &palette,
-            |eax| read_stream_byte(stream, eax).eax,
+            |eax| read_stream_byte(stream, eax).map(|r| r.eax),
             |to, pixel| (pixels.wrapping_add(to) as *mut u32).write_unaligned(pixel),
-        )
+        )?
         .ok_or(BadInput("a PCX picture without rows"))?;
         Ok(true)
     }
@@ -89,7 +89,7 @@ pub unsafe fn read_pcx_8bit(path: *const u8) -> Result<bool, BadInput> {
             return Ok(false);
         }
         let rows = read_rows();
-        let closed = close_stream(stream());
+        let closed = close_stream(stream())?;
         Ok(rows? && closed)
     }
 }

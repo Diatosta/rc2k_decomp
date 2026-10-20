@@ -11,7 +11,7 @@
 //! Refuses what `open_by_mode` refuses. The name is a reading.
 
 use crate::errors::BadInput;
-use crate::files::handle::{NO_HANDLE, close, open_by_mode};
+use crate::files::handle::{NO_HANDLE, close};
 use crate::files::stream::{
     LastPath, MISSING_PATH, Stream, TEST_PATH, make_test_file, remove_test_file,
 };
@@ -41,17 +41,14 @@ pub unsafe fn open_stream(
     path: *const u8,
     mode: u32,
 ) -> Result<bool, BadInput> {
+    // Converted: `rc2k_core::files::io::open_stream`.
     unsafe {
-        // Checked first, so that nothing is stored when the input is refused.
-        let file = open_by_mode(path, mode)?;
-        (&raw mut (*stream).mode).write_unaligned(mode);
-        let Some(file) = file else {
-            return Ok(false);
-        };
-        (&raw mut (*stream).file).write_unaligned(file);
-        (&raw mut (*stream).position).write_unaligned(0);
-        (&raw mut (*stream).filled).write_unaligned(0);
-        Ok(true)
+        Ok(rc2k_core::files::io::open_stream(
+            &mut crate::files::handle::GameFiles::new(),
+            crate::files::stream::core_stream(stream),
+            path,
+            mode,
+        )?)
     }
 }
 

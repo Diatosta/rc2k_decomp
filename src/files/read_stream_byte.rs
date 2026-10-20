@@ -13,7 +13,8 @@
 //! against the stream as it was, or as the refill left it.
 //! The name is a reading.
 
-use crate::files::handle::{close, open_by_mode, read};
+use crate::errors::BadInput;
+use crate::files::handle::{close, open_by_mode};
 use crate::files::stream::{
     BUFFER_LEN, LastPath, Stream, TEST_LEN, TEST_PATH, make_test_file, remove_test_file,
 };
@@ -34,57 +35,17 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// What a call leaves: eax, and the carry flag.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ByteRead {
-    pub eax: u32,
-    pub carry: bool,
-}
-
-impl ByteRead {
-    /// The byte, if there was one.
-    pub fn byte(&self) -> Option<u8> {
-        (!self.carry).then_some(self.eax as u8)
-    }
-    /// With the carry set: whether it was a read error and not the end of the file.
-    pub fn failed(&self) -> bool {
-        self.carry && self.eax & 0xFF00 != 0
-    }
-}
+pub use rc2k_core::files::io::ByteRead;
 
 /// `eax` is that register at entry.
-pub unsafe fn read_stream_byte(stream: *mut Stream, eax: u32) -> ByteRead {
+pub unsafe fn read_stream_byte(stream: *mut Stream, eax: u32) -> Result<ByteRead, BadInput> {
+    // Converted: `rc2k_core::files::io::read_stream_byte`.
     unsafe {
-        let s = &mut *stream;
-        let mut eax = eax;
-        if s.position >= s.filled {
-            let (count, ok) = read(s.file, s.buffer.as_mut_ptr(), BUFFER_LEN as u32);
-            if !ok {
-                return ByteRead {
-                    eax: count & 0xFFFF_00FF | 0x100,
-                    carry: true,
-                };
-            }
-            s.filled = count;
-            s.position = 0;
-            if count == 0 {
-                return ByteRead {
-                    eax: 0,
-                    carry: true,
-                };
-            }
-            eax = count;
-        }
-        // The original reads `[position + stream + 0x10]` whatever the position is.
-        let byte = (stream as *const u8)
-            .wrapping_add(0x10)
-            .wrapping_add(s.position as usize)
-            .read();
-        s.position = s.position.wrapping_add(1);
-        ByteRead {
-            eax: eax & !0xFF | byte as u32,
-            carry: false,
-        }
+        Ok(rc2k_core::files::io::read_stream_byte(
+            &mut crate::files::handle::GameFiles::new(),
+            crate::files::stream::core_stream(stream),
+            eax,
+        )?)
     }
 }
 
@@ -94,7 +55,10 @@ extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
     let stream = r.esi as *mut Stream;
     if !shadow() {
-        let left = unsafe { read_stream_byte(stream, r.eax) };
+        let left = match unsafe { read_stream_byte(stream, r.eax) } {
+            Ok(left) => left,
+            Err(e) => return unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
+        };
         r.eax = left.eax;
         r.set_carry(left.carry);
         r.set_zero(false);
@@ -184,10 +148,10 @@ fn self_test() -> (usize, usize) {
                 && theirs.buffer == ours.buffer;
             let preserved = ro.preserved_except(&before, EAX);
             let ok =
-                mine == ByteRead {
+                mine == Ok(ByteRead {
                     eax: ro.eax,
                     carry: ro.carry(),
-                } && !zero_o
+                }) && !zero_o
                     && same_stream
                     && preserved;
             t.check(ok, || {
@@ -233,10 +197,10 @@ fn self_test() -> (usize, usize) {
         let same_stream = (theirs.position, theirs.filled) == (ours.position, ours.filled)
             && theirs.buffer == ours.buffer;
         let ok =
-            mine == ByteRead {
+            mine == Ok(ByteRead {
                 eax: ro.eax,
                 carry: ro.carry(),
-            } && mine.failed()
+            }) && mine.is_ok_and(|m| m.failed())
                 && same_stream
                 && ro.preserved_except(&before, EAX);
         t.check(ok, || {

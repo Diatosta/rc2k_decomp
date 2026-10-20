@@ -9,7 +9,6 @@
 //! reading.
 
 use crate::errors::BadInput;
-use crate::files::handle::{close, open_by_mode};
 use crate::files::stream::{LastPath, MISSING_PATH, TEST_PATH, make_test_file, remove_test_file};
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use std::sync::atomic::AtomicUsize;
@@ -29,11 +28,12 @@ hook_asm!(
 // ---- Rust version ----
 
 pub unsafe fn file_exists(path: *const u8) -> Result<bool, BadInput> {
+    // Converted: `rc2k_core::files::io::file_exists`.
     unsafe {
-        Ok(match open_by_mode(path, 0)? {
-            Some(file) => close(file),
-            None => false,
-        })
+        Ok(rc2k_core::files::io::file_exists(
+            &mut crate::files::handle::GameFiles::new(),
+            path,
+        )?)
     }
 }
 

@@ -167,6 +167,29 @@ pub fn details<S: Screen<Font = Font, Work = Work>>(
     Ok(last.too_wide)
 }
 
+/// What the load page's preview (`screens::draw_savegame_preview` 0x46D88F) shows for the
+/// highlighted item: above 10 no slot (the empty panel; the slot remembered as 999), else
+/// slot page x 10 + item - 1, read when it is not the one remembered.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Preview {
+    NoSlot,
+    Slot { slot: u32, read: bool },
+}
+
+/// The slot remembered when there is none.
+pub const NO_SLOT: u32 = 999;
+
+pub fn preview(item: u32, page: u32, shown: u32) -> Preview {
+    if (item as i32) > 10 {
+        return Preview::NoSlot;
+    }
+    let slot = page.wrapping_mul(10).wrapping_add(item).wrapping_sub(1);
+    Preview::Slot {
+        slot,
+        read: shown != slot,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

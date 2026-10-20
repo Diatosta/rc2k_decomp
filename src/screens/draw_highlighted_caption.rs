@@ -21,8 +21,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::gfx::blit_bar::BAR_HAS_NO_LENGTH;
-use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::blit_marker_pair::{MARKER_X_RVA, MARKER_Y_RVA, sprite_table};
 use crate::menu::update_blink::LAST_KEY_TIME_RVA;
 use crate::menu::update_frame_clock::CLOCK_RVA;
@@ -32,11 +30,11 @@ use crate::screens::{font_at, font_is_loaded};
 use crate::service::harness::{Region, at, capture, restore};
 use crate::service::state::MENU_ITEM_RVA;
 use crate::strings::text_from_ids::{TEXT_LEN, text};
-use crate::text::blend_font::{BLENDED_FONT_RVA, blend_font, blend_regions};
-use crate::text::draw_string_by_id::{draw_string_by_id_at, string_text};
+use crate::text::blend_font::blend_regions;
+use crate::text::draw_string_by_id::string_text;
 use crate::text::draw_text::Canvas;
 use crate::text::font::Font;
-use crate::text::measure_string_by_id::{measure_string_by_id_at, measuring_unavailable};
+use crate::text::measure_string_by_id::measuring_unavailable;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -104,64 +102,17 @@ pub unsafe fn draw_highlighted_caption(
             game_addr(CAPTION_RVA) as *mut u8,
             caption.len(),
         );
-        game_write(MARKER_X_RVA, 0x197u32);
-        game_write(MARKER_Y_RVA, 0x1FEu32);
-        let measured = measure_string_by_id_at(
-            CAPTION_STRING,
-            font_at(MEASURING_FONT),
+        // Converted: `rc2k_core::screens::highlighted_caption`.
+        let since_key = game_read::<u32>(CLOCK_RVA).wrapping_sub(game_read(LAST_KEY_TIME_RVA));
+        let too_wide = rc2k_core::screens::highlighted_caption::highlighted_caption(
+            &mut crate::screens::game_screen::GameScreen::<
+                rc2k_core::screens::highlighted_caption::Font,
+                rc2k_core::screens::highlighted_caption::Work,
+            >::new(canvas),
             measured_at as i32,
-            canvas,
+            since_key,
         )?;
-        let width = measured.width.wrapping_add(0x0C);
-        let (mut x, y) = (0x197u32.wrapping_sub((width >> 1) + 0x22), 0x1FEu32);
-        game_write(WIDTH_RVA, width);
-        game_write(X_RVA, x);
-        game_write(Y_RVA, y);
-        game_write(LEFT_RVA, 0x0Fu32);
-        game_write(RIGHT_RVA, 0x10u32);
-        let (palette, table) = (measured.lines, sprite_table());
-        let mut blit = |glyph: u32, x: u32| {
-            canvas.blit_glyph(BlitCall::new(glyph, x as i32, y as i32, palette, table))
-        };
-        blit(0x0F, x)?;
-        game_write(ENDS_RVA, [x, y]);
-        x = x.wrapping_add(0x22);
-        game_write(X_RVA, x);
-        if width == 0 {
-            return Err(BAR_HAS_NO_LENGTH.into());
-        }
-        let (wholes, rest) = (width / 32, width % 32);
-        if wholes == 0 {
-            return Err(BadInput("a caption too narrow for one middle piece").into());
-        }
-        for _ in 0..wholes {
-            blit(0x0B, x)?;
-            x = x.wrapping_add(32);
-        }
-        if rest != 0 {
-            x = x.wrapping_sub(32).wrapping_add(rest);
-            blit(0x0B, x)?;
-            x = x.wrapping_add(32);
-        }
-        blit(0x10, x)?;
-        game_write(X_RVA, x);
-        game_write(ENDS_RVA + 8, [x, y]);
-        game_write(MARKER_X_RVA, 0x195u32);
-        game_write(MARKER_Y_RVA, 0x1FBu32);
-        blend_font(
-            game_read::<u32>(CLOCK_RVA).wrapping_sub(game_read(LAST_KEY_TIME_RVA)),
-            0x100,
-            font_at(FONT_A),
-            font_at(FONT_B),
-        )?;
-        let out = draw_string_by_id_at(
-            CAPTION_STRING,
-            game_addr(BLENDED_FONT_RVA) as *mut Font,
-            0x195,
-            0x1FB,
-            canvas,
-        )?;
-        Ok(Some(out.too_wide))
+        Ok(Some(too_wide))
     }
 }
 

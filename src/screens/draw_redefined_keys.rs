@@ -22,13 +22,11 @@ use crate::menu::player_settings::current;
 use crate::menu::redefine_keys::{NO_PLACE, PLACE_RVA};
 use crate::screens::draw_menu_item_text::text_unavailable;
 use crate::screens::draw_name_cursor::BLINK_RVA;
-use crate::screens::font_at;
 use crate::screens::harness::{Left, check_draw, dispatch_draw};
 use crate::service::harness::{Region, at, capture, restore};
 use crate::service::state::PLAYER_INDEX_RVA;
 use crate::strings::text_from_ids::{TEXT_LEN, text};
-use crate::text::draw_string_by_id::draw_string_by_id_at;
-use crate::text::draw_text::{Canvas, draw_text_at};
+use crate::text::draw_text::Canvas;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -52,11 +50,6 @@ hook_asm!(
 
 const NAME_RVA: usize = rva(0xA8BC54); // byte_A8BC54
 const NAME_LEN: usize = 0x100; // up to byte_A8BD54
-const FONT: usize = 0x51E8C4;
-const CURSOR: u32 = 4;
-const X: i32 = 0x1CC;
-/// The places drawn, in order; row n is at y = 0xAF + n * 0x1D.
-const PLACES: [usize; 11] = [0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11];
 
 // ---- Rust version ----
 
@@ -66,29 +59,22 @@ pub unsafe fn draw_redefined_keys(canvas: &mut dyn Canvas) -> Result<bool, Refus
     unsafe {
         let keys = player.read_unaligned().keys;
         let redefined: u32 = game_read(PLACE_RVA);
-        let font = font_at(FONT);
-        let mut carry = false;
-        for (row, &place) in PLACES.iter().enumerate() {
-            let y = 0xAF + row as i32 * 0x1D;
-            if redefined == place as u32 {
-                let blink: u32 = game_read(BLINK_RVA);
-                carry = if blink == 1 {
-                    draw_string_by_id_at(CURSOR, font, X, y, canvas)?.too_wide
-                } else {
-                    blink < 1
-                };
-            } else {
-                let (mut name, _) = append_key_name(keys[place] as u32)?;
-                name.push(0);
-                if name.len() > NAME_LEN {
-                    return Err(crate::errors::BadInput("a key's name past its buffer").into());
-                }
-                let at = game_addr(NAME_RVA) as *mut u8;
-                std::ptr::copy_nonoverlapping(name.as_ptr(), at, name.len());
-                carry = draw_text_at(font, at, X, y, canvas)?.too_wide;
+        // Converted: `rc2k_core::screens::controls::redefined_keys`; the names made first
+        // (none at the place being redefined, as the original).
+        use rc2k_core::screens::controls::KEY_PLACES;
+        let row = KEY_PLACES.iter().position(|&p| p as u32 == redefined);
+        let mut names: [Vec<u8>; 11] = Default::default();
+        for (n, name) in names.iter_mut().enumerate() {
+            if row != Some(n) {
+                *name = append_key_name(keys[KEY_PLACES[n]] as u32)?.0;
             }
         }
-        Ok(carry)
+        rc2k_core::screens::controls::redefined_keys(
+            &mut crate::screens::game_screen::ControlsScreen::new(canvas),
+            &names,
+            row,
+            game_read(BLINK_RVA),
+        )
     }
 }
 

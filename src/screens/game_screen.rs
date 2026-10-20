@@ -3,7 +3,7 @@
 //! variables game dwords; drawn through the text functions and the canvas.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::gfx::blit_glyph::BlitCall;
 use crate::screens::{font_at, line_buffer};
 use crate::text::draw_text::{Canvas, draw_text_at};
@@ -40,6 +40,8 @@ pub trait GameWork: Copy {
 
 pub struct GameScreen<'a, F, W> {
     pub canvas: &'a mut dyn Canvas,
+    /// The menu's first item (the menus' screen: `rc2k_core::screens::menus::MenuScreen`).
+    pub menu_items: u32,
     sprites: u32,
     family: PhantomData<(F, W)>,
 }
@@ -48,6 +50,7 @@ impl<'a, F, W> GameScreen<'a, F, W> {
     pub fn new(canvas: &'a mut dyn Canvas) -> Self {
         Self {
             canvas,
+            menu_items: 0,
             sprites: crate::gfx::blit_marker_pair::sprite_table(),
             family: PhantomData,
         }
@@ -56,6 +59,18 @@ impl<'a, F, W> GameScreen<'a, F, W> {
 
 fn font_of(f: impl GameFont) -> *mut Font {
     f.pointer()
+}
+
+/// Where a clip edge is kept.
+fn clip_rva(edge: rc2k_core::screens::screen::Edge) -> usize {
+    use crate::gfx::surface::{CLIP_BOTTOM_RVA, CLIP_LEFT_RVA, CLIP_RIGHT_RVA, CLIP_TOP_RVA};
+    use rc2k_core::screens::screen::Edge;
+    match edge {
+        Edge::Left => CLIP_LEFT_RVA,
+        Edge::Right => CLIP_RIGHT_RVA,
+        Edge::Top => CLIP_TOP_RVA,
+        Edge::Bottom => CLIP_BOTTOM_RVA,
+    }
 }
 
 /// Where a shared buffer is.
@@ -163,6 +178,32 @@ impl<F: GameFont, W: GameWork> Screen for GameScreen<'_, F, W> {
 
     fn buffer_address(&mut self, buffer: Buffer) -> u32 {
         buffer_at(buffer) as u32
+    }
+
+    fn blend(&mut self, since_key: u32, a: F, b: F) -> Result<(), Refused> {
+        unsafe { crate::text::blend_font::blend_font(since_key, 0x100, font_of(a), font_of(b)) }?;
+        Ok(())
+    }
+
+    fn clip_edge(&mut self, edge: rc2k_core::screens::screen::Edge) -> Result<u32, Refused> {
+        Ok(unsafe { game_read(clip_rva(edge)) })
+    }
+
+    fn set_clip_edge(
+        &mut self,
+        edge: rc2k_core::screens::screen::Edge,
+        value: u32,
+    ) -> Result<(), Refused> {
+        unsafe { game_write(clip_rva(edge), value) };
+        Ok(())
+    }
+
+    fn item(&mut self, n: u32, on: bool) -> Result<(), Refused> {
+        if on {
+            crate::menu::enable_item::enable_item(n)
+        } else {
+            crate::menu::disable_item::disable_item(n)
+        }
     }
 
     fn measure_string(&mut self, font: F, id: u32, x: i32) -> Result<(u32, u32), Refused> {
@@ -590,11 +631,194 @@ pub type DetailsScreen<'a> = GameScreen<
 
 impl GameWork for rc2k_core::screens::menus::Work {
     fn address(self) -> usize {
+        use rc2k_core::screens::menus::Work;
         match self {
-            rc2k_core::screens::menus::Work::SpacedFont => 0x7559EC,
+            Work::SpacedFont => 0x7559EC,
+            Work::MarkerX => 0x755A18,
+            Work::MarkerY => 0x755A1C,
+            Work::Highlighted => 0x7559D0,
         }
+    }
+}
+
+impl rc2k_core::screens::menus::MenuScreen for MenuScreen<'_> {
+    fn own_button(&mut self, n: usize) -> Result<(), Refused> {
+        unsafe { crate::screens::buttons::draw_item_button(self.item_address(n), self.canvas) }
+    }
+    fn text_button(
+        &mut self,
+        button: rc2k_core::screens::menus::TextButton,
+        n: usize,
+        x: u32,
+    ) -> Result<(), Refused> {
+        use crate::screens::buttons::{ALIGN_CENTRE, ALIGN_RIGHT, ALT, HIGHLIGHTED, PLAIN};
+        use rc2k_core::screens::menus::TextButton;
+        let (kind, align) = match button {
+            TextButton::Right => (&ALT, ALIGN_RIGHT),
+            TextButton::Centred => (&PLAIN, ALIGN_CENTRE),
+            TextButton::HighlightedRight => (&HIGHLIGHTED, ALIGN_RIGHT),
+            TextButton::HighlightedCentred => (&HIGHLIGHTED, ALIGN_CENTRE),
+        };
+        unsafe {
+            crate::screens::buttons::draw_text_button(
+                kind,
+                align,
+                self.item_address(n),
+                x as i32,
+                self.canvas,
+            )
+        }
+    }
+    fn blended(&mut self, since_key: u32, a: FontAt, b: FontAt) -> Result<FontAt, Refused> {
+        use crate::text::blend_font::{BLENDED_FONT_RVA, blend_font};
+        unsafe { blend_font(since_key, 0x100, a.pointer(), b.pointer()) }?;
+        Ok(FontAt(crate::framework::game_addr(BLENDED_FONT_RVA) as u32))
+    }
+    fn font_value(&self, f: FontAt) -> u32 {
+        f.0
+    }
+}
+
+impl MenuScreen<'_> {
+    /// Item `n`'s address.
+    fn item_address(&self, n: usize) -> u32 {
+        self.menu_items
+            .wrapping_add(n as u32 * crate::menu::item_at::ITEM_LEN)
     }
 }
 
 /// The menus' screen: fonts by pointer.
 pub type MenuScreen<'a> = GameScreen<'a, FontAt, rc2k_core::screens::menus::Work>;
+
+impl GameFont for rc2k_core::screens::service::Font {
+    fn address(self) -> usize {
+        use rc2k_core::screens::service::Font;
+        match self {
+            Font::Times => 0x51E3E4,
+            Font::Available => 0x51E584,
+            Font::Remaining => 0x51E5A4,
+            Font::Overrun => 0x51E524,
+            Font::Penalty => 0x51E544,
+        }
+    }
+}
+
+impl GameWork for rc2k_core::screens::service::Work {
+    fn address(self) -> usize {
+        use rc2k_core::screens::service::Work;
+        match self {
+            Work::Penalty => 0x75ACC0,
+            Work::A => 0x7559AC,
+            Work::B => 0x7559EC,
+        }
+    }
+}
+
+/// The service area's readouts' screen.
+pub type ServiceScreen<'a> =
+    GameScreen<'a, rc2k_core::screens::service::Font, rc2k_core::screens::service::Work>;
+
+impl GameFont for rc2k_core::screens::highlighted_caption::Font {
+    fn address(self) -> usize {
+        use rc2k_core::screens::highlighted_caption::Font;
+        match self {
+            Font::Measure => 0x51E824,
+            Font::A => 0x51E964,
+            Font::B => 0x51E844,
+            Font::Blended => 0x51E384,
+        }
+    }
+}
+
+impl GameWork for rc2k_core::screens::highlighted_caption::Work {
+    fn address(self) -> usize {
+        use rc2k_core::screens::highlighted_caption::Work;
+        match self {
+            Work::MarkerX => 0x755A18,
+            Work::MarkerY => 0x755A1C,
+            Work::Width => 0x7559AC,
+            Work::X => 0x7559B0,
+            Work::Y => 0x7559B4,
+            Work::Left => 0x7559C0,
+            Work::Right => 0x7559C4,
+            Work::LeftX => 0x755A20,
+            Work::LeftY => 0x755A24,
+            Work::RightX => 0x755A28,
+            Work::RightY => 0x755A2C,
+        }
+    }
+}
+
+impl GameFont for rc2k_core::screens::inspection::Font {
+    fn address(self) -> usize {
+        0x51E3C4
+    }
+}
+
+impl GameWork for rc2k_core::screens::inspection::Work {
+    fn address(self) -> usize {
+        match self {
+            rc2k_core::screens::inspection::Work::Lost => 0x7559EC,
+            rc2k_core::screens::inspection::Work::Status => 0x75AC80,
+        }
+    }
+}
+
+impl GameFont for rc2k_core::screens::controls::Font {
+    fn address(self) -> usize {
+        0x51E8C4
+    }
+}
+
+impl GameWork for rc2k_core::screens::controls::Work {
+    fn address(self) -> usize {
+        match self {}
+    }
+}
+
+/// The controller pages' lists' screen.
+pub type ControlsScreen<'a> =
+    GameScreen<'a, rc2k_core::screens::controls::Font, rc2k_core::screens::controls::Work>;
+
+impl GameFont for rc2k_core::screens::championship_table::Font {
+    fn address(self) -> usize {
+        use rc2k_core::screens::championship_table::Font;
+        match self {
+            Font::Position => 0x51E5A4,
+            Font::Text => 0x51E584,
+            Font::MarkedPosition => 0x51E544,
+            Font::MarkedText => 0x51E524,
+        }
+    }
+}
+
+impl GameWork for rc2k_core::screens::championship_table::Work {
+    fn address(self) -> usize {
+        match self {
+            rc2k_core::screens::championship_table::Work::Position => 0x755579,
+            rc2k_core::screens::championship_table::Work::End => 0x7556BC,
+        }
+    }
+}
+
+impl GameFont for rc2k_core::screens::controller_page::Font {
+    fn address(self) -> usize {
+        0x51E8C4
+    }
+}
+
+impl GameWork for rc2k_core::screens::controller_page::Work {
+    fn address(self) -> usize {
+        use rc2k_core::screens::controller_page::Work;
+        match self {
+            Work::Seconds => 0x7559AC,
+            Work::Record => 0x755A0C,
+            Work::FirstLeft => 0x7559DC,
+            Work::FirstRight => 0x7559E0,
+            Work::SecondLeft => 0x7559E4,
+            Work::SecondRight => 0x7559E8,
+            Work::Place => 0x7559EC,
+            Work::Buttons => 0x7559F0,
+        }
+    }
+}

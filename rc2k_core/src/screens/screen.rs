@@ -38,6 +38,15 @@ pub struct Bar {
     pub percent: i32,
 }
 
+/// An edge of the clip rectangle (`g_clipLeft` .. `g_clipBottom`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Edge {
+    Left,
+    Right,
+    Top,
+    Bottom,
+}
+
 /// The fatal error a bar whose width x percent is 0 (with a percent) reports.
 pub const BAR_HAS_NO_LENGTH: u32 = 0x8070_1010;
 
@@ -131,6 +140,30 @@ pub trait Screen {
         _x: i32,
     ) -> Result<(u32, u32), Self::Error> {
         Err(Invalid("this screen measures no text").into())
+    }
+    /// The font `a` blended with `b` by the time since the last key (half a pulse 0x100),
+    /// into the family's blended font (`text::blend_font`, `stru_51E384`). A screen that
+    /// blends none refuses.
+    fn blend(
+        &mut self,
+        _since_key: u32,
+        _a: Self::Font,
+        _b: Self::Font,
+    ) -> Result<(), Self::Error> {
+        Err(Invalid("this screen blends no fonts").into())
+    }
+    /// An edge of the clip rectangle. A screen that clips nothing refuses.
+    fn clip_edge(&mut self, _edge: Edge) -> Result<u32, Self::Error> {
+        Err(Invalid("this screen clips nothing").into())
+    }
+    /// An edge of the clip rectangle set. A screen that clips nothing refuses.
+    fn set_clip_edge(&mut self, _edge: Edge, _value: u32) -> Result<(), Self::Error> {
+        Err(Invalid("this screen clips nothing").into())
+    }
+    /// Item `n` of the current menu made choosable or greyed out (`menu::enable_item`,
+    /// `menu::disable_item`). A screen without a menu refuses.
+    fn item(&mut self, _n: u32, _on: bool) -> Result<(), Self::Error> {
+        Err(Invalid("this screen has no menu").into())
     }
     /// Where a buffer is, as the game keeps it in a work variable (0 off the game).
     fn buffer_address(&mut self, _buffer: Buffer) -> u32 {

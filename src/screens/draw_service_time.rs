@@ -13,15 +13,13 @@
 //! the top left and "TEMPO RESTANTE: 40:00" at the top right (time available, time left).
 //! The overrun pair of labels has not been seen.
 
-use crate::errors::{FatalError, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
 use crate::screens::harness::{Left, check_draw, dispatch_draw, drawing_unavailable, push_dwords};
-use crate::screens::{font_at, font_is_loaded, line_buffer, set_line};
-use crate::service::state::{FREE_SERVICE_TIME, REPAIR_TOTAL_RVA, TIME_BUDGET_RVA};
-use crate::strings::append_clock::append_clock;
-use crate::strings::append_string_by_id::push_string;
+use crate::screens::{font_is_loaded, line_buffer, set_line};
+use crate::service::state::{REPAIR_TOTAL_RVA, TIME_BUDGET_RVA};
 use crate::strings::string_table::{blob, is_table_id};
-use crate::text::draw_text::{Canvas, draw_text_at};
+use crate::text::draw_text::Canvas;
 use std::slice::from_raw_parts;
 use std::sync::atomic::AtomicUsize;
 
@@ -48,71 +46,23 @@ const PENALTY_RVA: usize = rva(0x75ACC0); // dword_75ACC0
 const WORK_A_RVA: usize = rva(0x7559AC); // seconds: a work variable
 const WORK_B_RVA: usize = rva(0x7559EC); // dword_7559EC: a work variable
 
-const LEFT_X: i32 = 0x42;
-const RIGHT_X: i32 = 0x2DE;
-const Y: i32 = 0x2C;
-
 // (label string, font) for the four readouts.
 const AVAILABLE: (u32, usize) = (0x48D, 0x51E584);
 const REMAINING: (u32, usize) = (0x48E, 0x51E5A4);
 const OVERRUN: (u32, usize) = (0x490, 0x51E524);
 const PENALTY: (u32, usize) = (0x491, 0x51E544);
 
-/// What the original reports if the overrun comes out as 0. Its message pointer is null.
-const NO_OVERRUN: FatalError = FatalError {
-    code: 0x8070_1010,
-    message: "",
-};
-
 // ---- Rust version ----
-
-/// "<label>:  <value as a clock>" drawn at (x, `Y`). Returns the carry flag.
-unsafe fn readout(
-    canvas: &mut dyn Canvas,
-    (label, font): (u32, usize),
-    value: i32,
-    x: i32,
-) -> Result<bool, FatalError> {
-    unsafe {
-        let mut line = Vec::new();
-        push_string(&mut line, label);
-        line.extend_from_slice(b":  ");
-        line.extend(append_clock(value as u32));
-        line.push(0);
-        set_line(&line);
-        Ok(draw_text_at(font_at(font), line_buffer(), x, Y, canvas)?.too_wide)
-    }
-}
 
 /// Returns the carry flag of the last `draw_text`.
 pub unsafe fn draw_service_time(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+    // Converted: `rc2k_core::screens::service::service_time`.
     unsafe {
-        let budget: i32 = game_read(TIME_BUDGET_RVA);
-        let repairs: i32 = game_read(REPAIR_TOTAL_RVA);
-        let available = budget.wrapping_sub(FREE_SERVICE_TIME);
-        game_write(PENALTY_RVA, 0u32);
-        game_write(WORK_A_RVA, available);
-
-        if budget.wrapping_sub(repairs) >= FREE_SERVICE_TIME {
-            readout(canvas, AVAILABLE, available, LEFT_X)?;
-            let remaining = available.wrapping_sub(repairs);
-            game_write(WORK_B_RVA, remaining);
-            return Ok(readout(canvas, REMAINING, remaining, RIGHT_X)?);
-        }
-
-        let mut overrun = FREE_SERVICE_TIME.wrapping_sub(budget.wrapping_sub(repairs));
-        game_write(WORK_B_RVA, overrun);
-        readout(canvas, OVERRUN, overrun, LEFT_X)?;
-        if overrun != 0 {
-            overrun = overrun.wrapping_add(60);
-            game_write(WORK_B_RVA, overrun);
-        }
-        if overrun == 0 {
-            return Err(NO_OVERRUN.into());
-        }
-        let penalty = (overrun as u32 / 60).wrapping_mul(10);
-        game_write(PENALTY_RVA, penalty);
-        Ok(readout(canvas, PENALTY, penalty as i32, RIGHT_X)?)
+        rc2k_core::screens::service::service_time(
+            &mut crate::screens::game_screen::ServiceScreen::new(canvas),
+            game_read(TIME_BUDGET_RVA),
+            game_read(REPAIR_TOTAL_RVA),
+        )
     }
 }
 

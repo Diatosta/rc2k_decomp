@@ -230,3 +230,66 @@ mod tests {
         assert_eq!(number(b"12x\0", 0).unwrap(), 12);
     }
 }
+
+/// What `var\name.cfg` gives a driver (`settings::read_driver_names` 0x4162DB): key
+/// `name000` .. `name179`, then up to three words: a name (at most 30 characters kept), a
+/// number under 0x28 for the driver record's +0 (`dword_73B688`), one under 0x22 for its +4
+/// (`dword_73B68C`); a number too large is left out, a missing word ends the entry.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct DriverName {
+    pub name: Option<Vec<u8>>,
+    pub first: Option<u32>,
+    pub second: Option<u32>,
+}
+
+/// The drivers' entries.
+pub const DRIVERS: usize = 180;
+/// The most of a name kept.
+pub const NAME_MAX: usize = 30;
+
+/// Each driver's entry (`None` for a driver without its key).
+pub fn driver_names(
+    text: &(impl Bytes + ?Sized),
+    case: &CaseTable,
+) -> Result<Vec<Option<DriverName>>, Invalid> {
+    use crate::strings::format::{Pad, decimal};
+    use crate::strings::words::next_argument;
+    let mut out = Vec::with_capacity(DRIVERS);
+    for driver in 0..DRIVERS as u32 {
+        let mut key = b"name".to_vec();
+        key.extend(decimal(driver, Pad::Zeros(3)));
+        let Some(value) = find_key(text, &key, case)? else {
+            out.push(None);
+            continue;
+        };
+        let mut entry = DriverName::default();
+        let w = next_argument(text, value)?;
+        if w.len != 0 {
+            let len = w.len.min(NAME_MAX);
+            entry.name = Some(
+                (0..len)
+                    .map(|n| at(text, w.start + n))
+                    .collect::<Result<_, _>>()?,
+            );
+        }
+        let w = next_argument(text, w.next)?;
+        if w.len != 0 {
+            let n = number(text, w.start)?;
+            entry.first = (n < 0x28).then_some(n);
+        }
+        let w = next_argument(text, w.next)?;
+        if w.len != 0 {
+            let n = number(text, w.start)?;
+            entry.second = (n < 0x22).then_some(n);
+        }
+        out.push(Some(entry));
+    }
+    Ok(out)
+}
+
+/// Which of the processor's extensions the game uses (`settings::apply_feature_switches`
+/// 0x4114BB): MMX, SSE, 3DNow each when the processor has it (bit 0) and its ignore
+/// setting is 0.
+pub fn feature_switches(has: [u32; 3], ignore: [u32; 3]) -> [u32; 3] {
+    std::array::from_fn(|n| ((ignore[n] == 0) as u32) & has[n])
+}

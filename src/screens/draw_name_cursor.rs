@@ -15,13 +15,10 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
 use crate::menu::player::{Player, player_at};
 use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::font_at;
 use crate::screens::harness::{Left, check_draw, dispatch_draw};
 use crate::service::harness::{Region, at, capture, restore};
 use crate::strings::text_from_ids::{TEXT_LEN, text};
-use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::Canvas;
-use crate::text::measure_text::measure_text_at;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -41,7 +38,6 @@ hook_asm!(
 pub const BLINK_RVA: usize = rva(0x7559A8); // dword_7559A8
 pub const MEASURING_FONT: usize = 0x51E824;
 pub const FONT: usize = 0x51E8C4;
-const CURSOR: u32 = 4;
 
 // ---- Rust version ----
 
@@ -59,16 +55,13 @@ pub unsafe fn draw_name_cursor(
         if name == 0 {
             return Err(BadInput("a player without its name").into());
         }
-        let measured =
-            measure_text_at(font_at(MEASURING_FONT), name as *const u8, x as i32, canvas)?;
-        let blink: u32 = game_read(BLINK_RVA);
-        if blink == 1 {
-            let at = measured.width.wrapping_add(0x1BB) as i32;
-            Ok(draw_string_by_id_at(CURSOR, font_at(FONT), at, 0xD4, canvas)?.too_wide)
-        } else {
-            // Not drawn: the carry of its `cmp dword_7559A8, 1`.
-            Ok(blink < 1)
-        }
+        // Converted: `rc2k_core::screens::player_details::name_cursor`.
+        rc2k_core::screens::player_details::name_cursor(
+            &mut crate::screens::game_screen::DetailsScreen::new(canvas),
+            name,
+            x as i32,
+            game_read(BLINK_RVA),
+        )
     }
 }
 

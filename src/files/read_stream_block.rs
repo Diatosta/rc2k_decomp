@@ -7,8 +7,8 @@
 //! Shadow mode runs the original alone (the file's position moves) and checks only what it
 //! leaves in the registers. The name is a reading.
 
+use crate::errors::BadInput;
 use crate::files::handle::{close, open_by_mode};
-use crate::files::read_stream_byte::read_stream_byte;
 use crate::files::stream::{
     LastPath, Stream, TEST_LEN, TEST_PATH, make_test_file, remove_test_file,
 };
@@ -30,20 +30,19 @@ hook_asm!(
 // ---- Rust version ----
 
 /// Returns (the bytes read, whether a read failed).
-pub unsafe fn read_stream_block(stream: *mut Stream, to: *mut u8, count: u32) -> (u32, bool) {
-    let mut done = 0u32;
-    // What eax holds from one byte to the next does not reach the result.
-    let mut eax = 0u32;
-    while done < count {
-        let left = unsafe { read_stream_byte(stream, eax) };
-        if left.carry {
-            return (done, left.failed());
-        }
-        eax = left.eax;
-        unsafe { to.add(done as usize).write(eax as u8) };
-        done += 1;
+pub unsafe fn read_stream_block(
+    stream: *mut Stream,
+    to: *mut u8,
+    count: u32,
+) -> Result<(u32, bool), BadInput> {
+    // Converted: `rc2k_core::files::io::read_stream_block`.
+    unsafe {
+        Ok(rc2k_core::files::io::read_stream_block(
+            &mut crate::files::handle::GameFiles::new(),
+            crate::files::stream::core_stream(stream),
+            std::slice::from_raw_parts_mut(to, count as usize),
+        )?)
     }
-    (done, false)
 }
 
 // ---- hook ----
@@ -51,8 +50,12 @@ pub unsafe fn read_stream_block(stream: *mut Stream, to: *mut u8, count: u32) ->
 extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
     if !shadow() {
-        let (done, failed) =
-            unsafe { read_stream_block(r.esi as *mut Stream, r.ebx as *mut u8, r.ecx) };
+        let (done, failed) = match unsafe {
+            read_stream_block(r.esi as *mut Stream, r.ebx as *mut u8, r.ecx)
+        } {
+            Ok(left) => left,
+            Err(e) => return unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
+        };
         r.eax = done;
         r.set_carry(failed);
         return;
@@ -124,7 +127,7 @@ fn self_test() -> (usize, usize) {
         let same_stream = (theirs.position, theirs.filled) == (ours.position, ours.filled)
             && theirs.buffer == ours.buffer;
         let preserved = ro.preserved_except(&before, EAX);
-        let ok = mine == (ro.eax, ro.carry()) && out_o == out_r && same_stream && preserved;
+        let ok = mine == Ok((ro.eax, ro.carry())) && out_o == out_r && same_stream && preserved;
         t.check(ok, || {
             format!(
                 "{what}: original read {} carry={} position={} filled={} preserved={preserved}; rust {mine:?} position={} filled={} same bytes={}",

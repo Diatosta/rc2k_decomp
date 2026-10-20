@@ -12,14 +12,11 @@
 //! Shadow mode reads the file twice, into the same buffer, and compares.
 
 use crate::errors::BadInput;
-use crate::files::resolve_path::resolve_path_in_game;
 use crate::framework::{
     EAX, RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow,
 };
 use std::slice::from_raw_parts;
 use std::sync::atomic::AtomicUsize;
-use windows_sys::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
-use windows_sys::Win32::Storage::FileSystem::{CreateFileA, ReadFile, SetFilePointer};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
@@ -37,18 +34,11 @@ hook_asm!(
 
 pub const LAST_FILE_PATH_RVA: usize = rva(0x4F52B0); // g_lastFilePath
 // Mode 0 of the file mode table (16 bytes per mode).
-const READ_ACCESS_RVA: usize = rva(0x4E06EA); // dword_4E06EA[0]
-const READ_DISPOSITION_RVA: usize = rva(0x4E06EE); // dword_4E06EE[0]
-const READ_SHARE_RVA: usize = rva(0x4E06F2); // dword_4E06F2[0]
 
 // ---- Rust version ----
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ReadResult {
-    pub ok: bool,
-    /// None if the read was not reached (the open or the seek failed).
-    pub bytes_read: Option<u32>,
-}
+use crate::files::handle::GameFiles;
+pub use rc2k_core::files::io::ReadResult;
 
 /// Refuses what `resolve_path` refuses.
 pub unsafe fn read_file(
@@ -57,38 +47,15 @@ pub unsafe fn read_file(
     count: u32,
     offset: u32,
 ) -> Result<ReadResult, BadInput> {
+    // Converted: `rc2k_core::files::io::read_file`.
     unsafe {
-        let resolved = resolve_path_in_game(path)?;
-        game_write(LAST_FILE_PATH_RVA, resolved as u32);
-        let file = CreateFileA(
-            resolved,
-            game_read(READ_ACCESS_RVA),
-            game_read(READ_SHARE_RVA),
-            std::ptr::null(),
-            game_read(READ_DISPOSITION_RVA),
-            0x80,
-            0 as _,
-        );
-        if file == INVALID_HANDLE_VALUE {
-            return Ok(ReadResult {
-                ok: false,
-                bytes_read: None,
-            });
-        }
-        let mut bytes_read = None;
-        let mut read_ok = false;
-        // 0 = FILE_BEGIN
-        if offset == 0 || SetFilePointer(file, offset as i32, std::ptr::null_mut(), 0) != u32::MAX {
-            let mut n = 0u32;
-            read_ok = ReadFile(file, buffer.cast(), count, &mut n, std::ptr::null_mut()) != 0;
-            bytes_read = Some(n);
-        }
-        game_write(LAST_FILE_PATH_RVA, 0u32);
-        let closed = CloseHandle(file) != 0;
-        Ok(ReadResult {
-            ok: closed && read_ok,
-            bytes_read,
-        })
+        let into = std::slice::from_raw_parts_mut(buffer, count as usize);
+        Ok(rc2k_core::files::io::read_file(
+            &mut GameFiles::new(),
+            path,
+            into,
+            offset,
+        )?)
     }
 }
 

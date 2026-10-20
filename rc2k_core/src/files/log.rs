@@ -191,3 +191,153 @@ mod tests {
         assert!(s(&date(&zero).unwrap()).starts_with("Monday 0th  2026"));
     }
 }
+
+/// The most bytes a log line keeps: bytes are stored while the line is no longer (the line
+/// buffer 0x93E080 .. 0x93E42C).
+pub const LINE_LIMIT: usize = 0x93E42C - 0x93E080;
+
+/// The line `logfile::write_line` (0x40132C) builds and the new line-start flag: at a
+/// line's start (flag 1) `indent` spaces (0 .. 80) first, then the message (cut where the
+/// line passes `LINE_LIMIT`), then "\r\n" (a new line starts) or a space.
+pub fn format_line(msg: &[u8], newline: bool, indent: i32, line_start: u32) -> (Vec<u8>, u32) {
+    let mut out = Vec::new();
+    let mut flag = line_start;
+    if flag == 1 {
+        flag = 0;
+        out.resize(indent.clamp(0, 80) as usize, b' ');
+    }
+    for &c in msg {
+        if out.len() > LINE_LIMIT {
+            break;
+        }
+        out.push(c);
+    }
+    if newline {
+        out.extend_from_slice(b"\r\n");
+        flag = 1;
+    } else {
+        out.push(b' ');
+    }
+    (out, flag)
+}
+
+/// One of the log's calls: a text, a signed number (`log_int`), eight hex digits
+/// (`log_hex8`); each with its newline flag.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Message {
+    Text(Vec<u8>),
+    Int(i32),
+    Hex8(u32),
+}
+
+/// What `start` has found out by the log's start (`logfile::start_log` 0x401135).
+#[derive(Clone, Debug, Default)]
+pub struct Machine {
+    /// `logfile::date_text`'s text, the version (`byte_4E0050`) and a second text if any.
+    pub date: Vec<u8>,
+    pub version: Vec<u8>,
+    pub second: Option<Vec<u8>>,
+    /// The processor's family, flags, name; clock, FPU, MMX, 3DNow, SSE.
+    pub cpu_family: i32,
+    pub cpu_flags: u32,
+    pub cpu_name: Vec<u8>,
+    pub clock: i32,
+    pub fpu: i32,
+    pub mmx: i32,
+    pub amd_3d: i32,
+    pub katmai: i32,
+    /// The keyboard type.
+    pub machine_type: i32,
+    /// Windows' version: its platform, major, minor, build (16 bits) and text.
+    pub platform: [i32; 4],
+    pub platform_text: Vec<u8>,
+    /// The memory in bytes: physical available and total, page file available and total.
+    pub memory: [u32; 4],
+    /// The current drive's free space in Kb (0xFFFFFFFF unknown).
+    pub free_kb: u32,
+}
+
+/// The log's head, in the original's calls.
+pub fn head(m: &Machine) -> Vec<(Message, bool)> {
+    use Message::*;
+    let t = |s: &[u8]| Text(s.to_vec());
+    let mut out = vec![
+        (t(b"Log started"), false),
+        (Text(m.date.clone()), true),
+        (Text(m.version.clone()), true),
+    ];
+    if let Some(second) = &m.second {
+        out.push((Text(second.clone()), true));
+    }
+    out.push((t(b""), true));
+    out.extend([
+        (t(b"cpu="), false),
+        (Int(m.cpu_family), false),
+        (Hex8(m.cpu_flags), false),
+        (Text(m.cpu_name.clone()), true),
+    ]);
+    for (name, v) in [
+        (&b"clk="[..], m.clock),
+        (b"fpu=", m.fpu),
+        (b"mmx=", m.mmx),
+        (b"amdk3d=", m.amd_3d),
+        (b"katmai=", m.katmai),
+        (b"machinetype=", m.machine_type),
+    ] {
+        out.extend([(t(name), false), (Int(v), true)]);
+    }
+    out.push((t(b"platform="), false));
+    out.extend(m.platform.iter().map(|&v| (Int(v), false)));
+    out.push((Text(m.platform_text.clone()), true));
+    let kb = |b: u32| Int((b >> 10) as i32);
+    out.extend([
+        (t(b"ram avail/total:"), false),
+        (kb(m.memory[0]), false),
+        (kb(m.memory[1]), false),
+        (t(b"Kb"), true),
+        (t(b"swp avail/total:"), false),
+        (kb(m.memory[2]), false),
+        (kb(m.memory[3]), false),
+        (t(b"Kb"), true),
+        (t(b"free space on partition="), false),
+        (Int(m.free_kb as i32), false),
+        (t(b"Kb"), true),
+        (t(b""), true),
+        (t(b""), true),
+    ]);
+    out
+}
+
+/// The free space in Kb from the drive's numbers (`sub_40317D`): the cluster's bytes as 32
+/// bits times the free clusters; 0xFFFFFFFF from 2^42 bytes on.
+pub fn free_kb(cluster_sectors: u32, sector_bytes: u32, free_clusters: u32) -> u32 {
+    let bytes = cluster_sectors.wrapping_mul(sector_bytes) as u64 * free_clusters as u64;
+    if bytes >> 42 != 0 {
+        u32::MAX
+    } else {
+        (bytes >> 10) as u32
+    }
+}
+
+#[cfg(test)]
+mod head_tests {
+    use super::*;
+
+    #[test]
+    fn lines() {
+        assert_eq!(format_line(b"ab", true, 2, 1), (b"  ab\r\n".to_vec(), 1));
+        assert_eq!(format_line(b"ab", false, 2, 0), (b"ab ".to_vec(), 0));
+        let h = head(&Machine::default());
+        assert_eq!(h[0], (Message::Text(b"Log started".to_vec()), false));
+        assert_eq!(h.len(), 39);
+        let second = Machine {
+            second: Some(b"x".to_vec()),
+            ..Machine::default()
+        };
+        assert_eq!(head(&second)[3], (Message::Text(b"x".to_vec()), true));
+        assert_eq!(free_kb(8, 512, 4), 16);
+        assert_eq!(free_kb(0x1000, 0x1000, 0x40000), u32::MAX);
+        // The cluster's bytes wrap in 32 bits, as the original's.
+        assert_eq!(free_kb(0x10000, 0x10000, 0x400), 0);
+    }
+}

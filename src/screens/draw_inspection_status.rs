@@ -21,16 +21,12 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{
     EDI, ESI, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
 };
-use crate::gfx::blit_bar::{Bar, blit_bar};
-use crate::gfx::blit_glyph::BlitCall;
-use crate::gfx::blit_marker_pair::sprite_table;
+use crate::gfx::blit_bar::Bar;
 use crate::screens::font_is_loaded;
 use crate::screens::harness::{Left, check_draw, dispatch_draw, drawing_unavailable, push_dwords};
-use crate::screens::stage_panel::label;
 use crate::service::state::{current_player, repair_flag, repair_flag_addr};
 use crate::strings::string_table::{blob, is_table_id};
 use crate::strings::text_from_ids::{TEXT_LEN, text};
-use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::Canvas;
 use std::slice::from_raw_parts;
 use std::sync::atomic::AtomicUsize;
@@ -66,15 +62,6 @@ const PARTS: [u32; 13] = [2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 const FONT: usize = 0x51E3C4;
 const LEFT_LABEL: u32 = 0x4AE;
 const RIGHT_LABEL: u32 = 0x4AF;
-const BAR: Bar = Bar {
-    x: 0x19D,
-    y: 0x229,
-    width: 0xD0,
-    fill_glyph: 0x89,
-    end_glyph: 0x87,
-    percent: 0,
-};
-const ICON_GLYPH: u32 = 0x88;
 
 unsafe fn table(table_rva: usize, item: u32) -> i32 {
     unsafe { ((game_addr(table_rva) as *const i32).add(item as usize)).read_unaligned() }
@@ -83,24 +70,23 @@ unsafe fn table(table_rva: usize, item: u32) -> i32 {
 // ---- Rust version ----
 
 /// The percentage and the item of the last damaged part looked at (its repair flag's address
-/// is what the original leaves in esi).
+/// is what the original leaves in esi). Converted: `rc2k_core::screens::inspection::status`.
 pub unsafe fn inspection_status(player: u32) -> (i32, Option<u32>) {
-    let mut lost = 0i32;
-    let mut last_damaged = None;
-    for item in PARTS {
+    use rc2k_core::screens::inspection::{PARTS, Part, status};
+    let parts: [Part; 13] = std::array::from_fn(|n| {
+        let item = PARTS[n];
         unsafe {
-            let damage =
-                (player.wrapping_add(CAR_DAMAGE_OFFSET + 4 * item) as *const i32).read_unaligned();
-            if damage < table(THRESHOLDS_RVA, item) {
-                continue;
-            }
-            last_damaged = Some(item);
-            if repair_flag(item) == 0 {
-                lost = lost.wrapping_add(table(WEIGHTS_RVA, item));
+            Part {
+                damage: (player.wrapping_add(CAR_DAMAGE_OFFSET + 4 * item) as *const i32)
+                    .read_unaligned(),
+                threshold: table(THRESHOLDS_RVA, item),
+                weight: table(WEIGHTS_RVA, item),
+                repairing: repair_flag(item) != 0,
             }
         }
-    }
-    (100i32.wrapping_sub(lost), last_damaged)
+    });
+    let (condition, last) = status(&parts);
+    (condition, last.map(|n| PARTS[n]))
 }
 
 /// `icon_palette` is what the caller has in ebx. Refuses a missing player.
@@ -115,32 +101,16 @@ pub unsafe fn draw_inspection_status(
             );
         };
         let (condition, last_damaged) = inspection_status(player);
-        game_write(WORK_RVA, 100i32.wrapping_sub(condition));
-        game_write(CONDITION_RVA, condition);
-
-        Bar {
-            percent: condition,
-            ..BAR
-        }
-        .write();
-        blit_bar(&mut |call| canvas.blit_glyph(call))?;
-        canvas.blit_glyph(BlitCall::new(
-            ICON_GLYPH,
-            0x161,
-            0x228,
+        // Converted: `rc2k_core::screens::inspection::inspection_status`.
+        let out = rc2k_core::screens::inspection::inspection_status(
+            &mut crate::screens::game_screen::GameScreen::<
+                rc2k_core::screens::inspection::Font,
+                rc2k_core::screens::inspection::Work,
+            >::new(canvas),
+            condition,
             icon_palette,
-            sprite_table(),
-        ))?;
-        label(canvas, LEFT_LABEL, FONT, 0x17F, 0x22C)?;
-        let out = draw_string_by_id_at(
-            RIGHT_LABEL,
-            crate::screens::font_at(FONT),
-            0x28C,
-            0x22C,
-            canvas,
         )?;
-
-        let mut left = Left::of_text(&out).with(EDI, player);
+        let mut left = Left::of_drawn(out, 0x28C).with(EDI, player);
         if let Some(item) = last_damaged {
             left = left.with(ESI, repair_flag_addr(item));
         }

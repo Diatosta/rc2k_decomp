@@ -48,7 +48,6 @@ pub const LOG_INDENT_RVA: usize = rva(0x4E00A0); // g_logIndent
 pub const LOG_LINE_START_RVA: usize = rva(0x4E00A4); // g_logAtLineStart: 1 after a CRLF-terminated line
 const LAST_FILE_PATH_RVA: usize = rva(0x4F52B0); // g_lastFilePath
 pub const LINE_BUF_RVA: usize = rva(0x93E080);
-const LINE_LIMIT: usize = 0x93E42C - 0x93E080; // bytes are stored while len <= this
 // File mode table: 16-byte stride, the log uses mode 4 (offset 0x40).
 const MODE_ACCESS_RVA: usize = rva(0x4E06EA) + 0x40;
 const MODE_DISPOSITION_RVA: usize = rva(0x4E06EE) + 0x40;
@@ -63,26 +62,9 @@ pub fn lock() -> &'static AtomicU32 {
 // ---- Rust version ----
 
 /// The bytes the original builds in the line buffer, and the new line-start flag.
+/// Converted: `rc2k_core::files::log::format_line`.
 pub fn format_line(msg: &[u8], newline: bool, indent: i32, line_start: u32) -> (Vec<u8>, u32) {
-    let mut out = Vec::new();
-    let mut flag = line_start;
-    if flag == 1 {
-        flag = 0;
-        out.resize(indent.clamp(0, 80) as usize, b' '); // signed clamp
-    }
-    for &c in msg {
-        if out.len() > LINE_LIMIT {
-            break; // truncation, not overflow
-        }
-        out.push(c);
-    }
-    if newline {
-        out.extend_from_slice(b"\r\n");
-        flag = 1;
-    } else {
-        out.push(b' ');
-    }
-    (out, flag)
+    rc2k_core::files::log::format_line(msg, newline, indent, line_start)
 }
 
 /// `files::append_to_file` (0x402C9C), whose only caller is this tail.

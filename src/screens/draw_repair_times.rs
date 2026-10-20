@@ -14,9 +14,8 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
 use crate::screens::harness::{Left, check_draw, dispatch_draw, drawing_unavailable};
-use crate::screens::{font_at, font_is_loaded, line_buffer, set_line};
-use crate::strings::append_clock::append_clock;
-use crate::text::draw_text::{Canvas, Outcome, draw_text_at};
+use crate::screens::{font_is_loaded, line_buffer, set_line};
+use crate::text::draw_text::{Canvas, Outcome};
 use std::slice::from_raw_parts;
 use std::sync::atomic::AtomicUsize;
 
@@ -43,9 +42,6 @@ const TIMES_RVA: usize = rva(0x75AB60); // dword_75AB60[16]
 const COUNT: usize = 16;
 const FONT: usize = 0x51E3E4;
 
-const COLUMNS: [i32; 2] = [0x6A, 0x1B9];
-const ROWS: [i32; 8] = [0x6E, 0x8B, 0xA8, 0xC5, 0xE2, 0xFF, 0x11C, 0x1C4];
-
 fn time_rva(i: usize) -> usize {
     TIMES_RVA + i * 4
 }
@@ -54,20 +50,18 @@ fn time_rva(i: usize) -> usize {
 
 /// Returns what the last `draw_text` returned.
 pub unsafe fn draw_repair_times(canvas: &mut dyn Canvas) -> Result<Outcome, Refused> {
-    let mut last = None;
-    for i in 0..COUNT {
-        unsafe {
-            let mut line = append_clock(game_read(time_rva(i)));
-            line.push(0);
-            set_line(&line);
-            let (x, y) = (COLUMNS[i % 2], ROWS[i / 2]);
-            last = Some(draw_text_at(font_at(FONT), line_buffer(), x, y, canvas)?);
-        }
-    }
-    // COUNT is not 0, so there is always a last one.
-    last.ok_or(Refused::BadInput(crate::errors::BadInput(
-        "nothing to draw",
-    )))
+    // Converted: `rc2k_core::screens::service::repair_times`.
+    let times: [u32; COUNT] = std::array::from_fn(|i| unsafe { game_read(time_rva(i)) });
+    let (last, x) = rc2k_core::screens::service::repair_times(
+        &mut crate::screens::game_screen::ServiceScreen::new(canvas),
+        &times,
+    )?;
+    Ok(Outcome {
+        too_wide: last.too_wide,
+        text: last.after as *const u8,
+        x,
+        y: last.y,
+    })
 }
 
 // ---- hook ----

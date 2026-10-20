@@ -10,7 +10,7 @@
 //! Shadow mode: both (the Win32 call only reads), compared. Self-test: the original and the
 //! Rust version on every letter and some others, the flags compared.
 
-use crate::files::drive_type::{CD_ROM, drive_type};
+use crate::files::drive_type::drive_type;
 use crate::framework::{RawHook, Regs, SelfTest, ZERO_FLAG, hook_asm, rva, shadow};
 use std::sync::atomic::AtomicUsize;
 
@@ -33,8 +33,8 @@ hook_asm!(
 
 /// (carry, zero): `cmp` of the drive's kind with a CD-ROM's.
 pub unsafe fn is_cd_drive(letter: u8) -> (bool, bool) {
-    let kind = unsafe { drive_type(letter) };
-    (kind < CD_ROM, kind == CD_ROM)
+    // Converted: `rc2k_core::files::io::is_cd`.
+    rc2k_core::files::io::is_cd(unsafe { drive_type(letter) })
 }
 
 // ---- hook ----

@@ -25,19 +25,18 @@
 //!
 //! In the draw list at 0x758CBA (the four players' details screens).
 //! Refuses a player past the four, a player without its name, an index past its
-//! string table, and what its parts refuse.
+//! string table, and what its parts refuse; since the conversion (2026-10-20) before the
+//! controller's item is switched (the original switches it first).
 //! Self-test: the four players, with and without a controller, typing and not, both
 //! blinks, a second view of 5; a menu of the test's; nothing drawn.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::menu::disable_item::disable_item;
-use crate::menu::enable_item::enable_item;
 use crate::menu::item_at::{CURRENT_MENU_RVA, ITEM_LEN};
 use crate::menu::player::{Player, player_at};
 use crate::screens::LINE_BUFFER_RVA;
 use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::draw_name_cursor::{BLINK_RVA, MEASURING_FONT, draw_name_cursor};
+use crate::screens::draw_name_cursor::{BLINK_RVA, MEASURING_FONT};
 use crate::screens::harness::{Left, check_draw, dispatch_draw};
 use crate::service::harness::{Region, at, capture, restore};
 use crate::strings::text_from_ids::{TEXT_LEN, text};
@@ -107,11 +106,6 @@ fn string(table: usize, index: u32, count: u32) -> Result<u32, Refused> {
 
 pub unsafe fn draw_player_page(layout: Layout, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     unsafe {
-        if game_read::<u32>(CONTROLLERS_RVA) == 0 {
-            disable_item(layout.controller_item)?;
-        } else {
-            enable_item(layout.controller_item)?;
-        }
         let at = player_at(game_read(PLAYER_RVA));
         if at == 0 {
             return Err(BadInput("a player past the four").into());
@@ -141,8 +135,11 @@ pub unsafe fn draw_player_page(layout: Layout, canvas: &mut dyn Canvas) -> Resul
             None
         };
         let details = rc2k_core::screens::player_details::Details {
+            controller_item: layout.controller_item,
+            controllers: game_read::<u32>(CONTROLLERS_RVA) != 0,
             name: player.name,
             typing: game_read::<u32>(TYPING_RVA) != 0,
+            blink: game_read(crate::screens::draw_name_cursor::BLINK_RVA),
             nationality: player.nationality,
             nationality_id,
             view_id,
@@ -151,11 +148,9 @@ pub unsafe fn draw_player_page(layout: Layout, canvas: &mut dyn Canvas) -> Resul
             codriver_sex: player.codriver_sex,
             sensitivity: player.controller_sensitivity,
         };
-        use crate::screens::game_screen::DetailsScreen;
         rc2k_core::screens::player_details::player_details(
-            &mut DetailsScreen::new(canvas),
+            &mut crate::screens::game_screen::DetailsScreen::new(canvas),
             &details,
-            &mut |s: &mut DetailsScreen, x| draw_name_cursor(at, x as u32, s.canvas).map(|_| ()),
         )?;
     }
     Ok(())

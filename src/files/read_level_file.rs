@@ -7,7 +7,8 @@
 //!      (built in `g_packedPath`, 0x5BE9BD: the path copied to +5, ".sq" after it, and
 //!      "files\leve" over its first ten bytes, so that `srclvls\` becomes `files\levels\`)
 //!
-//! One caller, `sub_4455FC` (loadlevel, the course data). Shadow mode runs the original
+//! Refuses (since the conversion, 2026-10-21) a path too short for the packed copy's
+//! prefix (the original's text then runs on past it). One caller, `sub_4455FC` (loadlevel, the course data). Shadow mode runs the original
 //! alone (it reads the file). Self-test: a file that is there (stage 1's `localdat`
 //! through `files\`), one that is not (stage 1's `srclvls` course data, read packed), and
 //! one with neither, read by both; the path buffer put back afterwards.
@@ -34,7 +35,6 @@ hook_asm!(
 );
 
 pub const PACKED_PATH_RVA: usize = rva(0x5BE9BD); // g_packedPath
-const PREFIX: &[u8; 10] = b"files\\leve";
 
 /// Whether a file can be opened (`files::file_exists`).
 pub type Exists<'a> = &'a mut dyn FnMut(u32) -> Result<bool, Refused>;
@@ -55,10 +55,11 @@ pub unsafe fn read_level_file(
         return Ok(Outcome::of(&r));
     }
     unsafe {
+        // Converted: `rc2k_core::files::io::packed_level_path`.
+        let given = std::ffi::CStr::from_ptr(entry.eax as *const std::ffi::c_char).to_bytes();
+        let packed = rc2k_core::files::io::packed_level_path(given)?;
         let path = game_addr(PACKED_PATH_RVA) as *mut u8;
-        let cursor = crate::strings::str_append::str_append(entry.eax as *const u8, path.add(5));
-        (cursor as *mut [u8; 4]).write_unaligned(*b".sq\0");
-        (path as *mut [u8; 10]).write_unaligned(*PREFIX);
+        std::ptr::copy(packed.as_ptr(), path, packed.len());
         read_packed_file(
             &Regs {
                 eax: path as u32,

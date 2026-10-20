@@ -56,13 +56,22 @@ const PITCH: usize = 0x4F49BC; // g_surface.pitch
 const PIXELS: usize = 0x4F49C0; // g_surface.pixels
 
 /// `files::write_stream_byte` with the byte.
-unsafe fn write_stream_byte(stream: *mut Stream, byte: u8) -> bool {
-    unsafe { crate::files::write_stream_byte::write_stream_byte(stream, byte as u32) }
+unsafe fn write_stream_byte(stream: *mut Stream, byte: u8) -> Result<bool, Refused> {
+    unsafe {
+        Ok(crate::files::write_stream_byte::write_stream_byte(
+            stream,
+            byte as u32,
+        )?)
+    }
 }
 
 /// `files::write_stream_block`.
-unsafe fn write_stream_block(stream: *mut Stream, bytes: &[u8]) -> bool {
-    unsafe { crate::files::write_stream_block::write_stream_all(stream, bytes) }
+unsafe fn write_stream_block(stream: *mut Stream, bytes: &[u8]) -> Result<bool, Refused> {
+    unsafe {
+        Ok(crate::files::write_stream_block::write_stream_all(
+            stream, bytes,
+        )?)
+    }
 }
 
 /// The header's first 0x80 bytes for a surface `width` x `height` (converted:
@@ -91,8 +100,8 @@ pub unsafe fn write_screen_pcx() -> Result<bool, Refused> {
         if !crate::files::open_stream::open_stream(stream, path as *const u8, 1)? {
             return Ok(false);
         }
-        let mut ok = write_stream_block(stream, &header_bytes) && rows(stream);
-        let closed = crate::files::close_stream::close_stream(stream);
+        let mut ok = write_stream_block(stream, &header_bytes)? && rows(stream)?;
+        let closed = crate::files::close_stream::close_stream(stream)?;
         ok = ok && closed;
         Ok(ok)
     }
@@ -100,7 +109,7 @@ pub unsafe fn write_screen_pcx() -> Result<bool, Refused> {
 
 /// The rows; false when a write failed. Converted: `rc2k_core::gfx::pcx::screen_planes` and
 /// `encode_line`; the planes are left in the game's buffer, as the original leaves them.
-unsafe fn rows(stream: *mut Stream) -> bool {
+unsafe fn rows(stream: *mut Stream) -> Result<bool, Refused> {
     unsafe {
         let mut row = g(PIXELS);
         // eax as the original has it: the block's byte count after the header (0x80).
@@ -123,8 +132,8 @@ unsafe fn rows(stream: *mut Stream) -> bool {
                 });
             std::ptr::copy_nonoverlapping(planes.as_ptr(), a(PLANES) as *mut u8, planes.len());
             for byte in rc2k_core::gfx::pcx::encode_line(&planes, &mut eax) {
-                if !write_stream_byte(stream, byte) {
-                    return false;
+                if !write_stream_byte(stream, byte)? {
+                    return Ok(false);
                 }
             }
             row = row.wrapping_add(g(PITCH));
@@ -133,7 +142,7 @@ unsafe fn rows(stream: *mut Stream) -> bool {
                 break;
             }
         }
-        true
+        Ok(true)
     }
 }
 

@@ -669,3 +669,10 @@ pub fn correct(table: &mut [u8]) -> Result<(), Invalid> {
     }
     Ok(())
 }
+
+/// Whether the string table is made again from the language file
+/// (`strings::maybe_compile_lexicon` 0x403555): `dword_4E0758` (signed) 1 or more and the
+/// key's state `byte_4F6B2A` not 0, a developer's way to see a changed language file.
+pub fn recompile_wanted(level: u32, key: u8) -> bool {
+    level as i32 >= 1 && key != 0
+}

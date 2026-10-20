@@ -42,7 +42,7 @@ unsafe fn read_rows() -> Result<bool, BadInput> {
         if seek(file, 0, 0).is_none() {
             return Ok(false);
         }
-        if read_stream_block(stream, game_addr(HEADER_RVA) as *mut u8, HEADER_LEN as u32).1 {
+        if read_stream_block(stream, game_addr(HEADER_RVA) as *mut u8, HEADER_LEN as u32)?.1 {
             return Ok(false);
         }
         game_write(FLAGS_RVA, 0x100u32);
@@ -65,11 +65,11 @@ unsafe fn read_rows() -> Result<bool, BadInput> {
             let mut column = 0u32;
             loop {
                 if run == 0 {
-                    eax = read_stream_byte(stream, eax).eax;
+                    eax = read_stream_byte(stream, eax)?.eax;
                     run = 1;
                     if eax as u8 >= 0xC0 {
                         run = eax as u8 as u32 - 0xC0;
-                        eax = read_stream_byte(stream, eax).eax;
+                        eax = read_stream_byte(stream, eax)?.eax;
                     }
                 }
                 if column < width {
@@ -95,7 +95,7 @@ pub unsafe fn read_pcx_indexed(path: *const u8) -> Result<bool, BadInput> {
             return Ok(false);
         }
         let rows = read_rows();
-        let closed = close_stream(stream());
+        let closed = close_stream(stream())?;
         Ok(rows? && closed)
     }
 }

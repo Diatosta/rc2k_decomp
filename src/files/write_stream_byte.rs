@@ -12,6 +12,7 @@
 //! (removed after), 0x4567 bytes through either a byte at a time; the flags, the streams
 //! and the files compared; a stream with no file failing.
 
+use crate::errors::BadInput;
 use crate::files::handle::{close, open_by_mode};
 use crate::files::stream::{BUFFER_LEN, LastPath, Stream, TEST_LEN, test_content};
 use crate::framework::{CARRY_FLAG, RawHook, Regs, SelfTest, ZERO_FLAG, hook_asm, rva, shadow};
@@ -30,24 +31,14 @@ hook_asm!(
 );
 
 /// The Rust version: whether it worked (carry clear). `eax` the register (al the byte).
-pub unsafe fn write_stream_byte(stream: *mut Stream, eax: u32) -> bool {
+pub unsafe fn write_stream_byte(stream: *mut Stream, eax: u32) -> Result<bool, BadInput> {
+    // Converted: `rc2k_core::files::io::write_stream_byte`.
     unsafe {
-        let s = &mut *stream;
-        if s.position >= BUFFER_LEN as u32 {
-            if !crate::files::handle::write(s.file, s.buffer.as_ptr(), s.filled).1 {
-                return false;
-            }
-            s.filled = 0;
-            s.position = 0;
-        }
-        // The original writes `[position + stream + 0x10]` whatever the position is.
-        (stream as *mut u8)
-            .wrapping_add(0x10)
-            .wrapping_add(s.position as usize)
-            .write(eax as u8);
-        s.position = s.position.wrapping_add(1);
-        s.filled = s.filled.wrapping_add(1);
-        true
+        Ok(rc2k_core::files::io::write_stream_byte(
+            &mut crate::files::handle::GameFiles::new(),
+            crate::files::stream::core_stream(stream),
+            eax as u8,
+        )?)
     }
 }
 
@@ -65,7 +56,10 @@ extern "C" fn dispatch(r: &mut Regs) {
         unsafe { call_original(r) };
         return;
     }
-    let ok = unsafe { write_stream_byte(r.esi as *mut Stream, r.eax) };
+    let ok = match unsafe { write_stream_byte(r.esi as *mut Stream, r.eax) } {
+        Ok(ok) => ok,
+        Err(e) => return unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
+    };
     flags(ok, r.eax, r);
 }
 
@@ -134,10 +128,12 @@ fn self_test() -> (usize, usize) {
         };
         let mut ro = before;
         unsafe { call_original(&mut ro) };
-        let ok = unsafe { write_stream_byte(&mut *ours, eax) };
+        let done = unsafe { write_stream_byte(&mut *ours, eax) };
+        let ok = done == Ok(true);
         let mut mine = before;
         flags(ok, eax, &mut mine);
-        let same = (theirs.position, theirs.filled) == (ours.position, ours.filled)
+        let same = done.is_ok()
+            && (theirs.position, theirs.filled) == (ours.position, ours.filled)
             && theirs.buffer == ours.buffer
             && (ro.eflags ^ mine.eflags) & (CARRY_FLAG | ZERO_FLAG) == 0
             && ro.preserved_except(&before, 0);
@@ -170,9 +166,12 @@ fn self_test() -> (usize, usize) {
     };
     let mut ro = before;
     unsafe { call_original(&mut ro) };
-    let ok = unsafe { write_stream_byte(&mut *ours, 0x55) };
+    let done = unsafe { write_stream_byte(&mut *ours, 0x55) };
+    let ok = done == Ok(true);
     t.check(
-        ro.carry() && !ok && (theirs.position, theirs.filled) == (ours.position, ours.filled),
+        ro.carry()
+            && done == Ok(false)
+            && (theirs.position, theirs.filled) == (ours.position, ours.filled),
         || format!("no file: original carry {}, rust ok {ok}", ro.carry()),
     );
     saved.restore();

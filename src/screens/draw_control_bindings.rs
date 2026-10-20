@@ -21,13 +21,11 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::menu::player::{PLAYERS, player_at};
 use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::font_at;
+use crate::screens::game_screen::ControlsScreen;
 use crate::screens::harness::{Left, check_draw, dispatch_draw};
 use crate::service::harness::{Region, at, capture, restore};
 use crate::service::state::PLAYER_INDEX_RVA;
-use crate::strings::append_axis_name::append_axis_name;
-use crate::strings::append_string_by_id::push_string;
-use crate::text::draw_text::{Canvas, draw_text_at};
+use crate::text::draw_text::Canvas;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -58,41 +56,36 @@ unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
 
-/// Row n's text (without its NUL).
+/// The directions' names (`word_755200`, `word_755212`).
+unsafe fn direction_names() -> rc2k_core::screens::controls::DirectionNames {
+    unsafe {
+        rc2k_core::screens::controls::DirectionNames {
+            pad: game_read(PAD_NAMES_RVA),
+            stick: game_read(STICK_NAMES_RVA),
+        }
+    }
+}
+
+/// Row n's text (without its NUL). Converted: `rc2k_core::screens::controls::binding_text`.
 pub unsafe fn binding_text(player: u32, n: u32) -> Result<Vec<u8>, Refused> {
     unsafe {
-        let binding = get(player + 0x50 + 4 * n);
-        let (dl, dh) = (binding as u8, (binding >> 8) as u8);
-        let mut out = Vec::new();
-        if binding == 0 {
-            push_string(&mut out, 0x3BD);
-            return Ok(out);
-        }
-        let kind = get(player + 0x34);
-        if dh != 0 {
-            if dh > 8 {
-                return Err(BadInput("a direction past the name tables").into());
-            }
-            let table = if kind < 2 {
-                PAD_NAMES_RVA
+        let b = rc2k_core::screens::controls::Binding {
+            binding: get(player + 0x50 + 4 * n),
+            kind: get(player + 0x34),
+            axis: if n < 2 {
+                *((player + 0x3B - n) as *const u8)
             } else {
-                STICK_NAMES_RVA
-            };
-            let id: u16 = game_read(table + 2 * dh as usize);
-            push_string(&mut out, id as u32);
-            if kind == 3 && n < 2 {
-                out.extend(append_axis_name(*((player + 0x3B - n) as *const u8)));
-            }
-        }
-        if dl != 0 {
-            if dh != 0 {
-                out.push(b'+');
-            }
-            push_string(&mut out, 0x3C0);
-            out.push(b' ');
-            out.extend(crate::strings::append_u32::append_u32(dl as u32));
-        }
-        Ok(out)
+                0
+            },
+        };
+        let mut canvas = crate::text::draw_text::GameCanvas;
+        let mut s = ControlsScreen::new(&mut canvas);
+        Ok(rc2k_core::screens::controls::binding_text(
+            &mut s,
+            &b,
+            n as usize,
+            &direction_names(),
+        )?)
     }
 }
 
@@ -105,27 +98,17 @@ pub unsafe fn draw_control_bindings(canvas: &mut dyn Canvas) -> Result<bool, Ref
         }
         let learning: u32 = game_read(LEARNING_RVA);
         let row: u32 = game_read(ROW_RVA);
-        let mut texts = Vec::new();
-        for n in 0..10u32 {
-            let mut text = binding_text(player, n)?;
-            text.push(0);
-            if text.len() > TEXT_LEN {
-                return Err(BadInput("a binding's text past its buffer").into());
-            }
-            texts.push(text);
+        let mut texts: [Vec<u8>; 10] = Default::default();
+        for (n, text) in texts.iter_mut().enumerate() {
+            *text = binding_text(player, n as u32)?;
         }
-        let at = game_addr(TEXT_RVA) as *mut u8;
-        let mut carry = false;
-        for (n, text) in texts.iter().enumerate() {
-            if learning == 1 && row == n as u32 + 1 {
-                carry = false;
-                continue;
-            }
-            std::ptr::copy_nonoverlapping(text.as_ptr(), at, text.len());
-            carry = draw_text_at(font_at(0x51E8C4), at, 0x1B8, 0xD5 + 0x1B * n as i32, canvas)?
-                .too_wide;
-        }
-        Ok(carry)
+        // Converted: `rc2k_core::screens::controls::control_bindings`.
+        let learnt = (learning == 1 && (1..=10).contains(&row)).then(|| row as usize - 1);
+        rc2k_core::screens::controls::control_bindings(
+            &mut ControlsScreen::new(canvas),
+            &texts,
+            learnt,
+        )
     }
 }
 

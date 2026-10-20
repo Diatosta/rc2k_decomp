@@ -89,18 +89,12 @@ pub unsafe fn first_match_read(
             }
         }
         let read = if found {
-            // The pattern up to and with its last `/`, `\` or `:` (one at its very start
-            // does not count), then the name found.
+            // Converted: `rc2k_core::files::io::match_path`.
             let pattern = std::ffi::CStr::from_ptr(pattern.cast()).to_bytes();
-            let directory = (1..pattern.len())
-                .rev()
-                .find(|&n| matches!(pattern[n], b'/' | b'\\' | b':'))
-                .map_or(0, |n| n + 1);
             let name = std::ffi::CStr::from_ptr((&raw const (*record).cFileName).cast()).to_bytes();
+            let joined = rc2k_core::files::io::match_path(pattern, name);
             let path = game_addr(PATH_SCRATCH_RVA) as *mut u8;
-            std::ptr::copy(pattern.as_ptr(), path, directory);
-            std::ptr::copy(name.as_ptr(), path.add(directory), name.len());
-            path.add(directory + name.len()).write(0);
+            std::ptr::copy(joined.as_ptr(), path, joined.len());
             Some(read_file(path, buffer, count, offset))
         } else {
             None

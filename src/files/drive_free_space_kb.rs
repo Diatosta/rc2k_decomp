@@ -53,14 +53,9 @@ pub fn free_space_regs(entry: &Regs, api: Api) -> Regs {
         r.set_zero(false);
         return r;
     }
-    let (total_bytes_low, free) = (rd(s + 0xC).wrapping_mul(rd(s + 8)), rd(s + 4));
-    let bytes = total_bytes_low as u64 * free as u64;
     r.ebx = rd(s + 8);
-    r.eax = if bytes >> 42 != 0 {
-        u32::MAX
-    } else {
-        (bytes >> 10) as u32
-    };
+    // Converted: `rc2k_core::files::log::free_kb`.
+    r.eax = rc2k_core::files::log::free_kb(rd(s + 0xC), rd(s + 8), rd(s + 4));
     r.set_carry(false);
     r.set_zero(r.eax == 0);
     r

@@ -20,11 +20,8 @@ use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_write
 use crate::install::copy_reading;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, dispatch_state, restore};
-use crate::settings::find_key::find_key;
-use crate::settings::parse_number::parse_number;
 use crate::settings::read_text::read_text;
 use crate::strings::format_u32::format_u32;
-use crate::system::next_argument::next_argument;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -49,7 +46,6 @@ hook_asm!(
 pub const PATH_RVA: usize = rva(0x529D98); // "var\name.cfg"
 const KEY_RVA: usize = rva(0x529DA5); // aName000
 const DRIVERS: usize = 180;
-const NAME_MAX: usize = 30;
 const NAMES_RVA: usize = rva(0x95ECF8); // dword_95ECF8: a pointer a driver
 const POOL_RVA: usize = rva(0x95EFC8); // unk_95EFC8
 /// Up to `unk_960000`: room for about 130 names of the full length, not for 180.
@@ -61,42 +57,49 @@ const SECOND_NUMBER_RVA: usize = rva(0x73B68C); // dword_73B68C
 // ---- Rust version ----
 
 pub unsafe fn read_driver_names(path: *const u8) -> Result<(), BadInput> {
+    // Converted: `rc2k_core::files::settings::driver_names`; the pool's room checked before
+    // anything is written. The key the original makes in place (`aName000`) is left as
+    // its last one, "name179".
     unsafe {
         let Some((text, _)) = read_text(path)? else {
             return Ok(());
         };
-        let key = game_addr(KEY_RVA) as *mut u8;
+        let entries = rc2k_core::files::settings::driver_names(
+            &crate::bridge::Raw::new(text),
+            &crate::strings::same_text::case_table(),
+        )
+        .map_err(|e| BadInput(e.0))?;
+        let room: usize = entries
+            .iter()
+            .flatten()
+            .filter_map(|e| e.name.as_ref())
+            .map(|n| n.len() + 1)
+            .sum();
+        if room > POOL_ROOM {
+            return Err(BadInput("more driver names than their pool holds"));
+        }
+        let last = format_u32(DRIVERS as u32 - 1, 0x13);
+        std::ptr::copy(
+            last.as_ptr(),
+            (game_addr(KEY_RVA) as *mut u8).add(4),
+            last.len(),
+        );
         let mut pool = game_addr(POOL_RVA) as *mut u8;
-        for driver in 0..DRIVERS {
-            let digits = format_u32(driver as u32, 0x13);
-            std::ptr::copy(digits.as_ptr(), key.add(4), digits.len());
-            let Some(value) = find_key(text, key)? else {
+        for (driver, entry) in entries.iter().enumerate() {
+            let Some(entry) = entry else {
                 continue;
             };
-            let (name, len, next) = next_argument(value);
-            if len != 0 {
-                let len = (len as usize).min(NAME_MAX);
-                if pool as usize + len + 1 > game_addr(POOL_RVA) + POOL_ROOM {
-                    return Err(BadInput("more driver names than their pool holds"));
-                }
+            if let Some(name) = &entry.name {
                 game_write(NAMES_RVA + driver * 4, pool as u32);
-                std::ptr::copy(name, pool, len);
-                pool.add(len).write(0);
-                pool = pool.add(len + 1);
+                std::ptr::copy(name.as_ptr(), pool, name.len());
+                pool.add(name.len()).write(0);
+                pool = pool.add(name.len() + 1);
             }
-            let (word, len, next) = next_argument(next);
-            if len != 0 {
-                let number = parse_number(word);
-                if number < 0x28 {
-                    game_write(FIRST_NUMBER_RVA + driver * RECORD_LEN, number);
-                }
+            if let Some(n) = entry.first {
+                game_write(FIRST_NUMBER_RVA + driver * RECORD_LEN, n);
             }
-            let (word, len, _) = next_argument(next);
-            if len != 0 {
-                let number = parse_number(word);
-                if number < 0x22 {
-                    game_write(SECOND_NUMBER_RVA + driver * RECORD_LEN, number);
-                }
+            if let Some(n) = entry.second {
+                game_write(SECOND_NUMBER_RVA + driver * RECORD_LEN, n);
             }
         }
         Ok(())

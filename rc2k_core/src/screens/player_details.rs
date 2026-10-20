@@ -1,7 +1,8 @@
 //! The players' details pages (converted 2026-10-20 from `screens::draw_player_details`
 //! 0x46F894, the same code as `draw_player2_details` 0x4677B5, and `draw_player34_details`
 //! 0x467975 without the second view): the name (and the typing cursor), the nationality
-//! and its flag, the views, the race number, the co-driver, the sensitivity's bar.
+//! and its flag, the views, the race number, the co-driver, the sensitivity's bar; and the
+//! typing cursor (`screens::draw_name_cursor` 0x4677EF).
 
 use crate::screens::screen::Screen;
 use crate::strings::format::{Pad, decimal};
@@ -25,9 +26,15 @@ pub enum Work {
 /// What the page shows, its strings looked up.
 #[derive(Clone, Copy, Debug)]
 pub struct Details<T> {
+    /// The controller's item of the menu, greyed out without a controller
+    /// (`g_controllerCount` 0).
+    pub controller_item: u32,
+    pub controllers: bool,
     pub name: T,
     /// A name is being typed (`dword_7556A8` not 0): the cursor after it.
     pub typing: bool,
+    /// The cursor's blink (`dword_7559A8`): drawn while 1.
+    pub blink: u32,
     pub nationality: u32,
     /// `dword_758816[nationality]`.
     pub nationality_id: u32,
@@ -40,22 +47,37 @@ pub struct Details<T> {
     pub sensitivity: u32,
 }
 
-/// The typing cursor, drawn after the name from the x the name was drawn from.
-pub type Cursor<'a, S> = &'a mut dyn FnMut(&mut S, i32) -> Result<(), <S as Screen>::Error>;
+/// The typing cursor: the name measured from x, string 4 after it while the blink is 1.
+/// The carry: the cursor's text's, or (not drawn) its `cmp blink, 1`.
+pub fn name_cursor<S: Screen<Font = Font, Work = Work>>(
+    s: &mut S,
+    name: S::Text,
+    x: i32,
+    blink: u32,
+) -> Result<bool, S::Error> {
+    let (width, _) = s.measure(Font::Measure, name, x)?;
+    if blink == 1 {
+        Ok(
+            s.string(Font::Value, 4, width.wrapping_add(0x1BB) as i32, 0xD4)?
+                .too_wide,
+        )
+    } else {
+        Ok(blink < 1)
+    }
+}
 
-/// The page; `cursor` draws the typing cursor after the name (`screens::draw_name_cursor`,
-/// with the x the name was drawn from). The lines below the views are 0x1B lower on a page
+/// The page; the typing cursor after the name measured from the x it was drawn from. The lines below the views are 0x1B lower on a page
 /// with the second view. The flag's palette is the measuring's line count, the bar's what
 /// the last text left.
 pub fn player_details<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     d: &Details<S::Text>,
-    cursor: Cursor<S>,
 ) -> Result<(), S::Error> {
+    s.item(d.controller_item, d.controllers)?;
     let x = 0x1BB;
     s.text(Font::Value, d.name, x, 0xD4)?;
     if d.typing {
-        cursor(s, x)?;
+        name_cursor(s, d.name, x, d.blink)?;
     }
     s.keep(Work::Seconds, d.nationality_id);
     s.string(Font::Value, d.nationality_id, x, 0xEF)?;
@@ -147,6 +169,13 @@ mod tests {
         fn fatal(&mut self, _: u32, m: &'static str) -> Invalid {
             Invalid(m)
         }
+        fn item(&mut self, n: u32, on: bool) -> Result<(), Invalid> {
+            self.0.push(format!("item {n} {on}"));
+            Ok(())
+        }
+        fn measure(&mut self, _: Font, _: u32, _: i32) -> Result<(u32, u32), Invalid> {
+            Ok((30, 1))
+        }
         fn measure_string(&mut self, _: Font, _: u32, _: i32) -> Result<(u32, u32), Invalid> {
             Ok((30, 1))
         }
@@ -155,8 +184,11 @@ mod tests {
     #[test]
     fn pages() {
         let d = Details {
+            controller_item: 9,
+            controllers: true,
             name: 1,
             typing: true,
+            blink: 1,
             nationality: 3,
             nationality_id: 0x700,
             view_id: 0x710,
@@ -166,12 +198,9 @@ mod tests {
             sensitivity: 5,
         };
         let mut s = Record::default();
-        player_details(&mut s, &d, &mut |s: &mut Record, x| {
-            s.0.push(format!("cursor {x:#x}"));
-            Ok(())
-        })
-        .unwrap();
-        assert_eq!(s.0[1], "cursor 0x1bb");
+        player_details(&mut s, &d).unwrap();
+        assert_eq!(s.0[0], "item 9 true");
+        assert_eq!(s.0[2], "Value s4 0x1d9 0xd4");
         assert!(s.0.contains(&"sprite 0x1f 0x1e8 0xf3 0x1".to_string()));
         assert!(s.0.contains(&"Value \"12\\0\" 0x1bb 0x140".to_string()));
         assert_eq!(s.0.last().unwrap(), "sprite 0x6 0x1c4 0x176 0xa8b");
@@ -181,7 +210,8 @@ mod tests {
             second_view_id: None,
             ..d
         };
-        player_details(&mut s, &short, &mut |_: &mut Record, _| unreachable!()).unwrap();
+        player_details(&mut s, &short).unwrap();
+        assert!(!s.0.iter().any(|l| l.contains(" s4 ")));
         assert_eq!(s.0.last().unwrap(), "sprite 0x6 0x1c4 0x15b 0xa8b");
     }
 }

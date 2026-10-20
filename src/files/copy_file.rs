@@ -19,7 +19,7 @@
 //! (the buffer put back), the two copies' bytes and times compared; a missing source.
 
 use crate::errors::BadInput;
-use crate::files::handle::{close, open_by_mode, read, write};
+use crate::files::handle::{close, open_by_mode};
 use crate::framework::{
     CARRY_FLAG, RawHook, Regs, SelfTest, ZERO_FLAG, game_addr, hook_asm, rva, shadow,
 };
@@ -87,36 +87,16 @@ pub unsafe fn set_file_time(file: u32, dos: u32) -> bool {
 
 /// The Rust version: whether it was all done.
 pub unsafe fn copy_file(from: *const u8, to: *const u8) -> Result<bool, BadInput> {
+    // Converted: `rc2k_core::files::io::copy_file`, through the game's 64 KB block.
     unsafe {
-        // `open_by_mode` refuses before anything; check the second path first too.
-        crate::files::resolve_path::resolve_path_in_game(to)?;
-        let Some(source) = open_by_mode(from, 0)? else {
-            return Ok(false);
-        };
-        let Some(target) = open_by_mode(to, 1)? else {
-            close(source);
-            return Ok(false);
-        };
-        let buffer = game_addr(rva(BUFFER)) as *mut u8;
-        let mut done = false;
-        loop {
-            let (n, ok) = read(source, buffer, CHUNK);
-            if !ok {
-                break;
-            }
-            if n == 0 {
-                if let Some(time) = file_time(source) {
-                    done = set_file_time(target, time);
-                }
-                break;
-            }
-            if !write(target, buffer, n).1 {
-                break;
-            }
-        }
-        close(target);
-        close(source);
-        Ok(done)
+        let buffer =
+            std::slice::from_raw_parts_mut(game_addr(rva(BUFFER)) as *mut u8, CHUNK as usize);
+        Ok(rc2k_core::files::io::copy_file(
+            &mut crate::files::handle::GameFiles::new(),
+            from,
+            to,
+            buffer,
+        )?)
     }
 }
 

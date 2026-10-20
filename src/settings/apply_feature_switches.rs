@@ -45,10 +45,13 @@ const FEATURES: [(usize, usize, usize); 3] = [
 // ---- Rust version ----
 
 pub unsafe fn apply_feature_switches() {
+    // Converted: `rc2k_core::files::settings::feature_switches`.
     unsafe {
-        for (used, ignore, has) in FEATURES {
-            let wanted = (game_read::<u32>(ignore) == 0) as u32;
-            game_write(used, wanted & game_read::<u32>(has));
+        let has = FEATURES.map(|(_, _, has)| game_read::<u32>(has));
+        let ignore = FEATURES.map(|(_, ignore, _)| game_read::<u32>(ignore));
+        let used = rc2k_core::files::settings::feature_switches(has, ignore);
+        for ((at, _, _), v) in FEATURES.into_iter().zip(used) {
+            game_write(at, v);
         }
     }
 }
