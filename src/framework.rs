@@ -55,6 +55,10 @@ pub trait GameHook: Sync {
     /// no original to run: it names an address that faults and tells which hook asked.
     fn set_original(&self, addr: usize);
 
+    /// The hook's thunk (where the patched jump goes): for `standalone.rs`, which patches
+    /// no code.
+    fn thunk(&self) -> usize;
+
     /// (cases, mismatches). None = this hook has no self-test
     fn self_test(&self) -> Option<(usize, usize)> {
         None
@@ -192,6 +196,9 @@ impl GameHook for RawHook {
     }
     fn set_original(&self, addr: usize) {
         self.original.store(addr, Ordering::SeqCst);
+    }
+    fn thunk(&self) -> usize {
+        self.thunk as usize
     }
 
     unsafe fn install(&self, addr: usize) -> Result<(), detour::Error> {

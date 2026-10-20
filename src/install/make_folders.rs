@@ -8,7 +8,9 @@
 //! In:  edx the path (normalised: ending in `\\`)
 //! Out: every register kept (`pusha` / `popa`); carry set when a folder could not be gone
 //!      into or made (the failing call's flags), else zero set and carry clear
-//! Refuses (as met) a path that does not end in `\\` (the original reads past its end).
+//! A path without its closing `\\` (as `install_files` gives every folder) is scanned on
+//! past its NUL to the next `\\`, as the original does. Refuses (as met) a scan of 0x400
+//! bytes from the path's start, and a UNC path without its share's `\\`.
 //! Callers `install::install_files`, `install::install_clio`. Its calls through `part`
 //! (`files::set_current_directory`, `files::make_directory`, both edx the path). Ungated.
 //! Shadow mode runs the original alone (folders are made). Self-test: a copy whose two
@@ -90,19 +92,18 @@ pub fn make_folders(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             return failed(&r);
         }
     }
-    // loc_413AD6
-    let mut guard = 0;
+    // loc_413AD6. A path without its closing `\\` (the installer's folders, as the script
+    // lists them: `install_files`) has the scan go on past its NUL to the next `\\` in what
+    // follows, as the original's does: each further segment only goes into the same path
+    // again (`notes/bugs.md`). Bounded: 0x400 bytes from the path's start.
     while rb(r.esi + 1) != 0 {
-        guard += 1;
-        if guard > LIMIT {
-            return Err(crate::errors::BadInput("a path with no end in 0x400 bytes").into());
-        }
         loop {
             r.esi += 1;
-            match rb(r.esi) {
-                b'\\' => break,
-                0 => return Err(PAST_END.into()),
-                _ => {}
+            if r.esi.wrapping_sub(entry.edx) > LIMIT {
+                return Err(crate::errors::BadInput("a path with no end in 0x400 bytes").into());
+            }
+            if rb(r.esi) == b'\\' {
+                break;
             }
         }
         wb(r.esi, 0);
@@ -181,6 +182,10 @@ fn self_test() -> (usize, usize) {
         b"\\\\server\\share\\a\\b\\",
         b"d:folder\\sub\\",
         b"c:\\",
+        // as `install_files` gives them: no closing `\\`; a `\\` and a NUL after the NUL
+        // (where the original's scan stops)
+        b"c:\\rc\\files\0\\",
+        b"c:\\one\0\\",
     ] {
         for results in [
             vec![false, false, false, false, false, false],

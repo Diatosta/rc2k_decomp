@@ -7,7 +7,6 @@ use crate::files::file_exists::file_exists;
 use crate::framework::{Regs, game_addr, rva};
 use crate::install::normalise_path::{current_directory, normalise_path};
 use crate::install::read_record::read_record;
-use crate::install::read_registry::{Windows, read_registry};
 use crate::install::stand_ins::act;
 use crate::logfile::log_write::log_write;
 use windows_sys::Win32::System::Environment::SetCurrentDirectoryA;
@@ -24,7 +23,7 @@ pub trait Outside {
 
     /// `install::read_registry`.
     unsafe fn read_registry(&mut self) {
-        unsafe { read_registry(&mut Windows) };
+        unsafe { crate::install::read_registry::read_registry_here() };
     }
     // The same for the game and for a test:
     unsafe fn normalise_path(&mut self, path: *const u8, to: *mut u8) -> Result<bool, BadInput> {

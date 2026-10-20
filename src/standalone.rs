@@ -40,7 +40,8 @@ use windows_sys::Win32::System::Diagnostics::Debug::{
     AddVectoredExceptionHandler, EXCEPTION_POINTERS,
 };
 use windows_sys::Win32::System::Memory::{
-    MEM_COMMIT, MEM_RESERVE, PAGE_EXECUTE_READWRITE, PAGE_READWRITE, VirtualAlloc, VirtualProtect,
+    MEM_COMMIT, MEM_RESERVE, PAGE_NOACCESS, PAGE_READONLY, PAGE_READWRITE, VirtualAlloc,
+    VirtualProtect,
 };
 use windows_sys::Win32::System::Threading::{ExitProcess, GetCurrentProcess, TerminateProcess};
 
@@ -61,99 +62,110 @@ fn u32_at(bytes: &[u8], at: usize) -> Result<usize, String> {
     bytes
         .get(at..at + 4)
         .map(|b| u32::from_le_bytes(b.try_into().unwrap()) as usize)
-        .ok_or_else(|| format!("the file ends before {at:#x}"))
+        .ok_or_else(|| format!("the image's data ends before {at:#x}"))
 }
 
-fn u16_at(bytes: &[u8], at: usize) -> Result<usize, String> {
-    bytes
-        .get(at..at + 2)
-        .map(|b| u16::from_le_bytes(b.try_into().unwrap()) as usize)
-        .ok_or_else(|| format!("the file ends before {at:#x}"))
-}
+/// What the program keeps of RAL.EXE (`tools/extract_image`, decoupling step B): its data
+/// sections, packed, and their relocations; its code sections only as places.
+static IMAGE_DATA: &[u8] =
+    include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/data/ral_image.bin"));
 
-unsafe fn map_game(path: &Path) -> Result<Image, String> {
-    let file = std::fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
-    let pe = u32_at(&file, 0x3C)?;
-    if file.get(pe..pe + 4) != Some(b"PE\0\0") {
-        return Err("not a program file".into());
+/// The game's image built from `IMAGE_DATA` at the places RAL.EXE would have them: the data
+/// unpacked and its addresses moved to where the image is; the code sections reserved but
+/// left without bytes (no access: a read of them faults and is reported).
+unsafe fn build_image() -> Result<Image, String> {
+    let d = IMAGE_DATA;
+    if d.get(..8) != Some(b"RC2KIMG1") {
+        return Err("the program's image data is not what it should be".into());
     }
-    let sections = u16_at(&file, pe + 6)?;
-    let optional = pe + 0x18;
-    let optional_len = u16_at(&file, pe + 0x14)?;
-    let wanted = u32_at(&file, optional + 0x1C)?;
-    let size = u32_at(&file, optional + 0x38)?;
-    let headers = u32_at(&file, optional + 0x3C)?;
-    let relocations = (
-        u32_at(&file, optional + 0x60 + 5 * 8)?,
-        u32_at(&file, optional + 0x60 + 5 * 8 + 4)?,
-    );
-    if wanted != IMAGE_BASE || relocations.1 == 0 {
-        return Err("not the game's file (its base or its relocations are not as expected)".into());
+    let (size, wanted, sections) = (u32_at(d, 8)?, u32_at(d, 12)?, u32_at(d, 16)?);
+    if wanted != IMAGE_BASE {
+        return Err("the program's image data is not the game's".into());
     }
     unsafe {
         let base = VirtualAlloc(
             std::ptr::null(),
             size,
             MEM_COMMIT | MEM_RESERVE,
-            PAGE_EXECUTE_READWRITE,
+            PAGE_READWRITE,
         ) as usize;
         if base == 0 {
             return Err("no memory for the game's image".into());
         }
-        let place = |from: usize, to: usize, len: usize| -> Result<(), String> {
-            let bytes = file
-                .get(from..from + len)
-                .ok_or("a section lies outside the file")?;
-            if to + len > size {
-                return Err("a section lies outside the image".into());
-            }
-            std::ptr::copy_nonoverlapping(bytes.as_ptr(), (base + to) as *mut u8, len);
-            Ok(())
-        };
-        place(0, 0, headers)?;
+        let mut at = 20;
         let mut code = Vec::new();
-        for n in 0..sections {
-            let s = optional + optional_len + n * 40;
-            let (virtual_len, at, raw_len, raw_at) = (
-                u32_at(&file, s + 8)?,
-                u32_at(&file, s + 12)?,
-                u32_at(&file, s + 16)?,
-                u32_at(&file, s + 20)?,
-            );
-            place(raw_at, at, raw_len.min(file.len().saturating_sub(raw_at)))?;
-            if u32_at(&file, s + 36)? & 0x2000_0020 != 0 {
-                code.push((base + at, virtual_len));
+        let mut pieces: Vec<(usize, usize)> = Vec::new();
+        for _ in 0..sections {
+            let (rva, len, flags) = (u32_at(d, at)?, u32_at(d, at + 4)?, u32_at(d, at + 8)?);
+            at += 12;
+            if flags & 1 != 0 {
+                code.push((base + rva, len));
             }
-        }
-        // The relocations: blocks of (page, size, entries of kind << 12 | offset).
-        let delta = base.wrapping_sub(wanted) as u32;
-        let (mut block, end) = (relocations.0, relocations.0 + relocations.1);
-        if end > size {
-            return Err("the relocations lie outside the image".into());
-        }
-        let mut moved = 0u32;
-        while block + 8 <= end {
-            let page = ((base + block) as *const u32).read_unaligned() as usize;
-            let len = ((base + block + 4) as *const u32).read_unaligned() as usize;
-            if len < 8 || block + len > end {
-                break;
-            }
-            for n in 0..(len - 8) / 2 {
-                let entry = ((base + block + 8 + n * 2) as *const u16).read_unaligned() as usize;
-                match entry >> 12 {
-                    0 => {}
-                    3 if page + (entry & 0xFFF) + 4 <= size => {
-                        let at = (base + page + (entry & 0xFFF)) as *mut u32;
-                        at.write_unaligned(at.read_unaligned().wrapping_add(delta));
-                        moved += 1;
+            // the data among the code (IDA's: the log's month names, jump tables)
+            if flags & 4 != 0 {
+                let count = u32_at(d, at)?;
+                at += 4;
+                for _ in 0..count {
+                    let (place, n) = (u32_at(d, at)?, u32_at(d, at + 4)?);
+                    at += 8;
+                    let bytes = d.get(at..at + n).ok_or("the image's data is cut short")?;
+                    if place + n > size {
+                        return Err("a piece lies outside the image".into());
                     }
-                    kind => return Err(format!("a relocation of kind {kind}")),
+                    std::ptr::copy_nonoverlapping(bytes.as_ptr(), (base + place) as *mut u8, n);
+                    pieces.push((base + place, n));
+                    at += n;
                 }
             }
-            block += len;
+            if flags & 2 == 0 {
+                continue;
+            }
+            let raw = u32_at(d, at)?;
+            at += 4;
+            let mut done = 0;
+            while done < raw {
+                let (zeros, literal) = (u32_at(d, at)?, u32_at(d, at + 4)?);
+                at += 8;
+                let bytes = d
+                    .get(at..at + literal)
+                    .ok_or("the image's data is cut short")?;
+                let to = rva + done + zeros;
+                if to + literal > size {
+                    return Err("a section lies outside the image".into());
+                }
+                std::ptr::copy_nonoverlapping(bytes.as_ptr(), (base + to) as *mut u8, literal);
+                at += literal;
+                done += zeros + literal;
+            }
+        }
+        let delta = base.wrapping_sub(wanted) as u32;
+        let relocations = u32_at(d, at)?;
+        at += 4;
+        for _ in 0..relocations {
+            let place = u32_at(d, at)?;
+            at += 4;
+            if place + 4 > size {
+                return Err("a relocation lies outside the image".into());
+            }
+            let p = (base + place) as *mut u32;
+            p.write_unaligned(p.read_unaligned().wrapping_add(delta));
+        }
+        if d.get(at..at + 4) != Some(b"END!") {
+            return Err("the image's data does not end where it should".into());
+        }
+        // The code: no access, but the pages that hold data among it read only (the rest of
+        // such a page reads as 0).
+        for &(at, len) in &code {
+            let mut old = 0;
+            VirtualProtect(at as *const _, len, PAGE_NOACCESS, &mut old);
+        }
+        for &(at, len) in &pieces {
+            let first = at & !0xFFF;
+            let mut old = 0;
+            VirtualProtect(first as *const _, at + len - first, PAGE_READONLY, &mut old);
         }
         log(&format!(
-            "standalone: the game's image is at {base:#x} ({size:#x} bytes, {moved} addresses moved)"
+            "standalone: the game's image is at {base:#x} ({size:#x} bytes, {relocations} addresses moved; no code of RAL.EXE)"
         ));
         Ok(Image { base, size, code })
     }
@@ -178,50 +190,54 @@ fn in_code(address: usize) -> bool {
 
 // ---- the hooks, and no execution of anything else ----
 
+/// The game's empty functions (a lone `retn`; from IDA, 2026-10-19; and 0x48558A, `pusha;
+/// popa; retn` in a draw list): a call to one is done.
+const LONE_RETN: [usize; 119] = [
+    0x40AC76, 0x40CB09, 0x40CF32, 0x40D27E, 0x41E2F5, 0x428D74, 0x428DB2, 0x429823, 0x429B17,
+    0x429B18, 0x436832, 0x436B97, 0x436B98, 0x439329, 0x439593, 0x43DFB0, 0x44326C, 0x443471,
+    0x44347E, 0x443DB9, 0x44403F, 0x444F54, 0x445AF0, 0x4467C6, 0x446993, 0x44DEA9, 0x44E1C0,
+    0x44E76A, 0x44E776, 0x44E777, 0x44EB65, 0x44FF1A, 0x450222, 0x450A4A, 0x454F61, 0x454FEF,
+    0x4554C9, 0x456091, 0x457F2F, 0x457F82, 0x45836E, 0x45840D, 0x45A854, 0x45BBFA, 0x45BECC,
+    0x45C550, 0x45CCD3, 0x45D254, 0x465A3D, 0x465A3E, 0x465AB5, 0x465AB6, 0x465D78, 0x467BD5,
+    0x46D0F7, 0x47019D, 0x47019E, 0x471391, 0x4713DD, 0x471C80, 0x471C81, 0x475C0B, 0x4907B8,
+    0x4907B9, 0x4A94E9, 0x4A94EA, 0x4A94EB, 0x4A9678, 0x4B695B, 0x4B7ED9, 0x4B9789, 0x4BA849,
+    0x4BA84A, 0x4BA84B, 0x4BAC86, 0x4BD018, 0x4BD121, 0x4BEF98, 0x4BEFD1, 0x4C072A, 0x4C07DA,
+    0x4C08B9, 0x4C08BA, 0x4C1162, 0x4C16F8, 0x4C21EB, 0x4C25F5, 0x4C2DDA, 0x4C3901, 0x4C39D4,
+    0x4C4E14, 0x4C4E15, 0x4C4E16, 0x4C4E17, 0x4C4E18, 0x4C4E19, 0x4C4E1A, 0x4C4E1B, 0x4C4E2E,
+    0x4C4EA0, 0x4C4EA1, 0x4C4FFA, 0x4C65BF, 0x4C65C0, 0x4C65C1, 0x4C74D9, 0x4C8167, 0x4C9699,
+    0x4C9AF5, 0x4CAE5B, 0x4CB795, 0x4D0BA7, 0x4D0BA8, 0x4D0EB3, 0x4D1710, 0x4D2C9A, 0x4D5C40,
+    0x4D6AE4, 0x48558A,
+];
+
 /// Every hook's place and name.
 static HOOKED: OnceLock<Vec<(usize, &'static str)>> = OnceLock::new();
-const JUMP_LEN: usize = 5;
 
 unsafe fn install_and_lock(image: &Image) -> Result<(), String> {
-    let installed = crate::install_all(image.base);
-    let mut hooks: Vec<&'static dyn GameHook> = ALL
+    // No code to patch: every hooked address goes to its hook's thunk, the platform's
+    // functions taking the places of the game's.
+    let installed = crate::mark_all_installed(image.base);
+    let hooks: Vec<&'static dyn GameHook> = ALL
         .iter()
         .zip(&installed)
         .filter(|&(_, &ok)| ok)
         .map(|(hook, _)| *hook)
+        .chain(crate::platform::HOOKS.iter().copied())
+        .chain(crate::platform_3d::HOOKS.iter().copied())
         .collect();
-    // The platform's functions take the places of the game's.
-    for hook in crate::platform::HOOKS
-        .iter()
-        .chain(crate::platform_3d::HOOKS)
-    {
-        match unsafe { hook.install(image.base + hook.rva()) } {
-            Ok(()) => hooks.push(*hook),
-            Err(e) => return Err(format!("the platform's {}: {e}", hook.name())),
-        }
-    }
     // `call_game` goes straight to a hook's thunk, and a hook's "original" is an
     // address inside the hooked function, which faults and names the hook.
     let mut thunks = std::collections::HashMap::new();
     let mut hooked = Vec::new();
     for hook in &hooks {
         let address = image.base + hook.rva();
-        match unsafe { thunk_of(address) } {
-            Some(thunk) => thunks.insert(address, thunk),
-            None => return Err(format!("the hook {} has no jump", hook.name())),
-        };
+        thunks.insert(address, hook.thunk());
         hook.set_original(address + 1);
         hooked.push((address, hook.name()));
     }
     let _ = CALL_REDIRECT.set(thunks);
     STANDALONE.store(true, Ordering::Relaxed);
-    let mut old = 0;
-    if unsafe { VirtualProtect(image.base as *const _, image.size, PAGE_READWRITE, &mut old) } == 0
-    {
-        return Err("the game's image cannot be kept from running".into());
-    }
     log(&format!(
-        "standalone: {} hooks installed, {} of them the platform's; the game's image is data only",
+        "standalone: {} hooks in place, {} of them the platform's; the game's image is data only",
         hooked.len(),
         crate::platform::HOOKS.len() + crate::platform_3d::HOOKS.len()
     ));
@@ -229,14 +245,9 @@ unsafe fn install_and_lock(image: &Image) -> Result<(), String> {
     Ok(())
 }
 
-/// Where a hook's jump leads: its thunk.
-unsafe fn thunk_of(hook: usize) -> Option<usize> {
-    unsafe {
-        ((hook as *const u8).read() == 0xE9).then(|| {
-            let distance = ((hook + 1) as *const i32).read_unaligned();
-            (hook + JUMP_LEN).wrapping_add(distance as usize)
-        })
-    }
+/// A hooked address's thunk.
+fn thunk_of(hook: usize) -> Option<usize> {
+    CALL_REDIRECT.get().and_then(|t| t.get(&hook).copied())
 }
 
 // ---- what the faults catch ----
@@ -397,6 +408,15 @@ unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {
         // A call or jump into the game's image faults at the address it went to.
         let ran_into_game = ida(address).is_some() && context.Eip as usize == address;
         if !ran_into_game {
+            // Rust reading the game's code, which the standalone does not have (step B's audit)
+            let read = record.ExceptionInformation[1];
+            if record.ExceptionInformation[0] == 0 && in_code(read) {
+                log(&format!(
+                    "standalone: Rust read RAL.EXE's code bytes at {:#x}, which the program does not have; return addresses on the stack: {}",
+                    ida(read).unwrap_or(0),
+                    stack_returns(context.Esp as usize)
+                ));
+            }
             log(&format!(
                 "standalone: the fault is in {}; return addresses on the stack: {}",
                 in_module(address).unwrap_or_else(|| "no module".into()),
@@ -456,7 +476,7 @@ unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {
         }
         // An empty function of the game's (a lone `retn`, `nullsub_6` 0x44347E): it does
         // nothing, so nothing is skipped by not running it.
-        if in_code(address) && (address as *const u8).read() == 0xC3 {
+        if LONE_RETN.contains(&at) {
             let from = (context.Esp as *const u32).read_unaligned();
             context.Eip = from;
             context.Esp += 4;
@@ -537,13 +557,19 @@ unsafe fn start() {
         }
         // The folders the game saves into but never makes (`notes`: `sub_413A97` makes
         // them only from the installer's script): made here when missing, in the game's
-        // folder, as the path templates at 0x5296FB .. 0x52974B name them.
-        for folder in [
-            "savedata\\savegame",
-            "savedata\\carsetup",
-            "savedata\\snapshot",
-            "savedata\\replay",
-        ] {
+        // folder, as the path templates at 0x5296FB .. 0x52974B name them; not in the
+        // download folder, where the program is the installer.
+        let folders: &[&str] = if crate::install::portable::is_source_folder() {
+            &[]
+        } else {
+            &[
+                "savedata\\savegame",
+                "savedata\\carsetup",
+                "savedata\\snapshot",
+                "savedata\\replay",
+            ]
+        };
+        for &folder in folders {
             if !Path::new(folder).is_dir() {
                 match std::fs::create_dir_all(folder) {
                     Ok(()) => log(&format!("standalone: made the folder {folder}")),
@@ -608,13 +634,20 @@ unsafe fn start() {
 /// Maps the game's file, installs the hooks and goes through `start`. The current
 /// directory has to be the game's. Does not come back.
 /// `frames`, if not 0: the program ends itself after that many frames were shown.
-pub fn run(game: &Path, log_file: &Path, frames: u32) -> ! {
+pub fn run(log_file: &Path, frames: u32) -> ! {
     crate::platform::FRAMES_TO_SHOW.store(frames, Ordering::SeqCst);
     crate::platform::start_threads();
     crate::platform_input::SdlBackend::start();
+    // Absolute: the installer changes the current folder (`install::make_folders`).
+    let log_file = &std::path::absolute(log_file).unwrap_or_else(|_| log_file.to_path_buf());
     let _ = std::fs::File::create(log_file);
     let _ = LOG_PATH.set(log_file.to_path_buf());
-    let image = match unsafe { map_game(game) } {
+    // A panic in a hook's dispatch ends the program at once (it cannot unwind out of an
+    // `extern "C"` function): say where first.
+    std::panic::set_hook(Box::new(|info| {
+        log(&format!("standalone: panic: {info}"));
+    }));
+    let image = match unsafe { build_image() } {
         Ok(image) => image,
         Err(why) => {
             log(&format!("standalone: {why}"));

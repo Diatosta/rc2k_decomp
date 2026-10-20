@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # deploy_standalone.sh
 # Builds the program that runs the ported code without the game's code (rc2k.exe) and
-# copies it, with SDL3.dll and FFmpeg's avcodec and avutil, to the game's folder: the one that holds RAL.EXE, which the
-# program reads its data from when it starts. That folder is STANDALONE_DIR if
-# deploy.local sets it, else the folder above GAME_DIR.
+# copies it, with SDL3.dll and FFmpeg's avcodec and avutil, to the game's folder (its
+# `files\` and `var\`; RAL.EXE's own data is built into rc2k.exe since 2026-10-19). That
+# folder is STANDALONE_DIR if deploy.local sets it, else the folder above GAME_DIR.
 # Start it there: `wine rc2k.exe` (it writes rc2k.log next to itself).
 set -euo pipefail
 
@@ -19,7 +19,6 @@ DEST="${STANDALONE_DIR:-$GAME_DIR/..}"
 cargo xwin build --release --xwin-arch x86 --target i686-pc-windows-msvc \
     --features standalone --bin rc2k
 
-[ -f "$DEST/RAL.EXE" ] || echo "note: there is no RAL.EXE in $DEST; rc2k.exe needs it (or its path as an argument)"
 
 cp --remove-destination target/i686-pc-windows-msvc/release/rc2k.exe "$DEST/"
 cp --remove-destination third_party/sdl3/lib/x86/SDL3.dll "$DEST/"

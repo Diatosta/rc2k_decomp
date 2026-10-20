@@ -144,9 +144,46 @@ unsafe fn label(id: u32) -> Vec<u8> {
     out
 }
 
+/// Where the top-speed row's values are in the selected record, and the y its car's sprite
+/// is drawn at: the stage panels' (`draw_stage_records`) and the time trial's
+/// (`screens::draw_time_trial_records` 0x48DE45, whose car sprite sits on the first row's
+/// y, sic).
+pub struct Rows {
+    pub nationality: u32,
+    pub name: u32,
+    pub car: u32,
+    pub speed: u32,
+    pub car_y: i32,
+}
+
+pub const STAGE_ROWS: Rows = Rows {
+    nationality: 0x74,
+    name: 0x54,
+    car: 0x78,
+    speed: 0x30,
+    car_y: ROW_2_Y,
+};
+
+pub const TIME_TRIAL_ROWS: Rows = Rows {
+    nationality: 0x9C,
+    name: 0x7C,
+    car: 0xA0,
+    speed: 0x2C,
+    car_y: ROW_1_Y,
+};
+
 /// Returns the carry flag of the last `draw_text`. Refuses a missing record table and what
 /// the speed formatter refuses; the fatal errors are the blitter's.
 pub unsafe fn draw_stage_records(entry: u32, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+    unsafe { draw_records_rows(entry, &STAGE_ROWS, canvas) }
+}
+
+/// `draw_stage_records` with the top-speed row's places given.
+pub unsafe fn draw_records_rows(
+    entry: u32,
+    rows: &Rows,
+    canvas: &mut dyn Canvas,
+) -> Result<bool, Refused> {
     unsafe {
         // Without it the original reads through a null pointer after drawing the first row.
         let Some((record, sub)) = selected_record() else {
@@ -180,13 +217,13 @@ pub unsafe fn draw_stage_records(entry: u32, canvas: &mut dyn Canvas) -> Result<
         draw_time_fixed_pitch_at(font_at(TIME_FONT), line_buffer(), TIME_X, ROW_1_Y, canvas)?;
 
         // Top speed: the selected record. Here ebx is the selection's third value.
-        let flag = 0x1Cu32.wrapping_add(dword(record.wrapping_add(0x74)));
+        let flag = 0x1Cu32.wrapping_add(dword(record.wrapping_add(rows.nationality)));
         sprite(canvas, flag, FLAG_X, ROW_2_Y, sub)?;
-        let name = record.wrapping_add(0x54) as *const u8;
+        let name = record.wrapping_add(rows.name) as *const u8;
         let out = draw_text_at(text_font, name, NAME_X, ROW_2_Y, canvas)?;
-        let car = car_sprite(dword(record.wrapping_add(0x78)));
-        sprite(canvas, car, CAR_X, ROW_2_Y, out.text as u32)?;
-        let mut speed = append_speed(dword(record.wrapping_add(0x30)), true, units())?;
+        let car = car_sprite(dword(record.wrapping_add(rows.car)));
+        sprite(canvas, car, CAR_X, rows.car_y, out.text as u32)?;
+        let mut speed = append_speed(dword(record.wrapping_add(rows.speed)), true, units())?;
         speed.push(0);
         set_line(&speed);
         let out = draw_text_at(text_font, line_buffer(), SPEED_X, ROW_2_Y, canvas)?;
@@ -203,21 +240,31 @@ unsafe fn line_area() -> Vec<u8> {
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if blanked(HOOK.name()) {
+    dispatch_rows(&HOOK, r, call_original, &STAGE_ROWS);
+}
+
+/// The dispatch of a records drawer (this one, `screens::draw_time_trial_records`).
+pub fn dispatch_rows(
+    hook: &RawHook,
+    r: &mut Regs,
+    call_original: crate::screens::harness::CallOriginal,
+    rows: &Rows,
+) {
+    hook.count_call();
+    if blanked(hook.name()) {
         return;
     }
     let entry = r.edi;
 
     if !shadow() {
-        match unsafe { draw_stage_records(entry, &mut GameCanvas) } {
+        match unsafe { draw_records_rows(entry, rows, &mut GameCanvas) } {
             Ok(too_wide) => {
                 r.set_carry(too_wide);
                 r.set_zero(!too_wide);
             }
             // The original, run from the start, redraws the same things and meets the same
             // error.
-            Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
+            Err(e) => unsafe { crate::fatal::raise::refused(hook, e, r, call_original) },
         }
         return;
     }
@@ -225,10 +272,10 @@ extern "C" fn dispatch(r: &mut Regs) {
     // Shadow: Rust goes through the motions in the line buffer and lists its blitter calls;
     // the original then does it again and really draws.
     let mut canvas = RecordingCanvas::new(true);
-    let too_wide = match unsafe { draw_stage_records(entry, &mut canvas) } {
+    let too_wide = match unsafe { draw_records_rows(entry, rows, &mut canvas) } {
         Ok(value) => value,
         Err(e) => {
-            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
+            unsafe { crate::fatal::raise::refused(hook, e, r, call_original) };
             return;
         }
     };
@@ -244,7 +291,7 @@ extern "C" fn dispatch(r: &mut Regs) {
         && unsafe { *state_ptr() } == canvas.state
         && (!recording_works() || calls == canvas.calls);
     if !ok {
-        HOOK.mismatch(|| {
+        hook.mismatch(|| {
             format!(
                 "entry={entry:#x}: original carry={} calls={} rust carry={too_wide} calls={} same_line_buffer={}",
                 o.carry(),
@@ -264,7 +311,16 @@ extern "C" fn dispatch(r: &mut Regs) {
 // restored.
 
 fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
+    test_rows(&HOOK, call_original, &STAGE_ROWS)
+}
+
+/// The self-test of a records drawer.
+pub fn test_rows(
+    hook: &RawHook,
+    call_original: crate::screens::harness::CallOriginal,
+    rows: &Rows,
+) -> (usize, usize) {
+    let Some(mut t) = SelfTest::begin(hook) else {
         return (0, 0);
     };
     if !recording_works() {
@@ -307,7 +363,7 @@ fn self_test() -> (usize, usize) {
 
         unsafe { set_line(&saved_line) };
         let mut canvas = RecordingCanvas::new(false);
-        let mine = unsafe { draw_stage_records(entry.as_ptr() as u32, &mut canvas) };
+        let mine = unsafe { draw_records_rows(entry.as_ptr() as u32, rows, &mut canvas) };
         let area_r = unsafe { line_area() };
         unsafe { set_line(&saved_line) };
 

@@ -337,20 +337,54 @@ pub fn bool_flags(r: &mut Regs, result: u32) {
     cmp(r, result, 1);
 }
 
+/// Whether the standalone's install is running (its calls are logged).
+static INSTALL_TRACE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 /// The calls of the installer's Rust versions in the game: each by its callee's address.
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::install as i;
     let ida = (place as usize)
         .wrapping_sub(game_addr(0))
         .wrapping_add(0x40_0000);
+    // The standalone notes each call of the install (`install_files`) in its log.
+    if INSTALL_TRACE.load(std::sync::atomic::Ordering::Relaxed) {
+        crate::framework::log(&format!(
+            "install: call {ida:#x} eax={:#x} ebx={:#x} ecx={:#x} edx={:#x} esi={:#x} edi={:#x}",
+            r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi
+        ));
+    }
     unsafe {
         match ida {
             // the installer's own (this module's neighbours)
             0x412F34 => {
                 i::install_from_command::install_from_command(r, &mut game_part).map(|_| ())?
             }
-            0x4130CD => i::install_files::install_files(r, &mut game_part).map(|_| ())?,
-            0x4134DF => i::uninstall::uninstall(r, &mut game_part).map(|_| ())?,
+            0x4130CD => {
+                let trace = crate::framework::standalone();
+                INSTALL_TRACE.store(trace, std::sync::atomic::Ordering::Relaxed);
+                let done = i::install_files::install_files(r, &mut game_part);
+                INSTALL_TRACE.store(false, std::sync::atomic::Ordering::Relaxed);
+                if trace {
+                    crate::framework::log(&format!(
+                        "install: the install ended: {:?}",
+                        done.as_ref().map(|_| ())
+                    ));
+                }
+                done.map(|_| ())?
+            }
+            0x4134DF => {
+                let trace = crate::framework::standalone();
+                INSTALL_TRACE.store(trace, std::sync::atomic::Ordering::Relaxed);
+                let done = i::uninstall::uninstall(r, &mut game_part);
+                INSTALL_TRACE.store(false, std::sync::atomic::Ordering::Relaxed);
+                if trace {
+                    crate::framework::log(&format!(
+                        "install: the uninstall ended: {:?}",
+                        done.as_ref().map(|_| ())
+                    ));
+                }
+                done.map(|_| ())?
+            }
             0x413629 => *r = i::open_installed::open_installed(r, &mut game_part)?,
             0x41365D => i::run_script::run_script(r, &mut game_part).map(|_| ())?,
             0x41371C => i::list_folder_tree::list_folder_tree(r, &mut game_part).map(|_| ())?,
@@ -419,7 +453,8 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             // the game's, Rust
             READ_LANGUAGES => i::read_languages::read_languages(a(0x51C36E) as *const u8)?,
             READ_RECORD => i::read_record::read_record(a(0x5295C0) as *const u8)?,
-            READ_REGISTRY => i::read_registry::read_registry(&mut i::read_registry::Windows),
+            // the registry, or in the standalone the portable record
+            READ_REGISTRY => i::read_registry::read_registry_here(),
             CHOOSE_LANGUAGE => i::choose_language::choose_language(r.eax)?,
             NORMALISE => {
                 let written =
@@ -660,6 +695,12 @@ pub const GET_DISK_FREE: u32 = 0x4D5D2E; // GetDiskFreeSpaceA (5)
 /// section 15).
 pub fn game_api(place: u32, x: &[u32]) -> u32 {
     use windows_sys::Win32::System::Registry as reg;
+    // The standalone is portable: no registry (`install::portable`).
+    if crate::framework::standalone()
+        && let Some(answer) = crate::install::portable::api(place, x)
+    {
+        return answer;
+    }
     unsafe {
         match place {
             REG_CREATE_KEY => reg::RegCreateKeyA(x[0] as _, x[1] as _, x[2] as _) as u32,

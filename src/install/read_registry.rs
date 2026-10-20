@@ -134,8 +134,17 @@ fn regions() -> [Region; 3] {
     ]
 }
 
+/// The registry, or in the standalone the portable record (`install::portable`).
+pub unsafe fn read_registry_here() {
+    if crate::framework::standalone() {
+        unsafe { read_registry(&mut crate::install::portable::Portable) };
+    } else {
+        unsafe { read_registry(&mut Windows) };
+    }
+}
+
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { read_registry(&mut Windows) };
+    unsafe { read_registry_here() };
     Ok(Left::nothing())
 }
 

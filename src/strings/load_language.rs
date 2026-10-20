@@ -299,7 +299,9 @@ pub unsafe fn load_language(
         correct_lexicon()?;
 
         game_write(REGISTRATION_RVA, 0u32);
+        // The standalone offers no registration (owner, 2026-10-19).
         if kind == 2
+            && !crate::framework::standalone()
             && !built(0x57C, false)?.is_empty()
             && file_exists(game_addr(REGISTRATION_PROGRAM_RVA) as *const u8)?
         {

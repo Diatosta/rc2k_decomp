@@ -180,6 +180,10 @@ pub fn install_files(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     }
     set_al(&mut r, rb(a(GAME_DIR)));
     part(at(IS_CD), &mut r)?;
+    // The standalone installs from the download folder as well (owner, 2026-10-20).
+    if crate::framework::standalone() {
+        r.set_zero(true);
+    }
     if r.eflags & crate::framework::ZERO_FLAG == 0 {
         pb(LIST_ANSWER, 3);
         return Ok(*entry);

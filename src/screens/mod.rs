@@ -19,6 +19,7 @@ pub mod car_pages;
 pub mod championship_table;
 pub mod classify_controller;
 pub mod controller;
+pub mod draw_arcade_stage_title;
 pub mod draw_background_band;
 pub mod draw_best_scores;
 pub mod draw_best_scores_page;
@@ -28,6 +29,7 @@ pub mod draw_button;
 pub mod draw_button_alt;
 pub mod draw_button_highlighted;
 pub mod draw_car_figures;
+pub mod draw_championship_standings;
 pub mod draw_championship_table;
 pub mod draw_class_ranking;
 pub mod draw_class_times;
@@ -82,6 +84,7 @@ pub mod draw_save_setup_list;
 pub mod draw_savegame_details;
 pub mod draw_savegame_names;
 pub mod draw_savegame_preview;
+pub mod draw_section_best_times;
 pub mod draw_selected_stage_menu;
 pub mod draw_service_area;
 pub mod draw_service_boxes;
@@ -100,7 +103,9 @@ pub mod draw_stage_times_heading;
 pub mod draw_steering_sensitivity_marker;
 pub mod draw_suspension_stiffness_installed_marker;
 pub mod draw_suspension_stiffness_marker;
+pub mod draw_time_trial_records;
 pub mod draw_time_trial_stage_info;
+pub mod draw_time_trial_stage_select;
 pub mod draw_two_column_panel;
 pub mod draw_visual_preferences;
 pub mod draw_volume_settings;
@@ -122,6 +127,7 @@ pub mod player_number_text;
 pub mod players_results;
 pub mod read_controller;
 pub mod replay_range_caption;
+pub mod results_pages;
 pub mod savegame_page_numbers;
 pub mod savegame_preview;
 pub mod service_area_frame;
@@ -141,6 +147,11 @@ pub mod stage_results;
 pub mod yes_no_caption;
 
 pub static HOOKS: &[&dyn GameHook] = &[
+    &draw_arcade_stage_title::HOOK,
+    &draw_section_best_times::HOOK,
+    &draw_time_trial_records::HOOK,
+    &draw_time_trial_stage_select::HOOK,
+    &draw_championship_standings::HOOK,
     &draw_fade_overlay::HOOK,
     &draw_service_boxes::HOOK,
     &draw_stage_heading::HOOK,

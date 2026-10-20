@@ -44,7 +44,7 @@ pub const GROUP_COPY_RVA: usize = rva(0x75ACF0); // dword_75ACF0: copy of the se
 pub const SECOND_HEADING_RVA: usize = rva(0xA8BD54); // byte_A8BD54: the 0x482 heading text
 pub const MENU_PTR_RVA: usize = rva(0x75558D); // dword_75558D: the current menu
 
-const BEST_TIME_ENTRY_SIZE: u32 = 0x618;
+pub const BEST_TIME_ENTRY_SIZE: u32 = 0x618;
 const SECOND_HEADING_STRING: u32 = 0x482;
 
 pub const TITLE_FONT: usize = 0x51E9A4;

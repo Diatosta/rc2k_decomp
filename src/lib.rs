@@ -214,6 +214,15 @@ fn console_loop(input: File, mut out: File, mut enabled: Vec<bool>) {
 
 /// Installs every hook on the game's code at `base`: the running game's own image, or
 /// the copy of it `standalone` has mapped.
+/// The standalone program's: every hook counted as in place at `base` (its image holds no
+/// code to patch: `standalone.rs` sends each hooked address to the hook's thunk).
+pub fn mark_all_installed(base: usize) -> Vec<bool> {
+    BASE.store(base, Ordering::Relaxed);
+    let installed = vec![true; ALL.len()];
+    let _ = INSTALLED.set(installed.clone());
+    installed
+}
+
 fn install_all(base: usize) -> Vec<bool> {
     BASE.store(base, Ordering::Relaxed);
     log(&format!(

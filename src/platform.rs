@@ -617,7 +617,7 @@ fn hot_places() -> String {
     let _ = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open("rc2k_profile.txt")
+        .open(beside_log("rc2k_profile.txt"))
         .and_then(|mut f| {
             use std::io::Write;
             write!(f, "# {total} samples\n{all}")
@@ -866,3 +866,11 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &RUN_FRAME,
     &crate::film::HOOK,
 ];
+
+/// A file of ours next to the log (the current folder can change: the installer).
+pub fn beside_log(name: &str) -> std::path::PathBuf {
+    match crate::framework::LOG_PATH.get().and_then(|p| p.parent()) {
+        Some(folder) => folder.join(name),
+        None => name.into(),
+    }
+}

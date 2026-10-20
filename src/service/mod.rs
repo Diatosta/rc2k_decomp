@@ -23,6 +23,7 @@ pub mod edit_suspension_stiffness;
 pub mod edit_tyre;
 pub mod handle_edit_keys;
 pub mod harness;
+pub mod load_background;
 pub mod load_setup_slot;
 pub mod load_setup_values;
 pub mod next_setup_page;
@@ -61,6 +62,7 @@ pub mod update_repair_total;
 pub mod write_setup_slot;
 
 pub static HOOKS: &[&dyn GameHook] = &[
+    &load_background::HOOK,
     &load_setup_values::HOOK,
     &choose_repair::HOOK,
     &choose_repair_marked::HOOK,

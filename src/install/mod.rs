@@ -8,8 +8,10 @@ pub mod check_at_start;
 pub mod check_clio_disc;
 pub mod check_test;
 pub mod choose_language;
+pub mod end_text_line;
 pub mod normalise_path;
 pub mod outside;
+pub mod portable;
 pub mod read_languages;
 pub mod read_record;
 pub mod read_registry;
@@ -46,6 +48,7 @@ pub mod folder_page;
 pub mod ignore_room;
 pub mod install_clio;
 pub mod install_files;
+pub mod install_frames;
 pub mod install_from_command;
 pub mod item_action;
 pub mod item_enter;
@@ -80,6 +83,7 @@ pub mod run_pages;
 pub mod run_script;
 pub mod script_name;
 pub mod set_lobby_value;
+pub mod shortcuts;
 pub mod show_backdrop;
 pub mod start_edit;
 pub mod uninstall;
@@ -146,6 +150,7 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &mode_page::HOOK,
     &next_edit::HOOK,
     &open_installed::HOOK,
+    &end_text_line::HOOK,
     &open_installer::HOOK,
     &page_key::HOOK,
     &place_pieces::HOOK,

@@ -57,6 +57,10 @@ const READ_PCX_AT: usize = 0x51;
 const READ_PCX_ENTRY: [u8; 8] = [0x60, 0x50, 0x8D, 0x1D, 0xF4, 0xB5, 0x51, 0x00];
 
 fn copy_is_sound() -> bool {
+    // The standalone has no original (nor its bytes): the Rust version runs alone there.
+    if crate::framework::standalone() {
+        return false;
+    }
     let copy = ORIGINAL.load(Ordering::SeqCst);
     copy != 0 && unsafe { ((copy + READ_PCX_AT) as *const [u8; 8]).read() } == READ_PCX_ENTRY
 }
@@ -131,7 +135,7 @@ extern "C" fn dispatch(r: &mut Regs) {
     let path = r.eax as *mut u8;
     if !copy_is_sound() {
         // The original cannot be run: the Rust version alone, whatever the mode.
-        if !SAID_UNSOUND.swap(true, Ordering::SeqCst) {
+        if !crate::framework::standalone() && !SAID_UNSOUND.swap(true, Ordering::SeqCst) {
             log(
                 "gfx::read_picture_file: its copy of the original is not usable (hooked after read_pcx?); the Rust version runs alone",
             );

@@ -86,7 +86,13 @@ pub fn check_installed_version(entry: &Regs, part: Part) -> Result<Regs, Refused
         return Ok(*entry);
     }
     unsafe { crate::system::zero_memory::zero_memory(a(BUF) as *mut u8, 0x10000) }?;
-    r.eax = a(RAL_EXE);
+    // The standalone checks its own program (the same version text is in its built-in
+    // image).
+    r.eax = if crate::framework::standalone() {
+        crate::install::run_after_exit::RC2K.as_ptr() as u32
+    } else {
+        a(RAL_EXE)
+    };
     r.ebx = 0;
     part(at(OPEN), &mut r)?;
     if !r.carry() {
