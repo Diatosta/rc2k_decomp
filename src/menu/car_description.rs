@@ -9,48 +9,7 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::game_read;
 use crate::scene::carousel_pictures::ENTRIES_RVA;
 
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct CarDescription {
-    /// The car's number: its pictures, background, slides and stream go by it.
-    pub car: u32,
-    /// String: the car's name.
-    pub name: u32,
-    pub field_8: u32,
-    /// Cubic centimetres.
-    pub capacity: u32,
-    /// String.
-    pub engine_type: u32,
-    pub power: u32,
-    pub power_rpm: u32,
-    pub torque: u32,
-    pub torque_rpm: u32,
-    pub bore: u32,
-    pub stroke: u32,
-    /// String.
-    pub compression: u32,
-    /// Strings.
-    pub transmission: u32,
-    pub drive: u32,
-    pub steering: u32,
-    pub front_brake_size: u32,
-    pub rear_brake_size: u32,
-    /// Strings.
-    pub front_brakes: u32,
-    pub rear_brakes: u32,
-    pub front_suspension: u32,
-    pub rear_suspension: u32,
-    pub length: u32,
-    pub width: u32,
-    pub height: u32,
-    pub wheelbase: u32,
-    pub front_track: u32,
-    pub rear_track: u32,
-    pub weight: u32,
-    /// String: the first of the seven lines of its description.
-    pub description: u32,
-    pub field_74: u32,
-}
+pub use rc2k_core::car_pages::CarDescription;
 
 const _: () = assert!(std::mem::size_of::<CarDescription>() == 0x78);
 

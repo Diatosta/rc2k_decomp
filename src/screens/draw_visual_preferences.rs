@@ -18,12 +18,10 @@ use crate::framework::{RawHook, Regs, SelfTest, game_write, hook_asm, rva};
 use crate::menu::player::{PLAYERS, Player, player_at};
 use crate::menu::player_settings::current;
 use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::font_at;
 use crate::screens::harness::{Left, check_draw, dispatch_draw, push_dwords};
 use crate::service::harness::{Region, at, capture, restore};
 use crate::service::state::PLAYER_INDEX_RVA;
 use crate::strings::text_from_ids::{TEXT_LEN, text};
-use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::Canvas;
 use std::sync::atomic::AtomicUsize;
 
@@ -47,7 +45,6 @@ hook_asm!(
 // ---- game data ----
 
 const ID_RVA: usize = rva(0x7559EC); // dword_7559EC
-const FONT: usize = 0x51E8C4;
 const NO: u32 = 0x56B;
 const IMPERIAL: u32 = 0x373;
 
@@ -70,17 +67,13 @@ fn rows(p: &Player) -> [(u32, u32); 9] {
 
 /// Returns the carry.
 pub unsafe fn draw_visual_preferences(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+    // Converted: `rc2k_core::settings_pages::visual_preferences`.
     let player = unsafe { current()?.read_unaligned() };
-    let mut carry = false;
-    for (row, (value, first)) in rows(&player).into_iter().enumerate() {
-        let id = value.wrapping_add(first);
-        unsafe {
-            game_write(ID_RVA, id);
-            let y = 0xC8 + row as i32 * 0x1D;
-            carry = draw_string_by_id_at(id, font_at(FONT), 0x1D1, y, canvas)?.too_wide;
-        }
-    }
-    Ok(carry)
+    let ids = rows(&player).map(|(value, first)| value.wrapping_add(first));
+    rc2k_core::settings_pages::visual_preferences(
+        &mut crate::screens::game_screen::SettingsScreen::new(canvas),
+        ids,
+    )
 }
 
 // ---- hook ----

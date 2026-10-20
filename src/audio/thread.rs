@@ -260,6 +260,7 @@ fn turn_part(place: u32, r: &mut Regs) -> Result<bool, Refused> {
                     &update_voices::Vars::game(),
                     &mut update_voices::game_part,
                 )?;
+                crate::audio::stray_voices::check();
                 false
             }
             12 => {

@@ -9,14 +9,14 @@
 //! and 15. Refuses a page past the third: the table has 100 names.
 //! Called by `draw_save_setup_list` and `draw_load_setup_list`.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::screens::font_is_loaded;
 use crate::screens::harness::{Left, check_draw, dispatch_draw, drawing_unavailable, push_dwords};
-use crate::screens::{font_at, font_is_loaded};
 use crate::service::harness::{at, capture, restore};
 use crate::service::load_setup_slot::SLOT_PAGE_RVA;
 use crate::service::read_setup_slot::{NAME_LEN, slot_name};
-use crate::text::draw_text::{Canvas, draw_text_at};
+use crate::text::draw_text::Canvas;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -44,34 +44,21 @@ const ROW_RVA: usize = rva(0x7559EC); // dword_7559EC: a work variable, here the
 
 pub const FONT: usize = 0x51E8A4;
 pub const COLUMNS: [i32; 2] = [0xE9, 0x238];
-const FIRST_Y: i32 = 0x44;
-const ROW_STEP: i32 = 0x1D;
 const ROWS: u32 = 15;
 pub const PAGES: u32 = 3;
 
 // ---- Rust version ----
 
 pub unsafe fn draw_setup_slot_names(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    // Converted: `rc2k_core::slot_lists::names`.
     let page: u32 = unsafe { game_read(SLOT_PAGE_RVA) };
-    if page >= PAGES {
-        return Err(BadInput("slot page past the name table").into());
-    }
-    let mut slot = page * ROWS * 2;
-    for x in COLUMNS {
-        unsafe {
-            game_write(X_RVA, x);
-            game_write(Y_RVA, FIRST_Y);
-            game_write(ROW_RVA, 0u32);
-            for row in 0..ROWS {
-                let y = FIRST_Y + ROW_STEP * row as i32;
-                draw_text_at(font_at(FONT), slot_name(slot), x, y, canvas)?;
-                slot += 1;
-                game_write(Y_RVA, y + ROW_STEP);
-                game_write(ROW_RVA, row + 1);
-            }
-        }
-    }
-    Ok(())
+    rc2k_core::slot_lists::names(
+        &mut crate::screens::game_screen::SlotScreen::new(canvas),
+        &rc2k_core::slot_lists::SETUPS,
+        page,
+        |slot| slot_name(slot) as u32,
+    )
+    .map(|_| ())
 }
 
 // ---- hook ----

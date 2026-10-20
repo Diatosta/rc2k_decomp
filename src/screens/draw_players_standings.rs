@@ -16,13 +16,11 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::gfx::blit_glyph::BlitCall;
 use crate::screens::draw_menu_item_text::text_unavailable;
 use crate::screens::harness::{Left, check_draw, dispatch_draw};
-use crate::screens::{font_at, line_buffer};
+use crate::screens::line_buffer;
 use crate::service::harness::{Region, at, capture, restore};
-use crate::text::draw_string_by_id::draw_string_by_id_at;
-use crate::text::draw_text::{Canvas, draw_text_at};
+use crate::text::draw_text::Canvas;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -70,52 +68,21 @@ pub unsafe fn draw_players_standings(canvas: &mut dyn Canvas) -> Result<(), Refu
                 return Err(BadInput("a standings row without its player, name or points").into());
             }
         }
-        let font = font_at(0x51E584);
-        for (id, x) in [(0x218u32, 0xEA), (0x219, 0x132), (0x21B, 0x217)] {
-            draw_string_by_id_at(id, font, x, 0xE7, canvas)?;
-        }
-        let y = |row: usize| 0xFE + 0x17 * row as i32;
-        let mut palette = 0;
-        for row in 0..rows {
-            let name = ((table(0x75647C, row) + 0x18) as *const u32).read_unaligned();
-            palette = draw_text_at(font, name as *const u8, 0x132, y(row), canvas)?.text as u32;
-        }
-        let sprites = crate::gfx::blit_marker_pair::sprite_table();
+        // Converted: `rc2k_core::players_results::standings`.
         let field =
             |row: usize, o: u32| ((table(0x75647C, row) + o) as *const u32).read_unaligned();
-        for row in 0..rows {
-            canvas.blit_glyph(BlitCall::new(
-                0x1C + field(row, 4),
-                0x114,
-                y(row),
-                palette,
-                sprites,
-            ))?;
-        }
-        for row in 0..rows {
-            let mut flag = field(row, 8);
-            if (0x18..=0x19).contains(&flag) {
-                flag ^= 1;
-            }
-            canvas.blit_glyph(BlitCall::new(
-                flag.wrapping_add(0x44),
-                0x1DA,
-                y(row),
-                palette,
-                sprites,
-            ))?;
-        }
-        for row in 0..rows {
-            draw_string_by_id_at(0x4FE + row as u32, font, 0xEA, y(row), canvas)?;
-        }
-        for row in 0..rows {
-            let points = (table(0x7589A6, row) as *const u32).read_unaligned();
-            game_write(rva(0x7559B8), points);
-            let mut line = crate::strings::append_u32::append_u32(points);
-            line.push(0);
-            std::ptr::copy_nonoverlapping(line.as_ptr(), line_buffer(), line.len());
-            draw_text_at(font, line_buffer(), 0x217, y(row), canvas)?;
-        }
+        let rows: Vec<rc2k_core::players_results::Standing<u32>> = (0..rows)
+            .map(|row| rc2k_core::players_results::Standing {
+                name: field(row, 0x18),
+                nation: field(row, 4),
+                car: field(row, 8),
+                points: (table(0x7589A6, row) as *const u32).read_unaligned(),
+            })
+            .collect();
+        rc2k_core::players_results::standings(
+            &mut crate::screens::game_screen::GameScreen::new(canvas),
+            &rows,
+        )?;
         Ok(())
     }
 }

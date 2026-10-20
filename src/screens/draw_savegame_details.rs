@@ -33,27 +33,17 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::gfx::blit_glyph::BlitCall;
-use crate::gfx::blit_marker_pair::sprite_table;
 use crate::records::find_record::{find_record_in, has_section};
 use crate::saves::gather_savegame::CAR_LEN;
 use crate::saves::write_savegame_slot::FILE_RVA;
 use crate::screens::draw_empty_savegame::{preview_unavailable, state as text_state};
 use crate::screens::draw_stage_info::RECORD_TABLE_RVA;
 use crate::screens::harness::{Left, check_draw, dispatch_draw, push_dwords};
-use crate::screens::savegame_preview::{
-    CAR_X, FLAG_X, FONT, LEFT_X, NAME_X, NO_CAR_X, NO_ENTRY, NO_FLAG_X, NOTHING, NUMBER_COLUMNS,
-    ROWS, TITLE_FONT, TITLE_Y, draw_frame,
-};
+use crate::screens::line_buffer;
 use crate::screens::stage_panel::{dword, table_dword};
-use crate::screens::{font_at, line_buffer, set_line};
 use crate::service::harness::{Region, at, capture, restore};
-use crate::strings::append_fraction::append_fraction;
-use crate::strings::append_string_by_id::push_string;
-use crate::strings::append_u32::append_u32;
 use crate::strings::string_table::is_table_id;
-use crate::text::draw_string_by_id::draw_string_by_id_at;
-use crate::text::draw_text::{Canvas, Outcome, draw_text_at};
+use crate::text::draw_text::Canvas;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -92,45 +82,12 @@ const SECTION_TITLES_RVA: usize = rva(0x75A28A); // dword_75A28A[section]: title
 
 // ---- Rust version ----
 
-/// A number as the rows show it: "-" for a negative one.
-unsafe fn number(canvas: &mut dyn Canvas, value: u32, x: i32, y: i32) -> Result<Outcome, Refused> {
-    let mut line = if (value as i32) < 0 {
-        vec![b'-']
-    } else {
-        append_u32(value)
-    };
-    line.push(0);
-    unsafe {
-        set_line(&line);
-        Ok(draw_text_at(font_at(FONT), line_buffer(), x, y, canvas)?)
-    }
-}
-
-/// The flag and the car of a saved car, with `palette` as the original's leftover ebx.
-unsafe fn sprites(canvas: &mut dyn Canvas, car: u32, y: i32, palette: u32) -> Result<(), Refused> {
-    unsafe {
-        let flag = 0x1Cu32.wrapping_add(dword(car + 4));
-        canvas.blit_glyph(BlitCall::new(flag, FLAG_X, y, palette, sprite_table()))?;
-        let mut model = dword(car + 8);
-        if (0x18..=0x19).contains(&model) {
-            model ^= 1;
-        }
-        canvas.blit_glyph(BlitCall::new(
-            model.wrapping_add(0x44),
-            CAR_X,
-            y,
-            palette,
-            sprite_table(),
-        ))?;
-    }
-    Ok(())
-}
-
 /// Returns the carry flag of the last text drawn.
 pub unsafe fn draw_savegame_details(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+    // Converted: `rc2k_core::savegame_preview::details`; the saved game's dwords copied
+    // into the preview's variables first (the original after the frame, which reads none).
+    use rc2k_core::savegame_preview::{Car, Title, details};
     unsafe {
-        draw_frame(canvas)?;
-
         let payload = (game_addr(FILE_RVA) + PAYLOAD_OFFSET) as u32;
         for (n, at) in PREVIEW_RVAS.into_iter().enumerate() {
             game_write(at, dword(payload + 4 * n as u32));
@@ -141,68 +98,32 @@ pub unsafe fn draw_savegame_details(canvas: &mut dyn Canvas) -> Result<bool, Ref
         let index: i32 = game_read(PREVIEW_RVAS[2]);
         let section: u32 = game_read(PREVIEW_RVAS[3]);
         let mode_13 = game_read::<u32>(PREVIEW_RVAS[5]) == 0x13;
-
         let table = game_addr(RECORD_TABLE_RVA) as u32;
-        let first = find_record_in(table, 0, section);
-        let title = if mode_13 {
-            table_dword(SECTION_TITLES_RVA, section)
-        } else {
-            dword(first + 0x38)
-        };
-        let mut line = Vec::new();
-        push_string(&mut line, if mode_13 { 0x1DA } else { 0x1D9 });
-        line.extend_from_slice(b" - ");
-        push_string(&mut line, title);
-        line.push(b' ');
-        let stage = dword(find_record_in(table, index, section) + 0x40);
-        if stage != 0 {
-            line.extend(append_fraction(stage, 6));
-        }
-        line.push(0);
-        set_line(&line);
-        draw_text_at(font_at(TITLE_FONT), line_buffer(), LEFT_X, TITLE_Y, canvas)?;
-
-        let mut last = None;
-        for (row, y) in ROWS.into_iter().enumerate() {
-            let car = cars + (row * CAR_LEN) as u32;
-            // The numbers of a row; returns what the last one drawn leaves.
-            let numbers = |canvas: &mut dyn Canvas| -> Result<Outcome, Refused> {
-                number(canvas, dword(car + 0x14C), NUMBER_COLUMNS[0], y)?;
-                number(canvas, dword(car + 0x150), NUMBER_COLUMNS[1], y)?;
-                let mut out = None;
-                for (shown_if, value, x) in [
-                    (0xB0, 0x144, NUMBER_COLUMNS[2]),
-                    (0xCC, 0x148, NUMBER_COLUMNS[3]),
-                ] {
-                    out = Some(if dword(car + shown_if) == 0 {
-                        draw_string_by_id_at(NOTHING, font_at(FONT), x, y, canvas)?
-                    } else {
-                        number(canvas, dword(car + value), x, y)?
-                    });
-                }
-                Ok(out.expect("two columns"))
-            };
-
-            if row == 0 {
-                // The first row draws its sprites last, with the last number's leftover.
-                draw_text_at(font_at(FONT), (car + 0x124) as *const u8, NAME_X, y, canvas)?;
-                let out = numbers(canvas)?;
-                sprites(canvas, car, y, out.text as u32)?;
-                last = Some(out);
+        let title = Title {
+            mode_13,
+            section: if mode_13 {
+                table_dword(SECTION_TITLES_RVA, section)
             } else {
-                if players > row as i32 {
-                    let name =
-                        draw_text_at(font_at(FONT), (car + 0x124) as *const u8, NAME_X, y, canvas)?;
-                    sprites(canvas, car, y, name.text as u32)?;
-                } else {
-                    draw_string_by_id_at(NO_ENTRY, font_at(FONT), NAME_X, y, canvas)?;
-                    draw_string_by_id_at(NOTHING, font_at(FONT), NO_FLAG_X, y, canvas)?;
-                    draw_string_by_id_at(NOTHING, font_at(FONT), NO_CAR_X, y, canvas)?;
-                }
-                last = Some(numbers(canvas)?);
+                dword(find_record_in(table, 0, section) + 0x38)
+            },
+            stage: dword(find_record_in(table, index, section) + 0x40),
+        };
+        let car = |row: usize| {
+            let car = cars + (row * CAR_LEN) as u32;
+            Car {
+                name: car + 0x124,
+                nation: dword(car + 4),
+                car: dword(car + 8),
+                numbers: [0x14C, 0x150, 0x144, 0x148].map(|o| dword(car + o)),
+                shown: [dword(car + 0xB0) != 0, dword(car + 0xCC) != 0],
             }
-        }
-        Ok(last.is_some_and(|out| out.too_wide))
+        };
+        details(
+            &mut crate::screens::game_screen::PreviewScreen::new(canvas),
+            title,
+            players,
+            &[car(0), car(1), car(2), car(3)],
+        )
     }
 }
 

@@ -19,7 +19,6 @@ use crate::scene::matrix3::{extended, rounded, test_floats};
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
 use crate::service::floats::{FLOAT, close};
-use crate::service::harness::dispatch_state;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -84,7 +83,20 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &[(r.esi, 12)], &rust);
+    // The point compared as floats: at the game's extended stretches (0x037F) the last bit
+    // may differ (a drift, as `scale_vector`'s).
+    let floats = crate::service::floats::Floats {
+        memory: &[((r.esi, 12), crate::service::floats::FLOAT)],
+        regs: &[],
+    };
+    crate::service::floats::dispatch_state_floats(
+        &HOOK,
+        r,
+        call_original,
+        &[(r.esi, 12)],
+        &floats,
+        &rust,
+    );
 }
 
 /// The test of both: a copy of the original at `address` (0x1E bytes, its matrix

@@ -273,6 +273,10 @@ mod tests {
                 too_wide: false,
             })
         }
+        fn draw_clock(&mut self, f: Font, _: Buffer, x: i32, y: i32) -> Result<(), Invalid> {
+            self.0.push(format!("clock {f:?} {x:#x} {y:#x}"));
+            Ok(())
+        }
         fn draw_time(&mut self, f: Font, _: Buffer, x: i32, y: i32) -> Result<(), Invalid> {
             self.0.push(format!("time {f:?} {} {x} {y}", self.1));
             Ok(())
@@ -294,6 +298,13 @@ mod tests {
         fn sprite(&mut self, g: u32, x: i32, y: i32, p: u32) -> Result<(), Invalid> {
             self.0.push(format!("sprite {g:#x} {x} {y} {p}"));
             Ok(())
+        }
+        fn bar(&mut self, b: crate::screen::Bar) -> Result<(), Invalid> {
+            self.0.push(format!("bar {b:?}"));
+            Ok(())
+        }
+        fn fatal(&mut self, _: u32, message: &'static str) -> Invalid {
+            Invalid(message)
         }
         fn keep(&mut self, w: Work, v: u32) {
             self.0.push(format!("keep {w:?} {v}"));

@@ -15,13 +15,10 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::gfx::blit_glyph::BlitCall;
 use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::font_at;
 use crate::screens::harness::{Left, check_draw, dispatch_draw};
 use crate::service::harness::{Region, at, capture, restore};
-use crate::text::draw_string_by_id::draw_string_by_id_at;
-use crate::text::draw_text::{Canvas, draw_text_at};
+use crate::text::draw_text::Canvas;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -46,78 +43,22 @@ fn k(a: usize) -> u32 {
 }
 
 /// (id, x, y, font) of the page's lines.
-const LINES: [(u32, i32, i32, usize); 14] = [
-    (0x524, 0x190, 0x64, 0x51E904),
-    (0x525, 0x186, 0x82, 0x51E944),
-    (0x526, 0x186, 0x9D, 0x51E944),
-    (0x527, 0x186, 0xB8, 0x51E944),
-    (0x528, 0x186, 0xD3, 0x51E8E4),
-    (0x529, 0x186, 0xEE, 0x51E8E4),
-    (0x52A, 0x186, 0x109, 0x51E8E4),
-    (0x52B, 0x186, 0x124, 0x51E8E4),
-    (0x52C, 0x186, 0x13F, 0x51E8E4),
-    (0x52D, 0x186, 0x15A, 0x51E8E4),
-    (0x52E, 0x186, 0x175, 0x51E8E4),
-    (0x52F, 0x186, 0x190, 0x51E8E4),
-    (0x530, 0x186, 0x1AB, 0x51E8E4),
-    (0x531, 0x186, 0x1C6, 0x51E8E4),
-];
-
 /// The Rust version.
 pub unsafe fn draw_options_checklist(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    use crate::gfx::blit_bar::{Bar, blit_bar};
+    // Converted: `rc2k_core::settings_pages::options_checklist`.
     unsafe {
-        let mut title = Vec::new();
-        crate::strings::append_string_by_id::push_string(&mut title, 0x190);
-        title.push(b' ');
-        title.extend(crate::strings::append_u32::append_u32(
-            k(0x75598C).wrapping_add(1),
-        ));
-        title.push(0);
-        if title.len() > 0x100 {
-            return Err(crate::errors::BadInput("a title past its buffer").into());
-        }
-        let buffer = game_addr(rva(0xA8BC54)) as *mut u8;
-        std::ptr::copy_nonoverlapping(title.as_ptr(), buffer, title.len());
-        draw_text_at(font_at(0x51E904), buffer, 0x190, 0x14, canvas)?;
-        let mut palette = 0;
-        for (id, x, y, font) in LINES {
-            palette = draw_string_by_id_at(id, font_at(font), x, y, canvas)?.text as u32;
-        }
-        Bar {
-            x: 0x128,
-            y: 0x1E3,
-            width: 0xD0,
-            fill_glyph: 0x89,
-            end_glyph: 0x87,
-            percent: k(0x75AC80) as i32,
-        }
-        .write();
-        blit_bar(&mut |call| canvas.blit_glyph(call))?;
-        let sprites = crate::gfx::blit_marker_pair::sprite_table();
-        canvas.blit_glyph(BlitCall::new(0x88, 0xEC, 0x1E2, palette, sprites))?;
-        draw_string_by_id_at(0x4AE, font_at(0x51E3C4), 0x10A, 0x1E6, canvas)?;
-        draw_string_by_id_at(0x4AF, font_at(0x51E3C4), 0x217, 0x1E6, canvas)?;
-        game_write(rva(0x755A18), 0x190u32);
         let mut at = game_addr(rva(0x759C76)) as u32;
-        let mut y = 0x82u32;
+        let mut ticks = Vec::new();
         while (at as *const u32).read_unaligned() != u32::MAX {
-            game_write(rva(0x7559EC), y);
-            let v = (at as *const u32).read_unaligned() ^ 1;
-            let glyph = 0x9E_u32.wrapping_add(v);
-            game_write(rva(0x7559F0), glyph);
-            canvas.blit_glyph(BlitCall::new(
-                glyph,
-                k(0x755A18) as i32,
-                y as i32,
-                v,
-                sprites,
-            ))?;
+            ticks.push((at as *const u32).read_unaligned());
             at += 4;
-            y += 0x1B;
-            game_write(rva(0x7559EC), y);
         }
-        Ok(())
+        rc2k_core::settings_pages::options_checklist(
+            &mut crate::screens::game_screen::SettingsScreen::new(canvas),
+            k(0x75598C),
+            k(0x75AC80) as i32,
+            &ticks,
+        )
     }
 }
 

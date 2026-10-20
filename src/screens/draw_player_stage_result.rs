@@ -11,18 +11,17 @@
 //!
 //! In a menu loop's draw list (0x758E7E). Refuses (before anything) no current player or
 //! name, no stage records, and what `strings::append_speed` refuses. Compared in shadow mode
-//! (`dispatch_draw`). Self-test: the page's stage and the players, nothing drawn (skipped
+//! (`dispatch_draw`; the measuring font left out: see `drawn_state`). Self-test: the page's stage and the players, nothing drawn (skipped
 //! without the fonts or the records).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva};
-use crate::gfx::blit_glyph::BlitCall;
 use crate::screens::best_scores::{STAGE_TIMES, draw_times_heading, times_page_ready};
 use crate::screens::draw_menu_item_text::text_unavailable;
 use crate::screens::harness::{Left, check_draw, dispatch_draw};
-use crate::screens::{font_at, line_buffer};
+use crate::screens::line_buffer;
 use crate::service::harness::{Region, at, capture, restore};
-use crate::text::draw_text::{Canvas, draw_text_at};
+use crate::text::draw_text::Canvas;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -42,13 +41,8 @@ hook_asm!(
     original = ORIGINAL
 );
 
-unsafe fn set_line(bytes: &[u8]) {
-    unsafe { std::ptr::copy_nonoverlapping(bytes.as_ptr(), line_buffer(), bytes.len()) };
-}
-
 /// The Rust version.
 pub unsafe fn draw_player_stage_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    use crate::text::draw_string_by_id::draw_string_by_id_at;
     unsafe {
         let player = crate::menu::player_settings::current()?;
         let p = player as u32;
@@ -63,43 +57,22 @@ pub unsafe fn draw_player_stage_result(canvas: &mut dyn Canvas) -> Result<(), Re
         if (STAGE_TIMES.records)() == 0 {
             return Err(crate::errors::BadInput("no stage records").into());
         }
-        let labels = font_at(0x51E6E4);
-        for (n, id) in [0x206u32, 0x207, 0x208].into_iter().enumerate() {
-            draw_string_by_id_at(id, labels, 0x1EC, 0xCF + 0x2D * n as i32, canvas)?;
-        }
-        draw_times_heading(&STAGE_TIMES, canvas)?;
-        let font = font_at(0x51E6C4);
-        let mut time = crate::strings::append_time::append_time(
-            f(0x88),
+        // Converted: `rc2k_core::player_result::stage_result`.
+        use crate::screens::game_screen::PlayerResultScreen;
+        speed.pop();
+        let p = rc2k_core::player_result::Player {
+            name: name as u32,
+            nation: f(4),
+            car: f(8),
+            time: f(0x88),
+            speed,
+        };
+        rc2k_core::player_result::stage_result(
+            &mut PlayerResultScreen::new(canvas),
+            &mut |s: &mut PlayerResultScreen| draw_times_heading(&STAGE_TIMES, s.canvas),
+            &p,
             crate::strings::append_time::show_hours(),
-        );
-        time.push(0);
-        set_line(&time);
-        draw_text_at(font, line_buffer(), 0x1FE, 0xFC, canvas)?;
-        set_line(&speed);
-        let out = draw_text_at(font, line_buffer(), 0x1FE, 0x12A, canvas)?;
-        let sprites = crate::gfx::blit_marker_pair::sprite_table();
-        canvas.blit_glyph(BlitCall::new(
-            0x1C + f(4),
-            0x1FE,
-            0xCF,
-            out.text as u32,
-            sprites,
-        ))?;
-        draw_text_at(font, name, 0x221, 0xCF, canvas)?;
-        let m = crate::text::measure_text::measure_text_at(font_at(0x51E624), name, 0x221, canvas)?;
-        let mut flag = f(8);
-        if (0x18..=0x19).contains(&flag) {
-            flag ^= 1;
-        }
-        let x = (m.width as i32).wrapping_add(0x221);
-        canvas.blit_glyph(BlitCall::new(
-            flag.wrapping_add(0x44),
-            x,
-            0xCF,
-            m.lines,
-            sprites,
-        ))?;
+        )?;
         Ok(())
     }
 }
@@ -109,14 +82,11 @@ fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-fn state() -> Vec<u8> {
-    let mut v = drawn_state();
-    v.extend(capture(&[(game_addr(rva(0x51E624)) as u32, 0x20)]));
-    v
-}
-
-/// `state` without the measuring font: in the self-test the Rust version draws on a
-/// `RecordingCanvas`, which leaves fonts alone; the font is compared in shadow mode.
+/// What is compared: the two buffers, not the measuring font. The Rust version is compared
+/// on a `RecordingCanvas` (in the self-test and in shadow mode), which leaves fonts alone,
+/// while the original's measuring writes its count at the font's +0x14: compared, the font
+/// mismatched on the first call after something had put a pointer back there (once a
+/// session, 2026-10-20).
 fn drawn_state() -> Vec<u8> {
     capture(&[
         (line_buffer() as u32, 0x100),
@@ -125,7 +95,7 @@ fn drawn_state() -> Vec<u8> {
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_draw(&HOOK, r, call_original, &rust, &state);
+    dispatch_draw(&HOOK, r, call_original, &rust, &drawn_state);
 }
 
 fn self_test() -> (usize, usize) {

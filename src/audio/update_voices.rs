@@ -303,11 +303,11 @@ extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
     if shadow() {
         unsafe { call_original(r) };
-        return;
-    }
-    if let Err(e) = unsafe { update_voices(&Vars::game(), &mut game_part) } {
+    } else if let Err(e) = unsafe { update_voices(&Vars::game(), &mut game_part) } {
         unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
     }
+    // The original thread's turns (shadow mode); the Rust thread checks in its own turn.
+    crate::audio::stray_voices::check();
 }
 
 // ---- self-test ----

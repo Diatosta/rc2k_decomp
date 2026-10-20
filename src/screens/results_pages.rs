@@ -44,17 +44,14 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::gfx::blit_glyph::BlitCall;
 use crate::menu::ranked_lookups::{find_ranked_entry, find_ranked_position, first_overall_time};
+use crate::screens::LINE_BUFFER_RVA;
 use crate::screens::best_scores::{record_at, section_there};
 use crate::screens::draw_menu_item_text::text_unavailable;
 use crate::screens::harness::{Left, check_draw, dispatch_draw};
-use crate::screens::{LINE_BUFFER_RVA, font_at, line_buffer};
 use crate::service::harness::{Region, at, capture, restore};
-use crate::strings::append_time::{append_time, show_hours};
-use crate::text::draw_string_by_id::draw_string_by_id_at;
-use crate::text::draw_text::{Canvas, draw_text_at};
-use crate::text::draw_time_fixed_pitch::draw_time_fixed_pitch_at;
+use crate::strings::append_time::show_hours;
+use crate::text::draw_text::Canvas;
 use std::sync::atomic::AtomicUsize;
 
 const LIST_RVA: usize = rva(0x7556EC); // g_rankedTimes
@@ -131,17 +128,6 @@ pub const OVERALL_STAGE: Page = Page {
     keep_overall: true,
 };
 
-unsafe fn line(bytes: &[u8]) -> Result<*mut u8, Refused> {
-    if bytes.len() + 1 > LINE_LEN {
-        return Err(BadInput("a line past the line buffer").into());
-    }
-    unsafe {
-        std::ptr::copy_nonoverlapping(bytes.as_ptr(), line_buffer(), bytes.len());
-        line_buffer().add(bytes.len()).write(0);
-    }
-    Ok(line_buffer())
-}
-
 /// The Rust version of one page.
 pub unsafe fn draw_results_page(page: &Page, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let (list, class) = (g(LIST_RVA), g(CLASS_RVA));
@@ -173,110 +159,54 @@ pub unsafe fn draw_results_page(page: &Page, canvas: &mut dyn Canvas) -> Result<
             break;
         }
     }
+    // Converted: `rc2k_core::results_pages` (the rows' entries read here, the record
+    // heading drawn here first).
+    use rc2k_core::results_pages::{Heading as Drawn, NOT_TIMED as NONE, Row, results_page};
     unsafe {
-        match page.heading {
-            Heading::Titles(normal, alternative) => {
-                let title = if g(ALT_TITLE_RVA) == 1 {
+        let heading = match page.heading {
+            Heading::Titles(normal, alternative) => Drawn::Titles {
+                title: if g(ALT_TITLE_RVA) == 1 {
                     alternative
                 } else {
                     normal
-                };
-                draw_string_by_id_at(title, font_at(0x51E944), 0x310, 0x30, canvas)?;
-                let name = if g(EVENT_MODE_RVA) == 0x13 {
+                },
+                name: if g(EVENT_MODE_RVA) == 0x13 {
                     g(SECTION_NAMES_RVA + 4 * g(SECTION_RVA) as usize)
                 } else {
                     get(record_at(0) + 0x38)
-                };
-                draw_string_by_id_at(name, font_at(0x51E9A4), 0x2EB, 0x77, canvas)?;
+                },
+            },
+            Heading::Record => {
+                crate::screens::best_scores::draw_record_heading(canvas)?;
+                Drawn::Drawn
             }
-            Heading::Record => crate::screens::best_scores::draw_record_heading(canvas)?,
-        }
-        draw_string_by_id_at(0x484, font_at(0x51E5A4), 0xC8, 0xDC, canvas)?;
-        draw_string_by_id_at(0x485, font_at(0x51E584), 0xFA, 0xDC, canvas)?;
-        draw_string_by_id_at(0x47F, font_at(0x51E584), 0x1F4, 0xDC, canvas)?;
-        game_write(FIRST_TIME_RVA, first);
-        if page.keep_overall {
-            game_write(OVERALL_FIRST_RVA, first);
-        }
-        game_write(ROW_RVA, first_row);
-        game_write(ROW_END_RVA, end);
-        let sprites = crate::gfx::blit_marker_pair::sprite_table();
-        let mut y = 0xF0i32;
-        for e in rows {
-            let player = (get(e + 4) as i32) > 0;
-            let (place_font, name_font, time_font) = if player {
-                (0x51E544, 0x51E524, 0x51E504)
-            } else {
-                (0x51E5A4, 0x51E584, 0x51E564)
-            };
-            let position = get(e + 0x44);
-            let o = draw_text_at(
-                font_at(place_font),
-                line(&crate::strings::append_u32::append_u32(position))?,
-                0xBE,
-                y,
-                canvas,
-            )?;
-            y = o.y;
-            let o = draw_text_at(font_at(name_font), (e + 0x20) as *const u8, 0xFA, y, canvas)?;
-            y = o.y;
-            let check = if player { page.check.1 } else { page.check.0 };
-            // the sprites' palette: ebx as the last text drawer leaves it
-            let palette = if get(e + 0x4C) != 1 {
-                let id = if get(e + check) == NOT_TIMED {
-                    0x4FB
-                } else {
-                    0x4FA
-                };
-                let o = draw_string_by_id_at(id, font_at(name_font), 0x1EF, y, canvas)?;
-                y = o.y;
-                o.text as u32
-            } else {
-                let time = get(e + page.time);
-                draw_time_fixed_pitch_at(
-                    font_at(time_font),
-                    line(&append_time(time, show_hours()))?,
-                    0x258,
-                    y,
-                    canvas,
-                )?;
-                if position != 1 {
-                    let gap = time.wrapping_sub(first);
-                    game_write(GAP_RVA, gap);
-                    y = draw_string_by_id_at(0x579, font_at(place_font), 0x276, y, canvas)?.y;
-                    draw_time_fixed_pitch_at(
-                        font_at(time_font),
-                        line(&append_time(gap, show_hours()))?,
-                        0x2E4,
-                        y,
-                        canvas,
-                    )?;
+        };
+        let rows: Vec<Row<u32>> = rows
+            .into_iter()
+            .map(|e| {
+                let player = (get(e + 4) as i32) > 0;
+                let check = if player { page.check.1 } else { page.check.0 };
+                Row {
+                    player,
+                    position: get(e + 0x44),
+                    name: e + 0x20,
+                    finished: get(e + 0x4C) == 1,
+                    not_timed: get(e + check) == NONE,
+                    time: get(e + page.time),
+                    nation: get(e + 8),
+                    car: get(e + 0x10),
                 }
-                line_buffer() as u32
-            };
-            canvas.blit_glyph(BlitCall::new(
-                get(e + 8).wrapping_add(0x1C),
-                0xD2,
-                y,
-                palette,
-                sprites,
-            ))?;
-            let flag = get(e + 0x10);
-            let flag = if (0x18..=0x19).contains(&flag) {
-                flag ^ 1
-            } else {
-                flag
-            };
-            canvas.blit_glyph(BlitCall::new(
-                flag.wrapping_add(0x44),
-                0x1AE,
-                y,
-                palette,
-                sprites,
-            ))?;
-            y = y.wrapping_add(0x19);
-            game_write(ROW_RVA, g(ROW_RVA).wrapping_add(1));
-        }
+            })
+            .collect();
+        results_page(
+            &mut crate::screens::game_screen::GameScreen::new(canvas),
+            heading,
+            first,
+            first_row,
+            page.keep_overall,
+            show_hours(),
+            &rows,
+        )?;
     }
     Ok(())
 }

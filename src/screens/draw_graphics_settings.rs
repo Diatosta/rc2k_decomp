@@ -13,17 +13,13 @@
 //! nothing drawn (skipped without the fonts or a menu).
 
 use crate::errors::Refused;
-use crate::framework::{
-    EAX, EBX, ECX, EDX, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::menu::disable_item::{disable_item, item_region};
 use crate::menu::enable_item::enable_item;
 use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::font_at;
 use crate::screens::harness::{Left, check_draw, dispatch_draw};
 use crate::service::harness::{Region, at, capture, restore};
 use crate::strings::text_from_ids::{TEXT_LEN, text};
-use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::Canvas;
 use std::sync::atomic::AtomicUsize;
 
@@ -62,39 +58,23 @@ const NAMES: [(u32, u32, i32); 8] = [
 
 /// The Rust version: the registers the last name leaves.
 pub unsafe fn draw_graphics_settings(canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    use crate::strings::format_u32::format_u32;
-    use crate::text::draw_text::draw_text_at;
+    // Converted: `rc2k_core::settings_pages::{graphics_item, graphics}`.
+    use crate::screens::game_screen::{SettingsScreen, left_of};
     unsafe {
-        if k(0x4F50D4).wrapping_add(k(0x4F50D8)) == 2 {
+        if rc2k_core::settings_pages::graphics_item(k(0x4F50D4), k(0x4F50D8)) {
             enable_item(2)?;
         } else {
             disable_item(2)?;
         }
-        let mut left = Left::nothing();
-        let font = font_at(0x51E8C4);
-        for (n, (setting, first, row)) in NAMES.into_iter().enumerate() {
-            let id = k(setting).wrapping_add(first);
-            game_write(rva(0x7559EC), id);
-            let out = draw_string_by_id_at(id, font, 0x1D1, 0xDC + 0x1B * row, canvas)?;
-            left = Left::carry(out.too_wide)
-                .with(EAX, 0)
-                .with(EBX, out.text as u32)
-                .with(ECX, out.x as u32)
-                .with(EDX, out.y as u32);
-            if n == 0 {
-                let mode = game_addr(rva(0x4F50E8)) as u32 + 0x10 * k(0x4F50C8);
-                let v = |i: u32| ((mode + 4 * i) as *const u32).read_unaligned();
-                let mut line = format_u32(v(0), 0);
-                line.push(b'x');
-                line.extend(format_u32(v(1), 0));
-                line.push(b'x');
-                line.extend(format_u32(v(2), 0));
-                line.push(0);
-                std::ptr::copy_nonoverlapping(line.as_ptr(), text(), line.len());
-                draw_text_at(font, text(), 0x1D1, 0xF7, canvas)?;
-            }
-        }
-        Ok(left)
+        let mode = game_addr(rva(0x4F50E8)) as u32 + 0x10 * k(0x4F50C8);
+        let v = |i: u32| ((mode + 4 * i) as *const u32).read_unaligned();
+        let ids = NAMES.map(|(setting, first, _)| k(setting).wrapping_add(first));
+        let out = rc2k_core::settings_pages::graphics(
+            &mut SettingsScreen::new(canvas),
+            ids,
+            [v(0), v(1), v(2)],
+        )?;
+        Ok(left_of(out))
     }
 }
 

@@ -14,7 +14,6 @@ use crate::framework::{RawHook, Regs, hook_asm, rva};
 use crate::physics::turn_by_car_matrix::{turn_point_by, turn_point_by_plain};
 use crate::physics::turn_by_inverse_at::test_turn_at;
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -53,7 +52,20 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &[(r.esi, 12)], &rust);
+    // The point compared as floats: at the game's extended stretches (0x037F) the last bit
+    // may differ (a drift, as `scale_vector`'s).
+    let floats = crate::service::floats::Floats {
+        memory: &[((r.esi, 12), crate::service::floats::FLOAT)],
+        regs: &[],
+    };
+    crate::service::floats::dispatch_state_floats(
+        &HOOK,
+        r,
+        call_original,
+        &[(r.esi, 12)],
+        &floats,
+        &rust,
+    );
 }
 
 fn self_test() -> (usize, usize) {

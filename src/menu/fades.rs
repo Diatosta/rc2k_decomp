@@ -139,8 +139,18 @@ pub fn test_fade(
     out: bool,
 ) -> (usize, usize) {
     use crate::install::stand_ins::{set_handler, stand_in as place};
+    // `calls` holds the calls and the `jcc rel32` to the fatal-error stubs; the copy moves
+    // the calls, the jumps are pointed back at their targets.
+    let original = game_addr(rva(address));
+    // The copy's bytes: the entry over the original (whose first bytes are the patch).
+    let byte = |o: usize| match entry.get(o) {
+        Some(&b) => b,
+        None => unsafe { *((original + o) as *const u8) },
+    };
+    let (only_calls, jumps): (Vec<usize>, Vec<usize>) =
+        calls.iter().partition(|&&o| byte(o) == 0xE8);
     let copy = match unsafe {
-        RedirectedCopy::new(game_addr(rva(address)), len, entry, calls, &|c| match c {
+        RedirectedCopy::new(original, len, entry, &only_calls, &|c| match c {
             TICK_COUNT => Some(place(1)),
             RUN_FRAME => Some(place(2)),
             _ => None,
@@ -149,6 +159,11 @@ pub fn test_fade(
         Ok(c) => c,
         Err(why) => return t.skip(why),
     };
+    for o in jumps {
+        let rel = unsafe { ((original + o + 2) as *const i32).read_unaligned() };
+        let target = (original + o + 6).wrapping_add(rel as usize);
+        unsafe { copy.retarget(o + 2, target) };
+    }
     set_handler(stand_in);
     let regions: Vec<Region> = [START_RVA, GONE_RVA, SEE_RVA].map(at).to_vec();
     let mut vars = regions.clone();

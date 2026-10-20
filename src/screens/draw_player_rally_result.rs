@@ -15,13 +15,12 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::gfx::blit_glyph::BlitCall;
 use crate::screens::best_scores::{RALLY_STAGE_TIMES, draw_times_heading, times_page_ready};
 use crate::screens::draw_menu_item_text::text_unavailable;
 use crate::screens::harness::{Left, check_draw, dispatch_draw};
-use crate::screens::{font_at, line_buffer};
+use crate::screens::line_buffer;
 use crate::service::harness::{Region, at, capture, restore};
-use crate::text::draw_text::{Canvas, draw_text_at};
+use crate::text::draw_text::Canvas;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -48,26 +47,8 @@ fn k(a: usize) -> u32 {
 const NO_TIME: u32 = 0x98_0000;
 
 /// (id, x, y, font) of the labels.
-const LABELS: [(u32, i32, i32, usize); 7] = [
-    (0x213, 0xED, 0xE7, 0x51E6C4),
-    (0x20E, 0x155, 0x12B, 0x51E6E4),
-    (0x20F, 0x155, 0x142, 0x51E6E4),
-    (0x208, 0x155, 0x159, 0x51E6E4),
-    (0x210, 0x155, 0x187, 0x51E6E4),
-    (0x211, 0x155, 0x19F, 0x51E6E4),
-    (0x212, 0x155, 0x1CD, 0x51E6E4),
-];
-
-/// A line of the page.
-enum Value {
-    Number(usize),
-    Time(u32),
-    Speed(Vec<u8>),
-}
-
 /// The Rust version.
 pub unsafe fn draw_player_rally_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    use crate::text::draw_string_by_id::draw_string_by_id_at;
     unsafe {
         let p = crate::menu::player_settings::current()? as u32;
         let f = |o: u32| ((p + o) as *const u32).read_unaligned();
@@ -80,57 +61,27 @@ pub unsafe fn draw_player_rally_result(canvas: &mut dyn Canvas) -> Result<(), Re
             true,
             crate::strings::units::units(),
         )?;
-        for (id, x, y, font) in LABELS {
-            draw_string_by_id_at(id, font_at(font), x, y, canvas)?;
-        }
-        draw_times_heading(&RALLY_STAGE_TIMES, canvas)?;
-        let font = font_at(0x51E6C4);
-        let draw = |v: Value, x: i32, y: i32, canvas: &mut dyn Canvas| -> Result<u32, Refused> {
-            let mut line = match v {
-                Value::Number(a) => crate::strings::append_u32::append_u32(k(a)),
-                Value::Time(t) => crate::strings::append_time::append_time(
-                    t,
-                    crate::strings::append_time::show_hours(),
-                ),
-                Value::Speed(s) => s,
-            };
-            line.push(0);
-            std::ptr::copy_nonoverlapping(line.as_ptr(), line_buffer(), line.len());
-            Ok(draw_text_at(font, line_buffer(), x, y, canvas)?.text as u32)
+        // Converted: `rc2k_core::player_result::rally_result`.
+        use crate::screens::game_screen::PlayerResultScreen;
+        let p = rc2k_core::player_result::Player {
+            name: name as u32,
+            nation: f(4),
+            car: f(8),
+            time: f(0x88),
+            speed,
         };
-        draw(Value::Number(0x758768), 0x18C, 0x12B, canvas)?;
-        if f(0x88) == NO_TIME {
-            draw_string_by_id_at(0x513, font, 0x1CF, 0xE7, canvas)?;
-        } else {
-            draw(Value::Time(f(0x88)), 0x23A, 0xE7, canvas)?;
-        }
-        draw(Value::Time(k(0x758758)), 0x18C, 0x142, canvas)?;
-        draw(Value::Speed(speed), 0x18C, 0x159, canvas)?;
-        let mut palette = 0;
-        for (a, y) in [
-            (0x758778usize, 0x12B),
-            (0x758758, 0x142),
-            (0x758788, 0x159),
-            (0x758798, 0x187),
-            (0x7587A8, 0x19F),
-            (0x7587B8, 0x1CD),
-        ] {
-            palette = draw(Value::Number(a), 0x21C, y, canvas)?;
-        }
-        let sprites = crate::gfx::blit_marker_pair::sprite_table();
-        canvas.blit_glyph(BlitCall::new(0x1C + f(4), 0x146, 0xE7, palette, sprites))?;
-        let out = draw_text_at(font_at(0x51E584), name, 0x168, 0xE7, canvas)?;
-        let mut flag = f(8);
-        if (0x18..=0x19).contains(&flag) {
-            flag ^= 1;
-        }
-        canvas.blit_glyph(BlitCall::new(
-            flag.wrapping_add(0x44),
-            0x1FE,
-            0xE7,
-            out.text as u32,
-            sprites,
-        ))?;
+        let figures = rc2k_core::player_result::RallyFigures {
+            position: k(0x758768),
+            best: k(0x758758),
+            column: [0x758778, 0x758758, 0x758788, 0x758798, 0x7587A8, 0x7587B8].map(k),
+        };
+        rc2k_core::player_result::rally_result(
+            &mut PlayerResultScreen::new(canvas),
+            &mut |s: &mut PlayerResultScreen| draw_times_heading(&RALLY_STAGE_TIMES, s.canvas),
+            &p,
+            &figures,
+            crate::strings::append_time::show_hours(),
+        )?;
         Ok(())
     }
 }

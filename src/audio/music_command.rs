@@ -3,10 +3,10 @@
 //! In:  eax = the tune, ebx = the tune after it, ecx = the volume, edx = the action
 //! Out: every register preserved
 //!
-//! See `audio/stream_commands.rs`. Refuses (after what it has done, as the original would
-//! go on) a tune that stops at once 0x100 times over (the original plays it again for
-//! ever) and a search for tune 0xA's file that comes round more than six times (with
-//! `g_tuneTurn` past 5 and no file the original searches for ever). Callers:
+//! See `audio/stream_commands.rs`. Two fixes (section 16, 2026-10-20): after seven plays
+//! in a row that stop at their first feed the music stops (the original plays again for
+//! ever), and a `g_tuneTurn` past 5 starts tune 0xA's search from 0 (the original's search
+//! never ends without a file); the audio thread hung in either. Callers:
 //! `audio::take_commands` (command 0xB), the thread's turn (action 1),
 //! `audio::stop_streams`. Shadow mode runs the original alone. Self-test: a redirected copy
 //! whose player, next tune, `g_noMusic`, tune turn and path are the test's and whose calls
@@ -169,6 +169,36 @@ fn self_test() -> (usize, usize) {
                 }
             }
         }
+    }
+    // The fixes, the Rust version alone (the original never comes back): every tune
+    // stopping at its first feed, and a turn past 5 with no file.
+    for (turn, present, feed_stops) in [(0u32, all, 1000u32), (9, 0, 1), (9, all, 1000)] {
+        unsafe {
+            (at as *mut [u32; 4]).write_volatile([0x77, 0, turn, 0]);
+            (pa as *mut [u8; 0x18]).write_volatile(*PATH);
+            (pl as *mut AudioStream).write_volatile(AudioStream::default());
+        }
+        begin(Script {
+            start_fails: false,
+            feed_stops,
+            present,
+            feeds: 0,
+        });
+        let done = music_command(8, 0xA, 0x20, 2, &v, &mut |p, r| {
+            handler(p, r);
+            Ok(())
+        });
+        let (vars, playing) = unsafe {
+            (
+                (at as *const [u32; 4]).read_volatile(),
+                (pl as *const AudioStream).read_volatile().playing,
+            )
+        };
+        let starts = noted().iter().filter(|n| n[0] == START).count();
+        t.check(
+            done.is_ok() && vars[0] == 0 && playing == 0 && vars[2] < 6 && starts <= 8,
+            || format!("turn {turn}, files {present:#x}, feeds stopping {feed_stops}: {done:?}, vars {vars:x?}, playing {playing}, {starts} starts"),
+        );
     }
     drop((vars, path, player));
     t.finish()

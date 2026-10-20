@@ -85,6 +85,7 @@ pub mod stop_buffer;
 pub mod stop_primary;
 pub mod stop_stream;
 pub mod stop_streams;
+pub mod stray_voices;
 pub mod stream;
 pub mod stream_command;
 pub mod stream_commands;

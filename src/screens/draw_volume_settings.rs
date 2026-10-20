@@ -16,13 +16,9 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::gfx::blit_bar::{BAR_HAS_NO_LENGTH, Bar, blit_bar};
-use crate::gfx::blit_glyph::BlitCall;
 use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::font_at;
 use crate::screens::harness::{Left, check_draw, dispatch_draw};
 use crate::service::harness::{Region, capture, restore};
-use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::Canvas;
 use std::sync::atomic::AtomicUsize;
 
@@ -45,54 +41,17 @@ hook_asm!(
 
 const VOLUMES_RVA: usize = rva(0x755684); // g_masterVolumeShown, then dword_755688 .. dword_7556A0
 const NAME_SWITCH_RVA: usize = rva(0x5180F4); // dword_5180F4
-const SECONDS_RVA: usize = rva(0x7559AC); // seconds
 
 pub unsafe fn draw_volume_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    // Converted: `rc2k_core::settings_pages::volume`.
     unsafe {
         let id = game_read::<u32>(NAME_SWITCH_RVA).wrapping_add(0x56D);
-        game_write(SECONDS_RVA, id);
-        let mut palette =
-            draw_string_by_id_at(id, font_at(0x51E8C4), 0x1EA, 0x1B3, canvas)?.text as u32;
-        let sprites = crate::gfx::blit_marker_pair::sprite_table();
-        for n in 0..8 {
-            canvas.blit_glyph(BlitCall::new(
-                0x19,
-                0x222,
-                0xDA + 0x1C * n,
-                palette,
-                sprites,
-            ))?;
-        }
-        for n in 0..8 {
-            let v: u32 = game_read(VOLUMES_RVA + 4 * n as usize);
-            let percent = if v == 0 {
-                0
-            } else {
-                let p = v.wrapping_mul(100);
-                if p == 0 {
-                    return Err(BAR_HAS_NO_LENGTH.into());
-                }
-                p / 0x40
-            };
-            Bar {
-                x: 0x221,
-                y: 0xDA + 0x1C * n,
-                width: 0x76,
-                fill_glyph: 0x18,
-                end_glyph: 0x87,
-                percent: percent as i32,
-            }
-            .write();
-            blit_bar(&mut |call| canvas.blit_glyph(call))?;
-        }
-        for n in 0..8 {
-            let y = 0xD9 + 0x1C * n;
-            canvas.blit_glyph(BlitCall::new(0x1B, 0x1E6, y, palette, sprites))?;
-            draw_string_by_id_at(0x547, font_at(0x51E3C4), 0x203, y + 4, canvas)?;
-            palette =
-                draw_string_by_id_at(0x548, font_at(0x51E3C4), 0x2B7, y + 4, canvas)?.text as u32;
-        }
-        Ok(())
+        let volumes: [u32; 8] = std::array::from_fn(|n| game_read(VOLUMES_RVA + 4 * n));
+        rc2k_core::settings_pages::volume(
+            &mut crate::screens::game_screen::SettingsScreen::new(canvas),
+            id,
+            volumes,
+        )
     }
 }
 

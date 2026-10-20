@@ -53,7 +53,9 @@ pub fn list_files(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         append_byte(&mut r, 0);
         p(FILE_CURSOR, r.ebx);
         p(FILE_COUNT, g(FILE_COUNT).wrapping_add(1));
-        if r.ebx.wrapping_sub(g(FILES)) >= FILES_ROOM {
+        // `sub ebx, [table]`: find_next gets the bytes used in ebx.
+        r.ebx = r.ebx.wrapping_sub(g(FILES));
+        if r.ebx >= FILES_ROOM {
             return Err(fatal(0x80AF_2206));
         }
         part(at(FIND_NEXT), &mut r)?;
@@ -85,6 +87,7 @@ fn self_test() -> (usize, usize) {
             (0x1, 0x403206),
             (0x8, 0x402FC2),
             (0x20, 0x401F7D),
+            (0x25, 0x401F16),
             (0x15, 0x403070),
             (0x48, 0x402FF6),
             (0x4F, 0x40301F),

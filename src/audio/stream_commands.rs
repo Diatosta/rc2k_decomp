@@ -8,10 +8,12 @@
 //! Music tunes: the file is `g_musicPath` with the tune's two last digits at +0xE
 //! (`strings::format_u32`, flags 0x12); tune 0xA is 10 + `g_tuneTurn` for the first turn
 //! (counted on, 0 .. 5) whose file exists. When a tune stops, `g_nextTune` is played, and it
-//! is never cleared there: the second tune repeats.
+//! is never cleared there: the second tune repeats. Fixed (2026-10-20, section 16): a turn
+//! past 5 starts from 0, and after `RETRIES` plays in a row that stop at their first feed
+//! the music stops (the original: both for ever, the audio thread hung).
 
 use crate::audio::stream::*;
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{Regs, game_addr};
 
 /// The calls by the game's addresses, each with the registers it reads: 0 `start_stream`
@@ -136,9 +138,10 @@ impl MusicVars {
     }
 }
 
-/// How often a tune that stops at once is played again before the Rust version gives up
-/// (the original plays it for ever: section 16).
-const RETRIES: u32 = 0x100;
+/// The plays in a row that may stop at their first feed: the tune, then tune 0xA's six
+/// turns. Fixed (section 16, 2026-10-20): past it the music stops (and the next tune is
+/// forgotten); the original plays again for ever, and the audio thread hangs in it.
+const RETRIES: u32 = 7;
 
 /// `audio::music_command`: `tune` with `next` to follow.
 pub fn music_command(
@@ -199,11 +202,18 @@ pub fn music_command(
             if !feed_first {
                 plays += 1;
                 if plays > RETRIES {
-                    return Err(BadInput("a tune that stops at once, played again for ever").into());
+                    crate::framework::log(&format!(
+                        "audio: tune {tune:#x}: {RETRIES} plays in a row stopped at their first feed; the music stopped"
+                    ));
+                    return stop_and_forget(part);
                 }
                 if tune == 0xA {
+                    // Fixed (section 16, 2026-10-20): a turn past 5 (a bad `ral.dat`)
+                    // starts from 0; the original's search never comes round to it.
+                    if read(v.turn) >= 6 {
+                        write(v.turn, 0);
+                    }
                     let first = read(v.turn);
-                    let mut looks = 0;
                     loop {
                         let n = 0xA + read(v.turn);
                         let mut turn = read(v.turn).wrapping_add(1);
@@ -215,16 +225,9 @@ pub fn music_command(
                         if !call(part, EXISTS, v.path, player)? {
                             break;
                         }
-                        looks += 1;
                         if first == read(v.turn) {
                             write(v.next_tune, 0);
                             return Ok(());
-                        }
-                        if looks > 6 {
-                            return Err(BadInput(
-                                "no tune file, with a tune turn past 5: the original looks for ever",
-                            )
-                            .into());
                         }
                     }
                 } else {

@@ -10,15 +10,11 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::screens::font_is_loaded;
 use crate::screens::harness::{Left, check_draw, dispatch_draw, drawing_unavailable};
-use crate::screens::savegame_preview::{
-    FONT, FONTS, LEFT_X, NAME_X, NO_CAR_X, NO_ENTRY, NO_FLAG_X, NOTHING, NUMBER_COLUMNS, ROWS,
-    STRINGS, TITLE_FONT, TITLE_Y, draw_frame,
-};
-use crate::screens::{font_at, font_is_loaded};
+use crate::screens::savegame_preview::{FONTS, STRINGS};
 use crate::strings::string_table::{blob, is_table_id};
 use crate::strings::text_from_ids::{TEXT_LEN, text};
-use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::Canvas;
 use std::slice::from_raw_parts;
 use std::sync::atomic::AtomicUsize;
@@ -44,18 +40,8 @@ hook_asm!(
 
 /// Returns the carry flag of the last text drawn.
 pub unsafe fn draw_empty_savegame(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    unsafe {
-        draw_frame(canvas)?;
-        let mut last =
-            draw_string_by_id_at(NO_ENTRY, font_at(TITLE_FONT), LEFT_X, TITLE_Y, canvas)?;
-        for y in ROWS {
-            draw_string_by_id_at(NO_ENTRY, font_at(FONT), NAME_X, y, canvas)?;
-            for x in [NO_FLAG_X, NO_CAR_X].into_iter().chain(NUMBER_COLUMNS) {
-                last = draw_string_by_id_at(NOTHING, font_at(FONT), x, y, canvas)?;
-            }
-        }
-        Ok(last.too_wide)
-    }
+    // Converted: `rc2k_core::savegame_preview::empty`.
+    rc2k_core::savegame_preview::empty(&mut crate::screens::game_screen::PreviewScreen::new(canvas))
 }
 
 // ---- hook ----

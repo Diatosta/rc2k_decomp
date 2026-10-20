@@ -11,13 +11,13 @@
 //! replay pages showed no names). Self-test: the original against the Rust version on the
 //! five pages of the owner's own replay list.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
 use crate::menu::name_lists::{NAME_LEN, REPLAY_NAMES_RVA, REPLAY_PAGE_RVA};
+use crate::screens::font_is_loaded;
 use crate::screens::harness::{Left, check_draw, dispatch_draw, drawing_unavailable, push_dwords};
-use crate::screens::{font_at, font_is_loaded};
 use crate::service::harness::{at, capture, restore};
-use crate::text::draw_text::{Canvas, draw_text_at};
+use crate::text::draw_text::Canvas;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -46,8 +46,6 @@ const ROW_RVA: usize = rva(0x7559EC); // dword_7559EC: a work variable, here the
 const SLOT_PAGE_RVA: usize = REPLAY_PAGE_RVA;
 pub const FONT: usize = 0x51E8C4; // stru_51E8C4
 pub const COLUMNS: [i32; 2] = [0xC6, 0x213];
-const FIRST_Y: i32 = 0xB5;
-const ROW_STEP: i32 = 0x1B;
 const ROWS: u32 = 10;
 pub const PAGES: u32 = 5;
 
@@ -59,26 +57,15 @@ fn slot_name(slot: u32) -> *const u8 {
 // ---- Rust version ----
 
 pub unsafe fn draw_replay_slot_names(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    // Converted: `rc2k_core::slot_lists::names`.
     let page: u32 = unsafe { game_read(SLOT_PAGE_RVA) };
-    if page >= PAGES {
-        return Err(BadInput("slot page past the name table").into());
-    }
-    let mut slot = page * ROWS * 2;
-    for x in COLUMNS {
-        unsafe {
-            game_write(X_RVA, x);
-            game_write(Y_RVA, FIRST_Y);
-            game_write(ROW_RVA, 0u32);
-            for row in 0..ROWS {
-                let y = FIRST_Y + ROW_STEP * row as i32;
-                draw_text_at(font_at(FONT), slot_name(slot), x, y, canvas)?;
-                slot += 1;
-                game_write(Y_RVA, y + ROW_STEP);
-                game_write(ROW_RVA, row + 1);
-            }
-        }
-    }
-    Ok(())
+    rc2k_core::slot_lists::names(
+        &mut crate::screens::game_screen::SlotScreen::new(canvas),
+        &rc2k_core::slot_lists::REPLAYS,
+        page,
+        |slot| slot_name(slot) as u32,
+    )
+    .map(|_| ())
 }
 
 // ---- hook ----

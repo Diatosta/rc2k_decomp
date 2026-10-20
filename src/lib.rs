@@ -171,7 +171,7 @@ fn apply(pat: &str, on: bool, enabled: &mut [bool], out: &mut impl Write) {
 
 fn console_loop(input: File, mut out: File, mut enabled: Vec<bool>) {
     log(
-        "commands: list | on <name|prefix|all> | off <name|prefix|all> | shadow on|off | trace on|off | blank on|off [prefix] | stats | reload | selftest [both] [name|prefix [leftovers]] | fatal",
+        "commands: list | on <name|prefix|all> | off <name|prefix|all> | shadow on|off | trace on|off | blank on|off [prefix] | stats | voices | reload | selftest [both] [name|prefix [leftovers]] | fatal",
     );
 
     for line in BufReader::new(input).lines().map_while(Result::ok) {
@@ -205,6 +205,7 @@ fn console_loop(input: File, mut out: File, mut enabled: Vec<bool>) {
                     log(&format!("{name:<30} drifts={n}"));
                 }
             }
+            ["voices"] => audio::stray_voices::dump(),
             ["reload"] => {
                 if let Some(cfg) = load_config() {
                     apply_config(&cfg, &mut enabled);

@@ -22,7 +22,24 @@ pub enum Buffer {
     Line,
     /// The text buffer (the descriptions').
     Text,
+    /// `byte_A8BC54`, after the line buffer (0x100 bytes).
+    Cells,
 }
+
+/// A bar filled to a percentage (the game's six bar globals): the fill sprite up to
+/// `percent` of `width`, an end piece there; nothing at 0 percent.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Bar {
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub fill_glyph: u32,
+    pub end_glyph: u32,
+    pub percent: i32,
+}
+
+/// The fatal error a bar whose width x percent is 0 (with a percent) reports.
+pub const BAR_HAS_NO_LENGTH: u32 = 0x8070_1010;
 
 /// A screen being drawn.
 pub trait Screen {
@@ -60,6 +77,14 @@ pub trait Screen {
         right: i32,
         y: i32,
     ) -> Result<(), Self::Error>;
+    /// What a buffer holds, a clock ("09:05") drawn in fixed columns ending at `right`.
+    fn draw_clock(
+        &mut self,
+        font: Self::Font,
+        buffer: Buffer,
+        right: i32,
+        y: i32,
+    ) -> Result<(), Self::Error>;
     /// String `id` of the language's, drawn.
     fn string(&mut self, font: Self::Font, id: u32, x: i32, y: i32) -> Result<Drawn, Self::Error>;
     /// String `id`'s bytes (no NUL).
@@ -71,6 +96,37 @@ pub trait Screen {
     fn sprite(&mut self, glyph: u32, x: i32, y: i32, palette: u32) -> Result<(), Self::Error>;
     /// A work variable set.
     fn keep(&mut self, work: Self::Work, value: u32);
+    /// A bar drawn.
+    fn bar(&mut self, bar: Bar) -> Result<(), Self::Error>;
+    /// The error for the game's fatal error `code`.
+    fn fatal(&mut self, code: u32, message: &'static str) -> Self::Error;
+    /// `bytes` (no NUL, 3 .. 0x80 of them) put in the line buffer with a NUL and drawn
+    /// spaced out, the last character's column at `x` + 0x32
+    /// (`screens::draw_spaced_number`). A screen that draws none refuses.
+    fn spaced(
+        &mut self,
+        _font: Self::Font,
+        _bytes: &[u8],
+        _x: i32,
+        _y: i32,
+    ) -> Result<(), Self::Error> {
+        Err(Invalid("this screen draws no spaced numbers").into())
+    }
+    /// A text the game keeps measured from x (`text::measure_text`): its widest line's width
+    /// and its line count (which the measuring leaves in the font, and a page may hand the
+    /// blitter as a palette). A screen that measures nothing refuses.
+    fn measure(
+        &mut self,
+        _font: Self::Font,
+        _text: Self::Text,
+        _x: i32,
+    ) -> Result<(u32, u32), Self::Error> {
+        Err(Invalid("this screen measures no text").into())
+    }
+    /// Where a buffer is, as the game keeps it in a work variable (0 off the game).
+    fn buffer_address(&mut self, _buffer: Buffer) -> u32 {
+        0
+    }
 
     /// `bytes` (no NUL) put in the line buffer with a NUL and drawn from there.
     fn line(

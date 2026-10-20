@@ -1,7 +1,7 @@
 //! `audio::set_mode` (0x40A426): command 5, the sound mode changed (menus <-> a race).
 //!
-//! In:  eax = the new mode; ebx, ecx, edx = handed to `audio::stop_streams` (edx its action:
-//!      section 16)
+//! In:  eax = the new mode; ebx, ecx = handed to `audio::stop_streams`, with action 0 (the
+//!      original hands on edx: section 16, fixed 2026-10-20)
 //! Out: carry = failed ("SAM: FAIL"); every register preserved
 //!
 //! "SAM:" and the mode logged; `audio::stop_streams`, `audio::free_voices`,
@@ -14,7 +14,8 @@
 //! way `system::restore_window` last (its flags kept around it). Callers: the audio thread's
 //! start (the menus' mode), `audio::take_commands` (command 5).
 //! Shadow mode runs the original alone. Self-test: a redirected copy whose calls go to
-//! stand-ins noting what each reads (no wait, no window), 45 cases.
+//! stand-ins noting what each reads (no wait, no window), 45 cases; the original's
+//! `stop_streams` action taken as 0 (the fix).
 
 use crate::audio::buffer_play::{Leaves, dispatch_leaf};
 use crate::audio::voices::{read, write};
@@ -101,7 +102,11 @@ pub fn set_mode(entry: &Regs, v: &ModeVars, part: Part) -> Result<bool, Refused>
             },
         )?;
         call(1, &c)?;
-        for place in 2..6 {
+        // Fixed (section 16, 2026-10-20): the streams stopped with action 0; the original
+        // hands on whatever edx holds (normally the thread's 1, a feed), so the music
+        // outlived the DirectSound it played on.
+        call(2, &Regs { edx: 0, ..c })?;
+        for place in 3..6 {
             call(place, &c)?;
         }
         c.edx = mode;
@@ -349,7 +354,13 @@ fn self_test() -> (usize, usize) {
                         unsafe { std::slice::from_raw_parts(at as *const u32, m.len()) }.to_vec(),
                     )
                 };
-                let theirs = run(false);
+                let mut theirs = run(false);
+                // The fix: the streams stopped with action 0.
+                for n in &mut theirs.1 {
+                    if n[0] == 2 {
+                        n[4] = 0;
+                    }
+                }
                 let mine = run(true);
                 t.check(theirs.0.is_some() && theirs == mine, || {
                     format!("mode {mode:#x}, hardware {hardware}, failing {failing:?}: original {:?} {:x?} {:x?}; rust {:?} {:x?} {:x?}", theirs.0, theirs.1, &theirs.2[..3], mine.0, mine.1, &mine.2[..3])

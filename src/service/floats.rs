@@ -40,10 +40,13 @@ pub const ROUNDED: Tolerance = Tolerance::Rounded(1);
 /// rounding of each step (64 bits against 53) adds up to about 2^-49 over a sum of
 /// products (seen 2026-10-20, `rotate_point`, `dot_product3`); 2^-40, far under a float's
 /// 2^-24, which is what the game makes of these values.
-/// The absolute floor 2^-30: a sum of terms of a stage's size (~1e4) that cancels to near
-/// 0 keeps their last bits' error (seen 2026-10-20, `rotate_point`: 2.4e-7).
+/// The absolute floor 2^-26: a sum of terms of a stage's size that cancels keeps their
+/// last bits' error, an `f64`'s at the terms' size (2^-30 at first; seen 2026-10-20,
+/// `rotate_point` at 0x037F: 2.8e-9 and 1.4e-9 on results of about 280 and 200, as an
+/// `f64`'s last place at about 1e7, 1.9e-9). Still far under a float's last place there
+/// (about 1.5e-5), which is what the game stores.
 pub const EXTENDED: Tolerance =
-    Tolerance::Extended(1.0 / (1u64 << 40) as f64, 1.0 / (1u64 << 30) as f64);
+    Tolerance::Extended(1.0 / (1u64 << 40) as f64, 1.0 / (1u64 << 26) as f64);
 /// An angle a search of halvings found (a float kept at 80 bits): a drifted step may
 /// send the search the other way, by the last steps' size.
 pub const ANGLE: Tolerance = Tolerance::Extended(1.0 / 1024.0, 0.0);
@@ -322,6 +325,7 @@ pub fn dispatch_state_floats(
         unsafe { call_original(r) };
         return;
     }
+    let word = crate::math::x87_run::control_word();
     let before = capture(regions);
     let left = match rust(r) {
         Ok(left) => left,
@@ -345,7 +349,7 @@ pub fn dispatch_state_floats(
         }),
         Agreement::Differ => crate::screens::harness::mismatch_unless_disturbed(hook, || {
             format!(
-                "regs_ok={}; memory: {}",
+                "regs_ok={}; control word {word:#06x}; memory: {}",
                 compare_regs(&left, r, &o, floats) != Agreement::Differ,
                 diff_summary(&theirs, &mine)
             )

@@ -2,10 +2,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, game_write, rva};
-use crate::gfx::blit_glyph::BlitCall;
-use crate::screens::{font_at, line_buffer};
-use crate::text::draw_string_by_id::draw_string_by_id_at;
-use crate::text::draw_text::{Canvas, draw_text_at};
+use crate::text::draw_text::Canvas;
 
 fn k(a: usize) -> u32 {
     unsafe { game_read(rva(a)) }
@@ -17,19 +14,6 @@ fn w(a: usize, v: u32) {
 
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
-}
-
-fn flag_glyph(flag: u32) -> u32 {
-    (if (0x18..=0x19).contains(&flag) {
-        flag ^ 1
-    } else {
-        flag
-    })
-    .wrapping_add(0x44)
-}
-
-unsafe fn line(bytes: &[u8]) {
-    unsafe { std::ptr::copy_nonoverlapping(bytes.as_ptr(), line_buffer(), bytes.len()) };
 }
 
 /// The stage's record table and record (`off_735512[dword_7556F8][dword_75880E]`, + 0xA4 x
@@ -74,7 +58,6 @@ fn times_table() -> u32 {
 /// (the original's early exit leaves two dwords on the stack and returns through a `pusha`
 /// slot), and what the strings refuse.
 pub unsafe fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    use crate::text::draw_time_fixed_pitch::draw_time_fixed_pitch_at;
     unsafe {
         let menu = k(0x75558D);
         let (base, record) = records();
@@ -121,119 +104,47 @@ pub unsafe fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused>
             game_addr(rva(0xA8BD54)) as *mut u8,
             stage.len(),
         );
-        let mut entry = first;
-        let sprites = crate::gfx::blit_marker_pair::sprite_table();
-        let mut y = 0xF0i32;
-        let mut rank = 1u32;
-        loop {
-            w(0x7559AC, rank);
+        // Converted: `rc2k_core::stage_results`.
+        use rc2k_core::stage_results::{Entry, Fastest, stage_results};
+        let rows = std::array::from_fn(|n| {
+            let entry = first.wrapping_add(0x9C * n as u32);
             let f = |o: u32| get(entry + o);
-            y = draw_text_at(
-                font_at(0x51E584),
-                (entry + 0x20) as *const u8,
-                0xF0,
-                y,
-                canvas,
-            )?
-            .y;
-            if k(0x75AB30) == 1 {
-                crate::strings::format_seal_code::format_seal_code(f(0x54), f(0x58));
-                w(0x7559EC, y as u32);
-                let code = game_addr(rva(0x4E0544)) as *const u8;
-                let cell = game_addr(rva(0xA8BC54)) as *mut u8;
-                let mut x = 0x20Ai32;
-                let mut n = 0;
-                loop {
-                    (cell as *mut u32).write_unaligned(0);
-                    *cell = *code.add(n);
-                    *cell.add(1) = 0;
-                    draw_text_at(font_at(0x51E564), cell, x, k(0x7559EC) as i32, canvas)?;
-                    x += 0xE;
-                    n += 1;
-                    if *code.add(n) == 0 {
-                        break;
-                    }
-                }
-            } else {
-                let mut time = crate::strings::append_time::append_time(
-                    f(0x14),
-                    crate::strings::append_time::show_hours(),
-                );
-                time.push(0);
-                line(&time);
-                draw_time_fixed_pitch_at(font_at(0x51E564), line_buffer(), 0x276, y, canvas)?;
-                if k(0x7559AC) == 1 {
-                    w(0x75AB24, f(0x14));
-                } else {
-                    let gap = f(0x14).wrapping_sub(k(0x75AB24));
-                    w(0x7559F0, gap);
-                    y = draw_string_by_id_at(0x579, font_at(0x51E584), 0x276, y, canvas)?.y;
-                    let mut time = crate::strings::append_time::append_time(
-                        gap,
-                        crate::strings::append_time::show_hours(),
-                    );
-                    time.push(0);
-                    line(&time);
-                    draw_time_fixed_pitch_at(font_at(0x51E564), line_buffer(), 0x2EE, y, canvas)?;
-                }
+            Entry {
+                name: entry + 0x20,
+                nation: f(8),
+                car: f(0x10),
+                time: f(0x14),
+                seal: (f(0x54), f(0x58)),
             }
-            let mut n = crate::strings::append_u32::append_u32(k(0x7559AC));
-            n.push(0);
-            line(&n);
-            let out = draw_text_at(font_at(0x51E5A4), line_buffer(), 0xC8, y, canvas)?;
-            y = out.y;
-            w(0x7559B0, y as u32);
-            canvas.blit_glyph(BlitCall::new(
-                f(8).wrapping_add(0x1C),
-                0xD2,
-                y,
-                out.text as u32,
-                sprites,
-            ))?;
-            canvas.blit_glyph(BlitCall::new(
-                flag_glyph(f(0x10)),
-                0x1CC,
-                y,
-                out.text as u32,
-                sprites,
-            ))?;
-            entry = entry.wrapping_add(0x9C);
-            y = y.wrapping_add(0x19);
-            rank += 1;
-            if rank == 0xB {
-                break;
-            }
-        }
-        draw_string_by_id_at(0x1A2, font_at(0x51E6E4), 0x142, 0x1F1, canvas)?;
-        let (car, name, flag) = if second {
+        });
+        let (nation, name, car) = if second {
             (0x9C, 0x7C, 0xA0)
         } else {
             (0x74, 0x54, 0x78)
         };
-        let palette = if both_off == 1 { k(0x75880E) } else { both_off };
-        canvas.blit_glyph(BlitCall::new(
-            get(fastest + car).wrapping_add(0x1C),
-            0x14F,
-            0x1F1,
-            palette,
-            sprites,
-        ))?;
-        let out = draw_text_at(
-            font_at(0x51E584),
-            (fastest + name) as *const u8,
-            0x172,
-            0x1F1,
-            canvas,
+        speed.pop();
+        let fastest = Fastest {
+            nation: get(fastest + nation),
+            name: fastest + name,
+            car: get(fastest + car),
+            palette: if both_off == 1 { k(0x75880E) } else { both_off },
+            speed,
+        };
+        let mut seal_code = |a: u32, b: u32| {
+            crate::strings::format_seal_code::format_seal_code(a, b);
+            let code = game_addr(rva(0x4E0544)) as *const u8;
+            std::ffi::CStr::from_ptr(code as *const std::ffi::c_char)
+                .to_bytes()
+                .to_vec()
+        };
+        stage_results(
+            &mut crate::screens::game_screen::GameScreen::new(canvas),
+            k(0x75AB30) == 1,
+            crate::strings::append_time::show_hours(),
+            &rows,
+            &mut seal_code,
+            &fastest,
         )?;
-        canvas.blit_glyph(BlitCall::new(
-            flag_glyph(get(fastest + flag)),
-            0x225,
-            0x1F1,
-            out.text as u32,
-            sprites,
-        ))?;
-        line(&speed);
-        draw_text_at(font_at(0x51E584), line_buffer(), 0x262, 0x1F1, canvas)?;
         Ok(())
     }
 }

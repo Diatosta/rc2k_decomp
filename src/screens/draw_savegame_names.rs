@@ -11,13 +11,13 @@
 //! Refuses a page past the tenth (the list has 100 names).
 //! Self-test: the ten pages of the owner's own list, nothing drawn.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::menu::name_lists::{SAVEGAME_NAMES_RVA, SAVEGAME_PAGE_RVA};
+use crate::screens::font_is_loaded;
 use crate::screens::harness::{Left, check_draw, dispatch_draw, drawing_unavailable};
-use crate::screens::{font_at, font_is_loaded};
 use crate::service::harness::{at, capture, restore};
-use crate::text::draw_text::{Canvas, draw_text_at};
+use crate::text::draw_text::Canvas;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -38,28 +38,21 @@ hook_asm!(
 );
 
 const FONT: usize = 0x51E8C4;
-const COLUMNS: [i32; 2] = [0xCF, 0x21C];
-const ROWS: [i32; 5] = [0xB5, 0xD2, 0xEF, 0x10C, 0x129];
 const NAME_LEN: usize = 0x20;
 const PAGES: u32 = 10;
 
 // ---- Rust version ----
 
 pub unsafe fn draw_savegame_names(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+    // Converted: `rc2k_core::slot_lists::names`.
     let page: u32 = unsafe { game_read(SAVEGAME_PAGE_RVA) };
-    if page >= PAGES {
-        return Err(BadInput("a page past the saved games' names").into());
-    }
-    let mut name = game_addr(SAVEGAME_NAMES_RVA) + page as usize * 10 * NAME_LEN;
-    let mut carry = false;
-    for x in COLUMNS {
-        for y in ROWS {
-            carry =
-                unsafe { draw_text_at(font_at(FONT), name as *const u8, x, y, canvas) }?.too_wide;
-            name += NAME_LEN;
-        }
-    }
-    Ok(carry)
+    let names = game_addr(SAVEGAME_NAMES_RVA) as u32;
+    rc2k_core::slot_lists::names(
+        &mut crate::screens::game_screen::SlotScreen::new(canvas),
+        &rc2k_core::slot_lists::SAVED_GAMES,
+        page,
+        |slot| names.wrapping_add(slot * NAME_LEN as u32),
+    )
 }
 
 // ---- hook ----

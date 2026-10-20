@@ -13,17 +13,13 @@
 //! varied, nothing drawn (skipped without the fonts or a menu).
 
 use crate::errors::Refused;
-use crate::framework::{
-    EAX, EBX, ECX, EDX, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::menu::disable_item::{disable_item, item_region};
 use crate::menu::enable_item::enable_item;
 use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::font_at;
 use crate::screens::harness::{Left, check_draw, dispatch_draw};
 use crate::service::harness::{Region, at, capture, restore};
 use crate::strings::text_from_ids::{TEXT_LEN, text};
-use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::Canvas;
 use std::sync::atomic::AtomicUsize;
 
@@ -61,34 +57,19 @@ const NAMES: [(u32, u32); 6] = [
 
 /// The Rust version: the registers the last name leaves.
 pub unsafe fn draw_sound_settings(canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    unsafe {
-        for n in 4..=6 {
-            enable_item(n)?;
+    // Converted: `rc2k_core::settings_pages::{sound_items, sound}`.
+    use crate::screens::game_screen::{SettingsScreen, left_of};
+    let [a, b, c] = SWITCHES.map(|(switch, _)| k(switch) == 1);
+    for (item, on) in rc2k_core::settings_pages::sound_items(a, b, c) {
+        if on {
+            enable_item(item)?;
+        } else {
+            disable_item(item)?;
         }
-        for (switch, item) in SWITCHES {
-            if k(switch) != 1 {
-                disable_item(item)?;
-            }
-        }
-        let mut left = Left::nothing();
-        for (n, (setting, first)) in NAMES.into_iter().enumerate() {
-            let id = k(setting).wrapping_add(first);
-            game_write(rva(0x7559EC), id);
-            let out = draw_string_by_id_at(
-                id,
-                font_at(0x51E8C4),
-                0x1D1,
-                0x10B + 0x1B * n as i32,
-                canvas,
-            )?;
-            left = Left::carry(out.too_wide)
-                .with(EAX, 0)
-                .with(EBX, out.text as u32)
-                .with(ECX, out.x as u32)
-                .with(EDX, out.y as u32);
-        }
-        Ok(left)
     }
+    let ids = NAMES.map(|(setting, first)| k(setting).wrapping_add(first));
+    let out = rc2k_core::settings_pages::sound(&mut SettingsScreen::new(canvas), ids)?;
+    Ok(left_of(out))
 }
 
 fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {

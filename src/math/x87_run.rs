@@ -35,6 +35,16 @@ pub fn sum_times_over(a: u32, b: u32, h: u32, d: u32) -> u32 {
     out
 }
 
+/// The x87's control word now (the precision a call runs at: 0x027F double, 0x037F
+/// extended).
+pub fn control_word() -> u16 {
+    let mut word = 0u16;
+    unsafe {
+        core::arch::asm!("fnstcw word ptr [{o}]", o = in(reg) &raw mut word, options(nostack));
+    }
+    word
+}
+
 /// Runs `f` with the x87's control word set to `word`, then puts the old one back (for
 /// self-tests that try several precisions).
 pub fn with_control_word(word: u16, f: &mut dyn FnMut()) {

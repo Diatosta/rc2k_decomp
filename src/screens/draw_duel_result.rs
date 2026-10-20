@@ -20,15 +20,13 @@
 //! with each order and "no time", nothing drawn.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::gfx::blit_glyph::BlitCall;
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, rva};
 use crate::menu::player::player_at;
 use crate::screens::draw_menu_item_text::text_unavailable;
 use crate::screens::harness::{Left, check_draw, dispatch_draw};
-use crate::screens::{font_at, line_buffer};
+use crate::screens::line_buffer;
 use crate::service::harness::{Region, at, capture, restore};
-use crate::text::draw_string_by_id::draw_string_by_id_at;
-use crate::text::draw_text::{Canvas, draw_text_at};
+use crate::text::draw_text::Canvas;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -55,15 +53,6 @@ unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
 
-fn flag_glyph(flag: u32) -> u32 {
-    (if (0x18..=0x19).contains(&flag) {
-        flag ^ 1
-    } else {
-        flag
-    })
-    .wrapping_add(0x44)
-}
-
 /// The stage's section's first record and the stage's record (`off_735512[dword_7558C8]
 /// [dword_7558D0]`, + 0xA4 x `dword_7558CC`); none: 0.
 fn records() -> (u32, u32) {
@@ -85,19 +74,7 @@ fn label(v: u32) -> Result<u32, Refused> {
     Ok(k(0x7588D2 + 4 * (v as usize - 1)))
 }
 
-unsafe fn line(bytes: &[u8]) -> *mut u8 {
-    unsafe { std::ptr::copy_nonoverlapping(bytes.as_ptr(), line_buffer(), bytes.len()) };
-    line_buffer()
-}
-
-fn nul(mut v: Vec<u8>) -> Vec<u8> {
-    v.push(0);
-    v
-}
-
 pub unsafe fn draw_duel_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    use crate::strings::append_time::{append_time, show_hours};
-    use crate::text::draw_time_fixed_pitch::draw_time_fixed_pitch_at;
     unsafe {
         let (p1, p2) = (player_at(0), player_at(1));
         if p1 == 0 || p2 == 0 || get(p1 + 0x18) == 0 || get(p2 + 0x18) == 0 {
@@ -112,121 +89,35 @@ pub unsafe fn draw_duel_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
             return Err(BadInput("a stage line past the line buffer").into());
         }
         let (label1, label2) = (label(k(0x758768))?, label(k(0x75876C))?);
+        // Converted: `rc2k_core::duel_result`.
+        use rc2k_core::player_result::Player;
         let units = crate::strings::units::units();
-        let speeds = [
-            nul(crate::strings::append_speed::append_speed(
-                get(p1 + 0x94),
-                true,
-                units,
-            )?),
-            nul(crate::strings::append_speed::append_speed(
-                get(p2 + 0x94),
-                true,
-                units,
-            )?),
-        ];
-        let (big, small) = (font_at(0x51E584), font_at(0x51E5A4));
-        draw_string_by_id_at(0x213, big, 0x135, 0x114, canvas)?;
-        draw_string_by_id_at(0x214, big, 0x236, 0x114, canvas)?;
-        for (id, y) in [
-            (0x20E, 0x12B),
-            (0x217, 0x142),
-            (0x208, 0x159),
-            (0x210, 0x187),
-            (0x211, 0x19E),
-            (0x212, 0x1CD),
-        ] {
-            draw_string_by_id_at(id, small, 0xFD, y, canvas)?;
-        }
-        let swapped = get(p2 + 0x88) < get(p1 + 0x88);
-        let (top, bottom) = if swapped {
-            (0x216, 0x215)
-        } else {
-            (0x215, 0x216)
+        let player = |p: u32| -> Result<Player<u32>, Refused> {
+            Ok(Player {
+                name: get(p + 0x18),
+                nation: get(p + 4),
+                car: get(p + 8),
+                time: get(p + 0x88),
+                speed: crate::strings::append_speed::append_speed(get(p + 0x94), true, units)?,
+            })
         };
-        draw_string_by_id_at(top, small, 0xFD, 0xD0, canvas)?;
-        draw_string_by_id_at(bottom, small, 0xFD, 0xE7, canvas)?;
-        game_write(FIRST_RVA, if swapped { 4u32 } else { 0 });
-        game_write(SECOND_RVA, if swapped { 0u32 } else { 4 });
-        let order = if swapped { [p2, p1] } else { [p1, p2] };
-        draw_string_by_id_at(get(base + 0x38), font_at(0x51E9A4), 0x2EB, 0x77, canvas)?;
-        draw_text_at(font_at(0x51E9A4), line(&stage), 0x2EB, 0x91, canvas)?;
-        for (p, y) in order.iter().zip([0xD0, 0xE7]) {
-            let time = get(p + 0x88);
-            if time == NO_TIME {
-                draw_string_by_id_at(0x4FA, font_at(0x51E564), 0x281, y, canvas)?;
-            } else {
-                draw_time_fixed_pitch_at(
-                    font_at(0x51E564),
-                    line(&nul(append_time(time, show_hours()))),
-                    0x2AD,
-                    y,
-                    canvas,
-                )?;
-            }
-        }
-        draw_text_at(big, line(&speeds[0]), 0x135, 0x159, canvas)?;
-        let palette = draw_text_at(big, line(&speeds[1]), 0x236, 0x159, canvas)?.text as u32;
-        let sprites = crate::gfx::blit_marker_pair::sprite_table();
-        for (p, y) in order.iter().zip([0xD0, 0xE7]) {
-            canvas.blit_glyph(BlitCall::new(
-                get(p + 4).wrapping_add(0x1C),
-                0x135,
-                y,
-                palette,
-                sprites,
-            ))?;
-        }
-        let mut palette = 0;
-        for (p, y) in order.iter().zip([0xD0, 0xE7]) {
-            palette = draw_text_at(big, get(p + 0x18) as *const u8, 0x152, y, canvas)?.text as u32;
-        }
-        for (p, y) in order.iter().zip([0xCF, 0xE7]) {
-            canvas.blit_glyph(BlitCall::new(
-                flag_glyph(get(p + 8)),
-                0x1FC,
-                y,
-                palette,
-                sprites,
-            ))?;
-        }
-        draw_text_at(
-            big,
-            line(&nul(append_time(k(0x758758), show_hours()))),
-            0x135,
-            0x142,
-            canvas,
+        let players = [player(p1)?, player(p2)?];
+        let figures = rc2k_core::duel_result::Figures {
+            labels: [label1, label2],
+            best: [k(0x758758), k(0x75875C)],
+            columns: [
+                [0x758778, 0x758758, 0x758788, 0x758798, 0x7587A8, 0x7587B8].map(k),
+                [0x75877C, 0x75875C, 0x75878C, 0x75879C, 0x7587AC, 0x7587BC].map(k),
+            ],
+        };
+        rc2k_core::duel_result::duel_result(
+            &mut crate::screens::game_screen::GameScreen::new(canvas),
+            &players,
+            get(base + 0x38),
+            &stage,
+            &figures,
+            crate::strings::append_time::show_hours(),
         )?;
-        draw_text_at(
-            big,
-            line(&nul(append_time(k(0x75875C), show_hours()))),
-            0x236,
-            0x142,
-            canvas,
-        )?;
-        draw_string_by_id_at(label1, big, 0x135, 0x12B, canvas)?;
-        draw_string_by_id_at(label2, big, 0x236, 0x12B, canvas)?;
-        let rows = [0x12B, 0x142, 0x159, 0x187, 0x19F, 0x1CD];
-        for (x, values) in [
-            (
-                0x1C4,
-                [0x758778, 0x758758, 0x758788, 0x758798, 0x7587A8, 0x7587B8],
-            ),
-            (
-                0x2C8,
-                [0x75877C, 0x75875C, 0x75878C, 0x75879C, 0x7587AC, 0x7587BC],
-            ),
-        ] {
-            for (a, y) in values.into_iter().zip(rows) {
-                draw_text_at(
-                    big,
-                    line(&nul(crate::strings::append_u32::append_u32(k(a)))),
-                    x,
-                    y,
-                    canvas,
-                )?;
-            }
-        }
         Ok(())
     }
 }

@@ -204,6 +204,26 @@ impl GameHook for RawHook {
     unsafe fn install(&self, addr: usize) -> Result<(), detour::Error> {
         unsafe {
             if self.private_copy_len > 0 {
+                // A rel32 call or jump out of the copy that is not relocated would go to
+                // whatever lies at the same distance from the copy (2026-10-20:
+                // `arcade_event`'s last call, a crash leaving the arcade): leave the hook
+                // unpatched, the original runs. One into this DLL is the patch of a hooked
+                // function inside the copy: relocated with the listed ones.
+                let code = std::slice::from_raw_parts(addr as *const u8, self.private_copy_len);
+                let dll = dll_range();
+                let mut patches = Vec::new();
+                for (off, target) in unlisted_branches_out(code, addr, self.relocs) {
+                    if dll.contains(&target) {
+                        patches.push(off);
+                        continue;
+                    }
+                    log(&format!(
+                        "{}: its private copy has a call or jump out at +{off:#x} that \
+                         `relocate_calls` does not list: not hooked",
+                        self.name
+                    ));
+                    return Err(detour::Error::UnsupportedInstruction);
+                }
                 // Copy the untouched function before patching it
                 let mem = VirtualAlloc(
                     null(),
@@ -215,7 +235,7 @@ impl GameHook for RawHook {
                 assert!(!mem.is_null(), "VirtualAlloc failed");
                 copy_nonoverlapping(addr as *const u8, mem, self.private_copy_len);
 
-                for &off in self.relocs {
+                for &off in self.relocs.iter().chain(&patches) {
                     // 'off' is the offset of an E8 (call) or E9 (jmp) instruction, or of a
                     // conditional near jump (0F 8x) out of the function, as the screen
                     // loops have to their fatal-error stubs.
@@ -812,3 +832,42 @@ macro_rules! hook_asm {
 }
 
 pub(crate) use hook_asm;
+
+/// The `call`, `jmp` and `jcc` with a 32-bit displacement in `code` (`original`'s bytes)
+/// whose target is outside it and which `listed` lacks, with their targets: what a private
+/// copy must relocate.
+fn unlisted_branches_out(code: &[u8], original: usize, listed: &[usize]) -> Vec<(usize, usize)> {
+    use iced_x86::{Decoder, DecoderOptions, OpKind};
+    let end = original + code.len();
+    let mut found = Vec::new();
+    let mut decoder = Decoder::with_ip(32, code, original as u64, DecoderOptions::NONE);
+    while decoder.can_decode() {
+        let insn = decoder.decode();
+        let offset = insn.ip() as usize - original;
+        let rel32 = matches!(code.get(offset), Some(0xE8 | 0xE9))
+            || (code.get(offset) == Some(&0x0F)
+                && code
+                    .get(offset + 1)
+                    .is_some_and(|b| (0x80..=0x8F).contains(b)));
+        if rel32 && insn.op0_kind() == OpKind::NearBranch32 {
+            let target = insn.near_branch_target() as usize;
+            if !(original..end).contains(&target) && !listed.contains(&offset) {
+                found.push((offset, target));
+            }
+        }
+    }
+    found
+}
+
+/// This DLL's image (its base and `SizeOfImage`).
+fn dll_range() -> std::ops::Range<usize> {
+    let base = dll_base();
+    if base == 0 {
+        return 0..0;
+    }
+    unsafe {
+        let pe = base + (base as *const u8).add(0x3C).cast::<u32>().read_unaligned() as usize;
+        let size = ((pe + 0x50) as *const u32).read_unaligned() as usize;
+        base..base + size
+    }
+}

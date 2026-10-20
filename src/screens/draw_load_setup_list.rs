@@ -9,12 +9,9 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_write, hook_asm, rva};
-use crate::screens::draw_setup_slot_names::{
-    COLUMNS, FONT, PAGES, STATE_RVAS, draw_setup_slot_names, names_end,
-};
+use crate::screens::draw_setup_slot_names::{FONT, PAGES, STATE_RVAS, names_end};
 use crate::screens::font_is_loaded;
 use crate::screens::harness::{Left, check_draw, dispatch_draw, drawing_unavailable, push_dwords};
-use crate::screens::stage_panel::label;
 use crate::service::harness::{Region, at, capture, restore};
 use crate::service::load_setup_slot::SLOT_PAGE_RVA;
 use crate::strings::string_table::{blob, is_table_id};
@@ -44,18 +41,18 @@ hook_asm!(
 
 const TITLE: u32 = 0x4DD;
 const COLUMN_LABELS: [u32; 2] = [0x4E3, 0x4E4];
-const LABEL_Y: i32 = 0x1F7;
 
 // ---- Rust version ----
 
 pub unsafe fn draw_load_setup_list(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    unsafe {
-        label(canvas, TITLE, FONT, 0x190, 0xE)?;
-        for (id, x) in COLUMN_LABELS.into_iter().zip(COLUMNS) {
-            label(canvas, id, FONT, x, LABEL_Y)?;
-        }
-        draw_setup_slot_names(canvas)
-    }
+    // Converted: `rc2k_core::slot_lists::setup_page`.
+    let page: u32 = unsafe { crate::framework::game_read(SLOT_PAGE_RVA) };
+    rc2k_core::slot_lists::setup_page(
+        &mut crate::screens::game_screen::SlotScreen::new(canvas),
+        rc2k_core::slot_lists::LOAD_SETUP_TITLE,
+        page,
+        |slot| crate::service::read_setup_slot::slot_name(slot) as u32,
+    )
 }
 
 // ---- hook ----
