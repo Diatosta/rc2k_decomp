@@ -23,7 +23,6 @@ use crate::framework::{
     shadow,
 };
 use crate::gfx::components_to_4444_rows::{COMPONENTS_TO_4444_ROWS, components_to_4444_rows};
-use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::copy_pixel_rows::{COPY_PIXEL_ROWS, copy_pixel_rows};
 use crate::gfx::harness::dispatch_pixels;
 use crate::gfx::install_converters::CONVERTERS_RVA;
@@ -128,16 +127,18 @@ pub unsafe fn convert_picture(screen_bits: u32, converter: u32) -> Result<(), Ba
                 return Ok(());
             }
         } else {
+            // Converted: `rc2k_core::gfx::pixels::convert_in_place`.
             let format: PixelFormat = game_read(SURFACE_FORMAT_RVA);
             let pixels = width as usize * height as usize;
-            for n in 0..pixels {
-                let components = (buffer.add(n * 4) as *const u32).read_unaligned();
-                let pixel = components_to_pixel(&format, components);
-                if screen_bits == 16 {
-                    (buffer.add(n * 2) as *mut u16).write_unaligned(pixel as u16);
-                } else {
-                    (buffer.add(n * 4) as *mut u32).write_unaligned(pixel);
-                }
+            let bytes = std::slice::from_raw_parts_mut(buffer, pixels * 4);
+            let scratch = rc2k_core::gfx::pixels::convert_in_place(
+                bytes,
+                pixels,
+                &format,
+                screen_bits == 16,
+            )?;
+            if let Some(scratch) = scratch {
+                game_write(SCRATCH_RVA, scratch);
             }
             if screen_bits != 16 {
                 return Ok(());

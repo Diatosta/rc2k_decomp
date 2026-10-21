@@ -20,9 +20,7 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
 use crate::physics::flow::{base, x87_run};
 use crate::service::harness::{Region, capture, restore};
-use crate::sound::spot_voices::{
-    VOICE_COUNT, VOICE_LEN, WORK, fill_voices, g, p, set, voice, voice_regions, vw,
-};
+use crate::sound::spot_voices::{WORK, fill_voices, g, p, set, voice, voice_regions};
 use crate::sound::turn_parts::{Part, SCRATCH, both, copy_of, dispatch_turn, run_copy};
 use std::sync::atomic::AtomicUsize;
 
@@ -77,58 +75,34 @@ pub fn clear_work() {
 
 // ---- Rust version ----
 
+/// Converted: `rc2k_core::sound::spot_voices::merge` and `merge_between`.
 pub fn merge_spot_voices_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
-    clear_work();
-    c.ebp = c.eax;
-    for n in 0..VOICE_COUNT {
-        let v = voice(n);
-        (c.ebx, c.ecx) = (v, VOICE_COUNT - n);
-        if vw(v, 4) != 1 || c.ebp != vw(v, 0x14) {
-            continue;
-        }
-        if vw(v, 0x28) == 1 {
-            p(PLAYING, v);
-        }
-        c.eax = distance_1000(v);
-        if c.eax < g(BEST_D) {
-            p(NEXT_D, g(BEST_D));
-            c.edx = g(NEXT);
-            p(NEXT, g(BEST));
-            p(BEST_D, c.eax);
-            p(BEST, v);
-        } else if c.eax < g(NEXT_D) {
-            p(NEXT_D, c.eax);
-            p(NEXT, v);
-        }
-        set(v, 4, 0);
-        set(v, 0x28, 0);
-    }
-    (c.ebx, c.ecx) = (voice(0) + VOICE_COUNT * VOICE_LEN, 0);
-    if g(BEST) == 0 {
+    use crate::sound::spot_voices::{load_voices, pick_regs, store_picks, store_voices};
+    use rc2k_core::sound::spot_voices as core;
+    let mut voices = load_voices();
+    let (picks, trail) = core::merge(&mut voices, c.eax);
+    store_voices(&voices);
+    store_picks(&picks, &trail);
+    *c = pick_regs(c, &trail);
+    let Some(nearest) = picks.nearest else {
         return Ok(());
-    }
-    c.ebx = g(BEST);
-    set(c.ebx, 0x24, 1);
-    set(c.ebx, 4, 1);
-    if g(NEXT) == 0 {
+    };
+    c.ebx = voice(nearest as u32);
+    let Some(next) = picks.next else {
         return Ok(());
-    }
-    for (k, from) in [(0usize, g(BEST)), (12, g(NEXT))] {
-        for m in 0..3 {
-            c.eax = vw(from, 8 + 4 * m as u32);
-            p(ENDS + k + 4 * m, c.eax);
-        }
-    }
-    c.ebx = g(NEXT);
+    };
+    let (a, b) = (voices[nearest].place, voices[next].place);
     for m in 0..3 {
+        p(ENDS + 4 * m, a[m]);
+        p(ENDS + 12 + 4 * m, b[m]);
         p(ENDS + 24 + 4 * m, 0);
     }
+    (c.eax, c.ebx) = (b[2], voice(next as u32));
     part(NEAREST_ON_SEGMENT, c)?;
-    c.ebx = g(BEST);
-    for m in 0..3 {
-        c.eax = g(RESULT + 4 * m);
-        set(c.ebx, 8 + 4 * m as u32, c.eax);
-    }
+    let point = [0, 1, 2].map(|m| g(RESULT + 4 * m));
+    core::merge_between(&mut voices, &picks, point);
+    store_voices(&voices);
+    (c.eax, c.ebx) = (point[2], voice(nearest as u32));
     Ok(())
 }
 

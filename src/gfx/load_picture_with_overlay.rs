@@ -51,7 +51,6 @@ hook_asm!(
 );
 
 const MEMORY: u32 = 0x1D4C00 + 0xC80;
-const MAGENTA: u32 = 0xFF_00FF;
 
 // ---- Rust version ----
 
@@ -83,24 +82,24 @@ pub unsafe fn load_picture_with_overlay(path: *mut u8, overlay: *mut u8) -> Resu
             }
         };
         if read {
+            // Converted: `rc2k_core::gfx::loading::lay_over`; both buffers 0x1D4C00 + 0xC80
+            // bytes (the picture buffer's room, `gfx::allocate_picture_buffer`).
             let (width, height): (u32, u32) =
                 (game_read(DECODED_WIDTH_RVA), game_read(DECODED_HEIGHT_RVA));
-            if width == 0 || height == 0 {
-                free_list(list)?;
-                return Err(BadInput("an overlay of no width or height").into());
-            }
             let (stride, row): (u32, u32) = (game_read(STRIDE_RVA), game_read(ROW_BYTES_RVA));
-            let mut from = memory as u32;
-            let mut to = kept[3];
-            for _ in 0..height {
-                for x in 0..width {
-                    let pixel = ((from + x * 4) as *const u32).read_unaligned();
-                    if pixel != MAGENTA {
-                        ((to + x * 4) as *mut u32).write_unaligned(pixel);
-                    }
-                }
-                from = from.wrapping_add(stride);
-                to = to.wrapping_add(row);
+            let from = std::slice::from_raw_parts(memory as *const u8, MEMORY as usize);
+            let to = std::slice::from_raw_parts_mut(kept[3] as *mut u8, MEMORY as usize);
+            let laid = rc2k_core::gfx::loading::lay_over(
+                to,
+                from,
+                width as usize,
+                height as usize,
+                stride as usize,
+                row as usize,
+            );
+            if let Err(e) = laid {
+                free_list(list)?;
+                return Err(BadInput(e.0).into());
             }
         }
         free_list(list)?;

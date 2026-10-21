@@ -21,7 +21,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::math::x87::from_int;
 use crate::service::harness::{at, capture, restore};
 use crate::sound::sample_duration::sample_duration;
 use crate::sound::sample_settings::{OWN, sample_settings};
@@ -54,39 +53,41 @@ const KEPT: u32 = 0xE9;
 
 // ---- Rust version ----
 
+/// Converted: `rc2k_core::sound::cars::slot_turn`.
 pub fn play_timed_slot_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    let (slot, request) = (r.ebp as *mut u32, r.esi as *mut u32);
+    use rc2k_core::sound::cars::{SlotTurn, TimedSlot, from_int, slot_turn};
+    let (slot, request) = (r.ebp as *mut [u32; 6], r.esi as *mut u32);
     if slot.is_null() || request.is_null() {
         return Err(BadInput("no slot or no request").into());
     }
-    let get = |n: usize| unsafe { slot.add(n).read_unaligned() };
-    let put = |n: usize, v: u32| unsafe { slot.add(n).write_unaligned(v) };
+    let w = unsafe { slot.read_unaligned() };
+    let mut s = TimedSlot {
+        sound: w[0],
+        start: w[1],
+        playing: w[2],
+        ends: w[3],
+        volume: w[4],
+        rate: w[5],
+    };
     let clock: u32 = unsafe { game_read(rva(CLOCK)) };
-    if get(1) == 1 {
-        if get(0) == KEPT || get(2) != 1 {
-            let sound = get(0);
-            let (volume, rate) = sample_settings(sound, get(4), get(5))?;
-            let end = sample_duration(sound, rate)?.wrapping_add(clock);
-            put(1, 0);
+    let turn = slot_turn(&mut s, clock, sample_settings, sample_duration)?;
+    unsafe { slot.write_unaligned([s.sound, s.start, s.playing, s.ends, s.volume, s.rate]) };
+    match turn {
+        SlotTurn::Nothing => Ok(()),
+        SlotTurn::Checked => {
+            r.eax = clock;
+            Ok(())
+        }
+        SlotTurn::Start { volume, rate, ends } => {
             unsafe {
-                request.write_unaligned(sound);
+                request.write_unaligned(s.sound);
                 request.add(2).write_unaligned(from_int(volume as i32));
                 request.add(1).write_unaligned(from_int(rate as i32));
             }
-            put(3, end);
-            put(2, 1);
-            (r.eax, r.ecx, r.edx) = (end, volume, rate);
-            return part(PLACED, r);
+            (r.eax, r.ecx, r.edx) = (ends, volume, rate);
+            part(PLACED, r)
         }
-        put(1, 0);
-    } else if get(2) != 1 {
-        return Ok(());
     }
-    r.eax = clock;
-    if (clock.wrapping_sub(get(3)) as i32) >= 0 {
-        put(2, 0);
-    }
-    Ok(())
 }
 
 // ---- hook ----

@@ -16,7 +16,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
-use crate::math::x87::from_int;
 use crate::service::harness::{Region, capture, restore};
 use crate::sound::sample_settings::{OWN, record, sample_settings};
 use crate::sound::turn_parts::{
@@ -44,37 +43,58 @@ const NONE: u32 = 0xFFFF_FFFE;
 
 // ---- Rust version ----
 
+/// Converted: `rc2k_core::sound::cars::one_off`.
 pub fn car_hit_sound_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+    use rc2k_core::sound::cars::{OneOff, from_int, one_off};
     if r.ebx == 0 || r.esi == 0 {
         return Err(BadInput("no object or no request").into());
     }
     let o = r.ebx;
     let w = |at: u32| unsafe { ((o + at) as *const u32).read_unaligned() };
     let q = r.esi as *mut u32;
-    let mut c = *r;
-    c.eax = w(0x238);
-    if c.eax == NONE {
+    let mut waiting = w(WAITING);
+    let taken = one_off(
+        &mut waiting,
+        w(WAITING + 4),
+        LEAST,
+        STOP_QUIET,
+        |sound| record(sound).map(|_| ()),
+        sample_settings,
+    )?;
+    let (sound, turn) = taken;
+    if turn == OneOff::Nothing {
         return Ok(());
     }
-    record(c.eax)?;
     unsafe {
-        ((o + 0x238) as *mut u32).write_unaligned(NONE);
-        q.write_unaligned(c.eax);
+        ((o + WAITING) as *mut u32).write_unaligned(waiting);
+        q.write_unaligned(sound);
     }
-    (c.ecx, c.edx) = sample_settings(c.eax, w(0x23C), OWN)?;
-    if c.ecx < 4 {
-        return Ok(());
-    }
-    unsafe {
-        q.add(2).write_unaligned(from_int(c.ecx as i32));
-        q.add(1).write_unaligned(from_int(c.edx as i32));
-        for k in 0..3 {
-            c.eax = w(0x240 + 4 * k);
-            q.add(3 + k as usize).write_unaligned(c.eax);
+    let mut c = Regs { eax: sound, ..*r };
+    match turn {
+        OneOff::Nothing | OneOff::Quiet { .. } => Ok(()),
+        OneOff::Stop { volume, rate } => {
+            (c.ecx, c.edx) = (volume, rate);
+            part(crate::sound::turn_parts::STOP, &mut c)
+        }
+        OneOff::Play { volume, rate } => {
+            (c.ecx, c.edx) = (volume, rate);
+            unsafe {
+                q.add(2).write_unaligned(from_int(volume as i32));
+                q.add(1).write_unaligned(from_int(rate as i32));
+                for k in 0..3 {
+                    c.eax = w(WAITING + 8 + 4 * k);
+                    q.add(3 + k as usize).write_unaligned(c.eax);
+                }
+            }
+            part(PLACED, &mut c)
         }
     }
-    part(PLACED, &mut c)
 }
+
+/// The sound object's waiting sound (its volume after it, its place after that).
+const WAITING: u32 = 0x238;
+const LEAST: u32 = 4;
+const STOP_QUIET: bool = false;
 
 // ---- hook ----
 

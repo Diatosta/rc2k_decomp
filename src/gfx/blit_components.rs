@@ -20,7 +20,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, rva};
-use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::harness::{check_pixels, dispatch_pixels};
 use crate::gfx::pixel_format::{PixelFormat, SCRATCH_RVA, TEST_FORMATS};
 use crate::gfx::surface::{BASE_RVA, BYTES_PER_PIXEL_RVA, PITCH_RVA};
@@ -113,15 +112,16 @@ pub unsafe fn blit_components(r: &Regs, to: &Target) -> Result<(), Refused> {
             .esi
             .wrapping_add(y.wrapping_mul(r.eax))
             .wrapping_add(x.wrapping_mul(4));
+        // Converted: `rc2k_core::gfx::pixels::pack_row`, a row at a time.
+        let words = to.bytes_per_pixel == 2;
+        let size = if words { 2 } else { 4 };
         for _ in 0..height {
-            for n in 0..width {
-                let components = ((source + n * 4) as *const u32).read_unaligned();
-                let pixel = components_to_pixel(&format, components);
-                if to.bytes_per_pixel == 2 {
-                    ((target + n * 2) as *mut u16).write_unaligned(pixel as u16);
-                } else {
-                    ((target + n * 4) as *mut u32).write_unaligned(pixel);
-                }
+            let row = std::slice::from_raw_parts(source as *const u8, width as usize * 4);
+            let out = std::slice::from_raw_parts_mut(target as *mut u8, width as usize * size);
+            let scratch =
+                rc2k_core::gfx::pixels::pack_row(row, out, width as usize, &format, words)?;
+            if let Some(scratch) = scratch {
+                crate::framework::game_write(crate::gfx::pixel_format::SCRATCH_RVA, scratch);
             }
             target = target.wrapping_add(to.pitch);
             source = source.wrapping_add(r.eax);

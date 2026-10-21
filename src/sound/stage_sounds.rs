@@ -25,7 +25,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::physics::flow::{base, guard, x87_run};
+use crate::physics::flow::guard;
 use crate::service::harness::{Region, at, capture, restore};
 use crate::sound::car_slot_sounds::SLOT;
 use crate::sound::sample_settings::OWN;
@@ -78,19 +78,6 @@ fn p(x: usize, v: u32) {
     unsafe { game_write(rva(x), v) }
 }
 
-/// `mov scratch, v; fild scratch; mov scratch, 0.01; fmul scratch; fstp scratch`.
-fn hundredth(v: u32) -> u32 {
-    p(SCRATCH, v);
-    x87_run!(
-        "fild dword ptr [{b} + 0x1183CC]",
-        "mov dword ptr [{b} + 0x1183CC], 0x3C23D70A",
-        "fmul dword ptr [{b} + 0x1183CC]",
-        "fstp dword ptr [{b} + 0x1183CC]";
-        b = base()
-    );
-    g(SCRATCH)
-}
-
 // ---- Rust version ----
 
 pub fn stage_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
@@ -110,22 +97,28 @@ pub fn stage_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
                 part(PLAY, &mut c)?;
             }
         }
+        // Converted: `rc2k_core::sound::stage::wait_turn`.
         let clock = g(CLOCK);
-        if g(ARM) == 1 {
-            p(ARM, 0);
-            c.eax = clock.wrapping_add(g(DELAY));
-            p(DUE, c.eax);
-            p(WAITING, 1);
+        let mut wait = rc2k_core::sound::stage::Wait {
+            arm: g(ARM),
+            delay: g(DELAY),
+            due: g(DUE),
+            waiting: g(WAITING),
+            start: g(TIMED_SLOT + 4),
+        };
+        let (armed, waited) = (wait.arm == 1, wait.arm == 1 || wait.waiting == 1);
+        let slot = rc2k_core::sound::stage::wait_turn(&mut wait, clock);
+        if armed {
+            c.eax = wait.due;
         }
-        let mut slot = true;
-        if g(WAITING) == 1 {
+        if waited {
             c.eax = clock;
-            if (clock.wrapping_sub(g(DUE)) as i32) < 0 {
-                slot = false;
-            } else {
-                p(TIMED_SLOT + 4, 1);
-                p(WAITING, 0);
-            }
+        }
+        for (at, v) in [(ARM, wait.arm), (DUE, wait.due), (WAITING, wait.waiting)] {
+            p(at, v);
+        }
+        if wait.start != g(TIMED_SLOT + 4) {
+            p(TIMED_SLOT + 4, wait.start);
         }
         if slot {
             for k in 0..3 {
@@ -152,15 +145,15 @@ pub fn stage_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
             }
             p(flag, 0);
             part(RANDOM, &mut c)?;
+            // Converted: `rc2k_core::sound::stage::random`.
             let n = c.eax;
-            c.ebx = (n & 0x1F) + 0x21;
-            let mix = g(MIX_RATE);
-            c.edx = ((((n >> 5) & 0x1FF).wrapping_sub(0x100) as i32).wrapping_mul(mix as i32) >> 12)
-                as u32;
-            c.edx = c.edx.wrapping_add(mix);
-            c.ecx = hundredth(((n >> 14) & 0x1FF).wrapping_sub(0x100));
+            let r = rc2k_core::sound::stage::random(n, g(MIX_RATE));
+            (c.ebx, c.edx) = (r.volume, r.rate);
+            c.ecx = r.across.to_bits();
             c.eax = (n >> 23) & 0x1FF;
-            c.edi = hundredth(c.eax);
+            c.edi = r.ahead.to_bits();
+            // The scratch dword holds the last float.
+            p(SCRATCH, c.edi);
             (c.ebp, c.eax) = (ONE, sound);
             part(PLAY, &mut c)?;
         }

@@ -18,10 +18,7 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::service::harness::{Region, at, capture, restore};
-use crate::sound::merge_spot_voices::{BEST, BEST_D, NEXT, NEXT_D, clear_work, distance_1000};
-use crate::sound::spot_voices::{
-    VOICE_COUNT, VOICE_LEN, fill_voices, g, p, set, voice, voice_regions, vw,
-};
+use crate::sound::spot_voices::{fill_voices, set, voice, voice_regions};
 use crate::sound::turn_parts::{Part, RANDOM, both, copy_of, dispatch_turn, run_copy};
 use std::sync::atomic::AtomicUsize;
 
@@ -43,43 +40,26 @@ const ENTRY: [u8; 10] = [0xC7, 0x05, 0x40, 0x7F, 0x51, 0x00, 0x00, 0x00, 0x00, 0
 
 // ---- Rust version ----
 
+/// Converted: `rc2k_core::sound::spot_voices::thin` and `thin_choose`.
 pub fn thin_spot_voices_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
-    clear_work();
-    c.ebp = c.eax;
-    for n in 0..VOICE_COUNT {
-        let v = voice(n);
-        (c.ebx, c.ecx) = (v, VOICE_COUNT - n);
-        if vw(v, 4) != 1 || c.ebp != vw(v, 0x14) {
-            continue;
-        }
-        if vw(v, 0x28) == 1 {
-            return Ok(());
-        }
-        c.eax = distance_1000(v);
-        if c.eax < g(BEST_D) {
-            p(NEXT_D, g(BEST_D));
-            c.edx = g(NEXT);
-            p(NEXT, g(BEST));
-            p(BEST_D, c.eax);
-            p(BEST, v);
-            continue;
-        }
-        if c.eax < g(NEXT_D) {
-            p(NEXT_D, c.eax);
-            p(NEXT, v);
-        }
-        set(v, 4, 0);
-    }
-    (c.ebx, c.ecx) = (voice(0) + VOICE_COUNT * VOICE_LEN, 0);
-    if g(NEXT) == 0 {
+    use crate::sound::spot_voices::{load_voices, pick_regs, store_picks, store_voices};
+    use rc2k_core::sound::spot_voices as core;
+    let mut voices = load_voices();
+    let (picks, trail) = core::thin(&mut voices, c.eax);
+    store_voices(&voices);
+    store_picks(&picks, &trail);
+    *c = pick_regs(c, &trail);
+    if trail.ended_at.is_some() {
         return Ok(());
     }
-    (c.ebx, c.edx) = (g(BEST), g(NEXT));
+    let (Some(nearest), Some(next)) = (picks.nearest, picks.next) else {
+        return Ok(());
+    };
+    (c.ebx, c.edx) = (voice(nearest as u32), voice(next as u32));
     part(RANDOM, c)?;
-    c.eax &= 1;
-    set(c.ebx, 4, c.eax);
-    c.eax ^= 1;
-    set(c.edx, 4, c.eax);
+    core::thin_choose(&mut voices, &picks, c.eax);
+    store_voices(&voices);
+    c.eax = (c.eax & 1) ^ 1;
     Ok(())
 }
 

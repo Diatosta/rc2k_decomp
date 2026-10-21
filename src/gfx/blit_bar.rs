@@ -116,36 +116,48 @@ pub fn on_surface(call: BlitCall) -> Result<(), FatalError> {
     .map(|_| ())
 }
 
-/// The bar described by the bar globals.
+/// The game's side of a bar: the blits through `blit`, the clip and the bar's globals.
+pub struct GameBar<'a>(pub Blit<'a>);
+
+impl rc2k_core::gfx::bars::BarCanvas for GameBar<'_> {
+    type Error = FatalError;
+    fn sprite(&mut self, glyph: u32, x: i32, y: i32, palette: u32) -> Result<(), FatalError> {
+        (self.0)(BlitCall::new(glyph, x, y, palette, sprite_table()))
+    }
+    fn clip_right(&mut self) -> i32 {
+        clip().right
+    }
+    fn set_clip_right(&mut self, x: i32) {
+        unsafe { game_write(CLIP_RIGHT_RVA, x) };
+    }
+    fn keep_fill_end(&mut self, x: i32) {
+        unsafe { game_write(FILL_END_RVA, x) };
+    }
+    fn set_bar_x(&mut self, x: i32) {
+        set_bar_x(x);
+    }
+    fn no_length(&mut self) -> FatalError {
+        BAR_HAS_NO_LENGTH
+    }
+}
+
+impl Bar {
+    /// As the core's.
+    pub fn core(&self) -> rc2k_core::gfx::bars::Bar {
+        rc2k_core::gfx::bars::Bar {
+            x: self.x,
+            y: self.y,
+            width: self.width,
+            fill_glyph: self.fill_glyph,
+            end_glyph: self.end_glyph,
+            percent: self.percent,
+        }
+    }
+}
+
+/// The bar described by the bar globals. Converted: `rc2k_core::gfx::bars::bar`.
 pub unsafe fn blit_bar(blit: Blit) -> Result<(), FatalError> {
-    let bar = Bar::read();
-    if bar.percent == 0 {
-        return Ok(());
-    }
-    let end = bar.x.wrapping_add(bar.length()?);
-    let sprites = sprite_table();
-    unsafe {
-        // The fill is cut off at `end` by the clip rectangle, which is put back afterwards.
-        let saved = clip().right;
-        game_write(CLIP_RIGHT_RVA, end);
-        game_write(FILL_END_RVA, end);
-        let fill = blit(BlitCall::new(
-            bar.fill_glyph,
-            bar.x,
-            bar.y,
-            end as u32,
-            sprites,
-        ));
-        game_write(CLIP_RIGHT_RVA, saved);
-        fill?;
-    }
-    blit(BlitCall::new(
-        bar.end_glyph,
-        end,
-        bar.y,
-        end as u32,
-        sprites,
-    ))
+    rc2k_core::gfx::bars::bar(&mut GameBar(blit), &Bar::read().core())
 }
 
 // ---- hook ----

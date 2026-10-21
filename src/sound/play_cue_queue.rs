@@ -30,7 +30,6 @@ use crate::physics::flow::guard;
 use crate::service::harness::{Region, at, capture, restore};
 use crate::sound::drop_cue::MOST_CUES;
 use crate::sound::sample_duration::sample_duration;
-use crate::sound::sample_settings::OWN;
 use crate::sound::turn_parts::{
     CLOCK, OBJECT_LEN, PLAY, Part, both, copy_of, dispatch_turn, run_copy, test_object,
 };
@@ -60,64 +59,51 @@ const QUEUE: u32 = 0x298;
 
 // ---- Rust version ----
 
+/// Converted: `rc2k_core::sound::cars::cue_turn`; the registers the original leaves.
 pub fn play_cue_queue_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
+    use rc2k_core::sound::cars::{CueQueue, CueTurn, Dropped, OWN, cue_turn};
     let o = c.ebx;
     if o == 0 {
         return Err(BadInput("a null sound object").into());
     }
-    let w = |at: u32| unsafe { ((o + at) as *const u32).read_unaligned() };
-    if w(8) != 1 {
-        return Ok(());
-    }
-    let q = o + QUEUE;
-    let get = |n: u32| unsafe { ((q + 4 * n) as *const u32).read_unaligned() };
-    let put = |n: u32, v: u32| unsafe { ((q + 4 * n) as *mut u32).write_unaligned(v) };
-    c.edi = q;
-    let count = get(3);
-    if count == 0 {
-        return Ok(());
-    }
-    if count > MOST_CUES {
-        return Err(BadInput("a cue queue of more than 16").into());
-    }
-    if (0..count).any(|k| get(5 + 8 * k) > 6) {
-        return Err(BadInput("a cue of more than six sounds").into());
-    }
+    let in_use = unsafe { ((o + 8) as *const u32).read_unaligned() } == 1;
+    let q = (o + QUEUE) as *mut [u32; 0x84];
+    let mut queue = CueQueue::from_words(&unsafe { q.read_unaligned() });
     let clock: u32 = unsafe { game_read(rva(CLOCK)) };
-    if get(1) != u32::MAX {
-        c.eax = clock;
-        if (clock.wrapping_sub(get(2)) as i32) < 0 {
+    let turn = cue_turn::<Refused>(&mut queue, in_use, clock, |sound| {
+        Ok(sample_duration(sound, OWN)?)
+    });
+    let turn = turn?;
+    if turn == CueTurn::NotInUse {
+        return Ok(());
+    }
+    c.edi = q as u32;
+    match turn {
+        CueTurn::NotInUse | CueTurn::Empty => return Ok(()),
+        CueTurn::NotDue => {
+            c.eax = clock;
             return Ok(());
         }
+        _ => {}
     }
-    guard(&[(o, OBJECT_LEN)], || {
-        put(1, get(1).wrapping_add(1));
-        loop {
-            c.ebx = get(1);
-            if c.ebx < get(5) {
-                break;
-            }
+    unsafe { q.write_unaligned(queue.to_words()) };
+    match turn {
+        CueTurn::RanOut { place, dropped } => {
+            c.ebx = place;
             c.eax = 0;
-            part(DROP, c)?;
-            put(1, 0);
-            if get(3) == 0 {
-                put(1, u32::MAX);
-                return Ok(());
+            if let Dropped::None { count } | Dropped::Last { count } = dropped {
+                c.ecx = count;
+            } else {
+                c.ecx = 0;
             }
+            Ok(())
         }
-        let sound = get(6 + c.ebx);
-        c.edx = OWN;
-        c.eax = sample_duration(sound, OWN)?
-            .wrapping_add(0x19)
-            .wrapping_add(clock);
-        put(2, c.eax);
-        if sound == 0x13F || sound == 0x140 {
-            put(2, get(2).wrapping_add(0x100_0000));
+        CueTurn::Play { sound } => {
+            (c.eax, c.ebx, c.edx, c.ecx, c.edi, c.ebp) = (sound, OWN, OWN, 0, 0, 0);
+            guard(&[(o, OBJECT_LEN)], || part(PLAY, c))
         }
-        c.eax = get(6 + get(1));
-        (c.ebx, c.edx, c.ecx, c.edi, c.ebp) = (OWN, OWN, 0, 0, 0);
-        part(PLAY, c)
-    })
+        _ => Ok(()),
+    }
 }
 
 // ---- hook ----

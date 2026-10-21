@@ -74,33 +74,27 @@ const CHATZONE_PATH_RVA: usize = rva(0x5AB400); // "files\d\gfx\chatzone.pcx"
 
 // ---- Rust version ----
 
-/// The path's last four characters.
+/// The path's last four characters. Converted: `rc2k_core::gfx::loading::ending`.
 unsafe fn ending(path: *const u8) -> Result<[u8; 4], BadInput> {
-    let length = unsafe { text_length(path) }? as usize;
-    if length < 4 {
-        return Err(BadInput("a picture path of fewer than four characters"));
-    }
-    Ok(unsafe { (path.add(length - 4) as *const [u8; 4]).read() })
+    let text = unsafe { std::ffi::CStr::from_ptr(path as *const std::ffi::c_char) }.to_bytes();
+    // As the original measures it.
+    unsafe { text_length(path) }?;
+    Ok(rc2k_core::gfx::loading::ending(text)?)
 }
 
-/// Returns whether a picture was read.
+/// Returns whether a picture was read. Converted: `rc2k_core::gfx::loading::reader`.
 pub unsafe fn read_picture_file(path: *mut u8) -> Result<bool, Refused> {
+    use rc2k_core::gfx::loading::{Reader, reader};
     unsafe {
         if &ending(path)? == b".pcx" {
             return Ok(read_pcx(path)?);
         }
         swap_missing_extension(path)?;
-        match game_read::<u32>(PNG_SETTING_RVA) {
-            0 => Ok(read_png(path)? || read_pcx(path)?),
-            setting => {
-                if &ending(path)? != b".png" {
-                    Ok(read_pcx(path)?)
-                } else if setting == 2 {
-                    Ok(true)
-                } else {
-                    Ok(read_pcx(game_addr(CHATZONE_PATH_RVA) as *const u8)?)
-                }
-            }
+        match reader(ending(path)?, game_read::<u32>(PNG_SETTING_RVA)) {
+            Reader::PngThenPcx => Ok(read_png(path)? || read_pcx(path)?),
+            Reader::Pcx => Ok(read_pcx(path)?),
+            Reader::Nothing => Ok(true),
+            Reader::Chatzone => Ok(read_pcx(game_addr(CHATZONE_PATH_RVA) as *const u8)?),
         }
     }
 }

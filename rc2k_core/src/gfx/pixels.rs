@@ -349,6 +349,61 @@ pub fn to_4444(c: [u8; 4]) -> [u8; 2] {
     [c[0] >> 4 | c[1] & 0xF0, c[2] >> 4 | c[3] & 0xF0]
 }
 
+/// A picture of four components a pixel made the surface's pixels in place
+/// (`gfx::convert_picture` 0x406126 without a converter): each packed (`pack`) and written
+/// from the buffer's start as words (`words`, a 16-bit screen) or dwords. The last scratch
+/// the packing left, which the game keeps (0x4F3FA8). Refused: a buffer shorter than
+/// the pixels.
+pub fn convert_in_place(
+    buffer: &mut [u8],
+    pixels: usize,
+    format: &PixelFormat,
+    words: bool,
+) -> Result<Option<[u8; 4]>, crate::Invalid> {
+    if buffer.len() < pixels * 4 {
+        return Err(crate::Invalid("a picture larger than its buffer"));
+    }
+    let mut kept = None;
+    for n in 0..pixels {
+        let c = u32::from_le_bytes(buffer[n * 4..n * 4 + 4].try_into().unwrap());
+        let (pixel, scratch) = pack(format, c);
+        kept = scratch.or(kept);
+        if words {
+            buffer[n * 2..n * 2 + 2].copy_from_slice(&(pixel as u16).to_le_bytes());
+        } else {
+            buffer[n * 4..n * 4 + 4].copy_from_slice(&pixel.to_le_bytes());
+        }
+    }
+    Ok(kept)
+}
+
+/// A row of pixels of four components packed into the surface's format
+/// (`gfx::blit_components` 0x4065EE): `from` holds the row's components, `to` gets words
+/// (`words`, two bytes a pixel) or dwords. The last scratch the packing left. Refused: a
+/// row longer than either side.
+pub fn pack_row(
+    from: &[u8],
+    to: &mut [u8],
+    pixels: usize,
+    format: &PixelFormat,
+    words: bool,
+) -> Result<Option<[u8; 4]>, crate::Invalid> {
+    let size = if words { 2 } else { 4 };
+    if from.len() < pixels * 4 || to.len() < pixels * size {
+        return Err(crate::Invalid(
+            "a row longer than its picture or its surface",
+        ));
+    }
+    let mut kept = None;
+    for n in 0..pixels {
+        let c = u32::from_le_bytes(from[n * 4..n * 4 + 4].try_into().unwrap());
+        let (pixel, scratch) = pack(format, c);
+        kept = scratch.or(kept);
+        to[n * size..n * size + size].copy_from_slice(&pixel.to_le_bytes()[..size]);
+    }
+    Ok(kept)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -57,6 +57,7 @@ fn pairs() -> Result<Vec<(u32, u32)>, BadInput> {
     Ok(pairs)
 }
 
+/// Converted: `rc2k_core::sound::cars::voice_mark`.
 pub fn mark_car_voices_in(_: &mut Regs, _: Part) -> Result<(), Refused> {
     if g(MARKING) != 1 {
         return Ok(());
@@ -64,14 +65,11 @@ pub fn mark_car_voices_in(_: &mut Regs, _: Part) -> Result<(), Refused> {
     for (n, (object, car)) in pairs()?.into_iter().enumerate() {
         unsafe {
             let o = object as *mut u32;
-            o.add(2).write_unaligned(0);
             let kind = ((car + 0x25C) as *const u32).read_unaligned();
-            if kind != 0 {
-                o.add(2).write_unaligned(1);
-                o.write_unaligned(0);
-                if kind != 1 {
-                    o.write_unaligned(!(n as u32));
-                }
+            let (sounds, voice) = rc2k_core::sound::cars::voice_mark(n as u32, kind);
+            o.add(2).write_unaligned(sounds);
+            if let Some(voice) = voice {
+                o.write_unaligned(voice);
             }
         }
     }

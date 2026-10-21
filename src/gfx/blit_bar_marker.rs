@@ -9,9 +9,8 @@
 
 use crate::errors::FatalError;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
-use crate::gfx::blit_bar::{Bar, Blit, checked_list, on_surface, set_bar_x};
-use crate::gfx::blit_glyph::{BlitCall, record_calls, recording_works};
-use crate::gfx::blit_marker_pair::sprite_table;
+use crate::gfx::blit_bar::{Bar, Blit, checked_list, on_surface};
+use crate::gfx::blit_glyph::{record_calls, recording_works};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -31,20 +30,9 @@ hook_asm!(
 /// `palette_at_start` is what the caller has in ebx; it only reaches the blitter at 0 percent
 /// or less, where the marker stays at the bar's x.
 pub unsafe fn blit_bar_marker(palette_at_start: u32, blit: Blit) -> Result<(), FatalError> {
-    let bar = Bar::read();
-    let sprites = sprite_table();
-    if bar.percent <= 0 {
-        return blit(BlitCall::new(
-            bar.fill_glyph,
-            bar.x,
-            bar.y,
-            palette_at_start,
-            sprites,
-        ));
-    }
-    let x = bar.x.wrapping_add(bar.length()?);
-    set_bar_x(x);
-    blit(BlitCall::new(bar.fill_glyph, x, bar.y, x as u32, sprites))
+    // Converted: `rc2k_core::gfx::bars::marker`.
+    use crate::gfx::blit_bar::{Bar, GameBar};
+    rc2k_core::gfx::bars::marker(&mut GameBar(blit), &Bar::read().core(), palette_at_start)
 }
 
 // ---- hook ----

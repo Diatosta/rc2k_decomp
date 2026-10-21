@@ -36,34 +36,20 @@ pub const MOST_CUES: u32 = 16;
 
 // ---- Rust version ----
 
+/// Converted: `rc2k_core::sound::cars::drop_cue`.
 pub fn drop_cue_in(c: &mut Regs, _: Part) -> Result<(), Refused> {
-    let q = c.edi as *mut u32;
+    use rc2k_core::sound::cars::{CueQueue, Dropped, drop_cue};
+    let q = c.edi as *mut [u32; 0x84];
     if q.is_null() {
         return Err(BadInput("no queue").into());
     }
-    let count = unsafe { q.add(3).read_unaligned() };
-    if count > MOST_CUES {
-        return Err(BadInput("a cue queue of more than 16").into());
+    let mut queue = CueQueue::from_words(&unsafe { q.read_unaligned() });
+    match drop_cue(&mut queue, c.eax).map_err(|e| BadInput(e.0))? {
+        Dropped::None { count } | Dropped::Last { count } => c.ecx = count,
+        // `imul eax, 20h` (the cue's offset) is left in eax; `rep movsd` leaves ecx 0.
+        Dropped::Moved => (c.eax, c.ecx) = (c.eax.wrapping_mul(0x20), 0),
     }
-    c.ecx = count;
-    if c.eax >= c.ecx {
-        return Ok(());
-    }
-    c.ecx -= 1;
-    unsafe { q.add(3).write_unaligned(c.ecx) };
-    if c.eax >= c.ecx {
-        return Ok(());
-    }
-    let (from, to) = (4 + 8 * (c.eax as usize + 1), 4 + 8 * c.eax as usize);
-    for k in 0..8 * (c.ecx - c.eax) as usize {
-        unsafe {
-            q.add(to + k)
-                .write_unaligned(q.add(from + k).read_unaligned())
-        };
-    }
-    // `imul eax, 20h` (the cue's offset) is left in eax; `rep movsd` leaves ecx 0.
-    c.eax = c.eax.wrapping_mul(0x20);
-    c.ecx = 0;
+    unsafe { q.write_unaligned(queue.to_words()) };
     Ok(())
 }
 

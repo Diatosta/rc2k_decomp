@@ -13,7 +13,7 @@
 //! Self-test: a copy whose call goes to a stand-in (the test's random numbers), against
 //! the Rust version, on the game's voices (put back).
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
 use crate::service::harness::{Region, capture, restore};
 use crate::sound::spot_voices::{MOST_KIND, REPEATS, VOICE_COUNT, fill_voices, set, voice, vw};
@@ -37,49 +37,35 @@ const LEN: usize = 0x5A;
 const OUTS: [usize; 1] = [0x2F];
 const ENTRY: [u8; 7] = [0x60, 0x8D, 0x1D, 0xC0, 0x68, 0x51, 0x00];
 
-fn waiting(v: u32) -> bool {
-    vw(v, 4) == 1 && vw(v, 0x28) != 1
-}
-
-fn half(at: u32) -> u32 {
-    unsafe { (at as *const u16).read_unaligned() as u32 }
-}
-
 // ---- Rust version ----
 
+/// Converted: `rc2k_core::sound::spot_voices::repeat`; each random number asked with the
+/// registers the original has there.
 pub fn repeat_spot_voices_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    let voices: Vec<u32> = (0..VOICE_COUNT).map(voice).collect();
-    if voices
-        .iter()
-        .any(|&v| waiting(v) && !(1..=MOST_KIND).contains(&vw(v, 0x18)))
-    {
-        return Err(BadInput("a waiting spot voice of a kind past the table").into());
-    }
+    use crate::sound::spot_voices::{load_voices, store_voices};
+    use rc2k_core::sound::spot_voices::{Repeats, repeat};
     let table = game_addr(rva(REPEATS)) as u32;
+    let records: [[u8; 8]; MOST_KIND as usize] =
+        unsafe { crate::framework::game_read(rva(REPEATS)) };
+    let table_of = records.map(Repeats::from_bytes);
+    let mut voices = load_voices();
     let mut c = *r;
-    for (n, &v) in voices.iter().enumerate() {
-        (c.ebx, c.ecx) = (v, VOICE_COUNT - n as u32);
-        if !waiting(v) {
-            continue;
-        }
-        c.edx = table + (vw(v, 0x18) - 1) * 8;
-        let least = half(c.edx + 4);
-        c.eax = half(c.edx + 6).wrapping_sub(least) & 0xFFFF;
-        if c.eax != 0 {
-            part(BELOW, &mut c)?;
-        }
-        c.eax = (c.eax & 0xFFFF_0000) | ((c.eax as u16).wrapping_add(least as u16) as u32);
-        set(v, 0x30, c.eax);
-        c.eax = half(c.edx + 2);
-        if c.eax != 0 {
-            if c.eax == vw(v, 0x2C) {
-                continue;
-            }
-            set(v, 0x2C, vw(v, 0x2C).wrapping_add(1));
-        }
-        set(v, 0x24, 1);
-    }
+    let done = repeat::<Refused>(&mut voices, &table_of, |n, range| {
+        c.ebx = voice(n as u32);
+        c.ecx = VOICE_COUNT - n as u32;
+        c.edx = table + (voices_kind(n) - 1) * 8;
+        c.eax = range;
+        part(BELOW, &mut c)?;
+        Ok(c.eax)
+    });
+    done?;
+    store_voices(&voices);
     Ok(())
+}
+
+/// A voice's kind as the game holds it (read before the core changes anything of it).
+fn voices_kind(n: usize) -> u32 {
+    vw(voice(n as u32), 0x18)
 }
 
 // ---- hook ----
