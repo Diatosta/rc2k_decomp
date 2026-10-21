@@ -253,6 +253,30 @@ impl AudioStream {
         Some(moved)
     }
 
+    /// The ring set up for a file just opened (`audio::start_stream` 0x40C1EA, converted
+    /// 2026-10-21): the write place and the tail of silence `step` ahead, the play cursor
+    /// at 0, the file's format kept.
+    pub fn start_ring(&mut self, format: u32) {
+        self.write_at = self.step;
+        self.play_cursor = 0;
+        self.tail = self.step as i32;
+        self.format = format;
+    }
+
+    /// The player stopped (`audio::stop_stream` 0x40C468, converted 2026-10-21): not
+    /// playing, its buffer and its open file forgotten; what to stop and release, what to
+    /// close.
+    pub fn stop(&mut self) -> (Option<u32>, Option<u32>) {
+        self.playing = 0;
+        let buffer = (self.buffer != 0).then_some(self.buffer);
+        self.buffer = 0;
+        let file = (self.open == 1).then_some(self.file);
+        if file.is_some() {
+            self.open = 0;
+        }
+        (buffer, file)
+    }
+
     /// The write place moved on by `moved`, round the buffer.
     pub fn advance(&mut self, moved: u32) {
         self.write_at = round(moved.wrapping_add(self.write_at), self.bytes);
@@ -356,6 +380,31 @@ mod tests {
         fn gave_up(&mut self, _: u32) {
             self.log.push("gave up".into());
         }
+    }
+
+    #[test]
+    fn ring_and_stop() {
+        let mut s = AudioStream {
+            playing: 1,
+            volume: 3,
+            buffer: 9,
+            open: 1,
+            file: 7,
+            play_cursor: 5,
+            write_at: 6,
+            format: 0,
+            bytes: 0x1_0000,
+            step: 0x8000,
+            tail: -1,
+        };
+        s.start_ring(0x121);
+        assert_eq!(
+            (s.write_at, s.play_cursor, s.tail, s.format),
+            (0x8000, 0, 0x8000, 0x121)
+        );
+        assert_eq!(s.stop(), (Some(9), Some(7)));
+        assert_eq!((s.playing, s.buffer, s.open, s.file), (0, 0, 0, 7));
+        assert_eq!(s.stop(), (None, None));
     }
 
     #[test]

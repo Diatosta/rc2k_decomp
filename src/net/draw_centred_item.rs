@@ -37,6 +37,7 @@ const LIT: usize = 0x51E684; // stru_51E684
 /// The Rust version: the registers it leaves.
 pub fn draw_centred_item(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
+    // Converted: `rc2k_core::net::screens::item_lit` (in `item_font`).
     r.ebx = item_font(r.esi, PLAIN, LIT);
     r.edx = r.ebp;
     r.ebp = r

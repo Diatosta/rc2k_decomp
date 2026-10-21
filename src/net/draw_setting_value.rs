@@ -17,6 +17,7 @@ use crate::net::lobby::{
     APPEND_STRING, DRAW_TEXT, EDITED, FONT, Part, STR_APPEND, Saved, TEXT, a, answer,
     dispatch_lobby, dword, g, p, region, run_both,
 };
+use rc2k_core::net::screens::{self, Value};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -39,19 +40,25 @@ fn nul(r: &mut Regs) {
 /// The Rust version: the registers it leaves.
 pub fn draw_setting_value(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
-    if r.esi == g(EDITED) {
-        r.ebx = a(TEXT);
-        part(STR_APPEND, &mut r)?;
-        r.eax = 4;
-        part(APPEND_STRING, &mut r)?;
-        nul(&mut r);
-        r.eax = a(TEXT);
-    } else if unsafe { (r.eax as *const u8).read() } == 0 {
-        r.eax = 0x16E;
-        r.ebx = a(TEXT);
-        part(APPEND_STRING, &mut r)?;
-        nul(&mut r);
-        r.eax = a(TEXT);
+    // Converted: `rc2k_core::net::screens` (`text_value`, `Value`, `CARET`, `NOTHING`).
+    let text = r.eax;
+    match screens::text_value(r.esi == g(EDITED), || unsafe { (text as *const u8).read() }) {
+        Value::Edited => {
+            r.ebx = a(TEXT);
+            part(STR_APPEND, &mut r)?;
+            r.eax = screens::CARET;
+            part(APPEND_STRING, &mut r)?;
+            nul(&mut r);
+            r.eax = a(TEXT);
+        }
+        Value::Nothing => {
+            r.eax = screens::NOTHING;
+            r.ebx = a(TEXT);
+            part(APPEND_STRING, &mut r)?;
+            nul(&mut r);
+            r.eax = a(TEXT);
+        }
+        Value::AsIs => {}
     }
     r.ebx = r.eax;
     r.eax = a(FONT);

@@ -3,9 +3,9 @@
 //! `clear_event_state`; `dword_755984` 4, `dword_755988` 8 (neither `dword_75555D` nor
 //! `dword_758714` set to 0, unlike the three players'); the four car choices (one left
 //! ends it at once). Then each round as `menu::single_rally_three`'s
-//! (`single_rally_three::rally_rounds`) but without the current player set to 0 before
+//! (`rc2k_core::menu::rounds::rally_rounds`) but without the current player set to 0 before
 //! `menu::ready_players` and without the fourth player's time: four races, eax 4 for the
-//! review. The end: `rounds::end`.
+//! review. The end: `rc2k_core::menu::rounds::end`.
 //!
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
@@ -18,7 +18,9 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::menu::event_flow::*;
+use crate::menu::flow_game::Game;
 use crate::menu::rounds::*;
+use rc2k_core::menu::rounds;
 
 const CALLS: &[usize] = &[
     0x1, 0x6, 0xB, 0x10, 0x58, 0x6A, 0x9E, 0xB0, 0xE4, 0xF6, 0x12A, 0x13C, 0x141, 0x150, 0x15F,
@@ -36,18 +38,8 @@ flow_hook!(
 
 pub unsafe fn single_rally_four(entry: &Regs, call: Call) -> Result<Regs, Refused> {
     players_there(4)?;
-    let mut g = *entry;
-    call(BEGIN_EVENT, &mut g)?;
-    call(CLEAR_PLAYERS_284, &mut g)?;
-    call(TAKE_PLAYER1_UNITS, &mut g)?;
-    call(CLEAR_EVENT_STATE, &mut g)?;
-    set(PLAYER_COUNT, 4);
-    set(EVENT_MODE, 8);
-    if !choose_cars(&mut g, call, 4, false, &[])? {
-        return Ok(*entry);
-    }
-    unsafe { crate::menu::single_rally_three::rally_rounds(&mut g, call, 4)? };
-    end(&mut g, call)?;
+    // Converted: `rc2k_core::menu::rounds::single_rally_four`.
+    rounds::single_rally_four(&mut Game::new(entry, call))?;
     Ok(*entry)
 }
 

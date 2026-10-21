@@ -17,6 +17,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::physics::flow::{a, g, p};
 use crate::race::car_starts::Part;
 use crate::service::harness::{capture, restore};
+use rc2k_core::drive::tyre_screen::fixed_parts;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -60,6 +61,7 @@ fn set(at: usize, v: [u32; 4]) {
 }
 
 /// The Rust version, the quads through `part`.
+// Converted: `rc2k_core::drive::tyre_screen::fixed_parts`.
 pub unsafe fn tyre_screen_parts(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut q = Regs {
         eax: a(UV),
@@ -67,62 +69,12 @@ pub unsafe fn tyre_screen_parts(entry: &Regs, part: Part) -> Result<Regs, Refuse
         ecx: 0xFF_FFFF,
         ..*entry
     };
-    let mut quad = |q: &mut Regs| part(QUAD, q);
-    set(UV, [0, 0x80, 0x100, 0x19]);
-    set(RECT, [g(0x5BEBD0), g(0x5BEBD4), 0x100, 0x19]);
-    quad(&mut q)?;
-    set(UV, [0x80, 0, 0x80, 0x19]);
-    set(
-        RECT,
-        [
-            g(0x5BEAE0).wrapping_sub(0x4E),
-            g(0x5BEAE4).wrapping_sub(0xA),
-            0x80,
-            0x19,
-        ],
-    );
-    quad(&mut q)?;
-    p(UV + 4, g(UV + 4).wrapping_add(0x19));
-    p(
-        RECT,
-        g(0x5BEAE0).wrapping_add(g(0x5BEAE8)).wrapping_sub(0x32),
-    );
-    quad(&mut q)?;
-    set(UV, [0, 0xB2, 0x80, 0x19]);
-    if g(0x5BEBEC) != 0 {
-        p(UV, g(UV).wrapping_add(0x80));
+    let four = |at: usize| std::array::from_fn(|k| g(at + 4 * k));
+    for (uv, rect) in fixed_parts(four(0x5BEBD0), four(0x5BEAE0), g(0x5BEBEC) != 0) {
+        set(UV, uv);
+        set(RECT, rect);
+        part(QUAD, &mut q)?;
     }
-    set(
-        RECT,
-        [g(0x5BEBD8), g(0x5BEBDC).wrapping_sub(0x32), 0x80, 0x19],
-    );
-    for k in 0..3 {
-        if k > 0 {
-            p(UV + 4, g(UV + 4).wrapping_add(0x19));
-            p(RECT, g(RECT).wrapping_add(0x78));
-        }
-        quad(&mut q)?;
-    }
-    set(UV, [0x80, 0x32, 0x80, 0x19]);
-    set(RECT, [g(0x5BEBD8), g(0x5BEBDC), 0x80, 0x19]);
-    for k in 0..3 {
-        if k > 0 {
-            p(UV + 4, g(UV + 4).wrapping_add(0x19));
-            p(RECT, g(RECT).wrapping_add(0x78));
-        }
-        quad(&mut q)?;
-    }
-    set(UV, [0, 0x99, 0x100, 0x19]);
-    set(
-        RECT,
-        [
-            g(0x5BEBD8).wrapping_add(0x3C),
-            g(0x5BEBDC).wrapping_add(0x1E),
-            0x100,
-            0x19,
-        ],
-    );
-    quad(&mut q)?;
     Ok(*entry)
 }
 

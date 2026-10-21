@@ -29,7 +29,6 @@ hook_asm!(
 // ---- game data ----
 
 const SLOTS_RVA: usize = rva(0x5184F4);
-const SLOT_COUNT: usize = 4;
 
 const _: () = assert!(size_of::<ThreadSlot>() == 0x110);
 const _: () = assert!(std::mem::offset_of!(ThreadSlot, thread_id) == 4);
@@ -38,18 +37,20 @@ const _: () = assert!(std::mem::offset_of!(ThreadSlot, thread_id) == 4);
 
 /// Null if the current thread has no slot.
 pub unsafe fn find_thread_slot() -> *const ThreadSlot {
+    // Converted: `rc2k_core::threading::slot_of`.
     let slots = game_ptr::<ThreadSlot>(SLOTS_RVA).cast_const();
     let tid = unsafe { GetCurrentThreadId() };
-    for i in 0..SLOT_COUNT {
-        let slot = unsafe { slots.add(i) };
-        if unsafe { (&raw const (*slot).thread_id).read_volatile() } == tid {
+    let id_of = |n: usize| unsafe { (&raw const (*slots.add(n)).thread_id).read_volatile() };
+    match rc2k_core::threading::slot_of(id_of, tid) {
+        Some(n) => {
+            let slot = unsafe { slots.add(n) };
             if trace() {
                 log(&format!("find_thread_slot: tid={tid:#x} slot={slot:p}"));
             }
-            return slot;
+            slot
         }
+        None => std::ptr::null(),
     }
-    std::ptr::null()
 }
 
 // ---- hook ----

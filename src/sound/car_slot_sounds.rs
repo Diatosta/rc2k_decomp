@@ -22,6 +22,7 @@ use crate::sound::turn_parts::{
     OBJECT_LEN, Part, REQUEST, both, common_regions, copy_of, dispatch_turn, run_copy, test_object,
     turn_regions,
 };
+use rc2k_core::sound::engine::{computers, placed_slots};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -52,7 +53,8 @@ pub fn car_slot_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     }
     let o = r.ebx;
     let w = |at: u32| unsafe { ((o + at) as *const u32).read_unaligned() };
-    if (w(0) as i32) < 0 {
+    // Converted: `rc2k_core::sound::engine` (`computers`, `placed_slots`).
+    if computers(w(0)) {
         return Ok(());
     }
     let q = r.esi as *mut u32;
@@ -67,12 +69,7 @@ pub fn car_slot_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
             }
         };
         place(&mut c, 0x2C);
-        let mut slots = Vec::new();
-        if w(0xC) == 0 {
-            slots.extend([0x164, 0x14C, 0x17C, 0x194]);
-        }
-        slots.extend([0x260, 0x1AC]);
-        for at in slots {
+        for at in placed_slots(w(0xC) == 0) {
             c.ebp = o + at;
             part(SLOT, &mut c)?;
         }

@@ -230,12 +230,15 @@ pub unsafe fn start_car(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         zero(car(0x644), 4);
         zero(car(0x638), 3);
         if game_read::<u32>(MODE_RVA) != 4 {
+            // Converted: `rc2k_core::race::start::{start_checkpoint, starts_aside,
+            // side_offset, start_checks}`.
+            use rc2k_core::race::start::{side_offset, start_checkpoint, starts_aside};
             part(5, &mut g)?;
             let mode: u32 = game_read(MODE_RVA);
             if mode != 1 && mode != 3 {
                 g.ebx = game_read::<u32>(CURRENT_CAR_RVA) >> 1;
-                g.eax = g.eax.wrapping_sub(g.ebx);
             }
+            g.eax = start_checkpoint(g.eax, mode, game_read(CURRENT_CAR_RVA));
             game_write(LINE_PLACE_RVA, g.eax);
             game_write(LINE_FRACTION_RVA, 0u32);
             if game_read::<u32>(NO_PLACE_RVA) != 0 {
@@ -251,11 +254,13 @@ pub unsafe fn start_car(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                 part(7, &mut g)?;
                 add(CAR_X_RVA, g.eax);
                 add(CAR_Z_RVA, g.ecx);
-                let side = game_read::<u32>(SIDE_RVA) != 0
-                    || (game_read::<u32>(MODE_RVA) == 0 && game_read::<u32>(CARS_2_RVA) != 1);
+                let side = starts_aside(
+                    game_read(SIDE_RVA),
+                    || game_read(MODE_RVA),
+                    || game_read(CARS_2_RVA),
+                );
                 if side {
-                    let low = game_read::<u32>(CURRENT_CAR_RVA) & 1;
-                    g.eax = (low + low).wrapping_sub(1).wrapping_mul(0x14000);
+                    g.eax = side_offset(game_read(CURRENT_CAR_RVA));
                     g.ecx = 0;
                     g.edx = game_read(PLACE_HEADING_RVA);
                     part(7, &mut g)?;
@@ -271,13 +276,7 @@ pub unsafe fn start_car(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         if g.eax >= MOST_CHECKS {
             return Err(BadInput("a nearest checkpoint past the lists").into());
         }
-        g.eax = game_read::<u32>(CHECKS_RVA + 4 * g.eax as usize).wrapping_sub(1);
-        if (g.eax as i32) < 0 {
-            g.eax = 0;
-        }
-        if (g.eax.wrapping_sub(100) as i32) >= 0 {
-            g.eax = 100;
-        }
+        g.eax = rc2k_core::race::start::start_checks(game_read(CHECKS_RVA + 4 * g.eax as usize));
         game_write(car(0x90), g.eax);
         game_write(car(0xAC), g.eax);
         part(9, &mut g)?;

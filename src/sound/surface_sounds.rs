@@ -29,6 +29,7 @@ use crate::sound::turn_parts::{
     OBJECT_LEN, Part, REQUEST, both, common_regions, copy_of, dispatch_turn, f, run_copy,
     test_object, turn_regions,
 };
+use rc2k_core::sound::surfaces;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -63,26 +64,25 @@ fn g(x: usize) -> u32 {
 
 // ---- Rust version ----
 
-/// The wheel whose surface counts (the original's two `lea` pairs and the sign tests).
+/// The wheel whose surface counts (eax) and the other of its pair (edx).
 fn wheel(c: &mut Regs) {
-    (c.eax, c.edx) = (c.ebx + 0x44, c.ebx + 0x6C);
-    if (g(ACROSS) as i32) >= 0 {
-        (c.eax, c.edx) = (c.ebx + 0x58, c.ebx + 0x80);
-    }
-    if (g(ALONG) as i32) < 0 {
-        c.eax = c.edx;
-    }
+    let (first, second) = surfaces::wheel(g(ACROSS), g(ALONG));
+    (c.eax, c.edx) = (
+        c.ebx + surfaces::WHEELS[first],
+        c.ebx + surfaces::WHEELS[second],
+    );
 }
 
 /// The surface of the wheel picked, its set (ebp) and `sound::surface_sound`.
 fn one(c: &mut Regs, second: usize, part: Part) -> Result<(), Refused> {
+    // Converted: `rc2k_core::sound::surfaces` (`wheel`, `quieter`, `set_pair`).
     wheel(c);
     c.eax = unsafe { ((c.eax + 0x10) as *const u32).read_unaligned() };
     if second == 0 {
         unsafe { ((c.ebx + 0x294) as *mut u32).write_unaligned(c.eax) };
     }
     unsafe { game_write(rva(SURFACES[second]), c.eax) };
-    if c.eax == 7 || c.eax == 8 {
+    if surfaces::quieter(c.eax) {
         let b = base();
         if second == 0 {
             x87_run!(
@@ -102,13 +102,7 @@ fn one(c: &mut Regs, second: usize, part: Part) -> Result<(), Refused> {
             );
         }
     }
-    if c.eax >= 16 {
-        return Err(BadInput("a surface past the 16 of dword_51655C").into());
-    }
-    c.eax = g(SETS_OF + 4 * c.eax as usize);
-    if c.eax >= 7 {
-        return Err(BadInput("a surface set past the seven pairs").into());
-    }
+    c.eax = surfaces::set_pair(c.eax, |n| g(SETS_OF + 4 * n as usize)).map_err(BadInput::from)?;
     c.ebp = g(SETS + 4 * second + 8 * c.eax as usize);
     part(SURFACE_SOUND, c)
 }

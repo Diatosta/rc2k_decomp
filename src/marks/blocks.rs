@@ -159,6 +159,58 @@ pub unsafe fn scale_corners(entry: &Regs) -> Regs {
     g
 }
 
+/// The converted `scale_corners` (plain floats): the hook's. The x87 version above stays
+/// for `game_part` (`marks::allocate_links`, unconverted).
+// Converted: `rc2k_core::marks::scales::scale_corner`
+pub unsafe fn scale_corners_plain(entry: &Regs) -> Regs {
+    let mut g = *entry;
+    unsafe {
+        let scale = f32::from_bits(game_read(CORNER_SCALE_RVA));
+        for n in (0..CORNERS).rev() {
+            let record = game_addr(CORNERS_RVA) as u32 + 0x80 * n;
+            let c = rc2k_core::marks::scales::scale_corner(
+                |o| ((record + o) as *const u16).read_unaligned(),
+                scale,
+            );
+            let values = c.values.map(f32::to_bits);
+            for k in 0..4 {
+                game_write(
+                    CORNER_WORK_RVA + 0x20 * k,
+                    [values[2 * k], values[2 * k + 1]],
+                );
+            }
+            [g.ebp, g.edi] = c.sides;
+            game_write(CORNER_SIDES_RVA, c.sides);
+            g.esi = n * 0x24;
+            game_write(SLOPES_RVA + g.esi as usize, c.slope.to_bits());
+            game_write(SLOPES_RVA + g.esi as usize + 4, values);
+            [g.eax, g.ebx] = [values[6], values[7]];
+        }
+    }
+    g
+}
+
+/// The float places of what `scale_corners` writes (the sides are whole numbers).
+pub fn corner_floats() -> Vec<(
+    crate::service::harness::Region,
+    crate::service::floats::Tolerance,
+)> {
+    let a = |r: usize| game_addr(r) as u32;
+    let mut r: Vec<_> = (0..4)
+        .map(|k| {
+            (
+                (a(CORNER_WORK_RVA + 0x20 * k), 8),
+                crate::service::floats::FLOAT,
+            )
+        })
+        .collect();
+    r.push((
+        (a(SLOPES_RVA), 0x24 * CORNERS as usize),
+        crate::service::floats::FLOAT,
+    ));
+    r
+}
+
 /// `marks::reset_settings_blocks` (0x4C9A6D), in step 3: the eight blocks of 0x4C8 at
 /// `g_marksSettings` + 0x60 (the last first): +0x4C .. +0x60 the six floats from
 /// `flt_9354C6`, the last three again at +0x64, +0x70, +0x7C, +0x30 8. Leaves ebp the

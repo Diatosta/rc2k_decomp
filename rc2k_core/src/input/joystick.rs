@@ -22,6 +22,50 @@ pub fn axis_bits(bits: u32, object_type: &Guid, axes: &[Guid; AXES as usize]) ->
         .fold(bits, |bits, (n, _)| bits | 1 << n)
 }
 
+/// The most controllers `g_controllers` lists.
+pub const CONTROLLERS: u32 = 16;
+
+/// What a found joystick's entry in `g_controllers` gets from its capabilities
+/// (`DIDEVCAPS`; converted 2026-10-21 from `input::joystick_found` 0x408238).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Found {
+    pub caps_flags: u32,
+    pub axes: u32,
+    pub buttons: u32,
+    pub hats: u32,
+    /// 1 when attached (`DIDC_ATTACHED`).
+    pub attached: u32,
+    /// 1 with force feedback (`DIDC_FORCEFEEDBACK`); not written when the configuration
+    /// turned force feedback off.
+    pub force_feedback: Option<u32>,
+}
+
+/// The entry from the capabilities' flags, axes, buttons and hats, and the configuration's
+/// switch (`dword_4F68F4`, not 0: force feedback off).
+pub fn found(flags: u32, axes: u32, buttons: u32, hats: u32, no_force: u32) -> Found {
+    Found {
+        caps_flags: flags,
+        axes,
+        buttons,
+        hats,
+        attached: u32::from(flags & 1 != 0),
+        force_feedback: (no_force == 0).then_some(u32::from(flags & 0x100 != 0)),
+    }
+}
+
+/// The entry's name before the device's own: "(n) ", n the count of controllers listed
+/// before it plus 1.
+pub fn name_prefix(count: u32) -> Vec<u8> {
+    use crate::strings::format::{Pad, decimal};
+    let mut name = vec![b'('];
+    name.extend(decimal(count.wrapping_add(1), Pad::None));
+    name.extend(b") ");
+    name
+}
+
+/// The room the device's own name has in the entry.
+pub const NAME_ROOM: u32 = 0x19;
+
 /// The selectors' places in a device record: the second and third axes' (kinds above 2),
 /// the y and the x axes' (kinds up to 2).
 pub const SELECT_SECOND: u32 = 0x1A;
@@ -146,5 +190,24 @@ mod tests {
     fn setup() {
         assert_eq!(device_setup(1, 0, 2, 3, 4).kind, 2);
         assert_eq!(device_setup(1, 3, 2, 3, 4).kind, 3);
+    }
+
+    #[test]
+    fn found_entries() {
+        assert_eq!(
+            found(0x101, 3, 8, 1, 0),
+            Found {
+                caps_flags: 0x101,
+                axes: 3,
+                buttons: 8,
+                hats: 1,
+                attached: 1,
+                force_feedback: Some(1),
+            }
+        );
+        assert_eq!(found(0x100, 0, 0, 0, 1).force_feedback, None);
+        assert_eq!(found(0x100, 0, 0, 0, 1).attached, 0);
+        assert_eq!(name_prefix(0), b"(1) ");
+        assert_eq!(name_prefix(11), b"(12) ");
     }
 }

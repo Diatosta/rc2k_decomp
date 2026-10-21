@@ -16,6 +16,7 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::net::lobby::{PLAYER, Part, Saved, dword, fill, g, p, region, run_both};
 use crate::net::reset_cars::CAR_BLOCKS;
+use rc2k_core::net::cars;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -31,17 +32,9 @@ hook_asm!(
 );
 
 pub const HUD_BITS: usize = 0x75B00C; // dword_75B00C
-/// The switches and their bits, in the original's order.
-const SWITCHES: [(usize, u32); 9] = [
-    (0x75ADF8, 0x10),
-    (0x75ADFC, 8),
-    (0x75AE00, 1),
-    (0x75AE08, 4),
-    (0x75AE14, 2),
-    (0x75AE04, 0x100),
-    (0x75AE10, 0x40),
-    (0x75AE0C, 0x20),
-    (0x75AE18, 0x80),
+/// The switches, in the original's order (their bits: `rc2k_core::net::cars::HUD_SWITCH_BITS`).
+const SWITCHES: [usize; 9] = [
+    0x75ADF8, 0x75ADFC, 0x75AE00, 0x75AE08, 0x75AE14, 0x75AE04, 0x75AE10, 0x75AE0C, 0x75AE18,
 ];
 const VIEW: usize = 0x75AE24;
 /// The settings copied: (to, from).
@@ -64,14 +57,11 @@ pub fn set_hud_options(entry: &Regs, _: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
     r.esi = own_block();
     r.eax = g(HUD_BITS);
-    if r.eax == u32::MAX {
-        r.eax = 0;
-        for (switch, bit) in SWITCHES {
-            r.ebx = g(switch);
-            if r.ebx != 0 {
-                r.eax |= bit;
-            }
-        }
+    // Converted: `rc2k_core::net::cars::hud_bits`.
+    if r.eax == cars::NOT_KEPT {
+        let switches = SWITCHES.map(g);
+        r.eax = cars::hud_bits(switches);
+        r.ebx = switches[8];
     }
     unsafe {
         ((r.esi + 0x220) as *mut u32).write_unaligned(r.eax);
@@ -134,7 +124,7 @@ fn self_test() -> (usize, usize) {
             &[],
             &|| {
                 fill(0x75ADF8, 0x30, 61);
-                for (n, (switch, _)) in SWITCHES.iter().enumerate() {
+                for (n, switch) in SWITCHES.iter().enumerate() {
                     p(
                         *switch,
                         if pattern & (1 << n) != 0 {

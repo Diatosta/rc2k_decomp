@@ -4,7 +4,8 @@
 //! `set_fine_turn_x` 0x4270BA, `set_fine_turn_y` 0x42710C, `set_turn_z` 0x42715D,
 //! `unit_vector` 0x420EF8, `cross_product` 0x420F8D, `square_matrix` 0x420E94,
 //! `invert_turn` 0x420CC2, `set_light_direction` 0x427326, `make_object_matrix` 0x427812,
-//! `set_view_matrices` 0x438FBF and `cross_product3` 0x465551).
+//! `set_view_matrices` 0x438FBF, `cross_product3` 0x465551 and `adjugate_matrix`
+//! 0x4BCF6B).
 //!
 //! A matrix is sixteen floats, rows 0x10 bytes apart; a point is turned by the first
 //! three rows and columns and moved by the fourth row's first three floats. Matrices and
@@ -251,6 +252,35 @@ fn product_difference(a: f32, b: f32, c: f32, d: f32) -> f64 {
     a as f64 * b as f64 - c as f64 * d as f64
 }
 
+/// `scene::adjugate_matrix`'s entries: where each goes and the four floats (byte offsets)
+/// of a b - c d.
+pub const COFACTORS: [(u32, [u32; 4]); 9] = [
+    (0x00, [0x14, 0x28, 0x24, 0x18]),
+    (0x10, [0x20, 0x18, 0x10, 0x28]),
+    (0x20, [0x10, 0x24, 0x20, 0x14]),
+    (0x04, [0x24, 0x08, 0x04, 0x28]),
+    (0x14, [0x00, 0x28, 0x20, 0x08]),
+    (0x24, [0x20, 0x04, 0x00, 0x24]),
+    (0x08, [0x04, 0x18, 0x14, 0x08]),
+    (0x18, [0x10, 0x08, 0x00, 0x18]),
+    (0x28, [0x00, 0x14, 0x10, 0x04]),
+];
+
+/// `scene::adjugate_matrix`: matrix `m`'s 3 x 3 cofactors, transposed, into `out` (each
+/// stored before the next is worked out: `out` may be `m`), then its place (+0x30 ..
+/// +0x38) negated (`fld; fchs; fstp`). +0xC, +0x1C, +0x2C, +0x3C are left.
+pub fn adjugate_matrix(p: &mut impl Places, m: u32, out: u32) {
+    for (to, [a, b, c, d]) in COFACTORS {
+        let f = |o: u32| p.float(m.wrapping_add(o));
+        let v = product_difference(f(a), f(b), f(c), f(d)) as f32;
+        p.set_float(out.wrapping_add(to), v);
+    }
+    for o in [0x30, 0x34, 0x38] {
+        let v = loaded(p.dword(m.wrapping_add(o))) ^ 0x8000_0000;
+        p.set_dword(out.wrapping_add(o), v);
+    }
+}
+
 /// `scene::cross_product`: ebx `b`, ecx `c`, edx `out`: out[0] c2 b1 - b2 c1, out[1] c0 b2
 /// - b0 c2, out[2] c1 b0 - b1 c0, each stored before the next.
 pub fn cross(p: &mut impl Places, b: u32, c: u32, out: u32) {
@@ -447,6 +477,25 @@ mod tests {
         p.set_float(l.half_turns, 65536.0);
         p.set_float(l.turn, (1.0 / std::f64::consts::TAU) as f32);
         p
+    }
+
+    #[test]
+    fn adjugates() {
+        let mut p = TestPlaces(vec![0; 32]);
+        let m = [
+            2.0, 0.0, 0.0, 7.0, 0.0, 3.0, 0.0, 7.0, 0.0, 0.0, 4.0, 7.0, 1.0, -2.0, 0.0, 7.0,
+        ];
+        p.set_floats(0, &m);
+        adjugate_matrix(&mut p, 0, 0x40);
+        assert_eq!(p.floats::<3>(0x40), [12.0, 0.0, 0.0]);
+        assert_eq!(p.floats::<3>(0x50), [0.0, 8.0, 0.0]);
+        assert_eq!(p.floats::<3>(0x60), [0.0, 0.0, 6.0]);
+        assert_eq!(p.floats::<3>(0x70), [-1.0, 2.0, -0.0]);
+        assert_eq!(p.dword(0x4C), 0);
+        // In place: later entries read the earlier results.
+        adjugate_matrix(&mut p, 0, 0);
+        assert_eq!(p.float(0), 12.0);
+        assert_eq!(p.float(0x14), 12.0 * 4.0);
     }
 
     #[test]

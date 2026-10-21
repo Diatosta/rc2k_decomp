@@ -14,7 +14,6 @@
 //! within `FLOAT` at extended). The Rust version is `measure_frame_rate_plain`.
 
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::physics::flow::{base, x87_run};
 use crate::service::floats::{Agreement, FLOAT, Floats, at_test_precisions, compare_memory};
 use crate::service::harness::{Region, at, capture, restore};
 use std::sync::atomic::AtomicUsize;
@@ -37,20 +36,6 @@ const LAST_RVA: usize = rva(0x6214EC); // dword_6214EC
 const RATE_RVA: usize = rva(0x6214F0); // flt_6214F0
 const CYCLES_RVA: usize = rva(0x62400C); // dword_62400C, a scratch
 
-/// `fild clock; fmul k; fmul k; fmul k2; fild cycles; fdivp; fstp rate`.
-fn frame_rate() {
-    x87_run!(
-        "fild dword ptr [{b} + 0x1183E8]",
-        "fmul dword ptr [{b} + 0x1C5D18]",
-        "fmul dword ptr [{b} + 0x1C5D18]",
-        "fmul dword ptr [{b} + 0x1C5D08]",
-        "fild dword ptr [{b} + 0x22400C]",
-        "fdivp st(1), st",
-        "fstp dword ptr [{b} + 0x2214F0]";
-        b = base()
-    );
-}
-
 /// The rate worked out in plain floats.
 // Converted: `rc2k_core::race::frame_rate::frame_rate`.
 fn frame_rate_plain() {
@@ -66,8 +51,10 @@ fn frame_rate_plain() {
     }
 }
 
-/// The steps round the rate's working out (`rate`).
-unsafe fn measure(entry: &Regs, tsc: &mut dyn FnMut() -> (u32, u32), rate: fn()) -> Regs {
+/// The converted version: the hook's and `race::show_frame`'s (the exact x87 version went
+/// once its one Rust caller took this): the registers it leaves; `tsc` gives the counter's
+/// low and high halves.
+pub unsafe fn measure_frame_rate_plain(entry: &Regs, tsc: &mut dyn FnMut() -> (u32, u32)) -> Regs {
     // Converted: `rc2k_core::race::frame_rate::{count_frame, cycles_since}`.
     use rc2k_core::race::frame_rate::{count_frame, cycles_since};
     let mut r = *entry;
@@ -83,23 +70,12 @@ unsafe fn measure(entry: &Regs, tsc: &mut dyn FnMut() -> (u32, u32), rate: fn())
         r.ebx = r.eax.wrapping_sub(last);
         if let Some(cycles) = cycles_since(r.eax, last) {
             game_write(CYCLES_RVA, cycles);
-            rate();
+            frame_rate_plain();
         }
         r.eax = game_read(NOW_RVA);
         game_write(LAST_RVA, r.eax);
     }
     r
-}
-
-/// The exact x87 version (for `race::show_frame`, which compares exactly): the
-/// registers it leaves; `tsc` gives the counter's low and high halves.
-pub unsafe fn measure_frame_rate(entry: &Regs, tsc: &mut dyn FnMut() -> (u32, u32)) -> Regs {
-    unsafe { measure(entry, tsc, frame_rate) }
-}
-
-/// The converted version: the hook's.
-pub unsafe fn measure_frame_rate_plain(entry: &Regs, tsc: &mut dyn FnMut() -> (u32, u32)) -> Regs {
-    unsafe { measure(entry, tsc, frame_rate_plain) }
 }
 
 /// The time-stamp counter, as `rdtsc` gives it.

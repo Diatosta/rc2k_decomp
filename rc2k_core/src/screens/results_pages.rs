@@ -1,8 +1,10 @@
 //! The championship's four results pages (converted 2026-10-20):
 //! `screens::draw_class_rally_results` 0x4A3376, `draw_overall_rally_results` 0x4A37E2,
 //! `draw_class_stage_results` 0x4A2111, `draw_overall_stage_results` 0x4A2F46: a heading,
-//! the column headings and ten rows of the ranked times.
+//! the column headings and ten rows of the ranked times. `screens::draw_class_ranking`
+//! 0x47C16A's rows found in its list converted 2026-10-21 (`class_rows`).
 
+use crate::Invalid;
 use crate::screens::best_scores::{car_glyph, flag_glyph};
 use crate::screens::screen::{Buffer, Screen};
 use crate::strings::format::{Pad, decimal, time};
@@ -160,6 +162,70 @@ pub struct RankedRow<T> {
     pub time: u32,
     pub nation: u32,
     pub car: u32,
+}
+
+/// `class_rows`' answer: each row's entry and place, and the place left after the last.
+pub type ClassRows = (Vec<(u32, u32)>, Option<u32>);
+
+/// The most entries `class_rows` walks before it gives up on the list's end.
+pub const MOST_ENTRIES: u32 = 0x400;
+
+/// The rows `screens::draw_class_ranking` draws: from the list's first entry (n 0) on, the
+/// class's `first`-th entry and up to nine more of the class, each with its place; and
+/// the place left when the list ends while the next row is looked for (the loop writes it
+/// before it looks). `class_of(n)` is entry n's class (+0x1C), `ends(n)` whether entry n
+/// is the end mark (its +0 -1), each asked where the original reads. Refuses a list
+/// without its end in `MOST_ENTRIES`, a page that starts past the list (the original reads
+/// on) and a row just before the end mark (the original's stack slips).
+pub fn class_rows(
+    class_of: impl Fn(u32) -> u32,
+    ends: impl Fn(u32) -> bool,
+    class: u32,
+    first: u32,
+) -> Result<ClassRows, Invalid> {
+    let mut n = 0u32;
+    let mut steps = 0;
+    let mut step = |n: &mut u32| -> Result<bool, Invalid> {
+        steps += 1;
+        if steps > MOST_ENTRIES {
+            return Err(Invalid("a list without its end in 0x400 entries"));
+        }
+        *n += 1;
+        Ok(ends(*n))
+    };
+    let mut seen = 0u32;
+    loop {
+        if class_of(n) == class {
+            seen = seen.wrapping_add(1);
+            if seen == first {
+                break;
+            }
+        }
+        if step(&mut n)? {
+            return Err(Invalid(
+                "a page that starts past the list (the original reads on)",
+            ));
+        }
+    }
+    let mut out = Vec::new();
+    let mut place = first;
+    loop {
+        while class_of(n) != class {
+            if step(&mut n)? {
+                return Ok((out, Some(place)));
+            }
+        }
+        out.push((n, place));
+        if step(&mut n)? {
+            return Err(Invalid(
+                "a row just before the end mark (the original's stack slip)",
+            ));
+        }
+        place = place.wrapping_add(1);
+        if place == first.wrapping_add(10) {
+            return Ok((out, None));
+        }
+    }
 }
 
 /// `screens::draw_class_ranking`: a page of one class's times, the rows found by the
@@ -385,5 +451,27 @@ mod tests {
         assert!(s.0.contains(&"Name s4fb 0x1ef 0x122".to_string()));
         assert!(s.0.contains(&"sprite 0x1e 0xd2 0x122 0xdfb".to_string()));
         assert_eq!(s.0.last().unwrap(), "keep Row 6");
+    }
+
+    #[test]
+    fn class_list() {
+        // Classes of entries 0 .. 7, then the end mark at 8.
+        let classes = [1, 2, 1, 1, 2, 1, 2, 2];
+        let class_of = |n: u32| classes.get(n as usize).copied().unwrap_or(9);
+        let ends = |n: u32| n as usize >= classes.len();
+        assert_eq!(
+            class_rows(class_of, ends, 1, 2),
+            Ok((vec![(2, 2), (3, 3), (5, 4)], Some(5)))
+        );
+        assert_eq!(
+            class_rows(class_of, ends, 2, 1),
+            Err(Invalid(
+                "a row just before the end mark (the original's stack slip)"
+            ))
+        );
+        assert!(class_rows(class_of, ends, 1, 5).is_err());
+        let all = |_| 1;
+        let (rows, after) = class_rows(all, |_| false, 1, 1).unwrap();
+        assert_eq!((rows.len(), after), (10, None));
     }
 }

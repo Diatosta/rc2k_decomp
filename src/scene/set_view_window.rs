@@ -25,7 +25,8 @@
 //!
 //! `dword_62400C` is left holding the low half.
 //! Twelve callers.
-//! Self-test: 60 settings by lot on the game's variables (the screen's width as it is).
+//! Self-test: 60 settings by lot on the game's variables (the screen's width as it is), at
+//! the test precisions.
 
 use crate::errors::Refused;
 use crate::framework::{
@@ -34,7 +35,11 @@ use crate::framework::{
 use crate::math::x87;
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::floats::{
+    FLOAT, Floats, ROUNDED, Tolerance, at_test_precisions, check_state_floats,
+    dispatch_state_floats,
+};
+use crate::service::harness::{Region, at, capture, restore};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -156,6 +161,76 @@ pub unsafe fn set_view_window() -> Left {
     }
 }
 
+/// The converted `set_view_window` (plain floats): the hook's. The x87 version above
+/// stays for its Rust callers in modules not converted (race, `choose_view_window`,
+/// `prepare_menu_scene`).
+// Converted: `rc2k_core::scene::view_window::window_settings`
+pub unsafe fn set_view_window_plain() -> Left {
+    use rc2k_core::scene::view_window::{WindowInputs, window_settings};
+    unsafe {
+        let f = |r: usize| f32::from_bits(game_read(r));
+        let i = WindowInputs {
+            reach: game_read(REACH_RVA),
+            size: game_read(SIZE_RVA),
+            offsets: game_read(OFFSETS_RVA),
+            in_race: game_read::<u32>(IN_RACE_RVA) == 1,
+            screen_width: game_read(SCREEN_WIDTH_RVA),
+            scale: (f(SCALE_A_RVA), game_read(SCALE_B_RVA), f(SCALE_C_RVA)),
+            nearer: game_read(NEARER_RVA),
+            nearer_factor: f(NEARER_FACTOR_RVA),
+            fade: [f(FADE_A_RVA), f(FADE_B_RVA)],
+            turn: f(TURN_RVA),
+            clip_factor: f(CLIP_FACTOR_RVA),
+            one: f(ONE_RVA),
+        };
+        let w = window_settings(&i);
+        let bits = |v: &[f32]| v.iter().map(|x| x.to_bits()).collect::<Vec<u32>>();
+        game_write(DEPTH_RVA, [w.depth, w.depth]);
+        game_write(MIDDLE_RVA, w.middle);
+        game_write(EDGES_RVA, w.edges);
+        game_write(SCALE_RVA, w.scale.to_bits());
+        game_write(DIVISOR_RVA, w.divisor.to_bits());
+        let low = w.product as u32;
+        game_write(CHECKED_RVA, low);
+        game_write(
+            FARTHEST_RVA,
+            [
+                w.farthest.to_bits(),
+                w.reciprocal.to_bits(),
+                w.fade_depth as u32,
+            ],
+        );
+        game_write(CLIP_FARTHEST_RVA, w.clip_farthest);
+        let put = |rva: usize, v: &[f32]| {
+            for (n, x) in bits(v).into_iter().enumerate() {
+                game_write(rva + 4 * n, x);
+            }
+        };
+        put(OFFSET_FLOATS_RVA, &w.offset_floats);
+        put(EDGE_FLOATS_RVA, &w.edge_floats);
+        put(MIDDLE_FLOATS_RVA, &w.middle_floats);
+        put(LESS_ONE_RVA, &w.less_one);
+        Left::nothing()
+            .with(EAX, low)
+            .with(EBX, 0x1_0000)
+            .with(EDX, (w.product >> 32) as u32)
+    }
+}
+
+/// The float places: the scale, the divisor, the farthest depth and its reciprocal, the
+/// sizes less one; the two depths rounded from floats (`fistp`).
+fn float_places() -> Vec<(Region, Tolerance)> {
+    let a = |rva: usize| game_addr(rva) as u32;
+    vec![
+        (at(SCALE_RVA), FLOAT),
+        (at(DIVISOR_RVA), FLOAT),
+        ((a(FARTHEST_RVA), 8), FLOAT),
+        ((a(FARTHEST_RVA) + 8, 4), ROUNDED),
+        (at(CLIP_FARTHEST_RVA), ROUNDED),
+        ((a(LESS_ONE_RVA), 8), FLOAT),
+    ]
+}
+
 // ---- hook ----
 
 /// Everything it writes.
@@ -241,11 +316,16 @@ pub unsafe fn set_inputs(seed: &mut u32, case: usize) {
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { set_view_window() })
+    Ok(unsafe { set_view_window_plain() })
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+    let places = float_places();
+    let floats = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
 }
 
 // ---- self-test ----
@@ -257,21 +337,30 @@ fn self_test() -> (usize, usize) {
     let (regions, inputs) = (regions(), inputs());
     let saved = (capture(&regions), capture(&inputs));
     let mut seed = 0x1B87_3593u32;
+    let places = float_places();
+    let tolerant = Floats {
+        memory: &places,
+        regs: &[],
+    };
     for case in 0..60 {
         unsafe { set_inputs(&mut seed, case) };
         let set = capture(&inputs);
-        check_state(
-            &mut t,
-            &format!("case {case}: inputs {set:x?}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| {
-                restore(&regions, &vec![0xAA; saved.0.len()]);
-                restore(&inputs, &set);
-            },
-            &regions,
-            &rust,
-        );
+        at_test_precisions(&tolerant, &mut |word, held| {
+            check_state_floats(
+                &mut t,
+                "scene::set_view_window",
+                &format!("control word {word:#x}, case {case}: inputs {set:x?}"),
+                call_original,
+                Regs::SENTINEL,
+                &|| {
+                    restore(&regions, &vec![0xAA; saved.0.len()]);
+                    restore(&inputs, &set);
+                },
+                &regions,
+                held,
+                &rust,
+            );
+        });
     }
     restore(&regions, &saved.0);
     restore(&inputs, &saved.1);

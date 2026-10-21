@@ -36,7 +36,6 @@ hook_asm!(
 const SIZE_RVA: usize = rva(0x4E0588); // dword_4E0588: the heap's Kb (`altmemsize`)
 const HEAP_RVA: usize = rva(0x4E058C); // dword_4E058C, dword_4E0590: the heap's memory
 const TEXT_RVA: usize = rva(0x4DA115); // "MEM: Using alternative scheme, heap="
-const SMALLEST: i32 = 0x2800;
 
 /// The calls by place: 0 `logfile::log_write_l1` (eax the text), 1
 /// `logfile::log_int_l1_nl` (eax), 2 `memory::virtual_alloc` (eax the bytes -> eax).
@@ -74,14 +73,14 @@ unsafe fn set(at: u32, value: u32) {
 
 pub unsafe fn open_own_heap(v: &HeapVars, part: Part) -> Result<(), Refused> {
     unsafe {
-        if get(v.own_heap) != 1 {
+        // Converted: `rc2k_core::memory::{own_heap_on, own_heap_size, own_heap_head}`.
+        use rc2k_core::memory::{own_heap_head, own_heap_on, own_heap_size};
+        if !own_heap_on(get(v.own_heap)) {
             return Ok(());
         }
-        let kb = (get(v.size) as i32).max(SMALLEST) as u32;
-        let bytes = kb.wrapping_mul(0x400);
-        if bytes == 0 {
+        let Some((kb, bytes)) = own_heap_size(get(v.size)) else {
             return Err(BadInput("a heap size whose bytes wrap to 0").into());
-        }
+        };
         part(
             0,
             &mut Regs {
@@ -105,8 +104,9 @@ pub unsafe fn open_own_heap(v: &HeapVars, part: Part) -> Result<(), Refused> {
         let memory = r.eax;
         set(v.heap, memory);
         set(v.heap + 4, memory);
-        set(memory, 0);
-        set(memory + 4, bytes);
+        let [first, second] = own_heap_head(bytes);
+        set(memory, first);
+        set(memory + 4, second);
         Ok(())
     }
 }

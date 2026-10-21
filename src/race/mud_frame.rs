@@ -33,27 +33,24 @@ hook_asm!(
 );
 
 const FRAMES_RVA: usize = rva(0x623D58); // dword_623D58
-const FRAMES: u32 = 0xE;
 
 /// A call by place: 0 `race::mud_texture_turn`.
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn mud_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::mud::{count_frame, texture_turn, next_texture}`.
+    use rc2k_core::race::mud::{count_frame, next_texture, texture_turn};
     guard(&[at(FRAMES_RVA), at(TEXTURE_RVA)], || unsafe {
         let mut r = *entry;
-        let frames = game_read::<u32>(FRAMES_RVA).wrapping_add(1);
+        let (frames, due) = count_frame(game_read(FRAMES_RVA));
         game_write(FRAMES_RVA, frames);
-        if frames < FRAMES {
+        if !due {
             return Ok(r);
         }
-        game_write(FRAMES_RVA, 0u32);
-        game_write(TEXTURE_RVA, game_read::<u32>(TEXTURE_RVA) & 3);
+        game_write(TEXTURE_RVA, texture_turn(game_read(TEXTURE_RVA)));
         part(0, &mut r)?;
-        game_write(
-            TEXTURE_RVA,
-            game_read::<u32>(TEXTURE_RVA).wrapping_add(1) & 3,
-        );
+        game_write(TEXTURE_RVA, next_texture(game_read(TEXTURE_RVA)));
         Ok(r)
     })
 }

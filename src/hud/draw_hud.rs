@@ -40,19 +40,21 @@ pub const RECORD_RVA: usize = rva(0x6D13FE); // unk_6D13FE
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::hud::batch::{Layout, NO_TEXTURE}`
 pub unsafe fn draw_hud(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    use rc2k_core::hud::batch;
     let mut g = *entry;
     unsafe {
         crate::hud::set_batch_depth::set_batch_depth();
-        game_write(BATCH_TEXTURE_RVA, 0xFFFF_FFFFu32);
+        game_write(BATCH_TEXTURE_RVA, batch::NO_TEXTURE);
         game_write(VERTEX_COUNT_RVA, 0u32);
         game_write(INDEX_COUNT_RVA, 0u32);
         g.ebp = game_addr(RECORD_RVA) as u32;
         g = crate::hud::tenths::tenths(&g);
-        let layout = match ((g.ebp + 0xF4) as *const u32).read_unaligned() {
-            1 => 2,
-            2 => 3,
-            _ => 1,
+        let layout = match batch::Layout::of(((g.ebp + 0xF4) as *const u32).read_unaligned()) {
+            batch::Layout::Single => 1,
+            batch::Layout::One => 2,
+            batch::Layout::Two => 3,
         };
         part(layout, &mut g)?;
         part(4, &mut g)?;

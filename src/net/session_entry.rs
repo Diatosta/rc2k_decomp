@@ -29,6 +29,7 @@ hook_asm!(
 
 /// The Rust version: the registers it leaves.
 pub fn session_entry(entry: &Regs, _: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::net::lists::record` (in `net::lobby::record_of`).
     Ok(Regs {
         eax: session(entry.eax)?,
         ..*entry

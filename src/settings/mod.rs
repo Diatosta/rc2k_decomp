@@ -24,4 +24,4 @@ pub static HOOKS: &[&dyn GameHook] = &[
 /// The block a settings file is read into: 0x10000 bytes, up to `files::numbered_path`'s
 /// buffer. (The PNG reader and `files::read_first_match` use its start too.)
 pub const TEXT_RVA: usize = rva(0x93E8B0);
-pub const TEXT_ROOM: u32 = 0xFFFF;
+pub const TEXT_ROOM: u32 = rc2k_core::files::settings::TEXT_ROOM;

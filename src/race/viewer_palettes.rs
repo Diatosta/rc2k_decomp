@@ -57,17 +57,18 @@ pub unsafe fn viewer_palettes() {
     unsafe {
         let screen = (a(SURFACE_FORMAT) as *const PixelFormat).read_unaligned();
         let texture = (get(TEXTURE_KINDS).wrapping_add(8) as *const PixelFormat).read_unaligned();
+        // Converted: `rc2k_core::race::viewer_flow::{font_colour, FONT_COLOURS}` (colour
+        // by colour, as the original).
+        use rc2k_core::race::viewer_flow::{FONT_COLOURS, font_colour};
         let from = get(FONT_PALETTES) as *const u32;
         let to = a(COLOURS) as *mut u32;
-        for n in 0..0x100 {
-            let parts = crate::gfx::pixel_to_components::pixel_to_components(
-                &screen,
+        for n in 0..FONT_COLOURS {
+            let colour = font_colour(
                 from.add(n).read_unaligned(),
-            ) | 0xFF00_0000;
-            to.add(n)
-                .write_unaligned(crate::gfx::components_to_pixel::components_to_pixel(
-                    &texture, parts,
-                ));
+                |c| crate::gfx::pixel_to_components::pixel_to_components(&screen, c),
+                |p| crate::gfx::components_to_pixel::components_to_pixel(&texture, p),
+            );
+            to.add(n).write_unaligned(colour);
         }
     }
 }

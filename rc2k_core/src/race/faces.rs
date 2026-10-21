@@ -6,7 +6,11 @@
 //! `face_texture_coordinates` 0x453267 / `face_texture_coordinates_2` 0x45349F,
 //! `face_corners_to_new_points` 0x452722, `face_hide_mask` 0x456056,
 //! `gather_record_faces` 0x454C99, `gather_lamps` 0x454E08, `lay_out_course` 0x421BE3,
-//! `store_norms` 0x421F02 and the whole-number part of `store_face_normal` 0x421F72.
+//! `store_norms` 0x421F02 and the whole-number part of `store_face_normal` 0x421F72;
+//! the faces' drawing decisions, depths and materials converted 2026-10-21 from
+//! `race::face_depth_test_off` 0x452358, `face_depth_test_on` 0x45237A, `face_lights`
+//! 0x453715, `face_hidden` 0x454D92, `face_depth` 0x4552D8, `add_depth_entry` 0x454D2A
+//! and `face_materials` 0x45265C.
 
 use crate::Invalid;
 
@@ -275,6 +279,111 @@ pub fn takes_lamp(object: u32, lamps: u32) -> bool {
     object == LAMP_OBJECT && lamps != MOST_LAMPS
 }
 
+/// `race::face_depth_test_off`: whether the depth test goes off for a face: no texture
+/// animation (`dword_63DA2C` 0) and polygon mode 4.
+pub fn depth_test_off(animation: u32, mode: u32) -> bool {
+    animation == 0 && mode == 4
+}
+
+/// `race::face_depth_test_on`: whether the depth test goes on after a face: when it was
+/// not turned off (`dword_63D9E0` 0; the test looks the wrong way round, kept).
+pub fn depth_test_on(turned_off: u32) -> bool {
+    turned_off == 0
+}
+
+/// `race::face_lights`: whether the face's corners take the lamps' light: lamps wanted
+/// (`g_lampsWanted`) and not a plain mode-4 face.
+pub fn corners_lit(wanted: u32, animation: u32, mode: u32) -> bool {
+    wanted != 0 && !depth_test_off(animation, mode)
+}
+
+/// `race::face_hidden`: the face's switch word's bits the view hides (the shown view's
+/// `dword_606478` entry 0 and `dword_621480` set; the word asked only then): Some(bits)
+/// when it is hidden by them, None to go on to the depth test (the bits, 0, in eax only
+/// when asked).
+pub fn hidden_by_switches(
+    view_shows: u32,
+    hiding: u32,
+    bits: impl FnOnce() -> u32,
+) -> (Option<u32>, bool) {
+    if view_shows == 0 && hiding != 0 {
+        let b = bits();
+        (Some(b), b != 0)
+    } else {
+        (None, false)
+    }
+}
+
+/// `race::face_hidden`: hidden by depth: the depth (whole) below |x| (the sign of the
+/// difference).
+pub fn hidden_by_depth(depth: u32, x: u32) -> bool {
+    (depth.wrapping_sub(x) as i32) < 0
+}
+
+/// How `race::face_depth` keys a face.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DepthBy {
+    /// Kind 0x10 or more: its first point's depth.
+    First,
+    /// Its object's record +0xE bit 1: the deepest of its four points.
+    Deepest,
+    /// Else the four points' sum over four.
+    Average,
+}
+
+/// `race::face_depth`: how a face is keyed (the object's flags asked only below 0x10).
+pub fn depth_by(kind: u8, object_flags: impl FnOnce() -> u8) -> DepthBy {
+    if kind >= 0x10 {
+        DepthBy::First
+    } else if object_flags() & 2 != 0 {
+        DepthBy::Deepest
+    } else {
+        DepthBy::Average
+    }
+}
+
+/// The deeper of two whole depths (signed; the later of equals).
+pub fn deeper(key: u32, depth: u32) -> u32 {
+    if (depth.wrapping_sub(key) as i32) >= 0 {
+        depth
+    } else {
+        key
+    }
+}
+
+/// The average's key: the four depths' rounded sum over four (arithmetic).
+pub fn average_key(sum: i32) -> u32 {
+    (sum >> 2) as u32
+}
+
+/// A face's depth key (`dword_63DC40`): the depth + 0x2000000, logical >> 10.
+pub fn depth_key(depth: u32) -> u32 {
+    depth.wrapping_add(0x200_0000) >> 10
+}
+
+/// The depth entries' room (`dword_9D3730`).
+pub const MOST_DEPTH_ENTRIES: u32 = 0x1000;
+
+/// `race::add_depth_entry`: refused past the room (the original writes past the table).
+pub fn depth_entry_room(count: u32) -> Result<(), Invalid> {
+    if count >= MOST_DEPTH_ENTRIES {
+        return Err(Invalid("a depth entry past the 0x1000"));
+    }
+    Ok(())
+}
+
+/// `race::face_materials`: a triangle's kind's material bits: the low three and bit 3.
+pub fn material_bits(kind: u8) -> (u32, u32) {
+    ((kind & 7) as u32, (kind & 8) as u32)
+}
+
+/// `race::face_materials`: the animation frame's place in `byte_609384` (8 frames an
+/// object) from the rounded clock product (& 7).
+pub fn frame_place(object: u32, frame: u32) -> (u32, u32) {
+    let f = frame & 7;
+    (f, f + object * 8)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -373,5 +482,28 @@ mod tests {
         assert_eq!(face_object(Gathered::Plain, 0, || 9), 9);
         assert_eq!(face_object(Gathered::Plain, 4, || unreachable!()), 4);
         assert!(takes_lamp(0x3B, 15) && !takes_lamp(0x3B, 16) && !takes_lamp(0x3A, 0));
+    }
+
+    #[test]
+    fn drawing_decisions() {
+        assert!(depth_test_off(0, 4) && !depth_test_off(1, 4) && !depth_test_off(0, 3));
+        assert!(depth_test_on(0) && !depth_test_on(1));
+        assert!(corners_lit(1, 0, 3) && !corners_lit(1, 0, 4) && !corners_lit(0, 1, 3));
+        assert_eq!(hidden_by_switches(0, 1, || 4), (Some(4), true));
+        assert_eq!(hidden_by_switches(0, 1, || 0), (Some(0), false));
+        assert_eq!(hidden_by_switches(1, 1, || unreachable!()), (None, false));
+        assert!(hidden_by_depth(3, 4) && !hidden_by_depth(4, 4));
+        assert!(!hidden_by_depth(0x8000_0000, 1));
+        assert_eq!(depth_by(0x10, || unreachable!()), DepthBy::First);
+        assert_eq!(depth_by(3, || 2), DepthBy::Deepest);
+        assert_eq!(depth_by(3, || 1), DepthBy::Average);
+        assert_eq!(deeper(5, 7), 7);
+        assert_eq!(deeper(5, u32::MAX), 5);
+        assert_eq!(average_key(-8), (-2i32) as u32);
+        assert_eq!(depth_key(0x400), 0x8001);
+        assert_eq!(depth_key(0xFE00_0000), 0);
+        assert!(depth_entry_room(0xFFF).is_ok() && depth_entry_room(0x1000).is_err());
+        assert_eq!(material_bits(0x1F), (7, 8));
+        assert_eq!(frame_place(3, 0x1D), (5, 29));
     }
 }

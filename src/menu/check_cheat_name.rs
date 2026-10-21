@@ -40,29 +40,19 @@ const LIST_RVA: usize = rva(0x7585E0); // aNepnqrNpgvba
 const CHEATS_RVA: usize = rva(0x75870C); // g_cheats
 const HIDDEN_NAME: u32 = 0x18F;
 const CALLEES: [usize; 2] = [0x40F059, 0x480AC1]; // sound::play_menu_sound, menu::apply_cheats
-const LIMIT: usize = 64;
 
 /// The list's entry and the cheat's bit for the coded name in the text buffer, if it is in
 /// the list.
 unsafe fn find(coded: *const u8) -> Result<Option<(u32, u32)>, Refused> {
-    let mut entry = game_addr(LIST_RVA) as *const u8;
-    for _ in 0..LIMIT {
-        unsafe {
-            if crate::strings::same_text::same_text(coded, entry) {
-                let len = crate::strings::text_length::text_length(entry)?;
-                return Ok(Some((
-                    entry as u32,
-                    entry.add(len as usize + 1).read() as u32,
-                )));
-            }
-            let len = crate::strings::text_length::text_length(entry)?;
-            entry = entry.add(len as usize + 2);
-            if entry.read() == 0 {
-                return Ok(None);
-            }
-        }
-    }
-    Err(BadInput("a cheat list without its end in 64 entries").into())
+    let list = game_addr(LIST_RVA) as *const u8;
+    let coded = unsafe { std::ffi::CStr::from_ptr(coded.cast()) }.to_bytes();
+    // Converted: `rc2k_core::menu::cheat_names::find`.
+    let found = rc2k_core::menu::cheat_names::find(
+        &unsafe { crate::bridge::Raw::new(list) },
+        coded,
+        &crate::strings::same_text::case_table(),
+    )?;
+    Ok(found.map(|f| (list as u32 + f.at as u32, f.bit as u32)))
 }
 
 /// The Rust version: the registers it leaves.
@@ -77,10 +67,9 @@ pub unsafe fn check_cheat_name(entry: &Regs, part: Part) -> Result<Regs, Refused
         let Some((found, bit)) = find(coded as *const u8)? else {
             return Ok(*entry);
         };
-        if bit > 31 {
-            return Err(BadInput("a cheat bit past 31").into());
-        }
-        game_write(CHEATS_RVA, game_read::<u32>(CHEATS_RVA) | 1 << bit);
+        // Converted: `rc2k_core::menu::cheat_names::with_cheat`.
+        let cheats = rc2k_core::menu::cheat_names::with_cheat(game_read(CHEATS_RVA), bit as u8)?;
+        game_write(CHEATS_RVA, cheats);
         // The registers at the calls: ebx the entry, ecx the bit, edi the record.
         let mut r = Regs {
             eax: 8,
@@ -128,7 +117,7 @@ fn listed_names() -> Vec<Vec<u8>> {
     let mut names = Vec::new();
     let mut at = game_addr(LIST_RVA) as *const u8;
     unsafe {
-        for _ in 0..LIMIT {
+        for _ in 0..rc2k_core::menu::cheat_names::MOST_ENTRIES {
             if at.read() == 0 {
                 break;
             }

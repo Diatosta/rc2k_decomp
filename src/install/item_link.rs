@@ -16,6 +16,7 @@ use crate::install::installer::{
 };
 use crate::install::list_test::TestList;
 use crate::race::viewer::{Saved, dispatch_parts};
+use rc2k_core::install::items::{self, LinkWay};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -36,18 +37,24 @@ hook_asm!(
 pub fn item_link(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
     let action = rd(r.esi + 8);
-    if action >= 1 {
-        r.edx = rd(r.esi + 0xC);
-        cmp(&mut r, action, 1);
-        part(action, &mut r)?;
-        return Ok(r);
-    }
-    let next = rb(r.esi + 1);
-    r.ebx = r.ebx & !0xFF | next as u32;
-    logic(&mut r, next as u32);
-    if next & 0x80 == 0 {
-        pb(crate::install::installer::LIST_ANSWER, next);
-        pb(crate::install::installer::LIST_LEAVE, 1);
+    // Converted: `rc2k_core::install::items::link`.
+    let next = || {
+        let next = rb(r.esi + 1);
+        r.ebx = r.ebx & !0xFF | next as u32;
+        logic(&mut r, next as u32);
+        next
+    };
+    match items::link(action, next) {
+        LinkWay::Action => {
+            r.edx = rd(r.esi + 0xC);
+            cmp(&mut r, action, 1);
+            part(action, &mut r)?;
+        }
+        LinkWay::Leave(next) => {
+            pb(crate::install::installer::LIST_ANSWER, next);
+            pb(crate::install::installer::LIST_LEAVE, 1);
+        }
+        LinkWay::Stay => {}
     }
     Ok(r)
 }

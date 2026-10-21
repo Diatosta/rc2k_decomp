@@ -25,11 +25,12 @@
 //! Self-test: a copy against the Rust version on a test block: empty, appended, inserted,
 //! first, too old, full, the sequence wrapping, lengths 0 and 0xFE; the refusals.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::net::lobby::{movsb, run_both};
-use crate::net::message_vars::{get, get8, set, set8};
+use crate::net::lobby::run_both;
+use crate::net::message_vars::{set, set8};
 use crate::net::{Part, dispatch_net};
+use rc2k_core::net::inbox;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -44,64 +45,16 @@ hook_asm!(
     original = ORIGINAL
 );
 
-/// The records' room.
-pub const RECORDS: u32 = 0x40;
-const RECORD: u32 = 0x100;
-/// The longest message a record holds.
-pub const LONGEST: u32 = 0xFE;
-
-/// True if `a` is older than `b` (`cmp a, b; js`).
-fn older(a: u8, b: u8) -> bool {
-    (a.wrapping_sub(b) as i8) < 0
-}
+pub use rc2k_core::net::inbox::{LONGEST, RECORDS};
+const RECORD: u32 = rc2k_core::net::inbox::RECORD as u32;
 
 /// The Rust version.
 pub fn store_received(r: &mut Regs, _part: Part) -> Result<(), Refused> {
-    let sequence = (r.eax as u8).wrapping_add(r.eax as u8);
     let base = r.edi.wrapping_add(0x34);
-    let count = get(base);
-    if count > RECORDS {
-        return Err(BadInput("store_received: more than 0x40 records").into());
-    }
-    if r.ecx > LONGEST {
-        return Err(BadInput("store_received: a message longer than 0xFE bytes").into());
-    }
-    set(base + 0x4008, r.edx);
-    if older(sequence, get8(base + 0x4004)) {
-        return Ok(());
-    }
-    if !older(sequence, get8(base + 0x4005)) {
-        set8(base + 0x4005, sequence);
-    }
-    let mut length = r.ecx;
-    let at = if count == 0 {
-        set(base, 1);
-        0
-    } else if count == RECORDS {
-        // rep movsd forwards: the records 1 .. 0x3F to 0 .. 0x3E.
-        movsb(base + 4, base + 4 + RECORD, (RECORDS - 1) * RECORD);
-        RECORDS * RECORD
-    } else {
-        let mut at = count * RECORD;
-        loop {
-            if !older(sequence, get8(base + at - 0xFC)) {
-                break;
-            }
-            movsb(base + at + 4, base + at - 0xFC, RECORD);
-            // `mov ecx, 40h; rep movsd` leaves ecx 0: the record written below gets
-            // length 0 and none of its bytes (the game's slip, section 16).
-            length = 0;
-            at -= RECORD;
-            if at == 0 {
-                break;
-            }
-        }
-        set(base, count + 1);
-        at
-    };
-    set8(base + at + 4, sequence);
-    set8(base + at + 5, length as u8);
-    movsb(base + at + 6, r.ebx, length);
+    // Converted: `rc2k_core::net::inbox::store`, on the block's inbox and the message.
+    let inbox = unsafe { std::slice::from_raw_parts_mut(base as *mut u8, inbox::INBOX) };
+    let message = unsafe { std::slice::from_raw_parts(r.ebx as *const u8, r.ecx as usize) };
+    inbox::store(inbox, r.eax as u8, r.edx, message)?;
     Ok(())
 }
 

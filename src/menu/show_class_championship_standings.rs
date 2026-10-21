@@ -18,6 +18,7 @@ use crate::framework::{
 };
 use crate::menu::standings::*;
 use crate::service::harness::{Region, at, capture, restore};
+use rc2k_core::menu::results_pages::{Page, held_figure};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -54,7 +55,8 @@ pub unsafe fn show_class_championship_standings(entry: &Regs, part: Part) -> Res
         g.edi = game_read(TABLE_B_RVA);
         let found = crate::menu::first_player_b::first_player_b(&g)?;
         let count = found.edx;
-        let count = if (count as i32) > 0x33 { 0x33 } else { count };
+        // Converted: `rc2k_core::menu::results_pages::held_figure`.
+        let count = held_figure(Page::ClassChampionship, count);
         game_write(COUNT_RVA, count);
         let g = crate::menu::first_page_stage::first_page_stage(&found)?;
         let mut r = crate::menu::stage_range_caption::stage_range_caption(&g)?;

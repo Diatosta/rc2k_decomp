@@ -5,14 +5,19 @@
 //! structures from the game's memory and store them back.
 
 pub mod audio;
+pub mod d3d;
 pub mod drive;
+pub mod fatal;
 pub mod files;
 pub mod gfx;
 pub mod hud;
 pub mod input;
+pub mod install;
 pub mod marks;
 pub mod math;
+pub mod memory;
 pub mod menu;
+pub mod net;
 pub mod physics;
 pub mod race;
 pub mod saves;
@@ -23,6 +28,7 @@ pub mod sound;
 pub mod strings;
 pub mod system;
 pub mod text;
+pub mod threading;
 
 /// An input the core does not take: one the original goes wrong on (a read past a table, a
 /// division that traps) or whose handling was not worked out; the reason in words.

@@ -9,8 +9,10 @@
 //! test's against the original, keys 2, 5, 0xA.
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::install::installer::{CF, ZF, cmp, rb, rd};
+use crate::install::installer::{CF, ZF, rd};
+use crate::install::key_up::item_key;
 use crate::race::viewer::dispatch_regs;
+use rc2k_core::install::items::ItemKey;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -26,18 +28,12 @@ hook_asm!(
 );
 
 pub fn key_number(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    r.ecx = (r.eax as u8 as u32).wrapping_sub(2);
-    let kind = rb(r.esi) & 0x0F;
-    r.ebx = r.ebx & !0xFF | kind as u32;
-    if kind == 0x2 {
-        return crate::install::choice_by_number::choice_by_number(&r);
-    }
-    if kind == 0x3 {
-        return crate::install::value_by_number::value_by_number(&r);
-    }
-    cmp(&mut r, kind as u32, 0x3);
-    Ok(r)
+    // Converted: `rc2k_core::install::items` (`number_of_key`, `ItemKey::helper`).
+    let r = Regs {
+        ecx: rc2k_core::install::items::number_of_key(entry.eax as u8),
+        ..*entry
+    };
+    item_key(&r, ItemKey::Number)
 }
 
 extern "C" fn dispatch(r: &mut Regs) {

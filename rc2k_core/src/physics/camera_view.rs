@@ -3,7 +3,10 @@
 //! `physics::ease_view_blend` 0x4385EB, `physics::camera_height_bias` 0x43852D and
 //! `physics::ease_view_turn` 0x438B4F): a view's place, the share of a change done, the
 //! eased angles, turns, blend and height. What the figures are (the camera's mode,
-//! place, turns, a view's figures) is a reading.
+//! place, turns, a view's figures) is a reading. The camera's step chooses (converted
+//! 2026-10-21 from `physics::update_camera` 0x437A53 and `physics::camera_frame`
+//! 0x44FF1B; their x87 sums stay the hooks'): the fixed cameras, the end of a switch,
+//! the modes the views' table holds, and when the camera shakes.
 //!
 //! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the
 //! original stores (`physics::x87`): the same bits at the game's double precision.
@@ -121,9 +124,72 @@ pub fn ease_turns(targets: [u32; 3], turns: &mut [u32; 3], shares: [f32; 3]) -> 
     step
 }
 
+/// A fixed camera mode's tables: the second ones (`g_nearestCamera2`,
+/// `g_replayCameras2`: modes 0x2A ..= 0x2D, 9, 10) or the first two (0x2E ..= 0x31, 7, 8).
+pub fn fixed_camera(mode: u32) -> Option<bool> {
+    match mode {
+        0x2A..=0x2D | 9 | 0xA => Some(true),
+        0x2E..=0x31 | 7 | 8 => Some(false),
+        _ => None,
+    }
+}
+
+/// The views' table (`off_606320`) holds modes 0 ..= 0x33.
+pub const LAST_MODE: u32 = 0x33;
+
+/// The mode and the one before checked against the views' table.
+pub fn check_modes(mode: u32, before: u32) -> Result<(), crate::Invalid> {
+    if mode > LAST_MODE || before > LAST_MODE {
+        return Err(crate::Invalid(
+            "a camera mode past 0x33 (off_606320's room)",
+        ));
+    }
+    Ok(())
+}
+
+/// Whether a switch is over: the clock (`unk_719FE0`) less its start (`unk_71A668`) not
+/// below its length (`unk_71A670`), by the sign.
+pub fn switch_over(clock: u32, began: u32, length: u32) -> bool {
+    (clock.wrapping_sub(began).wrapping_sub(length) as i32) >= 0
+}
+
+/// The mode after a switch: the one before, but 7 or more (unsigned) back to 0.
+pub fn mode_after_switch(before: u32) -> u32 {
+    if before >= 7 { 0 } else { before }
+}
+
+/// A switch's end: the views' hold (`unk_71AF88`).
+pub const SWITCH_HOLD: u32 = 8;
+
+/// Whether the car's light record keeps its +0x20 figure for `flt_606574`: a car below
+/// 0x22 marked in `dword_5C5AC0` (`marked`, asked only then); else +0x28.
+pub fn keeps_light_figure(car: u32, marked: impl FnOnce() -> u32) -> bool {
+    car < 0x22 && marked() != 0
+}
+
+/// `physics::camera_frame`: whether the camera shakes: modes 1 ..= 3 with a wheel on the
+/// ground (`unk_71A22C` 0).
+pub fn shakes(mode: u32, all_off: u32) -> bool {
+    matches!(mode, 1..=3) && all_off == 0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn camera_choices() {
+        assert_eq!(fixed_camera(0x2B), Some(true));
+        assert_eq!(fixed_camera(8), Some(false));
+        assert_eq!(fixed_camera(3), None);
+        assert!(check_modes(0x33, 0).is_ok() && check_modes(0, 0x34).is_err());
+        assert!(switch_over(10, 2, 8) && !switch_over(10, 2, 9));
+        assert_eq!(mode_after_switch(7), 0);
+        assert_eq!(mode_after_switch(6), 6);
+        assert!(!keeps_light_figure(0x22, || panic!()));
+        assert!(keeps_light_figure(3, || 1));
+        assert!(shakes(2, 0) && !shakes(2, 1) && !shakes(4, 0));
+    }
 
     #[test]
     fn shares_and_places() {

@@ -41,9 +41,8 @@ pub fn create_event(manual_reset: u32, signalled: u32) -> u32 {
 }
 
 /// `cmp eax, 1` on a handle: (carry, zero).
-pub fn handle_flags(handle: u32) -> (bool, bool) {
-    (handle < 1, handle == 1)
-}
+// Converted: `rc2k_core::threading::handle_flags`.
+pub use rc2k_core::threading::handle_flags;
 
 // ---- hook ----
 

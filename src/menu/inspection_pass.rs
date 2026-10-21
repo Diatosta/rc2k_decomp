@@ -51,9 +51,11 @@ pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn inspection_pass(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::menu::passes` (who is looked at, the pauses, `goes_on`).
+    use rc2k_core::menu::passes;
     let players = counted_players()?;
     for &p in &players {
-        if get(p + 0xD0) == 1 {
+        if passes::takes_part(get(p + 0xD0)) {
             crate::menu::driver_stats::car_table(p)?;
         }
     }
@@ -64,18 +66,18 @@ pub unsafe fn inspection_pass(entry: &Regs, part: Part) -> Result<Regs, Refused>
             g.ecx = n as u32;
             game_write(CURRENT_RVA, g.ecx);
             g.edi = p;
-            if get(p + 0xD0) != 1 {
+            if !passes::takes_part(get(p + 0xD0)) {
                 continue;
             }
             crate::menu::driver_stats::driver_stats(&g)?;
             crate::menu::inspection_verdict::inspection_verdict(&g)?;
             crate::menu::inspection_faults::inspection_faults(&g)?;
-            if get(p + 0xD0) != 2 {
+            if !passes::is_out(get(p + 0xD0)) {
                 continue;
             }
             game_write(FAILED_RVA, game_read::<u32>(FAILED_RVA).wrapping_add(1));
             part(5, &mut g)?;
-            g.eax = 1000;
+            g.eax = passes::SCREEN_PAUSE;
             part(1, &mut g)?;
             part(3, &mut g)?;
             part(2, &mut g)?;
@@ -83,10 +85,10 @@ pub unsafe fn inspection_pass(entry: &Regs, part: Part) -> Result<Regs, Refused>
                 return Ok(*entry);
             }
             part(4, &mut g)?;
-            g.eax = 0x4E2;
+            g.eax = passes::INSPECTION_PAUSE;
             part(1, &mut g)?;
         }
-        if game_read::<u32>(FAILED_RVA) == game_read::<u32>(PLAYER_COUNT_RVA) {
+        if !passes::goes_on(game_read(FAILED_RVA), game_read(PLAYER_COUNT_RVA)) {
             game_write(GOES_ON_RVA, 0u32);
         }
     }

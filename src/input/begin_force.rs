@@ -27,6 +27,7 @@ use crate::input::di_harness::{
     shared_regions, slot,
 };
 use crate::input::types::{Controller, DiPropDword, DiPropHeader, InputDevice};
+use rc2k_core::input::acquire::gain;
 use std::mem::size_of;
 use std::sync::atomic::AtomicUsize;
 
@@ -76,14 +77,15 @@ pub fn begin_force(record: u32, part: crate::input::make_effect::Part) -> Result
         crate::logfile::log_write::log_write(game_addr(USING_TEXT_RVA) as *const u8, true, 2)
     };
     let device = at(record, field!(InputDevice, device));
-    if at(record, field!(InputDevice, strength)) == 0 {
+    // Converted: `rc2k_core::input::acquire::gain`.
+    let Some(gain) = gain(at(record, field!(InputDevice, strength))) else {
         method(
             device,
             slot::SET_PROPERTY,
             &[DIPROP_AUTOCENTER, dword_property(1)],
         );
         return Ok(());
-    }
+    };
     if method(
         device,
         slot::SET_PROPERTY,
@@ -92,7 +94,7 @@ pub fn begin_force(record: u32, part: crate::input::make_effect::Part) -> Result
     {
         return Err(fatal(0x8023_8421).into());
     }
-    let gain = dword_property(at(record, field!(InputDevice, strength)).wrapping_mul(100));
+    let gain = dword_property(gain);
     if method(device, slot::SET_PROPERTY, &[DIPROP_FFGAIN, gain]) != 0 {
         return Err(fatal(0x8023_8422).into());
     }

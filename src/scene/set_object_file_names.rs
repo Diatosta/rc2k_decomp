@@ -49,22 +49,22 @@ pub const KIND_RVA: usize = rva(0x634FE8); // dword_634FE8
 /// The eight path texts, from `aFilesAObjRo3` on.
 const TEXTS_RVA: usize = rva(0x60AD4E);
 const TEXTS_LEN: usize = 0xB4;
-/// For each folder: the `.ro3` path, the `.lwo` path, and how far in the number is.
-const FOLDERS: [(u32, usize, usize, usize); 4] = [
-    (0x190, rva(0x60AD4E), rva(0x60AD62), 0x0B),
-    (0x258, rva(0x60AD76), rva(0x60AD8A), 0x0B),
-    (0x320, rva(0x60AD9E), rva(0x60ADB7), 0x10),
-    (u32::MAX, rva(0x60ADD0), rva(0x60ADE9), 0x10),
+/// For each folder (`rc2k_core::scene::objects::folder`): the `.ro3` path, the `.lwo`
+/// path, and how far in the number is.
+const FOLDERS: [(usize, usize, usize); 4] = [
+    (rva(0x60AD4E), rva(0x60AD62), 0x0B),
+    (rva(0x60AD76), rva(0x60AD8A), 0x0B),
+    (rva(0x60AD9E), rva(0x60ADB7), 0x10),
+    (rva(0x60ADD0), rva(0x60ADE9), 0x10),
 ];
 
 // ---- Rust version ----
 
+// Converted: `rc2k_core::scene::objects::{folder, number_digits}`
 pub unsafe fn set_object_file_names(folder_kind: u32) -> Left {
+    use rc2k_core::scene::objects::{folder, number_digits};
     unsafe {
-        let &(_, ro3, lwo, number) = FOLDERS
-            .iter()
-            .find(|&&(below, ..)| folder_kind < below)
-            .unwrap_or(&FOLDERS[3]);
+        let (ro3, lwo, number) = FOLDERS[folder(folder_kind)];
         let (ro3_number, lwo_number) = (game_addr(ro3 + number), game_addr(lwo + number));
         game_write(
             NAMES_RVA,
@@ -75,14 +75,7 @@ pub unsafe fn set_object_file_names(folder_kind: u32) -> Left {
                 lwo_number as u32,
             ],
         );
-        let kind: u32 = game_read(KIND_RVA);
-        let digits = [
-            (kind / 1000) as u8,
-            (kind % 1000 / 100) as u8,
-            (kind % 100 / 10) as u8,
-            (kind % 10) as u8,
-        ]
-        .map(|digit| digit.wrapping_add(b'0'));
+        let digits = number_digits(game_read(KIND_RVA));
         (ro3_number as *mut [u8; 4]).write(digits);
         (lwo_number as *mut [u8; 4]).write(digits);
         Left::nothing()

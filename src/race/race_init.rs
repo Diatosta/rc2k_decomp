@@ -118,26 +118,20 @@ pub unsafe fn seed_car_randoms(entry: &Regs) -> Regs {
 /// +0x720/+0x724/+0x728/+0x730 0, +0xA0C .. +0xA1C -1; the four text dwords at 0x6D1838 ..
 /// spaces, the four at 0x6D1850 .. -1. Leaves ebx 8, edi the last block.
 pub unsafe fn reset_car_race_state(entry: &Regs) -> Regs {
+    // Converted: `rc2k_core::race::cars::{RACE_STATE, BLANK_TEXT, UNSET_TEXT}`.
+    use rc2k_core::race::cars::{BLANK_TEXT, RACE_STATE, UNSET_TEXT};
     for n in 0..BLOCKS {
         let b = block(n);
-        unsafe {
-            put(b + 0x730, 0);
-            put(b + 0x72C, 0x12C);
-            put(b + 0x724, 0);
-            put(b + 0x71C, 0xCA);
-            put(b + 0x720, 0);
-            put(b + 0x728, 0);
-            for k in 0..5 {
-                put(b + 0xA0C + 4 * k, u32::MAX);
-            }
+        for (off, v) in RACE_STATE {
+            unsafe { put(b + off, v) };
         }
     }
     unsafe {
         for at in BLANK_TEXT_RVAS {
-            game_write(at, 0x2020_2020u32);
+            game_write(at, BLANK_TEXT);
         }
         for at in UNSET_TEXT_RVAS {
-            game_write(at, u32::MAX);
+            game_write(at, UNSET_TEXT);
         }
     }
     Regs {

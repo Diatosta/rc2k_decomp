@@ -73,8 +73,7 @@ const ANGLE_X_RVA: usize = rva(0x63503C); // dword_63503C
 const HEIGHT_RVA: usize = rva(0x635020); // dword_635020
 const CARS_RVA: usize = rva(0x759DCA); // off_759DCA
 const FIXED_CARS_RVA: usize = rva(0x759D16); // off_759D16
-const ENTRIES: usize = 0x100;
-const CAR_NUMBERS: u32 = 0x400;
+use rc2k_core::scene::carousel;
 
 /// One step of a carousel's set-up.
 #[derive(Clone, Copy, Debug)]
@@ -111,38 +110,16 @@ unsafe fn entry(list: u32, n: usize) -> u32 {
     unsafe { ((list as usize + n * 4) as *const u32).read_unaligned() }
 }
 
-/// The checks of a list of cars, before anything is written. With `from_second`
-/// (menu 0xE) the list as it will be after a list of one has had its car copied.
+/// The checks of a list of cars, before anything is written (see
+/// `rc2k_core::scene::carousel::check_cars`).
 unsafe fn check_cars(list: u32, from_second: bool) -> Result<(), Refused> {
-    if list == 0 {
-        return Err(BadInput("no list of cars").into());
-    }
     unsafe {
-        let copied = if from_second {
-            let count = (1..ENTRIES)
-                .find(|&n| entry(list, n) == u32::MAX)
-                .ok_or(BadInput("a list of cars without its end"))?;
-            count == 1
-        } else {
-            false
-        };
-        for n in 0..ENTRIES {
-            let car = if copied && n == 1 {
-                entry(list, 0)
-            } else {
-                entry(list, n)
-            };
-            if car == u32::MAX {
-                return Ok(());
-            }
-            if car == 0 {
-                return Err(BadInput("a car that is not there").into());
-            }
-            if (car as *const u32).read_unaligned() >= CAR_NUMBERS {
-                return Err(BadInput("a car's number past the table").into());
-            }
-        }
-        Err(BadInput("a list of cars without its end").into())
+        Ok(carousel::check_cars(
+            list,
+            |n| entry(list, n),
+            |car| (car as *const u32).read_unaligned(),
+            from_second,
+        )?)
     }
 }
 
@@ -176,6 +153,7 @@ unsafe fn cars(r: &mut Regs, list: u32, size: u32) {
     }
 }
 
+// Converted: `rc2k_core::scene::carousel::{check_cars, list_end}`
 pub unsafe fn set_up_carousel(r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         let menu: u32 = game_read(MENU_RVA);
@@ -208,9 +186,7 @@ pub unsafe fn set_up_carousel(r: &mut Regs) -> Result<(), Refused> {
                 let list = r.esi;
                 check_cars(list, true)?;
                 store(0x75AA8C, 1);
-                let count = (1..ENTRIES)
-                    .find(|&n| entry(list, n) == u32::MAX)
-                    .unwrap_or(0);
+                let count = carousel::list_end(|n| entry(list, n), 1).unwrap_or(0);
                 if count == 1 {
                     r.eax = entry(list, 0);
                     ((list as usize + 4) as *mut u32).write_unaligned(r.eax);

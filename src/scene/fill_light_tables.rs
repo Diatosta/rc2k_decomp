@@ -54,9 +54,12 @@ const LAMPS: [(usize, usize); 4] = [
 
 // ---- Rust version ----
 
+// Converted: `rc2k_core::scene::lamps::plain_light`
 pub unsafe fn fill_light_tables() -> Left {
     unsafe {
-        let plain = game_read::<u32>(OTHER_WAY_RVA) == 0 && game_read::<u32>(OTHER_WAY_B_RVA) == 0;
+        let plain = rc2k_core::scene::lamps::plain_light(game_read(OTHER_WAY_RVA), || {
+            game_read(OTHER_WAY_B_RVA)
+        });
         let ramp = if plain { PLAIN_RVA } else { SCENE_RVA };
         fill_light_ramp(game_ptr(ramp), game_ptr(LIGHT_TABLE_RVA));
         let mut left = Left::nothing();

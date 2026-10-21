@@ -11,6 +11,7 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, hook_asm, rva};
 use crate::physics::flag_result::{FlagResult, dispatch_flags};
+use rc2k_core::physics::line_places::car_near;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -31,24 +32,16 @@ hook_asm!(
 );
 
 /// The Rust core; `r` the registers at entry.
+// Converted: `rc2k_core::physics::line_places::car_near`.
 pub unsafe fn near_at(car: u32, r: &Regs) -> FlagResult {
-    unsafe {
-        let get = |o: u32| ((car + o) as *const u32).read_unaligned();
-        let result = |ebx: Option<u32>, carry| FlagResult {
-            eax: r.eax,
-            ecx: None,
-            ebx,
-            carry,
-            zero: None,
-        };
-        if get(0x25C) == 0 {
-            return result(None, false);
-        }
-        let mut d = get(0x98).wrapping_sub(r.eax);
-        if (d as i32) < 0 {
-            d = d.wrapping_neg();
-        }
-        result(Some(d), (d.wrapping_sub(4) as i32) < 0)
+    let get = |o: u32| unsafe { ((car + o) as *const u32).read_unaligned() };
+    let near = car_near(get(0x25C) != 0, || get(0x98), r.eax);
+    FlagResult {
+        eax: r.eax,
+        ecx: None,
+        ebx: near.map(|n| n.0),
+        carry: near.is_some_and(|n| n.1),
+        zero: None,
     }
 }
 

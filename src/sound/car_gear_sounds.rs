@@ -16,7 +16,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva};
-use crate::physics::flow::{guard, x87_run};
+use crate::physics::flow::guard;
 use crate::service::harness::{Region, capture, restore};
 use crate::sound::car_slot_sounds::SLOT;
 use crate::sound::turn_parts::{
@@ -54,31 +54,26 @@ pub fn car_gear_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     let mut all = turn_regions();
     all.push((o, OBJECT_LEN));
     guard(&all, || {
+        // Converted: `rc2k_core::sound::engine::{place_behind, gear_pitch}` (exact at every
+        // precision: one rounding each).
+        use rc2k_core::sound::engine::{gear_pitch, place_behind};
         let mut c = *r;
-        x87_run!(
-            "fld dword ptr [{bx} + 0x2C]",
-            "fsub dword ptr [{bx} + 0x38]",
-            "fstp dword ptr [{si} + 0xC]",
-            "fld dword ptr [{bx} + 0x30]",
-            "fsub dword ptr [{bx} + 0x3C]",
-            "fstp dword ptr [{si} + 0x10]",
-            "fld dword ptr [{bx} + 0x34]",
-            "fsub dword ptr [{bx} + 0x40]",
-            "fstp dword ptr [{si} + 0x14]";
-            bx = c.ebx, si = c.esi
+        let float = |at: u32| unsafe { (at as *const f32).read_unaligned() };
+        let place = place_behind(
+            [0x2C, 0x30, 0x34].map(|n| float(c.ebx + n)),
+            [0x38, 0x3C, 0x40].map(|n| float(c.ebx + n)),
         );
+        for (n, v) in place.into_iter().enumerate() {
+            unsafe { ((c.esi + 0xC + 4 * n as u32) as *mut f32).write_unaligned(v) };
+        }
         for at in [0x1C4, 0x1DC] {
             c.ebp = o + at;
             part(SLOT, &mut c)?;
         }
         let factor = (c.esi + 0x20) as *mut u32;
         let kept = unsafe { factor.read_unaligned() };
-        x87_run!(
-            "fld dword ptr [{si} + 0x20]",
-            "fmul dword ptr [{bx} + 0x210]",
-            "fstp dword ptr [{si} + 0x20]";
-            bx = c.ebx, si = c.esi
-        );
+        let pitch = gear_pitch(float(c.esi + 0x20), float(c.ebx + 0x210));
+        unsafe { (factor as *mut f32).write_unaligned(pitch) };
         c.ebp = o + 0x1F8;
         part(SLOT, &mut c)?;
         unsafe { factor.write_unaligned(kept) };

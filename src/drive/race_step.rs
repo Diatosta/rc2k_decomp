@@ -34,20 +34,18 @@ hook_asm!(
 );
 
 /// The Rust version.
+// Converted: `rc2k_core::drive::race_ticks::run_ticks`.
 pub unsafe fn race_step(entry: &Regs) -> Result<Left, Refused> {
     let mut r = *entry;
     unsafe { crate::drive::race_clock_tick::race_clock_tick() }.apply(&mut r);
     if g(0x6138F8) == 0 {
-        r.ecx = g(0x613844);
-        while (r.ecx as i32) > 0 {
-            let ecx = r.ecx;
+        r.ecx = rc2k_core::drive::race_ticks::run_ticks(g(0x613844), |ecx| {
+            r.ecx = ecx;
             unsafe { crate::drive::race_tick::race_tick(&r) }?.apply(&mut r);
             r.ecx = ecx;
-            if crate::drive::race_parts::players_all_out(&mut r)? {
-                break;
-            }
-            r.ecx -= 1;
-        }
+            let out = crate::drive::race_parts::players_all_out(&mut r)?;
+            Ok::<_, Refused>((out, r.ecx))
+        })?;
     }
     Ok(left_of(&r))
 }

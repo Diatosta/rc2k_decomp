@@ -9,10 +9,9 @@
 //! A page action; `ebx` is ignored. Caller `install::run_page`. Shadow mode compares.
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::install::installer::{
-    OFFER_REGISTRATION, SAME_VERSION, STATUS, cmp, g, gb, logic, rb, rw, wb,
-};
+use crate::install::installer::{OFFER_REGISTRATION, SAME_VERSION, STATUS, cmp, g, gb, rb, rw, wb};
 use crate::race::viewer::dispatch_regs;
+use rc2k_core::install::pages;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -29,23 +28,18 @@ hook_asm!(
 
 pub fn mark_main_page(entry: &Regs) -> Regs {
     let mut r = *entry;
-    if g(SAME_VERSION) != 1 {
-        wb(r.edi + 0x28, rb(r.edi + 0x28) | 0x80);
+    let title = rw(r.edi + 0x2A);
+    // Converted: `rc2k_core::install::pages::main_page_marks`.
+    let marks = pages::main_page_marks(
+        g(SAME_VERSION) == 1,
+        gb(STATUS) != 0,
+        g(OFFER_REGISTRATION) == 1,
+        title,
+    );
+    for (offset, or, and) in marks {
+        wb(r.edi + offset, (rb(r.edi + offset) | or) & and);
     }
-    if gb(STATUS) == 0 {
-        wb(r.edi + 0x38, rb(r.edi + 0x38) | 0x80);
-    }
-    if g(OFFER_REGISTRATION) != 1 {
-        wb(r.edi + 0x48, rb(r.edi + 0x48) | 0x40);
-    }
-    let title = rw(r.edi + 0x2A) as u32;
-    cmp(&mut r, title, 0xBD);
-    if rw(r.edi + 0x2A) == 0xBD {
-        wb(r.edi + 0x28, rb(r.edi + 0x28) & 0x7F);
-        wb(r.edi + 0x38, rb(r.edi + 0x38) | 0x40);
-        wb(r.edi + 0x48, rb(r.edi + 0x48) | 0x40);
-    }
-    let _ = logic;
+    cmp(&mut r, title as u32, pages::UPDATE_TITLE as u32);
     r
 }
 

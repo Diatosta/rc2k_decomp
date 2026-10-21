@@ -26,6 +26,9 @@
 //! tests say (through `draw_object`'s hook, while that is on).
 //! Self-test: a redirected copy whose drawing notes itself, with the original's own
 //! tests, on settings drawn by lot.
+//!
+//! Converted 2026-10-21: the race's tests and the kind bytes through
+//! `rc2k_core::scene::shown` (the variables read where the tests read them).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{
@@ -64,44 +67,51 @@ const WHICH_RVA: usize = rva(0x71B400); // dword_71B400
 const ONLY_RVA: usize = rva(0x635058); // dword_635058
 const FACE_COUNTS_RVA: usize = rva(0x632F70); // dword_632F70
 const KIND_BYTES_RVA: usize = rva(0x5CD688); // dword_5CD688
-const OBJECTS: u32 = 0x100;
+use rc2k_core::scene::shown::OBJECTS;
 
 // ---- Rust version ----
 
-/// The race's two tests: whether the object is drawn. Writes nothing but the registers
-/// the tests leave.
-unsafe fn shown(r: &mut Regs) -> bool {
-    unsafe {
-        let object: u32 = game_read(OBJECT_RVA);
-        if game_read::<u32>(KIND_SWITCH_RVA) != 0 || game_read::<u32>(KIND_MODE_RVA) == 2 {
-            let kind: u32 = game_read(KINDS_RVA + object as usize * 4);
-            if kind == 0x30 || kind == 0x4E {
-                return false;
-            }
-        }
-        r.ebx = object;
-        let other_way = game_read::<u32>(OTHER_WAY_RVA) != 0;
-        let which: u32 = game_read(WHICH_RVA);
-        let special = object == 0x38 || (0x3A..0x40).contains(&object);
-        if special
-            && (other_way
-                || game_read::<u32>(SHOWN_RVA) == 0
-                || (object == 0x3E && which != 0)
-                || (object == 0x3D && which != 1))
-        {
-            return false;
-        }
-        if other_way {
-            r.eax = game_read(ONLY_RVA);
-            if r.eax != 0 {
-                r.eax -= 1;
-                if r.eax != which {
-                    return false;
-                }
-            }
-        }
-        game_read::<u32>(FACE_COUNTS_RVA + object as usize * 4) != 0
+/// The game's variables for the race's tests.
+struct Game;
+
+impl rc2k_core::scene::shown::RaceObject for Game {
+    fn object(&self) -> u32 {
+        unsafe { game_read(OBJECT_RVA) }
     }
+    fn kind_switch(&self) -> u32 {
+        unsafe { game_read(KIND_SWITCH_RVA) }
+    }
+    fn kind_mode(&self) -> u32 {
+        unsafe { game_read(KIND_MODE_RVA) }
+    }
+    fn kind(&self, object: u32) -> u32 {
+        unsafe { game_read(KINDS_RVA + object as usize * 4) }
+    }
+    fn other_way(&self) -> u32 {
+        unsafe { game_read(OTHER_WAY_RVA) }
+    }
+    fn shown(&self) -> u32 {
+        unsafe { game_read(SHOWN_RVA) }
+    }
+    fn which(&self) -> u32 {
+        unsafe { game_read(WHICH_RVA) }
+    }
+    fn only(&self) -> u32 {
+        unsafe { game_read(ONLY_RVA) }
+    }
+    fn faces(&self, object: u32) -> u32 {
+        unsafe { game_read(FACE_COUNTS_RVA + object as usize * 4) }
+    }
+}
+
+/// The race's two tests: whether the object is drawn (its number checked by the caller).
+/// Writes nothing but the registers the tests leave.
+// Converted: `rc2k_core::scene::shown::race_shown`
+fn shown(r: &mut Regs) -> bool {
+    let s = rc2k_core::scene::shown::race_shown(&Game);
+    r.ebx = s.ebx.unwrap_or(r.ebx);
+    r.eax = s.eax.unwrap_or(r.eax);
+    s.drawn
 }
 
 /// `draw`: what stands for `scene::draw_object`. Says whether the object was drawn.
@@ -118,9 +128,7 @@ pub unsafe fn draw_shown_object(
         let show = if race {
             shown(r)
         } else {
-            let mut bytes = [0u32; 0x100];
-            (bytes[6], bytes[7], bytes[9]) = (999, 999, 999);
-            game_write(KIND_BYTES_RVA, bytes);
+            game_write(KIND_BYTES_RVA, rc2k_core::scene::shown::kind_bytes());
             r.eax = 0;
             r.ecx = 0;
             r.edi = (game_addr(KIND_BYTES_RVA) + 0x400) as u32;
@@ -143,7 +151,7 @@ extern "C" fn dispatch(r: &mut Regs) {
         let object: u32 = unsafe { game_read(OBJECT_RVA) };
         let said = match race {
             false => Some(true),
-            true if object < OBJECTS => Some(unsafe { shown(&mut { *r }) }),
+            true if object < OBJECTS => Some(shown(&mut { *r })),
             true => None,
         };
         let before = draw_object::ENTERED.load(Ordering::Relaxed);

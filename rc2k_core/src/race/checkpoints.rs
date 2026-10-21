@@ -3,7 +3,9 @@
 //! `race::set_line_face_kind` 0x44574A, `sort_checkpoints` 0x4458A7, `count_checks`
 //! 0x445AAB, `next_map_anchor` 0x445FEE, `first_check_checkpoint` 0x446280,
 //! `init_checkpoints` 0x45A98F, `place_car_on_line` 0x44666F and `nearest_checkpoint_in`
-//! 0x4413F8). A face is asked about through closures, in the original's order, so nothing
+//! 0x4413F8; the measure's range and the nearest's distance in units converted 2026-10-21
+//! from `race::distance_to_checkpoint` 0x44141D and `race::nearest_checkpoint` 0x44134F).
+//! A face is asked about through closures, in the original's order, so nothing
 //! is read that it does not read.
 
 use crate::Invalid;
@@ -218,6 +220,19 @@ impl Nearest {
     }
 }
 
+/// `race::distance_to_checkpoint`: whether `checkpoint` is one of the line's (0 ..
+/// `count` - 1), by the original's sign tests (`js` on it, `jns` on it less the count).
+pub fn on_line(checkpoint: u32, count: u32) -> bool {
+    (checkpoint as i32) >= 0 && (checkpoint.wrapping_sub(count) as i32) < 0
+}
+
+/// `race::nearest_checkpoint`: the nearest's distance (a whole number) over the scale
+/// (`fild` / `fdiv` / `fstp`): one rounding to the float (the game's scale is 65536, so the
+/// quotient is exact before it).
+pub fn distance_units(distance: u32, scale: f32) -> f32 {
+    (distance as i32 as f64 / scale as f64) as f32
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -229,6 +244,11 @@ mod tests {
         assert_eq!(check_counts(5, |n| kinds[n as usize]), [0, 0, 1, 1, 2]);
         assert_eq!(next_map_anchor(1, 5, |n| n == 3), Some(3));
         assert_eq!(next_map_anchor(4, 5, |n| n == 3), None);
+        assert!(on_line(0, 5) && on_line(4, 5) && !on_line(5, 5) && !on_line(u32::MAX, 5));
+        // By sign: a checkpoint less a count past 0x80000000 is not below 0.
+        assert!(!on_line(3, 0x8000_0005) && !on_line(0x8000_0000, 1));
+        assert_eq!(distance_units(0x18000, 65536.0), 1.5);
+        assert_eq!(distance_units(u32::MAX, 65536.0), -1.0 / 65536.0);
     }
 
     #[test]

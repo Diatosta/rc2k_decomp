@@ -42,6 +42,7 @@ use crate::gfx::texture_upload::{
     RECORD_LEN, Record, SYSTEM_RECORDS_RVA, TEXTURES, fatal, halvings_apart, ready_picture,
 };
 use crate::service::harness::{Region, at, capture, restore};
+use rc2k_core::gfx::uploads::{self, MOST_LEVELS as LEVELS};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -70,7 +71,6 @@ const DESCRIPTION_LEN: usize = 0x6C;
 const PITCH_RVA: usize = rva(0x5ABA28); // dword_5ABA28: its pitch
 const PIXELS_RVA: usize = rva(0x5ABA3C); // dword_5ABA3C: its pixels
 const REPORTS_RVA: usize = rva(0x4F52AC); // dword_4F52AC: Direct3D's errors are fatal
-const LEVELS: u32 = 9;
 
 // ---- Rust version ----
 
@@ -133,11 +133,10 @@ pub unsafe fn upload_texture_picture(
     if pixels == 0 {
         return Ok(());
     }
+    // Converted: `rc2k_core::gfx::uploads` (`levels`, `halvings_before`; the halvings
+    // through `texture_upload::halvings_apart`).
     let record = Record::of(texture)?;
-    let levels = record.get().levels.max(1);
-    if levels > LEVELS {
-        return Err(BadInput("more levels than the record has surfaces").into());
-    }
+    let levels = uploads::levels(record.get().levels).map_err(BadInput::from)?;
     unsafe {
         ready_picture(&record, pixels, width, height)?;
         let apart = halvings_apart(
@@ -159,7 +158,7 @@ pub unsafe fn upload_texture_picture(
         let bytes = record.bytes_per_pixel();
         let (mut width, mut height) = (width, height);
         for level in 0..levels {
-            let times = if level == 0 { apart } else { 1 };
+            let times = uploads::halvings_before(level, apart);
             if times != 0 {
                 (width, height) = halve_texture(pixels as *mut u32, width, height, times);
             }

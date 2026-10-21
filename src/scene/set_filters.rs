@@ -31,16 +31,12 @@ const SETTING_RVA: usize = rva(0x623898); // dword_623898
 
 // ---- Rust version ----
 
+// Converted: `rc2k_core::scene::render_states::filters`
 pub unsafe fn set_filters(r: &mut Regs) {
     unsafe {
-        let smaller = if game_read::<u32>(SETTING_RVA) == 0 {
-            2
-        } else {
-            6
-        };
-        set_render_state(r, 2, 0x11);
-        set_render_state(r, smaller, 0x12);
-        set_render_state(r, 1, 0x31);
+        for s in rc2k_core::scene::render_states::filters(game_read(SETTING_RVA)) {
+            set_render_state(r, s.value, s.state);
+        }
     }
 }
 

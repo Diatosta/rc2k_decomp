@@ -9,10 +9,11 @@
 //! 2^32 records). Shadow mode runs the original alone (drawing twice would double it).
 //! Self-test: a copy whose draw goes to a stand-in, against the Rust version.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::install::installer::{DRAW_STRING, Part, at, both, quiet, rd};
 use crate::race::viewer::dispatch_parts;
+use rc2k_core::install::layout;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -29,21 +30,19 @@ hook_asm!(
 
 pub fn draw_string_list(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let (x, y) = (entry.ecx, entry.edx);
-    if entry.eax == 0 {
-        return Err(BadInput("a count of 0 (the original's do-while draws 2^32 records)").into());
-    }
-    let mut edi = entry.ebx;
-    for left in (1..=entry.eax).rev() {
+    // Converted: `rc2k_core::install::layout` (`list_records`, `list_place`).
+    for (offset, left) in layout::list_records(entry.eax)? {
+        let record = entry.ebx.wrapping_add(offset);
+        let (x, y) = layout::list_place(rd(record), rd(record + 4), x, y);
         let mut r = Regs {
-            ecx: rd(edi).wrapping_add(x),
-            edx: rd(edi + 4).wrapping_add(y),
-            ebx: rd(edi + 8),
-            eax: rd(edi + 0xC),
-            edi: edi.wrapping_add(0x10),
+            ecx: x,
+            edx: y,
+            ebx: rd(record + 8),
+            eax: rd(record + 0xC),
+            edi: record.wrapping_add(layout::LIST_RECORD),
             ebp: left,
             ..*entry
         };
-        edi = edi.wrapping_add(0x10);
         part(at(DRAW_STRING), &mut r)?;
     }
     Ok(*entry)

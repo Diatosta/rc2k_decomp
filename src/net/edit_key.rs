@@ -14,12 +14,14 @@
 //! a copy whose calls go to stand-ins (the character and the width given), against the Rust
 //! version: not editing, each key, a character below 0x20, too wide, a full text.
 
+use crate::bridge::{Raw, read_through};
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, ZERO_FLAG, hook_asm, rva};
 use crate::net::lobby::{
     EDIT_FONT, EDIT_SAVED, EDIT_TEXT, EDIT_WIDTH, EDITED, FLAGS, KEY_TO_CHAR, MEASURE_TEXT, Part,
     Saved, a, answer, dispatch_lobby, fill, g, movsb, p, region, run_both, set_sign,
 };
+use rc2k_core::net::editing::{self, EditKey};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -42,10 +44,6 @@ pub fn editing_flags(r: &mut Regs) {
     set_sign(r, v.wrapping_add(1) as i32);
 }
 
-fn byte(at: u32) -> u8 {
-    unsafe { (at as *const u8).read() }
-}
-
 fn set_byte(at: u32, v: u8) {
     unsafe { (at as *mut u8).write(v) }
 }
@@ -53,30 +51,32 @@ fn set_byte(at: u32, v: u8) {
 /// The Rust version: the registers it leaves (the entry's, the flags of the last compare).
 pub fn edit_key(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
-    if g(EDITED) != u32::MAX {
+    // Converted: `rc2k_core::net::editing` (`EditKey`, `last_char`, `takes`,
+    // `end_for_char`, `too_wide`).
+    if g(EDITED) != editing::NOT_EDITING {
         let text = g(EDIT_TEXT);
+        let words = unsafe { Raw::new(text as *const u8) };
         r.ebx = text;
-        match r.eax as u8 {
-            1 => {
-                movsb(text, a(EDIT_SAVED), 0x40);
-                p(EDITED, u32::MAX);
+        match EditKey::of(r.eax as u8) {
+            EditKey::Escape => {
+                movsb(text, a(EDIT_SAVED), editing::TEXT_LEN as u32);
+                p(EDITED, editing::NOT_EDITING);
             }
-            0x1C => p(EDITED, u32::MAX),
-            0x6E => unsafe { std::ptr::write_bytes(text as *mut u8, 0, 0x40) },
-            0x0E => {
-                if byte(text) != 0 {
-                    let mut end = text;
-                    while byte(end) != 0 {
-                        end += 1;
-                    }
-                    set_byte(end - 1, 0);
+            EditKey::Enter => p(EDITED, editing::NOT_EDITING),
+            EditKey::Clear => unsafe {
+                std::ptr::write_bytes(text as *mut u8, 0, editing::TEXT_LEN)
+            },
+            EditKey::Backspace => {
+                if let Some(last) = read_through(editing::last_char(&words)) {
+                    set_byte(text + last as u32, 0);
                 }
             }
-            _ => {
+            EditKey::Other => {
                 part(KEY_TO_CHAR, &mut r)?;
-                if r.eax as u8 >= 0x20 {
+                if editing::takes(r.eax as u8) {
                     r.eax &= !0xFF00;
-                    if let Some(at) = (0..0x3F).find(|&n| byte(text + n) == 0) {
+                    if let Some(at) = read_through(editing::end_for_char(&words)) {
+                        let at = at as u32;
                         r.ecx = at;
                         unsafe { ((text + at) as *mut u16).write_unaligned(r.eax as u16) };
                         let mut m = Regs {
@@ -84,7 +84,7 @@ pub fn edit_key(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                             ..r
                         };
                         part(MEASURE_TEXT, &mut m)?;
-                        if m.ecx as i32 > g(EDIT_WIDTH) as i32 {
+                        if editing::too_wide(m.ecx, g(EDIT_WIDTH)) {
                             set_byte(text + at, 0);
                         }
                     }

@@ -18,6 +18,7 @@ use crate::physics::car_sounds::{object, test_regions};
 use crate::physics::place_car_sound::place_car_sound;
 use crate::screens::harness::Left;
 use crate::service::harness::{capture, check_state, dispatch_state, restore};
+use rc2k_core::physics::parts::take_bit;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -35,15 +36,15 @@ hook_asm!(
 const BITS_RVA: usize = rva(0x71A270); // g_car + 0x298
 
 /// The Rust version.
+// Converted: `rc2k_core::physics::parts::take_bit`.
 pub unsafe fn sound_on_bit(cl: u32) -> Result<Left, Refused> {
-    let bit = 1u32.wrapping_shl(cl & 0x1F);
+    let (bit, cleared) = take_bit(unsafe { game_read(BITS_RVA) }, cl);
     let left = Left::nothing().with(EAX, bit);
-    let bits: u32 = unsafe { game_read(BITS_RVA) };
-    if bits & bit == 0 {
+    let Some(cleared) = cleared else {
         return Ok(left);
-    }
+    };
     object()?;
-    unsafe { game_write(BITS_RVA, bits ^ bit) };
+    unsafe { game_write(BITS_RVA, cleared) };
     unsafe { place_car_sound() }?;
     Ok(left)
 }

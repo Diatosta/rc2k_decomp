@@ -4,6 +4,26 @@
 
 use crate::math::vector;
 
+/// The places of `scene::cached_reflection_coordinates`' tables (converted 2026-10-21 from
+/// 0x451908): four tables of 0x400 dwords (the normal's number, the point's, the two
+/// coordinates) at the normal's number & 0x3FF.
+pub const CACHE_PLACES: u32 = 0x400;
+
+/// A normal's place in the tables.
+pub fn cache_place(normal: u32) -> usize {
+    (normal & (CACHE_PLACES - 1)) as usize
+}
+
+/// The coordinates kept for the two numbers asked (normal, point), if both numbers kept
+/// at their place are those; `kept` read only then.
+pub fn cached(
+    asked: [u32; 2],
+    numbers: [u32; 2],
+    kept: impl FnOnce() -> [u32; 2],
+) -> Option<[u32; 2]> {
+    (numbers == asked).then(kept)
+}
+
 /// `scene::reflect_vector`: d = v . n (the first two products added first, then the
 /// third; kept unrounded); v times d, each stored; v + v - n, each stored; that through
 /// the matrix `m` (the game's 4 x 4 layout as `vector::rotate_point` takes it), stored.
@@ -23,6 +43,13 @@ pub fn reflect(v: [f32; 3], n: [f32; 3], m: &[f32; 15]) -> ([f32; 3], f32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cache() {
+        assert_eq!(cache_place(0x1234), 0x234);
+        assert_eq!(cached([1, 2], [1, 2], || [7, 8]), Some([7, 8]));
+        assert_eq!(cached([1, 2], [1, 3], || unreachable!()), None);
+    }
 
     #[test]
     fn mirrored_and_turned() {

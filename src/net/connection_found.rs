@@ -25,6 +25,7 @@ use crate::net::lobby::{
     run_callback,
 };
 use crate::net::types::NetConnection;
+use rc2k_core::net::lists;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -63,7 +64,8 @@ pub fn connection_found(args: &[u32], part: Part) -> Result<u32, Refused> {
     log_text(LOG_L2, a(FOUND), &r, part)?;
     let short = get(name + 8);
     log_text(LOG_L2_NL, short, &r, part)?;
-    if gb(NOTICE_KIND) == 2 {
+    // Converted: `rc2k_core::net::lists` (`LEAVES_OUT_PROVIDERS`, `connection_listed`).
+    if gb(NOTICE_KIND) == lists::LEAVES_OUT_PROVIDERS {
         for left_out in LEFT_OUT {
             r.eax = guid;
             r.ebx = a(left_out);
@@ -80,10 +82,9 @@ pub fn connection_found(args: &[u32], part: Part) -> Result<u32, Refused> {
         return Ok(0);
     }
     let memory = r.eax;
-    let count = g(CONNECTIONS);
-    if count >= 0x100 {
+    let Some(count) = lists::connection_listed(g(CONNECTIONS)) else {
         return Ok(0);
-    }
+    };
     p(CONNECTIONS, count + 1);
     let mut e = Regs {
         eax: count,

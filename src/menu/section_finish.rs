@@ -15,10 +15,11 @@
 //! version, the done player by lot.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
-use crate::menu::finish_calls::{ON_RVA, PLACES, Part, calls, game_part, regions, set_up};
+use crate::framework::{RawHook, Regs, SelfTest, game_write, hook_asm, rva, shadow};
+use crate::menu::finish_calls::{Game, PLACES, Part, game_part, regions};
 use crate::menu::standings::*;
 use crate::service::harness::{at, capture, restore};
+use rc2k_core::menu::finish;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -34,28 +35,10 @@ hook_asm!(
     ungated
 );
 
-const KEPT_RVA: usize = rva(0x75ACE4); // dword_75ACE4
-
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn section_finish(entry: &Regs, mut part: Part) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    unsafe {
-        game_write(ON_RVA, 0u32);
-        game_write(KEPT_RVA, 0u32);
-        g = crate::menu::find_section_player::find_section_player(&g)?;
-        if g.ecx != 0xFFFF_FFFF {
-            g.edi = player(g.ecx);
-            set_up(&g);
-            g.eax = game_read(SECTION_RVA);
-            calls(
-                &mut g,
-                &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 3, 11, 12, 11, 9, 13],
-                &mut part,
-            )?;
-        }
-        g.eax = 0;
-        part(14, &mut g)?;
-    }
+pub unsafe fn section_finish(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::menu::finish::section_finish`.
+    finish::section_finish(&mut Game { g: *entry, part })?;
     Ok(*entry)
 }
 

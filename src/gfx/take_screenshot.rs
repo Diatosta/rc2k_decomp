@@ -40,25 +40,42 @@ const LOCKED_HERE: usize = 0x4F52B8; // dword_4F52B8
 pub const LOCK: usize = 0x4058AD; // gfx::lock_surface
 pub const UNLOCK: usize = 0x405949; // gfx::unlock_surface
 
+/// The parts in the game's memory, the registers carried from call to call.
+struct Shot<'a> {
+    r: Regs,
+    part: Part<'a>,
+}
+
+impl rc2k_core::gfx::screenshot::Shooting for Shot<'_> {
+    type Error = Refused;
+    fn screenshots_on(&mut self) -> u32 {
+        get(SCREENSHOTS_ON)
+    }
+    fn surface_locked(&mut self) -> u32 {
+        get(LOCKED)
+    }
+    fn locked_here(&mut self) -> u32 {
+        get(LOCKED_HERE)
+    }
+    fn set_locked_here(&mut self, value: u32) {
+        put(LOCKED_HERE, value);
+    }
+    fn lock(&mut self) -> Result<bool, Refused> {
+        (self.part)(1, &mut self.r)?;
+        Ok(self.r.carry())
+    }
+    fn write(&mut self) -> Result<(), Refused> {
+        (self.part)(2, &mut self.r)
+    }
+    fn unlock(&mut self) -> Result<(), Refused> {
+        (self.part)(3, &mut self.r)
+    }
+}
+
 /// The Rust version: the registers it leaves (the entry's).
 pub fn take_screenshot(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    if get(SCREENSHOTS_ON) == 0 {
-        return Ok(*entry);
-    }
-    let mut r = *entry;
-    if get(LOCKED) != 1 {
-        part(1, &mut r)?;
-        if r.carry() {
-            put(LOCKED_HERE, 0);
-            return Ok(*entry);
-        }
-        put(LOCKED_HERE, 1);
-    }
-    part(2, &mut r)?;
-    if get(LOCKED_HERE) == 1 {
-        part(3, &mut r)?;
-    }
-    put(LOCKED_HERE, 0);
+    // Converted: `rc2k_core::gfx::screenshot::take_screenshot`.
+    rc2k_core::gfx::screenshot::take_screenshot(&mut Shot { r: *entry, part })?;
     Ok(*entry)
 }
 

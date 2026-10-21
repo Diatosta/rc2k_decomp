@@ -41,7 +41,7 @@ use crate::redirect::RedirectedCopy;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, restore};
 use crate::service::pages::{GEAR_RATIO, RIDE_HEIGHT, SUSPENSION_STIFFNESS, TYRE};
-use crate::service::reset_tyre_wear::{TYRE_DAMAGE_OFFSET, reset_tyre_wear};
+use crate::service::reset_tyre_wear::reset_tyre_wear;
 use crate::service::state::{
     FLAG_TABLE_LEN, REPAIR_FLAGS_RVA, REPAIR_MARKS_RVA, current_player, repair_flag,
     set_repair_flag,
@@ -72,42 +72,11 @@ const LAST_STEP_RVA: usize = rva(0x75AB54); // dword_75AB54: `elapsed` at the la
 const FRAME_FUNCTION_RVA: usize = rva(0x405A71); // sub_405A71
 const DRAW_CALLBACK_RVA: usize = rva(0x46CFD7); // sub_46CFD7
 
-const DAMAGE_OFFSET: u32 = 0xCC; // car +0xCC + 4 * item
-const BODY_ITEM: u32 = 3;
-const TYRE_ITEM: u32 = 0xF;
-const GEARBOX_ITEM: u32 = 0xE;
-const STATE_BITS_OFFSET: u32 = 0x278;
-const BODY_STATE_OFFSET: u32 = 0x24C; // eight dwords
-
-/// (item, first offset in the car, dwords) zeroed before the repairs are shown.
-const RESET_RUNS: [(u32, u32, u32); 5] = [
-    (GEARBOX_ITEM, 0x17C, 10),
-    (BODY_ITEM, 0x1A4, 6),
-    (7, 0x1BC, 7),
-    (0xB, 0x1D8, 5),
-    (0xD, 0x1EC, 3),
-];
-
-/// The order the repairs are shown in.
-const REPAIR_ORDER: [u32; 14] = [
-    2,
-    4,
-    6,
-    8,
-    0xA,
-    0xC,
-    GEARBOX_ITEM,
-    3,
-    5,
-    7,
-    9,
-    0xB,
-    0xD,
-    TYRE_ITEM,
-];
-
-const STEP_MS: i32 = 5;
-const PAUSE_MS: i32 = 500;
+// Converted: `rc2k_core::service::workshop` (the car's offsets, the items, the order).
+use rc2k_core::service::workshop::{BODY_STATE, DAMAGE, STATE_BITS, Setting, Timer, Workshop};
+const DAMAGE_OFFSET: u32 = DAMAGE;
+const STATE_BITS_OFFSET: u32 = STATE_BITS;
+const BODY_STATE_OFFSET: u32 = BODY_STATE;
 
 // ---- Rust version ----
 
@@ -141,17 +110,68 @@ unsafe fn field(player: u32, offset: u32) -> *mut i32 {
     player.wrapping_add(offset) as *mut i32
 }
 
-/// Frames for 500 ms.
-unsafe fn pause(driver: &mut dyn Driver) {
-    unsafe {
-        game_write(START_RVA, driver.clock());
-        loop {
-            driver.frame();
-            let elapsed = driver.clock().wrapping_sub(game_read(START_RVA));
-            if elapsed as i32 >= PAUSE_MS {
-                return;
-            }
+/// The work on the game's variables and the current player's car, with `driver`'s time,
+/// frames and sleep.
+struct Game<'a> {
+    player: u32,
+    driver: &'a mut dyn Driver,
+}
+
+impl Workshop for Game<'_> {
+    type Error = Refused;
+    fn flag(&mut self, item: u32) -> u32 {
+        repair_flag(item)
+    }
+    fn set_flag(&mut self, item: u32, value: u32) {
+        set_repair_flag(item, value);
+    }
+    fn car(&mut self, offset: u32) -> u32 {
+        unsafe { field(self.player, offset).read_unaligned() as u32 }
+    }
+    fn set_car(&mut self, offset: u32, value: u32) {
+        unsafe { field(self.player, offset).write_unaligned(value as i32) };
+    }
+    fn set_working(&mut self) {
+        unsafe { game_write(WORKING_RVA, 1u32) };
+    }
+    fn timer(&mut self, t: Timer) -> u32 {
+        unsafe { game_read(timer_rva(t)) }
+    }
+    fn set_timer(&mut self, t: Timer, value: u32) {
+        unsafe { game_write(timer_rva(t), value) };
+    }
+    fn reset_tyre_wear(&mut self) -> Result<(), Refused> {
+        Ok(unsafe { reset_tyre_wear() }?)
+    }
+    fn install(&mut self, s: Setting) -> u32 {
+        let page = match s {
+            Setting::GearRatio => GEAR_RATIO,
+            Setting::Tyre => TYRE,
+            Setting::RideHeight => RIDE_HEIGHT,
+            Setting::Stiffness => SUSPENSION_STIFFNESS,
+        };
+        unsafe {
+            let value: u32 = game_read(page.change.chosen_rva);
+            game_write(page.change.installed_rva, value);
+            value
         }
+    }
+    fn clock(&mut self) -> u32 {
+        self.driver.clock()
+    }
+    fn frame(&mut self) {
+        self.driver.frame();
+    }
+    fn sleep(&mut self, milliseconds: u32) {
+        self.driver.sleep(milliseconds);
+    }
+}
+
+fn timer_rva(t: Timer) -> usize {
+    match t {
+        Timer::Start => START_RVA,
+        Timer::Elapsed => ELAPSED_RVA,
+        Timer::LastStep => LAST_STEP_RVA,
     }
 }
 
@@ -159,81 +179,8 @@ pub unsafe fn apply_repairs(driver: &mut dyn Driver) -> Result<(), Refused> {
     let Some(player) = current_player() else {
         return Err(BadInput("no current player object: the original writes through null").into());
     };
-    unsafe {
-        game_write(WORKING_RVA, 1u32);
-        for (item, offset, dwords) in RESET_RUNS {
-            if repair_flag(item) == 1 {
-                for i in 0..dwords {
-                    field(player, offset + 4 * i).write_unaligned(0);
-                }
-            }
-        }
-        if repair_flag(TYRE_ITEM) == 1 {
-            let damage = field(player, TYRE_DAMAGE_OFFSET).read_unaligned();
-            reset_tyre_wear()?;
-            field(player, TYRE_DAMAGE_OFFSET).write_unaligned(damage);
-        }
-
-        for item in REPAIR_ORDER {
-            if repair_flag(item) != 1 {
-                continue;
-            }
-            let damage = field(player, DAMAGE_OFFSET + 4 * item);
-            game_write(START_RVA, driver.clock());
-            game_write(LAST_STEP_RVA, 0u32);
-            loop {
-                driver.frame();
-                let elapsed = driver.clock().wrapping_sub(game_read(START_RVA));
-                game_write(ELAPSED_RVA, elapsed);
-                if (elapsed.wrapping_sub(game_read(LAST_STEP_RVA)) as i32) < STEP_MS {
-                    continue;
-                }
-                game_write(LAST_STEP_RVA, elapsed);
-                let left = damage.read_unaligned();
-                if left <= 0 || left - 2 <= 0 {
-                    break;
-                }
-                damage.write_unaligned(left - 2);
-            }
-            damage.write_unaligned(0);
-            set_repair_flag(item, 0);
-            if item == GEARBOX_ITEM {
-                let ratio: i32 = game_read(GEAR_RATIO.change.chosen_rva);
-                game_write(GEAR_RATIO.change.installed_rva, ratio);
-                field(player, 0x120).write_unaligned(ratio);
-            }
-            if item == TYRE_ITEM {
-                let tyre: i32 = game_read(TYRE.change.chosen_rva);
-                game_write(TYRE.change.installed_rva, tyre);
-                field(player, 0x10C).write_unaligned(tyre);
-            }
-            pause(driver);
-        }
-
-        for (page, offset) in [(RIDE_HEIGHT, 0x114), (SUSPENSION_STIFFNESS, 0x118)] {
-            if repair_flag(page.item) != 1 {
-                continue;
-            }
-            set_repair_flag(page.item, 0);
-            let chosen: i32 = game_read(page.change.chosen_rva);
-            game_write(page.change.installed_rva, chosen);
-            field(player, offset).write_unaligned(chosen);
-            pause(driver);
-        }
-
-        let bits = field(player, STATE_BITS_OFFSET) as *mut u32;
-        if field(player, TYRE_DAMAGE_OFFSET).read_unaligned() == 0 {
-            bits.write_unaligned(bits.read_unaligned() | 0x1E);
-        }
-        if field(player, DAMAGE_OFFSET + 4 * BODY_ITEM).read_unaligned() == 0 {
-            bits.write_unaligned(bits.read_unaligned() | 0xFFFF_FFE1);
-            for i in 0..8 {
-                field(player, BODY_STATE_OFFSET + 4 * i).write_unaligned(0);
-            }
-        }
-        driver.sleep(1000);
-    }
-    Ok(())
+    // Converted: `rc2k_core::service::workshop::apply_repairs`.
+    rc2k_core::service::workshop::apply_repairs(&mut Game { player, driver })
 }
 
 // ---- hook ----

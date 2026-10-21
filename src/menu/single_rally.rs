@@ -21,9 +21,10 @@
 //! variables are the test's and whose 13 calls go to stand-ins that note eax, ebx, esi and
 //! act a script (the screens' answers), 9 scripts.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva, shadow};
 use crate::install::stand_ins::{set_handler, stand_in};
+use rc2k_core::menu::flow::{self, CarList, Hand, Reply, Var};
 use std::sync::Mutex;
 use std::sync::atomic::AtomicUsize;
 
@@ -143,69 +144,114 @@ unsafe fn put(at: u32, value: u32) {
     unsafe { (at as *mut u32).write_unaligned(value) };
 }
 
-pub unsafe fn single_rally(entry: &Regs, v: &Vars, part: Part) -> Result<(), Refused> {
-    let mut g = *entry;
-    unsafe {
-        part(0, &mut g)?;
-        part(1, &mut g)?;
-        part(2, &mut g)?;
-        put(v.set_984, 1);
-        put(v.set_988, 0x18);
-        put(v.leave, 0);
-        part(3, &mut g)?;
-        put(v.current_player, 0);
-        let list = if get(v.list_kind) == 1 {
-            LISTS[0]
-        } else {
-            LISTS[1]
-        };
-        let list = if get(v.cheats) & 2 != 0 {
-            LISTS[2]
-        } else {
-            list
-        };
-        g.esi = game_addr(rva(list)) as u32;
-        part(4, &mut g)?;
-        if get(v.car_left) == 1 {
-            return Ok(());
+/// The game for `rc2k_core::menu::rounds::single_rally`: the variables where `Vars` puts
+/// them, the callees by place.
+struct Rally<'a> {
+    v: Vars,
+    g: Regs,
+    part: Part<'a>,
+}
+
+impl Rally<'_> {
+    fn at(&self, var: Var) -> u32 {
+        let v = &self.v;
+        match var {
+            Var::Answer => v.yes_no,
+            Var::CarListKind => v.list_kind,
+            Var::Leave => v.leave,
+            Var::Ended565 => v.ended_565,
+            Var::Ended569 => v.ended_569,
+            Var::Done => v.done,
+            Var::PlayerCount => v.set_984,
+            Var::EventMode => v.set_988,
+            Var::Current => v.current_player,
+            Var::LeftA3C => v.left_a3c,
+            Var::Cheats => v.cheats,
+            Var::CarLeft => v.car_left,
+            Var::RaceResult => v.race_result,
+            _ => unreachable!("a variable the single rally does not have"),
         }
-        part(5, &mut g)?;
-        loop {
-            part(6, &mut g)?;
-            if get(v.yes_no) == 1 || get(v.leave) == 1 {
-                break;
-            }
-            let current = get(v.current_player);
-            if current >= 4 {
-                return Err(BadInput("a current player past the four").into());
-            }
-            g.edi = get(v.players + current * 4);
-            put(g.edi + 0xD0, 1);
-            part(7, &mut g)?;
-            g.eax = 0;
-            g.ebx = 0;
-            part(8, &mut g)?;
-            if get(v.race_result) != u32::MAX {
-                put(v.current_player, 0);
-                part(9, &mut g)?;
-                if get(v.yes_no) == 1 {
-                    break;
-                }
-            }
-            g.eax = 1;
-            part(10, &mut g)?;
-            part(11, &mut g)?;
-            if get(v.left_a3c) == 1 || get(v.ended_569) == 1 || get(v.leave) == 1 {
-                break;
-            }
-        }
-        put(v.done, 1);
-        put(v.leave, 0);
-        put(v.ended_569, 0);
-        put(v.ended_565, 0);
-        part(12, &mut g)?;
     }
-    Ok(())
+}
+
+impl flow::Game for Rally<'_> {
+    type Error = Refused;
+
+    fn get(&mut self, var: Var) -> u32 {
+        unsafe { get(self.at(var)) }
+    }
+
+    fn set(&mut self, var: Var, value: u32) {
+        unsafe {
+            match var {
+                Var::PlayerEntry(n) => {
+                    self.g.edi = get(self.v.players + n * 4);
+                    put(self.g.edi + 0xD0, value);
+                }
+                _ => put(self.at(var), value),
+            }
+        }
+    }
+
+    fn call(&mut self, c: flow::Call) -> Result<Reply, Refused> {
+        use flow::Call as C;
+        let place = match c {
+            C::BeginEvent => 0,
+            C::ClearPlayers284 => 1,
+            C::TakePlayer1Units => 2,
+            C::ClearEventState => 3,
+            C::SelectCarLoop => 4,
+            C::TakeShownCar => 5,
+            C::SelectStageLoop => 6,
+            C::RepairCar { .. } => 7,
+            C::Race { next, kind } => {
+                self.g.eax = u32::from(next);
+                self.g.ebx = kind;
+                8
+            }
+            C::StageResultLoop => 9,
+            C::HideInGameOptions { players } => {
+                self.g.eax = players;
+                10
+            }
+            C::Review485F5E => 11,
+            C::ShowInGameOptions { .. } => 12,
+            _ => unreachable!("a callee the single rally does not have"),
+        };
+        (self.part)(place, &mut self.g)?;
+        Ok(Reply {
+            eax: self.g.eax,
+            carry: self.g.carry(),
+            zero: self.g.eflags & 0x40 != 0,
+        })
+    }
+
+    fn hand(&mut self, h: Hand) -> Result<(), Refused> {
+        match h {
+            Hand::CarList(list) => {
+                self.g.esi = game_addr(rva(match list {
+                    CarList::First => LISTS[0],
+                    CarList::Second => LISTS[1],
+                    CarList::Cheat => LISTS[2],
+                })) as u32
+            }
+            _ => unreachable!("a hand the single rally does not give"),
+        }
+        Ok(())
+    }
+
+    fn fatal(&mut self, code: u32, message: &'static str) -> Refused {
+        crate::errors::FatalError { code, message }.into()
+    }
+}
+
+pub unsafe fn single_rally(entry: &Regs, v: &Vars, part: Part) -> Result<(), Refused> {
+    // Converted: `rc2k_core::menu::rounds::single_rally`.
+    rc2k_core::menu::rounds::single_rally(&mut Rally {
+        v: *v,
+        g: *entry,
+        part,
+    })
 }
 
 /// The game's callees: the Rust versions of the small ones, the screens and the race at

@@ -32,7 +32,7 @@ hook_asm!(
 );
 
 pub const LOCKED_PARTS_RVA: usize = rva(0x506A98); // g_lockedParts
-const BUFFER_LOST: i32 = 0x8878_0096u32 as i32;
+use rc2k_core::audio::buffers::BUFFER_LOST;
 
 /// `parts`: the four dwords the parts go to; `lost`: the lost buffer's flag. True for the
 /// carry clear.
@@ -40,12 +40,14 @@ pub unsafe fn fill_buffer(v: &Voice, parts: u32, lost: u32) -> Result<bool, Refu
     if a3d() {
         return Err(BadInput("A3D (the chunk at 0x40CDE8)").into());
     }
-    if v.buffer == 0 || v.source != 0 {
+    // Converted: `rc2k_core::audio::buffers` (`fills`, `fill_copies`, `lost`).
+    use rc2k_core::audio::buffers::{fill_copies, fills, lost as lost_memory};
+    if !fills(v) {
         return Ok(true);
     }
     unsafe {
         let failed = |r: i32| {
-            if r == BUFFER_LOST {
+            if lost_memory(r) {
                 write(lost, 1);
             }
             false
@@ -65,10 +67,11 @@ pub unsafe fn fill_buffer(v: &Voice, parts: u32, lost: u32) -> Result<bool, Refu
         if r != 0 {
             return Ok(failed(r));
         }
-        let [p1, n1, p2, n2] = (parts as *const [u32; 4]).read_unaligned();
-        std::ptr::copy(v.data as *const u8, p1 as *mut u8, n1 as usize);
-        if p2 != 0 && n2 != 0 {
-            std::ptr::copy((v.data + n1) as *const u8, p2 as *mut u8, n2 as usize);
+        let locked = (parts as *const [u32; 4]).read_unaligned();
+        let [p1, n1, p2, n2] = locked;
+        let (first, second) = fill_copies(v.data, locked);
+        for (from, to, bytes) in std::iter::once(first).chain(second) {
+            std::ptr::copy(from as *const u8, to as *mut u8, bytes as usize);
         }
         let unlock: unsafe extern "system" fn(u32, u32, u32, u32, u32) -> i32 =
             std::mem::transmute(crate::audio::com::method(v.buffer, 0x4C));

@@ -1,7 +1,8 @@
 //! Small float steps of the masks' making (converted 2026-10-21 from `marks::set_line_turn`
 //! 0x4BF432, `set_line_turn_back` 0x4BF466, `turn_pair` 0x4BF409, `scale_rows3` 0x4BF498,
-//! `smooth_steps` 0x4BE928 and `adjugate3` 0x4BCED6): the 2 x 2 turn a line gives, a pair
-//! turned by it, rows scaled to set lengths, two cosine-eased steps, a 3 x 3 adjugate.
+//! `smooth_steps` 0x4BE928, `adjugate3` 0x4BCED6 and `clamp_pair` 0x4BEF22): the 2 x 2
+//! turn a line gives, a pair turned by it, rows scaled to set lengths, two cosine-eased
+//! steps, a 3 x 3 adjugate, a pair held to whole numbers.
 //!
 //! As in `math::vector`, what the x87 keeps on its stack is an `f64`, rounded to `f32`
 //! where the original stores it (the same bits at the game's double precision, but for
@@ -90,6 +91,20 @@ pub fn adjugate(p: &mut impl Places, s: u32, d: u32) {
     }
 }
 
+/// `marks::clamp_pair`: st(0) times `k[0]` rounded (`fistp`) and held to 0 .. 0x7FFF
+/// (ebx), st(1) times `k[1]` held to 0 .. 0xFFFF (eax); then each over `k[3]` (st(0))
+/// and `k[2]` (st(1)), kept on the stack: (ebx, eax, [st(0), st(1)]).
+pub fn clamp_pair(st0: f64, st1: f64, k: [f32; 4]) -> (u32, u32, [f64; 2]) {
+    use crate::math::geometry::fistp64;
+    let b = fistp64(st0 * k[0] as f64).clamp(0, 0x7FFF);
+    let a = fistp64(st1 * k[1] as f64).clamp(0, 0xFFFF);
+    (
+        b as u32,
+        a as u32,
+        [b as f64 / k[3] as f64, a as f64 / k[2] as f64],
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -133,5 +148,18 @@ mod tests {
         adjugate(&mut p, 0, 0);
         // Over the input: entry 0 is 12; entry 4 reads entry 0 written: 12 x 4 - 0.
         assert_eq!(p.floats::<9>(0)[..5], [12.0, 0.0, 0.0, 0.0, 48.0]);
+    }
+
+    #[test]
+    fn pairs() {
+        let k = [2.0, 4.0, 8.0, 16.0];
+        assert_eq!(clamp_pair(10.25, 3.0, k), (20, 12, [1.25, 1.5]));
+        assert_eq!(
+            clamp_pair(-1.0, 1e5, k),
+            (0, 0xFFFF, [0.0, 0xFFFF as f64 / 8.0])
+        );
+        // Past an i32 the integer indefinite, held to 0.
+        assert_eq!(clamp_pair(0.0, 1e9, k), (0, 0, [0.0, 0.0]));
+        assert_eq!(clamp_pair(f64::NAN, 1e5, k).0, 0);
     }
 }

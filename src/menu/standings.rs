@@ -400,13 +400,6 @@ pub fn enter_best(group: Option<u32>, score_at: u32) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// Whether a group has one of players 1 .. 3 (the original's test: player 4 is not
-/// looked for) among `first`'s entries, its group at `group_at`.
-pub fn group_has_player(all: &[u32], group_at: u32, group: u32) -> bool {
-    all.iter()
-        .any(|&e| get(e + group_at) == group && (1..=3).contains(&get(e + 4)))
-}
-
 /// Standings table B's first 0xB4 entries sorted by the signed dword at `key`, as
 /// `sort_table_a`: going up (a later entry not above an earlier one moves up) or, with
 /// `down`, going down (a later entry not below one moves up). Refused without a table.

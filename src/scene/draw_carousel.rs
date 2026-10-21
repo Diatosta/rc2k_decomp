@@ -47,42 +47,35 @@ const ANGLE_RVA: usize = rva(0x75AA80); // g_carouselAngle
 // ---- Rust version ----
 
 /// `entry`: what stands for `scene::draw_carousel_entry`, which keeps the registers.
+// Converted: `rc2k_core::scene::carousel::drawn`
 pub unsafe fn draw_carousel(
     r: &mut Regs,
     entry: &mut dyn FnMut(&Regs) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
+    use rc2k_core::scene::carousel::{Drawn, drawn};
     unsafe {
         let count: u32 = game_read(COUNT_RVA);
         r.ebx = count;
-        if count == 1 {
-            r.ebx = 0;
-            r.edx = 0;
-            return entry(r);
-        }
-        if (count.wrapping_sub(1) as i32) < 0 {
-            return Ok(());
-        }
-        r.ebx = game_read(FRONT_RVA);
-        if r.ebx == 0 {
-            r.ebx = count;
-        }
-        r.ebx = r.ebx.wrapping_sub(1);
-        r.ecx = u32::MAX;
-        entry(r)?;
-        let rows = if game_read::<u32>(ANGLE_RVA) != 0 {
-            3
-        } else {
-            2
-        };
-        for row in 0..rows {
-            r.ebx = r.ebx.wrapping_add(1);
-            if r.ebx == count {
+        match drawn(
+            count,
+            || game_read(FRONT_RVA),
+            || game_read::<u32>(ANGLE_RVA) != 0,
+        ) {
+            Drawn::Nothing => Ok(()),
+            Drawn::Lone => {
                 r.ebx = 0;
+                r.edx = 0;
+                entry(r)
             }
-            r.ecx = row;
-            entry(r)?;
+            Drawn::Row(entries) => {
+                for (e, place) in entries {
+                    r.ebx = e;
+                    r.ecx = place;
+                    entry(r)?;
+                }
+                Ok(())
+            }
         }
-        Ok(())
     }
 }
 

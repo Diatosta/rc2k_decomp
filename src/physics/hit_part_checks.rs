@@ -19,6 +19,7 @@ use crate::physics::fill_race_slot::{inputs, regions as slot_regions, set_slots}
 use crate::physics::sound_hit_parts::sound_hit_parts_in;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use rc2k_core::physics::parts::parts_left;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -33,22 +34,12 @@ hook_asm!(
     original = ORIGINAL
 );
 
-fn all_set(bits: &[u32]) -> bool {
-    bits.iter().all(|&b| g(0x71A270) >> b & 1 != 0)
-}
-
 /// The steps on `r`.
+// Converted: `rc2k_core::physics::parts::parts_left`.
 pub fn hit_part_checks_in(r: &mut Regs) -> Result<(), Refused> {
-    p(0x71A25C, 1);
-    if !all_set(&[5, 6, 1, 2]) {
-        return Ok(());
-    }
-    p(0x71A25C, u32::MAX);
-    if !all_set(&[7, 8, 3, 4]) {
-        return Ok(());
-    }
-    p(0x71A25C, 0);
-    if g(0x71A244) != 0 {
+    let left = parts_left(g(0x71A270));
+    p(0x71A25C, left);
+    if left != 0 || g(0x71A244) != 0 {
         return Ok(());
     }
     drop_hit_parts_in(r)?;

@@ -14,7 +14,7 @@
 //! back) with a test device and a test block: device or not, replay off, playing and
 //! recording.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{EAX, EBX, ECX, EDX, ESI, RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::{a, g, p};
 use crate::screens::harness::Left;
@@ -37,38 +37,35 @@ const WORDS: usize = 0x6138C4;
 const CURRENT: usize = 0x71B3F8;
 
 /// The Rust version.
+// Converted: `rc2k_core::drive::inputs::{check_car, device_words, replay_words}`.
 pub unsafe fn car_input_words(entry: &Regs) -> Result<Left, Refused> {
+    use rc2k_core::drive::inputs::{NO_DEVICE, ReplayWords, check_car, device_words, replay_words};
     let car = g(CURRENT);
-    if car > 7 {
-        return Err(BadInput("a current car past 7").into());
-    }
+    check_car(car)?;
     let mut r = *entry;
     let device = g(0x641680 + 4 * car as usize);
-    let axes = if device != u32::MAX {
+    let readings = if device != NO_DEVICE {
         Some(unsafe { crate::drive::device_axes::device_axes(device) }?)
     } else {
         None
     };
-    for k in 0..4 {
-        p(WORDS + 4 * k, 0);
+    let words = device_words(readings);
+    for (k, v) in words.iter().enumerate() {
+        p(WORDS + 4 * k, *v);
     }
     r.esi = device;
-    if let Some([eax, ebx, ecx, edx]) = axes {
+    if let Some([eax, ebx, ecx, edx]) = readings {
         (r.eax, r.ebx, r.ecx, r.edx) = (eax, ebx, ecx, edx);
-        for (k, v) in [eax, ebx, ecx, edx].iter().enumerate() {
-            p(WORDS + 4 * k, *v);
-        }
     }
     if g(0x52A910) != 0 {
         r.esi = g(0x71B3B8 + 4 * car as usize);
         r.eax = car;
-        let block = r.esi;
-        for k in 0..4u32 {
-            let at = (block + 0xFD0 + 4 * k) as *mut u32;
-            if car != g(0x52A920) {
-                p(WORDS + 4 * k as usize, unsafe { at.read_unaligned() });
-            } else {
-                unsafe { at.write_unaligned(g(WORDS + 4 * k as usize)) };
+        let block = (r.esi + 0xFD0) as *mut u32;
+        for k in 0..4 {
+            let at = unsafe { block.add(k) };
+            match replay_words(car, g(0x52A920)) {
+                ReplayWords::FromBlock => p(WORDS + 4 * k, unsafe { at.read_unaligned() }),
+                ReplayWords::IntoBlock => unsafe { at.write_unaligned(g(WORDS + 4 * k)) },
             }
         }
     }

@@ -51,18 +51,12 @@ const IN_RACE_RVA: usize = rva(0x5C5CEC); // g_inRace
 const LIST_RVA: usize = rva(0x5C6DD0); // stru_5C6DD0
 pub const TAKEN_RVA: usize = rva(0x5C6F90); // dword_5C6F90
 
-/// The points' room and the faces', in bytes.
-fn rooms(in_race: bool) -> (u32, u32) {
-    if in_race {
-        (0xC_0000, 0x24_0000)
-    } else {
-        (0x18_0000, 0x40_0000)
-    }
-}
+use rc2k_core::scene::objects::object_rooms as rooms;
 
 // ---- Rust version ----
 
 /// `take`: what stands for `memory::allocate`, given the bytes and the list.
+// Converted: `rc2k_core::scene::objects::object_rooms`
 pub unsafe fn allocate_object_memory(
     take: &mut dyn FnMut(u32, u32) -> Result<u32, Refused>,
 ) -> Result<Left, Refused> {

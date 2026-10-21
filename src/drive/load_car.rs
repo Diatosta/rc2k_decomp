@@ -33,6 +33,7 @@ hook_asm!(
 );
 
 /// The Rust core on the variables at `p`: what it leaves in the registers.
+// Converted: `rc2k_core::drive::work_car::{car_slot, car_block}`.
 pub unsafe fn load_car_at(p: CarPlaces) -> Result<Left, Refused> {
     unsafe {
         let (slot, block) = p.block()?;

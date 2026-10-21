@@ -23,6 +23,9 @@ use crate::physics::flow::{a, c0, g, p};
 use crate::physics::reset_parts::{RESET_CAR, both_with, copy_of, dispatch_reset};
 use crate::race::car_starts::Part;
 use crate::service::harness::{Region, capture, restore};
+use rc2k_core::drive::controls::{
+    RESET_NOTICE, reset_counts, reset_held, reset_penalty, reset_step,
+};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -46,30 +49,31 @@ fn clear_notice() {
 }
 
 /// The Rust version, the reset through `part` (place 15).
+// Converted: `rc2k_core::drive::controls::{reset_counts, reset_held, reset_step, reset_penalty}`.
 pub unsafe fn reset_request(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
-    if (g(0x719FEC).wrapping_sub(0x320) as i32) < 0 {
+    if !reset_counts(g(0x719FEC)) {
         return Ok(r);
     }
     r.ebx = g(0x71A440);
-    let held = r.ebx & 0x80 != 0 && g(0x62389C) != 2 && c0(g(0x71A19C), g(0x613828));
-    if !held {
+    if !reset_held(r.ebx, g(0x62389C), || c0(g(0x71A19C), g(0x613828))) {
         if g(COUNT) != 0 {
             clear_notice();
             p(COUNT, 0);
         }
         return Ok(r);
     }
-    if g(COUNT) == 0 {
-        p(0x71A6F4, 0xCD);
+    let (first, count, reset) = reset_step(g(COUNT));
+    if first {
+        p(0x71A6F4, RESET_NOTICE);
         p(0x71A708, 0x19);
         p(0x71A704, 0x12C);
     }
-    p(COUNT, g(COUNT).wrapping_add(1));
-    if g(COUNT) != 0x64 {
+    p(COUNT, count);
+    if !reset {
         return Ok(r);
     }
-    r.eax = 0x2BCu32.wrapping_sub(g(0x71A1C0));
+    r.eax = reset_penalty(g(0x71A1C0));
     p(0x71A060, g(0x71A060).wrapping_add(r.eax));
     clear_notice();
     part(RESET_CAR, &mut r)?;

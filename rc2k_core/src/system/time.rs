@@ -2,7 +2,8 @@
 //! the local date and time to the minute in one dword: the year, then 4 bits of month, 5 of
 //! day, 5 of hour, 6 of minute. The save files carry it. Also the start time kept
 //! (`system::keep_start_time` 0x410F29) and the millisecond clock's override
-//! (`system::tick_count` 0x411024), converted 2026-10-21.
+//! (`system::tick_count` 0x411024), converted 2026-10-21, and `system::wait_or_key`
+//! 0x407F69's time running out (the same day).
 
 /// The local time as Windows gives it (`SYSTEMTIME`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -49,6 +50,17 @@ pub fn pack(year: u16, month: u16, day: u16, hour: u16, minute: u16) -> u32 {
     stamp
 }
 
+/// `system::wait_or_key`: the clock at which a wait of `ms` from `start` ends (wrapping).
+pub fn wait_end(start: u32, ms: u32) -> u32 {
+    start.wrapping_add(ms)
+}
+
+/// `system::wait_or_key`: whether the clock `now` has reached `end` (a signed difference,
+/// so the clock may wrap).
+pub fn time_up(now: u32, end: u32) -> bool {
+    now.wrapping_sub(end) as i32 >= 0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -76,5 +88,14 @@ mod tests {
             super::pack(2026, 10, 21, 13, 5),
             ((((2026 << 4 | 10) << 5 | 21) << 5 | 13) << 6) | 5
         );
+    }
+
+    #[test]
+    fn waits() {
+        assert!(!time_up(149, wait_end(100, 50)));
+        assert!(time_up(150, wait_end(100, 50)));
+        assert!(time_up(0x10, wait_end(0xFFFF_FFF0, 0x20)));
+        assert!(!time_up(0x0F, wait_end(0xFFFF_FFF0, 0x20)));
+        assert!(!time_up(0x7FFF_FFFF, wait_end(0, 0x8000_0000)));
     }
 }

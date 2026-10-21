@@ -41,7 +41,7 @@ pub const INDEX_LEN: u32 = 0x3850;
 pub const BLOCKS_RVA: usize = rva(0x5BECD0); // its block count
 pub const FRAMES_RVA: usize = rva(0x5BECD4); // its frame count
 pub const PLACES_RVA: usize = rva(0x5BECD8); // its (offset, size) per block
-pub const MOST_BLOCKS: u32 = 0x708;
+pub const MOST_BLOCKS: u32 = rc2k_core::race::replay::MOST_BLOCKS;
 pub const OFFSET_RVA: usize = rva(0x5C2528); // dword_5C2528: the file's length so far
 pub const IN_BLOCK_RVA: usize = rva(0x5C252C); // dword_5C252C: frames in the block
 pub const LAST_BLOCK_RVA: usize = rva(0x5C2530); // dword_5C2530
@@ -54,7 +54,6 @@ pub const HEADER_LEN: u32 = 0x430;
 pub const CAR_HEADER_RVA: usize = rva(0x719B14); // dword_719B14: 0x400 bytes
 pub const SEALED_RVA: usize = rva(0x719B54); // dword_719B54: the sealed part, 0x100
 const PATH_RVA: usize = rva(0x5295F0); // "var\tmprpl"
-const MOST_FREE_KB: u32 = 0x7800;
 
 unsafe fn get(a: usize) -> u32 {
     unsafe { (game_addr(a) as *const u32).read_unaligned() }
@@ -71,9 +70,11 @@ unsafe fn set(a: usize, v: u32) {
 /// `race::seal_block` with the key "halfmoon" (the game's key put back after). Every
 /// register kept.
 pub unsafe fn seal_replay_header(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::replay::{seal_checksum, chained, SEAL_KEY}`.
+    use rc2k_core::race::replay::{SEAL_KEY, SEAL_VERSION, chained, seal_checksum};
     let g = *entry;
     unsafe {
-        game_write::<u8>(rva(0x719B58), 6);
+        game_write::<u8>(rva(0x719B58), SEAL_VERSION);
         let mut r = Regs {
             ecx: 0x20,
             eax: game_addr(rva(0x755784)) as u32, // g_playerNames
@@ -85,24 +86,23 @@ pub unsafe fn seal_replay_header(entry: &Regs, part: Part) -> Result<Regs, Refus
             let (to, from) = (game_addr(rva(to)), game_addr(rva(from)));
             std::ptr::copy(from as *const u8, to as *mut u8, size);
         }
-        let mut sum = 0u32;
-        for n in 1..0x40 {
-            sum = sum.wrapping_add(get(SEALED_RVA + 4 * n)).rotate_left(5);
-        }
+        let dwords: Vec<u32> = (1..0x40).map(|n| get(SEALED_RVA + 4 * n)).collect();
+        let sum = seal_checksum(&dwords);
         set(SEALED_RVA, sum);
         set(rva(0x4F66F9), sum);
         let key = [get(rva(0x4E052C)), get(rva(0x4E0530))];
-        set(rva(0x4E052C), 0x666C_6168);
-        set(rva(0x4E0530), 0x6E6F_6F6D);
+        set(rva(0x4E052C), SEAL_KEY[0]);
+        set(rva(0x4E0530), SEAL_KEY[1]);
         let (mut a, mut b) = (0u32, 0u32);
         for n in 0..0x20u32 {
             let at = SEALED_RVA + 8 * n as usize;
-            set(rva(0x4E0534), get(at) ^ a);
-            set(rva(0x4E0538), get(at + 4) ^ b);
+            let [x, y] = chained([get(at), get(at + 4)], [a, b]);
+            set(rva(0x4E0534), x);
+            set(rva(0x4E0538), y);
             // The registers at the call: eax the second dword's mix, ebx the block, ecx
             // its number, esi and edi the chain.
             let mut r = Regs {
-                eax: get(at + 4) ^ b,
+                eax: y,
                 ebx: game_addr(at) as u32,
                 ecx: n,
                 esi: a,
@@ -174,11 +174,9 @@ pub unsafe fn write_replay_chunk(entry: &Regs, part: Part) -> Result<Regs, Refus
             ..g
         };
         part(6, &mut r)?;
-        r.ecx = r.ecx.wrapping_add(3) & !3;
-        if r.ecx >= r.edx {
-            r.ecx = r.edx;
-            part(1, &mut r)?;
-        } else {
+        // Converted: `rc2k_core::race::replay::packed_size`.
+        if let Some(packed) = rc2k_core::race::replay::packed_size(r.ecx, r.edx) {
+            r.ecx = packed;
             r.ebx = r.edi;
             part(1, &mut r)?;
             if !r.carry() {
@@ -186,6 +184,9 @@ pub unsafe fn write_replay_chunk(entry: &Regs, part: Part) -> Result<Regs, Refus
                 r.set_carry(false);
                 r.set_zero(r.eax == 0);
             }
+        } else {
+            r.ecx = r.edx;
+            part(1, &mut r)?;
         }
         let flags = r.eflags;
         g.eax = r.eax;
@@ -218,15 +219,12 @@ pub unsafe fn write_replay_block(entry: &Regs, part: Part) -> Result<Regs, Refus
             true
         } else {
             set(PLACES_RVA + 8 * n as usize + 4, r.eax);
-            let size = if (r.eax as i32) < 0 {
-                r.eax.wrapping_neg()
-            } else {
-                r.eax
-            };
+            // Converted: `rc2k_core::race::replay::block_written`.
+            let (size, full) = rc2k_core::race::replay::block_written(r.eax, n);
             r.eax = size;
             set(OFFSET_RVA, get(OFFSET_RVA).wrapping_add(size));
             set(BLOCKS_RVA, n + 1);
-            if n + 1 == MOST_BLOCKS {
+            if full {
                 true
             } else {
                 g.set_carry(false);
@@ -253,19 +251,22 @@ pub unsafe fn add_replay_frame(entry: &Regs, part: Part) -> Result<Regs, Refused
         if get(OPEN_RVA) != 1 {
             return Ok(g);
         }
+        // Converted: `rc2k_core::race::replay::{fits, frame_added}`.
+        use rc2k_core::race::replay::{FRAME_BYTES, fits, frame_added};
         let cursor = get(CURSOR_RVA);
-        let end = game_addr(BLOCK_RVA) as u32 + BLOCK_LEN;
+        let block = game_addr(BLOCK_RVA) as u32;
         let dwords = g.ecx >> 2;
-        if cursor < game_addr(BLOCK_RVA) as u32 || cursor.wrapping_add(4 * dwords) > end {
+        if cursor < block || !fits(cursor - block, dwords, BLOCK_LEN) {
             return Err(BadInput("a frame past the replay block's room").into());
         }
-        if g.ecx == 0x10 {
+        let (in_block, full) = frame_added(g.ecx, get(IN_BLOCK_RVA));
+        if g.ecx == FRAME_BYTES {
             set(FRAMES_RVA, get(FRAMES_RVA).wrapping_add(1));
-            set(IN_BLOCK_RVA, get(IN_BLOCK_RVA).wrapping_add(1));
+            set(IN_BLOCK_RVA, in_block);
         }
         std::ptr::copy(g.ebx as *const u8, cursor as *mut u8, 4 * dwords as usize);
         set(CURSOR_RVA, cursor + 4 * dwords);
-        if get(IN_BLOCK_RVA) >= 100 {
+        if full {
             let mut r = Regs {
                 esi: g.ebx + 4 * dwords,
                 edi: cursor + 4 * dwords,
@@ -297,13 +298,15 @@ pub unsafe fn close_replay(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             r.ecx = 0x10;
             part(12, &mut r)?;
         }
-        r.ebx = 100;
-        r.eax = get(LAST_BLOCK_RVA).wrapping_add(1);
-        if r.eax == get(BLOCKS_RVA) {
-            r.eax = get(FRAMES_RVA);
-            r.edx = r.eax % 100;
-            r.eax /= 100;
-            r.ebx = r.edx + 1;
+        // Converted: `rc2k_core::race::replay::closing_frames`.
+        let (frames, eax, edx) = rc2k_core::race::replay::closing_frames(
+            get(LAST_BLOCK_RVA),
+            get(BLOCKS_RVA),
+            get(FRAMES_RVA),
+        );
+        (r.ebx, r.eax) = (frames, eax);
+        if let Some(edx) = edx {
+            r.edx = edx;
         }
         set(IN_BLOCK_RVA, r.ebx);
         part(7, &mut r)?;
@@ -328,33 +331,39 @@ pub unsafe fn close_replay(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 pub unsafe fn open_replay(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
+        // Converted: `rc2k_core::race::replay::{replays_on, room_for_replay}` and the
+        // header's and the index's words.
+        use rc2k_core::race::replay::{
+            HEADER_MAGIC, HEADER_NAME, HEADER_VERSION, INDEX_MAGIC, replays_on, room_for_replay,
+        };
         set(DONE_RVA, 0);
-        if get(rva(0x5BEC78)) != 1
-            || get(rva(0x5BEC7C)) != 0
-            || get(rva(0x52A910)) == 1
-            || get(rva(0x75ACDC)) == 1
-        {
+        if !replays_on(
+            get(rva(0x5BEC78)),
+            get(rva(0x5BEC7C)),
+            get(rva(0x52A910)),
+            get(rva(0x75ACDC)),
+        ) {
             return Ok(g);
         }
         let mut r = g;
         part(4, &mut r)?;
-        if r.eax < MOST_FREE_KB {
+        if !room_for_replay(r.eax) {
             return Ok(g);
         }
         for k in 0..0x10C {
             set(HEADER_RVA + 4 * k, 0);
         }
-        set(HEADER_RVA, 0x4C50_4552);
-        set(HEADER_RVA + 8, 0x50400);
+        set(HEADER_RVA, HEADER_MAGIC);
+        set(HEADER_RVA + 8, HEADER_VERSION);
         // After `rep stosd`: eax and ecx 0, edi past the header.
         r.eax = 0;
         r.ecx = 0;
         r.edi = game_addr(HEADER_RVA) as u32 + HEADER_LEN;
         part(5, &mut r)?;
         set(HEADER_RVA + 0xC, r.eax);
-        set(HEADER_RVA + 0x10, 0x7270_6D74);
-        set(HEADER_RVA + 0x14, 0x616C_7065);
-        set(HEADER_RVA + 0x18, 0x79);
+        for (k, &w) in HEADER_NAME.iter().enumerate() {
+            set(HEADER_RVA + 0x10 + 4 * k, w);
+        }
         set(rva(0x719B34), get(rva(0x514F78)));
         set(rva(0x719B38), get(rva(0x75AE20)));
         set(rva(0x719B3C), get(rva(0x75AF8C)));
@@ -378,7 +387,7 @@ pub unsafe fn open_replay(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         r.esi = game_addr(CAR_HEADER_RVA) as u32 + 0x400;
         r.edi = game_addr(INDEX_RVA) as u32 + INDEX_LEN;
         r.ecx = 0;
-        set(INDEX_RVA, 0x4249_4352);
+        set(INDEX_RVA, INDEX_MAGIC);
         set(CURSOR_RVA, game_addr(BLOCK_RVA) as u32);
         set(IN_BLOCK_RVA, 0);
         set(OFFSET_RVA, 0);

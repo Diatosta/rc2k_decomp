@@ -34,6 +34,7 @@ use crate::net::lobby::{
 };
 use crate::net::lobby_loop::set_players;
 use crate::net::types::NetPlayerBlock;
+use rc2k_core::net::record;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -72,24 +73,20 @@ pub fn lets_rally(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     for (x, v) in SETTINGS {
         p(x, v);
     }
-    let byte = |at: u32| unsafe { (at as *const u8).read() } as u32;
-    r.eax = byte(r.esi + 0x25);
+    // Converted: `rc2k_core::net::record` (`CAR`, `COLOURS`, `first_not_host`).
+    let byte = |at: u32| unsafe { (at as *const u8).read() };
+    let own = r.esi + field!(NetPlayerBlock, record);
+    r.eax = byte(own + record::CAR as u32) as u32;
     p(CAR, r.eax);
-    r.eax = byte(r.esi + 0x26);
+    r.eax = byte(own + record::COLOURS as u32) as u32;
     p(COLOURS, r.eax);
-    r.ebx = block(0);
-    r.ecx = 0;
-    loop {
-        if byte(r.ebx + field!(NetPlayerBlock, record.state)) & 0x10 == 0 {
-            break;
-        }
-        r.ebx = r.ebx.wrapping_add(crate::net::lobby::BLOCK);
-        r.ecx = r.ecx.wrapping_add(1);
-        if r.ecx >= g(PLAYERS) {
-            r.set_carry(true);
-            return Ok(left(&r));
-        }
-    }
+    let state = |n: u32| byte(block(n) + field!(NetPlayerBlock, record.state));
+    let Some(first) = record::first_not_host(g(PLAYERS), state) else {
+        r.set_carry(true);
+        return Ok(left(&r));
+    };
+    r.ebx = block(first);
+    r.ecx = first;
     p(FIRST_HOST, r.ecx);
     for place in [
         STOP_MUSIC,

@@ -11,8 +11,8 @@
 //! 0xFF bytes asked with.
 
 use crate::errors::BadInput;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, hook_asm, rva, shadow};
-use crate::settings::find_key::LOWER_RVA;
+use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
+use crate::strings::same_text::case_table;
 use std::sync::atomic::AtomicUsize;
 use windows_sys::Win32::System::Environment::GetCurrentDirectoryA;
 
@@ -47,42 +47,9 @@ pub unsafe fn normalised(
     path: *const u8,
     current: &mut dyn FnMut() -> Result<Option<Vec<u8>>, BadInput>,
 ) -> Result<Option<Vec<u8>>, BadInput> {
-    unsafe {
-        let path = std::ffi::CStr::from_ptr(path as *const _).to_bytes();
-        if path.len() >= 0xF8 {
-            return Err(BadInput("a path longer than the installer's places"));
-        }
-        let lower = |c: u8| game_read::<u8>(LOWER_RVA + c as usize);
-        let plain = |c: u8| lower(if c == b'/' { b'\\' } else { c });
-        let is_slash = |c: u8| c == b'\\' || c == b'/';
-        let mut out = Vec::new();
-        let rest: Vec<u8> = if path.is_empty() {
-            // The current directory, with a `\` after it, and then treated like any path.
-            let Some(mut directory) = current()? else {
-                return Ok(None);
-            };
-            if !directory.last().is_some_and(|&c| is_slash(c)) {
-                directory.push(b'\\');
-            }
-            directory
-        } else if path.starts_with(b"\\\\") || path.starts_with(b"//") {
-            path.to_vec()
-        } else if path.get(1) == Some(&b':') {
-            out.extend([lower(path[0]), b':']);
-            if !path.get(2).is_some_and(|&c| is_slash(c)) {
-                out.push(b'\\');
-            }
-            path[2..].to_vec()
-        } else {
-            return Ok(None);
-        };
-        out.extend(rest.into_iter().map(plain));
-        if !out.last().is_some_and(|&c| is_slash(c)) {
-            out.push(b'\\');
-        }
-        out.push(0);
-        Ok(Some(out))
-    }
+    let path = unsafe { std::ffi::CStr::from_ptr(path as *const _) }.to_bytes();
+    // Converted: `rc2k_core::install::paths::normalise`.
+    rc2k_core::install::paths::normalise(path, &case_table(), current)
 }
 
 /// For Rust callers: writes the path at `to`. Returns whether it was written.

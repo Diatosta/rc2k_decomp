@@ -43,7 +43,9 @@ pub fn request_quit_with(
     requested: &AtomicU32,
     start: &mut dyn FnMut(u32) -> Result<(), FatalError>,
 ) -> Result<(), FatalError> {
-    if requested.swap(1, Ordering::SeqCst) == 1 {
+    // Converted: `rc2k_core::threading::starts_shutdown`.
+    use rc2k_core::threading::{QUITTING, starts_shutdown};
+    if !starts_shutdown(requested.swap(QUITTING, Ordering::SeqCst)) {
         return Ok(());
     }
     start(game_addr(SHUTDOWN_SLOT_RVA) as u32)

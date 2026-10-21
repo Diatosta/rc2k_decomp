@@ -1,6 +1,7 @@
 //! The work car's timed events (converted 2026-10-21 from `physics::queue_car_event`
-//! 0x4419EB and `expire_car_events` 0x44196B): a queue of up to 7 under the pace notes
-//! (a reading), aged against the scene clock.
+//! 0x4419EB, `expire_car_events` 0x44196B and `queue_listed_event` 0x44194D): a queue of
+//! up to 7 under the pace notes (a reading), aged against the scene clock; the events by
+//! number from a table of 0x20 (`dword_614C7C`).
 
 use crate::Invalid;
 
@@ -93,6 +94,20 @@ impl CarEvents {
     }
 }
 
+/// The listed events' table (`dword_614C7C`): 0x20 entries, -1 none.
+pub const LISTED_EVENTS: u32 = 0x20;
+/// No event.
+pub const NO_EVENT: u32 = u32::MAX;
+
+/// `physics::queue_listed_event`: for a number in the table, its entry (`entry(n)`) and
+/// whether it is queued (not -1); past the table nothing.
+pub fn listed_event(n: u32, entry: impl FnOnce(u32) -> u32) -> Option<(u32, bool)> {
+    (n < LISTED_EVENTS).then(|| {
+        let e = entry(n);
+        (e, e != NO_EVENT)
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -132,5 +147,12 @@ mod tests {
         q.count = 8;
         assert!(q.queue(0, 1, 1).is_err());
         assert!(q.expire(0).is_err());
+    }
+
+    #[test]
+    fn listed_events() {
+        assert_eq!(listed_event(0x20, |_| unreachable!()), None);
+        assert_eq!(listed_event(3, |n| n * 2), Some((6, true)));
+        assert_eq!(listed_event(0x1F, |_| NO_EVENT), Some((NO_EVENT, false)));
     }
 }

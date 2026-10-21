@@ -3,7 +3,9 @@
 //! 2026-10-21 from `race::set_cdat_number` 0x4456DD, `set_course_number` 0x43944F,
 //! `parse_2_digits` 0x437A25, `parse_3_digits` 0x4379EB, `read_stage_car_numbers`
 //! 0x437971, `tweak_stage` 0x439AAB and `group_records_by_kind` 0x421E42; the texture
-//! swap converted 2026-10-21 from `race::swap_stage_texture` 0x439B03).
+//! swap converted 2026-10-21 from `race::swap_stage_texture` 0x439B03; the difficulty
+//! converted 2026-10-21 from `race::set_car_times` 0x4377D0; the textures' records
+//! converted 2026-10-21 from `race::build_texture_infos` 0x4393A0).
 
 use crate::Invalid;
 use crate::strings::bytes::Bytes;
@@ -243,9 +245,99 @@ pub fn group_by_kind<R>(records: &mut [R], word: impl Fn(&R) -> u32) -> Grouped 
     }
 }
 
+/// The stages past the rallies' (from this up nothing is timed).
+pub const UNTIMED_STAGES: u32 = 0x4F;
+
+/// `race::set_car_times`' rally of a stage: its first stage and its level (0 .. 5, the
+/// rallies in the original's order); none from `UNTIMED_STAGES` up (stages below 0x15 go
+/// with the first, their index wrapping below the table).
+pub fn rally_of(stage: u32) -> Option<(u32, u32)> {
+    match stage {
+        _ if stage < 0x1D => Some((0x15, 0)),
+        _ if stage < 0x27 => Some((0x1F, 3)),
+        _ if stage < 0x31 => Some((0x29, 5)),
+        _ if stage < 0x3B => Some((0x33, 1)),
+        _ if stage < 0x45 => Some((0x3D, 4)),
+        _ if stage < UNTIMED_STAGES => Some((0x47, 2)),
+        _ => None,
+    }
+}
+
+/// The difficulty index: the stage's place in its rally plus 6 x the rally's level.
+pub fn difficulty(stage: u32, (first, level): (u32, u32)) -> u32 {
+    stage.wrapping_sub(first).wrapping_add(6 * level)
+}
+
+/// The kind whose factor the cars' times take: the first car's held to 0 .. 0x16.
+pub fn timed_kind(kind: i32) -> u32 {
+    let kind = kind.max(0);
+    if kind.wrapping_sub(0x16) >= 0 {
+        0x16
+    } else {
+        kind as u32
+    }
+}
+
+/// A texture's record (0x40 bytes at 0x979F30, by texture) as `race::build_texture_infos`
+/// makes it from its kind and the course info's record of the kind (+kind x 0x80); the
+/// bytes it does not write are left.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TextureInfo {
+    /// +0 .. +0xC: the record's first four dwords.
+    pub first: [u32; 4],
+    /// +0x10, +0x14, +0x18: the record's +0x20, +0x10, +0x14.
+    pub values: [u32; 3],
+    /// +0x1C: the record's byte +0x18.
+    pub byte: u8,
+    /// +0x20: the kind >> 4.
+    pub group: u32,
+    /// +0x24: the kind & 0xF.
+    pub row: u32,
+    /// +0x28: the group with bit 31.
+    pub marked: u32,
+    /// +0x2C .. +0x2E: the record's bytes +0x24 .. +0x26.
+    pub bytes: [u8; 3],
+}
+
+/// A texture's record from its kind (`dword(offset)`, `byte(offset)`: the kind's record in
+/// the course info, asked in the original's order).
+pub fn texture_info(
+    kind: u32,
+    mut dword: impl FnMut(u32) -> u32,
+    mut byte: impl FnMut(u32) -> u8,
+) -> TextureInfo {
+    let group = kind >> 4;
+    let values = [dword(0x20), dword(0x10), dword(0x14)];
+    let b = byte(0x18);
+    let bytes = [byte(0x24), byte(0x25), byte(0x26)];
+    let first = [dword(0), dword(4), dword(8), dword(0xC)];
+    TextureInfo {
+        first,
+        values,
+        byte: b,
+        group,
+        row: kind & 0xF,
+        marked: group | 0x8000_0000,
+        bytes,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn difficulties() {
+        assert_eq!(rally_of(0x15), Some((0x15, 0)));
+        assert_eq!(rally_of(0x26), Some((0x1F, 3)));
+        assert_eq!(rally_of(0x4E), Some((0x47, 2)));
+        assert_eq!(rally_of(0x4F), None);
+        assert_eq!(difficulty(0x28, (0x1F, 3)), 9 + 18);
+        assert_eq!(difficulty(0x10, (0x15, 0)), (-5i32) as u32);
+        assert_eq!(timed_kind(-3), 0);
+        assert_eq!(timed_kind(0x15), 0x15);
+        assert_eq!(timed_kind(0x40), 0x16);
+    }
 
     #[test]
     fn digits() {
@@ -315,5 +407,14 @@ mod tests {
         );
         let mut none: [u32; 0] = [];
         assert_eq!(group_by_kind(&mut none, |&w| w).looked, None);
+    }
+
+    #[test]
+    fn texture_records() {
+        let t = texture_info(0x5A, |o| 0x1000 + o, |o| o as u8);
+        assert_eq!(t.first, [0x1000, 0x1004, 0x1008, 0x100C]);
+        assert_eq!(t.values, [0x1020, 0x1010, 0x1014]);
+        assert_eq!((t.byte, t.bytes), (0x18, [0x24, 0x25, 0x26]));
+        assert_eq!((t.group, t.row, t.marked), (5, 0xA, 0x8000_0005));
     }
 }

@@ -30,14 +30,10 @@ hook_asm!(
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::hud::quads::SOLID_PLACES`
 pub unsafe fn add_solid_quad(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    unsafe {
-        for n in [6, 8, 10, 12] {
-            game_write(QUAD_RVA + 4 * n, 0xF8_0000u32);
-        }
-        for n in [7, 9, 11, 13] {
-            game_write(QUAD_RVA + 4 * n, 0x8_0000u32);
-        }
+    for (n, v) in rc2k_core::hud::quads::SOLID_PLACES {
+        unsafe { game_write(QUAD_RVA + 4 * n, v) };
     }
     let mut g = *entry;
     part(1, &mut g)?;

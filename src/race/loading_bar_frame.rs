@@ -55,19 +55,22 @@ fn flags(g: &mut Regs, carry: bool, zero: bool) {
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn loading_bar_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::loading::{FRAME_MARK, frame_tried, restored}`.
+    use rc2k_core::race::loading::{FRAME_MARK, frame_tried, restored};
     let mut g = *entry;
     unsafe {
         if game_read::<u32>(ON_RVA) == 0 {
             flags(&mut g, false, true);
             return Ok(g);
         }
-        game_write(MARK_RVA, 8u32);
+        game_write(MARK_RVA, FRAME_MARK);
         if game_read::<u32>(QUITTING_RVA) == 1 {
             flags(&mut g, false, true);
             return Ok(g);
         }
         let drawn = 'frame: {
-            if game_read::<u32>(ACTIVE_RVA) == 0 || game_read::<u32>(LOST_RVA) == 1 {
+            let active: u32 = game_read(ACTIVE_RVA);
+            if active == 0 || !frame_tried(active, game_read(LOST_RVA)) {
                 break 'frame false;
             }
             part(1, &mut g)?;
@@ -98,9 +101,9 @@ pub unsafe fn loading_bar_frame(entry: &Regs, part: Part) -> Result<Regs, Refuse
         }
         g.ebx = game_read(LOST_RVA);
         part(7, &mut g)?;
-        g.ebx = (g.ebx ^ 1) | game_read::<u32>(LOST_RVA);
-        let ebx = g.ebx;
-        flags(&mut g, ebx < 1, ebx == 1);
+        let (ebx, carry, zero) = restored(g.ebx, game_read(LOST_RVA));
+        g.ebx = ebx;
+        flags(&mut g, carry, zero);
     }
     Ok(g)
 }

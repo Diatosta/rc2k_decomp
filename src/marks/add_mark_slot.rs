@@ -9,14 +9,17 @@
 //! One caller, `sub_4C969A` (the marks' frame). The float first gets `flt_935406`, then
 //! the random at once: only the second is kept. Manual patch with a private copy (its
 //! first five bytes end with a jump). Self-test: slots of several fillings, the original
-//! and the Rust version; put back afterwards.
+//! and the Rust version, at the test precisions; put back afterwards.
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::marks::setup::{SLOT_LEN, SLOTS, SLOTS_RVA};
 use crate::math::x87;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::floats::{
+    FLOAT, Floats, Tolerance, at_test_precisions, check_state_floats, dispatch_state_floats,
+};
+use crate::service::harness::{Region, at, capture, restore};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -56,6 +59,38 @@ pub unsafe fn add_mark_slot(what: u32, at_esi: u32) {
     }
 }
 
+/// The converted `add_mark_slot` (plain floats): the hook's. The x87 version above stays
+/// for `marks::draw_mark_slots` (unconverted).
+// Converted: `rc2k_core::marks::slots`
+pub unsafe fn add_mark_slot_plain(what: u32, at_esi: u32) {
+    use rc2k_core::marks::slots;
+    unsafe {
+        let first = |n: usize| game_read::<i32>(SLOTS_RVA + SLOT_LEN as usize * n);
+        let Some(n) = slots::free_slot(first) else {
+            return;
+        };
+        let random = slots::next_random(game_read(RANDOM_RVA));
+        game_write(RANDOM_RVA, random);
+        let base = f32::from_bits(game_read(BASE_RVA));
+        game_write(
+            SLOTS_RVA + SLOT_LEN as usize * n,
+            slots::new_slot(what, at_esi, random, base),
+        );
+    }
+}
+
+/// The slots' floats.
+fn float_places() -> Vec<(Region, Tolerance)> {
+    (0..SLOTS)
+        .map(|n| {
+            (
+                (game_addr(SLOTS_RVA) as u32 + SLOT_LEN * n + 0x10, 4),
+                FLOAT,
+            )
+        })
+        .collect()
+}
+
 fn regions() -> Vec<Region> {
     vec![
         (game_addr(SLOTS_RVA) as u32, (SLOTS * SLOT_LEN) as usize),
@@ -64,12 +99,17 @@ fn regions() -> Vec<Region> {
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { add_mark_slot(r.eax, r.esi) };
+    unsafe { add_mark_slot_plain(r.eax, r.esi) };
     Ok(Left::nothing())
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+    let places = float_places();
+    let floats = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
 }
 
 /// A slot's first dword by its number.
@@ -90,39 +130,48 @@ fn self_test() -> (usize, usize) {
         ("only 3 free (-5)", |n| if n == 3 { -5 } else { 0x3C }),
         ("odd ones busy", |n| (n % 2) as i32 * 7),
     ];
-    for (case, (what, busy)) in fillings.into_iter().enumerate() {
-        for random in [0u32, 0x1234_5678, 0xFFFF_FFFF] {
-            check_state(
-                &mut t,
-                &format!("{what}, random {random:#x}, base {base:#x}"),
-                call_original,
-                Regs {
-                    eax: 0xA000 + case as u32,
-                    esi: 0xB000_0000 + case as u32,
-                    ..Regs::SENTINEL
-                },
-                &|| unsafe {
-                    restore(&regions, &saved);
-                    for n in 0..SLOTS as usize {
-                        let slot = SLOTS_RVA + SLOT_LEN as usize * n;
-                        game_write(
-                            slot,
-                            [
-                                busy(n) as u32,
-                                0xAAAA_AAAA,
-                                0xAAAA_AAAA,
-                                0xAAAA_AAAA,
-                                0xAAAA_AAAA,
-                            ],
-                        );
-                    }
-                    game_write(RANDOM_RVA, random);
-                },
-                &regions,
-                &rust,
-            );
+    let places = float_places();
+    let tolerant = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, held| {
+        for (case, (what, busy)) in fillings.into_iter().enumerate() {
+            for random in [0u32, 0x1234_5678, 0xFFFF_FFFF] {
+                check_state_floats(
+                    &mut t,
+                    "marks::add_mark_slot",
+                    &format!("control word {word:#x}, {what}, random {random:#x}, base {base:#x}"),
+                    call_original,
+                    Regs {
+                        eax: 0xA000 + case as u32,
+                        esi: 0xB000_0000 + case as u32,
+                        ..Regs::SENTINEL
+                    },
+                    &|| unsafe {
+                        restore(&regions, &saved);
+                        for n in 0..SLOTS as usize {
+                            let slot = SLOTS_RVA + SLOT_LEN as usize * n;
+                            game_write(
+                                slot,
+                                [
+                                    busy(n) as u32,
+                                    0xAAAA_AAAA,
+                                    0xAAAA_AAAA,
+                                    0xAAAA_AAAA,
+                                    0xAAAA_AAAA,
+                                ],
+                            );
+                        }
+                        game_write(RANDOM_RVA, random);
+                    },
+                    &regions,
+                    held,
+                    &rust,
+                );
+            }
         }
-    }
+    });
     restore(&regions, &saved);
     t.finish()
 }

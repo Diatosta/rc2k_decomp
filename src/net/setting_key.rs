@@ -18,6 +18,7 @@ use crate::net::lobby::{
     CHOICE, EDIT_SAVED, MACHINE_NAME, MOST_PLAYERS, NOTICE_KIND, NUMBER_TEXT, PARSE_NUMBER, Part,
     Saved, a, answer, dispatch_lobby, dword, fill, g, gb, movsb, p, pb, region, run_both,
 };
+use rc2k_core::net::chat;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -42,8 +43,9 @@ pub fn setting_key(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         return Ok(r);
     }
     r.eax = g(CHOICE);
+    // Converted: `rc2k_core::net::chat` (`NAME`, `MOST_PLAYERS`, `most_players`).
     match r.eax {
-        1 => {
+        chat::NAME => {
             r.esi = a(EDIT_SAVED);
             r.edi = a(MACHINE_NAME);
             if gb(MACHINE_NAME) == 0 {
@@ -53,15 +55,10 @@ pub fn setting_key(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                 r.ecx = 0;
             }
         }
-        2 => {
+        chat::MOST_PLAYERS => {
             r.eax = a(NUMBER_TEXT);
             part(PARSE_NUMBER, &mut r)?;
-            let mut n = r.eax as i32;
-            n = n.clamp(2, 8);
-            if gb(NOTICE_KIND) == 2 && n > 4 {
-                n = 4;
-            }
-            r.eax = n as u32;
+            r.eax = chat::most_players(r.eax, gb(NOTICE_KIND));
             p(MOST_PLAYERS, r.eax);
         }
         _ => {}

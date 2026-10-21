@@ -15,7 +15,8 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::{
     EAX, RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow,
 };
-use crate::memory::{HEADER_LEN, HELD_RVA, MOST_HELD_RVA, MemoryList, OWN_HEAP_RVA, TURNOVER_RVA};
+use crate::memory::{HEADER_LEN, MOST_HELD_RVA, MemoryList, OWN_HEAP_RVA, with_figures};
+use rc2k_core::memory::block_size;
 use std::sync::atomic::AtomicUsize;
 use windows_sys::Win32::System::Memory::{MEM_COMMIT, MEM_RESERVE, PAGE_READWRITE, VirtualAlloc};
 
@@ -39,10 +40,11 @@ pub unsafe fn allocate(list: *mut MemoryList, bytes: u32) -> Result<*mut u8, Ref
         if game_read::<u32>(OWN_HEAP_RVA) == 1 {
             return Err(BadInput("the game's own heap is in use (altmemenable)").into());
         }
-        let whole = bytes.wrapping_add(HEADER_LEN);
-        if list.is_null() || whole == 0 {
+        // Converted: `rc2k_core::memory` (`block_size`, `List::add`, `Figures::taken`).
+        let whole = block_size(bytes);
+        let (false, Some(whole)) = (list.is_null(), whole) else {
             return Err(BadInput("no list, or a size that wraps").into());
-        }
+        };
         let block = VirtualAlloc(
             std::ptr::null(),
             whole as usize,
@@ -56,19 +58,10 @@ pub unsafe fn allocate(list: *mut MemoryList, bytes: u32) -> Result<*mut u8, Ref
             }
             .into());
         }
-        block.write((*list).head);
-        block.add(1).write(bytes);
-        (*list).head = block as u32;
-        (*list).total = (*list).total.wrapping_add(bytes);
-        game_write(
-            TURNOVER_RVA,
-            game_read::<u32>(TURNOVER_RVA).wrapping_add(bytes),
-        );
-        let held = game_read::<u32>(HELD_RVA).wrapping_add(bytes);
-        game_write(HELD_RVA, held);
-        if held > game_read::<u32>(MOST_HELD_RVA) {
-            game_write(MOST_HELD_RVA, held);
-        }
+        let header = (*list).add(block as u32, bytes);
+        block.write(header[0]);
+        block.add(1).write(header[1]);
+        with_figures(|f| f.taken(bytes));
         Ok((block as *mut u8).add(HEADER_LEN as usize))
     }
 }

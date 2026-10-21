@@ -26,7 +26,9 @@ use crate::net::lobby::{
     TestObject, a, block, cmp_flags, com_answer, dispatch_lobby, dword, g, game, p, run_both,
     test_eax,
 };
+use crate::net::sort_players::swap_blocks;
 use crate::net::types::NetPlayerBlock;
+use rc2k_core::net::players;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -72,7 +74,7 @@ pub fn list_players(entry: &Regs, _: Part) -> Result<Regs, Refused> {
             }
         }
         let players = g(PLAYERS);
-        if players > 8 {
+        if players > players::MOST {
             return Err(BadInput("more than eight players").into());
         }
         for n in 0..players {
@@ -89,38 +91,24 @@ pub fn list_players(entry: &Regs, _: Part) -> Result<Regs, Refused> {
                 ],
             );
         }
-        let mut pass = players.wrapping_sub(1) as i32;
-        while pass > 0 {
-            for k in 0..pass as u32 {
-                let x = block(k);
-                if get(x + field!(NetPlayerBlock, id)) > get(x + BLOCK + field!(NetPlayerBlock, id))
-                {
-                    for n in 0..BLOCK / 4 {
-                        let (one, two) = (x + 4 * n, x + BLOCK + 4 * n);
-                        let v = get(one);
-                        (one as *mut u32).write_unaligned(get(two));
-                        (two as *mut u32).write_unaligned(v);
-                    }
-                }
-            }
-            pass -= 1;
-        }
+        // Converted: `rc2k_core::net::players` (`bubble` by the ids, `find_own`).
+        let id = |n: u32| get(block(n) + field!(NetPlayerBlock, id));
+        players::bubble(players, |k| id(k) > id(k + 1), |k| swap_blocks(block(k)));
     }
     r.eax = g(PLAYER_ID);
-    let mut n = 0u32;
-    loop {
-        if r.eax == get(block(n) + field!(NetPlayerBlock, id)) {
+    match players::find_own(r.eax, g(PLAYERS), |n| {
+        get(block(n) + field!(NetPlayerBlock, id))
+    }) {
+        Ok(n) => {
             p(PLAYER, n);
             test_eax(&mut r);
-            return Ok(left(&r));
         }
-        n += 1;
-        if n >= g(PLAYERS) {
+        Err(n) => {
             cmp_flags(&mut r, n, g(PLAYERS));
             r.set_carry(true);
-            return Ok(left(&r));
         }
     }
+    Ok(left(&r))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {

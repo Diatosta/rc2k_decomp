@@ -3,10 +3,10 @@
 //! `take_player1_units`; `dword_755984` 4, `dword_755988` 0x17, `dword_755954` 3,
 //! `dword_75555D` 0 (no other variables cleared); the four car choices (player 0's list
 //! made again before its car is taken; left, it ends at once). Then each stage as
-//! `menu::time_trial_three`'s (`time_trial_three::time_trial_rounds`) with four races and
+//! `menu::time_trial_three`'s (`rc2k_core::menu::rounds::time_trial_rounds`) with four races and
 //! these differences: no current player 0 before `menu::ready_players`, the service's yes
 //! ends it, no stage record put in edi, and before the review `menu::show_in_game_options`
-//! where the others hide them. The end: `rounds::end`.
+//! where the others hide them. The end: `rc2k_core::menu::rounds::end`.
 //!
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
@@ -19,8 +19,9 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::menu::event_flow::*;
+use crate::menu::flow_game::Game;
 use crate::menu::rounds::*;
-use crate::menu::time_trial_split::time_trial_start;
+use rc2k_core::menu::rounds;
 
 const CALLS: &[usize] = &[
     0xB, 0x10, 0x15, 0x52, 0x57, 0x6F, 0x74, 0x89, 0x8E, 0xA0, 0xB5, 0xBA, 0xCC, 0xE1, 0xE6, 0xF8,
@@ -33,17 +34,8 @@ flow_hook!("menu::time_trial_four", 0x48B90F, time_trial_four, test);
 
 pub unsafe fn time_trial_four(entry: &Regs, call: Call) -> Result<Regs, Refused> {
     players_there(4)?;
-    let mut g = *entry;
-    time_trial_start(&mut g, call)?;
-    set(PLAYER_COUNT, 4);
-    set(EVENT_MODE, 0x17);
-    set(EVENT_TYPE, 3);
-    set(LEAVE, 0);
-    if !choose_cars(&mut g, call, 4, true, &[0])? {
-        return Ok(*entry);
-    }
-    unsafe { crate::menu::time_trial_three::time_trial_rounds(&mut g, call, 4, true)? };
-    end(&mut g, call)?;
+    // Converted: `rc2k_core::menu::rounds::time_trial_four`.
+    rounds::time_trial_four(&mut Game::new(entry, call))?;
     Ok(*entry)
 }
 

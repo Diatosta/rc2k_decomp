@@ -20,6 +20,9 @@
 //! and a first texture past the table.
 //! Shadow mode runs the original alone.
 //! Self-test: a redirected copy whose calls note what was set by then.
+//!
+//! Converted 2026-10-21: the kinds' pictures and the read sizes through
+//! `rc2k_core::scene::pictures`.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{
@@ -36,6 +39,7 @@ use crate::scene::load_number_plates::load_number_plates_in_game;
 use crate::scene::step_loading_bar::step_loading_bar;
 use crate::scene::textures::{KIND_TEXTURE_RVA, KINDS, test_table, write_table};
 use crate::service::harness::{Region, at, capture, restore};
+use rc2k_core::scene::pictures::{kind_picture, read_size};
 use std::sync::Mutex;
 use std::sync::atomic::AtomicUsize;
 
@@ -79,6 +83,7 @@ pub enum Call {
 
 // ---- Rust version ----
 
+// Converted: `rc2k_core::scene::pictures::{kind_picture, read_size}`
 pub unsafe fn reload_system_textures(
     r: &mut Regs,
     call: &mut dyn FnMut(Call, &mut Regs) -> Result<(), Refused>,
@@ -99,26 +104,15 @@ pub unsafe fn reload_system_textures(
             if r.ebx == u32::MAX {
                 continue;
             }
-            r.eax = game_read(KIND_PICTURES_RVA + kind as usize * 4);
-            if r.eax == 0 {
-                r.eax = u32::MAX;
-            }
+            r.eax = kind_picture(game_read(KIND_PICTURES_RVA + kind as usize * 4));
             game_write(WANTED_PICTURES_RVA + r.ebx as usize * 4, r.eax);
         }
-        let [width, height]: [u32; 2] = game_read(SCENE_SIZE_RVA);
+        let scene: [u32; 2] = game_read(SCENE_SIZE_RVA);
         for texture in 0..textures {
             r.ecx = texture;
             game_write(READING_RVA, 1u32);
             r.eax = game_read(WANTED_PICTURES_RVA + texture as usize * 4);
-            let own_size = r.eax == 0x3DE || (0x706..=0x7CF).contains(&r.eax);
-            game_write(
-                READ_SIZE_RVA,
-                if own_size {
-                    [0x100, 0x100]
-                } else {
-                    [height, width]
-                },
-            );
+            game_write(READ_SIZE_RVA, read_size(r.eax, scene));
             call(Call::Picture(texture), r)?;
             call(Call::Bar(texture), r)?;
         }

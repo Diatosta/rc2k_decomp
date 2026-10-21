@@ -71,107 +71,60 @@ const LEVEL_MIPS_RVA: usize = rva(0x5CDABC); // dword_5CDABC
 const TEXTURE_OF_RVA: usize = rva(0x5D2AE8); // dword_5D2AE8
 const ALLOCATE_RVA: usize = rva(0x4051ED); // gfx::allocate_textures
 
-/// What is asked of `gfx::allocate_textures` for one texture.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Ask {
-    pub texture: u32,
-    pub video: bool,
-    pub level: u32,
-    pub pixel_kind: u32,
-    pub mips: u32,
-}
-
-/// What the function calls.
-pub enum Call {
-    Text(&'static std::ffi::CStr, bool),
-    Number(u32),
-    /// Answers with what came back in eax (video) or ebx (system), or None if refused.
-    Allocate(Ask),
-}
-
-/// The textures that get pixel kind 3.
-fn kind_three(texture: u32) -> bool {
-    (0xDC..0xE2).contains(&texture)
-        || matches!(
-            texture,
-            0xC6 | 0xC7 | 0xC0 | 0xC1 | 0xC2 | 0xD3 | 0xC4 | 0xC5 | 0xC9 | 0xD4 | 0xCA | 0x257
-        )
-}
+pub use rc2k_core::scene::textures::{Ask, Call};
 
 // ---- Rust version ----
 
+/// The game's tables.
+struct GameMemory;
+
+impl rc2k_core::scene::textures::TextureMemory for GameMemory {
+    fn level(&self, video: bool, texture: u32) -> u32 {
+        let table = if video {
+            VIDEO_LEVELS_RVA
+        } else {
+            SYSTEM_LEVELS_RVA
+        };
+        unsafe { game_read(table + texture as usize * 4) }
+    }
+    fn size(&self, level: u32) -> u32 {
+        unsafe { game_read(LEVEL_SIZES_RVA + level as usize * 4) }
+    }
+    fn mips(&self) -> u32 {
+        unsafe { game_read(MIPS_RVA) }
+    }
+    fn level_mips(&self, level: u32) -> u32 {
+        unsafe { game_read(LEVEL_MIPS_RVA + level as usize * 4) }
+    }
+    fn forget_kinds(&mut self) {
+        unsafe {
+            std::ptr::write_bytes(game_addr(KIND_SLOT_RVA) as *mut u8, 0xFF, TEXTURES * 4);
+            std::ptr::write_bytes(game_addr(KIND_TEXTURE_RVA) as *mut u8, 0xFF, TEXTURES * 4);
+        }
+    }
+    fn set_asked(&mut self, asked: [u32; 2]) {
+        unsafe { game_write(ASKED_RVA, asked) }
+    }
+    fn set_first_slot(&mut self, texture: u32, slot: u32) {
+        unsafe { game_write(KIND_SLOT_RVA + texture as usize * 4, slot) }
+    }
+    fn set_first_texture(&mut self, texture: u32, first: u32) {
+        unsafe {
+            game_write(TEXTURE_OF_RVA + first as usize * 4, texture);
+            game_write(KIND_TEXTURE_RVA + texture as usize * 4, first);
+        }
+    }
+}
+
 /// Whether all the memory was had.
+// Converted: `rc2k_core::scene::textures::try_allocate`
 pub unsafe fn try_allocate_textures(
     call: &mut dyn FnMut(Call) -> Option<u32>,
 ) -> Result<bool, BadInput> {
-    unsafe {
-        let level = |table: usize, n: u32| game_read::<u32>(table + n as usize * 4);
-        let size = |level: u32| game_read::<u32>(LEVEL_SIZES_RVA + level as usize * 4);
-        // Nothing is written before a refusal.
-        let mut asked = [0u32; 2];
-        for n in 0..TEXTURES as u32 {
-            for (sum, table) in [(0, VIDEO_LEVELS_RVA), (1, SYSTEM_LEVELS_RVA)] {
-                let level = level(table, n);
-                if level == u32::MAX {
-                    continue;
-                }
-                if level >= LEVELS {
-                    return Err(BadInput("a texture's level past the sizes' table"));
-                }
-                asked[sum] = asked[sum].wrapping_add(size(level));
-            }
-        }
-        std::ptr::write_bytes(game_addr(KIND_SLOT_RVA) as *mut u8, 0xFF, TEXTURES * 4);
-        std::ptr::write_bytes(game_addr(KIND_TEXTURE_RVA) as *mut u8, 0xFF, TEXTURES * 4);
-        game_write(ASKED_RVA, asked);
-        call(Call::Text(c"VMEMREQ", false));
-        call(Call::Number(asked[0]));
-        call(Call::Text(c"SMEMREQ", false));
-        call(Call::Number(asked[1]));
-
-        let mips: u32 = game_read(MIPS_RVA);
-        for texture in 0..TEXTURES as u32 {
-            let at = texture as usize * 4;
-            for video in [true, false] {
-                let table = if video {
-                    VIDEO_LEVELS_RVA
-                } else {
-                    SYSTEM_LEVELS_RVA
-                };
-                let level = level(table, texture);
-                if level == u32::MAX {
-                    continue;
-                }
-                let level = (level as i32).clamp(0, 7) as u32;
-                let mut ask = Ask {
-                    texture,
-                    video,
-                    level,
-                    pixel_kind: if kind_three(texture) { 3 } else { 2 },
-                    mips: mips.wrapping_mul(game_read(LEVEL_MIPS_RVA + level as usize * 4)),
-                };
-                if video {
-                    asked = asked.map(|sum| sum.wrapping_add(size(level)));
-                    game_write(ASKED_RVA, asked);
-                    if texture >= 0x80 && !(0x100..0x140).contains(&texture) {
-                        ask.mips = 0;
-                    }
-                }
-                let Some(given) = call(Call::Allocate(ask)) else {
-                    call(Call::Text(c"NO -", false));
-                    return Ok(false);
-                };
-                if video {
-                    game_write(KIND_SLOT_RVA + at, given);
-                } else {
-                    game_write(TEXTURE_OF_RVA + given as usize * 4, texture);
-                    game_write(KIND_TEXTURE_RVA + at, given);
-                }
-            }
-        }
-        call(Call::Text(c"YES -", true));
-        Ok(true)
-    }
+    Ok(rc2k_core::scene::textures::try_allocate(
+        &mut GameMemory,
+        &mut |c| call(c),
+    )?)
 }
 
 /// With the game's log and the game's allocation.

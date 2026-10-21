@@ -27,6 +27,7 @@ use crate::menu::frame_test::{self, CHANGING, Noting};
 use crate::menu::screen_loop::{Env, Real};
 use crate::redirect::RedirectedCopy;
 use crate::service::harness::{at, capture, restore};
+use rc2k_core::menu::notice;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -61,7 +62,6 @@ const SCENE_STATE_RVA: usize = rva(0x6365CC); // dword_6365CC
 const NOTICE_KIND_RVA: usize = rva(0x4E07A0); // byte_4E07A0: 2 = the notice below may be drawn
 const NOTICE_DUE_RVA: usize = rva(0x7585D8); // dword_7585D8: set to 1 by the main menu before a frame
 const NOTICE_FONT_RVA: usize = rva(0x51E404); // stru_51E404
-const NOTICE_STRING: u32 = 0x1000;
 const END: u32 = u32::MAX;
 
 // ---- Rust version ----
@@ -113,12 +113,12 @@ pub unsafe fn frame_callback(entry: &Regs, env: &mut dyn Env) -> bool {
         }
         g.esi = game_read(OVERLAY_LIST_RVA);
         run_listed(&mut g, env, false);
-        if game_read::<u8>(NOTICE_KIND_RVA) == 2 && game_read::<u32>(NOTICE_DUE_RVA) == 1 {
+        // Converted: `rc2k_core::menu::notice::drawn_now`.
+        if notice::drawn_now(game_read(NOTICE_KIND_RVA), || game_read(NOTICE_DUE_RVA)) {
             game_write(NOTICE_DUE_RVA, 0u32);
-            g.eax = NOTICE_STRING;
+            g.eax = notice::STRING;
             g.ebx = game_addr(NOTICE_FONT_RVA) as u32;
-            g.ecx = 800;
-            g.edx = 587;
+            (g.ecx, g.edx) = notice::AT;
             env.call(DRAW_STRING_BY_ID, &mut g);
         }
         env.call(UNLOCK_SURFACE, &mut g);

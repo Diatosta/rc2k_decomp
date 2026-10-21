@@ -21,6 +21,7 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::{base, x87_run};
 use crate::sound::turn_parts::{PLACED, Part, STOP, dispatch_turn, test_car_sound};
+use rc2k_core::sound::engine::{computers, revs_stopped};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -52,8 +53,9 @@ pub fn throttle_sound_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
     let o = c.ebx;
     let w = |at: u32| unsafe { ((o + at) as *const u32).read_unaligned() };
     let q = c.esi as *mut u32;
+    // Converted: `rc2k_core::sound::engine` (`computers`, `revs_stopped`).
     c.eax = w(0);
-    if (c.eax as i32) < 0 {
+    if computers(c.eax) {
         return Ok(());
     }
     if c.edi == 0 {
@@ -64,7 +66,7 @@ pub fn throttle_sound_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
         .eax
         .wrapping_add(unsafe { (c.ebp as *const u32).read_unaligned() });
     unsafe { q.write_unaligned(c.eax) };
-    if w(0x10C) == 0 || w(0x10C) == 3 {
+    if revs_stopped(w(0x10C)) {
         return part(STOP, c);
     }
     x87_run!(

@@ -18,6 +18,9 @@
 //! Shadow mode runs the original alone and, for mode 0, checks the texture set it
 //! chose against the Rust arithmetic.
 //! Self-test: a redirected copy whose three calls note themselves.
+//!
+//! Converted 2026-10-21: the texture set and the way on through
+//! `rc2k_core::scene::shown`.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::{
@@ -53,59 +56,49 @@ const BLOCKS_RVA: usize = rva(0x71B3B8); // g_carBlocks
 const FACE_COUNTS_RVA: usize = rva(0x632F70); // dword_632F70
 const MODE_RVA: usize = rva(0x6365C4); // dword_6365C4
 const DESCRIBED_RVA: usize = rva(0x451B61); // scene::draw_described_object
-const OBJECTS: u32 = 0x100;
-const OTHER_SET: u32 = 0x108;
 
 const TOO_HIGH: FatalError = FatalError {
     code: 0x8060_0A01,
     message: "object number too high",
 };
 
+use rc2k_core::scene::shown::OBJECTS;
 /// The two ways on from here.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Way {
-    /// `scene::draw_shown_object`.
-    Shown,
-    /// `scene::draw_described_object`.
-    Described,
-}
+pub use rc2k_core::scene::shown::Way;
 
 // ---- Rust version ----
 
 /// The texture set and the registers the choosing leaves. Writes only `r`.
+// Converted: `rc2k_core::scene::shown::texture_set`
 unsafe fn texture_set(r: &mut Regs) -> Result<u32, Refused> {
+    use rc2k_core::scene::shown::SetError;
     unsafe {
         let object: u32 = game_read(OBJECT_RVA);
         r.ebx = object;
-        if object >= OBJECTS {
-            return Err(TOO_HIGH.into());
-        }
-        let mut set = 0;
-        if game_read::<u32>(IN_RACE_RVA) == 0 {
-            r.eax = game_read(KINDS_RVA + object as usize * 4);
-            if r.eax == 0x23A {
-                set = OTHER_SET;
+        let t = rc2k_core::scene::shown::texture_set(
+            object,
+            game_read::<u32>(IN_RACE_RVA) != 0,
+            r.eax,
+            |object| game_read(KINDS_RVA + object as usize * 4),
+            |car| {
+                let block: u32 = game_read(BLOCKS_RVA + car as usize * 4);
+                (block != 0).then(|| ((block + 0x24) as *const u32).read_unaligned())
+            },
+        )
+        .map_err(|e| -> Refused {
+            match e {
+                SetError::TooHigh => TOO_HIGH.into(),
+                SetError::NoBlock => BadInput("a car without its block").into(),
             }
-        } else {
-            r.eax = object.wrapping_sub(0x50);
-            if r.eax < 0xA0 {
-                r.edx = r.eax % 0x14;
-                let block: u32 = game_read(BLOCKS_RVA + (r.eax / 0x14) as usize * 4);
-                if block == 0 {
-                    return Err(BadInput("a car without its block").into());
-                }
-                r.eax = ((block + 0x24) as *const u32).read_unaligned();
-                if r.eax == 0x21 {
-                    set = OTHER_SET;
-                }
-            }
-        }
-        r.ebx = object;
-        Ok(set)
+        })?;
+        r.eax = t.eax;
+        r.edx = t.edx.unwrap_or(r.edx);
+        Ok(t.set)
     }
 }
 
 /// `draw`: what stands for the two calls.
+// Converted: `rc2k_core::scene::shown::way`
 pub unsafe fn draw_scene_object(
     r: &mut Regs,
     draw: &mut dyn FnMut(Way, &mut Regs) -> Result<(), Refused>,
@@ -115,13 +108,10 @@ pub unsafe fn draw_scene_object(
         let set = texture_set(&mut left)?;
         *r = left;
         game_write(TEXTURE_SET_RVA, set);
-        if game_read::<u32>(FACE_COUNTS_RVA + r.ebx as usize * 4) == 0 {
-            return Ok(());
-        }
-        match game_read::<u32>(MODE_RVA) {
-            0 => draw(Way::Shown, r),
-            1 | 2 => draw(Way::Described, r),
-            _ => Ok(()),
+        let faces: u32 = game_read(FACE_COUNTS_RVA + r.ebx as usize * 4);
+        match rc2k_core::scene::shown::way(faces, game_read(MODE_RVA)) {
+            Some(way) => draw(way, r),
+            None => Ok(()),
         }
     }
 }

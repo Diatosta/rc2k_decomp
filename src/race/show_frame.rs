@@ -104,7 +104,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             *r = Regs {
                 eflags: flags,
                 ..unsafe {
-                    crate::race::measure_frame_rate::measure_frame_rate(
+                    // Converted: the measuring's `_plain` version (the frame's comparison
+                    // runs the original alone).
+                    crate::race::measure_frame_rate::measure_frame_rate_plain(
                         r,
                         &mut crate::race::measure_frame_rate::rdtsc,
                     )

@@ -31,21 +31,21 @@ hook_asm!(
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn lock_texture(entry: &Regs) -> Result<Regs, Refused> {
-    if entry.eax >= 0x140 {
-        return Err(BadInput("a texture past the pool").into());
-    }
+    use rc2k_core::d3d::textures::{LOCK_FAILED, LOCKED_TWICE, Lock, lock};
+    // Converted: `rc2k_core::d3d::textures::lock`.
     let r = record(entry.eax);
-    let surface = get(r + 0x14);
-    if surface != 0 {
-        if get(r + 0x60) == 1 {
-            return Err(fatal(0x8021A171).into());
+    let surface = if entry.eax < 0x140 { get(r + 0x14) } else { 0 };
+    match lock(entry.eax, surface, || get(r + 0x60)).map_err(BadInput::from)? {
+        Lock::Nothing => {}
+        Lock::Twice => return Err(fatal(LOCKED_TWICE).into()),
+        Lock::Lock => {
+            let d = game_addr(DESCRIPTION_RVA) as u32;
+            if unsafe { method(surface, 0x64, &[0, d, 1, 0]) } != 0 {
+                return Err(fatal(LOCK_FAILED).into());
+            }
+            put(r + 0x60, 1);
+            crate::d3d::texture_surface_info::texture_surface_info(r)?;
         }
-        let d = game_addr(DESCRIPTION_RVA) as u32;
-        if unsafe { method(surface, 0x64, &[0, d, 1, 0]) } != 0 {
-            return Err(fatal(0x8021A172).into());
-        }
-        put(r + 0x60, 1);
-        crate::d3d::texture_surface_info::texture_surface_info(r)?;
     }
     let mut g = *entry;
     let (carry, zero) = compared_with_one(get(r + 0x60));

@@ -15,6 +15,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::input::effects::compare;
 use crate::net::{CAR, Part, SEND_EXTRA, SEND_INPUTS, SEND_POSITION, a, dispatch_net};
 use crate::system::api_stand_ins::copy_with;
+use rc2k_core::net::race::SENT;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -32,13 +33,14 @@ hook_asm!(
 /// The Rust version, the count read at `steps`.
 pub fn send_turn_with(r: &mut Regs, steps: u32, part: Part) -> Result<(), Refused> {
     let count = || unsafe { (steps as *const u32).read_volatile() };
-    for (mask, value, place) in [
-        (3, 0, SEND_INPUTS),
-        (0x1F, 2, SEND_POSITION),
-        (0xFF, 1, SEND_EXTRA),
-    ] {
-        r.eax = count() & mask;
-        if r.eax == value {
+    // Converted: `rc2k_core::net::race::Kind::due`.
+    for (kind, place) in SENT
+        .into_iter()
+        .zip([SEND_INPUTS, SEND_POSITION, SEND_EXTRA])
+    {
+        let (due, masked) = kind.due(count());
+        r.eax = masked;
+        if due {
             part(place, r)?;
         }
     }

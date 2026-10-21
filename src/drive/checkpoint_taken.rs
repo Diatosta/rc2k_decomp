@@ -16,6 +16,7 @@ use crate::drive::car_near_checkpoint::near_at;
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva};
 use crate::physics::flag_result::{FlagResult, dispatch_flags};
+use rc2k_core::physics::line_places;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -38,6 +39,7 @@ const CARS: [usize; 4] = [0x70F3EC, 0x7103CC, 0x7113AC, 0x71238C];
 const COUNT_RVA: usize = rva(0x623640); // g_checkpointCount
 
 /// The Rust core: the four cars at `cars`, the count `count`; `r` at entry.
+// Converted: `rc2k_core::physics::line_places::checkpoint_taken`.
 pub unsafe fn taken_at(cars: [u32; 4], count: u32, r: &Regs) -> FlagResult {
     let result = |carry| FlagResult {
         eax: r.eax,
@@ -46,15 +48,9 @@ pub unsafe fn taken_at(cars: [u32; 4], count: u32, r: &Regs) -> FlagResult {
         carry,
         zero: None,
     };
-    let c = r.eax;
-    if (c.wrapping_sub(8) as i32) < 0 {
-        return result(true);
-    }
-    if (c.wrapping_sub(count.wrapping_sub(8)) as i32) >= 0 {
-        return result(true);
-    }
-    let blocked = cars.iter().any(|&car| unsafe { near_at(car, r) }.carry);
-    result(blocked)
+    result(line_places::checkpoint_taken(r.eax, count, || {
+        cars.iter().any(|&car| unsafe { near_at(car, r) }.carry)
+    }))
 }
 
 /// The Rust version.

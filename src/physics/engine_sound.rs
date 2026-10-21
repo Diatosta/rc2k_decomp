@@ -27,7 +27,8 @@ use crate::physics::gear_change_sound::gear_change_sound;
 use crate::scene::matrix3::extended;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
-use std::cmp::Ordering;
+use rc2k_core::physics::engine::ease_revs;
+use rc2k_core::physics::x87::hold_low;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -84,6 +85,8 @@ unsafe fn run() {
 }
 
 /// The Rust version.
+// Converted: `rc2k_core::physics::engine::ease_revs` and `x87::hold_low` (the speed figures
+// and the rounding stay x87).
 pub unsafe fn engine_sound() -> Result<Left, Refused> {
     let o = g(0x512A10 + 4 * (g(0x71B3F8) & 7) as usize);
     if o == 0 {
@@ -95,22 +98,11 @@ pub unsafe fn engine_sound() -> Result<Left, Refused> {
     unsafe { run() };
     p(0x62400C, x87::loaded(g(0x71A1B0)));
     let floor = g(0x6140F8);
-    let below = !matches!(
-        f32::from_bits(g(0x62400C)).partial_cmp(&f32::from_bits(floor)),
-        Some(Ordering::Greater | Ordering::Equal)
-    );
-    if below {
-        p(0x62400C, x87::loaded(floor));
-    }
+    let held = hold_low(f32::from_bits(g(0x62400C)), f32::from_bits(floor));
+    p(0x62400C, held.to_bits());
     p(0x62400C, ext_to_int(extended(g(0x62400C))) as u32);
-    let step = ((g(0x62400C).wrapping_sub(g(0x71A1BC)).wrapping_mul(50)) as i32 >> 8) as u32;
-    p(0x71A1BC, g(0x71A1BC).wrapping_add(step));
-    if (g(0x71A1BC).wrapping_sub(2000) as i32) < 0 {
-        p(0x71A1BC, 2000);
-    }
-    if (g(0x71A1BC).wrapping_sub(12000) as i32) >= 0 {
-        p(0x71A1BC, 12000);
-    }
+    let (revs, step) = ease_revs(g(0x71A1BC), g(0x62400C));
+    p(0x71A1BC, revs);
     unsafe { car_sound_state() }?;
     let left = unsafe { gear_change_sound() }?;
     Ok(left.with(EAX, step))

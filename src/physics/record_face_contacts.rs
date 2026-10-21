@@ -14,7 +14,7 @@
 //! stage (everything written saved and put back): the records of the car's cell where it
 //! is and of object faces with the car moved onto them.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, hook_asm, rva};
 use crate::physics::face_contact::{
     self, Touched, faces_region, guarded, in_race_test, move_car_onto, object_faces,
@@ -22,6 +22,7 @@ use crate::physics::face_contact::{
 use crate::physics::flow::g;
 use crate::screens::harness::Left;
 use crate::service::harness::check_state;
+use rc2k_core::physics::ground_search;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -54,26 +55,18 @@ pub fn record_faces(n: u32) -> (u32, u32) {
 }
 
 /// The steps, not guarded.
+// Converted: `rc2k_core::physics::ground_search::each_face`.
 pub fn steps(r: &mut Regs, touched: &mut Touched) -> Result<(), Refused> {
     let (first, last) = record_faces(r.ebx);
-    // A first face of -1 is none (the original's `cmp ebx, -1 / jz`), whatever the last.
-    if first <= last && first != u32::MAX && (last == u32::MAX || last >= g(0x5CCD1C)) {
-        return Err(BadInput("a record whose faces run to -1 or past g_courseFaceCount").into());
-    }
-    r.esi = (r.ebx << 5).wrapping_add(g(RECORDS));
-    r.ebx = first;
-    if r.ebx > last || r.ebx == u32::MAX {
-        return Ok(());
-    }
-    loop {
-        let (esi, ebx) = (r.esi, r.ebx);
+    let record = (r.ebx << 5).wrapping_add(g(RECORDS));
+    r.esi = record;
+    r.ebx = ground_search::each_face(first, last, g(0x5CCD1C), |face| {
+        r.ebx = face;
         face_contact::steps(r, touched)?;
-        r.esi = esi;
-        r.ebx = ebx + 1;
-        if r.ebx > rd(r.esi + 0xC) {
-            return Ok(());
-        }
-    }
+        r.esi = record;
+        Ok::<_, Refused>(())
+    })?;
+    Ok(())
 }
 
 /// The Rust version.

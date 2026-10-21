@@ -14,11 +14,12 @@
 //! whose call goes to a noting stand-in, against the Rust version: counts 0, 1, 0x40,
 //! 0xFF, sequence bytes either side of the wrap.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::input::effects::compare;
 use crate::net::{Part, SEND, a, dispatch_net};
 use crate::system::api_stand_ins::copy_with;
+use rc2k_core::net::inbox;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -35,7 +36,6 @@ hook_asm!(
 
 const SEQUENCE: usize = 0x52A915; // byte_52A915
 const BUFFER: usize = 0x52AA68; // byte_52AA68: 0x100 bytes
-const BUFFER_LEN: u32 = 0x100;
 const TO: usize = 0x5AB274; // dword_5AB274: whom to send to
 
 /// Where the variables are.
@@ -59,16 +59,15 @@ impl Vars {
 /// The Rust version on the variables in `v`.
 pub fn send_message_with(r: &mut Regs, v: &Vars, part: Part) -> Result<(), Refused> {
     let count = r.ecx;
-    if count >= BUFFER_LEN {
-        return Err(BadInput("a message longer than the buffer's 0x100 bytes").into());
-    }
+    // Converted: `rc2k_core::net::inbox` (`next_sequence`, `outgoing`: a message too long
+    // refused before anything is written).
     unsafe {
         let seq = v.sequence as *mut u8;
-        let byte = seq.read_volatile().wrapping_add(1) | 0x80;
+        let byte = inbox::next_sequence(seq.read_volatile());
+        let bytes = std::slice::from_raw_parts(r.ebx as *const u8, count as usize);
+        let message = inbox::outgoing(byte, bytes)?;
         seq.write_volatile(byte);
-        let out = v.buffer as *mut u8;
-        out.write_volatile(byte);
-        std::ptr::copy(r.ebx as *const u8, out.add(1), count as usize);
+        std::ptr::copy(message.as_ptr(), v.buffer as *mut u8, message.len());
         r.eax = (v.to as *const u32).read_volatile();
     }
     let (esi, edi) = (r.esi, r.edi);

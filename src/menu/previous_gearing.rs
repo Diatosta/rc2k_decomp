@@ -31,6 +31,7 @@ hook_asm!(
 );
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
+    // Converted: `rc2k_core::screens::captions::step_gearing` (through `screens::gearing_text`).
     unsafe { step_gearing(false) }?;
     Ok(Left::nothing())
 }

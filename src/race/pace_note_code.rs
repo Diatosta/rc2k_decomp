@@ -37,7 +37,7 @@ pub fn pace_note_code(r: &Regs, course: Course) -> Result<Left, crate::errors::R
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &[], &|r| {
-        pace_note_code(r, Course::game())
+        pace_note_code(r, crate::race::pace_notes::game_course())
     });
 }
 

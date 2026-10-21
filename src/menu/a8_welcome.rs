@@ -15,8 +15,9 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
-use crate::menu::championship_welcome::{NO_PICTURE, TITLE_BAR, addr, zero};
 use crate::menu::event_flow::*;
+use crate::menu::flow_game::Game;
+use rc2k_core::menu::welcome::{self, ESCAPE};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -35,36 +36,9 @@ hook_asm!(
     ungated
 );
 
-const PICTURE: usize = 0x731C2F; // "files\g\graphics\screens\a8_welc.png"
-const ESCAPE: u8 = 1;
-
 pub unsafe fn a8_welcome(entry: &Regs, call: Call) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    loop {
-        g.eax = addr(PICTURE);
-        g.ebx = addr(TITLE_BAR);
-        call(LOAD_PICTURE_WITH_OVERLAY, &mut g)?;
-        if g.carry() {
-            return Err(NO_PICTURE.into());
-        }
-        call(CONVERT_PICTURE, &mut g)?;
-        loop {
-            g.eax = addr(PICTURE_FRAME);
-            call(RUN_FRAME, &mut g)?;
-            call(TAKE_KEY, &mut g)?;
-            if !zero(&g) {
-                break;
-            }
-        }
-        if g.eax as u8 != ESCAPE {
-            break;
-        }
-        call(CONFIRM_LEAVING, &mut g)?;
-        if get(ANSWER) == 1 {
-            break;
-        }
-    }
-    call(TAKE_KEY, &mut g)?;
+    // Converted: `rc2k_core::menu::welcome::a8_welcome`.
+    welcome::a8_welcome(&mut Game::new(entry, call))?;
     Ok(*entry)
 }
 

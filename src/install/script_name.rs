@@ -9,10 +9,12 @@
 //! manual patch. Shadow mode compares. Self-test: scripts of the test's against the
 //! original.
 
+use crate::bridge::Raw;
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::install::installer::{CF, ZF, rb, wb};
+use crate::install::installer::{CF, ZF, wb};
 use crate::race::viewer::dispatch_regs;
+use rc2k_core::install::script;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -29,29 +31,27 @@ hook_asm!(
     original = ORIGINAL
 );
 
-pub const NAME_LIMIT: u32 = 0x1000;
-
 pub fn script_name(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
-    for _ in 0..NAME_LIMIT {
-        let al = rb(r.ebx);
-        r.eax = r.eax & !0xFF | al as u32;
-        r.set_carry(al < 0x20);
-        r.set_zero(al == 0x20);
-        if al < 0x20 {
-            wb(r.esi, 0);
-            return Ok(r);
-        }
-        wb(r.esi, al);
-        r.ebx = r.ebx.wrapping_add(1);
+    // Converted: `rc2k_core::install::script::script_name` (read whole, then written; a
+    // name with no end is refused before anything is written).
+    let script = unsafe { Raw::new(r.ebx as *const u8) };
+    let (name, stop) = script::script_name(&script)?;
+    for &c in &name {
+        wb(r.esi, c);
         r.esi = r.esi.wrapping_add(1);
     }
-    Err(crate::errors::BadInput("a script name with no control byte in 0x1000 bytes").into())
+    wb(r.esi, 0);
+    r.ebx = r.ebx.wrapping_add(name.len() as u32);
+    r.eax = r.eax & !0xFF | stop as u32;
+    r.set_carry(true);
+    r.set_zero(false);
+    Ok(r)
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     // the destination is `byte_95EAF8`, up to the source's length
-    let regions = [(r.esi, NAME_LIMIT as usize)];
+    let regions = [(r.esi, script::NAME_LIMIT)];
     dispatch_regs(&HOOK, r, call_original, &regions, CF | ZF, &script_name);
 }
 

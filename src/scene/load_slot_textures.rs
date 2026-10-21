@@ -38,14 +38,12 @@ hook_asm!(
 
 // ---- Rust version ----
 
+// Converted: `rc2k_core::scene::textures::slots_in_use`
 pub unsafe fn load_slot_textures(
     load: &mut dyn FnMut(u32) -> Result<(), BadInput>,
 ) -> Result<Left, BadInput> {
     unsafe {
-        let count: u32 = game_read(SLOT_COUNT_RVA);
-        if count == 0 || count > SLOTS {
-            return Err(BadInput("no texture slots, or more than the table has"));
-        }
+        let count = rc2k_core::scene::textures::slots_in_use(game_read(SLOT_COUNT_RVA))?;
         for slot in 0..count {
             load(slot)?;
         }

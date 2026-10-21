@@ -30,23 +30,22 @@ hook_asm!(
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn unlock_texture(entry: &Regs) -> Result<Regs, Refused> {
-    if entry.eax >= 0x140 {
-        return Err(BadInput("a texture past the pool").into());
-    }
+    use rc2k_core::d3d::textures::{UNLOCK_FAILED, Unlock, unlock};
+    // Converted: `rc2k_core::d3d::textures::unlock`.
     let r = record(entry.eax);
-    let surface = get(r + 0x14);
+    let surface = if entry.eax < 0x140 { get(r + 0x14) } else { 0 };
     let mut g = *entry;
-    let (carry, zero) = if surface == 0 {
-        (false, true)
-    } else if get(r + 0x60) != 1 {
-        compared_with_one(get(r + 0x60))
-    } else {
-        if unsafe { method(surface, 0x80, &[0]) } != 0 {
-            return Err(fatal(0x8021A173).into());
-        }
-        put(r + 0x60, 0);
-        (false, true)
-    };
+    let (carry, zero) =
+        match unlock(entry.eax, surface, || get(r + 0x60)).map_err(BadInput::from)? {
+            Unlock::Flags(carry, zero) => (carry, zero),
+            Unlock::Unlock => {
+                if unsafe { method(surface, 0x80, &[0]) } != 0 {
+                    return Err(fatal(UNLOCK_FAILED).into());
+                }
+                put(r + 0x60, 0);
+                (false, true)
+            }
+        };
     g.set_carry(carry);
     g.set_zero(zero);
     Ok(g)

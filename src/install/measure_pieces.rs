@@ -24,6 +24,7 @@ use crate::install::installer::{
 use crate::install::lay_out_pieces::{MOST_PIECES, PIECE};
 use crate::install::list_test::TestList;
 use crate::race::viewer::{Saved, dispatch_parts};
+use rc2k_core::install::pieces::{self, Way};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -54,51 +55,54 @@ pub fn measure_pieces(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     loop {
         let left = r.ecx;
         let esi = r.esi;
-        if rb(esi) & 0x20 != 0 {
-            let kind = rb(esi + 1);
-            let low = kind & 3;
-            wb(esi + 1, (low << 2) | (kind - low));
+        // Converted: `rc2k_core::install::pieces` (`measured_kind`, `Way`,
+        // `measure_colour_at`).
+        let marks = rb(esi);
+        if marks & 0x20 != 0 {
+            wb(esi + 1, pieces::measured_kind(marks, rb(esi + 1)));
         }
-        if rb(esi + 1) & 0x10 == 0 {
-            r.eax = (rb(esi) & 0x10) as u32 | (rb(esi + 1) & 0xF) as u32;
-            let font = rb(a(COLOURS) + 5 + 8 * r.eax) as u32;
-            r.eax = rw(esi + 2) as u32;
-            r.ebx = font_of(font);
-            part(at(MEASURE_STRING), &mut r)?;
-        } else {
-            let kind = rb(esi) & 0xF;
-            r.eax = r.eax & !0xFF | kind as u32;
-            match kind {
-                4 => {
-                    r.edi = rd(esi + 4);
-                    let record = rd(r.edi + 0xC);
-                    r.ecx = rw(record + 6) as u32;
-                    r.edx = rb(a(COLOURS) + 7 + 8 * rb(record + 4) as u32) as u32;
-                    r.edx = (r.edx as u8) as u32;
-                }
-                5 => {
-                    r.edi = rd(esi + 4);
-                    r.eax = rw(esi + 2) as u32;
-                    r.ebx = a(TEXT);
-                    append_string_by_id(&mut r);
-                    let action = rd(r.edi + 0xC);
-                    if action != 0 {
-                        r.eax = rd(r.edi + 8);
-                        part(action, &mut r)?;
+        match Way::of(marks, rb(esi + 1)) {
+            Way::String { font_kind } => {
+                r.eax = font_kind;
+                let font = rb(a(COLOURS) + pieces::measure_colour_at(font_kind)) as u32;
+                r.eax = rw(esi + 2) as u32;
+                r.ebx = font_of(font);
+                part(at(MEASURE_STRING), &mut r)?;
+            }
+            way => {
+                r.eax = r.eax & !0xFF | (marks & 0xF) as u32;
+                match way {
+                    Way::Edit => {
+                        r.edi = rd(esi + 4);
+                        let record = rd(r.edi + 0xC);
+                        r.ecx = rw(record + 6) as u32;
+                        r.edx = rb(a(COLOURS) + 7 + 8 * rb(record + 4) as u32) as u32;
                     }
-                    append_byte(&mut r, 0);
-                    let font = rb(a(COLOURS) + 5 + 8 * rb(r.edi + 1) as u32) as u32;
-                    r.ebx = a(TEXT);
-                    r.eax = font_of(font);
-                    part(at(MEASURE_TEXT), &mut r)?;
+                    Way::Text => {
+                        r.edi = rd(esi + 4);
+                        r.eax = rw(esi + 2) as u32;
+                        r.ebx = a(TEXT);
+                        append_string_by_id(&mut r);
+                        let action = rd(r.edi + 0xC);
+                        if action != 0 {
+                            r.eax = rd(r.edi + 8);
+                            part(action, &mut r)?;
+                        }
+                        append_byte(&mut r, 0);
+                        let kind = rb(r.edi + 1) as u32;
+                        let font = rb(a(COLOURS) + pieces::measure_colour_at(kind)) as u32;
+                        r.ebx = a(TEXT);
+                        r.eax = font_of(font);
+                        part(at(MEASURE_TEXT), &mut r)?;
+                    }
+                    Way::Action => {
+                        r.edi = rd(esi + 4);
+                        r.eax = rd(r.edi + 4);
+                        r.ecx = rd(r.eax + 8);
+                        r.edx = rd(r.eax + 0xC);
+                    }
+                    _ => {}
                 }
-                6 => {
-                    r.edi = rd(esi + 4);
-                    r.eax = rd(r.edi + 4);
-                    r.ecx = rd(r.eax + 8);
-                    r.edx = rd(r.eax + 0xC);
-                }
-                _ => {}
             }
         }
         wd(esi + 0x10, r.ecx);

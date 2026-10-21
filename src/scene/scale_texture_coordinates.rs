@@ -17,7 +17,6 @@ use crate::errors::Refused;
 use crate::framework::{
     EAX, ECX, ESI, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
 };
-use crate::math::x87;
 use crate::scene::draw_polygon::{SWITCH_A_RVA, SWITCH_B_RVA};
 use crate::scene::polygon::{ENTRIES, ENTRIES_RVA, ENTRY_LEN, LIST_RVA, dword, listed, put};
 use crate::screens::harness::Left;
@@ -47,7 +46,9 @@ const WORK_RVA: usize = rva(0x5183C0); // dword_5183C0, flt_5183C4
 
 // ---- Rust version ----
 
+// Converted: `rc2k_core::scene::texture_coordinates`
 pub unsafe fn scale_texture_coordinates() -> Result<Left, Refused> {
+    use rc2k_core::scene::texture_coordinates as coordinates;
     unsafe {
         if game_read::<i32>(COUNT_RVA) <= 0 {
             return Ok(Left::nothing());
@@ -63,11 +64,10 @@ pub unsafe fn scale_texture_coordinates() -> Result<Left, Refused> {
                 }
                 for at in [entry + 8 + pair * 8, entry + 0xC + pair * 8] {
                     eax = dword(at);
-                    if eax != 0 {
-                        let float = x87::from_int(eax as i32);
+                    if let Some(float) = coordinates::float_of(eax) {
                         game_write(WORK_RVA, [eax, float]);
-                        eax = float.wrapping_sub(0x0C00_0000);
                     }
+                    eax = coordinates::scaled(eax);
                     put(at, eax);
                 }
             }

@@ -37,7 +37,8 @@ pub fn race_over(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     p(RACE_OVER, 0);
     p(OWN_TIME, r.eax);
     p(OWN_TOTAL, g(OWN_TOTAL).wrapping_add(r.eax));
-    pb(OWN, gb(OWN) & 0xFC | 4);
+    // Converted: `rc2k_core::net::players::raced`.
+    pb(OWN, rc2k_core::net::players::raced(gb(OWN)));
     p(BACK_FROM_RACE, 1);
     part(LIST_PLAYERS, &mut r)?;
     Ok(Regs {

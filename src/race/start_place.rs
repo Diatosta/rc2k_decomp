@@ -146,9 +146,10 @@ pub fn place_regions() -> Vec<Region> {
 /// eax the z difference, ebx and esi the point's number and address. Refuses a checkpoint
 /// past the list.
 pub unsafe fn distance_to_checkpoint(entry: &Regs) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::checkpoints::on_line`; the distance the x87's.
     let c = entry.ecx;
     let count: u32 = unsafe { game_read(CHECK_COUNT_RVA) };
-    if (c as i32) < 0 || (c.wrapping_sub(count) as i32) >= 0 {
+    if !rc2k_core::race::checkpoints::on_line(c, count) {
         unsafe { game_write(SCRATCH_RVA, u32::MAX) };
         return Ok(*entry);
     }
@@ -218,10 +219,12 @@ pub unsafe fn nearest_checkpoint(entry: &Regs) -> Result<Regs, Refused> {
             ..*entry
         })?;
         game_write(SCRATCH_RVA, g.edi);
-        game_write(
-            NEAREST_DISTANCE_RVA,
-            x87::int_div(g.edi as i32, game_read(SCALE_RVA)),
+        // Converted: `rc2k_core::race::checkpoints::distance_units`.
+        let units = rc2k_core::race::checkpoints::distance_units(
+            g.edi,
+            f32::from_bits(game_read(SCALE_RVA)),
         );
+        game_write(NEAREST_DISTANCE_RVA, units.to_bits());
         g.eax = g.ebp;
         Ok(g)
     }

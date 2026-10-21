@@ -3,7 +3,9 @@
 //! from `race::draw_distance_settings` 0x43932A, `sample_noise` 0x44FD38, `fog_table`
 //! 0x44FC33, `eax_environment` 0x45C7EE, `find_sound_spots` 0x45C605,
 //! `cell_sound_spots` 0x45C6B8, `gather_visible_faces` 0x454B71 and the rules of
-//! `face_sound_spot` 0x45C6ED).
+//! `face_sound_spot` 0x45C6ED; the fog's colour and the mirror's window converted
+//! 2026-10-21 from `race::set_up_fog` 0x44FBD9 and `race::mirror_view_window` 0x455F17;
+//! the sound spots' sharing converted 2026-10-21 from `race::share_sound_spots` 0x45C7B9).
 
 /// The draw distance's highest level.
 pub const MOST_LEVEL: i32 = 4;
@@ -215,9 +217,90 @@ pub fn spot_place(point: [u32; 3], offset: [u32; 3]) -> [u32; 3] {
     [0, 1, 2].map(|k| point[k].wrapping_add(offset[k]))
 }
 
+/// `race::set_up_fog`'s fog colour from the stage's red, green and blue (each shifted into
+/// its byte and added, as dwords).
+pub fn fog_colour(red: u32, green: u32, blue: u32) -> u32 {
+    (red << 16).wrapping_add(green << 8).wrapping_add(blue)
+}
+
+/// The fog colour as the device takes it (opaque).
+pub fn device_fog_colour(colour: u32) -> u32 {
+    colour | 0xFF00_0000
+}
+
+/// The mirror's window on the screen (each even).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Window {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+/// The mirror's place's entry (8 bytes each in its tables): the first (`dword_6238A4`)
+/// plus three a view, six on when the second set is asked for (`dword_6D1502` 0).
+pub fn mirror_entry(first: u32, view: u32, second_set: bool) -> u32 {
+    let n = first.wrapping_add(view.wrapping_mul(3));
+    if second_set { n.wrapping_add(6) } else { n }
+}
+
+/// The mirror's width and height on an 800 x 600 screen.
+pub const MIRROR_SIZE: (u32, u32) = (0xB3, 0x40);
+
+/// `n` x `size` / `of` (unsigned, 64 bits over 32 as `mul` / `div`), even; None where the
+/// original's `div` would fault.
+fn scaled(n: u32, size: u32, of: u32) -> Option<u32> {
+    let q = n as u64 * size as u64 / of as u64;
+    (q <= u32::MAX as u64).then_some(q as u32 & !1)
+}
+
+/// `race::mirror_view_window`'s window: its corner (`place`, on 800 x 600) and size scaled
+/// to the screen. None where the scaling would fault.
+pub fn mirror_window(place: (u32, u32), screen: (u32, u32)) -> Option<Window> {
+    Some(Window {
+        x: scaled(place.0, screen.0, 800)?,
+        y: scaled(place.1, screen.1, 600)?,
+        width: scaled(MIRROR_SIZE.0, screen.0, 800)?,
+        height: scaled(MIRROR_SIZE.1, screen.1, 600)?,
+    })
+}
+
+/// The sound spots a frame makes and the sound side's table holds.
+pub const MOST_SHARED_SPOTS: u32 = 36;
+/// A sound spot's bytes.
+pub const SPOT_BYTES: u32 = 0x14;
+
+/// `race::share_sound_spots`: the bytes of the frame's spots handed to the sound side;
+/// refused past 36 (past both tables).
+pub fn shared_spot_bytes(count: u32) -> Result<u32, crate::Invalid> {
+    if count > MOST_SHARED_SPOTS {
+        return Err(crate::Invalid("more than 36 sound spots"));
+    }
+    Ok(count * SPOT_BYTES)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fog_and_mirror() {
+        assert_eq!(fog_colour(0x12, 0x34, 0x56), 0x12_3456);
+        assert_eq!(fog_colour(0x100, 0, 0), 0x0100_0000);
+        assert_eq!(device_fog_colour(0x12_3456), 0xFF12_3456);
+        assert_eq!(mirror_entry(4, 1, false), 7);
+        assert_eq!(mirror_entry(4, 1, true), 13);
+        assert_eq!(
+            mirror_window((0x139, 0x10), (1024, 768)),
+            Some(Window {
+                x: 0x190,
+                y: 0x14,
+                width: 0xE4,
+                height: 0x50
+            })
+        );
+        assert_eq!(mirror_window((u32::MAX, 0), (u32::MAX, 600)), None);
+    }
 
     #[test]
     fn draw_distance() {
@@ -293,5 +376,12 @@ mod tests {
         assert!(takes_spot(0x23, 0x15) && !takes_spot(0x24, 1) && !takes_spot(0, 0));
         assert!(!takes_spot(0, 0x16));
         assert_eq!(spot_place([1, u32::MAX, 3], [1, 1, 1]), [2, 0, 4]);
+    }
+
+    #[test]
+    fn shared_spots() {
+        assert_eq!(shared_spot_bytes(36), Ok(36 * 0x14));
+        assert_eq!(shared_spot_bytes(0), Ok(0));
+        assert!(shared_spot_bytes(37).is_err());
     }
 }

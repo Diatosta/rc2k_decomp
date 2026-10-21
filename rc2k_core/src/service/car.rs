@@ -1,8 +1,10 @@
 //! The car's condition in the service area (converted 2026-10-21 from
 //! `service::repair_body` .. `repair_suspension`, `reset_tyre_wear` 0x486EDD and
 //! `repair_car` 0x486F63): each part has a run of the player's wear dwords and a damage
-//! dword; a repair zeroes both.
+//! dword; a repair zeroes both. The service area's picture for a car converted the same
+//! day from `service::load_background` 0x470F55 (`background`).
 
+use crate::Invalid;
 use crate::menu::player::Player;
 
 /// A part the service area repairs whole.
@@ -63,6 +65,19 @@ impl Player {
     }
 }
 
+/// The service area's pictures (`files\g\graphics\screens\servNN.png`).
+pub const PICTURES: u32 = 60;
+
+/// The picture of the service area for a car: car 0x21 has car 0x17's. Refuses a car
+/// past the pictures' table.
+pub fn background(car: u32) -> Result<u32, Invalid> {
+    let car = if car == 0x21 { 0x17 } else { car };
+    if car >= PICTURES {
+        return Err(Invalid("a car past the service pictures' table"));
+    }
+    Ok(car)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -110,5 +125,12 @@ mod tests {
             assert_eq!(dword(&p, at), 0x1111_1111, "{at:#x}");
         }
         assert_eq!(dword(&p, 0x278), u32::MAX);
+    }
+
+    #[test]
+    fn pictures() {
+        assert_eq!(background(0x21), Ok(0x17));
+        assert_eq!(background(5), Ok(5));
+        assert!(background(60).is_err());
     }
 }

@@ -1,7 +1,7 @@
 //! The marks' splines' whole-number steps (converted 2026-10-21 from
 //! `marks::add_face_points` 0x4B9E29, `centre_spline_points` 0x4B9F95,
-//! `grade_spline_points` 0x4BA316, `order_spline_points` 0x4BA388 and `find_spline_ends`
-//! 0x4BA4F1): a spline record (`MarkSpline`, 0xE90 bytes) holds up to 0x80 points of an
+//! `grade_spline_points` 0x4BA316, `order_spline_points` 0x4BA388, `find_spline_ends`
+//! 0x4BA4F1 and the box of `bound_spline_points` 0x4B9E7D): a spline record (`MarkSpline`, 0xE90 bytes) holds up to 0x80 points of an
 //! object's faces of one kind, with their ids, two values each, a centre and a grade by
 //! height.
 
@@ -164,9 +164,52 @@ pub fn find_end(start: u32, count: u32, highest: bool, value: impl Fn(u32) -> u3
     end
 }
 
+/// A record's points' box (`bound_spline_points`): the smallest and the largest in each
+/// part (signed; the largest starts at 0x80000001, so a part of 0x80000000 is never the
+/// largest, and with no points the box is the starting values'), its size (largest less
+/// smallest, wrapping) and its middle (half the size, `sar`, plus the smallest).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Bounds {
+    pub low: [i32; 3],
+    pub high: [i32; 3],
+    pub size: [i32; 3],
+    pub middle: [i32; 3],
+}
+
+/// The box of `points` (as the record holds them: three whole numbers each).
+pub fn bounds(points: &[[u32; 3]]) -> Bounds {
+    let mut low = [i32::MAX; 3];
+    let mut high = [0x8000_0001u32 as i32; 3];
+    for p in points.iter().rev() {
+        for c in 0..3 {
+            let v = p[c] as i32;
+            low[c] = low[c].min(v);
+            high[c] = high[c].max(v);
+        }
+    }
+    let size: [i32; 3] = std::array::from_fn(|c| high[c].wrapping_sub(low[c]));
+    Bounds {
+        low,
+        high,
+        size,
+        middle: std::array::from_fn(|c| (size[c] >> 1).wrapping_add(low[c])),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn box_of_points() {
+        let b = bounds(&[[5, (-3i32) as u32, 10], [1, 7, 0x8000_0000]]);
+        assert_eq!(b.low, [1, -3, i32::MIN]);
+        assert_eq!(b.high, [5, 7, 10]);
+        assert_eq!(b.size, [4, 10, 10i32.wrapping_sub(i32::MIN)]);
+        assert_eq!(b.middle, [3, 2, (b.size[2] >> 1).wrapping_add(i32::MIN)]);
+        let none = bounds(&[]);
+        assert_eq!((none.size, none.middle), ([2; 3], [i32::MIN; 3]));
+    }
 
     #[test]
     fn steps() {

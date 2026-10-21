@@ -8,15 +8,19 @@
 //! Callers: the HUD's drawers (code at 0x4B28B0, ...). The quad through `part` (1), in the
 //! game its Rust version. Thunk by `two_kept_hook!`. Shadow mode runs the original alone
 //! (it draws). Self-test: a copy whose call goes to a stand-in, against the Rust version,
-//! rectangles and scales by lot.
+//! rectangles and scales by lot, at both test control words (the test's values are exact
+//! at both).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva, shadow};
 use crate::hud::add_quad::QUAD_RVA;
-use crate::hud::add_sprite::{positive, put_places};
+use crate::hud::add_sprite::{put_corners, put_places};
+use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::scene::matrix3::extended;
 use crate::scene::vector3::{Pair80, call_with_two_kept, two_kept_hook};
 use crate::service::harness::{Region, at, capture, restore};
+use rc2k_core::hud::quads;
+use rc2k_core::math::extended::to_f64;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -39,49 +43,36 @@ const SCRATCH_RVA: usize = rva(0x75C060); // dword_75C060
 /// A call by place: 1 `add_quad`.
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
-/// `fild i; fmul st, st(scale)` with the scale extended; `fistp`.
-fn int_times_80_to_int(i: u32, scale: [u8; 10]) -> u32 {
-    let (v, mut out) = (i, 0u32);
+/// The Rust version (see the header), the scales as `f64`s (what the x87 holds at the
+/// game's double precision): the registers it leaves.
+// Converted: `rc2k_core::hud::quads::{sprite_places, scaled_size, sprite_corners}`
+pub unsafe fn add_scaled_sprite_plain(
+    entry: &Regs,
+    scales: [f64; 2],
+    part: Part,
+) -> Result<Regs, Refused> {
     unsafe {
-        core::arch::asm!(
-            "fld tbyte ptr [{s}]",
-            "fild dword ptr [{v}]",
-            "fmul st, st(1)",
-            "fistp dword ptr [{o}]",
-            "fstp st(0)",
-            s = in(reg) scale.as_ptr(),
-            v = in(reg) &raw const v,
-            o = in(reg) &raw mut out,
-            out("st(0)") _, out("st(1)") _,
-            options(nostack),
-        )
+        let [_, _, w, h] = put_places(entry.esi);
+        let w = quads::scaled_size(w, scales[0]);
+        let h = quads::scaled_size(h, scales[1]);
+        game_write(SCRATCH_RVA, h);
+        put_corners(entry.ebx, entry.ecx, w, h);
+    }
+    let mut r = Regs {
+        eax: unsafe { game_read(QUAD_RVA + 4 * quads::BOTTOM) },
+        ..*entry
     };
-    out
+    part(1, &mut r)?;
+    Ok(*entry)
 }
 
-/// The Rust version (see the header): the registers it leaves.
+/// `add_scaled_sprite_plain` with the scales as the x87 holds them.
 pub unsafe fn add_scaled_sprite(
     entry: &Regs,
     scales: [[u8; 10]; 2],
     part: Part,
 ) -> Result<Regs, Refused> {
-    unsafe {
-        let [_, _, w, h] = put_places(entry.esi);
-        game_write(QUAD_RVA + 4, entry.ebx);
-        let w = int_times_80_to_int(w, scales[0]);
-        game_write(SCRATCH_RVA, w);
-        game_write(QUAD_RVA + 12, positive(w).wrapping_add(entry.ebx));
-        game_write(QUAD_RVA + 8, entry.ecx);
-        let h = int_times_80_to_int(h, scales[1]);
-        game_write(SCRATCH_RVA, h);
-        game_write(QUAD_RVA + 16, positive(h).wrapping_add(entry.ecx));
-    }
-    let mut r = Regs {
-        eax: unsafe { game_read(QUAD_RVA + 16) },
-        ..*entry
-    };
-    part(1, &mut r)?;
-    Ok(*entry)
+    unsafe { add_scaled_sprite_plain(entry, scales.map(to_f64), part) }
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
@@ -117,7 +108,10 @@ fn self_test() -> (usize, usize) {
     let regions: Vec<Region> = vec![(game_addr(QUAD_RVA) as u32, 0x38), at(SCRATCH_RVA)];
     let saved = capture(&regions);
     let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for case in 0..5u32 {
+    for (word, case) in TEST_CONTROL_WORDS
+        .into_iter()
+        .flat_map(|w| (0..5u32).map(move |c| (w, c)))
+    {
         let rect: [i32; 4] = [case as i32 * 8, 16, if case == 2 { -24 } else { 24 }, 13];
         let scales = [
             extended((0.75f32 + case as f32 * 0.5).to_bits()),
@@ -134,7 +128,9 @@ fn self_test() -> (usize, usize) {
         prepare();
         take_called();
         let mut ro = before;
-        unsafe { call_with_two_kept(&mut ro, copy.addr(), &scales) };
+        with_control_word(word, &mut || unsafe {
+            call_with_two_kept(&mut ro, copy.addr(), &scales)
+        });
         let theirs = (Some(regs(&ro)), take_called(), capture(&regions));
         prepare();
         let mine = unsafe {
@@ -150,7 +146,7 @@ fn self_test() -> (usize, usize) {
         );
         t.check(theirs == mine, || {
             format!(
-                "case {case}: original {:x?} {:x?}; rust {:x?} {:x?}; state same {}",
+                "control word {word:#x}, case {case}: original {:x?} {:x?}; rust {:x?} {:x?}; state same {}",
                 theirs.0,
                 theirs.1,
                 mine.0,

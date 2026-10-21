@@ -18,12 +18,15 @@
 //! stand-ins, against the Rust version, on one, two and eight players, the host first or
 //! not.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
+use crate::field;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::net::lobby::{
     ARCADE_CARS, LOAD_STAGE, LOG_INT_L1_NL, LOG_L1, LOG_L1_NL, PLAYER, PLAYERS, Part, START_STATES,
     Saved, block, dispatch_lobby, dword, fill, g, log_text, p, region, run_both,
 };
+use crate::net::types::NetPlayerBlock;
+use rc2k_core::net::record;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -89,29 +92,24 @@ const COUNTS: [(usize, usize); 11] = [
 
 /// The Rust version: the registers it leaves.
 pub fn set_up_race(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let players = g(PLAYERS);
-    if players == 0 || players > 8 {
-        return Err(BadInput("no players, or more than eight").into());
-    }
+    // Converted: `rc2k_core::net::record` (`race_players`, `seat`).
+    let players = record::race_players(g(PLAYERS))?;
     let mut r = *entry;
     p(LOCAL, g(PLAYER));
     r.ebp = 0;
     loop {
         r.esi = block(r.ebp);
-        let b = |offset: u32| unsafe { ((r.esi + offset) as *const u8).read() } as u32;
+        let at = r.esi + field!(NetPlayerBlock, record);
+        let seat = record::seat(|n| unsafe { ((at + n as u32) as *const u8).read() });
         let slot = 4 * r.ebp as usize;
-        r.eax = b(0x25);
-        p(KINDS + slot, r.eax);
-        r.eax = b(0x26);
-        p(COLOURS + slot, r.eax);
-        r.eax = b(0x2A);
-        p(NUMBERS + slot, r.eax);
-        r.eax = b(0x28);
-        if b(0x24) & 0x10 != 0 {
-            r.eax &= 0x7F;
-            p(STAGE, r.eax);
-            r.eax = b(0x29) & 1;
-            p(DIRECTION, r.eax);
+        p(KINDS + slot, seat.car);
+        p(COLOURS + slot, seat.colours);
+        p(NUMBERS + slot, seat.race_number);
+        r.eax = unsafe { ((at + record::STAGE as u32) as *const u8).read() } as u32;
+        if let Some((stage, direction)) = seat.stage {
+            p(STAGE, stage);
+            p(DIRECTION, direction);
+            r.eax = direction;
         }
         r.ebp += 1;
         if r.ebp == players {

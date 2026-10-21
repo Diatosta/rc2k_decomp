@@ -53,20 +53,19 @@ pub unsafe fn squares_step(entry: &Regs) -> Result<Regs, Refused> {
     done
 }
 
+// Converted: `rc2k_core::marks::steps::{steps, next_step}`
 unsafe fn run(entry: &Regs) -> Result<Regs, Refused> {
+    use rc2k_core::marks::steps;
     let mut g = *entry;
     unsafe {
         game_write(CLEARED_RVA, 0u32);
         let clock: u32 = game_read(CLOCK_RVA);
-        g.eax = game_read::<u32>(LATEST_RVA).wrapping_sub(clock) & 0xFF;
+        g.eax = steps::steps(game_read(LATEST_RVA), clock);
         game_write(LATEST_RVA, clock);
         for _ in 0..g.eax {
             g = pick_shapes(&g)?;
             g = expire_squares(&g);
-            game_write(
-                LATEST_RVA,
-                game_read::<u32>(LATEST_RVA).wrapping_add(1) & 0xFF,
-            );
+            game_write(LATEST_RVA, steps::next_step(game_read(LATEST_RVA)));
         }
         game_write(CLOCK_RVA, game_read::<u32>(LATEST_RVA));
     }

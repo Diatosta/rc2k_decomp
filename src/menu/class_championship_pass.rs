@@ -14,10 +14,11 @@
 //! call goes to a stand-in, against the Rust version on the same, on the game's tables;
 //! put back.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
 use crate::menu::standings::*;
 use crate::service::harness::{Region, at, capture, restore};
+use rc2k_core::menu::class_pages;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -52,11 +53,7 @@ pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 /// The first class (see the header).
 fn first_class() -> u32 {
     unsafe {
-        if game_read::<u32>(MODE_RVA) != 2 && game_read::<u32>(EVENT_MODE_RVA) == 0x13 {
-            0
-        } else {
-            1
-        }
+        class_pages::first_championship_class(game_read(MODE_RVA), || game_read(EVENT_MODE_RVA))
     }
 }
 
@@ -64,15 +61,18 @@ fn first_class() -> u32 {
 pub unsafe fn class_championship_pass(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     unsafe {
         let first = first_class();
-        let classes: u32 = game_read(CLASSES_RVA);
-        if classes <= first || classes > 0x100 {
-            return Err(BadInput("a class count the loop would run past").into());
-        }
+        // Converted: `rc2k_core::menu::class_pages` (`classes`, `has_player`).
+        let classes = class_pages::classes(first, game_read(CLASSES_RVA))?;
         let table: u32 = game_read(TABLE_B_RVA);
         let all = entries(table, B_ENTRY)?;
-        for class in first..classes {
+        for class in classes {
             game_write(FLAG_RVA, 0u32);
-            if !group_has_player(&all, 0x10, class) {
+            if !class_pages::has_player(
+                all.len(),
+                |n| get(all[n] + 0x10),
+                |n| get(all[n] + 4),
+                class,
+            ) {
                 continue;
             }
             game_write(FLAG_RVA, 1u32);

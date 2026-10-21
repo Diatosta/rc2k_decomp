@@ -29,13 +29,16 @@ hook_asm!(
 );
 
 /// The Rust version.
+// Converted: `rc2k_core::drive::replay_frames::records_inputs`.
 pub unsafe fn record_inputs_if() -> Left {
-    if g(0x5C5CE0) != 1 {
+    let Some(records) =
+        rc2k_core::drive::replay_frames::records_inputs(g(0x5C5CE0), g(0x71B3F8), || g(0x63DB94))
+    else {
         return Left::nothing();
-    }
+    };
     // The compare's `mov eax, dword_63DB94` stays when nothing else writes eax.
     let mut left = Left::nothing().with(EAX, g(0x63DB94));
-    if g(0x71B3F8) < g(0x63DB94) {
+    if records {
         let called = unsafe { crate::drive::record_inputs::record_inputs() };
         for &(reg, v) in &called.regs {
             left = left.with(reg, v);

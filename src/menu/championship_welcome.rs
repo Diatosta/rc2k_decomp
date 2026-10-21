@@ -19,9 +19,11 @@
 //! the frame through their hooks). Ungated (it waits). Shadow mode runs the original
 //! alone. Self-test: `event_flow::test_flow`, keys and the speech by script.
 
-use crate::errors::{FatalError, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva, shadow};
 use crate::menu::event_flow::*;
+use crate::menu::flow_game::Game;
+use rc2k_core::menu::welcome::{self, ESCAPE};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -42,17 +44,6 @@ hook_asm!(
     ungated
 );
 
-const SPEECH: usize = 0x50960E; // ";3files\%speech\rally\rally0.wav"
-const SPEECH_CHANNEL: usize = 0x755698; // dword_755698
-const PICTURE: usize = 0x731C09; // "files\g\graphics\screens\mob_welc.png"
-pub const TITLE_BAR: usize = 0x731C54; // "files\g\graphics\screens\titlebar.png"
-/// The picture that cannot be read: no message.
-pub const NO_PICTURE: FatalError = FatalError {
-    code: 0x8071_2345,
-    message: "",
-};
-const ESCAPE: u8 = 1;
-
 pub fn addr(a: usize) -> u32 {
     game_addr(rva(a)) as u32
 }
@@ -62,52 +53,8 @@ pub fn zero(g: &Regs) -> bool {
 }
 
 pub unsafe fn championship_welcome(entry: &Regs, call: Call) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    if get(CONTINUING) == 1 {
-        return Ok(*entry);
-    }
-    loop {
-        g.eax = addr(SPEECH);
-        g.ecx = get(SPEECH_CHANNEL);
-        call(START_STREAM, &mut g)?;
-        call(WAIT_FOR_COMMANDS, &mut g)?;
-        set(LEAVE, 0);
-        set(LEAVE_561, 0);
-        set(ANSWER, 0);
-        g.eax = addr(PICTURE);
-        g.ebx = addr(TITLE_BAR);
-        call(LOAD_PICTURE_WITH_OVERLAY, &mut g)?;
-        if g.carry() {
-            return Err(NO_PICTURE.into());
-        }
-        call(CONVERT_PICTURE, &mut g)?;
-        call(TAKE_KEY, &mut g)?;
-        g.eax = addr(PICTURE_FRAME);
-        call(RUN_FRAME, &mut g)?;
-        g.eax = 0xBB8;
-        call(WAIT_OR_KEY, &mut g)?;
-        if zero(&g) {
-            loop {
-                call(STREAM_PLAYING, &mut g)?;
-                if !zero(&g) || get(QUITTING) == 1 {
-                    return Ok(*entry);
-                }
-                call(TAKE_KEY, &mut g)?;
-                if !zero(&g) {
-                    break;
-                }
-            }
-        }
-        if g.eax as u8 != ESCAPE {
-            break;
-        }
-        call(STOP_STREAM, &mut g)?;
-        call(CONFIRM_LEAVING, &mut g)?;
-        if get(ANSWER) == 1 {
-            break;
-        }
-    }
-    call(STOP_STREAM, &mut g)?;
+    // Converted: `rc2k_core::menu::welcome::championship_welcome`.
+    welcome::championship_welcome(&mut Game::new(entry, call))?;
     Ok(*entry)
 }
 

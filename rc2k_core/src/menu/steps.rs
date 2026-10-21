@@ -7,7 +7,8 @@
 //! the event pages' row steps 0x4A3736 .. 0x4A37B5;
 //! the stage choice's `switch_stage_group`, `next_stage_sub` / `previous_stage_sub`,
 //! `next_stage_number` / `previous_stage_number`; the stage pages' `previous_stage_page`
-//! 0x46FAEE / `next_stage_page` 0x46FB27).
+//! 0x46FAEE / `next_stage_page` 0x46FB27; the graphics page's `menu::apply_screen_mode`
+//! 0x4703C2).
 
 /// A volume one less (below 0: 0) or one more (above 0x40: 0x40), signed.
 pub fn volume(value: i32, up: bool) -> i32 {
@@ -214,6 +215,28 @@ pub fn gearing_switch_text(switch: u32) -> u32 {
     if switch == 0 { 0x221 } else { 0x21F }
 }
 
+/// `menu::apply_screen_mode`: what the screen mode's setting (`sub_4045D6`) is asked:
+/// eax 1 the mode chosen, then, refused, 0 the mode before (a reading).
+pub const TRY_CHOSEN_MODE: u32 = 1;
+pub const BACK_TO_MODE: u32 = 0;
+
+/// What the graphics page's "apply" leaves: the highlighted item and `dword_74771C`, and
+/// the menu's sound.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Applied {
+    pub item: u32,
+    pub sound: u32,
+}
+
+/// The mode taken: item 1 and the sound 2; refused: item 3 and the sound 8.
+pub fn applied_mode(taken: bool) -> Applied {
+    if taken {
+        Applied { item: 1, sound: 2 }
+    } else {
+        Applied { item: 3, sound: 8 }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -365,5 +388,11 @@ mod tests {
             (gearing_switch_text(0), gearing_switch_text(1)),
             (0x221, 0x21F)
         );
+    }
+
+    #[test]
+    fn applied() {
+        assert_eq!(applied_mode(true), Applied { item: 1, sound: 2 });
+        assert_eq!(applied_mode(false), Applied { item: 3, sound: 8 });
     }
 }

@@ -22,6 +22,7 @@ use crate::physics::flow::{a, g, p};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, check_state, dispatch_state};
+use rc2k_core::drive::roaming::{roam_distance, roam_turn};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -42,6 +43,7 @@ hook_asm!(
 const B: usize = 0x70F3EC; // g_carBlockStore
 
 /// The Rust version.
+// Converted: `rc2k_core::drive::roaming::{roam_distance, roam_turn}`.
 pub unsafe fn simple_car_step(entry: &Regs) -> Result<Left, Refused> {
     let mut r = *entry;
     unsafe {
@@ -58,10 +60,11 @@ pub unsafe fn simple_car_step(entry: &Regs) -> Result<Left, Refused> {
         )?;
     }
     r.eax = 0;
-    r.ecx = g(B + 0x638).wrapping_sub(g(B + 0x63C)) << 5;
-    if unsafe { (a(0x4F6B79) as *const u8).read() } != 0 {
-        r.ecx <<= 2;
-    }
+    r.ecx = roam_distance(
+        g(B + 0x638),
+        g(B + 0x63C),
+        unsafe { (a(0x4F6B79) as *const u8).read() } != 0,
+    );
     r.edx = g(B + 0x9C0);
     let [x, _, z, edx] =
         unsafe { crate::math::turn_point_xz::turn_point_xz(0, r.ebx as i32, r.ecx as i32, r.edx) };
@@ -70,7 +73,7 @@ pub unsafe fn simple_car_step(entry: &Regs) -> Result<Left, Refused> {
     r.edx = edx;
     p(B + 0x134, g(B + 0x134).wrapping_add(x));
     p(B + 0x13C, g(B + 0x13C).wrapping_add(z));
-    r.eax = ((g(B + 0x644) as i32) >> 4) as u32;
+    r.eax = roam_turn(g(B + 0x644));
     p(B + 0x9C0, g(B + 0x9C0).wrapping_add(r.eax));
     unsafe { crate::physics::wheel_surfaces::wheel_surfaces() }?.apply(&mut r);
     r.eax = g(0x5CCDA0);

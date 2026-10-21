@@ -1,6 +1,10 @@
 //! Small rules of the car on the ground (converted 2026-10-21 from
 //! `physics::note_surface_mode` 0x43F180, `start_skid_mark` 0x43F272,
-//! `flip_cell_index` 0x43DB13 and `plane_height` 0x4425B6).
+//! `flip_cell_index` 0x43DB13 and `plane_height` 0x4425B6; the whole-number steps of
+//! `surface_noise` 0x43BC68, whose share / 256 stays x87). The probe points' whole-number
+//! steps (converted 2026-10-21 from `physics::probe_ground` 0x45D305; the turns and the
+//! bump's scaling stay x87): the wheels' lift by the car's bits, and the ground's bump
+//! from the noise bytes (64 x 64) mixed by the place's low 14 bits.
 
 /// `physics::note_surface_mode`: `dword_71A6C8` by the mode `dword_71A65C`: 1 for 2 or 3,
 /// else 0. What the mode is is not known.
@@ -80,9 +84,112 @@ pub fn plane_height(a: i32, b: i32, c: i32, f: f32, g: f32) -> i32 {
     super::x87::fistp64((a - c) * f as f64 + ((b - c) * g as f64 + c))
 }
 
+/// `surface_noise`'s level from a noise sample: lo + (hi - lo) x sample >> 16 (`imul`,
+/// `shrd`: the low 32 bits of the 64-bit product >> 16), held to 0 ..= 0xFF (by the
+/// sign). (the level, the range hi - lo: ebx, the product's high dword: edx.)
+pub fn noise_level(sample: u32, lo: u32, hi: u32) -> (u32, u32, u32) {
+    let range = hi.wrapping_sub(lo);
+    let product = (sample as i32 as i64).wrapping_mul(range as i32 as i64);
+    let mut v = ((product as u64) >> 16) as u32;
+    v = v.wrapping_add(lo);
+    if (v as i32) < 0 {
+        v = 0;
+    }
+    if (v.wrapping_sub(0xFF) as i32) >= 0 {
+        v = 0xFF;
+    }
+    (v, range, (product >> 32) as u32)
+}
+
+/// The roughness kept: the second level, at least `floor` (unsigned).
+pub fn rough_floor(level: u32, floor: u32) -> u32 {
+    level.max(floor)
+}
+
+/// `physics::probe_ground`: whether wheel `b` (0 .. 3) is lifted by `flt_613E8C`: bit
+/// b + 5 of the car's bits (`dword_71A270`) clear, or else bit b + 1 clear. (lifted, the
+/// last bit tested: the original's ecx.)
+pub fn wheel_lifted(bits: u32, b: u32) -> (bool, u32) {
+    if bits >> (b + 5) & 1 == 0 {
+        (true, b + 5)
+    } else {
+        (bits >> (b + 1) & 1 == 0, b + 1)
+    }
+}
+
+/// The noise bytes' cell of a place (whole-number x, z): the row (`dword_6D3060`), the
+/// row's offset (`dword_6D3064`, the row << 6), the four bytes' indices in the original's
+/// order (`dword_6D3044`, `48`, `50`, `4C`: the corner, the one right, below right, below)
+/// and the last row offset (the original's esi).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct NoiseCell {
+    pub row: u32,
+    pub row_offset: u32,
+    pub corners: [u32; 4],
+    pub below: u32,
+}
+
+pub fn noise_cell(x: u32, z: u32) -> NoiseCell {
+    let row = (z >> 14) & 0x3F;
+    let row_offset = row << 6;
+    let mut ecx = ((x >> 14) & 0x3F).wrapping_add(row_offset) & 0x3F;
+    let top = row_offset & 0xFC0;
+    let first = top + ecx;
+    ecx = (ecx + 1) & 0x3F;
+    let right = top + ecx;
+    let below = (top + 0x40) & 0xFC0;
+    let below_right = below + ecx;
+    ecx = ecx.wrapping_sub(1) & 0x3F;
+    NoiseCell {
+        row,
+        row_offset,
+        corners: [first, right, below_right, below + ecx],
+        below,
+    }
+}
+
+/// The noise's mix: a + the low 32 bits of ((b - a) f) >> 14 (`imul`, `shrd`), and the
+/// product's high dword (edx).
+pub fn noise_lerp(a: u32, b: u32, f: u32) -> (u32, u32) {
+    let p = i64::from(b.wrapping_sub(a) as i32) * i64::from(f as i32);
+    (((p >> 14) as u32).wrapping_add(a), (p >> 32) as u32)
+}
+
+/// The bump's noise from the four bytes (in `NoiseCell::corners`' order) by the place's
+/// low 14 bits: (the bottom mix `6D3058`, the top `6D3054`, the whole `6D305C`, its
+/// product's high dword).
+pub fn bump_noise(n: [u32; 4], x: u32, z: u32) -> (u32, u32, u32, u32) {
+    let (fx, fz) = (x & 0x3FFF, z & 0x3FFF);
+    let (bottom, _) = noise_lerp(n[3], n[2], fx);
+    let (top, _) = noise_lerp(n[0], n[1], fx);
+    let (whole, high) = noise_lerp(top, bottom, fz);
+    (bottom, top, whole, high)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn probes() {
+        assert_eq!(wheel_lifted(0, 1), (true, 6));
+        assert_eq!(wheel_lifted(1 << 6, 1), (true, 2));
+        assert_eq!(wheel_lifted(1 << 6 | 1 << 2, 1), (false, 2));
+        let c = noise_cell(0x3F << 14, 0x3F << 14);
+        assert_eq!(c.row, 0x3F);
+        assert_eq!(c.corners, [0xFFF, 0xFC0, 0x000, 0x03F]);
+        assert_eq!(noise_lerp(0, 0x100, 0x2000), (0x80, 0));
+        assert_eq!(bump_noise([0, 0x100, 0x100, 0], 0x2000, 0).2, 0x80);
+    }
+
+    #[test]
+    fn noise() {
+        assert_eq!(noise_level(0x8000, 0x10, 0x30), (0x20, 0x20, 0));
+        assert_eq!(noise_level(0x10000, 0, 0x200), (0xFF, 0x200, 0));
+        assert_eq!(noise_level(0xFFFF_0000, 0, 0x10), (0, 0x10, u32::MAX));
+        assert_eq!(rough_floor(3, 5), 5);
+        assert_eq!(rough_floor(7, 5), 7);
+    }
 
     #[test]
     fn plane() {

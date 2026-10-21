@@ -11,8 +11,9 @@ pub const SECOND_KIND_RVA: usize = rva(0x75B108); // dword_75B108
 pub type Tune<'a> = &'a mut dyn FnMut(u32, &Regs) -> Result<(), Refused>;
 
 pub fn game_music(entry: &Regs, tune: Tune) -> Result<(), Refused> {
+    // Converted: `rc2k_core::race::music::race_tune`.
     let second: u32 = unsafe { game_read(SECOND_KIND_RVA) };
-    tune(if second == 1 { 6 } else { 5 }, entry)
+    tune(rc2k_core::race::music::race_tune(second), entry)
 }
 
 pub fn game_music_8(entry: &Regs, tune: Tune) -> Result<(), Refused> {

@@ -3,7 +3,9 @@
 //! `scale_vectors_by` 0x4D16A3, `view_step` 0x4C1593, `aim_vector` 0x4C1294,
 //! `tilt_shape` 0x4C1194, `view_motion` 0x4C4D40 and `view_heading` 0x4C4CEC): the three
 //! kept vectors turned by two angles and scaled, the view's step, its aim made of length
-//! 1, a shape's tilt, the view's motion and heading.
+//! 1, a shape's tilt, the view's motion and heading. And the view's place (converted
+//! 2026-10-21 from `marks::place_view` 0x4C1CC8 and its twin `marks::place_view_2`
+//! 0x4C2AA5).
 //!
 //! As in `math::vector`, what the x87 keeps on its stack is an `f64`, rounded to `f32`
 //! where the original stores it (the same bits at the game's double precision, but for
@@ -159,9 +161,31 @@ pub fn heading(angle: f32, x: f32) -> f32 {
     }
 }
 
+/// `marks::place_view`'s place, from the point turned by the view's matrix (the turn is
+/// `math::vector::turn_int_point`'s): the place less it in x and y (`fldz; fisub; fiadd;
+/// fistp`: whole numbers, exact), and the height less its z plus the place's z (`fld;
+/// fisub; fiadd; fistp`, rounded to the nearest, as the turn).
+pub fn view_place(turned: [i32; 3], place: [i32; 3], height: f32) -> [i32; 3] {
+    use crate::math::geometry::fistp64;
+    let less = |t: i32, p: i32| fistp64(-(t as f64) + p as f64);
+    [
+        less(turned[0], place[0]),
+        less(turned[1], place[1]),
+        fistp64(height as f64 - turned[2] as f64 + place[2] as f64),
+    ]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn view_places() {
+        assert_eq!(view_place([3, -4, 100], [10, 10, 7], 150.5), [7, 14, 58]);
+        // past a whole number's room: the integer indefinite
+        assert_eq!(view_place([i32::MIN, 0, 0], [1, 0, 0], 0.0)[0], i32::MIN);
+        assert_eq!(view_place([0, 0, 0], [0, 0, 0], 2.5)[2], 2);
+    }
 
     #[test]
     fn kept_turns() {

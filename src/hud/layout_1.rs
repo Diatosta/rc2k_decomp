@@ -18,7 +18,7 @@
 //! `draw_markers_1`, 8 / 9 the signs, 10 / 11 the needles, 12 `add_scaled_sprite` with its
 //! two scales), in the game their Rust versions. Shadow mode runs the original alone (it
 //! draws). Self-test: a copy whose draws go to stand-ins (the scaled sprites' reading
-//! their scales), against the Rust version, flags and times by lot.
+//! their scales), against the Rust version, flags and times by lot, at both test control words.
 
 use crate::errors::Refused;
 use crate::framework::{
@@ -26,9 +26,10 @@ use crate::framework::{
 };
 use crate::hud::add_quad::QUAD_RVA;
 use crate::hud::batch::TEXTURE_RVA;
-use crate::hud::draw_markers_1::int_over_80;
+use crate::hud::draw_markers_1::{int_over_80, taken_off};
 use crate::hud::draw_signs::row;
 use crate::hud::layout_0::*;
+use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::service::harness::{at, capture, restore};
 use std::sync::atomic::AtomicUsize;
 
@@ -64,24 +65,19 @@ pub fn scaled(g: &mut Regs, rect: u32, x: u32, y: u32, part: &mut Part) -> Resul
     set(SCRATCH_RVA, 0xC0);
     let v = int_over_80(0xC0, k);
     part(SCALED, g, &[v, v])?;
-    set(SCRATCH_RVA, crate::scene::matrix3::rounded(v));
+    set(SCRATCH_RVA, taken_off(v));
     Ok(())
 }
 
 /// The sign of the needle by the record's `field` (`dword_75C040`, `dword_75BFAC`, the
 /// texture).
 pub fn pick(field: u32) -> u32 {
-    set(PICK_RVA, 0x5E);
-    set(TEXTURE_RVA, 0xC0);
-    set(NEEDLE_KIND_RVA, field);
-    if field != 0 {
-        set(PICK_RVA, 0x60);
-        set(TEXTURE_RVA, 0xC2);
-    }
-    unsafe { game_read(PICK_RVA) }
+    needle_sign(field)
 }
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::hud::panels` (through `layout_0`'s panels and `needle_sign`),
+// `rc2k_core::hud::quads::int_over` (the sprites' scales)
 pub unsafe fn layout_1(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut part = part;
     let mut g = *entry;
@@ -335,7 +331,10 @@ pub fn test_layout(
     vars.extend([LAP_2_RVA, UV_SCALE_RVA, crate::hud::draw_signs::FLAT_RVA].map(at));
     let saved = capture(&vars);
     let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for case in 0..6u32 {
+    for (word, case) in TEST_CONTROL_WORDS
+        .into_iter()
+        .flat_map(|w| (0..6u32).map(move |c| (w, c)))
+    {
         let mut record = [0u32; 0x48];
         record[0xF8 / 4] = [0xFFu32, 0, 0x55, 0xAA, 0x62, 0x3D][case as usize];
         record[0xFC / 4] = [0xFFu32, 0x5A, 0, 0xA5, 0x3D, 0x62][case as usize];
@@ -373,7 +372,9 @@ pub fn test_layout(
         prepare();
         take();
         let mut ro = before;
-        unsafe { crate::framework::call_game(&mut ro, copy.addr()) };
+        with_control_word(word, &mut || unsafe {
+            crate::framework::call_game(&mut ro, copy.addr())
+        });
         let theirs = (Some(regs(&ro)), take(), capture(&regions));
         prepare();
         let mine = rust(&before, &mut |p, r, v| {
@@ -383,7 +384,7 @@ pub fn test_layout(
         let mine = (mine.as_ref().ok().map(regs), take(), capture(&regions));
         t.check(theirs == mine, || {
             let first = theirs.1.iter().zip(&mine.1).position(|(a, b)| a != b);
-            format!("case {case}: original {:x?} {} calls; rust {:x?} {} calls; first differing call {:?}; same state {}", theirs.0, theirs.1.len(), mine.0, mine.1.len(), first, theirs.2 == mine.2)
+            format!("control word {word:#x}, case {case}: original {:x?} {} calls; rust {:x?} {} calls; first differing call {:?}; same state {}", theirs.0, theirs.1.len(), mine.0, mine.1.len(), first, theirs.2 == mine.2)
         });
     }
     restore(&vars, &saved);

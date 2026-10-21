@@ -9,6 +9,11 @@
 //!
 //! Caller: `marks::run_pong`. The call is its Rust version. Self-test: the original and
 //! the Rust version on balls and bats by lot; put back.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `move_pong_bat_plain`, through
+//! `rc2k_core::marks::pong::Court::move_bat` (plain floats; the x87 version stays for the Rust
+//! callers in unconverted code). Shadow mode and the self-test compare within
+//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
@@ -16,7 +21,7 @@ use crate::marks::pong;
 use crate::marks::pong_bat_back::pong_bat_back;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{at, capture, check_state, dispatch_state, restore};
+use rc2k_core::marks::pong::Back;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -43,36 +48,38 @@ pub unsafe fn move_pong_bat(entry: &Regs) -> Regs {
     }
 }
 
+/// The converted version (plain floats): the hook's.
+// Converted: `rc2k_core::marks::pong::Court::move_bat`
+pub unsafe fn move_pong_bat_plain(entry: &Regs) -> Regs {
+    let mut g = *entry;
+    let ([x, y], back) = pong::with_court(|c| c.move_bat());
+    (g.eax, g.ebx) = (x, y);
+    match back {
+        Back::Kept(status) => g.eax = status,
+        Back::PutBack([x, y]) => (g.eax, g.ebx) = (x, y),
+    }
+    g
+}
+
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { move_pong_bat(r) }))
+    Ok(left_of(&unsafe { move_pong_bat_plain(r) }))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &pong::regions(), &rust);
+    pong::dispatch_court(&HOOK, r, call_original, &rust);
 }
 
 fn self_test() -> (usize, usize) {
     let Some(mut t) = SelfTest::begin(&HOOK) else {
         return (0, 0);
     };
-    let regions = pong::regions();
-    let mut vars = regions.clone();
-    vars.extend([pong::STEPS_RVA].map(at));
-    let saved = capture(&vars);
-    for case in 0..8u32 {
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&vars, &saved);
-                pong::test_values(case);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&vars, &saved);
+    pong::test_court(
+        &mut t,
+        "marks::move_pong_bat",
+        call_original,
+        8,
+        &|case| unsafe { pong::test_values(case) },
+        &rust,
+    );
     t.finish()
 }

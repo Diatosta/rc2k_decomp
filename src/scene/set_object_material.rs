@@ -25,14 +25,20 @@
 //! Refuses an object's number past the tables and, for a moving kind, no state.
 //! Shadow mode: the Rust version, its writes and the random numbers' state put back,
 //! the original, compared.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `set_object_material_plain`, through
+//! `rc2k_core::scene::materials` (the fraction a plain float; the x87 version stays for the
+//! Rust callers in unconverted code). Shadow mode and the self-test hold the fraction to
+//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
 
 use crate::errors::BadInput;
 use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
+    GameHook, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
 use crate::math::next_random::{STATE_RVA as RANDOM_RVA, next_random};
 use crate::math::x87;
 use crate::scene::polygon::{dword, put};
+use crate::service::floats::{Agreement, Floats, at_test_precisions, compare_memory, note_drift};
 use crate::service::harness::{Region, at, capture, restore};
 use std::sync::atomic::AtomicUsize;
 
@@ -166,6 +172,55 @@ pub unsafe fn set_object_material() -> Result<(), BadInput> {
     }
 }
 
+/// The converted `set_object_material` (plain floats): the hook's. The x87 version above
+/// stays for the Rust callers in unconverted code.
+// Converted: `rc2k_core::scene::materials`
+pub unsafe fn set_object_material_plain() -> Result<(), BadInput> {
+    use rc2k_core::scene::materials::{LENGTHS, MOVING, ShapeClock, move_by};
+    unsafe {
+        let object: u32 = game_read(OBJECT_RVA);
+        if object >= OBJECTS {
+            return Err(BadInput("an object's number past the tables"));
+        }
+        let slot = object as usize * 4;
+        let kind: u32 = game_read(KINDS_RVA + slot);
+        let material =
+            game_addr(MATERIALS_RVA).wrapping_add((kind as usize).wrapping_mul(MATERIAL_LEN));
+        let way = ((material + 0x20) as *const u8).read() as u32;
+        let state = state();
+        if way == MOVING && state.is_none() {
+            return Err(BadInput("a moving object without its state"));
+        }
+        game_write(MOVE_BY_RVA, 0u32);
+        game_write(COLOUR_RVA, 0x00FF_FFFFu32);
+        game_write(WAY_RVA, way);
+        if let (MOVING, Some(state)) = (way, state) {
+            game_write(MOVE_BY_RVA, move_by(game_read(FIRST_POINT_RVA + slot)));
+            let [last, time, length, phase]: [u32; 4] = (state as *const [u32; 4]).read_unaligned();
+            let mut c = ShapeClock {
+                last,
+                time,
+                length,
+                phase,
+            };
+            game_write(LENGTHS_RVA, LENGTHS);
+            let fraction = c.step(game_read(CLOCK_RVA), || next_random());
+            game_write(MOVE_FRACTION_RVA, fraction.to_bits());
+            game_write(LAST_RVA, c.last);
+            game_write(PHASE_WORK_RVA, [c.length, c.time, c.phase]);
+            (state as *mut [u32; 4]).write_unaligned([c.last, c.time, c.length, c.phase]);
+        }
+        game_write(FIRST_FACE_RVA, game_read::<u32>(FIRST_FACES_RVA + slot));
+        game_write(FACE_COUNT_RVA, game_read::<u32>(FACE_COUNTS_RVA + slot));
+        Ok(())
+    }
+}
+
+/// The fraction (`flt_623DD4`) of the regions, the one float place.
+fn floats() -> [(Region, crate::service::floats::Tolerance); 1] {
+    [(at(MOVE_FRACTION_RVA), crate::service::floats::FLOAT)]
+}
+
 // ---- hook ----
 
 fn regions() -> Vec<Region> {
@@ -197,27 +252,34 @@ fn regions() -> Vec<Region> {
 extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
     if !shadow() {
-        if let Err(e) = unsafe { set_object_material() } {
+        if let Err(e) = unsafe { set_object_material_plain() } {
             unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
         }
         return;
     }
     let regions = regions();
     let before = capture(&regions);
-    let mine = unsafe { set_object_material() }.map(|()| capture(&regions));
+    let mine = unsafe { set_object_material_plain() }.map(|()| capture(&regions));
     restore(&regions, &before);
     unsafe { call_original(r) };
     let Ok(mine) = mine else {
         return;
     };
     let theirs = capture(&regions);
-    if mine != theirs {
-        HOOK.mismatch(|| {
+    let places = floats();
+    let floats = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    match compare_memory(&regions, &theirs, &mine, &floats) {
+        Agreement::Same => {}
+        Agreement::Drift(n) => note_drift(HOOK.name(), || format!("{n} places")),
+        Agreement::Differ => HOOK.mismatch(|| {
             format!(
                 "object {:#x}: before {before:x?}; original {theirs:x?}; rust {mine:x?}",
                 unsafe { game_read::<u32>(OBJECT_RVA) }
             )
-        });
+        }),
     }
 }
 
@@ -268,50 +330,60 @@ fn self_test() -> (usize, usize) {
     let regions = regions();
     let saved = capture(&regions);
     let state_at = states.as_mut_ptr() as usize + 0x80 + 0x30;
-    let mut cases = 0u32;
-    for way in [0u8, 4, 5] {
-        for (last, time, length, phase) in [
-            (1000u32, 0u32, 300u32, 0u32),
-            (1000, 250, 300, 1),
-            (1000, 299, 300, 2),
-            (1000, 100, 300, 3),
-            (1000, 0, 0, 3),
-            (0, 5000, 7, 1),
-            (990, 0x7FFF_FFF0, 0x7FFF_FFFF, 3),
-        ] {
-            for clock in [1000u32, 1030, 1200, 999] {
-                cases += 1;
-                let seed = 0x1357_9BDFu32.wrapping_mul(cases);
-                let run = |rust: bool| unsafe {
-                    restore(&regions, &vec![0xAA; saved.len()]);
-                    game_write(RANDOM_RVA, seed);
-                    game_write(OBJECT_RVA, OBJECT);
-                    (way_at as *mut u8).write(way);
-                    game_write(FIRST_POINT_RVA + slot, [0x100u32, 0x100 + cases]);
-                    game_write(FIRST_FACES_RVA + slot, 0x4000 + cases);
-                    game_write(FACE_COUNTS_RVA + slot, cases);
-                    game_write(CLOCK_RVA, clock);
-                    put(state_at, last);
-                    put(state_at + 4, time);
-                    put(state_at + 8, length);
-                    put(state_at + 12, phase);
-                    let done = if rust {
-                        set_object_material().is_ok()
-                    } else {
-                        call_original(&mut Regs::default());
-                        true
+    let places = floats();
+    let tolerant = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, held| {
+        let mut cases = 0u32;
+        for way in [0u8, 4, 5] {
+            for (last, time, length, phase) in [
+                (1000u32, 0u32, 300u32, 0u32),
+                (1000, 250, 300, 1),
+                (1000, 299, 300, 2),
+                (1000, 100, 300, 3),
+                (1000, 0, 0, 3),
+                (0, 5000, 7, 1),
+                (990, 0x7FFF_FFF0, 0x7FFF_FFFF, 3),
+            ] {
+                for clock in [1000u32, 1030, 1200, 999] {
+                    cases += 1;
+                    let seed = 0x1357_9BDFu32.wrapping_mul(cases);
+                    let run = |rust: bool| unsafe {
+                        restore(&regions, &vec![0xAA; saved.len()]);
+                        game_write(RANDOM_RVA, seed);
+                        game_write(OBJECT_RVA, OBJECT);
+                        (way_at as *mut u8).write(way);
+                        game_write(FIRST_POINT_RVA + slot, [0x100u32, 0x100 + cases]);
+                        game_write(FIRST_FACES_RVA + slot, 0x4000 + cases);
+                        game_write(FACE_COUNTS_RVA + slot, cases);
+                        game_write(CLOCK_RVA, clock);
+                        put(state_at, last);
+                        put(state_at + 4, time);
+                        put(state_at + 8, length);
+                        put(state_at + 12, phase);
+                        let done = if rust {
+                            set_object_material_plain().is_ok()
+                        } else {
+                            call_original(&mut Regs::default());
+                            true
+                        };
+                        (done, capture(&regions), dword(state_at))
                     };
-                    (done, capture(&regions), dword(state_at))
-                };
-                let (theirs, mine) = (run(false), run(true));
-                t.check(theirs == mine, || {
+                    let (theirs, mine) = (run(false), run(true));
+                    let same = theirs.0 == mine.0
+                        && theirs.2 == mine.2
+                        && compare_memory(&regions, &theirs.1, &mine.1, held) != Agreement::Differ;
+                    t.check(same, || {
                     format!(
-                        "way {way}, state {last} {time} {length} {phase}, clock {clock}, seed {seed:#x}: original {theirs:x?}; rust {mine:x?}"
+                        "control word {word:#x}, way {way}, state {last} {time} {length} {phase}, clock {clock}, seed {seed:#x}: original {theirs:x?}; rust {mine:x?}"
                     )
                 });
+                }
             }
         }
-    }
+    });
     restore(&regions, &saved);
     restore(&inputs, &saved_inputs);
     t.finish()

@@ -11,7 +11,7 @@
 //! Shadow mode: both run, esi compared. Self-test: a copy whose two lists are the test's,
 //! against the Rust version: no car won, one in the list, none of them in it.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::net::lobby::{Part, a, run_both};
 use std::sync::atomic::AtomicUsize;
@@ -32,7 +32,6 @@ const SECRET: usize = 0x75A042; // off_75A042: the secret cars
 const WON: usize = 0x759F4A; // g_secretCars: the cars won
 const WITH: usize = 0x759E52; // off_759E52
 const WITHOUT: usize = 0x759DCA; // off_759DCA
-const MOST: u32 = 0x100;
 
 fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
@@ -40,30 +39,9 @@ fn get(at: u32) -> u32 {
 
 /// Whether one of the cars at `won` is in the list at `secret`.
 pub fn any_won(secret: u32, won: u32) -> Result<bool, Refused> {
-    let mut esi = won;
-    for _ in 0..MOST {
-        let car = get(esi);
-        let mut edi = secret;
-        let mut ended = false;
-        for _ in 0..MOST {
-            if get(edi) == car {
-                return Ok(true);
-            }
-            edi += 4;
-            if get(edi) == u32::MAX {
-                ended = true;
-                break;
-            }
-        }
-        if !ended {
-            return Err(BadInput("a secret cars' list with no end").into());
-        }
-        esi += 4;
-        if get(esi) == u32::MAX {
-            return Ok(false);
-        }
-    }
-    Err(BadInput("a won cars' list with no end").into())
+    // Converted: `rc2k_core::net::cars::any_won`, the lists' dwords by index.
+    let at = |list: u32| move |n: u32| get(list.wrapping_add(4 * n));
+    Ok(rc2k_core::net::cars::any_won(at(secret), at(won))?)
 }
 
 /// The Rust version on the lists at `secret` and `won`.

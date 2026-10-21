@@ -111,12 +111,10 @@ fn look_over(instance: u32, entry: u32) -> bool {
     let guid = instance + field!(DiDeviceInstance, instance);
     let to = entry + field!(Controller, instance);
     unsafe { std::ptr::copy(guid as *const u8, to as *mut u8, 16) };
+    // Converted: `rc2k_core::input::joystick::{name_prefix, found}`.
+    use rc2k_core::input::joystick::{NAME_ROOM, name_prefix};
     let count = g(CONTROLLER_COUNT_RVA);
-    let mut name = vec![b'('];
-    name.extend(crate::strings::append_u32::append_u32(
-        count.wrapping_add(1),
-    ));
-    name.extend(b") ");
+    let name = name_prefix(count);
     let at_name = entry + field!(Controller, name);
     unsafe { std::ptr::copy(name.as_ptr(), at_name as *mut u8, name.len()) };
     let kept = g(KEEP_CASE_RVA);
@@ -127,35 +125,25 @@ fn look_over(instance: u32, entry: u32) -> bool {
         crate::strings::copy_printable::copy_printable(
             (instance + field!(DiDeviceInstance, instance_name)) as *const u8,
             to as *mut u8,
-            0x19,
+            NAME_ROOM,
         )
     };
     p(KEEP_CASE_RVA, kept);
     let caps = |offset: u32| g(CAPS_RVA + offset as usize);
-    let flags = caps(field!(DiDevCaps, flags));
-    put(entry, field!(Controller, caps_flags), flags);
-    put(
-        entry,
-        field!(Controller, axes),
+    let f = rc2k_core::input::joystick::found(
+        caps(field!(DiDevCaps, flags)),
         caps(field!(DiDevCaps, axes)),
-    );
-    put(
-        entry,
-        field!(Controller, buttons),
         caps(field!(DiDevCaps, buttons)),
-    );
-    put(
-        entry,
-        field!(Controller, hats),
         caps(field!(DiDevCaps, hats)),
+        g(NO_FORCE_RVA),
     );
-    put(entry, field!(Controller, attached), (flags & 1 != 0) as u32);
-    if g(NO_FORCE_RVA) == 0 {
-        put(
-            entry,
-            field!(Controller, force_feedback),
-            (flags & 0x100 != 0) as u32,
-        );
+    put(entry, field!(Controller, caps_flags), f.caps_flags);
+    put(entry, field!(Controller, axes), f.axes);
+    put(entry, field!(Controller, buttons), f.buttons);
+    put(entry, field!(Controller, hats), f.hats);
+    put(entry, field!(Controller, attached), f.attached);
+    if let Some(force) = f.force_feedback {
+        put(entry, field!(Controller, force_feedback), force);
     }
     p(CONTROLLER_COUNT_RVA, count.wrapping_add(1));
     true

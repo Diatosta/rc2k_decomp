@@ -21,10 +21,11 @@ use crate::service::harness::Region;
 
 /// `edit_camera_1` / `_2`: eax the block shown.
 pub fn edit_camera(entry: &Regs, camera: u32) -> Regs {
+    // Converted: `rc2k_core::race::viewer_flow::edits_camera`.
     let mut r = *entry;
     crate::race::keep_undo::keep_undo();
     r.eax = get(BLOCK);
-    if r.eax != get(BLOCKS) {
+    if rc2k_core::race::viewer_flow::edits_camera(r.eax, get(BLOCKS)) {
         put(CAMERA_EDIT, camera);
     }
     r

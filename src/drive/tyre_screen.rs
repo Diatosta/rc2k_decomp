@@ -22,6 +22,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::physics::flow::{a, g, p};
 use crate::race::car_starts::Part;
 use crate::service::harness::{capture, restore};
+use rc2k_core::drive::tyre_screen::{layout, wheel_place};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -70,31 +71,22 @@ const STATES: [(u32, u32); 11] = [
 ];
 
 /// The Rust version, the calls through `part`.
+// Converted: `rc2k_core::drive::tyre_screen::{layout, wheel_place}`.
 pub unsafe fn tyre_screen(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let (mode, car) = (entry.eax, entry.esi);
     if car > 7 {
         return Err(crate::errors::BadInput("a car past 7 (g_inputDevices)").into());
     }
-    let (table, shift) = match mode {
-        0 => (0x5BEB30, 0),
-        2 => (if car != 0 { 0x5BEB70 } else { 0x5BEB50 }, 0xAA),
-        _ => (if car != 0 { 0x5BEBB0 } else { 0x5BEB90 }, 0),
-    };
+    let (number, shift) = layout(mode, car);
+    let table = 0x5BEB30 + 0x20 * number as usize;
     unsafe {
         std::ptr::copy(a(table) as *const u8, a(0x5BEAD0) as *mut u8, 16);
         std::ptr::copy((a(table) + 16) as *const u8, a(0x5BEBD0) as *mut u8, 16);
     }
-    let half = |x: u32, y: u32| ((x.wrapping_sub(y) as i32) >> 1) as u32;
-    p(
-        0x5BEAE0,
-        half(g(0x5BEAD8), g(0x5BEAE8))
-            .wrapping_add(g(0x5BEAD0))
-            .wrapping_sub(shift),
-    );
-    p(
-        0x5BEAE4,
-        half(g(0x5BEADC), g(0x5BEAEC)).wrapping_add(g(0x5BEAD4)),
-    );
+    let panel = std::array::from_fn(|k| g(0x5BEAD0 + 4 * k));
+    let [x, y] = wheel_place(panel, [g(0x5BEAE8), g(0x5BEAEC)], shift);
+    p(0x5BEAE0, x);
+    p(0x5BEAE4, y);
     p(0x5BEBEC, car);
     let device = g(0x4F6EE8 + 4 * car as usize);
     // ebx the table (the copy's source), ecx and edx the wheel's place (the sums).

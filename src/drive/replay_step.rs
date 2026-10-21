@@ -22,13 +22,14 @@
 //! Self-test (in a race; skipped otherwise): the original and the Rust version from the
 //! same state, logging off, no replay (`dword_5C5CE0` 0).
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{EAX, ESI, RawHook, Regs, SelfTest, game_addr, hook_asm, rva, shadow};
 use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::physics::flow::{g, p};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
 use crate::service::harness::{capture, restore};
+use rc2k_core::drive::race_steps;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -61,7 +62,7 @@ fn car_step(r: &mut Regs) -> Result<(), Refused> {
         crate::drive::car_input_words::car_input_words(r)?.apply(r);
         crate::drive::record_inputs_if::record_inputs_if().apply(r);
         crate::drive::play_inputs_if::play_inputs_if(r).apply(r);
-        r.eax = g(CURRENT) & 7;
+        r.eax = race_steps::block_slot(g(CURRENT)) as u32;
         r.esi = g(0x71B3B8 + 4 * r.eax as usize);
         p(0x71B404, r.esi);
         crate::drive::load_car::load_car()?.apply(r);
@@ -89,6 +90,8 @@ fn car_step(r: &mut Regs) -> Result<(), Refused> {
 }
 
 /// The steps; `r` as the original leaves it.
+// Converted: `rc2k_core::drive::race_steps::{check_cars, each_car, block_slot,
+// skids_restart}`.
 pub fn steps(r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         crate::drive::choose_shown_cars::choose_shown_cars()?.apply(r);
@@ -96,21 +99,17 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
         crate::drive::play_replay_frame::play_replay_frame(r)?.apply(r);
     }
     r.eax = g(B + 8).wrapping_sub(g(B + 0xF0C));
-    if r.eax != 1 {
+    if race_steps::skids_restart(g(B + 8), g(B + 0xF0C)) {
         *r = unsafe { crate::race::stage_prefs::init_skidmarks(r) };
     }
     r.eax = g(B + 8);
     p(B + 0xF0C, r.eax);
-    p(CURRENT, 0);
-    loop {
-        let mut c = *r;
-        car_step(&mut c)?;
-        p(CURRENT, g(CURRENT).wrapping_add(1));
-        r.eax = g(CURRENT);
-        if r.eax == g(CARS) {
-            break;
-        }
-    }
+    r.eax = race_steps::each_car(
+        || g(CURRENT),
+        || g(CARS),
+        |n| p(CURRENT, n),
+        || car_step(&mut r.clone()),
+    )?;
     unsafe {
         crate::drive::animate_stage::animate_stage(r)?;
         *r = crate::drive::race_mode_cars::race_mode_cars(r, &mut |_, r| {
@@ -132,9 +131,7 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version.
 pub unsafe fn replay_step(entry: &Regs) -> Result<Left, Refused> {
-    if !(1..=8).contains(&g(CARS)) {
-        return Err(BadInput("a cars' count of 0 or past 8").into());
-    }
+    race_steps::check_cars(g(CARS))?;
     let all = crate::drive::race_cars_step::cars_regions();
     let saved = capture(&all);
     let mut r = *entry;

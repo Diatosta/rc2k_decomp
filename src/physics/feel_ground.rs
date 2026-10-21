@@ -28,6 +28,7 @@ use crate::framework::{
 use crate::physics::ground::Ground;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, dispatch_state, restore};
+use rc2k_core::physics::walls::WheelsOff;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -54,24 +55,20 @@ fn p(x: u32, v: u32) {
 }
 
 /// The Rust version; `r` as the original leaves it.
+// Converted: `rc2k_core::physics::walls::WheelsOff`.
 pub unsafe fn feel_ground(r: &mut Regs) -> Result<(), Refused> {
     unsafe {
-        if g(0x71A238) > 0x40 {
+        if g(0x71A238) > rc2k_core::physics::walls::PROBE_ROOM {
             return Err(BadInput("more than 0x40 probe points").into());
         }
         crate::physics::note_surface_mode::note_surface_mode();
         crate::physics::probe_ground::probe_ground(r)?;
         crate::physics::lowest_body_point::lowest_body_point(r)?;
-        let front = g(0x71A5D8) | g(0x71A5DC);
-        let back = g(0x71A5E0) | g(0x71A5E4);
-        p(0x71A220, u32::from(front == 0));
-        p(0x71A224, u32::from(back == 0));
-        p(0x71A22C, u32::from((front | back) == 0));
-        r.eax = if g(0x71A018) != 0 {
-            g(0x71A22C)
-        } else {
-            g(0x71A220)
-        };
+        let off = WheelsOff::of([g(0x71A5D8), g(0x71A5DC), g(0x71A5E0), g(0x71A5E4)]);
+        p(0x71A220, u32::from(off.front));
+        p(0x71A224, u32::from(off.back));
+        p(0x71A22C, u32::from(off.all));
+        r.eax = u32::from(off.driven(g(0x71A018)));
         p(0x71A228, r.eax);
         if r.eax == 0 {
             p(0x71A1C0, 0);

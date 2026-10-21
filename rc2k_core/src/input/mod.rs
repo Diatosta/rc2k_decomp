@@ -1,6 +1,8 @@
 //! Keys, devices, force feedback.
 
+pub mod acquire;
 pub mod devices;
+pub mod effect_changes;
 pub mod effects;
 pub mod feedback;
 pub mod force;

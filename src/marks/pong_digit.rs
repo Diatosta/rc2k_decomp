@@ -10,7 +10,7 @@
 //! Shadow mode runs the original alone (it draws). Self-test: a copy whose cell calls go
 //! to a stand-in, against the Rust version, every digit.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{
     RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
@@ -34,22 +34,19 @@ hook_asm!(
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::marks::pong::{pattern, cells}`
 pub unsafe fn pong_digit(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    if entry.eax > 9 {
-        return Err(BadInput("a pong digit past the patterns").into());
-    }
+    use rc2k_core::marks::pong as core;
     let mut r = *entry;
-    r.eax = game_addr(pong::PATTERNS_RVA) as u32 + entry.eax * 0x14;
-    for row in 0..5 {
-        for col in 0..4 {
-            r.ebx = col;
-            r.ecx = row;
-            part(1, &mut r)?;
-        }
+    r.eax = game_addr(pong::PATTERNS_RVA) as u32 + core::pattern(entry.eax)?;
+    for (col, row) in core::cells() {
+        r.ebx = col;
+        r.ecx = row;
+        part(1, &mut r)?;
     }
     unsafe {
         let at: u32 = game_read(pong::DIGIT_AT[0]);
-        game_write(pong::DIGIT_AT[0], at.wrapping_add(0x40));
+        game_write(pong::DIGIT_AT[0], at.wrapping_add(core::DIGIT_STEP));
     }
     Ok(*entry)
 }

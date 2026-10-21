@@ -35,13 +35,13 @@ const OUTS: [usize; 6] = [0x6, 0x10, 0x1A, 0x24, 0x2E, 0x38];
 const ENTRY: [u8; 6] = [0x60, 0xB8, 0xB7, 0x01, 0x00, 0x00];
 /// `sound::merge_spot_voices`.
 const EACH: u32 = 0x40E809;
-const SOUNDS: [u32; 6] = [0x1B7, 0x1B8, 0x1BB, 0x1BC, 0x1C1, 0x1BF];
 
 // ---- Rust version ----
 
 pub fn merge_spot_voices_all_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+    // Converted: `rc2k_core::sound::spot_voices::MERGED_SOUNDS`.
     let mut c = *r;
-    for sound in SOUNDS {
+    for sound in rc2k_core::sound::spot_voices::MERGED_SOUNDS {
         c.eax = sound;
         part(EACH, &mut c)?;
     }

@@ -46,13 +46,14 @@ const FORGET_RVA: usize = rva(0x5D1E10); // dword_5D1E10
 const WIDTH_RVA: usize = rva(0x4F49A0); // g_surface.width
 const LOCK_RVA: usize = rva(0x41AA4B); // the platform's texture lock
 const UNLOCK_RVA: usize = rva(0x41AB02); // the platform's texture unlock
-const ROWS: u32 = 0x7E;
 
 /// A call by place (see the header).
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::marks::masks::{swapped, check_width, texture_pixels}`
 pub unsafe fn swap_mask(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    use rc2k_core::marks::masks;
     let mut g = *entry;
     unsafe {
         let s: u32 = game_read(SETTINGS_RVA);
@@ -62,12 +63,12 @@ pub unsafe fn swap_mask(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         g.esi = s;
         let switch = ((s + 0x2704) as *const u32).read_unaligned();
         g.eax = switch;
-        if g.eax == game_read::<u32>(SEEN_RVA) {
+        let Some(second) = masks::swapped(switch, game_read(SEEN_RVA)) else {
             return Ok(g);
-        }
+        };
         let kept: [u32; 2] = [game_read(SEEN_RVA), game_read(CHOSEN_RVA)];
         game_write(SEEN_RVA, g.eax);
-        g.eax = game_read(if switch != 0 { BMASK_RVA } else { MASK_RVA });
+        g.eax = game_read(if second { BMASK_RVA } else { MASK_RVA });
         game_write(CHOSEN_RVA, g.eax);
         g.eax = game_read(SLOT_RVA);
         part(1, &mut g)?;
@@ -75,7 +76,8 @@ pub unsafe fn swap_mask(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         // screen's: checked here (2026-10-18: checked before the lock, it refused every
         // frame). A row wider than the mask's would read past its block: unlocked, put
         // back and refused.
-        if game_read::<u32>(WIDTH_RVA) > 0x100 {
+        let width: u32 = game_read(WIDTH_RVA);
+        if let Err(e) = masks::check_width(width) {
             let mut u = Regs {
                 eax: game_read(SLOT_RVA),
                 ..g
@@ -83,29 +85,20 @@ pub unsafe fn swap_mask(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             part(3, &mut u)?;
             game_write(SEEN_RVA, kept[0]);
             game_write(CHOSEN_RVA, kept[1]);
-            return Err(BadInput("a locked mask texture wider than the mask's 0x100").into());
+            return Err(e.into());
         }
-        g.edx = 0;
-        loop {
-            g.ecx = 0;
-            loop {
-                g.ebp = (g.edx << 8).wrapping_add(g.ecx);
-                g.esi = game_read(CHOSEN_RVA);
-                g.eax = ((g.esi + 4 * g.ebp) as *const u32).read_unaligned();
-                let row = g.edx;
-                g.edx = row + 0x80;
-                part(2, &mut g)?;
-                g.edx = row;
-                g.ecx += 1;
-                if g.ecx >= game_read::<u32>(WIDTH_RVA) {
-                    break;
-                }
-            }
-            g.edx += 1;
-            if g.edx >= ROWS {
-                break;
-            }
+        for (row, col, at) in masks::texture_pixels(width) {
+            g.ecx = col;
+            g.ebp = at;
+            g.esi = game_read(CHOSEN_RVA);
+            g.eax = ((g.esi + 4 * g.ebp) as *const u32).read_unaligned();
+            g.edx = row + masks::TEXTURE_ROW_AT;
+            part(2, &mut g)?;
+            g.edx = row;
         }
+        // The loops' counters, read back for their last tests.
+        g.ecx = width.max(1);
+        g.edx = masks::TEXTURE_ROWS;
         g.eax = game_read(SLOT_RVA);
         part(3, &mut g)?;
         g.eax = game_read(FORGET_RVA);

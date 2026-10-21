@@ -28,13 +28,15 @@ hook_asm!(
 
 pub fn start_edit(entry: &Regs) -> Regs {
     let record = rd(entry.esi + 0xC);
-    wb(record, rb(record) | 1);
-    let most = rb(record + 1) as u32;
+    let most = rb(record + 1);
     let text = rd(entry.esi + 8);
-    wb(text + most, 0);
+    // Converted: `rc2k_core::install::edits::start_edit`, on the text's `most` + 2 bytes.
+    let words = unsafe { std::slice::from_raw_parts_mut(text as *mut u8, most as usize + 2) };
+    let flags = rc2k_core::install::edits::start_edit(rb(record), most, words);
+    wb(record, flags);
     let backup = a(SCRIPT_PATH);
-    for n in 0..most + 2 {
-        wb(backup + n, rb(text + n));
+    for (n, &b) in words.iter().enumerate() {
+        wb(backup + n as u32, b);
     }
     let mut r = *entry;
     r.set_zero(true);

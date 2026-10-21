@@ -106,7 +106,7 @@ pub unsafe fn turn_pair(inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
 
 /// `clamp_pair`'s four scales: `flt_89C9FC`, `flt_89CA00` (in), `flt_89CA04`, `flt_89CA08`
 /// (out).
-const PAIR_SCALES_RVA: usize = rva(0x89C9FC);
+pub const PAIR_SCALES_RVA: usize = rva(0x89C9FC);
 
 /// `fld tbyte; fmul; fistp` for st(0) then st(1): their whole-number scalings.
 fn scaled_ints(inputs: &[[u8; 10]; 2], k: *const u32) -> (i32, i32) {

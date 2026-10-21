@@ -17,6 +17,7 @@ use crate::framework::{EAX, EBX, RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::{a, g, p};
 use crate::screens::harness::Left;
 use crate::service::harness::{capture, check_state, dispatch_state, restore};
+use rc2k_core::drive::controls::{BRAKE_KEY, THROTTLE_KEY, handbrake, pedal};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -31,38 +32,18 @@ hook_asm!(
     original = ORIGINAL
 );
 
-fn sign(v: u32) -> bool {
-    (v as i32) < 0
-}
-
 /// One pedal: by the keys' `bit`, stepped from `input`, or set to it.
-fn pedal(bit: u32, input: usize, pedal: usize) {
-    if g(0x71A440) & bit == 0 {
-        p(pedal, g(input));
-        return;
-    }
-    if g(input) != 0 {
-        p(pedal, g(pedal).wrapping_add(0x10));
-        if !sign(g(pedal).wrapping_sub(0x100)) {
-            p(pedal, 0x100);
-        }
-    } else {
-        p(pedal, g(pedal).wrapping_sub(0x10));
-        if sign(g(pedal)) {
-            p(pedal, 0);
-        }
-    }
+fn step_pedal(bit: u32, input: usize, at: usize) {
+    p(at, pedal(g(0x71A440) & bit != 0, g(input), g(at)));
 }
 
 /// The Rust version.
+// Converted: `rc2k_core::drive::controls::{pedal, handbrake}`.
 pub unsafe fn pedal_inputs() -> Left {
-    pedal(0x4000, 0x613894, 0x71A610);
-    pedal(0x2000, 0x613898, 0x71A614);
+    step_pedal(THROTTLE_KEY, 0x613894, 0x71A610);
+    step_pedal(BRAKE_KEY, 0x613898, 0x71A614);
     let hand = g(0x61389C);
-    p(0x71A618, hand);
-    if hand <= 0x100 && g(0x71A400) != 0 {
-        p(0x71A618, 0);
-    }
+    p(0x71A618, handbrake(hand, || g(0x71A400)));
     Left::nothing().with(EAX, hand).with(EBX, g(0x71A440))
 }
 

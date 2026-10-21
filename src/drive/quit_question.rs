@@ -21,6 +21,7 @@ use crate::framework::{EAX, RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::physics::flow::{g, p};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
+use rc2k_core::drive::race_ticks;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -43,18 +44,18 @@ const B: usize = 0x70F3EC;
 const NEXT: usize = 0xFE0;
 
 /// The Rust version.
+// Converted: `rc2k_core::drive::race_ticks::{best_frame, keeps_frame, quit_notice,
+// quit_answer}`.
 pub unsafe fn quit_question(entry: &Regs) -> Result<Left, Refused> {
     let mut r = *entry;
     stop_race_sounds(&mut r)?;
     p(0x6235E8, 1);
-    let v = g(B + 8);
     r.ebx = 100;
-    r.edx = v % 100;
-    r.eax = (v / 100).wrapping_sub(7);
-    if (r.eax.wrapping_sub(g(0x70F3E8)) as i32) >= 0 {
+    (r.eax, r.edx) = race_ticks::best_frame(g(B + 8));
+    if race_ticks::keeps_frame(r.eax, g(0x70F3E8)) {
         p(0x70F3E8, r.eax);
     }
-    let kind = if g(0x6238C0) != 0 { 0xC2 } else { 0xC1 };
+    let kind = race_ticks::quit_notice(g(0x6238C0) != 0);
     for c in 0..8 {
         p(B + NEXT * c + 0x71C, kind);
     }
@@ -66,11 +67,9 @@ pub unsafe fn quit_question(entry: &Regs) -> Result<Left, Refused> {
     }
     let answer = loop {
         r.eax = unsafe { crate::input::yes_no_key::yes_no_key(r.eax) }?;
-        match r.eax {
-            1 => break u32::MAX,
-            u32::MAX => break 0,
-            2 if g(0x62389C) != 2 && g(0x6238C0) != 0 => break 0xFFFF_FFFE,
-            _ => race_frame(&mut r),
+        match race_ticks::quit_answer(r.eax, g(0x62389C), g(0x6238C0) != 0) {
+            Some(answer) => break answer,
+            None => race_frame(&mut r),
         }
     };
     r.eax = answer;

@@ -18,6 +18,7 @@ use crate::net::lobby::{
     TICK, a, answer, dispatch_lobby, dword, g, gb, p, pb, run_both,
 };
 use crate::net::lobby_loop::{all_states, lobby_regions, set_players, states_start, sync};
+use rc2k_core::net::players;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -46,7 +47,8 @@ pub fn race_wait(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         l.eax = g(RACE_OVER);
         l
     };
-    pb(OWN, gb(OWN) & 0xFE | 2);
+    // Converted: `rc2k_core::net::players` (`waiting`, `all_in_state` in `all_states`).
+    pb(OWN, players::waiting(gb(OWN)));
     p(OWN_TIME, u32::MAX);
     part(TICK, &mut r)?;
     r.ebx = r.eax;
@@ -58,12 +60,14 @@ pub fn race_wait(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             return Ok(left(&r, true));
         }
     }
-    if gb(OWN) & 0x10 != 0 {
-        states_start(&mut r, 2);
+    if gb(OWN) & players::HOST != 0 {
+        states_start(&mut r, players::WAITING);
         if g(PLAYERS) == 0 {
             return Ok(left(&r, true));
         }
-        if all_states(&mut r, 2, g(PLAYERS)) == 2 && sync(&mut r, b'P', part)? {
+        if all_states(&mut r, players::WAITING, g(PLAYERS)) == players::WAITING
+            && sync(&mut r, b'P', part)?
+        {
             p(RACE_OVER, 1);
         }
     }

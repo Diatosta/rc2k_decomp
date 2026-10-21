@@ -26,6 +26,7 @@ hook_asm!(
 );
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::hud::quads::{marker_x, int_over}` (through `markers_with`)
 pub unsafe fn draw_markers_2(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     unsafe { markers_with(entry, [0x11F, 0x12C], part) }
 }

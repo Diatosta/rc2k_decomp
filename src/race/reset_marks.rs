@@ -37,13 +37,12 @@ hook_asm!(
 /// The Rust version.
 pub fn reset_marks() -> Result<(), Refused> {
     guard(&regions(), || {
-        let mut block = get(BLOCK);
-        if (block as i32) > (get(BLOCKS) as i32) {
-            block = get(BLOCKS);
-        }
+        // Converted: `rc2k_core::race::viewer::reset_marks`.
+        let (block, mark_in, mark_out) =
+            rc2k_core::race::viewer::reset_marks(get(BLOCK), get(BLOCKS));
         put(BLOCK, block);
-        put(MARK_IN, 0);
-        put(MARK_OUT, get(BLOCKS));
+        put(MARK_IN, mark_in);
+        put(MARK_OUT, mark_out);
         unsafe { crate::drive::read_replay_frame_0::read_replay_frame_0(get(BLOCK)) }?;
         Ok(())
     })

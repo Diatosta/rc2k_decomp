@@ -1,7 +1,10 @@
 //! The mud on the car's textures: places on a 256 x 256 square, the mud map's strengths
 //! (128 x 128 bytes a texture), the throws and the splashes (converted 2026-10-21 from
 //! `race::mud_pixel` 0x44A58A, `mud_texel` 0x44A549, `put_mud_texel` 0x44A5A9,
-//! `muddy_texel` 0x44A2E1, `throw_mud_texel` 0x44A2A2 and `splash_mud` 0x44A35F).
+//! `muddy_texel` 0x44A2E1, `throw_mud_texel` 0x44A2A2 and `splash_mud` 0x44A35F; the
+//! turns, the colours and the file converted 2026-10-21 from `race::mud_frame` 0x44A054,
+//! `mud_texture_turn` 0x44A087, `sample_mud_colours` 0x44A0D6 and `load_mud` 0x449D95;
+//! the tint converted 2026-10-21 from `race::tint_to_mud_colour` 0x44A441).
 
 /// The mud textures (`dword_623D5C`: 0 .. 3).
 pub const MOST_TEXTURE: u32 = 3;
@@ -99,6 +102,77 @@ pub fn splash_pattern(random: u32) -> u32 {
 /// The splash's side (4 x 4 texels).
 pub const SPLASH_SIDE: u32 = 4;
 
+/// The frames between two mud textures' turns.
+pub const TURN_FRAMES: u32 = 0xE;
+
+/// The frame count (`dword_623D58`) one on: the count kept and whether a texture's turn
+/// is due (at `TURN_FRAMES` or past, the count back to 0).
+pub fn count_frame(frames: u32) -> (u32, bool) {
+    let n = frames.wrapping_add(1);
+    if n < TURN_FRAMES {
+        (n, false)
+    } else {
+        (0, true)
+    }
+}
+
+/// The texture worked on, held to 0 .. 3 (`and 3`), and the next after it.
+pub fn texture_turn(texture: u32) -> u32 {
+    texture & MOST_TEXTURE
+}
+
+/// The texture after `texture`, held to 0 .. 3.
+pub fn next_texture(texture: u32) -> u32 {
+    texture.wrapping_add(1) & MOST_TEXTURE
+}
+
+/// The mud's colour packed (`dword_623D34`) from its red, green and blue dwords: red
+/// << 16 with its low half replaced by green's and blue's low bytes.
+pub fn packed_colour([red, green, blue]: [u32; 3]) -> u32 {
+    (red << 16) & 0xFFFF_0000 | (green & 0xFF) << 8 | (blue & 0xFF)
+}
+
+/// The colours sampled from the mud's picture: 256, colour n's at (0x89 + (n & 3) +
+/// (n >> 5) x 4, 0x68 + ((n & 0x1C) >> 2)).
+pub fn sample_place(n: u32) -> (u32, u32) {
+    (0x89 + (n & 3) + (n >> 5) * 4, 0x68 + ((n & 0x1C) >> 2))
+}
+
+/// The colours sampled.
+pub const SAMPLES: u32 = 0x100;
+
+/// The mud file's two digits ("mudfile.0xx") of the car's file number: its quotient and
+/// remainder by 10, each as the original leaves it in a register (the low byte + '0').
+pub fn file_digits(number: u32) -> (u32, u32) {
+    let digit = |v: u32| v & !0xFF | (v as u8).wrapping_add(b'0') as u32;
+    (digit(number / 10), digit(number % 10))
+}
+
+/// A colour's tint toward the mud's.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Tint {
+    /// The colour (its top byte kept).
+    pub colour: u32,
+    /// The high dword of the last byte's product (edx).
+    pub high: u32,
+}
+
+/// `race::tint_to_mud_colour`: each of the colour's three low bytes brought toward the
+/// mud's (red, green, blue: whole dwords; blue for the lowest byte) by `amount` of 0x100
+/// (`gfx::fade_colour`'s step).
+pub fn tint(colour: u32, mud: [u32; 3], amount: u32) -> Tint {
+    use crate::gfx::pixels::fade_step;
+    let [b0, b1, b2, b3] = colour.to_le_bytes();
+    let [red, green, blue] = mud;
+    let (r0, _) = fade_step(b0.into(), blue, amount);
+    let (r1, _) = fade_step(b1.into(), green, amount);
+    let (r2, high) = fade_step(b2.into(), red, amount);
+    Tint {
+        colour: u32::from_le_bytes([r0 as u8, r1 as u8, r2 as u8, b3]),
+        high,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -127,5 +201,34 @@ mod tests {
         assert!(splash_lands(0x20, || 0x120));
         assert!(!splash_lands(0x20, || 0x21));
         assert_eq!(splash_pattern(0x1F), 0xF << 6);
+    }
+
+    #[test]
+    fn turns_and_colours() {
+        assert_eq!(count_frame(0xC), (0xD, false));
+        assert_eq!(count_frame(0xD), (0, true));
+        assert_eq!(count_frame(0x20), (0, true));
+        assert_eq!((texture_turn(5), next_texture(3)), (1, 0));
+        assert_eq!(packed_colour([0x1234_5678, 0x1AB, 0x2CD]), 0x5678_ABCD);
+        assert_eq!(sample_place(0), (0x89, 0x68));
+        assert_eq!(sample_place(0xFF), (0x89 + 3 + 28, 0x68 + 7));
+        assert_eq!(file_digits(37), (b'3' as u32, b'7' as u32));
+        assert_eq!(
+            file_digits(0x1000),
+            (0x100 | (0x99u8.wrapping_add(b'0')) as u32, b'6' as u32)
+        );
+    }
+
+    #[test]
+    fn tints() {
+        assert_eq!(tint(0xAA10_2030, [0x80, 0x40, 0x20], 0).colour, 0xAA10_2030);
+        assert_eq!(
+            tint(0xAA10_2030, [0x80, 0x40, 0x20], 0x100).colour,
+            0xAA80_4020
+        );
+        assert_eq!(
+            tint(0x0000_0000, [0x200, 0x200, 0x200], 0x100).colour,
+            0x00FF_FFFF
+        );
     }
 }

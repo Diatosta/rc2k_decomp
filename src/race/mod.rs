@@ -345,6 +345,7 @@ pub mod sort_points_by_x_down_b;
 pub mod sort_points_by_y;
 pub mod sort_points_by_z;
 pub mod sort_sort_entries;
+pub mod sorting;
 pub mod sound_row;
 pub mod sound_span;
 pub mod sound_spots;

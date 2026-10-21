@@ -19,6 +19,7 @@ use crate::net::{
     CAR, LOG_INT, LOG_INT_NL, LOG_TEXT, MESSAGE, Part, SEND_RACE, a, dispatch_net, log_send,
 };
 use crate::system::api_stand_ins::copy_with;
+use rc2k_core::net::race::Kind;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -33,18 +34,16 @@ hook_asm!(
     original = ORIGINAL
 );
 
-/// What one of the three sends: its log text (an RVA as IDA shows it), its tag, the car
-/// block's dwords (offsets).
+/// What one of the three sends: its log text (an RVA as IDA shows it) and its kind (the
+/// tag and the car block's dwords: `rc2k_core::net::race::Kind`).
 pub struct Message {
     pub text: usize,
-    pub tag: u32,
-    pub fields: &'static [u32],
+    pub kind: Kind,
 }
 
 pub const INPUTS: Message = Message {
     text: 0x4DE0D9, // "send j"
-    tag: 0x4D53_474A,
-    fields: &[0xFD0, 0xFD4, 0xFD8, 0xFDC],
+    kind: Kind::Inputs,
 };
 
 /// The shared body on a car block and a message buffer at the addresses given.
@@ -56,17 +55,17 @@ pub fn send_fields_with(
     part: Part,
 ) -> Result<(), Refused> {
     log_send(m.text, r, part)?;
+    // Converted: `rc2k_core::net::race::Kind::pack`.
+    let dwords = m
+        .kind
+        .pack(|field| unsafe { ((car + field) as *const u32).read_unaligned() });
     let out = message as *mut u32;
-    unsafe {
-        out.write_unaligned(m.tag);
-        r.eax = m.tag;
-        for (n, &field) in m.fields.iter().enumerate() {
-            r.eax = ((car + field) as *const u32).read_unaligned();
-            out.add(n + 1).write_unaligned(r.eax);
-        }
+    for (n, &v) in dwords.iter().enumerate() {
+        unsafe { out.add(n).write_unaligned(v) };
     }
+    r.eax = *dwords.last().unwrap_or(&0);
     r.ebx = message;
-    r.ecx = 4 * (m.fields.len() as u32 + 1);
+    r.ecx = 4 * dwords.len() as u32;
     part(SEND_RACE, r)
 }
 
@@ -108,7 +107,7 @@ pub fn test_send(
         &[LOG_TEXT, LOG_INT, LOG_INT_NL, SEND_RACE],
         &[],
         &[(CAR, 0x1008, car), (MESSAGE, 0x100, out)],
-        m.fields.len() + 1,
+        m.kind.fields().len() + 1,
     ) {
         Ok(c) => c,
         Err(why) => return t.skip(&why),

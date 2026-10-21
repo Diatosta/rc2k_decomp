@@ -370,6 +370,15 @@ pub fn float_places(regions: &[Region]) -> Vec<(Region, crate::service::floats::
         .collect()
 }
 
+/// Each region a float place made by sums of matrix products (`floats::SUM`: a sum that
+/// nearly cancels may be off by its terms' error).
+pub fn sum_places(regions: &[Region]) -> Vec<(Region, crate::service::floats::Tolerance)> {
+    regions
+        .iter()
+        .map(|&r| (r, crate::service::floats::SUM))
+        .collect()
+}
+
 // ---- for the self-tests ----
 
 /// Floats for a test's matrix, by lot: mostly of a size a matrix has, some not.

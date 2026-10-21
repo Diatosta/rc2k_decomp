@@ -19,6 +19,9 @@
 //! Shadow mode runs the original alone.
 //! Self-test: a redirected copy whose calls of the projection and the drawing note
 //! what they are given.
+//!
+//! Converted 2026-10-21: the test, the list, the choice and the fan through
+//! `rc2k_core::scene::polygons` (compares of stored floats: exact).
 
 use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::{BadInput, Refused};
@@ -27,7 +30,7 @@ use crate::framework::{
 };
 use crate::install::stand_ins::{act, set_handler, stand_in};
 use crate::redirect::RedirectedCopy;
-use crate::scene::clip::{NEXT_ENTRY_RVA, NEXT_RECORD_RVA, POOL_RVA, below};
+use crate::scene::clip::{NEXT_ENTRY_RVA, NEXT_RECORD_RVA, POOL_RVA};
 use crate::scene::draw_clipped_polygon::draw_clipped_polygon_in_game;
 use crate::scene::polygon::{ENTRIES_RVA, ENTRY_LEN, LIST_RVA, dword, put};
 use crate::scene::project_polygon::project_polygon;
@@ -55,8 +58,6 @@ hook_asm!(
 // ---- game data ----
 
 const KEPT_RVA: usize = rva(0x976610); // unk_976610
-/// The kept entries' room, up to the list.
-const MOST_KEPT: u32 = 0x40;
 const LEAST_RVA: usize = rva(0x5C5D90); // flt_5C5D90
 const RIGHT_RVA: usize = rva(0x6241F0); // g_clipScreenRight
 const BOTTOM_RVA: usize = rva(0x6241E8); // g_clipScreenBottom
@@ -71,51 +72,51 @@ pub enum Step {
     Draw,
 }
 
-/// `sub_451EED`: whether some vertex of a polygon of three or more is off the screen
-/// or too near.
+/// `sub_451EED` on the work table's records.
 unsafe fn needs_clipping(count: u32) -> Result<bool, BadInput> {
+    use rc2k_core::scene::polygons::{Edges, Vertex};
     unsafe {
         if (count as i32).wrapping_sub(3) < 0 {
             return Ok(false);
         }
-        let number = |at: usize| f32::from_bits(game_read(at)) as f64;
-        let (least, right, bottom) = (number(LEAST_RVA), number(RIGHT_RVA), number(BOTTOM_RVA));
-        for n in 0..count as usize {
+        let number = |at: usize| f32::from_bits(game_read(at));
+        let edges = Edges {
+            least: number(LEAST_RVA),
+            right: number(RIGHT_RVA),
+            bottom: number(BOTTOM_RVA),
+        };
+        rc2k_core::scene::polygons::needs_clipping(count, &edges, |n| {
             let record = dword(game_addr(ENTRIES_RVA) + n * ENTRY_LEN + 4) as usize;
             if record == 0 {
                 return Err(BadInput("an entry without its record"));
             }
-            let value = |at: usize| f32::from_bits(dword(record + at)) as f64;
-            let (x, y, depth) = (value(0xC), value(0x1C), value(0x18));
-            if below(depth, least)
-                || below(x, least)
-                || !below(x, right)
-                || below(y, least)
-                || !below(y, bottom)
-            {
-                return Ok(true);
-            }
-        }
-        Ok(false)
+            let value = |at: usize| f32::from_bits(dword(record + at));
+            Ok(Vertex {
+                x: value(0xC),
+                y: value(0x1C),
+                depth: value(0x18),
+            })
+        })
     }
 }
 
+// Converted: `rc2k_core::scene::polygons`
 pub unsafe fn draw_object_polygon(
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
+    use rc2k_core::scene::polygons::{drawn_whole, fan, first_list, fits};
     unsafe {
         let count: u32 = game_read(COUNT_RVA);
-        if count == 0 || count > MOST_KEPT {
+        if !fits(count) {
             return Err(BadInput("a polygon of no vertices, or of more than 64").into());
         }
         game_write(NEXT_RECORD_RVA, game_addr(POOL_RVA) as u32);
-        for n in 0..count {
-            game_write(LIST_RVA + n as usize * 4, n);
+        for (n, number) in first_list(count).into_iter().enumerate() {
+            game_write(LIST_RVA + n * 4, number);
         }
-        game_write(LIST_RVA + count as usize * 4, 0u32);
         game_write(NEXT_ENTRY_RVA, count);
         step(Step::Project)?;
-        if !needs_clipping(count)? || count == 3 {
+        if drawn_whole(count, needs_clipping(count)?) {
             game_write(
                 WHOLE_COUNT_RVA,
                 game_read::<u32>(WHOLE_COUNT_RVA).wrapping_add(1),
@@ -136,8 +137,8 @@ pub unsafe fn draw_object_polygon(
         game_write(COUNT_RVA, 3u32);
         step(Step::Draw)?;
         game_write(COUNT_RVA, count);
-        for n in 3..count as usize {
-            for (to, from) in [0, n - 1, n].into_iter().enumerate() {
+        for triangle in fan(count) {
+            for (to, from) in triangle.into_iter().enumerate() {
                 std::ptr::copy(
                     (kept + from * ENTRY_LEN) as *const u8,
                     (entries + to * ENTRY_LEN) as *mut u8,

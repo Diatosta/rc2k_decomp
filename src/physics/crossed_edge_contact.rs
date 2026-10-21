@@ -22,7 +22,7 @@
 //! version on the game's variables (saved and put back) with a test face and scene
 //! points, paths across each edge, under three precisions.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, hook_asm, rva};
 use crate::math::x87::mul;
 use crate::physics::contact_force::{RECORD, contact_force};
@@ -34,6 +34,7 @@ use crate::physics::wall_edge_contact::edge_normal;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
 use crate::service::harness::dispatch_state;
+use rc2k_core::physics::walls;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -64,17 +65,19 @@ fn rd(x: u32) -> u32 {
 /// 64-bit difference not below 0, `jns` / `stc`). `qword_620460` the first product, eax
 /// the difference's low dword.
 fn side(r: &mut Regs, x: u32, z: u32) -> bool {
-    let i = |v: u32| i64::from(v as i32);
-    let first = i(g(0x6D31AC).wrapping_sub(g(0x6D31A4))) * i(x.wrapping_sub(g(0x6D31A0)));
+    let (first, difference) = walls::path_side(
+        (g(0x6D31A0), g(0x6D31A4)),
+        (g(0x6D31A8), g(0x6D31AC)),
+        (x, z),
+    );
     p(0x620460, first as u32);
     p(0x620464, (first >> 32) as u32);
-    let second = i(g(0x6D31A8).wrapping_sub(g(0x6D31A0))) * i(z.wrapping_sub(g(0x6D31A4)));
-    let difference = second.wrapping_sub(first);
     r.eax = difference as u32;
     difference >= 0
 }
 
 /// The steps, not guarded (the probe checked before).
+// Converted: `rc2k_core::physics::walls::{path_side, crossed_edge}`.
 pub fn steps(r: &mut Regs) -> Result<(), Refused> {
     let n = g(CROSSED);
     r.ebx = n;
@@ -103,23 +106,11 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
     }
     r.esi = face;
     let corner = |j: usize| (g(0x6D3180 + 8 * j), g(0x6D3184 + 8 * j));
-    let mut test = |j: usize| {
+    // The original's order of tests (each computed, `qword_620460` the last one's).
+    let (first, second) = walls::crossed_edge(|j| {
         let (x, z) = corner(j);
         side(r, x, z)
-    };
-    // The original's order of tests (each computed, `qword_620460` the last one's).
-    let (first, second) = if test(0) && !test(1) {
-        (4, 8)
-    } else if test(1) && !test(3) {
-        (8, 0x10)
-    } else if test(3) && !test(2) {
-        (0x10, 0xC)
-    } else {
-        if test(2) {
-            test(0);
-        }
-        (0xC, 4)
-    };
+    });
     r.eax = rd(face + first);
     r.ebx = rd(face + second);
     p(0x6141BC, r.eax);
@@ -146,10 +137,7 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
 
 /// The probe checked: refused past 0x3F.
 pub fn check_probe() -> Result<(), Refused> {
-    if g(CROSSED) > 0x3F {
-        return Err(BadInput("a probe point past 0x3F (the tables' room)").into());
-    }
-    Ok(())
+    Ok(walls::check_probe(g(CROSSED))?)
 }
 
 /// The Rust version.

@@ -94,6 +94,35 @@ pub unsafe fn make_wave_tables(entry: &Regs) -> Result<Regs, Refused> {
     Ok(g)
 }
 
+/// The converted `make_wave_tables` (plain floats): the hook's. The x87 version above
+/// stays for `marks::init_marks` (unconverted).
+// Converted: `rc2k_core::marks::waves::{mark, level, sines}`
+pub unsafe fn make_wave_tables_plain(entry: &Regs) -> Result<Regs, Refused> {
+    use rc2k_core::marks::waves::{Mark, level, mark, sines};
+    let mut g = *entry;
+    unsafe {
+        let target = game_addr(WAVE_DONE_TARGET_RVA) as u32;
+        match mark(game_read(WAVE_DONE_RVA), target) {
+            Mark::Made => return Ok(g),
+            Mark::Elsewhere => {
+                return Err(BadInput("the wave tables' mark is neither 0 nor nullsub_23").into());
+            }
+            Mark::ToMake => {}
+        }
+        let f = |r: usize| f32::from_bits(game_read(r));
+        let (scale, less) = (f(WAVE_SCALE_RVA), f(WAVE_LESS_RVA));
+        for n in (0..WAVE_LEVELS as usize).rev() {
+            let at = WAVE_LEVELS_RVA + 4 * n;
+            game_write(at, level(game_read(at), scale, less).to_bits());
+        }
+        game_write(SINES_RVA, sines(f(SINE_STEP_RVA)).map(f32::to_bits));
+        g.edi = game_addr(SINES_RVA) as u32 + 4 * SINES;
+        g.eax = game_addr(WAVE_DONE_RVA) as u32;
+        game_write(WAVE_DONE_RVA, target);
+    }
+    Ok(g)
+}
+
 /// `marks::clear_slots` (0x4C967B): the first dword of the 0x20 slots 0. Leaves esi 0.
 pub unsafe fn clear_slots(entry: &Regs) -> Regs {
     let mut g = *entry;
@@ -155,6 +184,65 @@ pub unsafe fn tick_clock(entry: &Regs) -> Regs {
     g
 }
 
+/// The converted `tick_clock` (plain floats): the hook's. The x87 version above stays for
+/// `marks::run_frame` and `marks::init_marks` (unconverted).
+// Converted: `rc2k_core::marks::clock::Clock::tick`
+pub unsafe fn tick_clock_plain(entry: &Regs) -> Regs {
+    use rc2k_core::marks::clock::{Clock, Scales};
+    let mut g = *entry;
+    unsafe {
+        let clock: u32 = game_read(CLOCK_RVA);
+        let f = |r: usize| f32::from_bits(game_read(r));
+        let started = clock_var(STARTED);
+        let last = if started == 0 { 0 } else { clock_var(LAST) };
+        let mut c = Clock {
+            started,
+            last,
+            ..Clock::default()
+        };
+        let first = c.started == 0;
+        let running = !first && {
+            g.esi = game_read(SETTINGS_RVA);
+            ((g.esi + 0x10) as *const u32).read_unaligned() == 1
+        };
+        let k = Scales {
+            first: if first { f(FIRST_RECIPROCAL_RVA) } else { 0.0 },
+            reciprocal: if first { 0.0 } else { f(RECIPROCAL_SCALE_RVA) },
+            ticks: if first { 0.0 } else { f(TICKS_SCALE_RVA) },
+        };
+        c.tick(clock, running, &k);
+        if first {
+            for (o, v) in [
+                (STARTED, 1),
+                (LAST, clock),
+                (NOW, clock),
+                (BEFORE, clock),
+                (TICKS, 0),
+            ] {
+                set_clock_var(o, v);
+            }
+            set_clock_var(RECIPROCAL, c.reciprocal.to_bits());
+            return g;
+        }
+        g.ebx = c.before;
+        g.eax = c.sixteenth;
+        for (o, v) in [
+            (NOW, c.now),
+            (BEFORE, c.before),
+            (LAST, c.last),
+            (TICKS, c.ticks),
+            (QUARTER, c.quarter),
+            (SIXTEENTH, c.sixteenth),
+            (RECIPROCAL, c.reciprocal.to_bits()),
+            (RECIPROCAL_SCALED, c.reciprocal_scaled.to_bits()),
+            (TICKS_SCALED, c.ticks_scaled.to_bits()),
+        ] {
+            set_clock_var(o, v);
+        }
+    }
+    g
+}
+
 /// `marks::make_noise_curve`'s variables (0x8DA410 ..): the value, its least and most
 /// step, the step's change, the step, and a running sum of the seeds.
 pub const CURVE_VARS_RVA: usize = rva(0x8DA410);
@@ -165,7 +253,6 @@ pub const CURVE_LEN: u32 = 0x1000;
 const CURVE_SCALE_RVA: usize = rva(0x8DB4CC); // flt_8DB4CC, 8.5
 const CURVE_DAMP_RVA: usize = rva(0x8DB4D0); // flt_8DB4D0, 0.9
 const SMOOTH_RVAS: [usize; 3] = [rva(0x8DB4D4), rva(0x8DB4D8), rva(0x8DB4DC)]; // 0.3, 0.4, 0.3
-const SMOOTHINGS: u32 = 0xA0;
 const RAMP_BY_RVA: usize = rva(0x8DB4E0); // dword_8DB4E0, 0x1000
 /// Three tables of 0x800 20-bit randoms, two of remainders, one of floats.
 pub const RANDOMS_RVA: usize = rva(0x8C6000);
@@ -186,16 +273,6 @@ const RECORD_VALUE_RVAS: [usize; 5] = [
 pub const QUADS_RVA: usize = rva(0x8D2100); // xmmword_8D2100, then 0x8D2120, 0x8D2130
 const QUAD_VALUE_RVAS: [usize; 3] = [rva(0x8DB508), rva(0x62409C), rva(0x6240A0)];
 
-unsafe fn next_seed() -> u32 {
-    unsafe {
-        let seed = game_read::<u32>(SEED_RVA)
-            .wrapping_mul(0x9D)
-            .wrapping_add(0x47);
-        game_write(SEED_RVA, seed);
-        seed
-    }
-}
-
 /// `marks::make_noise_curve` (0x4C2247), `init_marks`' step 5, with `g_marksSeed` started
 /// at 0x7FFFFFF:
 /// - a walk of 0x1000 steps into `g_marksCurve` (each the value << 4 times 8.5; the step
@@ -210,55 +287,50 @@ unsafe fn next_seed() -> u32 {
 ///
 /// Leaves eax the last quad's value, ebx, ecx, edx the records' values, esi 0, edi past
 /// the records. Refuses a divisor that is 0 or 1 or -1 (the original's `idiv` traps).
+// Converted: `rc2k_core::marks::noise::{walk, smooth, random_tables, record_values}`
 pub unsafe fn make_noise_curve(entry: &Regs) -> Result<Regs, Refused> {
+    use rc2k_core::marks::noise as core;
     let mut g = *entry;
     unsafe {
         let divisors = DIVISOR_RVAS.map(|a| game_read::<i32>(a));
-        if divisors.iter().any(|d| d.unsigned_abs() < 2) {
+        if !divisors.into_iter().all(core::divisor_fits) {
             return Err(BadInput("a remainder's divisor is 0, 1 or -1: idiv traps").into());
         }
-        let (least, most, change) = (-0x1000i32, 0x1000i32, 2i32);
         game_write(
             CURVE_VARS_RVA,
-            [0u32, least as u32, most as u32, change as u32, 0],
+            [
+                0u32,
+                core::LEAST_STEP as u32,
+                core::MOST_STEP as u32,
+                core::CHANGE as u32,
+                0,
+            ],
         );
-        game_write(SEED_RVA, 0x7FF_FFFFu32);
+        // The roundings follow the x87's control word: the x87's.
         let (scale, damp): (u32, u32) = (game_read(CURVE_SCALE_RVA), game_read(CURVE_DAMP_RVA));
-        let curve = game_addr(CURVE_RVA) as *mut i32;
-        let copy = game_addr(CURVE_COPY_RVA) as *mut i32;
         let sum_at = CURVE_VARS_RVA + 0x14;
-        let (mut value, mut step) = (0i32, 0i32);
-        for n in 0..CURVE_LEN as usize {
-            curve
-                .add(n)
-                .write_unaligned(x87::int_times_to_int(value << 4, scale));
-            let mut next = step.wrapping_add(change);
-            let seed = next_seed();
-            let (sum, carry) = game_read::<u32>(sum_at).overflowing_add(seed);
-            game_write(sum_at, sum);
-            if carry {
-                next = next.wrapping_sub(change).wrapping_sub(change);
-            }
-            step = next.clamp(least, most);
-            value = x87::int_times_to_int(value.wrapping_add(step), damp);
-        }
-        game_write(CURVE_VARS_RVA, value);
-        game_write(CURVE_VARS_RVA + 0x10, step);
+        let w = core::walk(
+            game_read(sum_at),
+            |v| x87::int_times_to_int(v, scale),
+            |v| x87::int_times_to_int(v, damp),
+        );
+        game_write(sum_at, w.sum);
+        game_write(CURVE_VARS_RVA, w.value);
+        game_write(CURVE_VARS_RVA + 0x10, w.step);
+        let mut curve = w.curve;
+        let mut copy = vec![0; CURVE_LEN as usize];
         let weights = SMOOTH_RVAS.map(|a| game_read::<u32>(a));
-        for _ in 0..SMOOTHINGS {
-            std::ptr::copy(curve, copy, CURVE_LEN as usize);
-            for n in 1..0xFFE {
-                let at = |m: usize| copy.add(m).read_unaligned();
-                curve.add(n).write_unaligned(x87::weighted3_to_int(
-                    at(n - 1),
-                    at(n),
-                    at(n + 1),
-                    weights[0],
-                    weights[1],
-                    weights[2],
-                ));
-            }
+        for _ in 0..core::SMOOTHINGS {
+            core::smooth(&mut curve, &mut copy, |a, b, c| {
+                x87::weighted3_to_int(a, b, c, weights[0], weights[1], weights[2])
+            });
         }
+        let to = |r: usize, v: &[i32]| {
+            std::ptr::copy_nonoverlapping(v.as_ptr(), game_addr(r) as *mut i32, v.len())
+        };
+        to(CURVE_RVA, &curve);
+        to(CURVE_COPY_RVA, &copy);
+        let copy = game_addr(CURVE_COPY_RVA) as *mut i32;
         x87::ramp_down(
             copy,
             0xFFE,
@@ -268,47 +340,24 @@ pub unsafe fn make_noise_curve(entry: &Regs) -> Result<Regs, Refused> {
         );
         let (spread_scale, spread_base): (u32, u32) =
             (game_read(SPREAD_SCALE_RVA), game_read(SPREAD_BASE_RVA));
-        for n in (0..RANDOMS as usize).rev() {
-            let seed = next_seed();
-            for (k, turn) in [0u32, 10, 20].into_iter().enumerate() {
-                game_write(
-                    RANDOMS_RVA + 0x2000 * k + 4 * n,
-                    seed.rotate_right(turn) & 0xF_FFFF,
-                );
-            }
-            let three = (seed.rotate_right(30) & 7) as i32;
-            game_write(
-                RANDOMS_RVA + 0xA000 + 4 * n,
-                x87::int_times_plus(three, spread_scale, spread_base),
-            );
+        let t = core::random_tables(w.seed, divisors);
+        for (k, table) in t.randoms.iter().enumerate() {
+            game_write(RANDOMS_RVA + 0x2000 * k, *table);
         }
-        for n in (0..RANDOMS as usize).rev() {
-            for (k, d) in divisors.into_iter().enumerate() {
-                let seed = next_seed();
-                game_write(
-                    RANDOMS_RVA + 0x6000 + 0x2000 * k + 4 * n,
-                    (seed as i64 % d as i64) as u32,
-                );
-            }
+        let spread = t
+            .threes
+            .map(|three| x87::int_times_plus(three, spread_scale, spread_base));
+        game_write(RANDOMS_RVA + 0xA000, spread);
+        for (k, table) in t.remainders.iter().enumerate() {
+            game_write(RANDOMS_RVA + 0x6000 + 0x2000 * k, *table);
         }
+        game_write(SEED_RVA, t.seed);
         game_write(CURVE_FLAG_RVA, 0u32);
-        let [quarter_v, a, b, c, d] = RECORD_VALUE_RVAS.map(|r| game_read::<u32>(r));
+        let values = RECORD_VALUE_RVAS.map(|r| game_read::<u32>(r));
+        let layout = core::record_values(values);
         for n in 0..CURVE_RECORDS as usize {
-            let record = CURVE_RECORDS_RVA + 0x80 * n;
-            for q in 0..4 {
-                game_write(record + 0x20 * q + 0xC, [quarter_v, u32::MAX, 0]);
-            }
-            for (o, v) in [
-                (0x18, a),
-                (0x38, c),
-                (0x58, c),
-                (0x78, a),
-                (0x1C, b),
-                (0x3C, b),
-                (0x5C, d),
-                (0x7C, d),
-            ] {
-                game_write(record + o, v);
+            for &(o, v) in &layout {
+                game_write(CURVE_RECORDS_RVA + 0x80 * n + o as usize, v);
             }
         }
         let first = x87::loaded(game_read(QUAD_VALUE_RVAS[0]));
@@ -316,7 +365,7 @@ pub unsafe fn make_noise_curve(entry: &Regs) -> Result<Regs, Refused> {
         game_write(QUADS_RVA + 0x20, [game_read::<u32>(QUAD_VALUE_RVAS[1]); 4]);
         g.eax = game_read(QUAD_VALUE_RVAS[2]);
         game_write(QUADS_RVA + 0x30, [g.eax; 4]);
-        (g.ebx, g.ecx, g.edx) = (b, c, d);
+        (g.ebx, g.ecx, g.edx) = (values[2], values[3], values[4]);
         g.esi = 0;
         g.edi = game_addr(CURVE_RECORDS_RVA) as u32 + 0x80 * CURVE_RECORDS;
     }

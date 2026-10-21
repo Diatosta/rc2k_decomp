@@ -24,12 +24,9 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, hook_asm, rva};
 use crate::input::effects::compare;
-use crate::math::x87::x87;
-use crate::net::send_extra::EXTRA;
-use crate::net::send_inputs::INPUTS;
-use crate::net::send_position::POSITION;
 use crate::net::{LOG_INT, LOG_INT_NL, LOG_TEXT, PLAYER, Part, STEP, a, dispatch_net, g};
 use crate::system::api_stand_ins::copy_with;
+use rc2k_core::net::race::{self, Arrival, Kind};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -48,20 +45,6 @@ hook_asm!(
 pub const BLOCKS: usize = 0x71B3B8;
 const TEXT: usize = 0x4DE0EE; // "rcvd fm plyr"
 const NEAR: usize = 0x5C5D54; // flt_5C5D54: 10.0
-
-/// `fild a0; fisub b0; fmul st, st` for the three, `faddp` twice, `fsqrt`, `fcomp near`:
-/// whether C0 is set (less than `near`, or unordered).
-fn closer_than(a: [u32; 3], b: [u32; 3], near: u32) -> bool {
-    let v = [a[0], b[0], a[1], b[1], a[2], b[2], near];
-    let mut status = 0u16;
-    x87!("fild dword ptr [{v}]", "fisub dword ptr [{v} + 4]", ".byte 0xD8, 0xC8",
-        "fild dword ptr [{v} + 8]", "fisub dword ptr [{v} + 12]", ".byte 0xD8, 0xC8",
-        "fild dword ptr [{v} + 16]", "fisub dword ptr [{v} + 20]", ".byte 0xD8, 0xC8",
-        ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1", "fsqrt", "fcomp dword ptr [{v} + 24]",
-        "fnstsw word ptr [{o}]";
-        v = v.as_ptr(), o = &raw mut status);
-    status & 0x100 != 0
-}
 
 /// The Rust version on the block table at `blocks`.
 pub fn apply_message_with(r: &mut Regs, blocks: u32, part: Part) -> Result<(), Refused> {
@@ -84,42 +67,38 @@ pub fn apply_message_with(r: &mut Regs, blocks: u32, part: Part) -> Result<(), R
     let block = rd(blocks + 4 * r.ebp);
     r.edi = block;
     r.eax = rd(r.ebx);
-    let fields: &[u32] = match r.eax {
-        0x4D53_4750 => POSITION.fields,
-        0x4D53_474A => INPUTS.fields,
-        0x4D53_4758 => EXTRA.fields,
-        _ => return Ok(()),
+    // Converted: `rc2k_core::net::race` (`Kind`, `arrival`; the distance's test in `f64`,
+    // exact for the decision).
+    let Some(kind) = Kind::of(r.eax) else {
+        return Ok(());
     };
-    let to_place = r.eax == 0x4D53_4750;
     r.ecx = 4;
-    for (n, &field) in fields.iter().enumerate() {
-        // The place received goes where the car is to be.
-        let field = if to_place && n < 3 {
-            0xFC0 + 4 * n as u32
-        } else {
-            field
-        };
+    for n in 0..kind.fields().len() {
         r.eax = rd(r.ebx + r.ecx);
-        wr(block + field, r.eax);
+        wr(block + kind.destination(n), r.eax);
         r.ecx += 4;
     }
-    if !to_place {
+    if kind != Kind::Position {
         return Ok(());
     }
-    let wanted = [rd(block + 0xFC0), rd(block + 0xFC4), rd(block + 0xFC8)];
-    let now = [rd(block + 0x134), rd(block + 0x138), rd(block + 0x13C)];
-    let early = (rd(block + 8).wrapping_sub(1000) as i32) < 0;
-    if !early && !closer_than(wanted, now, unsafe { game_read(rva(NEAR)) }) {
-        for k in 0..3 {
-            wr(block + 0x134 + 4 * k, wanted[k as usize]);
+    let three = |at: u32| [rd(block + at), rd(block + at + 4), rd(block + at + 8)];
+    let (wanted, now) = (three(race::WANTED), three(race::PLACE));
+    let steps = rd(block + race::STEPS);
+    let near = f32::from_bits(unsafe { game_read(rva(NEAR)) });
+    match race::arrival(wanted, now, steps, near) {
+        Arrival::Jump => {
+            for (k, v) in (0..).zip(wanted) {
+                wr(block + race::PLACE + 4 * k, v);
+            }
         }
-        return Ok(());
+        Arrival::Glide(step) => {
+            for (k, v) in (0..).zip(step) {
+                r.eax = v;
+                wr(block + race::WANTED + 4 * k, v);
+            }
+            wr(block + race::GLIDE_STEPS, race::GLIDE);
+        }
     }
-    for k in 0..3 {
-        r.eax = ((wanted[k] as i32).wrapping_sub(now[k] as i32) >> 5) as u32;
-        wr(block + 0xFC0 + 4 * k as u32, r.eax);
-    }
-    wr(block + 0xFCC, 0x20);
     Ok(())
 }
 

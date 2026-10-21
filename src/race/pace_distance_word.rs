@@ -12,7 +12,7 @@
 //! of every word, below and past 40 tens, places in the text.
 
 use crate::framework::{EDI, RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::race::pace_notes::{Course, Machine, TestStage, case, regions};
+use crate::race::pace_notes::{Machine, TestStage, case, regions};
 use crate::screens::harness::Left;
 use crate::service::harness::dispatch_state;
 use std::sync::atomic::AtomicUsize;
@@ -31,7 +31,7 @@ hook_asm!(
 
 /// The Rust version.
 pub fn pace_distance_word(r: &Regs) -> Result<Left, crate::errors::Refused> {
-    let mut m = Machine::load(r, Course::game());
+    let mut m = Machine::load(r, crate::race::pace_notes::game_course());
     m.distance_word()?;
     m.commit();
     Ok(Left::nothing().with(EDI, m.r.edi))

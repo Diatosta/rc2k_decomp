@@ -17,6 +17,7 @@ use crate::net::lobby::{
     Part, SESSION_TABLE, SESSIONS, Saved, a, answer, dispatch_lobby, dword, fatal, fatal_popa_1,
     fatal_popa_2, fill, p, run_both,
 };
+use rc2k_core::net::lists;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -34,10 +35,11 @@ hook_asm!(
 /// The Rust version: the registers it leaves (the entry's).
 pub fn allocate_lists(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
-    for (bytes, table, code) in [
-        (0x5400, CONNECTION_TABLE, NO_CONNECTION_MEMORY),
-        (0x6800, SESSION_TABLE, NO_SESSION_MEMORY),
-    ] {
+    // Converted: `rc2k_core::net::lists::TABLES`.
+    for ((bytes, code), table) in lists::TABLES
+        .into_iter()
+        .zip([CONNECTION_TABLE, SESSION_TABLE])
+    {
         r.eax = bytes;
         r.ebx = a(NET_MEMORY);
         part(ALLOCATE, &mut r)?;

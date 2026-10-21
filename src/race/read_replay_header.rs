@@ -1,7 +1,7 @@
 //! `race::read_replay_header` (0x460428): "READREPLAYHEADER" logged; the replay's header
 //! (`dword_719B14` ..) into the race's variables: the arcade's noise seed, start place
 //! and cars, the stage, the game mode, the players, the cars and their kinds (into the
-//! car blocks too), the two game-over flags (`MOVES`); then twelve of them logged, each
+//! car blocks too), the two game-over flags (`targets`); then twelve of them logged, each
 //! as its name and its value (`NAMES`).
 //!
 //! In:  nothing
@@ -16,8 +16,10 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::a;
+use crate::race::race_end::{HEADER, setting_place};
 use crate::race::viewer::{Part, Saved, dispatch_parts, dword, get, put, run_both, test_part};
 use crate::service::harness::Region;
+use rc2k_core::race::replay::{HEADER_SETTINGS, Setting, read_logged};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -32,40 +34,19 @@ hook_asm!(
     original = ORIGINAL
 );
 
-/// (to, from), in the original's order.
-const MOVES: [(usize, usize); 17] = [
-    (0x60519C, 0x719B48),
-    (0x6051BC, 0x719B40),
-    (0x6051B4, 0x719B44),
-    (0x623850, 0x719B14), // g_stageNumber
-    (0x62389C, 0x719B18),
-    (0x63DB94, 0x719B1C),
-    (0x63DB90, 0x719B20), // g_raceCars
-    (0x70F410, 0x719B24), // g_carBlockStore.kind
-    (0x623858, 0x719B24), // g_raceCarKinds
-    (0x7103F0, 0x719B28),
-    (0x62385C, 0x719B28),
-    (0x7113D0, 0x719B2C),
-    (0x623860, 0x719B2C),
-    (0x7123B0, 0x719B30),
-    (0x623864, 0x719B30),
-    (0x70F49C, 0x719B4C), // g_carBlockStore.out
-    (0x71047C, 0x719B50),
-];
-/// (the name's text, the value logged).
-const NAMES: [(usize, usize); 12] = [
-    (0x4DDDFB, 0x719B40), // "[replayheader.arcstartpos]"
-    (0x4DDE16, 0x719B44), // "[replayheader.numarccars]"
-    (0x4DDE30, 0x719B14), // "[replayheader.track]"
-    (0x4DDE45, 0x719B18), // "[replayheader.gmode]"
-    (0x4DDE5A, 0x719B1C), // "[replayheader.numpl]"
-    (0x4DDE6F, 0x719B20), // "[replayheader.numcars]"
-    (0x4DDE86, 0x719B24), // "[replayheader.car1]"
-    (0x4DDE9A, 0x719B28), // "[replayheader.car2]"
-    (0x4DDEAE, 0x719B2C), // "[replayheader.car3]"
-    (0x4DDEC2, 0x719B30), // "[replayheader.car4]"
-    (0x4DDED6, 0x719B4C), // "[replayheader.gameoverflag1]"
-    (0x4DDEF3, 0x719B50), // "[replayheader.gameoverflag2]"
+/// The race's places a header setting goes back to, in the original's order (a kind
+/// into its block and into `g_raceCarKinds`).
+fn targets(s: Setting) -> Vec<usize> {
+    match s {
+        Setting::Kind(n) => vec![setting_place(s), 0x623858 + 4 * n as usize],
+        _ => vec![setting_place(s)],
+    }
+}
+
+/// "[replayheader.arcstartpos]" .. "[replayheader.gameoverflag2]", by `read_logged`.
+const NAMES: [usize; 12] = [
+    0x4DDDFB, 0x4DDE16, 0x4DDE30, 0x4DDE45, 0x4DDE5A, 0x4DDE6F, 0x4DDE86, 0x4DDE9A, 0x4DDEAE,
+    0x4DDEC2, 0x4DDED6, 0x4DDEF3,
 ];
 const TITLE: usize = 0x4DDDEA; // "READREPLAYHEADER"
 
@@ -75,13 +56,17 @@ pub fn read_replay_header(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         let mut r = Regs { eax, ..*entry };
         part(place, &mut r)
     };
+    // Converted: `rc2k_core::race::replay::{HEADER_SETTINGS, read_logged}`.
     call(part, 1, a(TITLE))?;
-    for (to, from) in MOVES {
-        put(to, get(from));
+    let from = |s: Setting| HEADER + s.offset() as usize;
+    for s in HEADER_SETTINGS {
+        for to in targets(s) {
+            put(to, get(from(s)));
+        }
     }
-    for (text, value) in NAMES {
+    for (&text, &s) in NAMES.iter().zip(read_logged()) {
         call(part, 2, a(text))?;
-        call(part, 3, get(value))?;
+        call(part, 3, get(from(s)))?;
     }
     Ok(*entry)
 }
@@ -122,7 +107,11 @@ fn self_test() -> (usize, usize) {
         Err(why) => return t.skip(why),
     };
     crate::race::viewer::quiet();
-    let regions: Vec<Region> = MOVES.iter().map(|&(to, _)| dword(to)).collect();
+    let regions: Vec<Region> = HEADER_SETTINGS
+        .iter()
+        .flat_map(|&s| targets(s))
+        .map(dword)
+        .collect();
     let mut all = regions.clone();
     all.push(crate::race::viewer::region(0x719B14, 0x40));
     let saved = Saved::new(&all);
@@ -135,7 +124,7 @@ fn self_test() -> (usize, usize) {
         0,
         &|| {
             crate::race::viewer::fill(0x719B14, 0x40, 21);
-            for &(to, _) in &MOVES {
+            for to in HEADER_SETTINGS.iter().flat_map(|&s| targets(s)) {
                 put(to, 0xAAAA_AAAA);
             }
         },

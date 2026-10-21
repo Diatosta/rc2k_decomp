@@ -81,8 +81,9 @@ pub unsafe fn take_mouse(entry: &Regs) -> Regs {
 /// them, ecx 0.
 pub unsafe fn copy_keys(entry: &Regs) -> Regs {
     unsafe {
-        let keys: [u8; KEYS as usize] = game_read(DOWN_RVA);
-        game_write(NOW_RVA, keys);
+        let mut t = tables();
+        t.copy_keys(&game_read(DOWN_RVA));
+        game_write(NOW_RVA, t.now);
     }
     Regs {
         esi: game_addr(NOW_RVA) as u32,
@@ -159,7 +160,8 @@ pub type Screenshot<'a> = &'a mut dyn FnMut();
 /// `gfx::screenshot_if_key` (0x43B573): `gfx::take_screenshot` while key 0x52 is down
 /// (in `g_keysNow`). Every register preserved.
 pub unsafe fn screenshot_if_key(shot: Screenshot) {
-    if unsafe { byte(NOW_RVA, SCREENSHOT_KEY) } != 0 {
+    // Converted: `rc2k_core::input::frame::screenshot_wanted`.
+    if rc2k_core::input::frame::screenshot_wanted(unsafe { byte(NOW_RVA, SCREENSHOT_KEY) }) {
         shot();
     }
 }
@@ -167,12 +169,11 @@ pub unsafe fn screenshot_if_key(shot: Screenshot) {
 /// `input::end_frame` (0x43AA91): with `g_screenshotsOn`, `check` (`screenshot_if_key`);
 /// then `dword_6138F4` and `dword_6138F8` 0. Every register preserved.
 pub unsafe fn end_frame(check: Screenshot) {
+    // Converted: `rc2k_core::input::frame::end_frame`.
     unsafe {
-        if game_read::<u32>(SCREENSHOTS_RVA) != 0 {
-            check();
-        }
-        for at in FRAME_CLEARED_RVA {
-            game_write(at, 0u32);
+        let left = rc2k_core::input::frame::end_frame(game_read(SCREENSHOTS_RVA), check);
+        for (at, value) in FRAME_CLEARED_RVA.into_iter().zip(left) {
+            game_write(at, value);
         }
     }
 }

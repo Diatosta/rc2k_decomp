@@ -9,7 +9,7 @@
 //! 6, 7, 8 and past.
 
 use crate::framework::{EBP, RawHook, Regs, SelfTest, game_write, hook_asm, rva};
-use crate::race::pace_notes::{Course, Machine, SLOT_RVA};
+use crate::race::pace_notes::{Machine, SLOT_RVA};
 use crate::screens::harness::Left;
 use crate::service::harness::{at, capture, check_state, dispatch_state, restore};
 use std::sync::atomic::AtomicUsize;
@@ -28,7 +28,7 @@ hook_asm!(
 
 /// The Rust version: the slot written, ebp left.
 pub fn next_pace_slot(r: &Regs) -> Result<Left, crate::errors::Refused> {
-    let mut m = Machine::load(r, Course::game());
+    let mut m = Machine::load(r, crate::race::pace_notes::game_course());
     m.next_slot();
     unsafe { game_write(SLOT_RVA, m.slot) };
     Ok(Left::nothing().with(EBP, m.r.ebp))

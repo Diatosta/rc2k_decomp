@@ -43,15 +43,17 @@ const LOAD_RVA: usize = rva(0x44E778); // scene::load_texture
 // ---- Rust version ----
 
 /// `load`: what stands for `scene::load_texture`, given the texture and the slot.
+// Converted: `rc2k_core::scene::textures::slot_load`
 pub unsafe fn load_slot_texture(slot: u32, load: &mut dyn FnMut(u32, u32)) -> Result<(), BadInput> {
     unsafe {
-        if slot >= SLOTS {
-            return Err(BadInput("a texture slot past the table"));
-        }
-        let wanted = entry(WANTED_RVA, slot);
-        if wanted == u32::MAX || wanted == entry(LOADED_RVA, slot) {
+        let Some(wanted) = rc2k_core::scene::textures::slot_load(
+            slot,
+            || entry(WANTED_RVA, slot),
+            || entry(LOADED_RVA, slot),
+        )?
+        else {
             return Ok(());
-        }
+        };
         load(wanted, slot);
         game_write(LOADS_RVA, game_read::<u32>(LOADS_RVA).wrapping_add(1));
         game_write(LOADED_RVA + slot as usize * 4, wanted);

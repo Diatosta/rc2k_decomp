@@ -33,10 +33,11 @@ hook_asm!(
 const CLOCK_RVA: usize = rva(0x814714); // dword_814714
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::marks::steps::steps`
 pub unsafe fn hexagons_step(entry: &Regs) -> Regs {
     unsafe {
         let clock: u32 = game_read(CLOCK_RVA);
-        let steps = game_read::<u32>(LATEST_RVA).wrapping_sub(clock) & 0xFF;
+        let steps = rc2k_core::marks::steps::steps(game_read(LATEST_RVA), clock);
         game_write(LATEST_RVA, clock);
         game_write(STEPS_RVA, steps);
         let mut g = expire_hexagons(&Regs {

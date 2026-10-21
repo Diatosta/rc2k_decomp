@@ -5,7 +5,8 @@
 //!
 //! The three floats at `dword_62DAA8` times the three at `dword_62DAB4`, added (the
 //! second and third products first), times `flt_62DAC0`, rounded as the x87 is set to
-//! (`fistp`); also left in `dword_62400C`. x87, with the original's instructions.
+//! (`fistp`); also left in `dword_62400C`. The hook's Rust version is `light_dot_plain`;
+//! self-test at the test precisions.
 //! Callers: the two lighting functions `sub_4511F1` and `sub_451296`, which put a
 //! point's place in the first three, a light's direction in the second and its
 //! strength in the factor.
@@ -14,7 +15,10 @@ use crate::errors::Refused;
 use crate::framework::{EAX, RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::floats::{
+    Floats, ROUNDED, Tolerance, at_test_precisions, check_state_floats, dispatch_state_floats,
+};
+use crate::service::harness::{Region, at, capture, restore};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -63,6 +67,19 @@ pub unsafe fn light_dot() -> i32 {
     }
 }
 
+/// The converted `light_dot` (plain floats): the hook's. The x87 version above stays for
+/// `scene::vertex_light` (unconverted).
+// Converted: `rc2k_core::scene::light::light_dot`
+pub unsafe fn light_dot_plain() -> i32 {
+    unsafe {
+        let v: [u32; 7] = game_read(INPUTS_RVA);
+        let f = |n: usize| f32::from_bits(v[n]);
+        let out = rc2k_core::scene::light::light_dot([f(0), f(1), f(2)], [f(3), f(4), f(5)], f(6));
+        game_write(CHECKED_RVA, out);
+        out
+    }
+}
+
 // ---- hook ----
 
 fn regions() -> [Region; 1] {
@@ -70,11 +87,23 @@ fn regions() -> [Region; 1] {
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(Left::nothing().with(EAX, unsafe { light_dot() } as u32))
+    Ok(Left::nothing().with(EAX, unsafe { light_dot_plain() } as u32))
 }
 
+/// The number, from floats (`fistp`): one off at a rounding edge at extended precision.
+fn float_places() -> [(Region, Tolerance); 1] {
+    [(at(CHECKED_RVA), ROUNDED)]
+}
+
+const REGS: [(u8, Tolerance); 1] = [(EAX, ROUNDED)];
+
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+    let places = float_places();
+    let floats = Floats {
+        memory: &places,
+        regs: &REGS,
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
 }
 
 // ---- self-test ----
@@ -100,20 +129,29 @@ fn self_test() -> (usize, usize) {
         [0.1, 0.2, 0.3, -0.7, 0.9, -0.11, 12345.678],
         [-1.0, -2.0, -3.0, 4.0, 5.0, 6.0, 0.25],
     ];
-    for case in cases {
-        check_state(
-            &mut t,
-            &format!("{case:?}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                game_write(CHECKED_RVA, 0xAAAA_AAAAu32);
-                game_write(INPUTS_RVA, case.map(f32::to_bits));
-            },
-            &regions,
-            &rust,
-        );
-    }
+    let places = float_places();
+    let tolerant = Floats {
+        memory: &places,
+        regs: &REGS,
+    };
+    at_test_precisions(&tolerant, &mut |word, held| {
+        for case in cases {
+            check_state_floats(
+                &mut t,
+                "scene::light_dot",
+                &format!("control word {word:#x}, {case:?}"),
+                call_original,
+                Regs::SENTINEL,
+                &|| unsafe {
+                    game_write(CHECKED_RVA, 0xAAAA_AAAAu32);
+                    game_write(INPUTS_RVA, case.map(f32::to_bits));
+                },
+                &regions,
+                held,
+                &rust,
+            );
+        }
+    });
     restore(&regions, &saved.0);
     restore(&inputs, &saved.1);
     t.finish()

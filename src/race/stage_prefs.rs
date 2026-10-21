@@ -22,7 +22,7 @@ pub const LIGHTS_RVA: usize = rva(0x6077E8); // the lights' data, 0x1320 bytes
 const LIGHTS_PATH_RVA: usize = rva(0x608B08); // "files\s\data\ldata"
 pub const LIGHTS_LEN: u32 = 0x1320;
 pub const LIGHT_RECORDS_RVA: usize = rva(0x5C906C); // 0x22 records of 0x134
-pub const LIGHT_RECORDS: u32 = 0x22;
+pub const LIGHT_RECORDS: u32 = rc2k_core::race::stage_objects::LIGHT_RECORDS as u32;
 const CRASH_ANGLES_RVA: usize = rva(0x71A998); // three dwords, angles << 16 (y, x, z)
 pub const CRASH_TURNS_RVA: usize = rva(0x63503C); // dword_63503C .. dword_635044
 pub const CRASH_MATRIX_RVA: usize = rva(0x71A08C); // dword_71A08C
@@ -162,14 +162,21 @@ pub unsafe fn init_skidmarks(entry: &Regs) -> Regs {
 /// `race::copy_lights_data` (0x438B03): 0x22 records of 0x90 bytes from the lights' data
 /// to +0xA4 of the 0x134-byte records at 0x5C906C. Leaves esi and edi past them, edx 0x22.
 pub unsafe fn copy_lights_data(entry: &Regs) -> Regs {
+    // Converted: `rc2k_core::race::stage_objects::lay_lights`.
+    use rc2k_core::race::stage_objects::{LIGHT_DATA, LIGHT_RECORD, lay_lights};
     let mut g = *entry;
-    g.esi = game_addr(LIGHTS_RVA) as u32;
-    g.edi = game_addr(LIGHT_RECORDS_RVA) as u32;
-    for _ in 0..LIGHT_RECORDS {
-        unsafe { std::ptr::copy((g.esi) as *const u8, (g.edi + 0xA4) as *mut u8, 0x90) };
-        g.esi += 0x90;
-        g.edi += 0x134;
+    let (data, records) = (game_addr(LIGHTS_RVA), game_addr(LIGHT_RECORDS_RVA));
+    unsafe {
+        lay_lights(
+            std::slice::from_raw_parts(data as *const u8, LIGHTS_LEN as usize),
+            std::slice::from_raw_parts_mut(
+                records as *mut u8,
+                LIGHT_RECORDS as usize * LIGHT_RECORD,
+            ),
+        );
     }
+    g.esi = (data + LIGHT_RECORDS as usize * LIGHT_DATA) as u32;
+    g.edi = (records + LIGHT_RECORDS as usize * LIGHT_RECORD) as u32;
     g.edx = LIGHT_RECORDS;
     g
 }
@@ -194,8 +201,9 @@ pub unsafe fn get_mat_crash(entry: &Regs) -> Regs {
     use crate::scene::view_matrix::TURN_Z_RVA;
     let mut g = *entry;
     unsafe {
-        let angles: [u32; 3] = game_read(CRASH_ANGLES_RVA);
-        let turns = [angles[1] >> 16, angles[0] >> 16, angles[2] >> 16];
+        // Converted: `rc2k_core::race::stage_objects::crash_turns` (the matrices the
+        // scene's).
+        let turns = rc2k_core::race::stage_objects::crash_turns(game_read(CRASH_ANGLES_RVA));
         game_write(CRASH_TURNS_RVA, turns);
         matrix::set_turn_x(turns[0]);
         matrix::set_turn_y(turns[1]);

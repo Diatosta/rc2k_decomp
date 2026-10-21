@@ -21,6 +21,7 @@ use crate::net::lobby::{
     dispatch_callback, dword, g, log_text, movsb, p, run_callback,
 };
 use crate::net::types::{DpSessionDesc, NetSession};
+use rc2k_core::net::lists::{self, Found};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -65,16 +66,12 @@ pub fn session_found(args: &[u32], part: Part) -> Result<u32, Refused> {
         n.eax = get(desc + 0x30);
     }
     part(LOG_NEWLINE_L2, &mut n)?;
-    if flags & 1 != 0 || desc == 0 {
-        return Ok(0);
-    }
-    if get(desc + 0x44) & 1 == 0 {
-        return Ok(1);
-    }
-    let count = g(SESSIONS);
-    if count >= 0x100 {
-        return Ok(0);
-    }
+    // Converted: `rc2k_core::net::lists::session_found`.
+    let count = match lists::session_found(flags, desc != 0, || get(desc + 0x44), || g(SESSIONS)) {
+        Found::Stop => return Ok(0),
+        Found::Pass => return Ok(1),
+        Found::List(n) => n,
+    };
     p(SESSIONS, count + 1);
     let mut e = Regs { eax: count, ..r };
     part(SESSION_ENTRY, &mut e)?;

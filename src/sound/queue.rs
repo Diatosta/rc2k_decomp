@@ -22,8 +22,6 @@ pub const RECORDS_RVA: usize = rva(0x9566F8); // unk_9566F8
 
 /// Command numbers used by the ported senders.
 pub const START_3: u32 = 3;
-pub const SET_5: u32 = 5;
-pub const SET_8: u32 = 8;
 pub const END_OF_TURN: u32 = 0xA;
 pub const COMMAND_B: u32 = 0xB;
 

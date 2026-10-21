@@ -141,26 +141,24 @@ const LEAGUE_B_RVA: usize = rva(0x604134); // unk_604134: 16 rows of 10 dwords (
 /// sixteen rows at 0x604134. Leaves esi past the records, ecx 10, edx 16, edi past the
 /// last column, eax the last dword (without a source: esi 0).
 pub unsafe fn copy_league_table(entry: &Regs) -> Regs {
+    // Converted: `rc2k_core::race::results::league`.
+    use rc2k_core::race::results::{LEAGUE_ROWS, RECORDS, league};
     let mut g = *entry;
     unsafe {
         g.esi = game_read(LEAGUE_SOURCE_RVA);
         if g.esi == 0 {
             return g;
         }
-        for n in 0..10u32 {
-            let rec = g.esi;
-            g.eax = *((rec + 8) as *const u32);
-            game_write(LEAGUE_A_RVA + 4 * n as usize, g.eax);
-            g.edi = game_addr(LEAGUE_B_RVA) as u32 + 4 * n;
-            for k in 0..16u32 {
-                g.eax = ((rec + 0x10 + 4 * k) as *const u32).read_unaligned();
-                (g.edi as *mut u32).write_unaligned(g.eax);
-                g.edi += 0x28;
-            }
-            g.edx = 16;
-            g.esi += 0x50;
-        }
-        g.ecx = 10;
+        let source = g.esi;
+        let l = league(|n, off| ((source + 0x50 * n as u32 + off) as *const u32).read_unaligned());
+        game_write(LEAGUE_A_RVA, l.firsts);
+        game_write(LEAGUE_B_RVA, l.rows);
+        g.eax = l.rows[LEAGUE_ROWS - 1][RECORDS - 1];
+        g.edi =
+            game_addr(LEAGUE_B_RVA) as u32 + 4 * (RECORDS as u32 - 1) + 0x28 * LEAGUE_ROWS as u32;
+        g.edx = LEAGUE_ROWS as u32;
+        g.esi = source + 0x50 * RECORDS as u32;
+        g.ecx = RECORDS as u32;
     }
     g
 }

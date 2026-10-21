@@ -13,6 +13,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::install::installer::{CF, Part, ZF, at, both, cmp, copy, quiet, rb};
 use crate::install::list_test::TestList;
 use crate::race::viewer::{Saved, dispatch_parts};
+use rc2k_core::install::items::EnterWay;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -36,11 +37,12 @@ pub fn item_enter(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
     let kind = rb(r.esi) & 0xF;
     r.ebx = r.ebx & !0xFF | kind as u32;
-    let callee = match kind {
-        1 => LINK,
-        4 => START_EDIT,
-        6 => ACTION,
-        _ => {
+    // Converted: `rc2k_core::install::items::EnterWay`.
+    let callee = match EnterWay::of(kind) {
+        Some(EnterWay::Link) => LINK,
+        Some(EnterWay::StartEdit) => START_EDIT,
+        Some(EnterWay::Action) => ACTION,
+        None => {
             cmp(&mut r, kind as u32, 6);
             return Ok(r);
         }

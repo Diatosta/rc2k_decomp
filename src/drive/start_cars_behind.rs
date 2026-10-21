@@ -40,6 +40,10 @@ use crate::framework::{
 use crate::math::x87;
 use crate::race::car_starts::Part;
 use crate::service::harness::{Region, capture, restore};
+use rc2k_core::drive::pace_cars::{
+    ahead_of_lead, ease_jump, ease_step, first_starts, gap_start, gaps, passed, push_apart,
+    wanted_gap,
+};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
@@ -149,18 +153,6 @@ fn put_car(
     part(STORE, r)
 }
 
-/// `cmp; jns` held below `hi`, `cmp 0; jns` above 0, as the original holds the gap.
-fn hold_signs(v: u32, lo_zero: bool, hi: u32) -> u32 {
-    let mut v = v;
-    if lo_zero && (v as i32) < 0 {
-        v = 0;
-    }
-    if (v.wrapping_sub(hi) as i32) >= 0 {
-        v = hi;
-    }
-    v
-}
-
 /// The Rust core, the calls through `part` (`PLACES`).
 pub unsafe fn start_cars_behind(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     if let Some(why) = refusal() {
@@ -179,15 +171,16 @@ pub unsafe fn start_cars_behind(entry: &Regs, part: Part) -> Result<Regs, Refuse
     }
 }
 
+// Converted: `rc2k_core::drive::pace_cars` (the rules; the moves and calls stay here).
 unsafe fn run(r: &mut Regs, part: Part) -> Result<(), Refused> {
     unsafe {
         if g(0x70FA58) == 0 {
-            r.ebx = g(0x6051BC).wrapping_sub(2);
-            p(0x6051C4, r.ebx);
-            r.ebx = r.ebx.wrapping_add(1);
-            p(0x6051C8, r.ebx);
-            p(0x6051CC, 0x50);
-            p(0x6051D0, 0x28);
+            let [(a, a_dist), (b, b_dist)] = first_starts(g(0x6051BC));
+            r.ebx = b;
+            p(0x6051C4, a);
+            p(0x6051C8, b);
+            p(0x6051CC, a_dist);
+            p(0x6051D0, b_dist);
             for (start, slot, dist) in [
                 (0x6051C4, 0x70FA48, 0x6051CC),
                 (0x6051C8, 0x70FA4C, 0x6051D0),
@@ -197,19 +190,20 @@ unsafe fn run(r: &mut Regs, part: Part) -> Result<(), Refused> {
             p(0x70FA58, 1);
         }
         let count = g(COUNT);
-        r.eax = hold_signs(g(0x70FA40), true, count);
-        r.eax = hold_signs(r.eax.wrapping_sub(1), true, count);
-        r.ebx = g(0x605034 + 4 * r.eax) & 0xF;
-        p(0x6051D4, 0x2C + r.ebx);
-        p(0x6051D8, 0x28 + r.ebx);
-        r.eax = g(0x6051D8).wrapping_add(g(0x6051D4));
+        r.eax = gap_start(g(0x70FA40), count);
+        let word = g(0x605034 + 4 * r.eax);
+        r.ebx = word & 0xF;
+        let (pass, back, sum) = gaps(word);
+        p(0x6051D4, pass);
+        p(0x6051D8, back);
+        r.eax = sum;
         p(0x6051DC, r.eax);
         'moves: {
             if g(0x70FA44) != 0 {
                 r.ebx = g(0x70FA48);
                 r.esi = block(r.ebx);
                 r.eax = at(r.esi + 0x98).wrapping_sub(g(LEAD));
-                if (r.eax.wrapping_sub(g(0x6051D4)) as i32) >= 0 {
+                if passed(r.eax, g(0x6051D4)) {
                     r.eax = g(LEAD).wrapping_sub(g(0x6051D8));
                     part(TAKEN, r)?;
                     if r.carry() {
@@ -247,7 +241,7 @@ unsafe fn run(r: &mut Regs, part: Part) -> Result<(), Refused> {
             r.ebx = g(0x70FA4C);
             r.esi = block(r.ebx);
             r.eax = g(LEAD).wrapping_sub(at(r.esi + 0x98));
-            if (r.eax.wrapping_sub(g(0x6051D4)) as i32) < 0 {
+            if !passed(r.eax, g(0x6051D4)) {
                 break 'moves;
             }
             r.eax = g(LEAD).wrapping_add(g(0x6051D8));
@@ -276,10 +270,8 @@ unsafe fn run(r: &mut Regs, part: Part) -> Result<(), Refused> {
             for slot in [0x70FA4C, 0x70FA48] {
                 r.ebx = g(slot);
                 r.esi = block(r.ebx);
-                let d = r.eax.wrapping_sub(at(r.esi + 0x98));
-                let ahead = (d as i32) < 0
-                    || (d == 0 && (r.edx.wrapping_sub(at(r.esi + 0x624)) as i32) < 0);
-                if ahead {
+                let esi = r.esi;
+                if ahead_of_lead(r.eax, at(esi + 0x98), r.edx, || at(esi + 0x624)) {
                     part(AHEAD, r)?;
                 } else {
                     r.ebp = r.ebp.wrapping_sub(1);
@@ -288,13 +280,7 @@ unsafe fn run(r: &mut Regs, part: Part) -> Result<(), Refused> {
             }
             p(0x70FA40, r.ebp);
             let gap = |r: &mut Regs, other: u32| {
-                r.eax = g(0x6051DC).wrapping_sub(g(other));
-                if (r.eax.wrapping_sub(g(0x6051D8)) as i32) < 0 {
-                    r.eax = g(0x6051D8);
-                }
-                if (r.eax.wrapping_sub(g(0x6051DC)) as i32) >= 0 {
-                    r.eax = g(0x6051DC);
-                }
+                r.eax = wanted_gap(g(0x6051DC), g(other), g(0x6051D8));
                 r.eax
             };
             let mut to_ease = true;
@@ -311,18 +297,16 @@ unsafe fn run(r: &mut Regs, part: Part) -> Result<(), Refused> {
                 p(0x70FA14, v);
             }
             for (wanted, eased) in [(0x70FA18, 0x70FA20), (0x70FA14, 0x70FA1C)] {
-                r.eax = g(wanted).wrapping_mul(0x14A).wrapping_sub(g(eased));
-                if (r.eax as i32) < 0 {
-                    r.eax = r.eax.wrapping_neg();
-                }
-                if r.eax > 1000 {
-                    r.eax = g(wanted).wrapping_mul(0x14A);
-                    p(eased, r.eax);
+                let jumped;
+                (r.eax, jumped) = ease_jump(g(wanted), g(eased));
+                if let Some(v) = jumped {
+                    p(eased, v);
                 }
             }
             for (wanted, eased) in [(0x70FA18, 0x70FA20), (0x70FA14, 0x70FA1C)] {
-                r.eax = ((g(wanted).wrapping_mul(0x14A).wrapping_sub(g(eased)) as i32) >> 6) as u32;
-                p(eased, g(eased).wrapping_add(r.eax));
+                let next;
+                (r.eax, next) = ease_step(g(wanted), g(eased));
+                p(eased, next);
             }
         }
         for v in [0x70FA60, 0x710A40, 0x711A20, 0x712A00] {
@@ -334,11 +318,10 @@ unsafe fn run(r: &mut Regs, part: Part) -> Result<(), Refused> {
         r.edi = block(r.ebx);
         r.eax = at(r.esi + 0x98).wrapping_sub(at(r.edi + 0x98));
         p(0x70FA5C, r.eax);
-        if (r.eax.wrapping_sub(8) as i32) >= 0 || (r.eax.wrapping_add(8) as i32) < 0 || r.eax == 0 {
+        let Some(push) = push_apart(r.eax) else {
             return Ok(());
-        }
-        let base: u32 = if (r.eax as i32) > 0 { 8 } else { 0xFFFF_FFF8 };
-        r.eax = base.wrapping_sub(g(0x70FA5C));
+        };
+        r.eax = push;
         let put = |a: u32, v: u32| (a as *mut u32).write_unaligned(v);
         put(r.esi + 0x674, r.eax);
         r.eax = r.eax.wrapping_neg();

@@ -30,7 +30,8 @@ const DISABLE_NEW_PLAYERS: u32 = 0x418D8A; // net::disable_new_players
 /// The Rust version: the registers it leaves (the entry's).
 pub fn close_if_host(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
-    if gb(OWN) & 0x10 != 0 {
+    // Converted: `rc2k_core::net::record::is_host`.
+    if rc2k_core::net::record::is_host(gb(OWN)) {
         part(DISABLE_NEW_PLAYERS, &mut r)?;
     }
     Ok(Regs {

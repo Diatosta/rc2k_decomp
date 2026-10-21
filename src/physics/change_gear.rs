@@ -26,6 +26,7 @@ use crate::physics::gear_bit::gear_bit_at;
 use crate::physics::gearing::{GearPlaces, TestGearing, revs_from_wheels_at, wheels_from_revs_at};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, dispatch_state};
+use rc2k_core::physics::gear_shifts::Change;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -78,11 +79,13 @@ fn ratio_gear(g: u32) -> Result<(), Refused> {
 }
 
 /// The core.
+// Converted: `rc2k_core::physics::gear_shifts::change`.
 pub unsafe fn change_gear_at(gp: &GearPlaces, c: &ChangePlaces) -> Result<Left, Refused> {
     unsafe {
         let gear = at(gp.gear);
         let w = at(c.wanted);
-        if gear == w {
+        let way = rc2k_core::physics::gear_shifts::change(gear, w);
+        if way == Change::Same {
             return Ok(Left::nothing().with(EAX, gear));
         }
         let mark = || {
@@ -94,14 +97,14 @@ pub unsafe fn change_gear_at(gp: &GearPlaces, c: &ChangePlaces) -> Result<Left, 
             mark();
             Ok(left)
         };
-        if gear == 0 {
+        if way == Change::FromNeutral {
             ratio_gear(w)?;
             put(gp.gear, w);
             let l = wheels_from_revs_at(gp)?;
             mark();
             return Ok(l.with(EAX, w));
         }
-        if w == 0 {
+        if way == Change::ToNeutral {
             return neutral(Left::nothing().with(EAX, gear));
         }
         let bit = gear_bit_at(c.bits, w)?;

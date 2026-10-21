@@ -1,5 +1,6 @@
 //! The copyright notice of the edition whose notice kind is 2 (converted 2026-10-21 from
-//! `menu::build_notice` 0x4165F1): one line made of the two.
+//! `menu::build_notice` 0x4165F1): one line made of the two. Drawn by a menu frame
+//! (converted 2026-10-21 from `menu::frame_callback` 0x474D4B: `drawn_now`).
 
 /// The notice kind (`g_noticeKind`, from the language's `.loc` file) that builds it.
 pub const BUILDS: u8 = 2;
@@ -29,6 +30,17 @@ pub fn notice(first: &[u8; FIRST_READ], second: &[u8; SECOND_READ]) -> [u8; BUIL
     built
 }
 
+/// The frame's notice: string 0x1000 at (800, 587), font `stru_51E404`.
+pub const STRING: u32 = 0x1000;
+pub const AT: (u32, u32) = (800, 587);
+
+/// Whether a menu frame draws the notice now: with the notice kind that builds it and the
+/// main menu's request (`dword_7585D8` 1, read only for that kind; the frame then clears
+/// it).
+pub fn drawn_now(kind: u8, requested: impl FnOnce() -> u32) -> bool {
+    kind == BUILDS && requested() == 1
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -43,5 +55,12 @@ mod tests {
         assert_eq!(&built[20..24], b" and");
         assert_eq!(&built[24..62], &first[..]);
         assert_eq!(&built[62..], b" \0");
+    }
+
+    #[test]
+    fn drawn() {
+        assert!(drawn_now(2, || 1));
+        assert!(!drawn_now(2, || 0));
+        assert!(!drawn_now(1, || unreachable!()));
     }
 }

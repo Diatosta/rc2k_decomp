@@ -14,11 +14,13 @@
 //! directory/file calls go to the fake file system, against the Rust version, with a
 //! matching ral.exe, a non-matching one, and no installation.
 
+use crate::bridge::{Raw, read_through};
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::install::installer::{
     CLOSE, INSTALLED, OPEN, Part, READ, SET_CD, STATUS, a, at, gb, p, rb,
 };
+use rc2k_core::install::version::{self, Scan};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -44,24 +46,9 @@ const BASE_A: usize = 0x95E6F8; // byte_95E6F8: the folder to go back to
 const BUF: usize = 0x93E8B0; // g_pngInfo
 const READ_TARGET: usize = BUF + 0x100;
 const TAIL: usize = BUF + 0xFF00;
-const SCAN_LEN: u32 = 0xFF00;
+const SCAN_LEN: u32 = version::CHUNK;
 const RAL_EXE: usize = 0x51BE3E; // ".\ral.exe"
 const COPYRIGHT: usize = 0x4E001C; // byte_4E001C
-
-fn matches_at(ebx: u32) -> bool {
-    // "$VER" then ": Ra" (0x6152203A) then "lly " (0x20796C6C) then '5'
-    rb(ebx) == b'$'
-        && rb(ebx + 1) == b'V'
-        && rb(ebx + 2) == b'E'
-        && rb(ebx + 3) == b'R'
-        && dword(ebx + 4) == 0x6152_203A
-        && dword(ebx + 8) == 0x2079_6C6C
-        && rb(ebx + 0xC) == b'5'
-}
-
-fn dword(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
-}
 
 pub fn check_installed_version(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
@@ -114,42 +101,21 @@ pub fn check_installed_version(entry: &Regs, part: Part) -> Result<Regs, Refused
             if r.carry() || r.eax == 0 {
                 break;
             }
-            r.ebx = a(BUF);
-            r.ecx = SCAN_LEN;
-            loop {
-                if rb(r.ebx) == b'$' && matches_at(r.ebx) {
-                    // to the next NUL (at most 0x7F bytes)
-                    r.ecx = 0x80;
-                    loop {
-                        r.ecx -= 1;
-                        if r.ecx == 0 {
-                            break 'read;
-                        }
-                        let b = rb(r.ebx);
-                        r.ebx += 1;
-                        if b < 1 {
-                            break;
-                        }
-                    }
-                    // the copyright line up to its first '.'
+            // Converted: `rc2k_core::install::version::scan`.
+            let buffer = unsafe { Raw::new(a(BUF) as *const u8) };
+            let copyright = unsafe { Raw::new(a(COPYRIGHT) as *const u8) };
+            match read_through(version::scan(&buffer, &copyright)) {
+                Scan::Nothing => {
+                    r.ebx = a(BUF) + SCAN_LEN;
                     r.ecx = 0;
-                    loop {
-                        let want = rb(a(COPYRIGHT) + r.ecx);
-                        r.eax = (r.eax & !0xFF) | want as u32;
-                        if want != rb(r.ebx + r.ecx) {
-                            break 'read;
-                        }
-                        r.ecx += 1;
-                        if want == b'.' {
-                            p(SAME_VERSION, 1);
-                            break 'read;
-                        }
-                    }
                 }
-                r.ebx += 1;
-                r.ecx -= 1;
-                if r.ecx == 0 {
-                    continue 'read;
+                Scan::Stopped { same, at, count } => {
+                    if same {
+                        p(SAME_VERSION, 1);
+                    }
+                    r.ebx = a(BUF) + at;
+                    r.ecx = count;
+                    break 'read;
                 }
             }
         }

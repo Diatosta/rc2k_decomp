@@ -21,6 +21,7 @@ use crate::logfile::write_line::{
     LINE_BUF_RVA, LOG_INDENT_RVA, LOG_LEVEL_RVA, LOG_LINE_START_RVA, acquire, file_bytes, file_len,
     format_line, lock, write_line_regs,
 };
+use rc2k_core::files::log::{Entry, entry};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -48,12 +49,16 @@ const SKIPPED_EAX_RVA: usize = rva(0x4013D9);
 /// `log_write` with the original's registers in and out.
 pub unsafe fn log_write_regs(r: &mut Regs) {
     unsafe {
-        if game_read::<i32>(LOG_ENABLED_RVA) <= 0 {
-            return;
-        }
-        if game_read::<u32>(LOG_LEVEL_RVA) == 0 {
-            r.eax = game_addr(SKIPPED_EAX_RVA) as u32;
-            return;
+        // Converted: `rc2k_core::files::log::entry`.
+        match entry(game_read::<i32>(LOG_ENABLED_RVA), || {
+            game_read::<u32>(LOG_LEVEL_RVA)
+        }) {
+            Entry::Off => return,
+            Entry::Skipped => {
+                r.eax = game_addr(SKIPPED_EAX_RVA) as u32;
+                return;
+            }
+            Entry::Written => {}
         }
         acquire();
         write_line_regs(r);

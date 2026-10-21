@@ -16,6 +16,7 @@ use crate::install::installer::{
     Part, QUITTING, ZF, answer, at, both, cmp, copy, g, quiet, rd, wd,
 };
 use crate::race::viewer::dispatch_parts;
+use rc2k_core::install::pages;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -43,10 +44,11 @@ pub fn run_pages(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         part(at(RUN_PAGE), &mut r)?;
         let answer = r.eax;
         cmp(&mut r, answer, 1);
-        if answer <= 1 {
+        // Converted: `rc2k_core::install::pages` (`resets_highlight`, `next_entry_at`).
+        if pages::resets_highlight(answer) {
             wd(r.edi + 4, 0);
         }
-        r.esi = rd(r.esi.wrapping_add(4 * answer).wrapping_add(4));
+        r.esi = rd(r.esi.wrapping_add(pages::next_entry_at(answer)));
         let quitting = g(QUITTING);
         cmp(&mut r, quitting, 1);
         if quitting == 1 {

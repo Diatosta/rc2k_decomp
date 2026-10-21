@@ -34,7 +34,6 @@ hook_asm!(
 
 const CURRENT_PLAYER_RVA: usize = rva(0x75598C); // dword_75598C
 const PICTURES_RVA: usize = rva(0x75A52E); // off_75A52E: the service pictures' paths
-const PICTURES: u32 = 60;
 const CALLEES: [usize; 2] = [0x411863, 0x406126]; // gfx::load_picture, gfx::convert_picture
 const NOT_CONVERTED: FatalError = FatalError {
     code: 0x8071_2435,
@@ -47,13 +46,11 @@ pub unsafe fn load_background(entry: &Regs, part: Part) -> Result<Regs, Refused>
     if player == 0 {
         return Err(BadInput("no current player (or one past the four)").into());
     }
-    let mut car = unsafe { ((player + 8) as *const u32).read_unaligned() };
-    if car == 0x21 {
-        car = 0x17;
-    }
-    if car >= PICTURES {
-        return Err(BadInput("a car past the service pictures' table").into());
-    }
+    // Converted: `rc2k_core::service::car::background`.
+    let car = rc2k_core::service::car::background(unsafe {
+        ((player + 8) as *const u32).read_unaligned()
+    })
+    .map_err(BadInput::from)?;
     let mut r = Regs {
         eax: unsafe { game_read(PICTURES_RVA + 4 * car as usize) },
         ebx: car,

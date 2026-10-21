@@ -116,14 +116,15 @@ pub unsafe fn release_primary(primary: u32, kept: u32, part: Part) -> Result<(),
             return Ok(());
         }
         part(7, 0)?;
-        let volume = read(kept);
-        if volume != 1 {
+        // Converted: `rc2k_core::audio::device::kept_volume`.
+        use rc2k_core::audio::device::{NO_KEPT_VOLUME, kept_volume};
+        if let Some(volume) = kept_volume(read(kept)) {
             crate::audio::com::call1(
                 read(primary),
                 crate::audio::buffer_settings::SET_VOLUME,
                 volume,
             );
-            write(kept, 1);
+            write(kept, NO_KEPT_VOLUME);
         }
         part(8, 0)?;
         crate::audio::com::call(read(primary), crate::audio::com::RELEASE);
@@ -141,27 +142,28 @@ pub unsafe fn read_caps(direct_sound: u32, caps: u32, part: Part) -> Result<bool
             return Err(BadInput("no DirectSound to ask (the original calls through 0)").into());
         }
         std::ptr::write_bytes(caps as *mut u8, 0, 0x60);
-        write(caps, 0x60);
+        write(caps, rc2k_core::audio::device::CAPS_SIZE);
         if crate::audio::com::call1(ds, GET_CAPS, caps) != 0 {
             return Ok(false);
         }
-        let field = |n: u32| read(caps + n);
-        let text = |r| game_addr(r) as u32;
-        part(0, text(CAPS_TEXT))?;
-        part(2, field(4))?;
-        part(4, field(0x10))?;
-        part(4, field(8))?;
-        part(5, field(0xC))?;
-        part(0, text(MAX_HW_TEXT))?;
-        for n in [0x14, 0x18, 0x1C, 0x20, 0x24] {
-            part(4, field(n))?;
+        // Converted: `rc2k_core::audio::device::CAPS_LOG`.
+        use rc2k_core::audio::device::{CAPS_LOG, CapsLog, CapsText};
+        for entry in CAPS_LOG {
+            let field = |n: u32| read(caps + n);
+            match entry {
+                CapsLog::Text(text) => {
+                    let at = match text {
+                        CapsText::Caps => CAPS_TEXT,
+                        CapsText::MaxHardware => MAX_HW_TEXT,
+                        CapsText::Max3d => MAX_3D_TEXT,
+                    };
+                    part(0, game_addr(at) as u32)?
+                }
+                CapsLog::Hex(n) => part(2, field(n))?,
+                CapsLog::Int(n) => part(4, field(n))?,
+                CapsLog::IntLine(n) => part(5, field(n))?,
+            };
         }
-        part(5, field(0x28))?;
-        part(0, text(MAX_3D_TEXT))?;
-        for n in [0x2C, 0x30, 0x34, 0x38, 0x3C] {
-            part(4, field(n))?;
-        }
-        part(5, field(0x40))?;
         Ok(true)
     }
 }
@@ -240,6 +242,51 @@ impl OpenVars {
     }
 }
 
+/// `open_sound`'s parts in the game's memory: the mode read and written where the original
+/// does, the logs and the calls through `part`, the platform's DirectSound.
+struct Open<'a> {
+    v: &'a OpenVars,
+    part: Part<'a>,
+    create: CreateSound<'a>,
+}
+
+impl rc2k_core::audio::device::Opening for Open<'_> {
+    type Error = Refused;
+    fn mode(&mut self) -> u32 {
+        unsafe { read(self.v.mode) }
+    }
+    fn set_mode(&mut self, mode: u32) {
+        unsafe { write(self.v.mode, mode) };
+    }
+    fn log_open(&mut self, guid: u32) -> Result<(), Refused> {
+        (self.part)(0, game_addr(OPEN_TEXT) as u32)?;
+        (self.part)(3, guid)?;
+        Ok(())
+    }
+    fn log_failed(&mut self, code: u32) -> Result<(), Refused> {
+        (self.part)(0, game_addr(OPEN_FAILED_TEXT) as u32)?;
+        (self.part)(3, code)?;
+        Ok(())
+    }
+    fn open_a3d2(&mut self, guid: u32) -> Result<bool, Refused> {
+        (self.part)(14, guid)
+    }
+    fn open_a3d(&mut self, guid: u32) -> Result<bool, Refused> {
+        (self.part)(15, guid)
+    }
+    fn create(&mut self, guid: u32) -> i32 {
+        (self.create)(guid, self.v.direct_sound)
+    }
+    fn cooperate(&mut self) -> i32 {
+        unsafe {
+            let ds = read(self.v.direct_sound);
+            let level: unsafe extern "system" fn(u32, u32, u32) -> i32 =
+                std::mem::transmute(crate::audio::com::method(ds, SET_COOPERATIVE_LEVEL));
+            level(ds, read(self.v.window), 3)
+        }
+    }
+}
+
 /// `audio::open_sound`: "AUD: open sound" and the GUID logged; mode bit 0x2000:
 /// `open_a3d2` (14), which done is all; failing, the mode's 0x3000 bits flipped. Then only
 /// with bit 0x1000: `open_a3d` (15), failing which `DirectSoundCreate`; cooperative level 3.
@@ -251,38 +298,8 @@ pub unsafe fn open_sound(
     part: Part,
     create: CreateSound,
 ) -> Result<bool, Refused> {
-    unsafe {
-        let failed = |part: Part, code: u32| -> Result<bool, Refused> {
-            part(0, game_addr(OPEN_FAILED_TEXT) as u32)?;
-            part(3, code)?;
-            Ok(false)
-        };
-        part(0, game_addr(OPEN_TEXT) as u32)?;
-        part(3, guid)?;
-        if read(v.mode) & 0x2000 != 0 {
-            if !part(14, guid)? {
-                return Ok(true);
-            }
-            write(v.mode, read(v.mode) ^ 0x3000);
-        }
-        if read(v.mode) & 0x1000 == 0 {
-            return failed(part, guid);
-        }
-        if part(15, guid)? {
-            let r = create(guid, v.direct_sound);
-            if r != 0 {
-                return failed(part, r as u32);
-            }
-        }
-        let ds = read(v.direct_sound);
-        let level: unsafe extern "system" fn(u32, u32, u32) -> i32 =
-            std::mem::transmute(crate::audio::com::method(ds, SET_COOPERATIVE_LEVEL));
-        let r = level(ds, read(v.window), 3);
-        if r != 0 {
-            return failed(part, r as u32);
-        }
-        Ok(true)
-    }
+    // Converted: `rc2k_core::audio::device::open_sound`.
+    rc2k_core::audio::device::open_sound(guid, &mut Open { v, part, create })
 }
 
 /// `audio::reopen_sound`: when the mode's 0xF000 bits differ from those DirectSound was
@@ -290,7 +307,8 @@ pub unsafe fn open_sound(
 /// of `open_sound`, when it ran).
 pub unsafe fn reopen_sound(mode: u32, opened: u32, part: Part) -> Result<bool, Refused> {
     unsafe {
-        if (read(mode) ^ read(opened)) & 0xF000 == 0 {
+        // Converted: `rc2k_core::audio::device::needs_reopen`.
+        if !rc2k_core::audio::device::needs_reopen(read(mode), read(opened)) {
             return Ok(false);
         }
         part(16, 0)?;

@@ -31,12 +31,12 @@ hook_asm!(
 
 pub const EXTRA: Message = Message {
     text: 0x4DE0E7, // "send x"
-    tag: 0x4D53_4758,
-    fields: &[0x64, 0x68, 0x6C, 0x70, 0x74, 0x78, 0x7C, 0x80, 0x84],
+    kind: rc2k_core::net::race::Kind::Extra,
 };
 
 /// The Rust version.
 pub fn send_extra(r: &mut Regs, part: Part) -> Result<(), Refused> {
+    // Converted: `rc2k_core::net::race::Kind::pack` (in `send_fields`).
     send_fields(r, &EXTRA, part)
 }
 

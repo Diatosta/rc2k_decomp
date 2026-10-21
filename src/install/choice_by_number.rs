@@ -11,6 +11,7 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::install::installer::{CF, ZF, rb, rd, wb};
 use crate::race::viewer::dispatch_regs;
+use rc2k_core::install::items::{self, MARKS};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -29,10 +30,10 @@ pub fn choice_by_number(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     r.edx = rd(r.esi + 8);
     r.ebx = rd(r.esi + 0xC);
-    if (r.ecx as u8) < rb(r.esi + 1)
-        && rb(r.ebx.wrapping_add(r.ecx.wrapping_mul(2)).wrapping_add(1)) & 0xC0 == 0
-    {
-        wb(r.edx, r.ecx as u8);
+    // Converted: `rc2k_core::install::items::choice_by_number`.
+    let free = || rb(r.ebx.wrapping_add(r.ecx.wrapping_mul(2)).wrapping_add(1)) & MARKS == 0;
+    if let Some(choice) = items::choice_by_number(r.ecx, rb(r.esi + 1), free) {
+        wb(r.edx, choice);
     }
     r.set_zero(true);
     r.set_carry(false);

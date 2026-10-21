@@ -45,45 +45,19 @@ const NAME_PATH: usize = 0x5AB479; // "Path"
 const NAME_CURDIR: usize = 0x5AB47E; // "CurrentDirectory"
 const HKLM: u32 = 0x8000_0002;
 
-/// `sub_40171A`: the 16-byte GUID at `at` formatted at `cursor` as the registry wants (no
-/// braces); the cursor past it.
-fn format_guid(at: u32, mut cursor: u32) -> u32 {
-    let hex = |value: u32, digits: u32, cursor: &mut u32| {
-        let bytes = crate::strings::hex_append::hex_append(value, digits).unwrap_or_default();
-        for b in bytes {
-            wb(*cursor, b);
-            *cursor += 1;
-        }
-    };
-    let dash = |cursor: &mut u32| {
-        wb(*cursor, b'-');
-        *cursor += 1;
-    };
-    hex(rd(at), 8, &mut cursor);
-    dash(&mut cursor);
-    hex(rb(at + 4) as u32 | (rb(at + 5) as u32) << 8, 4, &mut cursor);
-    dash(&mut cursor);
-    hex(rb(at + 6) as u32 | (rb(at + 7) as u32) << 8, 4, &mut cursor);
-    dash(&mut cursor);
-    // ror ax, 8 of the word at +8: the two bytes swapped
-    hex(rb(at + 9) as u32 | (rb(at + 8) as u32) << 8, 4, &mut cursor);
-    dash(&mut cursor);
-    for n in 0xA..0x10u32 {
-        hex(rb(at + n) as u32, 2, &mut cursor);
-    }
-    cursor
-}
-
 pub fn register_lobby(entry: &Regs, part: Part, api: Api) -> Result<Regs, Refused> {
     let mut r = *entry;
     if api(REG_CREATE_KEY, &[HKLM, a(KEY_NAME), a(REG_KEY)]) != 0 {
         return Ok(r);
     }
     let text = a(TEXT);
-    wb(text, b'{');
-    let cursor = format_guid(a(GUID), text + 1);
-    wb(cursor, b'}');
-    r.ebx = cursor + 1;
+    // Converted: `rc2k_core::install::lobby::guid_text`.
+    let guid: [u8; 16] = std::array::from_fn(|n| rb(a(GUID) + n as u32));
+    let guid = rc2k_core::install::lobby::guid_text(&guid);
+    for (n, &b) in guid.iter().enumerate() {
+        wb(text + n as u32, b);
+    }
+    r.ebx = text + guid.len() as u32;
     append_byte(&mut r, 0);
     let set = |name: usize, data: u32, r: &mut Regs, part: Part| -> Result<(), Refused> {
         r.eax = a(name);

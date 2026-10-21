@@ -9,15 +9,15 @@
 //! Callers: `sub_4B716A`, `sub_4B7216`, `sub_4B70EE` (reached through code at 0x4B7163,
 //! 0x4B720F, 0x4B7266). The polygon through `part` (1), in the game its Rust version.
 //! Shadow mode runs the original alone (it draws). Self-test: a copy whose call goes to a
-//! stand-in, against the Rust version, records by lot.
+//! stand-in, against the Rust version, records by lot, at both test control words.
 
 use crate::errors::Refused;
 use crate::framework::{
     RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
 use crate::hud::batch::{POLYGON_COUNT_RVA, POLYGON_RVA};
-use crate::math::x87;
 use crate::service::harness::{Region, at, capture, restore};
+use rc2k_core::hud::quads;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -52,51 +52,21 @@ pub fn take_quads() -> Vec<(u32, [u32; 14])> {
 /// A call by place: 1 `add_polygon`.
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
-/// `fild i; fdiv a; fdiv b; fstp`.
-fn int_over_over(i: u32, a: u32, b: u32) -> u32 {
-    let (v, mut out) = ([i, a, b], 0u32);
-    unsafe {
-        core::arch::asm!(
-            "fild dword ptr [{v}]",
-            "fdiv dword ptr [{v} + 4]",
-            "fdiv dword ptr [{v} + 8]",
-            "fstp dword ptr [{o}]",
-            v = in(reg) v.as_ptr(),
-            o = in(reg) &raw mut out,
-            out("st(0)") _,
-            options(nostack),
-        )
-    };
-    out
-}
-
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::hud::quads::quad_vertices`
 pub unsafe fn add_quad(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
-        let q = |n: usize| game_read::<u32>(QUAD_RVA + 4 * n);
-        let vert = |n: usize, o: usize, v: u32| game_write(POLYGON_RVA + 0x20 * n + o, v);
-        let [left, top, right, bottom] = [1, 2, 3, 4].map(|n| x87::from_int(q(n) as i32));
-        for (n, (x, y)) in [(left, top), (right, top), (right, bottom), (left, bottom)]
-            .into_iter()
-            .enumerate()
-        {
-            vert(n, 0, x);
-            vert(n, 4, y);
+        let q: [u32; quads::RECORD] = game_read(QUAD_RVA);
+        let [a, b] = SCALE_RVA.map(|r| f32::from_bits(game_read(r)));
+        let (vertices, colour, low) = quads::quad_vertices(&q, a, b);
+        for (n, v) in vertices.into_iter().enumerate() {
+            let at = POLYGON_RVA + 0x20 * n;
+            game_write(at, [v.x.to_bits(), v.y.to_bits()]);
+            game_write(at + 0x10, v.colour);
+            game_write(at + 0x18, [v.u.to_bits(), v.v.to_bits()]);
         }
-        let [a, b] = SCALE_RVA.map(|r| game_read::<u32>(r));
-        for n in 0..4 {
-            vert(n, 0x18, int_over_over(q(6 + 2 * n), a, b));
-        }
-        for n in 0..4 {
-            vert(n, 0x1C, int_over_over(q(7 + 2 * n), a, b));
-        }
-        g.ebx = q(5);
-        g.eax = (q(0) << 24) | (g.ebx & 0xFF_FFFF);
-        g.ebx &= 0xFF_FFFF;
-        for n in 0..4 {
-            vert(n, 0x10, g.eax);
-        }
+        [g.eax, g.ebx] = [colour, low];
         game_write(POLYGON_COUNT_RVA, 4u32);
         part(1, &mut g)?;
     }
@@ -123,7 +93,9 @@ extern "C" fn dispatch(r: &mut Regs) {
 }
 
 fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
+    use crate::hud::batch::run_both_floats;
+    use crate::race::mud::{copy, test_part};
+    use crate::service::floats::FLOAT;
     let Some(mut t) = SelfTest::begin(&HOOK) else {
         return (0, 0);
     };
@@ -138,12 +110,17 @@ fn self_test() -> (usize, usize) {
     vars.push((game_addr(QUAD_RVA) as u32, 0x38));
     vars.extend(SCALE_RVA.map(at));
     let saved = capture(&vars);
+    // The texture places (u, v of each vertex).
+    let places: Vec<_> = (0..4u32)
+        .map(|n| ((game_addr(POLYGON_RVA) as u32 + 0x20 * n + 0x18, 8), FLOAT))
+        .collect();
     for case in 0..4u32 {
-        run_both(
+        run_both_floats(
             &mut t,
             &format!("case {case}"),
             &copy,
             &regions,
+            &places,
             &|| unsafe {
                 restore(&vars, &saved);
                 std::ptr::write_bytes(game_addr(POLYGON_RVA) as *mut u8, 0xAA, 0x80);
@@ -154,6 +131,7 @@ fn self_test() -> (usize, usize) {
                 game_write(SCALE_RVA[0], 256.0f32.to_bits());
                 game_write(SCALE_RVA[1], (1.0f32 + case as f32 * 0.5).to_bits());
             },
+            Regs::SENTINEL,
             &|r| unsafe { add_quad(r, &mut test_part) },
         );
     }

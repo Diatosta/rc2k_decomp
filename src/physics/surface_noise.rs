@@ -20,6 +20,7 @@ use crate::math::x87_run::{ext_div2, int_80};
 use crate::race::frame_draw::sample_noise;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use rc2k_core::physics::ground::{noise_level, rough_floor};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -42,24 +43,18 @@ fn p(x: usize, v: u32) {
     unsafe { game_write(rva(x), v) }
 }
 
-/// lo + (hi - lo) x sample >> 16 (`imul`, `shrd`), held to 0 ..= 0xFF; edx the product's
+/// lo + (hi - lo) x sample >> 16, held to 0 ..= 0xFF; ebx the range, edx the product's
 /// high half.
 fn scaled(r: &mut Regs, lo: u32, hi: u32) -> u32 {
-    r.ebx = hi.wrapping_sub(lo);
-    let product = (r.eax as i32 as i64).wrapping_mul(r.ebx as i32 as i64);
-    r.edx = (product >> 32) as u32;
-    let mut v = ((product as u64) >> 16) as u32;
-    v = v.wrapping_add(lo);
-    if (v as i32) < 0 {
-        v = 0;
-    }
-    if (v.wrapping_sub(0xFF) as i32) >= 0 {
-        v = 0xFF;
-    }
+    let (v, range, high) = noise_level(r.eax, lo, hi);
+    r.ebx = range;
+    r.edx = high;
     v
 }
 
 /// The Rust version.
+// Converted: `rc2k_core::physics::ground::{noise_level, rough_floor}` (the share / 256
+// stays x87).
 pub unsafe fn surface_noise(entry: &Regs) -> Left {
     let mut r = *entry;
     let a = |x: usize| game_addr(rva(x)) as u32;
@@ -73,11 +68,7 @@ pub unsafe fn surface_noise(entry: &Regs) -> Left {
         sample_noise(r.esi).apply(&mut r);
         r.eax = scaled(&mut r, g(0x60AD18), g(0x60AD1C));
         p(0x71A8E0, r.eax);
-        let floor = if r.eax < g(0x60AD10) {
-            g(0x60AD10)
-        } else {
-            r.eax
-        };
+        let floor = rough_floor(r.eax, g(0x60AD10));
         r.eax = floor;
         p(0x62400C, floor);
         p(

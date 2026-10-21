@@ -53,9 +53,12 @@ pub unsafe fn learn_axis(entry: &Regs, part: crate::race::frame::Part) -> Result
         let mut r = *entry;
         w(FOUND, 0);
         part(1, &mut r)?;
+        // Converted: `rc2k_core::screens::learning` (`timed_out`, `by_axis`, `pedal`,
+        // `CANCEL_KEY`, `binding`).
+        use rc2k_core::screens::learning as l;
         r.eax = r.eax.wrapping_sub(k(0x7551F8));
-        if (r.eax.wrapping_sub(0xBB8) as i32) >= 0 {
-            w(0x7551FC, u32::MAX);
+        if l::timed_out(r.eax) {
+            w(0x7551FC, l::TIMED_OUT);
             w(0x7551F4, 0);
             return Ok(());
         }
@@ -76,15 +79,14 @@ pub unsafe fn learn_axis(entry: &Regs, part: crate::race::frame::Part) -> Result
         let field = |o: u32| (player + o) as *mut u8;
         let mut take = true;
         let control = k(0x7551FC);
-        let learning =
-            ((player + 0x34) as *const u32).read_unaligned() == 3 && (control == 1 || control == 2);
-        if learning {
+        if l::by_axis(((player + 0x34) as *const u32).read_unaligned(), control) {
             r.eax = 1;
             part(3, &mut r)?;
             if !r.carry() {
-                field(if control == 1 { 0x3B } else { 0x3A }).write(r.eax as u8);
+                let (byte, found) = l::pedal(control);
+                field(byte).write(r.eax as u8);
                 w(0x4F6F08, ((player + 0x38) as *const u32).read_unaligned());
-                w(FOUND, if control == 1 { 0x200 } else { 0x100 });
+                w(FOUND, found);
                 w(0x7551F4, 0);
                 take = false;
             }
@@ -94,16 +96,14 @@ pub unsafe fn learn_axis(entry: &Regs, part: crate::race::frame::Part) -> Result
         }
         if take {
             part(5, &mut r)?;
-            if r.eax as u8 == 0x39 {
+            if r.eax as u8 == l::CANCEL_KEY {
                 w(FOUND, 0);
                 w(0x7551F4, 0);
             } else if k(FOUND) == 0 {
                 return Ok(());
             }
         }
-        let slot = (player + 0x50)
-            .wrapping_add(k(0x7551FC).wrapping_mul(4))
-            .wrapping_sub(4);
+        let slot = player.wrapping_add(l::binding(k(0x7551FC)));
         (slot as *mut u32).write_unaligned(k(FOUND));
         Ok(())
     }

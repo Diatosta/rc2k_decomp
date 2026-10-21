@@ -21,7 +21,7 @@
 //! Self-test: a redirected copy whose loading and converting note what they get, on
 //! the owner's own files, nine cars both ways from three numbers.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::files::file_exists::file_exists;
 use crate::files::numbered_path::numbered_path_in_game;
 use crate::framework::{
@@ -62,8 +62,6 @@ hook_asm!(
 
 const TEMPLATES_RVA: usize = rva(0x759B0E); // off_759B0E
 const TITLE_BAR_RVA: usize = rva(0x731C54); // "files\g\graphics\screens\titlebar.png"
-const CARS: u32 = 0x18;
-const PICTURES: i32 = 100;
 
 /// What it asks for.
 pub enum Step {
@@ -81,39 +79,26 @@ pub unsafe fn load_slideshow_picture(
     step: &mut dyn FnMut(Step) -> Result<bool, Refused>,
 ) -> Result<(), Refused> {
     unsafe {
-        let car = shown_car()?;
-        if car >= CARS {
-            return Err(BadInput("a car with no slideshow").into());
-        }
+        // Converted: `rc2k_core::menu::slides` (`slideshow_car`, `search`, `pcx`).
+        use rc2k_core::menu::slides;
+        let car = slides::slideshow_car(shown_car()?)?;
         let template: u32 = game_read(TEMPLATES_RVA + car as usize * 4);
         let start: u32 = game_read(PICTURE_RVA);
-        let path = loop {
-            let number: u32 = game_read(PICTURE_RVA);
-            let path = numbered_path_in_game(template as *const u8, number)? as *mut u8;
-            if file_exists(path)? {
-                break path;
-            }
-            let length = text_length(path)? as usize;
-            if length < 2 {
-                return Err(BadInput("a picture's path of fewer than two characters").into());
-            }
-            *path.add(length - 2) = b'c';
-            *path.add(length - 1) = b'x';
-            if file_exists(path)? {
-                break path;
-            }
-            let next = if (way as i32) < 0 {
-                let n = (number as i32).wrapping_sub(1);
-                if n < 0 { PICTURES - 1 } else { n }
-            } else {
-                let n = (number as i32).wrapping_add(1);
-                if n > PICTURES - 1 { 0 } else { n }
-            };
-            game_write(PICTURE_RVA, next);
-            if next as u32 == start {
-                break path;
-            }
-        };
+        let mut path = std::ptr::null_mut();
+        slides::search(
+            start,
+            (way as i32) < 0,
+            |number| -> Result<bool, Refused> {
+                path = numbered_path_in_game(template as *const u8, number)? as *mut u8;
+                if file_exists(path)? {
+                    return Ok(true);
+                }
+                let length = text_length(path)? as usize;
+                slides::pcx(std::slice::from_raw_parts_mut(path, length))?;
+                Ok(file_exists(path)?)
+            },
+            |next| game_write(PICTURE_RVA, next),
+        )?;
         let title_bar: *mut u8 = game_ptr(TITLE_BAR_RVA);
         if step(Step::Overlay(path, title_bar))? {
             step(Step::Load(title_bar))?;

@@ -28,6 +28,7 @@ use crate::sound::spot_voices::{VOICE_COUNT, fill_voices, set, voice, voice_regi
 use crate::sound::turn_parts::{
     CLOCK, PLACED, Part, REQUEST, STOP, both, common_regions, copy_of, dispatch_turn, run_copy,
 };
+use rc2k_core::sound::spot_voices::{Played, REQUEST_FROM, end_time, going_on, played, time_up};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -69,44 +70,35 @@ pub fn play_spot_voices_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
             set(v, 4, 0);
             c.eax = vw(v, 0x14);
             put(0, c.eax);
-            if vw(v, 0x24) == 1 {
-                set(v, 0x24, 0);
-                (c.ecx, c.edx) = sample_settings(c.eax, OWN, OWN)?;
-                set(v, 0x3C, from_int(c.ecx as i32));
-                set(v, 0x38, from_int(c.edx as i32));
-                c.eax = sample_duration(c.eax, c.edx)?
-                    .wrapping_add(clock)
-                    .wrapping_add(vw(v, 0x30));
-                set(v, 0x34, c.eax);
-                set(v, 0x28, 1);
-            } else {
-                if vw(v, 0x28) != 1 {
-                    continue;
+            // Converted: `rc2k_core::sound::spot_voices` (`played`, `end_time`,
+            // `going_on`, `REQUEST_FROM`, `time_up`).
+            match played(vw(v, 0x24), || vw(v, 0x28)) {
+                Played::Start => {
+                    set(v, 0x24, 0);
+                    (c.ecx, c.edx) = sample_settings(c.eax, OWN, OWN)?;
+                    set(v, 0x3C, from_int(c.ecx as i32));
+                    set(v, 0x38, from_int(c.edx as i32));
+                    c.eax = end_time(sample_duration(c.eax, c.edx)?, clock, vw(v, 0x30));
+                    set(v, 0x34, c.eax);
+                    set(v, 0x28, 1);
                 }
-                if c.eax >= RECORDS {
-                    return Err(BadInput("a sound past the sample records").into());
-                }
-                c.eax = c.eax.wrapping_mul(0x40);
-                let looping: u32 = unsafe { game_read(RECORDS_RVA + c.eax as usize + 0x14) };
-                if looping != 1 {
-                    put(0, unsafe { q.read_unaligned() } | 0x8000_0000);
+                Played::Silent => continue,
+                Played::GoOn => {
+                    if c.eax >= RECORDS {
+                        return Err(BadInput("a sound past the sample records").into());
+                    }
+                    c.eax = c.eax.wrapping_mul(0x40);
+                    let looping: u32 = unsafe { game_read(RECORDS_RVA + c.eax as usize + 0x14) };
+                    put(0, going_on(unsafe { q.read_unaligned() }, looping));
                 }
             }
-            for (to, from) in [
-                (2, 0x3C),
-                (1, 0x38),
-                (8, 0x48),
-                (9, 0x4C),
-                (3, 8),
-                (4, 0xC),
-                (5, 0x10),
-            ] {
+            for (to, from) in REQUEST_FROM {
                 c.eax = vw(v, from);
                 put(to, c.eax);
             }
             part(PLACED, &mut c)?;
             c.eax = clock;
-            if (clock.wrapping_sub(vw(v, 0x34)) as i32) >= 0 {
+            if time_up(clock, vw(v, 0x34)) {
                 c.eax = vw(v, 0x14);
                 put(0, c.eax);
                 part(STOP, &mut c)?;

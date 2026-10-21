@@ -32,23 +32,32 @@ hook_asm!(
 
 /// The Rust version (see the header).
 pub fn texture_surface_info(record: u32) -> Result<(), crate::errors::BadInput> {
+    // Converted: `rc2k_core::d3d::textures::surface_info`.
     let s = game_addr(SURFACE_RVA) as u32;
     let d = game_addr(DESCRIPTION_RVA) as u32;
-    let width = get(record + 4);
     let kind = get(record + 0xC);
-    let bytes = get(kind + 4);
-    let row = bytes.wrapping_mul(width);
-    let pitch = get(d + 0x10);
-    put(s + 8, width);
-    put(s + 0xC, get(record + 8));
-    put(s + 0x14, bytes);
-    put(s + 0x10, bytes << 3);
-    put(s + 0x18, row);
-    put(s + 0x1C, row >> 2);
-    put(s + 0x28, get(d + 0x24));
-    put(s + 0x24, pitch);
-    put(s + 0x2C, pitch.wrapping_sub(row));
-    put(s + 0x20, kind + 8);
+    let f = rc2k_core::d3d::textures::surface_info(
+        get(record + 4),
+        get(record + 8),
+        get(kind + 4),
+        kind.wrapping_add(8),
+        get(d + 0x10),
+        get(d + 0x24),
+    );
+    for (at, v) in [
+        (8, f.width),
+        (0xC, f.height),
+        (0x10, f.bits),
+        (0x14, f.bytes),
+        (0x18, f.row_bytes),
+        (0x1C, f.row_dwords),
+        (0x20, f.format),
+        (0x24, f.pitch),
+        (0x28, f.pixels),
+        (0x2C, f.gap),
+    ] {
+        put(s + at, v);
+    }
     unsafe { crate::gfx::set_clip::set_clip(s as *const [u32; 4]) }
 }
 

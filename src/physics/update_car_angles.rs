@@ -37,12 +37,10 @@ hook_asm!(
 const FORCE_RVA: usize = rva(0x71A6C8); // dword_71A6C8
 const HOLD_RVA: usize = rva(0x71A22C); // dword_71A22C
 
-/// Whether the angles are made, by the two switches.
-pub fn wanted(force: u32, hold: u32) -> bool {
-    force != 0 || hold == 0
-}
+use rc2k_core::physics::motion::angles_wanted as wanted;
 
 /// The Rust version.
+// Converted: `rc2k_core::physics::motion::angles_wanted`.
 pub unsafe fn update_car_angles() -> Left {
     let (force, hold) = unsafe { (game_read::<u32>(FORCE_RVA), game_read::<u32>(HOLD_RVA)) };
     if wanted(force, hold) {

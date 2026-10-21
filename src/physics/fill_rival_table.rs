@@ -14,6 +14,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::splits::{g, guarded, p, test_splits, written};
 use crate::screens::harness::Left;
 use crate::service::harness::dispatch_state;
+use rc2k_core::physics::splits::{RIVALS, default_rival};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -29,24 +30,25 @@ hook_asm!(
 );
 
 /// The steps on `r`.
+// Converted: `rc2k_core::physics::splits::default_rival`.
 pub fn fill_rival_table_in(r: &mut Regs) -> Result<(), Refused> {
-    for c in 0..0x5Au32 {
+    for c in 0..RIVALS as u32 {
         r.ecx = c;
-        r.eax = c.wrapping_mul(1000).wrapping_add(0x2EE0);
-        p(0x601ED0 + 4 * c as usize, r.eax);
+        let (time, car, name) = default_rival(c);
+        p(0x601ED0 + 4 * c as usize, time);
         r.ebx = 0x17;
         r.eax = c / 0x17;
-        r.edx = c % 0x17;
-        p(0x602038 + 4 * c as usize, r.edx);
-        r.eax = c + 0x5A5;
-        p(0x601D68 + 4 * c as usize, r.eax);
+        r.edx = car;
+        p(0x602038 + 4 * c as usize, car);
+        r.eax = name;
+        p(0x601D68 + 4 * c as usize, name);
     }
     r.ecx = 0x5A;
     r.esi = g(0x6238BC);
     if r.esi == 0 {
         return Ok(());
     }
-    for c in 0..0x5Ausize {
+    for c in 0..RIVALS {
         let at = |o: u32| unsafe { ((r.esi + o) as *const u32).read_unaligned() };
         r.eax = at(0);
         p(0x601D68 + 4 * c, r.eax);

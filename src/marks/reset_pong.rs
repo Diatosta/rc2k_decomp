@@ -8,6 +8,9 @@
 //! See `marks/splines.rs`. Callers: `sub_4B7F4F` and `sub_4BF529`. Self-test:
 //! the original and the Rust version with the eight floats by lot (a signalling NaN among
 //! them, which `fld` makes quiet), put back afterwards.
+//!
+//! Converted 2026-10-21: through `rc2k_core::marks::pong::Court::reset` (exact at every
+//! precision); compared exactly as before.
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_write, hook_asm, rva};

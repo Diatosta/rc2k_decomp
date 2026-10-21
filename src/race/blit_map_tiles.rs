@@ -18,12 +18,13 @@
 //! Rust version, on a surface and tiles of the test's: 2 and 4 bytes a pixel, tiles inside,
 //! across the edge and outside.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{
     RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
 use crate::race::mud::{copy, run_both_from};
 use crate::service::harness::{Region, at, capture, restore};
+use rc2k_core::race::map::{TILE, TILES};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -50,8 +51,6 @@ const BLACK_RVA: usize = rva(0x5BE9B1); // g_mapBlack
 const GAP_RVA: usize = rva(0x5BE9AD); // dword_5BE9AD
 const LOCK_RVA: usize = rva(0x41AA4B); // d3d::lock_texture
 const UNLOCK_RVA: usize = rva(0x41AB02); // d3d::unlock_texture
-const TILE: u32 = 16;
-const TILES: u32 = 0x80;
 
 /// A call by place (see the header).
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
@@ -67,41 +66,34 @@ pub unsafe fn blit_map_tiles(entry: &Regs, part: Part) -> Result<Regs, Refused> 
     if r.carry() {
         return Ok(*entry);
     }
+    // Converted: `rc2k_core::race::map::{any_inside, check_tiles, row_gap, tile_offset,
+    // tile_index, pixel_width}`.
+    use rc2k_core::race::map::{
+        BLITTED, any_inside, check_tiles, pixel_width, row_gap, tile_index, tile_offset,
+    };
     let (bytes, pitch, pixels) = (g(BYTES_RVA), g(PITCH_RVA), g(PIXELS_RVA));
     let tiles = g(TILES_RVA);
     let (first_x, first_y) = (entry.ecx, entry.edx);
-    let inside = |x: u32, y: u32| x < TILES && y < TILES;
-    let any_inside = (0..8u32).any(|row| {
-        (0..8u32).any(|col| inside(first_x.wrapping_add(col), first_y.wrapping_add(row)))
-    });
-    if pixels == 0 || (tiles == 0 && any_inside) {
+    if let Err(e) = check_tiles(pixels, tiles, any_inside(first_x, first_y)) {
         let mut u = r;
         part(1, &mut u)?;
-        return Err(BadInput(if pixels == 0 {
-            "a null surface"
-        } else {
-            "no map tiles"
-        })
-        .into());
+        return Err(e.into());
     }
-    let gap = pitch.wrapping_sub(bytes.wrapping_mul(TILE));
+    let gap = row_gap(pitch, bytes);
     unsafe { game_write(GAP_RVA, gap) };
     let black = g(BLACK_RVA);
     // The registers the loops leave for the unlock: esi and edi where the last tile left
     // them, ebp the gap, ebx the rows done, ecx back at the first column, edx past the rows.
     let (mut last_from, mut last_to) = (0u32, 0u32);
-    for row in 0..8u32 {
-        for col in 0..8u32 {
+    for row in 0..BLITTED {
+        for col in 0..BLITTED {
             let (x, y) = (first_x.wrapping_add(col), first_y.wrapping_add(row));
-            let mut to = pixels
-                .wrapping_add(col.wrapping_mul(bytes) << 4)
-                .wrapping_add(row.wrapping_mul(pitch) << 4);
-            let tile = if inside(x, y) {
-                unsafe { ((tiles + 4 * (y * TILES + x)) as *const u32).read_unaligned() }
-            } else {
-                0
+            let mut to = pixels.wrapping_add(tile_offset(col, row, bytes, pitch));
+            let tile = match tile_index(x, y) {
+                Some(n) => unsafe { ((tiles + 4 * n) as *const u32).read_unaligned() },
+                None => 0,
             };
-            let wide = if bytes == 2 { 2 } else { 4 };
+            let wide = pixel_width(bytes);
             let mut from = tile;
             for _ in 0..TILE {
                 for _ in 0..TILE {
@@ -133,9 +125,9 @@ pub unsafe fn blit_map_tiles(entry: &Regs, part: Part) -> Result<Regs, Refused> 
     r.esi = last_from;
     r.edi = last_to;
     r.ebp = gap;
-    r.ebx = 8;
+    r.ebx = BLITTED;
     r.ecx = first_x;
-    r.edx = first_y.wrapping_add(8);
+    r.edx = first_y.wrapping_add(BLITTED);
     part(1, &mut r)?;
     Ok(*entry)
 }

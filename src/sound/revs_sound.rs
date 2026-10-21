@@ -22,6 +22,7 @@ use crate::framework::game_addr;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::{base, x87_run};
 use crate::sound::turn_parts::{PLACED, Part, STOP, dispatch_turn, test_car_sound};
+use rc2k_core::sound::engine::{computers, revs_sound_number, revs_stopped};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -55,9 +56,10 @@ pub fn revs_sound_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
     let o = c.ebx;
     let w = |at: u32| unsafe { ((o + at) as *const u32).read_unaligned() };
     let q = c.esi as *mut u32;
-    c.eax = w(0);
-    if (c.eax as i32) < 0 {
-        c.eax &= 1;
+    // Converted: `rc2k_core::sound::engine` (`computers`, `revs_sound_number`,
+    // `revs_stopped`).
+    let object = w(0);
+    if computers(object) {
         c.ebp = game_addr(rva(COMPUTERS)) as u32;
     } else {
         if c.edi == 0 {
@@ -65,11 +67,9 @@ pub fn revs_sound_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
         }
         c.ebp = c.edi + 0x10;
     }
-    c.eax = c
-        .eax
-        .wrapping_add(unsafe { (c.ebp as *const u32).read_unaligned() });
+    c.eax = revs_sound_number(object, unsafe { (c.ebp as *const u32).read_unaligned() });
     unsafe { q.write_unaligned(c.eax) };
-    if w(0x10C) == 0 || w(0x10C) == 3 {
+    if revs_stopped(w(0x10C)) {
         return part(STOP, c);
     }
     x87_run!(

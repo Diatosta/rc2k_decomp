@@ -38,15 +38,13 @@ const OUTS: [usize; 12] = [
 const ENTRY: [u8; 6] = [0x60, 0xB8, 0xB1, 0x01, 0x00, 0x00];
 /// `sound::thin_spot_voices`.
 const EACH: u32 = 0x40E9F8;
-const SOUNDS: [u32; 12] = [
-    0x1B1, 0x1B2, 0x1B3, 0x1B4, 0x1B5, 0x1B6, 0x1B9, 0x1BA, 0x1B0, 0x1BE, 0x1C0, 0x1C3,
-];
 
 // ---- Rust version ----
 
 pub fn thin_spot_voices_all_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+    // Converted: `rc2k_core::sound::spot_voices::THINNED_SOUNDS`.
     let mut c = *r;
-    for sound in SOUNDS {
+    for sound in rc2k_core::sound::spot_voices::THINNED_SOUNDS {
         c.eax = sound;
         part(EACH, &mut c)?;
     }

@@ -52,27 +52,29 @@ const AFTER_RVA: usize = rva(0x74771C); // dword_74771C
 
 /// The Rust version: the registers it leaves.
 pub unsafe fn apply_screen_mode(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::menu::steps::applied_mode`.
+    use rc2k_core::menu::steps::{BACK_TO_MODE, TRY_CHOSEN_MODE, applied_mode};
     let mut r = *entry;
-    r.eax = 1;
+    r.eax = TRY_CHOSEN_MODE;
     part(0, &mut r)?;
-    let (taken, sound) = if r.carry() {
-        r.eax = 0;
-        part(0, &mut r)?;
-        (3u32, 8u32)
-    } else {
+    let taken = !r.carry();
+    if taken {
         for place in [1, 2, 3, 4] {
             part(place, &mut r)?;
         }
-        (1, 2)
-    };
+    } else {
+        r.eax = BACK_TO_MODE;
+        part(0, &mut r)?;
+    }
     for place in [5, 6, 7, 8, 9, 10] {
         part(place, &mut r)?;
     }
+    let applied = applied_mode(taken);
     unsafe {
-        game_write(ITEM_RVA, taken);
-        game_write(AFTER_RVA, taken);
+        game_write(ITEM_RVA, applied.item);
+        game_write(AFTER_RVA, applied.item);
     }
-    r.eax = sound;
+    r.eax = applied.sound;
     part(11, &mut r)?;
     Ok(*entry)
 }

@@ -29,7 +29,8 @@ pub fn finish_page(entry: &Regs) -> Regs {
     if (r.ebx as i32) < 0 {
         let answer = gb(LIST_ANSWER) as u32;
         logic(&mut r, answer.wrapping_sub(2));
-        if answer == 2 {
+        // Converted: `rc2k_core::install::pages::shows_readme`.
+        if rc2k_core::install::pages::shows_readme(answer as u8) {
             pb(0x51BE21, 5);
             pb(LIST_ANSWER, 1);
         }

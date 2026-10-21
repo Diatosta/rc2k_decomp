@@ -110,6 +110,9 @@ pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<bool, Refused>;
 
 /// False for the carry (no race mode).
 pub unsafe fn start(entry: &Regs, v: &StartVars, part: Part) -> Result<bool, Refused> {
+    use rc2k_core::audio::device::{
+        A3D2_MODE, CAPS_EMULATED, Fact, MENU_MODE, modes_kept, probed_race_mode,
+    };
     unsafe {
         let mut c = *entry;
         let mut call = |place: u32, c: &Regs| -> Result<bool, Refused> {
@@ -121,13 +124,13 @@ pub unsafe fn start(entry: &Regs, v: &StartVars, part: Part) -> Result<bool, Ref
         c.eax = read(v.use_a3d);
         write(v.has_a3d2, c.eax);
         call(1, &c)?;
-        c.ebx = 0x1_1221;
+        c.ebx = MENU_MODE;
         write(v.mode, c.ebx | 0x190_0000);
         c.eax = 0;
         let mut to_log = false;
         if call(2, &c)? {
             if read(v.has_a3d2) == 1 {
-                c.ebx = 0x11_2221;
+                c.ebx = A3D2_MODE;
             } else {
                 c.eax = 0;
                 write(v.menu, 0);
@@ -138,7 +141,7 @@ pub unsafe fn start(entry: &Regs, v: &StartVars, part: Part) -> Result<bool, Ref
             c.eax = read(v.a3d_ready);
             write(v.splash_kept, c.eax);
             let flags = |v: &StartVars| read(v.caps + 4);
-            if !call(3, &c)? && flags(v) & 0x20 == 0 {
+            if !call(3, &c)? && flags(v) & CAPS_EMULATED == 0 {
                 call(4, &c)?;
                 c.eax = (read(v.mode) & 0x10_0000 != 0) as u32;
                 (v.has_3d as *mut u32).write_unaligned(c.eax);
@@ -153,25 +156,22 @@ pub unsafe fn start(entry: &Regs, v: &StartVars, part: Part) -> Result<bool, Ref
                 for place in 6..12 {
                     call(place, &c)?;
                 }
-                if flags(v) & 0x100 != 0
-                    && read(v.caps + 0x14) != 0
-                    && (v.has_3d as *const u32).read_unaligned() == 1
-                {
-                    if read(v.has_a3d2) == 1 {
-                        c.ebx = 0x11_2221;
-                    } else if read(v.voice_manager_on) == 1 && read(v.caps + 0x3C) >= 6 {
-                        c.ebx |= 0x90_0000;
-                        if read(v.has_eax) == 1 {
-                            c.ebx |= 0x100_0000;
-                        }
-                    }
-                }
+                // Converted: `rc2k_core::audio::device::probed_race_mode`.
+                c.ebx = probed_race_mode(|fact| match fact {
+                    Fact::CapsFlags => flags(v),
+                    Fact::FreeHardware => read(v.caps + 0x14),
+                    Fact::Has3d => (v.has_3d as *const u32).read_unaligned(),
+                    Fact::HasA3d2 => read(v.has_a3d2),
+                    Fact::VoiceManagerOn => read(v.voice_manager_on),
+                    Fact::Free3d => read(v.caps + 0x3C),
+                    Fact::HasEax => read(v.has_eax),
+                });
             }
         }
         if !to_log {
-            if read(v.race) == 0 || read(v.menu) == 0 {
+            if !modes_kept(read(v.race), || read(v.menu)) {
                 write(v.race, c.ebx);
-                c.ebx = 0x1_1221;
+                c.ebx = MENU_MODE;
                 write(v.menu, c.ebx);
                 write(v.race, c.ebx);
             }

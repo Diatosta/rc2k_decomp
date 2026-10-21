@@ -15,6 +15,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::fill_race_slot::{fill_race_slot_in, g, inputs, p, regions, set_slots};
 use crate::screens::harness::Left;
 use crate::service::harness::{capture, check_state, dispatch_state, restore};
+use rc2k_core::physics::parts::{part_number, take_bit};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -32,19 +33,17 @@ hook_asm!(
 const BITS: usize = 0x71A270; // g_car + 0x298
 
 /// The steps on `r` (cl the bit).
+// Converted: `rc2k_core::physics::parts::{take_bit, part_number}`.
 pub fn fill_slot_on_bit_in(r: &mut Regs) -> Result<(), Refused> {
-    r.eax = 1u32.wrapping_shl(r.ecx & 0x1F);
-    if g(BITS) & r.eax == 0 {
+    let (mask, cleared) = take_bit(g(BITS), r.ecx);
+    r.eax = mask;
+    let Some(cleared) = cleared else {
         return Ok(());
-    }
-    let part = 0x14u32
-        .wrapping_mul(g(0x71B3F8))
-        .wrapping_add(0x50)
-        .wrapping_add(r.ecx);
-    if part > 0xFF {
+    };
+    let Some(part) = part_number(g(0x71B3F8), r.ecx) else {
         return Err(BadInput("a part past 0xFF").into());
-    }
-    p(BITS, g(BITS) ^ r.eax);
+    };
+    p(BITS, cleared);
     r.eax = part;
     fill_race_slot_in(r)
 }

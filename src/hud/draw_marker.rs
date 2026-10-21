@@ -8,14 +8,16 @@
 //! Caller: layout 0's drawer (0x4B1F0C). The sprite through `part` (1), in the game
 //! `add_sprite`'s Rust version. Shadow mode runs the original alone (it draws).
 //! Self-test: a copy whose call goes to a stand-in, against the Rust version, shares by
-//! lot.
+//! lot, at both test control words.
 
 use crate::errors::Refused;
 use crate::framework::{
     RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
 use crate::hud::add_quad::QUAD_RVA;
+use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::service::harness::{Region, at, capture, restore};
+use rc2k_core::hud::quads::marker_x;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -39,27 +41,19 @@ const RECT: u32 = 0x5C;
 /// A call by place: 1 `add_sprite`.
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
-/// `fld a; fdiv b; fmul k; fadd c; fistp`.
-fn share_to_int(a: u32, b: u32, k: u32, c: u32) -> u32 {
-    let (v, mut out) = ([a, b, k, c], 0u32);
-    unsafe {
-        core::arch::asm!("fld dword ptr [{v}]", "fdiv dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]", "fadd dword ptr [{v} + 12]", "fistp dword ptr [{o}]",
-            v = in(reg) v.as_ptr(), o = in(reg) &raw mut out, out("st(0)") _, options(nostack))
-    };
-    out
-}
-
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::hud::quads::marker_x`
 pub unsafe fn draw_marker(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         game_write(QUAD_RVA + 0x14, game_read::<u32>(COLOUR_RVA));
         let get = |o: u32| ((g.ebp + o) as *const u32).read_unaligned();
-        let x = share_to_int(
-            get(0x6C),
-            get(0x68),
-            game_read(K_RVA[0]),
-            game_read(K_RVA[1]),
+        let f = f32::from_bits;
+        let x = marker_x(
+            f(get(0x6C)),
+            f(get(0x68)),
+            f(game_read(K_RVA[0])),
+            f(game_read(K_RVA[1])),
         );
         game_write(SCRATCH_RVA, x);
         g.eax = RECT * 0x10;
@@ -107,7 +101,10 @@ fn self_test() -> (usize, usize) {
     vars.extend([COLOUR_RVA, K_RVA[0], K_RVA[1]].map(at));
     let saved = capture(&vars);
     let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for case in 0..4u32 {
+    for (word, case) in TEST_CONTROL_WORDS
+        .into_iter()
+        .flat_map(|w| (0..4u32).map(move |c| (w, c)))
+    {
         let mut record = [0u32; 0x20];
         record[0x68 / 4] = 1000.0f32.to_bits();
         record[0x6C / 4] = (case as f32 * 333.3).to_bits();
@@ -124,7 +121,9 @@ fn self_test() -> (usize, usize) {
         prepare();
         take_called();
         let mut ro = before;
-        unsafe { crate::framework::call_game(&mut ro, copy.addr()) };
+        with_control_word(word, &mut || unsafe {
+            crate::framework::call_game(&mut ro, copy.addr())
+        });
         let theirs = (Some(regs(&ro)), take_called(), capture(&regions));
         prepare();
         let mine = unsafe {
@@ -140,7 +139,7 @@ fn self_test() -> (usize, usize) {
         );
         t.check(theirs == mine, || {
             format!(
-                "case {case}: original {:x?} {:x?}; rust {:x?} {:x?}; same state {}",
+                "control word {word:#x}, case {case}: original {:x?} {:x?}; rust {:x?} {:x?}; same state {}",
                 theirs.0,
                 theirs.1,
                 mine.0,

@@ -29,12 +29,11 @@
 //! stage's own faces (everything written saved and put back), the car where it is and
 //! moved onto each object face's point (so the paths inside are taken), both directions.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::math::x87::int_hypot;
 use crate::math::x87_run::compare_80;
 use crate::physics::contact_force::{self, RECORD, contact_force};
-use crate::physics::crash_contact::sign;
 use crate::physics::flow::{a, base, copy3, fill3, g, negate, p, x87_run};
 use crate::physics::point_hits_car::{self, KIND};
 use crate::physics::touch_face::{self, FACES, touch_face};
@@ -44,6 +43,7 @@ use crate::race::norms::normalise_work_vector;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::{CallOriginal, Left};
 use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use rc2k_core::physics::face_contacts::{self as contacts, FaceObject, Inside};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -81,6 +81,7 @@ fn touch(r: &mut Regs, face: u32, touched: &mut Touched) -> Result<(), Refused> 
 }
 
 /// The steps, not guarded (`guarded` puts back): `r` as the original leaves it.
+// Converted: `rc2k_core::physics::face_contacts` (the x87 steps stay).
 pub fn steps(r: &mut Regs, touched: &mut Touched) -> Result<(), Refused> {
     p(0x6D3218, r.ebx);
     r.esi = (r.ebx << 6).wrapping_add(g(FACES));
@@ -89,40 +90,27 @@ pub fn steps(r: &mut Regs, touched: &mut Touched) -> Result<(), Refused> {
         return Ok(());
     }
     low(r, byte(face));
-    if byte(face) != 0xFF {
-        return Ok(());
-    }
-    let object = byte(face + 1);
-    low(r, object);
-    if object == 0x3B {
-        p(KIND, 0xFF);
-        return touch(r, face, touched);
-    }
+    let object = match contacts::face_object(byte(face), || byte(face + 1)) {
+        FaceObject::NotObject => return Ok(()),
+        FaceObject::TouchOnly => {
+            low(r, contacts::TOUCH_ONLY);
+            p(KIND, 0xFF);
+            return touch(r, face, touched);
+        }
+        FaceObject::Object(object) => object,
+    };
     r.eax = object;
     p(OBJECT, object);
     let kind = g(0x5CD27C + 4 * object as usize);
-    if kind >= 0x4B0 {
-        return Err(BadInput("an object kind past the 0x4B0 material records").into());
-    }
+    contacts::check_material(kind)?;
     p(KIND, byte(a(0x97DF30) + 0x80 * kind + 0x1C));
-    let flags = byte(face + 0x25);
-    r.eax = flags & 1;
-    if r.eax != 0 {
+    if let Err(eax) = contacts::object_tried(byte(face + 0x25), g(0x71B400), object) {
+        r.eax = eax;
         return Ok(());
     }
-    r.eax = (flags >> 1) & 3;
-    if r.eax != 0 {
-        r.eax -= 1;
-        if r.eax != g(0x71B400) {
-            return Ok(());
-        }
-    }
-    low(r, object);
-    if object != 0x3A && object >= 0x38 {
-        return Ok(());
-    }
+    r.eax = object;
     for (k, o) in [8u32, 0xC, 0x10].iter().enumerate() {
-        r.eax = (byte(face + o) << 8) & 0xFFFF;
+        r.eax = contacts::turn_word(byte(face + o));
         p(0x63503C + 4 * k, r.eax);
     }
     r.eax = byte(face + 0x18);
@@ -133,7 +121,7 @@ pub fn steps(r: &mut Regs, touched: &mut Touched) -> Result<(), Refused> {
     r.ebx = ebx;
     r.esi = esi;
     if !inside {
-        if !matches!(g(KIND), 9 | 8 | 6 | 5) {
+        if !contacts::tries_points(g(KIND)) {
             return Ok(());
         }
         let rd = |x: u32| unsafe { (x as *const u32).read_unaligned() };
@@ -146,10 +134,8 @@ pub fn steps(r: &mut Regs, touched: &mut Touched) -> Result<(), Refused> {
         let distance = int_hypot(r.eax as i32, r.ecx as i32) as u32;
         p(0x62400C, distance);
         r.ebx = g(OBJECT);
-        let product = u64::from(g(0x634BA0 + 4 * r.ebx as usize)) * u64::from(g(0x635038));
-        r.edx = (product >> 32) as u32;
-        r.eax = ((product as u32) >> 4 | r.edx << 28).wrapping_add(0x28000);
-        if sign(r.eax.wrapping_sub(distance)) {
+        (r.eax, r.edx) = contacts::reach(g(0x634BA0 + 4 * r.ebx as usize), g(0x635038));
+        if contacts::out_of_reach(r.eax, distance) {
             return Ok(());
         }
         let left = unsafe { crate::physics::object_hits_car::object_hits_car(r) }?;
@@ -193,10 +179,10 @@ pub fn steps(r: &mut Regs, touched: &mut Touched) -> Result<(), Refused> {
         b = base()
     );
     r.eax = g(KIND);
-    match r.eax {
-        6 | 9 | 5 | 1 | 10 => {}
-        2 | 7 | 3 | 8 | 4 => return touch(r, face, touched),
-        _ => return Ok(()),
+    match contacts::inside(r.eax) {
+        Inside::PushBack => {}
+        Inside::Touch => return touch(r, face, touched),
+        Inside::Nothing => return Ok(()),
     }
     unsafe { crate::physics::restore_saved_car::restore_saved_car() }?.apply(r);
     unsafe { crate::physics::feel_ground::feel_ground(r) }?;

@@ -16,6 +16,7 @@ use crate::physics::rank_split_time::rank_split_time_in;
 use crate::physics::splits::{FIGURE, MODE, g, guarded, p, test_splits, written};
 use crate::screens::harness::Left;
 use crate::service::harness::dispatch_state;
+use rc2k_core::physics::splits::{SplitFigure, split_figure};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -31,16 +32,17 @@ hook_asm!(
 );
 
 /// The steps on `r`.
+// Converted: `rc2k_core::physics::splits::split_figure`.
 pub fn split_by_mode_in(r: &mut Regs) -> Result<(), Refused> {
-    match g(MODE) {
-        2 => {
+    match split_figure(g(MODE)) {
+        SplitFigure::Place => {
             r.eax = g(0x70FA40);
             p(FIGURE, r.eax);
             Ok(())
         }
-        1 => rank_split_time_in(r),
-        3 => compare_split_times_in(r),
-        _ => Ok(()),
+        SplitFigure::Rank => rank_split_time_in(r),
+        SplitFigure::Compare => compare_split_times_in(r),
+        SplitFigure::Nothing => Ok(()),
     }
 }
 

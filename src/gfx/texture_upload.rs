@@ -165,16 +165,12 @@ pub fn halvings_apart(
     height: u32,
     codes: [u32; 5],
 ) -> Result<u32, Refused> {
-    let across = halvings(width).ok_or_else(|| fatal(codes[0]))?;
-    let wide = halvings(record.get().width).ok_or_else(|| fatal(codes[1]))?;
-    let across = (wide as i32 - across as i32).max(0) as u32;
-    let down = halvings(height).ok_or_else(|| fatal(codes[2]))?;
-    let high = halvings(record.get().height).ok_or_else(|| fatal(codes[3]))?;
-    let down = (high as i32 - down as i32).max(0) as u32;
-    if across != down {
-        return Err(fatal(codes[4]));
-    }
-    Ok(across)
+    // Converted: `rc2k_core::gfx::uploads::halvings_apart`.
+    rc2k_core::gfx::uploads::halvings_apart(halvings, width, height, || {
+        let r = record.get();
+        (r.width, r.height)
+    })
+    .map_err(|which| fatal(codes[which as usize]))
 }
 
 /// With the record's +0x5C at 1: the second picture (`path`, 0 for none) read and

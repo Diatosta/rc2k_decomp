@@ -8,10 +8,8 @@
 //! Self-test: the original and the Rust version on records of the test's.
 
 use crate::errors::Refused;
-use crate::field;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::input::devices::{RECORD_LEN, put, test_record};
-use crate::input::types::InputDevice;
 use crate::screens::harness::Left;
 use crate::service::harness::{check_state, dispatch_state};
 use std::sync::atomic::AtomicUsize;
@@ -35,10 +33,10 @@ hook_asm!(
 
 /// The Rust version (see the header).
 pub fn clear_device_readings(record: u32) {
-    for offset in [0x2C, 0x30, 0x34, 0x38, 0x4DC, 0x4E0, 0x4E4] {
-        put(record, offset, 0);
+    // Converted: `rc2k_core::input::devices::CLEARED_READINGS`.
+    for (offset, value) in rc2k_core::input::devices::CLEARED_READINGS {
+        put(record, offset as u32, value);
     }
-    put(record, field!(InputDevice, bits), 0xE00);
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

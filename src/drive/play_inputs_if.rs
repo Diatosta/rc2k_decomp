@@ -28,8 +28,9 @@ hook_asm!(
 );
 
 /// The Rust version.
+// Converted: `rc2k_core::drive::replay_frames::plays_inputs`.
 pub unsafe fn play_inputs_if(entry: &Regs) -> Left {
-    if g(0x5C5CE0) == 2 {
+    if rc2k_core::drive::replay_frames::plays_inputs(g(0x5C5CE0)) {
         return unsafe { crate::drive::play_inputs::play_inputs(entry) };
     }
     Left::nothing()

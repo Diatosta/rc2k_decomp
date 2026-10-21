@@ -17,7 +17,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, abs_compare, abs_of, with_control_word};
+use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::physics::contact_force;
 use crate::physics::crossed_edge_contact::{CROSSED, check_probe};
 use crate::physics::flow::{a, g, guard, p};
@@ -41,9 +41,10 @@ hook_asm!(
 );
 
 /// The steps, not guarded (the probe checked before).
+// Converted: `rc2k_core::physics::walls::{NONE_CROSSED, raised_hit}`.
 pub fn steps(r: &mut Regs) -> Result<(), Refused> {
     let n = g(CROSSED);
-    if n == u32::MAX {
+    if n == rc2k_core::physics::walls::NONE_CROSSED {
         return Ok(());
     }
     r.ebx = n;
@@ -53,8 +54,11 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
     p(0x71A204, g(0x71ACC8 + 4 * k));
     unsafe { crate::physics::restore_saved_car::restore_saved_car() }?.apply(r);
     crate::physics::crossed_edge_contact::steps(r)?;
-    if abs_compare(g(0x6D3108), g(0x71A208)) & 0x100 == 0 {
-        p(0x71A208, abs_of(g(0x6D3108)));
+    if let Some(hit) = rc2k_core::physics::walls::raised_hit(
+        f32::from_bits(g(0x6D3108)),
+        f32::from_bits(g(0x71A208)),
+    ) {
+        p(0x71A208, hit.to_bits());
     }
     p(0x71A20C, 1);
     p(0x71A1CC, 0x32);
@@ -63,7 +67,7 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
 
 /// The probe checked (-1 is none).
 pub fn check() -> Result<(), Refused> {
-    if g(CROSSED) == u32::MAX {
+    if g(CROSSED) == rc2k_core::physics::walls::NONE_CROSSED {
         return Ok(());
     }
     check_probe()

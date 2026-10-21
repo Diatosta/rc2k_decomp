@@ -3,10 +3,10 @@
 //! `dword_755984` 2, `dword_755988` 8, `dword_75555D` 0; `clear_event_state`; the two car
 //! choices (one left ends it at once). Then each stage: the current player 0,
 //! `menu::ready_players`, the four repairs, the stage choice (`menu::select_stage_loop`; a
-//! yes or `dword_75555D` ends it); the two races (`rounds::race_series`, ebx 0, each car
+//! yes or `dword_75555D` ends it); the two races (`rc2k_core::menu::rounds::race_series`, ebx 0, each car
 //! repaired first; a race left, -2, goes to the review); unless all results are -1 the
-//! results page (`menu::results_48584b_loop`; a yes ends it); the review (`rounds::review`,
-//! eax 2, a yes asked). The end: `rounds::end`.
+//! results page (`menu::results_48584b_loop`; a yes ends it); the review (`rc2k_core::menu::rounds::review`,
+//! eax 2, a yes asked). The end: `rc2k_core::menu::rounds::end`.
 //!
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
@@ -19,7 +19,9 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::menu::event_flow::*;
+use crate::menu::flow_game::Game;
 use crate::menu::rounds::*;
+use rc2k_core::menu::rounds;
 
 const CALLS: &[usize] = &[
     0x1, 0x6, 0xB, 0x2E, 0x62, 0x74, 0xA8, 0xBA, 0xC9, 0xD8, 0xE7, 0xF6, 0x105, 0x10A, 0x133,
@@ -36,38 +38,8 @@ flow_hook!(
 
 pub unsafe fn single_rally_two(entry: &Regs, call: Call) -> Result<Regs, Refused> {
     players_there(4)?;
-    let mut g = *entry;
-    call(BEGIN_EVENT, &mut g)?;
-    call(CLEAR_PLAYERS_284, &mut g)?;
-    call(TAKE_PLAYER1_UNITS, &mut g)?;
-    set(PLAYER_COUNT, 2);
-    set(EVENT_MODE, 8);
-    set(LEAVE, 0);
-    call(CLEAR_EVENT_STATE, &mut g)?;
-    if !choose_cars(&mut g, call, 2, false, &[])? {
-        return Ok(*entry);
-    }
-    loop {
-        set(CURRENT, 0);
-        call(READY_PLAYERS, &mut g)?;
-        repair_all(&mut g, call)?;
-        call(SELECT_STAGE_LOOP, &mut g)?;
-        if yes() || get(LEAVE) == 1 {
-            break;
-        }
-        if let Some(all) = race_series(&mut g, call, 2, 0, true)?
-            && all != u32::MAX
-        {
-            call(RESULTS_48584B, &mut g)?;
-            if yes() {
-                break;
-            }
-        }
-        if review(&mut g, call, Some(2), true)? {
-            break;
-        }
-    }
-    end(&mut g, call)?;
+    // Converted: `rc2k_core::menu::rounds::single_rally_two`.
+    rounds::single_rally_two(&mut Game::new(entry, call))?;
     Ok(*entry)
 }
 

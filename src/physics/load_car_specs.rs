@@ -21,14 +21,21 @@
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back): kinds 0, 5, 0x16, 0x17, 0x21, 0x40, under three precisions.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{
     EAX, EBX, ESI, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
 };
 use crate::math::x87;
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::floats::{
+    FLOAT, Floats, ROUNDED, Tolerance, at_test_precisions, check_state_floats,
+    dispatch_state_floats,
+};
+use crate::service::harness::{Region, capture, restore};
+use rc2k_core::physics::car_specs::{
+    OWN_FIGURES_FROM, RECORD_LEN, SpecConstants, SpecRecord, check_drive, gear_count, record_of,
+    specs,
+};
 use std::cmp::Ordering;
 use std::sync::atomic::AtomicUsize;
 
@@ -43,6 +50,8 @@ hook_asm!(
     dispatch = dispatch,
     original = ORIGINAL
 );
+
+const RECORDS: usize = 0x5C790C; // the kinds' records
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
@@ -75,15 +84,104 @@ macro_rules! x87_block {
     };
 }
 
-/// The Rust version.
+/// The record of the work car's kind.
+fn record() -> u32 {
+    game_addr(rva(RECORDS)) as u32 + RECORD_LEN * record_of(g(0x719FFC))
+}
+
+/// The whole-number steps both versions share, after the floats: the torque curve, the
+/// gear count (held), the words copied; eax the record's count.
+unsafe fn words(s: u32) -> u32 {
+    unsafe {
+        for k in 0..9u32 {
+            p(0x614B7C + 4 * k as usize, at(s + 0x7C + 4 * k));
+        }
+        p(0x614C18, at(s + 0xA0));
+        let count = at(s + 0x1C);
+        p(0x614C10, gear_count(count));
+        for (to, from) in [
+            (0x614C14usize, 0x20u32),
+            (0x614BB4, 0x2C),
+            (0x614BB8, 0x30),
+            (0x614B74, 0x24),
+            (0x614B78, 0x28),
+            (0x614BBC, 0x34),
+        ] {
+            p(to, at(s + from));
+        }
+        count
+    }
+}
+
+/// The converted version (`rc2k_core::physics::car_specs`, plain floats): the hook's.
+// Converted: `rc2k_core::physics::car_specs::specs`.
+pub unsafe fn load_car_specs_plain() -> Result<Left, Refused> {
+    let s = record();
+    let f = |x: usize| f32::from_bits(g(x));
+    unsafe {
+        let drive = check_drive(at(s + 0x18))?;
+        p(0x71A018, drive);
+        let i = |o: u32| at(s + o) as i32;
+        let r = SpecRecord {
+            drive,
+            figures: [i(0x64), i(0x68), i(0x6C), i(0x70)],
+            top: i(0x74),
+            over_top: i(0x78),
+            shifts: [0xA4, 0xA8, 0xAC].map(|o| f32::from_bits(at(s + o))),
+            whole: [i(0x40), i(0x44), i(0x48)],
+            weights: [0x38, 0x3C].map(|o| f32::from_bits(at(s + o))),
+        };
+        let k = SpecConstants {
+            f613f10: f(0x613F10),
+            f613e88: f(0x613E88),
+            f5c5ddc: f(0x5C5DDC),
+            f613eb8: f(0x613EB8),
+            f613fe4: f(0x613FE4),
+            f5c5d18: f(0x5C5D18),
+            f5c5d50: f(0x5C5D50),
+            f5c5d98: f(0x5C5D98),
+            gravity: f(0x613FC8),
+            hundred: f(0x5C5D14),
+            own: [0x613F04, 0x613F08, 0x613F0C].map(|x| g(x) as i32),
+        };
+        let out = specs(&r, g(0x719FFC), &k, f(0x613FB8 + 4 * drive as usize));
+        for (n, v) in out.figures.iter().enumerate() {
+            p(0x5CB96C + 4 * n, v.to_bits());
+        }
+        p(0x71A1B4, out.top.to_bits());
+        p(0x71A1B8, out.w1e0.to_bits());
+        for (n, v) in out.shifts.iter().enumerate() {
+            p(0x5CB958 + 4 * n, v.to_bits());
+        }
+        p(0x5CB968, out.f5cb968.to_bits());
+        p(0x614104, out.f614104.to_bits());
+        let count = words(s);
+        for (n, v) in out.whole.iter().enumerate() {
+            p(0x614BC0 + 4 * n, *v as u32);
+        }
+        p(0x614BA0, g(0x613EFC));
+        p(0x614BA4, g(0x613F00));
+        p(0x614BA8, g(0x613F14));
+        p(0x614BAC, out.weights[0].to_bits());
+        p(0x614BB0, out.weights[1].to_bits());
+        p(0x62400C, at(s + 0x5C));
+        p(0x61476C, at(s + 0x60));
+        p(0x6140F8, out.drive[0].to_bits());
+        p(0x6140FC, out.drive[1].to_bits());
+        Ok(Left::nothing()
+            .with(EAX, count)
+            .with(EBX, drive)
+            .with(ESI, s))
+    }
+}
+
+/// The Rust version (the exact one, for `physics::car_physics_step` and
+/// `physics::test_drive`).
 pub unsafe fn load_car_specs() -> Result<Left, Refused> {
     let b = game_addr(0) as u32;
-    let kind = g(0x719FFC).min(0x21);
-    let s = game_addr(rva(0x5C790C)) as u32 + 0xB0 * kind;
-    let drive = unsafe { at(s + 0x18) };
-    if drive > 3 {
-        return Err(BadInput("a drive kind past 3").into());
-    }
+    let kind = g(0x719FFC);
+    let s = record();
+    let drive = check_drive(unsafe { at(s + 0x18) })?;
     p(0x71A018, drive);
     // 0x4214A7 .. 0x421543
     unsafe {
@@ -130,28 +228,7 @@ pub unsafe fn load_car_specs() -> Result<Left, Refused> {
         }
     }
     unsafe {
-        for k in 0..9u32 {
-            p(0x614B7C + 4 * k as usize, at(s + 0x7C + 4 * k));
-        }
-        p(0x614C18, at(s + 0xA0));
-        let count = at(s + 0x1C);
-        p(0x614C10, count);
-        if (g(0x614C10).wrapping_sub(3) as i32) < 0 {
-            p(0x614C10, 3);
-        }
-        if (g(0x614C10).wrapping_sub(7) as i32) >= 0 {
-            p(0x614C10, 7);
-        }
-        for (to, from) in [
-            (0x614C14usize, 0x20u32),
-            (0x614BB4, 0x2C),
-            (0x614BB8, 0x30),
-            (0x614B74, 0x24),
-            (0x614B78, 0x28),
-            (0x614BBC, 0x34),
-        ] {
-            p(to, at(s + from));
-        }
+        let count = words(s);
         // 0x4216C5 .. 0x421704
         x87_block!(
             "fild dword ptr [{s} + 0x40]",
@@ -168,7 +245,7 @@ pub unsafe fn load_car_specs() -> Result<Left, Refused> {
             "fistp dword ptr [{b} + 0x214BC8]";
             b = b, s = s
         );
-        if g(0x719FFC) < 0x17 {
+        if kind < OWN_FIGURES_FROM {
             // 0x42170D .. 0x421755
             x87_block!(
                 "fild dword ptr [{b} + 0x213F04]",
@@ -217,7 +294,21 @@ pub unsafe fn load_car_specs() -> Result<Left, Refused> {
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { load_car_specs() }
+    unsafe { load_car_specs_plain() }
+}
+
+/// The float places: the shift points and figures, the top and +0x1E0, `flt_614104`, the
+/// whole figures (`fistp`), the weights, the drive's two.
+fn float_places() -> Vec<(Region, Tolerance)> {
+    let a = |x: usize| game_addr(rva(x)) as u32;
+    vec![
+        ((a(0x5CB958), 0x24), FLOAT),
+        ((a(0x71A1B4), 8), FLOAT),
+        ((a(0x614104), 4), FLOAT),
+        ((a(0x614BAC), 8), FLOAT),
+        ((a(0x614BC0), 12), ROUNDED),
+        ((a(0x6140F8), 8), FLOAT),
+    ]
 }
 
 fn regions() -> Vec<Region> {
@@ -236,7 +327,12 @@ fn regions() -> Vec<Region> {
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+    let places = float_places();
+    let floats = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
 }
 
 fn self_test() -> (usize, usize) {
@@ -247,25 +343,30 @@ fn self_test() -> (usize, usize) {
     let mut all = regions();
     all.push((a(0x719FFC), 4));
     let saved = capture(&all);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for kind in [0u32, 5, 0x16, 0x17, 0x21, 0x40] {
-                let drive = g(0x5C790C + 0xB0 * kind.min(0x21) as usize + 0x18);
-                if drive > 3 {
-                    continue;
-                }
-                check_state(
-                    &mut t,
-                    &format!("control word {word:#x}, kind {kind:#x}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &|| p(0x719FFC, kind),
-                    &all,
-                    &rust,
-                );
+    let places = float_places();
+    let tolerant = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, floats| {
+        for kind in [0u32, 5, 0x16, 0x17, 0x21, 0x40] {
+            let drive = g(0x5C790C + 0xB0 * kind.min(0x21) as usize + 0x18);
+            if drive > 3 {
+                continue;
             }
-        });
-    }
+            check_state_floats(
+                &mut t,
+                "physics::load_car_specs",
+                &format!("control word {word:#x}, kind {kind:#x}"),
+                call_original,
+                Regs::SENTINEL,
+                &|| p(0x719FFC, kind),
+                &all,
+                floats,
+                &rust,
+            );
+        }
+    });
     restore(&all, &saved);
     t.finish()
 }

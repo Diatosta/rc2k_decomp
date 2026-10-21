@@ -19,11 +19,13 @@
 //! path noted), `script_name` kept, against the Rust version; scripts of every opcode, a
 //! media-skip and an unbalanced stack (fatal).
 
+use crate::bridge::Raw;
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::install::installer::{
     LIST_FILES, LIST_FOLDER, LIST_FOLDER_TREE, MEDIA_MODE, Part, a, at, fatal, gb, rb, wb,
 };
+use rc2k_core::install::script::{self, Op};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -39,7 +41,6 @@ hook_asm!(
 );
 
 const NAME_BUF: usize = 0x95EAF8; // byte_95EAF8
-const LIMIT: usize = 0x10000;
 
 pub fn run_script(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
@@ -48,15 +49,16 @@ pub fn run_script(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut stack: Vec<u32> = Vec::new();
     let media = gb(MEDIA_MODE);
     let mut guard = 0usize;
+    // Converted: `rc2k_core::install::script` (`Op`, `skipped`, `skip`).
     loop {
         guard += 1;
-        if guard > LIMIT {
+        if guard > script::LIMIT {
             return Err(BadInput("a script with no end in 0x10000 bytes").into());
         }
         let al = rb(r.ebx);
         r.ebx = r.ebx.wrapping_add(1);
-        match al {
-            1 => {
+        match Op::of(al) {
+            Op::Folder => {
                 stack.push(esi);
                 r.esi = esi;
                 r = crate::install::script_name::script_name(&r)?;
@@ -67,7 +69,7 @@ pub fn run_script(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                 wb(esi + 1, 0);
                 esi += 1;
             }
-            2 => {
+            Op::Up => {
                 let Some(level) = stack.pop() else {
                     return Err(BadInput(
                         "a pop with nothing pushed (the original pops its caller's stack)",
@@ -77,7 +79,7 @@ pub fn run_script(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                 esi = level;
                 wb(esi, 0);
             }
-            3 | 4 => {
+            Op::Files | Op::Tree => {
                 stack.push(esi);
                 r.esi = esi;
                 r = crate::install::script_name::script_name(&r)?;
@@ -93,36 +95,20 @@ pub fn run_script(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                 esi = stack.pop().unwrap_or(a(NAME_BUF)); // pushed just above
                 wb(esi, 0);
             }
-            8 => {
+            Op::Media => {
                 let n = rb(r.ebx);
                 r.ebx = r.ebx.wrapping_add(1);
-                if n <= media {
+                if !script::skipped(n, media) {
                     continue;
                 }
-                // skip to the matching 9 (they nest), byte-naive as the original
-                let mut depth: i8 = 0;
-                loop {
-                    guard += 1;
-                    if guard > LIMIT {
-                        return Err(BadInput("a skip with no 9 in 0x10000 bytes").into());
-                    }
-                    let b = rb(r.ebx);
-                    r.ebx = r.ebx.wrapping_add(1);
-                    if b == 8 {
-                        depth = depth.wrapping_add(1);
-                    }
-                    if b == 9 {
-                        depth = depth.wrapping_sub(1);
-                        if depth < 0 {
-                            break;
-                        }
-                    }
-                }
+                let words = unsafe { Raw::new(r.ebx as *const u8) };
+                let past = script::skip(&words, 0, &mut guard)?;
+                r.ebx = r.ebx.wrapping_add(past as u32);
             }
-            9 | 6 => {}
-            _ => {
+            Op::Nothing => {}
+            Op::End => {
                 if !stack.is_empty() {
-                    return Err(fatal(0x80AF_3011));
+                    return Err(fatal(script::UNBALANCED));
                 }
                 break;
             }

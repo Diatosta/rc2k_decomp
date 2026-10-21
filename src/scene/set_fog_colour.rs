@@ -31,15 +31,16 @@ hook_asm!(
 
 const KEPT_RVA: usize = rva(0x5AB964); // dword_5AB964
 const LAYER_RVA: usize = rva(0x41AB5B); // d3d::set_render_state
-const FOG_COLOUR: u32 = 0x22;
 
 /// The Rust version (see the header).
+// Converted: `rc2k_core::scene::render_states::fog_colour`
 pub unsafe fn set_fog_colour(colour: u32) {
     unsafe {
         game_write(KEPT_RVA, colour);
+        let s = rc2k_core::scene::render_states::fog_colour(colour);
         let mut r = Regs {
-            eax: colour | 0xFF00_0000,
-            ebx: FOG_COLOUR,
+            eax: s.value,
+            ebx: s.state,
             ..Regs::default()
         };
         call_game(&mut r, game_addr(LAYER_RVA));

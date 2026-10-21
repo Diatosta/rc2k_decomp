@@ -2,7 +2,8 @@
 //! 0x43BBCB, `move_car` 0x43CCB0, `spin_wheels` 0x43CD1A, `air_drag` 0x43F2DA,
 //! `hold_spin_on_ground` 0x43BAA4, `blend_wheel_load` 0x440F70, `note_time_mark`
 //! 0x440C38, `lowest_body_point` 0x45D6DB, `count_down_timers` 0x43D4B5,
-//! `count_stop_timers` 0x436978, `store_motion_length` 0x43BD2D). What most of
+//! `count_stop_timers` 0x436978, `store_motion_length` 0x43BD2D; `update_car_angles`'
+//! switch 0x43BEDC). What most of
 //! the figures are is a reading (the hooks' headers say which).
 //!
 //! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the
@@ -286,6 +287,12 @@ pub fn stop_timers(counters: &mut [u32; 3], speed: f32, one: f32) -> Option<u32>
         }
     }
     None
+}
+
+/// `physics::update_car_angles` (0x43BEDC, converted 2026-10-21): the car's angles are
+/// made when `dword_71A6C8` is set or `dword_71A22C` is 0.
+pub fn angles_wanted(force: u32, hold: u32) -> bool {
+    force != 0 || hold == 0
 }
 
 #[cfg(test)]

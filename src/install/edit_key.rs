@@ -19,6 +19,7 @@
 //! two results). Self-test: an edit of the test's and the game's fonts, against the
 //! original, every key's way.
 
+use crate::bridge::{Raw, read_through};
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::install::installer::{
@@ -27,6 +28,7 @@ use crate::install::installer::{
 use crate::install::list_test::TestList;
 use crate::race::viewer::{Saved, check_original, dispatch_regs};
 use crate::service::harness::Region;
+use rc2k_core::install::edits::{self, EDITING, EditKey};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -94,12 +96,13 @@ pub fn edit_key(entry: &Regs) -> Result<Regs, Refused> {
         }
         done(r)
     };
+    // Converted: `rc2k_core::install::edits` (`EditKey`, `blank`, `takes`, `too_wide`).
     let ch = if r.eax & 0x100 != 0 {
         key
     } else {
-        match key {
-            1 => {
-                wb(record, rb(record) & 0xFE);
+        match EditKey::of(key) {
+            EditKey::Escape => {
+                wb(record, rb(record) & !EDITING);
                 let backup = a(SCRIPT_PATH);
                 for n in 0..most + 2 {
                     wb(text + n, rb(backup + n));
@@ -107,18 +110,13 @@ pub fn edit_key(entry: &Regs) -> Result<Regs, Refused> {
                 r.ecx = 0;
                 return with_bit_3(r);
             }
-            0x1C => {
-                wb(record, rb(record) & 0xFE);
-                r.ebx = text;
-                loop {
-                    let b = rb(r.ebx);
-                    if b > 0x20 {
-                        return with_bit_3(r);
-                    }
-                    r.ebx = r.ebx.wrapping_add(1);
-                    if b < 1 {
-                        break;
-                    }
+            EditKey::Enter => {
+                wb(record, rb(record) & !EDITING);
+                let words = unsafe { Raw::new(text as *const u8) };
+                let (blank, stop) = read_through(edits::blank(&words));
+                r.ebx = text.wrapping_add(stop as u32);
+                if !blank {
+                    return with_bit_3(r);
                 }
                 clear(text, most, &mut r);
                 let mut s = Regs {
@@ -130,13 +128,13 @@ pub fn edit_key(entry: &Regs) -> Result<Regs, Refused> {
                 r.ebx = s.ebx;
                 return with_bit_3(r);
             }
-            0x6E => {
+            EditKey::Clear => {
                 clear(text, most, &mut r);
                 return done(r);
             }
-            0xE => return backspace(r),
-            0x66 | 0x6B | 0x68 | 0x69 => return done(r),
-            _ => {
+            EditKey::Backspace => return backspace(r),
+            EditKey::Arrow => return done(r),
+            EditKey::Other => {
                 let swap = rb(a(LAYOUT_MODE)) == 2;
                 let kept = g(LAYOUT);
                 if swap {
@@ -156,7 +154,8 @@ pub fn edit_key(entry: &Regs) -> Result<Regs, Refused> {
     }
     r.ebx = past_nul(text);
     r.ecx = most.wrapping_add(text).wrapping_add(1);
-    if r.ebx == r.ecx {
+    let length = r.ebx.wrapping_sub(text).wrapping_sub(1) as usize;
+    if !edits::takes(ch, length, most as u8) {
         return done(r);
     }
     wb(r.ebx.wrapping_sub(1), ch);
@@ -171,7 +170,7 @@ pub fn edit_key(entry: &Regs) -> Result<Regs, Refused> {
     r.ecx = m.ecx;
     r.edx = m.edx;
     r.eax = rw(record + 6) as u32;
-    if (r.ecx as i32) > r.eax as i32 {
+    if edits::too_wide(r.ecx, r.eax as u16) {
         return backspace(r);
     }
     done(r)

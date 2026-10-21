@@ -40,6 +40,7 @@ hook_asm!(
 
 /// The Rust version on a course.
 pub fn init_pace_notes_on(r: &Regs, course: Course) -> Result<Left, Refused> {
+    // Converted: `rc2k_core::race::pace_notes::Notes::init`.
     let mut m = Machine::load(r, course);
     m.init()?;
     m.commit();
@@ -48,13 +49,13 @@ pub fn init_pace_notes_on(r: &Regs, course: Course) -> Result<Left, Refused> {
 
 /// The Rust version on the game's course: the registers it leaves.
 pub fn init_pace_notes(r: &mut Regs) -> Result<(), Refused> {
-    init_pace_notes_on(r, Course::game())?.apply(r);
+    init_pace_notes_on(r, crate::race::pace_notes::game_course())?.apply(r);
     Ok(())
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &|r| {
-        init_pace_notes_on(r, Course::game())
+        init_pace_notes_on(r, crate::race::pace_notes::game_course())
     });
 }
 

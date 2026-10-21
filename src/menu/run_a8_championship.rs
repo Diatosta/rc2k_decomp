@@ -37,6 +37,7 @@ hook_asm!(
 );
 
 pub unsafe fn run_a8_championship(entry: &Regs, call: Call) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::menu::championship::run` (`a8`).
     unsafe { run_event(entry, call, true) }
 }
 

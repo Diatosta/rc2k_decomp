@@ -3,7 +3,9 @@
 //! 0x46512F, `forget_slot_texture` 0x44EB66, `raise_texture_needs` 0x423F97,
 //! `set_texture_levels` 0x422426, `count_texture_needs` 0x423EB1, `map_texture_places`
 //! 0x42570D, `look_up_texture` 0x44E668, `assign_kind_textures` 0x4256D8,
-//! `assign_menu_textures` 0x490DF3 and `texture_picture_folder` 0x425A59).
+//! `assign_menu_textures` 0x490DF3, `texture_picture_folder` 0x425A59,
+//! `try_allocate_textures` 0x4224C4, `load_slot_textures` 0x425778 and `load_slot_texture`
+//! 0x425ADE).
 //!
 //! A level is an index into the table of what a texture of each level takes in k; -1 is
 //! "not needed". The tables are 0x400 entries, one a texture (or a slot); a texture's
@@ -280,6 +282,147 @@ pub fn picture_folder(number: u32) -> PictureFolder {
     }
 }
 
+/// `load_slot_textures`: the slots in use (`dword_5DC970`); refuses none (the original
+/// goes through 2^32) and more than the table has.
+pub fn slots_in_use(count: u32) -> Result<u32, Invalid> {
+    if count == 0 || count > SLOTS {
+        return Err(Invalid("no texture slots, or more than the table has"));
+    }
+    Ok(count)
+}
+
+/// `load_slot_texture`: the texture a slot is to load: the one it wants, unless it wants
+/// none or holds it already. Refuses a slot past the table.
+pub fn slot_load(
+    slot: u32,
+    wanted: impl FnOnce() -> u32,
+    loaded: impl FnOnce() -> u32,
+) -> Result<Option<u32>, Invalid> {
+    if slot >= SLOTS {
+        return Err(Invalid("a texture slot past the table"));
+    }
+    let w = wanted();
+    Ok((w != NONE && w != loaded()).then_some(w))
+}
+
+/// What `try_allocate_textures` asks of `gfx::allocate_textures` for one texture.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Ask {
+    pub texture: u32,
+    pub video: bool,
+    pub level: u32,
+    pub pixel_kind: u32,
+    pub mips: u32,
+}
+
+/// What `try_allocate_textures` calls: the log (a text, with a line's end or not; a
+/// number) and the allocation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Call {
+    Text(&'static std::ffi::CStr, bool),
+    Number(u32),
+    /// Answers with the texture's first slot (video) or first texture (system), or None
+    /// when refused.
+    Allocate(Ask),
+}
+
+/// The textures that get pixel kind 3 (by their number), the rest 2.
+pub fn pixel_kind(texture: u32) -> u32 {
+    let three = (0xDC..0xE2).contains(&texture)
+        || matches!(
+            texture,
+            0xC6 | 0xC7 | 0xC0 | 0xC1 | 0xC2 | 0xD3 | 0xC4 | 0xC5 | 0xC9 | 0xD4 | 0xCA | 0x257
+        );
+    if three { 3 } else { 2 }
+}
+
+/// The game's tables `try_allocate_textures` reads and writes.
+pub trait TextureMemory {
+    /// The level a texture is needed at in video memory (`video`) or system memory;
+    /// `NONE` for not needed.
+    fn level(&self, video: bool, texture: u32) -> u32;
+    /// What a texture of a level takes (`dword_5CDAAC`).
+    fn size(&self, level: u32) -> u32;
+    /// The mip levels' setting (`dword_623898`) and a level's entry (`dword_5CDABC`).
+    fn mips(&self) -> u32;
+    fn level_mips(&self, level: u32) -> u32;
+    /// Each kind's first slot and first texture -1.
+    fn forget_kinds(&mut self);
+    /// The memory asked for (`dword_5D0AE0` video, `dword_5D0AE4` system).
+    fn set_asked(&mut self, asked: [u32; 2]);
+    /// A video texture's first slot (`g_kindFirstSlots`).
+    fn set_first_slot(&mut self, texture: u32, slot: u32);
+    /// A system texture's first texture (`g_kindFirstTextures`) and the texture at that
+    /// number (`dword_5D2AE8`), in that order of the original's: the second first.
+    fn set_first_texture(&mut self, texture: u32, first: u32);
+}
+
+/// `try_allocate_textures`: the memory asked for summed for the log (refusing a level
+/// past the sizes' table before anything is written); each kind's first slot and texture
+/// forgotten; then each texture needed in video memory (its level held to 0 .. 7 and
+/// added to both sums again, no mip levels for `no_mips_for` sizes but 0x100 .. 0x13F) and
+/// in system memory asked for; the first refusal ends it with "NO -". Whether all was had.
+pub fn try_allocate(
+    m: &mut impl TextureMemory,
+    call: &mut impl FnMut(Call) -> Option<u32>,
+) -> Result<bool, Invalid> {
+    let mut asked = [0u32; 2];
+    for n in 0..SLOTS {
+        for (sum, video) in [(0, true), (1, false)] {
+            let level = m.level(video, n);
+            if level == NONE {
+                continue;
+            }
+            if level >= LEVELS {
+                return Err(Invalid("a texture's level past the sizes' table"));
+            }
+            asked[sum] = asked[sum].wrapping_add(m.size(level));
+        }
+    }
+    m.forget_kinds();
+    m.set_asked(asked);
+    call(Call::Text(c"VMEMREQ", false));
+    call(Call::Number(asked[0]));
+    call(Call::Text(c"SMEMREQ", false));
+    call(Call::Number(asked[1]));
+    let mips = m.mips();
+    for texture in 0..SLOTS {
+        for video in [true, false] {
+            let level = m.level(video, texture);
+            if level == NONE {
+                continue;
+            }
+            let level = (level as i32).clamp(0, 7) as u32;
+            let mut ask = Ask {
+                texture,
+                video,
+                level,
+                pixel_kind: pixel_kind(texture),
+                mips: mips.wrapping_mul(m.level_mips(level)),
+            };
+            if video {
+                let size = m.size(level);
+                asked = asked.map(|sum| sum.wrapping_add(size));
+                m.set_asked(asked);
+                if texture >= 0x80 && !(0x100..0x140).contains(&texture) {
+                    ask.mips = 0;
+                }
+            }
+            let Some(given) = call(Call::Allocate(ask)) else {
+                call(Call::Text(c"NO -", false));
+                return Ok(false);
+            };
+            if video {
+                m.set_first_slot(texture, given);
+            } else {
+                m.set_first_texture(texture, given);
+            }
+        }
+    }
+    call(Call::Text(c"YES -", true));
+    Ok(true)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -423,5 +566,87 @@ mod tests {
             }
         );
         assert_eq!(look_up(1, |_| 0, |_| 0, || 0).texture, NO_TEXTURE);
+    }
+
+    struct Memory {
+        levels: [Vec<u32>; 2],
+        asked: Vec<[u32; 2]>,
+        slots: Vec<(u32, u32)>,
+    }
+
+    impl TextureMemory for Memory {
+        fn level(&self, video: bool, texture: u32) -> u32 {
+            self.levels[!video as usize][texture as usize]
+        }
+        fn size(&self, level: u32) -> u32 {
+            level * 10
+        }
+        fn mips(&self) -> u32 {
+            1
+        }
+        fn level_mips(&self, level: u32) -> u32 {
+            level + 100
+        }
+        fn forget_kinds(&mut self) {}
+        fn set_asked(&mut self, asked: [u32; 2]) {
+            self.asked.push(asked);
+        }
+        fn set_first_slot(&mut self, texture: u32, slot: u32) {
+            self.slots.push((texture, slot));
+        }
+        fn set_first_texture(&mut self, texture: u32, first: u32) {
+            self.slots.push((texture | 0x8000, first));
+        }
+    }
+
+    #[test]
+    fn allocations() {
+        let mut m = Memory {
+            levels: [vec![NONE; SLOTS as usize], vec![NONE; SLOTS as usize]],
+            asked: Vec::new(),
+            slots: Vec::new(),
+        };
+        m.levels[0][0x90] = 9;
+        m.levels[1][0xDC] = 2;
+        let mut asks = Vec::new();
+        let mut call = |c: Call| {
+            asks.push(c);
+            Some(5)
+        };
+        assert_eq!(try_allocate(&mut m, &mut call), Ok(true));
+        assert_eq!(m.asked, [[90, 20], [160, 90]]);
+        assert_eq!(m.slots, [(0x90, 5), (0x80DC, 5)]);
+        assert_eq!(
+            asks[4],
+            Call::Allocate(Ask {
+                texture: 0x90,
+                video: true,
+                level: 7,
+                pixel_kind: 2,
+                mips: 0
+            })
+        );
+        assert_eq!(
+            asks[5],
+            Call::Allocate(Ask {
+                texture: 0xDC,
+                video: false,
+                level: 2,
+                pixel_kind: 3,
+                mips: 102
+            })
+        );
+        m.levels[1][0xDC] = LEVELS;
+        assert!(try_allocate(&mut m, &mut |_| None).is_err());
+    }
+
+    #[test]
+    fn slot_loads() {
+        assert!(slots_in_use(0).is_err() && slots_in_use(SLOTS + 1).is_err());
+        assert_eq!(slots_in_use(SLOTS), Ok(SLOTS));
+        assert!(slot_load(SLOTS, || 0, || 0).is_err());
+        assert_eq!(slot_load(1, || NONE, || unreachable!()), Ok(None));
+        assert_eq!(slot_load(1, || 5, || 5), Ok(None));
+        assert_eq!(slot_load(1, || 5, || 6), Ok(Some(5)));
     }
 }

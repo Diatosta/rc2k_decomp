@@ -15,6 +15,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::input::effects::compare;
 use crate::net::{CAR, ON, Part, a, dispatch_net};
 use crate::system::api_stand_ins::copy_with;
+use rc2k_core::net::race;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -33,16 +34,22 @@ hook_asm!(
 pub fn follow_remote_with(r: &mut Regs, on: u32, car: u32, _part: Part) -> Result<(), Refused> {
     let rd = |at: u32| unsafe { (at as *const u32).read_volatile() };
     let wr = |at: u32, v: u32| unsafe { (at as *mut u32).write_volatile(v) };
-    if rd(on) == 0 || rd(car + 0xFCC) == 0 {
+    // Converted: `rc2k_core::net::race::glide` (the block read only with the race on).
+    let three = |at: u32| [rd(car + at), rd(car + at + 4), rd(car + at + 8)];
+    if rd(on) == 0 {
         return Ok(());
     }
-    wr(car + 0xFCC, rd(car + 0xFCC).wrapping_sub(1));
-    for k in 0..3 {
-        r.eax = rd(car + 0xFC0 + 4 * k);
-        wr(
-            car + 0x134 + 4 * k,
-            rd(car + 0x134 + 4 * k).wrapping_add(r.eax),
-        );
+    let steps = rd(car + race::GLIDE_STEPS);
+    if steps == 0 {
+        return Ok(());
+    }
+    let step = three(race::WANTED);
+    if let Some((left, place)) = race::glide(true, steps, three(race::PLACE), step) {
+        wr(car + race::GLIDE_STEPS, left);
+        for (k, v) in (0..).zip(place) {
+            wr(car + race::PLACE + 4 * k, v);
+        }
+        r.eax = step[2];
     }
     Ok(())
 }

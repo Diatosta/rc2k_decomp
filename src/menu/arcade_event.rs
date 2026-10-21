@@ -46,6 +46,7 @@ use crate::framework::{
 use crate::menu::parts::{Answer, Part, answers, copy, dispatch_parted, run_both, test_part};
 use crate::menu::player::player_at;
 use crate::service::harness::{Region, at, capture, restore};
+use rc2k_core::menu::arcade_event::{self as arcade, Hand, Step, Var};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -100,8 +101,6 @@ pub const CALLEES: [usize; 25] = [
     0x488958, // 23 menu::arcade_review_options_loop
     0x46FBE3, // 24 menu::show_in_game_options
 ];
-/// The last call: after the `popa`.
-const SHOW_OPTIONS: u32 = 24;
 
 fn g(a: usize) -> u32 {
     unsafe { game_read(rva(a)) }
@@ -113,14 +112,93 @@ fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
 }
 
-/// Where the flow goes next.
-enum At {
-    Level,
-    Stage,
-    LevelDone,
-    Retry,
-    End,
-    Out,
+/// The game for `rc2k_core::menu::arcade_event`: the variables at their addresses, the
+/// steps through `part` with the registers the original gives them (one set carried
+/// through).
+struct Game<'a> {
+    entry: Regs,
+    r: Regs,
+    player0: u32,
+    part: Part<'a>,
+    left: Option<Regs>,
+}
+
+fn address(v: Var) -> usize {
+    match v {
+        Var::Failed => 0x7587F4,
+        Var::TotalA8 => 0x7587A8,
+        Var::Total798 => 0x758798,
+        Var::TotalB8 => 0x7587B8,
+        Var::Figure768 => 0x758768,
+        Var::Figure758 => 0x758758,
+        Var::PlayerCount => 0x755984,
+        Var::EventMode => 0x755988,
+        Var::Leave => 0x75555D,
+        Var::Ended565 => 0x755565,
+        Var::Ended569 => 0x755569,
+        Var::Stage => 0x7587F0,
+        Var::Level => 0x7587EC,
+        Var::Current => 0x75598C,
+        Var::CarLeft => 0x758806,
+        Var::Answer => 0x75524C,
+        Var::RaceStage => 0x75AFF4,
+        Var::RaceLevel => 0x75AFF8,
+        Var::CheatSwitch => 0x75ACF0,
+        Var::Cheats => 0x75870C,
+        Var::RaceResult => 0x75B028,
+        Var::RaceFigureFFC => 0x75AFFC,
+        Var::RaceFigure000 => 0x75B000,
+        Var::Qualifies => 0x755918,
+        Var::Done => 0x755980,
+        Var::Player0Entry => unreachable!("player 0's field is not at an address"),
+    }
+}
+
+impl arcade::Arcade for Game<'_> {
+    type Error = Refused;
+
+    fn get(&mut self, v: Var) -> u32 {
+        g(address(v))
+    }
+
+    fn set(&mut self, v: Var, value: u32) {
+        match v {
+            Var::Player0Entry => {
+                self.r.edi = self.player0;
+                put(self.player0 + 0xD0, value);
+            }
+            _ => p(address(v), value),
+        }
+    }
+
+    fn step(&mut self, s: Step) -> Result<(), Refused> {
+        match s {
+            Step::SecretCarList => self.r.esi = game_addr(rva(0x75A042)) as u32,
+            Step::RepairCar => self.r.eax = 0,
+            Step::Race => self.r.ebx = 2,
+            Step::ShowInGameOptions => {
+                let mut out = self.entry;
+                (self.part)(s as u32, &mut out)?;
+                self.left = Some(out);
+                return Ok(());
+            }
+            _ => {}
+        }
+        (self.part)(s as u32, &mut self.r)
+    }
+
+    fn hand(&mut self, h: Hand) -> Result<(), Refused> {
+        match h {
+            Hand::Kept(v) => self.r.eax = v,
+            Hand::StageRecord => {
+                self.r.ebx = g(0x7587EC);
+                self.r.edi = g(0x73555A + 4 * self.r.ebx as usize);
+                self.r.eax = g(0x7587F0).wrapping_mul(0xA4);
+                self.r.edi = self.r.edi.wrapping_add(self.r.eax);
+            }
+        }
+        Ok(())
+    }
 }
 
 /// The Rust version: the registers it leaves.
@@ -129,157 +207,16 @@ pub unsafe fn arcade_event(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     if player0 == 0 {
         return Err(BadInput("no player 0").into());
     }
-    let mut r = *entry;
-    part(0, &mut r)?;
-    r.edi = player0;
-    put(player0 + 0xD0, 1);
-    p(0x7587F4, 0);
-    part(1, &mut r)?;
-    for a in [0x7587A8, 0x758798, 0x7587B8, 0x758768] {
-        p(a, 0);
-    }
-    p(0x755984, 1);
-    p(0x755988, 0x1D);
-    p(0x75555D, 0);
-    p(0x7587F0, 1);
-    let mut at = At::Level;
-    loop {
-        at = match at {
-            At::Level => {
-                p(0x75598C, 0);
-                r.esi = game_addr(rva(0x75A042)) as u32;
-                part(2, &mut r)?;
-                part(3, &mut r)?;
-                if g(0x758806) == 1 {
-                    At::Out
-                } else {
-                    r.esi = game_addr(rva(0x75A042)) as u32;
-                    part(2, &mut r)?;
-                    part(4, &mut r)?;
-                    At::Stage
-                }
-            }
-            At::Stage => 'stage: {
-                p(0x7587F4, 0);
-                part(5, &mut r)?;
-                if g(0x75524C) == 1 {
-                    break 'stage At::End;
-                }
-                part(6, &mut r)?;
-                p(0x75AFF4, g(0x7587F0));
-                r.eax = g(0x7587EC);
-                p(0x75AFF8, r.eax);
-                p(0x75ACF0, 1);
-                if g(0x75870C) & (1 << 0x12) != 0 {
-                    p(0x75ACF0, 0);
-                }
-                r.eax = 0;
-                part(7, &mut r)?;
-                r.ebx = 2;
-                part(8, &mut r)?;
-                if g(0x75B028) == u32::MAX {
-                    p(0x758768, 0);
-                    p(0x7587F4, 1);
-                } else {
-                    r.eax = g(0x75AFFC);
-                    p(0x758758, r.eax);
-                    r.eax = g(0x75B000);
-                    p(0x758768, r.eax);
-                }
-                p(0x75598C, 0);
-                part(9, &mut r)?;
-                if g(0x7587F4) == 1 {
-                    break 'stage At::LevelDone;
-                }
-                part(10, &mut r)?;
-                if g(0x75524C) == 1 {
-                    break 'stage At::End;
-                }
-                r.ebx = g(0x7587EC);
-                r.edi = g(0x73555A + 4 * r.ebx as usize);
-                r.eax = g(0x7587F0).wrapping_mul(0xA4);
-                r.edi = r.edi.wrapping_add(r.eax);
-                part(11, &mut r)?;
-                if g(0x7587F4) != 1 {
-                    part(12, &mut r)?;
-                    if g(0x755918) == 1 {
-                        part(13, &mut r)?;
-                        part(14, &mut r)?;
-                        part(15, &mut r)?;
-                        if g(0x75524C) == 1 {
-                            break 'stage At::End;
-                        }
-                    }
-                }
-                p(0x7587F0, g(0x7587F0).wrapping_add(1));
-                if g(0x7587F0) as i32 <= 6 {
-                    if g(0x7587F4) == 1 {
-                        break 'stage At::Retry;
-                    }
-                    part(23, &mut r)?;
-                    if g(0x755569) == 1 || g(0x75555D) == 1 {
-                        break 'stage At::End;
-                    }
-                    break 'stage At::Stage;
-                }
-                part(16, &mut r)?;
-                if g(0x755918) == 1 {
-                    part(17, &mut r)?;
-                    part(18, &mut r)?;
-                    part(19, &mut r)?;
-                    if g(0x75524C) == 1 {
-                        break 'stage At::End;
-                    }
-                }
-                At::LevelDone
-            }
-            At::LevelDone => {
-                part(20, &mut r)?;
-                if g(0x7587F4) == 1 {
-                    At::Retry
-                } else if g(0x7587EC) == 5 {
-                    At::End
-                } else {
-                    part(21, &mut r)?;
-                    if g(0x755569) == 1 || g(0x755565) != 1 {
-                        At::End
-                    } else {
-                        p(0x7587EC, g(0x7587EC).wrapping_add(1));
-                        p(0x7587F0, 1);
-                        for a in [0x7587B8, 0x758798, 0x7587A8] {
-                            p(a, 0);
-                        }
-                        At::Level
-                    }
-                }
-            }
-            At::Retry => {
-                part(22, &mut r)?;
-                if g(0x755569) == 1 || g(0x755565) != 1 {
-                    At::End
-                } else {
-                    for a in [0x7587A8, 0x758798, 0x7587B8] {
-                        p(a, 0);
-                    }
-                    p(0x7587F0, 1);
-                    r.edi = player0;
-                    put(player0 + 0xD0, 1);
-                    p(0x7587F4, 0);
-                    At::Stage
-                }
-            }
-            At::End => {
-                p(0x755980, 1);
-                At::Out
-            }
-            At::Out => break,
-        };
-    }
-    let mut out = *entry;
-    p(0x755569, 0);
-    p(0x755565, 0);
-    part(SHOW_OPTIONS, &mut out)?;
-    Ok(out)
+    let mut game = Game {
+        entry: *entry,
+        r: *entry,
+        player0,
+        part,
+        left: None,
+    };
+    // Converted: `rc2k_core::menu::arcade_event::arcade_event`.
+    arcade::arcade_event(&mut game)?;
+    Ok(game.left.unwrap_or(*entry))
 }
 
 /// The game's callees: the small steps' Rust versions, the screens and the race at the

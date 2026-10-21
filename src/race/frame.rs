@@ -141,16 +141,10 @@ pub const MUSIC_VOLUME_RVA: usize = rva(0x518100); // dword_518100
 const OTHER_VOLUME_RVA: usize = rva(0x75568C); // dword_75568C (read by the music "up" step)
 pub const VIEW_BLOCKS: [usize; 2] = [rva(0x63DBB0), rva(0x63DBB4)]; // off_63DBB0, off_63DBB4
 const VIEW_COUNTERS_RVA: usize = rva(0x6138D4); // dword_6138D4[7]: by camera view
-/// The keys that flip a bit of the view block's +0x220: (key, bit, counter when the bit
-/// is now clear, when set), in the order tested.
-pub const BIT_KEYS: [(usize, u32, u32, u32); 7] = [
-    (0x4F6D34, 0x10, 0x117, 0x118),
-    (0x4F6D1E, 0x08, 0x119, 0x11A),
-    (0x4F6D1D, 0x80, 0x11B, 0x11C),
-    (0x4F6D20, 0x01, 0x11D, 0x11E),
-    (0x4F6D1F, 0x04, 0x11F, 0x120),
-    (0x4F6D1C, 0x02, 0x121, 0x122),
-    (0x4F6D33, 0x20, 0x123, 0x124),
+/// The keys that flip a bit of the view block's +0x220 (`rc2k_core::race::keys::BIT_KEYS`
+/// by place): their key bytes, in the order tested.
+pub const BIT_KEYS: [usize; 7] = [
+    0x4F6D34, 0x4F6D1E, 0x4F6D1D, 0x4F6D20, 0x4F6D1F, 0x4F6D1C, 0x4F6D33,
 ];
 /// Every key byte the function reads (IDA addresses).
 pub const KEY_BYTES: [usize; 13] = [
@@ -160,11 +154,6 @@ pub const KEY_BYTES: [usize; 13] = [
 
 fn pressed(key: usize) -> bool {
     unsafe { game_read::<u8>(key) != 0 }
-}
-
-/// A volume step: `(v + step) & !3`, held to 0 ..= 0x40.
-pub fn volume_step(v: u32, step: i32) -> u32 {
-    ((v.wrapping_add(step as u32) & !3) as i32).clamp(0, 0x40) as u32
 }
 
 /// `race::race_keys` (0x43A649): the race's view and sound keys (see its header). Gives
@@ -181,75 +170,76 @@ pub unsafe fn race_keys(
         if second {
             r.esi = game_read(VIEW_BLOCKS[1]);
         }
-        if pressed(NEXT_VIEW_KEY_RVA) {
-            crate::drive::next_camera_view::next_camera_view(r.esi).apply(&mut r);
-            r.ebx = ((r.esi + 0x688) as *const u32).read_unaligned();
-            if r.ebx < 7 {
-                r.eax = game_read(VIEW_COUNTERS_RVA + 4 * r.ebx as usize);
-                set_car_counter(r.esi, r.eax);
-            }
-            return Ok(r);
-        }
-        if pressed(SPLIT_KEY_RVA) {
-            if game_read::<u32>(PLAYERS_RVA) == 1 {
-                return Ok(r);
-            }
-            let split = game_read::<u32>(SPLIT_RVA) ^ 3;
-            game_write(SPLIT_RVA, split);
-            r.eax = if split == 1 { 0x127 } else { 0x128 };
-            set_both_counters(r.eax);
-            return Ok(r);
-        }
-        let step = if pressed(DOWN_KEY_RVA) {
-            Some((-4, 0))
-        } else if pressed(UP_KEY_RVA) {
-            Some((4, 1))
-        } else {
-            None
+        // Converted: `rc2k_core::race::keys::{first_key, split_flip, volume_key,
+        // volume_step, flip_bit}`.
+        use rc2k_core::race::keys::{
+            BIT_KEYS as BITS, COUNTED_VIEWS, Key, SHARED_BIT, first_key, flip_bit, split_flip,
+            volume_key, volume_step,
         };
-        if let Some((step, n)) = step {
-            if second {
-                // The "up" step reads `dword_75568C`, not the music's volume (see bugs).
-                let from = if n == 0 {
-                    MUSIC_VOLUME_RVA
-                } else {
-                    OTHER_VOLUME_RVA
-                };
-                set_both_counters(0x115 + n);
-                r.eax = volume_step(game_read(from), step);
-                game_write(MUSIC_VOLUME_RVA, r.eax);
-                part(2, &mut r)?;
-            } else {
-                set_both_counters(0x113 + n);
-                r.eax = volume_step(game_read(MASTER_VOLUME_RVA), step);
-                game_write(MASTER_VOLUME_RVA, r.eax);
-                part(1, &mut r)?;
-            }
-            return Ok(r);
-        }
-        for (key, bit, clear, set) in BIT_KEYS {
-            if pressed(rva(key)) {
-                let flags = (r.esi + 0x220) as *mut u32;
-                flags.write_unaligned(flags.read_unaligned() ^ bit);
-                r.eax = if flags.read_unaligned() & bit != 0 {
-                    set
-                } else {
-                    clear
-                };
-                set_car_counter(r.esi, r.eax);
-                return Ok(r);
-            }
-        }
-        r.esi = game_read(VIEW_BLOCKS[0]);
-        if pressed(SHARED_KEY_RVA) {
+        let key = first_key(|k| {
+            pressed(match k {
+                Key::NextView => NEXT_VIEW_KEY_RVA,
+                Key::Split => SPLIT_KEY_RVA,
+                Key::VolumeDown => DOWN_KEY_RVA,
+                Key::VolumeUp => UP_KEY_RVA,
+                Key::Bit(n) => rva(BIT_KEYS[n]),
+                Key::Shared => SHARED_KEY_RVA,
+            })
+        });
+        let flip = |r: &mut crate::framework::Regs, bit: (u32, u32, u32)| {
             let flags = (r.esi + 0x220) as *mut u32;
-            flags.write_unaligned(flags.read_unaligned() ^ 0x40);
-            r.eax = if flags.read_unaligned() & 0x40 != 0 {
-                0x126
-            } else {
-                0x125
-            };
-            set_both_counters(r.eax);
+            let (now, counter) = flip_bit(flags.read_unaligned(), bit);
+            flags.write_unaligned(now);
+            r.eax = counter;
+        };
+        match key {
+            Some(Key::NextView) => {
+                crate::drive::next_camera_view::next_camera_view(r.esi).apply(&mut r);
+                r.ebx = ((r.esi + 0x688) as *const u32).read_unaligned();
+                if r.ebx < COUNTED_VIEWS {
+                    r.eax = game_read(VIEW_COUNTERS_RVA + 4 * r.ebx as usize);
+                    set_car_counter(r.esi, r.eax);
+                }
+            }
+            Some(Key::Split) => {
+                if game_read::<u32>(PLAYERS_RVA) == 1 {
+                    return Ok(r);
+                }
+                let (split, counter) = split_flip(game_read(SPLIT_RVA));
+                game_write(SPLIT_RVA, split);
+                r.eax = counter;
+                set_both_counters(r.eax);
+            }
+            Some(k @ (Key::VolumeDown | Key::VolumeUp)) => {
+                let up = k == Key::VolumeUp;
+                let (step, counter) = volume_key(up, second);
+                set_both_counters(counter);
+                if second {
+                    // The "up" step reads `dword_75568C`, not the music's volume (see bugs).
+                    let from = if up {
+                        OTHER_VOLUME_RVA
+                    } else {
+                        MUSIC_VOLUME_RVA
+                    };
+                    r.eax = volume_step(game_read(from), step);
+                    game_write(MUSIC_VOLUME_RVA, r.eax);
+                    part(2, &mut r)?;
+                } else {
+                    r.eax = volume_step(game_read(MASTER_VOLUME_RVA), step);
+                    game_write(MASTER_VOLUME_RVA, r.eax);
+                    part(1, &mut r)?;
+                }
+            }
+            Some(Key::Bit(n)) => {
+                flip(&mut r, BITS[n]);
+                set_car_counter(r.esi, r.eax);
+            }
+            Some(Key::Shared) => {
+                r.esi = game_read(VIEW_BLOCKS[0]);
+                flip(&mut r, SHARED_BIT);
+                set_both_counters(r.eax);
+            }
+            None => r.esi = game_read(VIEW_BLOCKS[0]),
         }
         Ok(r)
     }

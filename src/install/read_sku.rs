@@ -9,14 +9,15 @@
 //! What is not there keeps its value. One caller, `sub_411239`.
 //! Self-test: a redirected copy that reads a file of the test's.
 
+use crate::bridge::Raw;
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_write, hook_asm, rva};
 use crate::install::copy_reading;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, dispatch_state, restore};
-use crate::settings::find_key::find_key;
-use crate::settings::parse_number::parse_number;
 use crate::settings::read_text::read_text;
+use crate::strings::same_text::case_table;
+use rc2k_core::install::config;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -34,7 +35,6 @@ hook_asm!(
 // ---- game data ----
 
 pub const PATH_RVA: usize = rva(0x519102); // "files\d\gfx\sku"
-const KEY_RVA: usize = rva(0x519112); // "sku"
 const NUMBER_RVA: usize = rva(0x5190F4); // dword_5190F4
 const OEM_RVA: usize = rva(0x5190F8); // dword_5190F8
 const DVD_RVA: usize = rva(0x5190FC); // dword_5190FC
@@ -48,41 +48,23 @@ pub unsafe fn read_sku(path: *const u8) -> Result<(), BadInput> {
         let Some((text, _)) = read_text(path)? else {
             return Ok(());
         };
-        let Some(mut at) = find_key(text, game_addr(KEY_RVA) as *const u8)? else {
+        // Converted: `rc2k_core::install::config::read_sku` (the key as its constant).
+        let Some(sku) = config::read_sku(&Raw::new(text), &case_table())? else {
             return Ok(());
         };
-        loop {
-            match &(at as *const [u8; 4]).read() {
-                b"oem:" => game_write(OEM_RVA, 1u32),
-                b"dvd:" => game_write(DVD_RVA, 1u32),
-                _ => break,
-            }
-            at = at.add(4);
+        if sku.oem {
+            game_write(OEM_RVA, 1u32);
         }
-        game_write(NUMBER_RVA, parse_number(at));
-        // On to after the next `:`, however far.
-        loop {
-            let c = at.read();
-            at = at.add(1);
-            match c {
-                0 => return Ok(()),
-                b':' => break,
-                _ => {}
-            }
+        if sku.dvd {
+            game_write(DVD_RVA, 1u32);
         }
-        game_write(SECOND_RVA, parse_number(at) as u8);
-        // On to after the next `.`: the original's count gives up at the 255th character.
-        for seen in 1.. {
-            let c = at.read();
-            at = at.add(1);
-            if c == 0 || seen == 255 {
-                return Ok(());
-            }
-            if c == b'.' {
-                break;
-            }
+        game_write(NUMBER_RVA, sku.number);
+        if let Some(second) = sku.second {
+            game_write(SECOND_RVA, second);
         }
-        game_write(THIRD_RVA, parse_number(at) as u8);
+        if let Some(third) = sku.third {
+            game_write(THIRD_RVA, third);
+        }
         Ok(())
     }
 }

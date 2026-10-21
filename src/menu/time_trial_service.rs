@@ -44,9 +44,12 @@ const OUT: usize = 0x755978; // dword_755978
 const DUE: usize = 0x755938; // dword_755938
 
 pub unsafe fn time_trial_service(entry: &Regs, call: Call) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::menu::passes` (the minutes, the pauses, who is out,
+    // `goes_on`).
+    use rc2k_core::menu::passes;
     crate::menu::standings::counted_players()?;
     let mut g = *entry;
-    set(SERVICE_TIME, 0xA8C);
+    set(SERVICE_TIME, passes::TIME_TRIAL_MINUTES);
     set(GOES_ON, 1);
     g.ecx = 0;
     g.ebx = 0;
@@ -54,10 +57,10 @@ pub unsafe fn time_trial_service(entry: &Regs, call: Call) -> Result<Regs, Refus
         loop {
             set(CURRENT, g.ecx);
             call(INSPECTION_SCREEN, &mut g)?;
-            g.eax = 1000;
+            g.eax = passes::SCREEN_PAUSE;
             call(SLEEP, &mut g)?;
             call(FADE_IN, &mut g)?;
-            g.eax = 0xFA;
+            g.eax = passes::FADE_PAUSE;
             call(SLEEP, &mut g)?;
             set(CLEARED[0], 0);
             call(DRIVER_STATS, &mut g)?;
@@ -73,7 +76,7 @@ pub unsafe fn time_trial_service(entry: &Regs, call: Call) -> Result<Regs, Refus
                 return Err(BadInput("a current player past the four or missing").into());
             }
             g.edi = player(current);
-            if dword(g.edi + 0xD0) == 2 {
+            if passes::is_out(dword(g.edi + 0xD0)) {
                 call(INSPECTION_FAULTS, &mut g)?;
                 call(INSPECTION_AREA_LOOP, &mut g)?;
                 if yes() {
@@ -86,7 +89,7 @@ pub unsafe fn time_trial_service(entry: &Regs, call: Call) -> Result<Regs, Refus
                 break;
             }
         }
-        if get(OUT) == get(PLAYER_COUNT) {
+        if !passes::goes_on(get(OUT), get(PLAYER_COUNT)) {
             set(GOES_ON, 0);
         }
     }

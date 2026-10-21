@@ -16,6 +16,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::net::lobby::{
     BACK_FROM_RACE, OWN, Part, Saved, dispatch_lobby, dword, g, gb, p, pb, region, run_both,
 };
+use rc2k_core::net::screens;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -36,18 +37,14 @@ const WIDTH: usize = 0x5AB4A0; // dword_5AB4A0
 /// The Rust version: the registers it leaves.
 pub fn lobby_button(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
-    r.ebx = 1;
+    // Converted: `rc2k_core::net::screens` (`lobby_button_flags`, `next_button_x`).
+    r.ebx = screens::lobby_button_flags(gb(OWN), r.esi, g(BACK_FROM_RACE));
     r.ecx = r.edi;
     r.edx = r.ebp;
-    if gb(OWN) & 1 != 0 && r.esi != 3 {
-        r.ebx |= 2;
-    }
-    if g(BACK_FROM_RACE) == 1 && r.esi == 0 {
-        r.ebx |= 2;
-    }
     part(DRAW_BUTTON, &mut r)?;
-    r.ecx = g(WIDTH).wrapping_add(0x44);
-    r.edi = r.edi.wrapping_sub(r.ecx).wrapping_sub(8);
+    let width = g(WIDTH);
+    r.ecx = width.wrapping_add(screens::FRAME_MORE);
+    r.edi = screens::next_button_x(r.edi, width);
     Ok(r)
 }
 

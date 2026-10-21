@@ -59,6 +59,36 @@ const VIEW_CARS_RVA: usize = rva(0x63DBA8); // dword_63DBA8
 
 // ---- Rust version ----
 
+/// The game's variables the choice reads.
+struct GameCars;
+
+impl rc2k_core::scene::lamps::CarLights for GameCars {
+    fn one_car(&self) -> bool {
+        unsafe { game_read::<u32>(ONE_CAR_RVA) != 0 }
+    }
+    fn the_car(&self) -> u32 {
+        unsafe { game_read(THE_CAR_RVA) }
+    }
+    fn all_cars(&self) -> bool {
+        unsafe { game_read::<u32>(ALL_CARS_RVA) == 1 }
+    }
+    fn near(&self) -> u32 {
+        unsafe { game_read(NEAR_CARS_RVA) }
+    }
+    fn view(&self) -> u32 {
+        unsafe { game_read(VIEW_RVA) }
+    }
+    fn drawn(&self) -> u32 {
+        unsafe { game_read(DRAWN_CAR_RVA) }
+    }
+    fn viewed(&self) -> u32 {
+        unsafe {
+            game_read(VIEW_CARS_RVA.wrapping_add((game_read::<u32>(VIEW_CAR_RVA) as usize) << 2))
+        }
+    }
+}
+
+// Converted: `rc2k_core::scene::lamps::car_lights`
 pub unsafe fn add_car_lights(
     add: &mut dyn FnMut(usize) -> Result<(), Refused>,
 ) -> Result<Left, Refused> {
@@ -67,28 +97,10 @@ pub unsafe fn add_car_lights(
         if cars == 0 || cars > BLOCKS {
             return Err(BadInput("no cars, or more than their blocks").into());
         }
-        let one_car = game_read::<u32>(ONE_CAR_RVA) != 0;
-        let all_cars = game_read::<u32>(ALL_CARS_RVA) == 1;
         let mut block = 0;
         for car in 0..cars {
             block = game_read::<u32>(BLOCKS_RVA + car as usize * 4);
-            let lit = if one_car {
-                car == game_read::<u32>(THE_CAR_RVA) || all_cars
-            } else {
-                let near: u32 = game_read(NEAR_CARS_RVA);
-                let view: u32 = game_read(VIEW_RVA);
-                (all_cars || car < near)
-                    && car != game_read::<u32>(DRAWN_CAR_RVA)
-                    && (near == 1
-                        || view == 0
-                        || view == 2
-                        || car
-                            == game_read::<u32>(
-                                VIEW_CARS_RVA
-                                    .wrapping_add((game_read::<u32>(VIEW_CAR_RVA) as usize) << 2),
-                            ))
-            };
-            if lit {
+            if rc2k_core::scene::lamps::car_lights(&GameCars, car) {
                 add(block as usize)?;
             }
         }

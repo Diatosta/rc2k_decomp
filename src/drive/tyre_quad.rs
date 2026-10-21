@@ -15,9 +15,10 @@
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
-use crate::physics::flow::{a, x87_run};
+use crate::physics::flow::p;
 use crate::race::car_starts::Part;
 use crate::service::harness::{capture, restore};
+use rc2k_core::drive::tyre_screen::quad_corners;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -52,23 +53,15 @@ extern "C" fn dispatch(r: &mut Regs) {
 }
 
 /// The Rust version, the draw through `part`.
+// Converted: `rc2k_core::drive::tyre_screen::quad_corners` (the shared tail stays x87).
 pub unsafe fn tyre_quad(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let (uv, rect, colour) = (entry.eax, entry.ebx, entry.ecx);
-    x87_run!(
-        "fild dword ptr [{d}]",
-        "fst dword ptr [{v}]",
-        "fst dword ptr [{v} + 0x40]",
-        "fiadd dword ptr [{d} + 0x8]",
-        "fst dword ptr [{v} + 0x20]",
-        "fstp dword ptr [{v} + 0x60]",
-        "fild dword ptr [{d} + 0x4]",
-        "fst dword ptr [{v} + 0x4]",
-        "fst dword ptr [{v} + 0x24]",
-        "fiadd dword ptr [{d} + 0xC]",
-        "fst dword ptr [{v} + 0x44]",
-        "fstp dword ptr [{v} + 0x64]";
-        d = rect, v = a(VERTS)
-    );
+    let at = |o: u32| unsafe { ((rect + o) as *const u32).read_unaligned() };
+    let corners = quad_corners([at(0), at(4), at(8), at(0xC)]);
+    for (k, [x, y]) in corners.into_iter().enumerate() {
+        p(VERTS + 0x20 * k, x.to_bits());
+        p(VERTS + 0x20 * k + 4, y.to_bits());
+    }
     quad_words(colour);
     quad_tail(uv);
     draw(

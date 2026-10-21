@@ -11,15 +11,15 @@
 //! Refuses a text of 0xFE bytes or more (the original writes past the 0x100 bytes).
 //! Self-test: a redirected copy that reads a file of the test's.
 
+use crate::bridge::Raw;
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_write, hook_asm, rva};
 use crate::install::{BASE_DIRECTORY_RVA, LOCALE_RVA, PATH_ROOM, copy_reading};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, dispatch_state, restore};
-use crate::settings::copy_value::value_at;
-use crate::settings::find_key::find_key;
-use crate::settings::parse_number::parse_number;
 use crate::settings::read_text::read_text;
+use crate::strings::same_text::case_table;
+use rc2k_core::install::config;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -37,41 +37,26 @@ hook_asm!(
 // ---- game data ----
 
 const PATH_RVA: usize = rva(0x5295C0); // "var\ral.zog"
-const CDROM_KEY_RVA: usize = rva(0x518BED); // "cdrom"
-const LANGUAGE_KEY_RVA: usize = rva(0x518BF3); // "language"
-const INSTALLATION_KEY_RVA: usize = rva(0x518BFC); // "installation"
 const MEDIA_MODE_RVA: usize = rva(0x5189A4); // g_mediaMode
 
 // ---- Rust version ----
-
-/// A directory as the record names it: the value, a NUL, and a `\` if it needs one.
-unsafe fn directory(value: *const u8) -> Result<Vec<u8>, BadInput> {
-    let mut text = unsafe { value_at(value) };
-    if text.len() + 2 > PATH_ROOM {
-        return Err(BadInput("a directory in the record longer than its place"));
-    }
-    if !matches!(text.last(), None | Some(b'/' | b'\\')) {
-        text.push(b'\\');
-    }
-    text.push(0);
-    Ok(text)
-}
 
 pub unsafe fn read_record(path: *const u8) -> Result<(), BadInput> {
     unsafe {
         let Some((text, _)) = read_text(path)? else {
             return Ok(());
         };
-        let key = |key: usize| find_key(text, game_addr(key) as *const u8);
-        let base = key(CDROM_KEY_RVA)?.map(|v| directory(v)).transpose()?;
-        let mode = key(INSTALLATION_KEY_RVA)?.map(|v| (parse_number(v) as i32).clamp(0, 3));
-        let locale = key(LANGUAGE_KEY_RVA)?.map(|v| directory(v)).transpose()?;
-        for (place, text) in [(BASE_DIRECTORY_RVA, base), (LOCALE_RVA, locale)] {
+        // Converted: `rc2k_core::install::config::read_record` (the keys as its constants).
+        let record = config::read_record(&Raw::new(text), &case_table())?;
+        for (place, text) in [
+            (BASE_DIRECTORY_RVA, record.base),
+            (LOCALE_RVA, record.locale),
+        ] {
             if let Some(text) = text {
                 std::ptr::copy(text.as_ptr(), game_addr(place) as *mut u8, text.len());
             }
         }
-        if let Some(mode) = mode {
+        if let Some(mode) = record.mode {
             game_write(MEDIA_MODE_RVA, mode);
         }
         Ok(())

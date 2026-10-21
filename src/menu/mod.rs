@@ -131,6 +131,7 @@ pub mod fit_player_names;
 pub mod flip_codriver;
 pub mod flip_gearing;
 pub mod flip_yes_no;
+pub mod flow_game;
 pub mod frame_callback;
 pub mod frame_test;
 pub mod go_back;

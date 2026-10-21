@@ -31,35 +31,39 @@ hook_asm!(
 /// A call by place: 1 `pong_digit`.
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
+/// A number of the score as three digits (the digits keep every register: the registers
+/// set for each as the original's divisions leave them).
 unsafe fn number(g: &mut Regs, at: usize, part: &mut Part) -> Result<(), Refused> {
     unsafe {
-        let n = game_read::<u32>(at) & 0xFF;
+        let (n, [hundreds, tens, ones]) = rc2k_core::marks::pong::score_digits(game_read(at));
         game_write(at, n);
-        [g.eax, g.edx, g.ebx] = [n / 100, n % 100, 100];
+        [g.eax, g.edx, g.ebx] = [hundreds, n % 100, 100];
         part(1, g)?;
-        g.eax = g.edx;
-        [g.eax, g.edx, g.ebx] = [g.eax / 10, g.eax % 10, 10];
+        [g.eax, g.edx, g.ebx] = [tens, ones, 10];
         part(1, g)?;
-        g.eax = g.edx;
+        g.eax = ones;
         part(1, g)?;
     }
     Ok(())
 }
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::marks::pong::{best, score_digits}`
 pub unsafe fn pong_score(entry: &Regs, mut part: Part) -> Result<Regs, Refused> {
+    use rc2k_core::marks::pong::{SCORE_AT, SCORE_GAP, best};
     let mut g = *entry;
     unsafe {
         let hits: u32 = game_read(pong::HITS_RVA);
-        if hits as i32 >= game_read::<i32>(pong::BEST_RVA) {
+        let was: u32 = game_read(pong::BEST_RVA);
+        if best(hits, was) != was {
             game_write(pong::BEST_RVA, hits);
         }
-        game_write(pong::DIGIT_AT[0], 0x100u32);
-        game_write(pong::DIGIT_AT[1], 0x384u32);
+        game_write(pong::DIGIT_AT[0], SCORE_AT[0]);
+        game_write(pong::DIGIT_AT[1], SCORE_AT[1]);
         number(&mut g, pong::HITS_RVA, &mut part)?;
         game_write(
             pong::DIGIT_AT[0],
-            game_read::<u32>(pong::DIGIT_AT[0]).wrapping_add(0x20),
+            game_read::<u32>(pong::DIGIT_AT[0]).wrapping_add(SCORE_GAP),
         );
         number(&mut g, pong::BEST_RVA, &mut part)?;
     }

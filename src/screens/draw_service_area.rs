@@ -43,11 +43,13 @@ use crate::screens::{
 };
 use crate::service::state::{PLAYER_INDEX_RVA, current_player};
 use crate::strings::append_string_by_id::push_string;
-use crate::strings::append_u32::append_u32;
 use crate::strings::string_table::{blob, is_table_id};
 use crate::strings::text_from_ids::{TEXT_LEN, text};
 use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::{Canvas, draw_text_at};
+use rc2k_core::screens::service::{
+    AREA_STEPS, AREA_TITLE, AREA_TITLE_AT, AreaFont, AreaStep, DAMAGE_BAR, TYRE_AT, area_title,
+};
 use std::slice::from_raw_parts;
 use std::sync::atomic::AtomicUsize;
 
@@ -73,119 +75,19 @@ hook_asm!(
 const CLEARED_RVA: usize = rva(0x6218AC); // dword_6218AC: set to 0 here, read nowhere known
 const WORK_RVA: usize = rva(0x7559EC); // dword_7559EC: a work variable
 const SETTING_RVA: usize = rva(0x75AC9C); // dword_75AC9C: the chosen tyre, 0 .. 5; its name is string 0x4B0 + this
-const SETTING_FIRST_STRING: u32 = 0x4B0;
+const SETTING_FIRST_STRING: u32 = rc2k_core::screens::service::TYRE_FIRST_STRING;
 
-const TITLE_FONT: usize = 0x51E8A4;
-const TITLE_BEFORE: u32 = 0x190;
-const TITLE_AFTER: u32 = 0x486;
-const SETTING_FONT: usize = 0x51E3C4;
-
-const DAMAGE_BAR: Bar = Bar {
-    x: 0,
-    y: 0,
-    width: 0xA0,
-    fill_glyph: 0x86,
-    end_glyph: 0x87,
-    percent: 0,
-};
-
-enum Step {
-    /// (string, font, x, y)
-    Label(u32, usize, i32, i32),
-    /// (offset in the player, string, font, x, y): drawn only if that dword is not 0.
-    LabelIf(u32, u32, usize, i32, i32),
-    /// (x, y, offset in the player of the percentage)
-    DamageBar(i32, i32, u32),
-    /// (glyph of the sprite table, x, y)
-    Sprite(u32, i32, i32),
+/// The fonts' places.
+fn font_of(font: AreaFont) -> usize {
+    match font {
+        AreaFont::Title => 0x51E8A4,
+        AreaFont::Heading => 0x51E6A4,
+        AreaFont::Label => 0x51E3E4,
+        AreaFont::Small => 0x51E3C4,
+        AreaFont::Wide => 0x51E404,
+        AreaFont::Total => 0x51E6E4,
+    }
 }
-use Step::{DamageBar, Label, LabelIf, Sprite};
-
-const STEPS: [Step; 83] = [
-    Label(0x488, 0x51E6A4, 400, 68),
-    DamageBar(236, 100, 0xD4),
-    DamageBar(571, 100, 0xD8),
-    DamageBar(236, 129, 0xDC),
-    DamageBar(571, 129, 0xE0),
-    DamageBar(236, 158, 0xE4),
-    DamageBar(571, 158, 0xE8),
-    DamageBar(236, 187, 0xEC),
-    DamageBar(571, 187, 0xF0),
-    DamageBar(236, 216, 0xF4),
-    DamageBar(571, 216, 0xF8),
-    DamageBar(236, 245, 0xFC),
-    DamageBar(571, 245, 0x100),
-    DamageBar(236, 274, 0x104),
-    DamageBar(571, 274, 0x108),
-    Label(0x492, 0x51E3E4, 106, 97),
-    Label(0x499, 0x51E3E4, 441, 97),
-    Label(0x493, 0x51E3E4, 106, 126),
-    Label(0x49A, 0x51E3E4, 441, 126),
-    Label(0x494, 0x51E3E4, 106, 155),
-    Label(0x49B, 0x51E3E4, 441, 155),
-    LabelIf(0x90, 0x578, 0x51E3C4, 319, 159),
-    Label(0x495, 0x51E3E4, 106, 184),
-    Label(0x49C, 0x51E3E4, 441, 184),
-    Label(0x496, 0x51E3E4, 106, 213),
-    Label(0x49D, 0x51E3E4, 441, 213),
-    Label(0x497, 0x51E3E4, 106, 242),
-    Label(0x49E, 0x51E3E4, 441, 242),
-    Label(0x498, 0x51E3E4, 106, 271),
-    Label(0x49F, 0x51E3E4, 441, 271),
-    Label(0x4A0, 0x51E3E4, 70, 338),
-    Label(0x4A1, 0x51E404, 397, 338),
-    Label(0x487, 0x51E6A4, 400, 353),
-    Label(0x4A2, 0x51E3E4, 106, 382),
-    Label(0x4A5, 0x51E3E4, 441, 382),
-    Label(0x4A8, 0x51E3E4, 106, 438),
-    Label(0x4AB, 0x51E3E4, 441, 438),
-    Sprite(0x68, 67, 97),
-    Sprite(0x69, 402, 97),
-    Sprite(0x6A, 67, 126),
-    Sprite(0x6B, 402, 126),
-    Sprite(0x6C, 67, 155),
-    Sprite(0x6D, 402, 155),
-    Sprite(0x6E, 67, 184),
-    Sprite(0x6F, 402, 184),
-    Sprite(0x70, 67, 213),
-    Sprite(0x71, 402, 213),
-    Sprite(0x72, 67, 242),
-    Sprite(0x73, 402, 242),
-    Sprite(0x74, 67, 271),
-    Sprite(0x75, 402, 271),
-    Sprite(0x7B, 70, 301),
-    Sprite(0x7C, 136, 301),
-    Sprite(0x7D, 202, 301),
-    Sprite(0x7E, 268, 301),
-    Sprite(0x7F, 334, 301),
-    Sprite(0x80, 405, 301),
-    Sprite(0x81, 460, 301),
-    Sprite(0x82, 515, 301),
-    Sprite(0x83, 570, 301),
-    Sprite(0x84, 625, 301),
-    Sprite(0x85, 680, 301),
-    Sprite(0x6F, 67, 382),
-    Sprite(0x73, 402, 382),
-    Sprite(0x71, 67, 438),
-    Sprite(0x71, 402, 438),
-    Sprite(0x7A, 70, 412),
-    Sprite(0x7A, 405, 412),
-    Sprite(0x7A, 70, 468),
-    Sprite(0x7A, 405, 468),
-    Label(0x48F, 0x51E6E4, 340, 551),
-    Label(0x489, 0x51E6A4, 233, 494),
-    Label(0x48A, 0x51E6A4, 568, 494),
-    Label(0x48B, 0x51E6A4, 233, 522),
-    Label(0x48C, 0x51E6A4, 568, 522),
-    Label(0x4A3, 0x51E3C4, 98, 415),
-    Label(0x4A4, 0x51E3C4, 367, 415),
-    Label(0x4A9, 0x51E3C4, 98, 471),
-    Label(0x4AA, 0x51E3C4, 367, 471),
-    Label(0x4A6, 0x51E3C4, 433, 415),
-    Label(0x4A7, 0x51E3C4, 702, 415),
-    Label(0x4AC, 0x51E3C4, 433, 471),
-    Label(0x4AD, 0x51E3C4, 702, 471),
-];
 
 // ---- Rust version ----
 
@@ -195,20 +97,23 @@ pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused
     unsafe {
         game_write(CLEARED_RVA, 0u32);
 
-        let mut title = Vec::new();
-        push_string(&mut title, TITLE_BEFORE);
-        title.push(b' ');
-        title.extend(append_u32(
-            game_read::<u32>(PLAYER_INDEX_RVA).wrapping_add(1),
-        ));
-        title.push(b' ');
-        push_string(&mut title, TITLE_AFTER);
-        title.push(0);
+        // Converted: `rc2k_core::screens::service` (`area_title`, `AREA_STEPS`).
+        let string = |id: u32| {
+            let mut bytes = Vec::new();
+            push_string(&mut bytes, id);
+            bytes
+        };
+        let title = area_title(
+            &string(AREA_TITLE.0),
+            game_read::<u32>(PLAYER_INDEX_RVA),
+            &string(AREA_TITLE.1),
+        );
         if title.len() > TEXT_LEN {
             return Err(BadInput("the title is longer than the text buffer").into());
         }
         std::ptr::copy_nonoverlapping(title.as_ptr(), text(), title.len());
-        draw_text_at(font_at(TITLE_FONT), text(), 0x190, 0xE, canvas)?;
+        let (x, y) = AREA_TITLE_AT;
+        draw_text_at(font_at(font_of(AreaFont::Title)), text(), x, y, canvas)?;
 
         draw_service_time(canvas)?;
 
@@ -220,27 +125,32 @@ pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused
         let field = |at: u32| (player.wrapping_add(at) as *const i32).read_unaligned();
         // ebx as the original has it: the sprites get it as their palette.
         let mut ebx = 0u32;
-        for step in &STEPS {
-            match *step {
-                Label(id, font, x, y) => {
-                    ebx = draw_string_by_id_at(id, font_at(font), x, y, canvas)?.text as u32;
+        let (width, fill_glyph, end_glyph) = DAMAGE_BAR;
+        for step in AREA_STEPS {
+            match step {
+                AreaStep::Label(id, font, x, y) => {
+                    ebx =
+                        draw_string_by_id_at(id, font_at(font_of(font)), x, y, canvas)?.text as u32;
                 }
-                LabelIf(car_offset, id, font, x, y) => {
+                AreaStep::LabelIf(car_offset, id, font, x, y) => {
                     if field(car_offset) != 0 {
-                        ebx = draw_string_by_id_at(id, font_at(font), x, y, canvas)?.text as u32;
+                        ebx = draw_string_by_id_at(id, font_at(font_of(font)), x, y, canvas)?.text
+                            as u32;
                     }
                 }
-                DamageBar(x, y, car_offset) => {
+                AreaStep::DamageBar(x, y, car_offset) => {
                     Bar {
                         x,
                         y,
+                        width,
+                        fill_glyph,
+                        end_glyph,
                         percent: field(car_offset),
-                        ..DAMAGE_BAR
                     }
                     .write();
                     blit_bar(&mut |call| canvas.blit_glyph(call))?;
                 }
-                Sprite(glyph, x, y) => {
+                AreaStep::Sprite(glyph, x, y) => {
                     canvas.blit_glyph(BlitCall::new(glyph, x, y, ebx, sprite_table()))?;
                 }
             }
@@ -248,7 +158,8 @@ pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused
 
         let setting = game_read::<u32>(SETTING_RVA).wrapping_add(SETTING_FIRST_STRING);
         game_write(WORK_RVA, setting);
-        draw_string_by_id_at(setting, font_at(SETTING_FONT), 0x238, 0x152, canvas)?;
+        let (x, y) = TYRE_AT;
+        draw_string_by_id_at(setting, font_at(font_of(AreaFont::Small)), x, y, canvas)?;
 
         // The markers get the car in edi and, as their palette, the ebx the repair times leave.
         let times = draw_repair_times(canvas)?;

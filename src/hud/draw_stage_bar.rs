@@ -15,14 +15,15 @@
 //! in the game its Rust version. Refuses more than 0x40 parts and a colour offset past
 //! `dword_75BF70`'s four, before anything. Shadow mode runs the original alone (it
 //! draws). Self-test: a copy whose quads go to a stand-in noting the quad record at each,
-//! against the Rust version, parts by lot.
+//! against the Rust version, parts by lot, at
+//! both test control words (the test's values are exact at both).
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{
     RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
 use crate::hud::add_quad::{QUAD_RVA, note_quad, take_quads};
-use crate::math::x87;
+use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::service::harness::{Region, at, capture, restore};
 use std::sync::atomic::AtomicUsize;
 
@@ -45,21 +46,10 @@ const COLOUR_RVA: usize = rva(0x75BFA0); // dword_75BFA0
 pub const PLACES_RVA: [usize; 2] = [rva(0x75BFF0), rva(0x75BFF4)];
 pub const ENDS_RVA: [usize; 2] = [rva(0x75BFF8), rva(0x75BFFC)]; // start, end
 pub const WIDTH_RVA: usize = rva(0x75C000); // dword_75C000
-pub const PARTS: u32 = 0x40;
-pub const FRAME: u32 = 0x21_2463;
+pub const PARTS: u32 = rc2k_core::hud::stage_bars::PARTS;
 
 /// A call by place: 1 `add_solid_quad`.
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-/// `fild a; fmul b; fdiv c; fistp`.
-pub fn int_times_over_to_int(a: u32, b: u32, c: u32) -> u32 {
-    let (v, mut out) = ([a, b, c], 0u32);
-    unsafe {
-        core::arch::asm!("fild dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fdiv dword ptr [{v} + 8]", "fistp dword ptr [{o}]",
-            v = in(reg) v.as_ptr(), o = in(reg) &raw mut out, out("st(0)") _, options(nostack))
-    };
-    out
-}
 
 pub fn set(n: usize, v: u32) {
     unsafe { game_write(QUAD_RVA + 4 * n, v) };
@@ -77,89 +67,73 @@ pub fn quad(g: &Regs, colour: Option<u32>, c: [u32; 4], part: &mut Part) -> Resu
     part(1, &mut r)
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_stage_bar(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+/// The bars of `kinds`' players (each player's colour into `colour_vars`), `dy` lower
+/// (see the header and `hud::draw_stage_bars_1`'s): the registers they leave.
+// Converted: `rc2k_core::hud::stage_bars`
+pub unsafe fn bars(
+    entry: &Regs,
+    kinds: &[usize],
+    colour_vars: &[usize],
+    dy: u32,
+    part: Part,
+) -> Result<Regs, Refused> {
+    use rc2k_core::hud::stage_bars as sb;
     let mut part = part;
     let mut g = *entry;
     unsafe {
-        let get = |o: u32| ((g.ebp + o) as *const u32).read_unaligned();
+        let get = |o: u32| ((entry.ebp + o) as *const u32).read_unaligned();
+        let f = |r: usize| f32::from_bits(game_read(r));
         let count = get(0x74);
-        if count > PARTS {
-            return Err(BadInput("a stage bar of more than 0x40 parts").into());
-        }
-        if (0..count).any(|n| game_read::<u32>(KINDS_RVA + 4 * n as usize) > 0xC) {
-            return Err(BadInput("a stage bar colour past dword_75BF70").into());
-        }
-        set(0, 0xE0);
-        for (colour, c) in [
-            (FRAME, [0, 0, 0x89, 0x20]),
-            (FRAME, [0x2AF, 0, 0x320, 0x20]),
-            (FRAME, [0x89, 0, 0x2AF, 3]),
-            (FRAME, [0x89, 0x1D, 0x2AF, 0x20]),
-            (0, [0, 0x1F, 0x320, 0x20]),
-        ] {
+        sb::check(count, kinds.len() as u32, |p, n| {
+            game_read(kinds[p as usize] + 4 * n as usize)
+        })?;
+        set(0, sb::SOLID);
+        for (colour, c) in sb::frame(dy, kinds.len() == 2) {
             quad(&g, Some(colour), c, &mut part)?;
         }
         g.ecx = count;
         if count == 0 {
             return Ok(g);
         }
-        game_write(WIDTH_RVA, 0x229u32);
+        game_write(WIDTH_RVA, sb::WIDTH);
         game_write(ENDS_RVA[0], 0u32);
         game_write(ENDS_RVA[1], 0u32);
-        let total = get(0x68);
+        let total = f32::from_bits(get(0x68));
         for n in 0..count {
             let left = count - n;
-            let kind: u32 = game_read(KINDS_RVA + 4 * n as usize);
-            let colour = ((game_addr(COLOURS_RVA) as u32 + kind) as *const u32).read_unaligned();
-            game_write(COLOUR_RVA, colour);
-            game_write(
-                ENDS_RVA[1],
-                x87::add(
-                    game_read(MILES_RVA + 4 * n as usize),
-                    game_read(ENDS_RVA[1]),
-                ),
+            let colours: Vec<u32> = kinds
+                .iter()
+                .map(|&k| {
+                    let kind: u32 = game_read(k + 4 * n as usize);
+                    ((game_addr(COLOURS_RVA) as u32 + kind) as *const u32).read_unaligned()
+                })
+                .collect();
+            for (&to, &c) in colour_vars.iter().zip(&colours) {
+                game_write(to, c);
+            }
+            let end = sb::part_end(
+                f(MILES_RVA + 4 * n as usize),
+                f(ENDS_RVA[1]),
+                left == 1,
+                total,
             );
-            if left == 1 {
-                game_write(ENDS_RVA[1], x87::loaded(total));
-            }
-            let w: u32 = game_read(WIDTH_RVA);
-            let a = int_times_over_to_int(w, game_read(ENDS_RVA[0]), total);
+            game_write(ENDS_RVA[1], end.to_bits());
+            let a = sb::place(sb::WIDTH, f(ENDS_RVA[0]), total);
             game_write(PLACES_RVA[0], a);
-            let b = int_times_over_to_int(w, game_read(ENDS_RVA[1]), total);
+            let b = sb::place(sb::WIDTH, end, total);
             game_write(PLACES_RVA[1], b);
-            let [x0, x1] = [a.wrapping_add(0x89), b.wrapping_add(0x86)];
-            let r = Regs {
-                eax: x0,
-                ebx: x1,
-                ecx: left,
-                ..g
-            };
-            set(0, 0xE0);
-            quad(&r, Some(0), [x0, 3, x1, 4], &mut part)?;
-            quad(&r, None, [x1, 3, x1 + 1, 0x1C], &mut part)?;
-            quad(&r, None, [x0, 4, x0 + 1, 0x1D], &mut part)?;
-            quad(&r, None, [x0 + 1, 0x1C, x1 + 1, 0x1D], &mut part)?;
-            let [x0, x1] = [x0 + 1, x1 - 1];
-            set(0, 0x78);
-            let r = Regs {
-                eax: x0,
-                ebx: x1,
-                edx: colour,
-                ..r
-            };
-            quad(&r, Some(colour), [x0, 4, x1 + 1, 0x1C], &mut part)?;
-            let [x0, x1] = [x1 + 2, x1 + 3];
-            if left != 1 {
-                set(0, 0xE0);
-                let r = Regs {
-                    eax: x0,
-                    ebx: x1,
-                    ..r
-                };
-                quad(&r, Some(FRAME), [x0, 3, x1 + 1, 0x1D], &mut part)?;
+            let mut r = Regs { ecx: left, ..g };
+            for q in sb::part_quads(a, b, &colours, left == 1, dy) {
+                if let Some(alpha) = q.alpha {
+                    set(0, alpha);
+                }
+                [r.eax, r.ebx] = [q.eax, q.ebx];
+                if let Some(edx) = q.edx {
+                    r.edx = edx;
+                }
+                quad(&r, q.colour, q.corners, &mut part)?;
             }
-            game_write(ENDS_RVA[0], x87::loaded(game_read(ENDS_RVA[1])));
+            game_write(ENDS_RVA[0], end.to_bits());
         }
         g.ebx = count;
         g.ecx = 0;
@@ -167,7 +141,12 @@ pub unsafe fn draw_stage_bar(entry: &Regs, part: Part) -> Result<Regs, Refused> 
     Ok(g)
 }
 
-/// In the game: `add_solid_quad`'s Rust version.
+/// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::hud::stage_bars` (through `bars`)
+pub unsafe fn draw_stage_bar(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    unsafe { bars(entry, &[KINDS_RVA], &[COLOUR_RVA], 0, part) }
+}
+
 pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::hud::add_solid_quad as sq;
     *r = unsafe { sq::add_solid_quad(r, &mut crate::hud::add_triangle::game_part_quad) }?;
@@ -215,7 +194,10 @@ fn self_test() -> (usize, usize) {
     vars.push((game_addr(MILES_RVA) as u32, 0x200));
     let saved = capture(&vars);
     let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for case in 0..4u32 {
+    for (word, case) in TEST_CONTROL_WORDS
+        .into_iter()
+        .flat_map(|w| (0..4u32).map(move |c| (w, c)))
+    {
         let mut record = [0u32; 0x40];
         record[0x74 / 4] = [0u32, 1, 3, 7][case as usize];
         record[0x68 / 4] = 12.5f32.to_bits();
@@ -234,7 +216,9 @@ fn self_test() -> (usize, usize) {
         prepare();
         take_quads();
         let mut ro = before;
-        unsafe { crate::framework::call_game(&mut ro, copy.addr()) };
+        with_control_word(word, &mut || unsafe {
+            crate::framework::call_game(&mut ro, copy.addr())
+        });
         let theirs = (Some(regs(&ro)), take_quads(), capture(&regions));
         prepare();
         let mine = unsafe {
@@ -249,7 +233,7 @@ fn self_test() -> (usize, usize) {
             capture(&regions),
         );
         t.check(theirs == mine, || {
-            format!("case {case}: original {:x?} {} quads; rust {:x?} {} quads; same quads {}; same state {}", theirs.0, theirs.1.len(), mine.0, mine.1.len(), theirs.1 == mine.1, theirs.2 == mine.2)
+            format!("control word {word:#x}, case {case}: original {:x?} {} quads; rust {:x?} {} quads; same quads {}; same state {}", theirs.0, theirs.1.len(), mine.0, mine.1.len(), theirs.1 == mine.1, theirs.2 == mine.2)
         });
     }
     restore(&vars, &saved);

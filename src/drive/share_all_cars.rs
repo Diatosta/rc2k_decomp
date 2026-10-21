@@ -30,6 +30,7 @@ use crate::framework::{
 use crate::race::mud::car_file_number;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, dispatch_state, restore};
+use rc2k_core::drive::sharing;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -67,14 +68,16 @@ unsafe fn refusal() -> Option<&'static str> {
         if block == 0 || record == 0 || sound == 0 {
             return Some("a null car block, record or sound object");
         }
-        if car_file_number(unsafe { ((block + 0x24) as *const u32).read_unaligned() }) > 0x21 {
-            return Some("a car file number above 0x21 (past g_lightRecords)");
+        let n = car_file_number(unsafe { ((block + 0x24) as *const u32).read_unaligned() });
+        if let Err(e) = sharing::check_light_record(n) {
+            return Some(e.0);
         }
     }
     None
 }
 
 /// The Rust version.
+// Converted: `rc2k_core::drive::sharing::{check_light_record, cars_shown}`.
 pub unsafe fn share_all_cars() -> Result<Left, Refused> {
     unsafe {
         if let Some(why) = refusal() {
@@ -103,11 +106,13 @@ pub unsafe fn share_all_cars() -> Result<Left, Refused> {
             .with(ESI, last.0)
             .with(EDI, first_record)
             .with(EBP, last.2);
-        if game_read::<u32>(LEAD_FILE_RVA) != 0x21 {
-            let eax = ((first_record + 0x258) as *const u32).read_unaligned();
-            if eax >= 10 {
-                game_write(SHOWN_RVA, 1u32);
-            }
+        let (shown, eax) = sharing::cars_shown(game_read::<u32>(LEAD_FILE_RVA), || {
+            ((first_record + 0x258) as *const u32).read_unaligned()
+        });
+        if shown {
+            game_write(SHOWN_RVA, 1u32);
+        }
+        if let Some(eax) = eax {
             left = left.with(EAX, eax);
         }
         put_back_lead_car_values();

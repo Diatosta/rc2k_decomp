@@ -18,6 +18,7 @@ use crate::install::installer::{
     append_byte, at, fatal, g, p, region, str_append,
 };
 use crate::race::viewer::Saved;
+use rc2k_core::install::script;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -32,7 +33,6 @@ hook_asm!(
     original = ORIGINAL
 );
 
-const FILES_ROOM: u32 = 0x40000;
 const FIND_NAME: usize = 0x4E05A8 + 0x2C; // FindFileData.cFileName
 
 pub fn list_files(entry: &Regs, part: Part) -> Result<Regs, Refused> {
@@ -55,9 +55,8 @@ pub fn list_files(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         p(FILE_COUNT, g(FILE_COUNT).wrapping_add(1));
         // `sub ebx, [table]`: find_next gets the bytes used in ebx.
         r.ebx = r.ebx.wrapping_sub(g(FILES));
-        if r.ebx >= FILES_ROOM {
-            return Err(fatal(0x80AF_2206));
-        }
+        // Converted: `rc2k_core::install::script::room_left`.
+        script::room_left(r.ebx, script::FILES_ROOM, script::FILES_FULL).map_err(fatal)?;
         part(at(FIND_NEXT), &mut r)?;
         if r.carry() {
             break;

@@ -25,6 +25,7 @@ use crate::sound::turn_parts::{
     OBJECT_LEN, PLACED, Part, REQUEST, STOP, both, common_regions, copy_of, dispatch_turn,
     run_copy, test_object,
 };
+use rc2k_core::sound::surfaces;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -55,18 +56,16 @@ pub fn surface_sound_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
     let set_word = |at: u32| (o + at) as *mut u32;
     let set = c.ebp as *const u32;
     let q = c.esi as *mut u32;
+    // Converted: `rc2k_core::sound::surfaces::pick`.
     let eight = unsafe { set.read_unaligned() } == 1;
-    c.ecx = w(0) & 3;
-    if eight {
+    let (n, slot) = surfaces::pick(eight, w(0), || {
         c.edx = w(0xC);
-        if c.edx > 1 {
-            return Err(BadInput("a set of eight with +0xC over 1").into());
-        }
-        c.ecx += c.edx * 4;
-    }
+        c.edx
+    })
+    .map_err(BadInput::from)?;
+    c.ecx = n;
     c.eax = unsafe { set.add(1 + c.ecx as usize).read_unaligned() };
     record(c.eax)?;
-    let slot = if eight { 0x144 } else { 0x148 };
     if c.eax != w(slot) {
         let old = w(slot);
         unsafe {

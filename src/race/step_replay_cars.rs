@@ -17,7 +17,7 @@
 //! stand-ins (the running switch by car), against the Rust version: one, three and eight
 //! cars.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{EAX, ESI, RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::{g, p};
 use crate::race::viewer::{Part, Saved, answer, dispatch_parts, dword, run_both, test_part};
@@ -64,9 +64,12 @@ const CLOCKS: [usize; 2] = [0x719FE0, 0x719FEC];
 
 /// The Rust version: the registers it leaves.
 pub fn step_replay_cars(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    if !(1..=8).contains(&g(CARS)) {
-        return Err(BadInput("a cars' count of 0 or past 8").into());
-    }
+    // Converted: `rc2k_core::race::viewer_flow::{check_replay_cars, car_block, car_runs,
+    // RUN_STEPS, next_car}`.
+    use rc2k_core::race::viewer_flow::{
+        RUN_STEPS, RunStep, car_block, car_runs, check_replay_cars, next_car,
+    };
+    check_replay_cars(g(CARS))?;
     let mut r = *entry;
     part(1, &mut r)?;
     p(CURRENT, 0);
@@ -74,12 +77,20 @@ pub fn step_replay_cars(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         let mut c = r;
         part(2, &mut c)?;
         part(3, &mut c)?;
-        c.eax = g(CURRENT) & 7;
+        c.eax = car_block(g(CURRENT));
         c.esi = g(BLOCKS_OF_CARS + 4 * c.eax as usize);
         p(WORK_BLOCK, c.esi);
         part(4, &mut c)?;
-        if g(RUNNING) != 0 {
-            for place in 5..=10 {
+        if car_runs(g(RUNNING)) {
+            for step in RUN_STEPS {
+                let place = match step {
+                    RunStep::Controls => 5,
+                    RunStep::GearRules => 6,
+                    RunStep::Steering => 7,
+                    RunStep::Pedals => 8,
+                    RunStep::ResetKey => 9,
+                    RunStep::Physics => 10,
+                };
                 part(place, &mut c)?;
             }
             for at in CLOCKS {
@@ -87,9 +98,10 @@ pub fn step_replay_cars(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             }
         }
         part(11, &mut c)?;
-        p(CURRENT, g(CURRENT).wrapping_add(1));
-        r.eax = g(CURRENT);
-        if r.eax == g(CARS) {
+        let (next, done) = next_car(g(CURRENT), g(CARS));
+        p(CURRENT, next);
+        r.eax = next;
+        if done {
             break;
         }
     }

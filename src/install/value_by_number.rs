@@ -6,7 +6,7 @@
 //! Callers `install::key_number` (ecx the key less 2: 0 .. 8). Shadow mode compares.
 //! Self-test: items of the test's against the original.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::install::installer::{CF, ZF, rb, rd, wb};
 use crate::race::viewer::dispatch_regs;
@@ -26,17 +26,13 @@ hook_asm!(
 
 pub fn value_by_number(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
-    let least = rb(r.esi + 0xC) as i32;
-    let span = rb(r.esi + 0xD) as i32 - least;
-    // `imul ecx` then `idiv` 8: the 64-bit product, its quotient must fit 32 bits.
-    let quotient = (span as i64 * r.ecx as i32 as i64) / 8;
-    if quotient != quotient as i32 as i64 {
-        return Err(BadInput("a quotient past 32 bits: idiv traps").into());
-    }
+    let least = rb(r.esi + 0xC);
+    // Converted: `rc2k_core::install::items::value_by_number`.
+    let value = rc2k_core::install::items::value_by_number(least, rb(r.esi + 0xD), r.ecx)?;
     r.ebx = least as u32;
     r.ecx = 8;
     r.edx = rd(r.esi + 8);
-    wb(r.edx, (quotient as i32 as u32).wrapping_add(r.ebx) as u8);
+    wb(r.edx, value);
     r.set_zero(true);
     r.set_carry(false);
     Ok(r)

@@ -9,11 +9,13 @@
 //! Self-test: the original and the Rust version on the copy filled by pattern (saved and
 //! put back).
 
+use crate::drive::save_replay_cars::{piece_at, pieces};
 use crate::errors::Refused;
 use crate::framework::{ECX, EDI, ESI, RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::{a, p};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use rc2k_core::drive::replay_frames::{START_DWORDS, start_layout};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -28,31 +30,19 @@ hook_asm!(
     original = ORIGINAL
 );
 
-const B: usize = 0x70F3EC; // g_carBlockStore (four blocks of 0xFE0)
 const SAVED: usize = 0x7172EC; // unk_7172EC
-/// The pieces in order: (where, dwords).
-const PIECES: [(usize, usize); 6] = [
-    (B, 0x1A1),
-    (B + 0xFE0, 0x1A1),
-    (B + 0x1FC0, 0x1A1),
-    (B + 0x2FA0, 0x1A1),
-    (0x71BAC8, 0xF0),  // g_raceSlots
-    (0x71BF84, 0x100), // unk_71BF84
-];
-const TOTAL: usize = 4 * 0x1A1 + 0xF0 + 0x100;
 
 /// The Rust version.
+// Converted: `rc2k_core::drive::replay_frames::start_layout`.
 pub fn load_replay_cars() -> Left {
-    let mut from = a(SAVED);
-    for (to, n) in PIECES {
-        unsafe { std::ptr::copy(from as *const u32, a(to) as *mut u32, n) };
-        from += 4 * n as u32;
+    let mut end = 0;
+    for (piece, offset, n) in start_layout() {
+        let (state, place) = (a(SAVED) + 4 * offset as u32, a(piece_at(piece)));
+        unsafe { std::ptr::copy(state as *const u32, place as *mut u32, n) };
+        end = place + 4 * n as u32;
     }
-    let (last, n) = PIECES[5];
-    Left::nothing()
-        .with(ECX, 0)
-        .with(ESI, from)
-        .with(EDI, a(last) + 4 * n as u32)
+    let past = a(SAVED) + 4 * START_DWORDS as u32;
+    Left::nothing().with(ECX, 0).with(EDI, end).with(ESI, past)
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
@@ -60,7 +50,7 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    let all: Vec<Region> = PIECES.iter().map(|&(x, n)| (a(x), 4 * n)).collect();
+    let all: Vec<Region> = pieces().iter().map(|&(x, n)| (a(x), 4 * n)).collect();
     dispatch_state(&HOOK, r, call_original, &all, &rust);
 }
 
@@ -69,14 +59,14 @@ fn self_test() -> (usize, usize) {
         return (0, 0);
     };
     let all: Vec<Region> = {
-        let mut v: Vec<Region> = PIECES.iter().map(|&(x, n)| (a(x), 4 * n)).collect();
-        v.push((a(SAVED), 4 * TOTAL));
+        let mut v: Vec<Region> = pieces().iter().map(|&(x, n)| (a(x), 4 * n)).collect();
+        v.push((a(SAVED), 4 * START_DWORDS));
         v
     };
     let saved = capture(&all);
     for case in 0..2u32 {
         let set = || {
-            for j in 0..TOTAL {
+            for j in 0..START_DWORDS {
                 p(SAVED + 4 * j, j as u32 ^ (case << 20));
             }
         };

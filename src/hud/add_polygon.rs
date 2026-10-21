@@ -16,9 +16,9 @@
 //! of 0 (the original's loop would run on) or past 0x10, and a batch it would write past,
 //! before anything. Shadow mode runs the original alone (it draws). Self-test: a copy
 //! whose two calls go to stand-ins, against the Rust version, batch counts and textures by
-//! lot.
+//! lot, at both test control words (the scaled places within `FLOAT` at extended).
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{
     RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
@@ -41,68 +41,39 @@ hook_asm!(
 const WIDTH_RVA: usize = rva(0x4F494C); // g_screenWidth
 const HEIGHT_RVA: usize = rva(0x4F4950); // g_screenHeight
 const VIRTUAL_RVA: [usize; 2] = [rva(0x75C02C), rva(0x75C030)]; // flt_75C02C, flt_75C030
-const FULL: u32 = 0x64;
-const MOST: u32 = 0x10;
 
 /// A call by place: 1 `flush_batch`, 2 `set_batch_texture`.
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
-/// `fld v; fimul i; fdiv k; fstp`.
-fn times_int_over(v: u32, i: u32, k: u32) -> u32 {
-    let (a, mut out) = ([v, i, k], 0u32);
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{a}]",
-            "fimul dword ptr [{a} + 4]",
-            "fdiv dword ptr [{a} + 8]",
-            "fstp dword ptr [{o}]",
-            a = in(reg) a.as_ptr(),
-            o = in(reg) &raw mut out,
-            out("st(0)") _,
-            options(nostack),
-        )
-    };
-    out
-}
-
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::hud::batch::{flushes, check_polygon, polygon_indices}`,
+// `rc2k_core::hud::quads::screen_scaled`
 pub unsafe fn add_polygon(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    use rc2k_core::hud::batch::{self, MOST_VERTICES};
+    use rc2k_core::hud::quads::screen_scaled;
     let mut g = *entry;
     unsafe {
         let count: u32 = game_read(POLYGON_COUNT_RVA);
-        if count == 0 || count > MOST {
-            return Err(BadInput("a HUD polygon of 0 or too many vertices").into());
-        }
         let texture: u32 = game_read(TEXTURE_RVA);
-        let flushes = game_read::<u32>(VERTEX_COUNT_RVA) > FULL
-            || texture != game_read::<u32>(BATCH_TEXTURE_RVA);
-        let empties = flushes && game_read::<u32>(INDEX_COUNT_RVA) != 0;
-        let [vc, ic] = if empties {
-            [0, 0]
+        let vertices: u32 = game_read(VERTEX_COUNT_RVA);
+        let flushes = if count == 0 || count > MOST_VERTICES {
+            false
         } else {
-            [
-                game_read::<u32>(VERTEX_COUNT_RVA),
-                game_read(INDEX_COUNT_RVA),
-            ]
+            batch::flushes(vertices, texture, game_read(BATCH_TEXTURE_RVA))
         };
-        if vc + count > VERTEX_ROOM || ic + 6 > INDEX_ROOM {
-            return Err(BadInput("a HUD polygon past the batch").into());
-        }
-        let [w, h, kx, ky] = [
-            game_read(WIDTH_RVA),
-            game_read(HEIGHT_RVA),
-            game_read(VIRTUAL_RVA[0]),
-            game_read(VIRTUAL_RVA[1]),
-        ];
+        batch::check_polygon(count, vertices, game_read(INDEX_COUNT_RVA), flushes)?;
+        let [w, h]: [u32; 2] = [game_read(WIDTH_RVA), game_read(HEIGHT_RVA)];
+        let [kx, ky] = VIRTUAL_RVA.map(|r| f32::from_bits(game_read(r)));
+        let f = |r: usize| f32::from_bits(game_read(r));
         for n in 0..count as usize {
             let v = POLYGON_RVA + 0x20 * n;
-            game_write(v, times_int_over(game_read(v), w, kx));
-            game_write(v + 4, times_int_over(game_read(v + 4), h, ky));
+            game_write(v, screen_scaled(f(v), w, kx).to_bits());
+            game_write(v + 4, screen_scaled(f(v + 4), h, ky).to_bits());
         }
         g.ecx = count;
         if flushes {
             // Not full: the flush is reached from the texture's compare (eax the texture).
-            if game_read::<u32>(VERTEX_COUNT_RVA) <= FULL {
+            if game_read::<u32>(VERTEX_COUNT_RVA) <= batch::FULL {
                 g.eax = texture;
             }
             part(1, &mut g)?;
@@ -121,17 +92,11 @@ pub unsafe fn add_polygon(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         g.ecx = 0;
         let ic: u32 = game_read(INDEX_COUNT_RVA);
         g.edi = game_addr(INDICES_RVA) as u32 + ic * 2;
-        let put = |k: u32, v: u32| ((g.edi + 2 * k) as *mut u16).write_unaligned(v as u16);
-        for k in 0..3 {
-            put(k, vc + k);
+        let indices = batch::polygon_indices(vc, count);
+        for (k, &i) in indices.iter().enumerate() {
+            ((g.edi + 2 * k as u32) as *mut u16).write_unaligned(i);
         }
-        game_write(INDEX_COUNT_RVA, ic + 3);
-        if count != 3 {
-            for (k, d) in [0, 2, 3].into_iter().enumerate() {
-                put(3 + k as u32, vc + d);
-            }
-            game_write(INDEX_COUNT_RVA, ic + 6);
-        }
+        game_write(INDEX_COUNT_RVA, ic + indices.len() as u32);
         g.eax = count;
         game_write(VERTEX_COUNT_RVA, vc + count);
     }
@@ -195,7 +160,8 @@ pub unsafe fn test_batch(case: u32) {
 }
 
 fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
+    use crate::race::mud::{copy, test_part};
+    use crate::service::floats::FLOAT;
     let Some(mut t) = SelfTest::begin(&HOOK) else {
         return (0, 0);
     };
@@ -215,17 +181,25 @@ fn self_test() -> (usize, usize) {
     let mut vars = regions.clone();
     vars.extend([TEXTURE_RVA, VIRTUAL_RVA[0], VIRTUAL_RVA[1]].map(at));
     let saved = capture(&vars);
+    // The scaled x, y: of the polygon's vertices and of every vertex of the batch.
+    let xy = |at: usize, n: u32| ((game_addr(at) as u32 + 0x20 * n, 8), FLOAT);
+    let places: Vec<_> = (0..0x10)
+        .map(|n| xy(POLYGON_RVA, n))
+        .chain((0..VERTEX_ROOM).map(|n| xy(VERTICES_RVA, n)))
+        .collect();
     for case in 0..10u32 {
-        run_both(
+        run_both_floats(
             &mut t,
             &format!("case {case}"),
             &copy,
             &regions,
+            &places,
             &|| unsafe {
                 restore(&vars, &saved);
                 test_batch(case);
                 game_write(POLYGON_COUNT_RVA, 3 + case / 5);
             },
+            Regs::SENTINEL,
             &|r| unsafe { add_polygon(r, &mut test_part) },
         );
     }

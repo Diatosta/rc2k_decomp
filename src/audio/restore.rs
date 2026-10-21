@@ -118,7 +118,8 @@ pub unsafe fn restore_buffer(at: u32, lost: u32) -> Result<Restored, Refused> {
         let mut status = 0u32;
         crate::audio::com::call1(b, GET_STATUS, &mut status as *mut u32 as u32);
         left.edx = Some(status);
-        if status & BUFFER_LOST == 0 {
+        // Converted: `rc2k_core::audio::buffers::needs_restore`.
+        if !rc2k_core::audio::buffers::needs_restore(status) {
             return Ok(left);
         }
         let r = crate::audio::com::call(b, RESTORE);
@@ -214,7 +215,8 @@ pub unsafe fn close_primary_mixer(
 ) -> Result<bool, Refused> {
     unsafe {
         part(6, 0, 0)?;
-        if read(mode) & 0x4_0000 == 0 || read(direct_sound) == 0 {
+        // Converted: `rc2k_core::audio::buffers::remakes_primary`.
+        if !rc2k_core::audio::buffers::remakes_primary(read(mode), || read(direct_sound)) {
             return Ok(false);
         }
         part(7, 0, 0)?;

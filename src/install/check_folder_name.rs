@@ -9,9 +9,10 @@
 //! back to +4, inside the patched bytes. Shadow mode compares. Self-test: paths of the test's
 //! against the original.
 
+use crate::bridge::{Raw, read_through};
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::install::installer::{CF, a, rb};
+use crate::install::installer::CF;
 use crate::race::viewer::{check_original, dispatch_regs};
 use std::sync::atomic::AtomicUsize;
 
@@ -33,42 +34,14 @@ hook_asm!(
     original = ORIGINAL
 );
 
-const BAD_CHARS: usize = 0x51DE18; // unk_51DE18: the forbidden characters, NUL-ended
-
 pub fn check_folder_name(entry: &Regs) -> Regs {
     let mut r = *entry;
-    r.set_carry(false);
-    let mut at = r.edx.wrapping_add(2);
-    loop {
-        let al = rb(at);
-        at = at.wrapping_add(1);
-        if al == 0 {
-            break;
-        }
-        if al == b'\\' {
-            if rb(at) == b'\\' {
-                r.set_carry(true);
-                break;
-            }
-            continue;
-        }
-        let mut bad = a(BAD_CHARS);
-        let mut hit = false;
-        loop {
-            if al == rb(bad) {
-                hit = true;
-                break;
-            }
-            bad = bad.wrapping_add(1);
-            if rb(bad) == 0 {
-                break;
-            }
-        }
-        if hit {
-            r.set_carry(true);
-            break;
-        }
-    }
+    // Converted: `rc2k_core::install::paths::bad_folder_name` (the characters, RAL.EXE's
+    // `unk_51DE18`, as its constant).
+    let path = unsafe { Raw::new(r.edx as *const u8) };
+    r.set_carry(read_through(rc2k_core::install::paths::bad_folder_name(
+        &path,
+    )));
     r
 }
 

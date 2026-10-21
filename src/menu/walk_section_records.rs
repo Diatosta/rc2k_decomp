@@ -14,12 +14,13 @@
 //! Shadow mode runs the original alone (it logs, in `calc_cpu_times`). Self-test:
 //! the original and the Rust version on the game's tables from the section's
 //! first records; put back.
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::menu::standings::*;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use rc2k_core::menu::section_walk::Step;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -69,29 +70,18 @@ fn record_at(index: u32) -> u32 {
     crate::records::find_record::find_record_in(table, index as i32, section)
 }
 
-/// The records the walk visits from `index`, with their tags, checked.
-fn walk() -> Result<Vec<(u32, u32)>, Refused> {
+/// The records the walk visits from `index`, with their steps, checked.
+fn walk() -> Result<Vec<(u32, Step)>, Refused> {
     current_event()?;
     counted_players()?;
     entries(game_addr(DRIVERS_RVA) as u32, DRIVER)?;
-    let mut index: u32 = unsafe { game_read(INDEX_RVA) };
-    let mut out = Vec::new();
-    loop {
-        if index >= 64 {
-            return Err(BadInput("a walk past 64 records").into());
-        }
-        let rec = record_at(index);
-        let tag = get(rec);
-        out.push((index, tag));
-        match tag {
-            3 | 4 => return Ok(out),
-            0 => {
-                crate::menu::calc_cpu_times::check(rec)?;
-            }
-            _ => {}
-        }
-        index += 1;
-    }
+    let index: u32 = unsafe { game_read(INDEX_RVA) };
+    // Converted: `rc2k_core::menu::section_walk::walk`.
+    rc2k_core::menu::section_walk::walk(
+        index,
+        |i| get(record_at(i)),
+        |i| crate::menu::calc_cpu_times::check(record_at(i)).map(|_| ()),
+    )
 }
 
 /// The Rust version (see the header): the registers it leaves.
@@ -99,22 +89,24 @@ pub unsafe fn walk_section_records(entry: &Regs) -> Result<Regs, Refused> {
     use crate::menu::{reset_driver_condition as rdc, reset_player_totals as rpt};
     let records = walk()?;
     unsafe {
-        for (_, tag) in records {
-            match tag {
-                4 => break,
-                3 => {
+        for (_, step) in records {
+            if !step.goes_on() {
+                if step == Step::Ended {
                     game_write(ENDED_RVA, 1u32);
-                    break;
                 }
-                0 => {
+                break;
+            }
+            match step {
+                Step::CpuTimes => {
                     crate::menu::calc_cpu_times::calc_cpu_times(entry)?;
-                    game_write(FIRST_RVA, 0u32);
                 }
-                1 => {
+                Step::Condition => {
                     rdc::reset_driver_condition(entry)?;
-                    game_write(FIRST_RVA, 1u32);
                 }
                 _ => {}
+            }
+            if let Some(first) = step.first() {
+                game_write(FIRST_RVA, first);
             }
             game_write(INDEX_RVA, game_read::<u32>(INDEX_RVA).wrapping_add(1));
             game_write(COUNTER_RVA, game_read::<u32>(COUNTER_RVA).wrapping_add(1));

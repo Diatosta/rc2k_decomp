@@ -24,7 +24,7 @@
 //! contact's figures and the matrices by lot, both paths, the current car not listed
 //! (no sound), under three precisions.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::math::x87::{loaded, mul};
 use crate::math::x87_run::{TEST_CONTROL_WORDS, neg_rounded, with_control_word};
@@ -40,6 +40,7 @@ use crate::scene::matrix3::{extended, rounded, test_floats};
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use rc2k_core::physics::contacts;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -71,11 +72,7 @@ pub fn sign(v: u32) -> bool {
 pub fn take_contact(n: usize) {
     copy3(0x6D30A8, 0x71A170);
     let face = (g(0x71ADC8 + 4 * n) << 6).wrapping_add(g(FACES));
-    let parts: [u32; 3] = if g(0x6D2914 + 4 * n) == 1 {
-        [0x1C, 0x34, 0x3C]
-    } else {
-        [0x18, 0x30, 0x38]
-    };
+    let parts = contacts::normal_offsets(g(0x6D2914 + 4 * n));
     for (k, o) in parts.iter().enumerate() {
         let v = unsafe { ((face + o) as *const u32).read_unaligned() };
         p(0x6D3078 + 4 * k, loaded(v));
@@ -89,18 +86,18 @@ pub fn take_contact(n: usize) {
 /// The deepest point's number (`dword_6D306C`) for the long path; refused past 0x3F.
 pub fn point_number() -> Result<usize, Refused> {
     let n = g(0x6D306C);
-    if n > 0x3F {
-        return Err(BadInput("a body point past 0x3F (the tables' room)").into());
-    }
+    contacts::check_body_point(n)?;
     Ok(n as usize)
 }
 
+// Converted: `rc2k_core::physics::contacts::{touches, normal_offsets, check_body_point}`
+// (the x87 steps stay).
 fn steps(r: &mut Regs) -> Result<(), Refused> {
     p(0x71AA0C, 0);
     unsafe { lowest_body_point(r) }?;
     let depth = g(0x6D3068);
     r.eax = depth;
-    if !sign(depth.wrapping_sub(g(0x613EF8))) || (g(0x71A22C) == 0 && !sign(depth)) {
+    if !contacts::touches(depth, g(0x613EF8), g(0x71A22C) != 0) {
         unsafe { sound_cue_e5() }?;
         return Ok(());
     }

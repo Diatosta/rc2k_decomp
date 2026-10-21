@@ -7,6 +7,10 @@
 //! See `marks/setup.rs`. One caller, `marks::init_marks`. Refuses a remainder's divisor of
 //! 0, 1 or -1 (the original's `idiv` traps). Self-test: the original and the Rust version
 //! on the game's tables with running sums of the test's, put back afterwards.
+//!
+//! Converted 2026-10-21: the walk, the smoothing, the random tables and the records through
+//! `rc2k_core::marks::noise`; the roundings (`fistp`, the spread's floats, the ramp) stay
+//! the x87's, as its control word says. Compared exactly as before.
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_write, hook_asm, rva};

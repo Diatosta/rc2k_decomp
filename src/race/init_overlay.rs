@@ -21,7 +21,7 @@
 //! original whose variables (32 references) are the test's, against the Rust version on
 //! the same test variables.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, rva};
 use crate::math::x87;
 use crate::screens::harness::Left;
@@ -49,18 +49,10 @@ const PART_MILES: usize = 0x6D150C; // g_overlayPartMiles
 const PART_A: usize = 0x6D160C; // dword_6D160C
 const PART_B: usize = 0x6D170C; // dword_6D170C
 const CLEARED: [usize; 2] = [0x6D146A, 0x6D146E]; // flt_6D146A, flt_6D146E
-/// The sizes and their values: dword_6D1486 .. dword_6D149E.
-const SIZES: [(usize, u32); 6] = [
-    (0x6D1486, 0x40),
-    (0x6D148A, 0x80),
-    (0x6D148E, 0x50),
-    (0x6D1496, 0x40),
-    (0x6D149A, 0x80),
-    (0x6D149E, 0x50),
-];
+/// The sizes (`rc2k_core::race::panel::OVERLAY_SIZES`): dword_6D1486 .. dword_6D149E.
+const SIZES: [usize; 6] = [0x6D1486, 0x6D148A, 0x6D148E, 0x6D1496, 0x6D149A, 0x6D149E];
 const SCALE_RVA: usize = rva(0x5C5D98); // flt_5C5D98, 65536.0
 const MILE_RVA: usize = rva(0x5C5CF0); // g_metresInMile, 1609.344
-const MOST_PARTS: u32 = 0x40;
 const CARS: u32 = 8;
 const ONE: u32 = 0x3F80_0000;
 
@@ -106,19 +98,11 @@ unsafe fn put(at: u32, value: u32) {
 pub unsafe fn init_overlay(entry: &Regs, v: &OverlayVars) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
-        let kinds = get(v.kinds);
-        let mut parts = None;
-        if (kinds.wrapping_sub(2) as i32) >= 0 {
-            let count = get(v.found);
-            if (count.wrapping_sub(1) as i32) >= 0 {
-                if count > MOST_PARTS {
-                    return Err(BadInput(
-                        "more than 0x40 parts: the original writes past its lists",
-                    )
-                    .into());
-                }
-                parts = Some(count);
-            }
+        // Converted: `rc2k_core::race::panel::{overlay_parts, half_length, OVERLAY_SIZES,
+        // OVERLAY_CLEARED}`; the miles the x87's.
+        use rc2k_core::race::panel::{OVERLAY_CLEARED, OVERLAY_SIZES, half_length, overlay_parts};
+        let (found, parts) = overlay_parts(get(v.kinds), || get(v.found))?;
+        if let Some(count) = found {
             g.ebp = count;
             put(v.of(PARTS), count);
         }
@@ -130,10 +114,10 @@ pub unsafe fn init_overlay(entry: &Regs, v: &OverlayVars) -> Result<Regs, Refuse
                     g.ebx = get(v.list + 4 * n + 4);
                     g.eax = get(v.distances.wrapping_add(g.ebx.wrapping_mul(4)));
                     g.ebx = get(v.list + 4 * n);
-                    g.eax = g
-                        .eax
-                        .wrapping_sub(get(v.distances.wrapping_add(g.ebx.wrapping_mul(4))));
-                    let half = g.eax >> 1;
+                    let (end, start) =
+                        (g.eax, get(v.distances.wrapping_add(g.ebx.wrapping_mul(4))));
+                    g.eax = end.wrapping_sub(start);
+                    let half = half_length(end, start);
                     put(v.scratch, half);
                     let miles = x87::int_div_div_doubled(half as i32, scale, mile);
                     put(v.of(PART_MILES) + 4 * n, miles);
@@ -150,16 +134,14 @@ pub unsafe fn init_overlay(entry: &Regs, v: &OverlayVars) -> Result<Regs, Refuse
                 put(v.of(PART_B), 0);
             }
         }
-        for (variable, value) in SIZES {
+        for (&variable, value) in SIZES.iter().zip(OVERLAY_SIZES) {
             put(v.of(variable), value);
         }
         for n in 0..CARS {
             g.esi = get(v.car_blocks + 4 * n);
-            for k in 0..8 {
-                put(g.esi + 0xF78 + 4 * k, 0);
+            for off in OVERLAY_CLEARED {
+                put(g.esi + off, 0);
             }
-            put(g.esi + 0xF98, 0);
-            put(g.esi + 0xFA0, 0);
         }
         g.ecx = 8;
         g.edx = CARS;
@@ -231,7 +213,7 @@ fn self_test() -> (usize, usize) {
         (PART_B, v.of(PART_B)),
     ];
     variables.extend(CLEARED.map(|c| (c, v.of(c))));
-    variables.extend(SIZES.map(|(s, _)| (s, v.of(s))));
+    variables.extend(SIZES.map(|s| (s, v.of(s))));
     let copy = match make(
         &HOOK,
         &Copy {
@@ -297,7 +279,9 @@ fn self_test() -> (usize, usize) {
         });
     }
     // More parts than the lists hold: refused, nothing written.
-    unsafe { (w as *mut [u32; 2]).write_volatile([2, MOST_PARTS + 1]) };
+    unsafe {
+        (w as *mut [u32; 2]).write_volatile([2, rc2k_core::race::panel::MOST_OVERLAY_PARTS + 1])
+    };
     let before = capture(&compared);
     let refused = unsafe { init_overlay(&Regs::SENTINEL, &v) }.is_err();
     t.check(refused && capture(&compared) == before, || {

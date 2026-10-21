@@ -27,7 +27,7 @@
 //! calls kept: `car_file_number`, `multiply_matrices`, `rotate_point`), switches and
 //! figures by lot, under three precisions; the refusals.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{
     EAX, EBP, EBX, ECX, EDI, EDX, ESI, RawHook, Regs, SelfTest, call_game, hook_asm, rva,
 };
@@ -41,6 +41,7 @@ use crate::scene::matrix::multiply_matrices;
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, dispatch_state, restore};
+use rc2k_core::drive::listener;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -90,33 +91,19 @@ const LIGHT_FIGURES: u32 = 0x5C90AC; // g_lightRecords + 0x40
 unsafe fn figures(m: &Mirror) -> Result<[i32; 6], Refused> {
     unsafe {
         let viewed = m.get(0x63DB9C);
-        if viewed > 7 {
-            return Err(BadInput("a viewed car past the eight blocks").into());
-        }
-        if m.get(0x71B3B8 + 4 * viewed) == 0 {
-            return Err(BadInput("the viewed car's block is null").into());
-        }
+        listener::check_viewed(viewed, || m.get(0x71B3B8 + 4 * viewed) != 0)?;
         let n = car_file_number(m.get(0x70F410));
-        if n > 0x21 {
-            return Err(BadInput("a car file number above 0x21 (past g_lightRecords)").into());
-        }
+        rc2k_core::drive::sharing::check_light_record(n)?;
         let mut out = [0i32; 6];
         for (k, o) in out.iter_mut().enumerate() {
-            let v = m.get(LIGHT_FIGURES + 0x134 * n + 4 * k as u32) as i32;
-            let q = (i64::from(v) << 16) / 1000;
-            if q != i64::from(q as i32) {
-                return Err(BadInput(
-                    "a light record figure whose times 65536 / 1000 leaves 32 bits",
-                )
-                .into());
-            }
-            *o = q as i32;
+            *o = listener::light_figure(m.get(LIGHT_FIGURES + 0x134 * n + 4 * k as u32))?;
         }
         Ok(out)
     }
 }
 
 /// The Rust core on the variables `m` reaches.
+// Converted: `rc2k_core::drive::listener` (the matrices, turns and x87 sums stay).
 pub unsafe fn set_listener_at(m: &Mirror) -> Result<Left, Refused> {
     unsafe {
         let f = figures(m)?;
@@ -126,28 +113,20 @@ pub unsafe fn set_listener_at(m: &Mirror) -> Result<Left, Refused> {
         m.put(0x5C5638, x87::from_int(at(0x13C) as i32));
         m.put(0x5C5634, x87::from_int(at(0x138) as i32));
         m.put(0x5C5630, x87::from_int(at(0x134) as i32));
-        m.put(0x5C2FD4, u32::from(at(0xABC) >= 0x10));
+        m.put(0x5C2FD4, u32::from(listener::car_ahead(at(0xABC))));
         for k in 0..3 {
             m.put(0x5C2FA0 + 4 * k, g(0x606298 + 4 * k).wrapping_neg());
         }
-        for (k, o) in [0u32, 4, 8, 0x10, 0x14, 0x18, 0x20, 0x24, 0x28]
-            .into_iter()
-            .enumerate()
-        {
+        for (k, o) in listener::TURN_OFFSETS.into_iter().enumerate() {
             m.put(0x5C2FAC + 4 * k as u32, g(VIEW_TURN + o));
         }
-        m.put(0x5C56D8, if g(0x6238A8) == 0 { 0 } else { g(0x6415D8) });
+        m.put(
+            0x5C56D8,
+            listener::first_figure(g(0x6238A8), || g(0x6415D8)),
+        );
         m.put(0x5C56DC, g(0x6415D0));
         m.put(0x5C56E0, g(0x6415D4));
-        let less = g(0x613FC4);
-        let f = [
-            f[0],
-            f[1].wrapping_sub(less as i32),
-            f[2],
-            f[3],
-            f[4].wrapping_sub(less as i32),
-            f[5],
-        ];
+        let f = listener::listener_points(f, g(0x613FC4));
         for (k, &v) in f.iter().enumerate() {
             m.put(0x608C60 + 4 * k as u32, v as u32);
         }
@@ -180,16 +159,15 @@ pub unsafe fn set_listener_at(m: &Mirror) -> Result<Left, Refused> {
                 m.put(out + 4 * k as u32, ext_to_int(*e) as u32);
             }
         }
-        let on = g(0x6415E0) != 0;
-        let (a, b) = (g(0x70FCEC), g(0x70FCF0));
-        m.put(0x5C56BC, if on { a << 2 } else { 0 });
-        m.put(0x5C56E8, a.wrapping_add(a));
-        m.put(0x5C56C0, a.wrapping_add(a));
-        m.put(0x5C56C4, if on { b >> 3 } else { 0 });
-        m.put(0x5C56E4, b << 3);
-        m.put(0x5C56D0, if (a != 0 || b != 0) && on { 0 } else { 1 });
-        m.put(0x5C56C8, 1);
-        m.put(0x5C56CC, 0);
+        let switches = listener::switches(g(0x6415E0) != 0, g(0x70FCEC), g(0x70FCF0));
+        for (at, v) in [
+            0x5C56BC, 0x5C56E8, 0x5C56C0, 0x5C56C4, 0x5C56E4, 0x5C56D0, 0x5C56C8, 0x5C56CC,
+        ]
+        .into_iter()
+        .zip(switches)
+        {
+            m.put(at, v);
+        }
         let old = g(0x70F628);
         if old != 0 {
             m.put(0x5C5680, old);

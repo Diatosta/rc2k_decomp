@@ -38,6 +38,7 @@ fn regions() -> Vec<Region> {
 }
 
 /// The Rust version.
+// Converted: `rc2k_core::physics::gearbox::asked_gear`.
 pub unsafe fn take_asked_gear() -> Result<Left, Refused> {
     let all = regions();
     let saved = capture(&all);
@@ -45,7 +46,7 @@ pub unsafe fn take_asked_gear() -> Result<Left, Refused> {
         unsafe {
             game_write(rva(0x71A210), 0u32);
             let word: u32 = game_read(rva(0x71A440));
-            let asked = (((word & 0xF00) << 20) as i32 >> 28) as u32;
+            let asked = rc2k_core::physics::gearbox::asked_gear(word);
             let gear = allowed_gear(asked)?;
             game_write(rva(0x614C40), gear);
             change_gear()

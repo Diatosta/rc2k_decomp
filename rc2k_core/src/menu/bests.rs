@@ -8,7 +8,8 @@
 //! 0x4A3E8B; the time trial's `menu::time_trial_qualifies` 0x48C7CE,
 //! `clear_time_trial_marks` 0x48C85C, `enter_time_trial_best` 0x48C8B6,
 //! `rank_time_trial_best` 0x48CC51, `keep_stage_best` 0x48E02D; and the qualifying test of
-//! `menu::best_class_scores` 0x4A8608 and `best_overall_scores` 0x4A91BF).
+//! `menu::best_class_scores` 0x4A8608 and `best_overall_scores` 0x4A91BF; the records' pass
+//! `menu::record_entries_pass` 0x4A3BE0: `record_entries`).
 //!
 //! A list is ten entries (best times 0x9C each, the arcade's best scores 0x50): +0x14 the
 //! time or score, +4 the player, +8 the nationality, +0xC the name's pointer, +0x10 the
@@ -186,6 +187,36 @@ pub fn take_record(record: &mut Entries, n: usize, at: &HolderAt, holder: &Holde
     record.set_bytes(n, at.name, &holder.name);
 }
 
+/// The record entries' pass (`menu::record_entries_pass`) on the game.
+pub trait RecordEntries {
+    type Error;
+    /// `menu::clear_record_entries`.
+    fn clear(&mut self) -> Result<(), Self::Error>;
+    /// `dword_755920`: one was entered.
+    fn set_entered(&mut self, on: u32);
+    /// `dword_75598C`: the current player.
+    fn set_current(&mut self, n: u32);
+    /// `menu::beat_target_time` for player n (ecx): `dword_755918` 1 after it.
+    fn beats(&mut self, n: u32) -> Result<bool, Self::Error>;
+    /// `menu::enter_record_entry` for player n.
+    fn enter(&mut self, n: u32) -> Result<(), Self::Error>;
+}
+
+/// The current event's entries cleared, then each of the `players` counted players that
+/// beat the target time entered, `dword_755920` 1 once one is (0 first).
+pub fn record_entries<R: RecordEntries>(players: u32, e: &mut R) -> Result<(), R::Error> {
+    e.clear()?;
+    e.set_entered(0);
+    for n in 0..players {
+        e.set_current(n);
+        if e.beats(n)? {
+            e.set_entered(1);
+            e.enter(n)?;
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -257,5 +288,44 @@ mod tests {
         take_record(&mut r, 0, &STAGE_HOLDER, &h);
         assert_eq!((r.get(0, 0x2C), r.get(0, 0xA0)), (8, 2));
         assert_eq!(r.bytes_at(0, 0x7C, 0x20), &[b'h'; 0x20]);
+    }
+
+    #[test]
+    fn record_entries_entered() {
+        struct Log(Vec<String>);
+        impl RecordEntries for Log {
+            type Error = ();
+            fn clear(&mut self) -> Result<(), ()> {
+                self.0.push("clear".into());
+                Ok(())
+            }
+            fn set_entered(&mut self, on: u32) {
+                self.0.push(format!("entered {on}"));
+            }
+            fn set_current(&mut self, n: u32) {
+                self.0.push(format!("current {n}"));
+            }
+            fn beats(&mut self, n: u32) -> Result<bool, ()> {
+                Ok(n == 1)
+            }
+            fn enter(&mut self, n: u32) -> Result<(), ()> {
+                self.0.push(format!("enter {n}"));
+                Ok(())
+            }
+        }
+        let mut log = Log(Vec::new());
+        record_entries(3, &mut log).unwrap();
+        assert_eq!(
+            log.0,
+            [
+                "clear",
+                "entered 0",
+                "current 0",
+                "current 1",
+                "entered 1",
+                "enter 1",
+                "current 2"
+            ]
+        );
     }
 }

@@ -64,11 +64,12 @@ pub unsafe fn read_volume_serial(entry: &Regs) -> Regs {
             ..*entry
         };
         if worked {
-            at.add(0xF).write(0);
-            let d = |o: usize| (at.add(o) as *const u32).read_unaligned();
-            (r.ebx, r.ecx, r.edx) = (d(4), d(8), d(0xC));
+            // Converted: `rc2k_core::system::machine::volume_registers`.
+            let info = &mut *(at as *mut [u8; 16]);
+            let ([b, c, d], zero) = rc2k_core::system::machine::volume_registers(info);
+            (r.ebx, r.ecx, r.edx) = (b, c, d);
             r.set_carry(false);
-            r.set_zero(d(0) == 0);
+            r.set_zero(zero);
         } else {
             (r.ebx, r.ecx, r.edx) = (0, 0, 0);
             r.set_carry(true);

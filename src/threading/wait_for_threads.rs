@@ -54,8 +54,9 @@ pub fn resume_slot_thread(slot: u32, api: Api) {
     }
     let flag = (slot + 0xC) as *mut u8;
     unsafe {
-        if flag.read_volatile() == 0xFF {
-            flag.write_volatile(1);
+        // Converted: `rc2k_core::threading::resumes`.
+        if rc2k_core::threading::resumes(flag.read_volatile()) {
+            flag.write_volatile(rc2k_core::threading::RESUMED);
             api(
                 RESUME_THREAD,
                 &[((slot + 8) as *const u32).read_unaligned()],
@@ -71,7 +72,9 @@ pub fn wait_for_threads_with(
     part: Part,
     api: Api,
 ) -> Result<(), Refused> {
-    let mut handles = [0u32; 3];
+    // Converted: `rc2k_core::threading::{wait_order, WAIT_MS}`.
+    use rc2k_core::threading::{WAIT_MS, WAITED, wait_order};
+    let mut handles = [0u32; WAITED];
     for (k, handle) in handles.iter_mut().enumerate() {
         let slot = slots + SLOT_LEN * k as u32;
         *handle = unsafe { ((slot + 8) as *const u32).read_unaligned() };
@@ -79,8 +82,11 @@ pub fn wait_for_threads_with(
         part(RESUME, &mut g)?;
     }
     // The stack: the last pushed first.
-    let array = [handles[2], handles[1], handles[0]];
-    let rc = api(WAIT_MULTIPLE, &[3, array.as_ptr() as u32, 1, 3000]);
+    let array = wait_order(handles);
+    let rc = api(
+        WAIT_MULTIPLE,
+        &[WAITED as u32, array.as_ptr() as u32, 1, WAIT_MS],
+    );
     for handle in array {
         api(CLOSE_HANDLE, &[handle]);
     }

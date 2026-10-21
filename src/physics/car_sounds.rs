@@ -6,15 +6,22 @@
 //! `fiadd` / `fisub` (exact), turned by `g_viewTurnMatrix`, each part x `flt_5C5DA0`
 //! (1/65536); then +0x10 1. All in `pusha` / `popa`.
 //!
-//! This file: the shared steps and the test of the four.
+//! This file: the shared steps and the test of the four. The four hooks run the
+//! converted steps (`rc2k_core::physics::sound_places`); `place` is the exact x87 one,
+//! for `place_sound_e1`'s exact version (its Rust callers).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, ext_times, with_control_word};
+use crate::math::x87_run::ext_times;
 use crate::scene::matrix3::{rounded, test_floats};
 use crate::scene::rotate_point::rotate_point;
+use crate::scene::vector3::{read_floats, write_floats};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, restore};
+use crate::service::floats::{
+    FLOAT, Floats, Tolerance, at_test_precisions, check_state_floats, dispatch_state_floats,
+};
+use crate::service::harness::{Region, capture, restore};
+use rc2k_core::physics::sound_places::{PLAY, PLAYING, Slot};
 
 pub const CURRENT: usize = 0x71B3F8; // g_currentCar
 pub const LISTED: usize = 0x641680; // dword_641680
@@ -72,6 +79,34 @@ pub unsafe fn place(o: u32, at: u32, offset: Option<[u32; 3]>) {
     }
 }
 
+/// The converted place (`rc2k_core::physics::sound_places::place`) into the object at
+/// +`at` .. +`at` + 8.
+pub unsafe fn place_plain(o: u32, at: u32, offset: Option<[u32; 3]>) {
+    let whole = |x: usize| [0, 1, 2].map(|k| g(x + 4 * k) as i32);
+    unsafe {
+        let p = rc2k_core::physics::sound_places::place(
+            whole(0x71A10C),
+            whole(0x71A67C),
+            offset.map(|o| o.map(|v| v as i32)),
+            &read_floats(game_addr(rva(VIEW_TURN)) as u32),
+            f32::from_bits(g(0x5C5DA0)),
+        );
+        write_floats(o + at, &p);
+    }
+}
+
+/// The converted steps' end: the sound and the band in the object's `slot`, the place
+/// (with `offset`), the object told to play.
+// Converted: `rc2k_core::physics::sound_places`.
+pub unsafe fn cue_plain(o: u32, slot: Slot, sound: u32, band: u32, offset: Option<[u32; 3]>) {
+    unsafe {
+        put(o + slot.sound, sound);
+        put(o + slot.band, band);
+        place_plain(o, slot.place, offset);
+        put(o + PLAYING, PLAY);
+    }
+}
+
 /// `fild car; fisub listener`, as an 80-bit value.
 fn car_part(car: u32, listener: u32) -> [u8; 10] {
     let mut out = [0u8; 10];
@@ -89,6 +124,37 @@ fn offset_part(offset: u32, car: u32, listener: u32) -> [u8; 10] {
         "fstp tbyte ptr [{o}]";
         v = v.as_ptr(), o = out.as_mut_ptr());
     out
+}
+
+/// The dispatch of the four: what the object's slots, the scratch and `extra` hold, the
+/// places within `FLOAT` at extended precision (none when the object is null: refused).
+pub fn dispatch_placed(
+    hook: &'static RawHook,
+    r: &mut Regs,
+    call_original: crate::screens::harness::CallOriginal,
+    extra: &[Region],
+    rust: crate::service::harness::Rust,
+) {
+    let (regions, memory): (Vec<Region>, Vec<(Region, Tolerance)>) = match object() {
+        Ok(o) => {
+            let mut regions = vec![
+                (o + 0x10, 4),
+                (o + 0x238, 0x28),
+                (game_addr(rva(0x6D1AEC)) as u32, 4),
+            ];
+            regions.extend_from_slice(extra);
+            (
+                regions,
+                vec![((o + 0x240, 12), FLOAT), ((o + 0x254, 12), FLOAT)],
+            )
+        }
+        Err(_) => (vec![], vec![]),
+    };
+    let floats = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    dispatch_state_floats(hook, r, call_original, &regions, &floats, rust);
 }
 
 /// What a test sets and the functions write: the test object, the tables, the places,
@@ -116,7 +182,8 @@ pub fn test_regions(object: u32) -> Vec<Region> {
 }
 
 /// The test of one of them: the original and the Rust version on the game's variables
-/// (saved and put back) with a test object; `set` adds the function's own inputs.
+/// (saved and put back) with a test object; `set` adds the function's own inputs. Exact
+/// at double precision, the places within `FLOAT` at extended.
 pub fn test_sound(
     hook: &RawHook,
     original: unsafe extern "C" fn(*mut Regs),
@@ -132,60 +199,65 @@ pub fn test_sound(
     let mut all = test_regions(o);
     all.extend_from_slice(extra);
     let saved = capture(&all);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 0..8u32 {
-                let prepare = || unsafe {
-                    for k in 0..0x98u32 {
-                        put(o + 4 * k, 0xA5A5_0000 | k);
-                    }
-                    game_write(rva(CURRENT), seed % 8);
-                    for k in 0..8usize {
-                        game_write(rva(OBJECTS + 4 * k), o);
-                        let v = if (k as u32 + seed).is_multiple_of(3) {
-                            u32::MAX
-                        } else {
-                            k as u32
-                        };
-                        game_write(rva(LISTED + 4 * k), v);
-                    }
-                    let mut f = [0u32; 24];
-                    test_floats(seed * 19 + 3, &mut f);
-                    for (k, v) in f.iter().take(16).enumerate() {
-                        game_write(rva(VIEW_TURN + 4 * k), *v);
-                    }
-                    for k in 0..3usize {
-                        game_write(
-                            rva(0x71A10C + 4 * k),
-                            seed.wrapping_mul(0x0246_8ACE) ^ k as u32,
-                        );
-                        game_write(
-                            rva(0x71A67C + 4 * k),
-                            (seed + 3).wrapping_mul(0x1357_9BDF) >> 2,
-                        );
-                    }
-                    // The bands' inputs: values about 0 .. 0x50 by the factors 1.
-                    for v in [0x6D1AE0usize, 0x6D1AE4, 0x6D1AE8] {
-                        game_write(rva(v), 1.0f32.to_bits());
-                    }
-                    let band = |n: u32| ((seed * 7 + n * 11) % 0x50) as f32;
-                    game_write(rva(0x6D3108), band(1).to_bits());
-                    game_write(rva(0x6D3CD0), band(2).to_bits());
-                    game_write(rva(0x71A19C), band(3).to_bits());
-                    set(seed);
-                };
-                check_state(
-                    &mut t,
-                    &format!("control word {word:#x}, seed {seed}"),
-                    original,
-                    Regs::SENTINEL,
-                    &prepare,
-                    &all,
-                    rust,
-                );
-            }
-        });
-    }
+    let memory = [((o + 0x240, 12), FLOAT), ((o + 0x254, 12), FLOAT)];
+    let tolerant = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, fl| {
+        for seed in 0..8u32 {
+            let prepare = || unsafe {
+                for k in 0..0x98u32 {
+                    put(o + 4 * k, 0xA5A5_0000 | k);
+                }
+                game_write(rva(CURRENT), seed % 8);
+                for k in 0..8usize {
+                    game_write(rva(OBJECTS + 4 * k), o);
+                    let v = if (k as u32 + seed).is_multiple_of(3) {
+                        u32::MAX
+                    } else {
+                        k as u32
+                    };
+                    game_write(rva(LISTED + 4 * k), v);
+                }
+                let mut f = [0u32; 24];
+                test_floats(seed * 19 + 3, &mut f);
+                for (k, v) in f.iter().take(16).enumerate() {
+                    game_write(rva(VIEW_TURN + 4 * k), *v);
+                }
+                for k in 0..3usize {
+                    game_write(
+                        rva(0x71A10C + 4 * k),
+                        seed.wrapping_mul(0x0246_8ACE) ^ k as u32,
+                    );
+                    game_write(
+                        rva(0x71A67C + 4 * k),
+                        (seed + 3).wrapping_mul(0x1357_9BDF) >> 2,
+                    );
+                }
+                // The bands' inputs: values about 0 .. 0x50 by the factors 1.
+                for v in [0x6D1AE0usize, 0x6D1AE4, 0x6D1AE8] {
+                    game_write(rva(v), 1.0f32.to_bits());
+                }
+                let band = |n: u32| ((seed * 7 + n * 11) % 0x50) as f32;
+                game_write(rva(0x6D3108), band(1).to_bits());
+                game_write(rva(0x6D3CD0), band(2).to_bits());
+                game_write(rva(0x71A19C), band(3).to_bits());
+                set(seed);
+            };
+            check_state_floats(
+                &mut t,
+                crate::framework::GameHook::name(hook),
+                &format!("control word {word:#x}, seed {seed}"),
+                original,
+                Regs::SENTINEL,
+                &prepare,
+                &all,
+                fl,
+                rust,
+            );
+        }
+    });
     restore(&all, &saved);
     drop(cells);
     t.finish()

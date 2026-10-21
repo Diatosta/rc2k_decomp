@@ -14,6 +14,7 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::menu::scripted::{Answer, test_loop};
+use rc2k_core::system::time::{time_up, wait_end};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -42,7 +43,8 @@ pub fn wait_or_key(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut g = *entry;
     g.ebx = g.eax;
     part(1, &mut g)?;
-    g.ebx = g.ebx.wrapping_add(g.eax);
+    // Converted: `rc2k_core::system::time::{wait_end, time_up}`.
+    g.ebx = wait_end(g.eax, g.ebx);
     loop {
         g.eax = 10;
         part(2, &mut g)?;
@@ -52,7 +54,7 @@ pub fn wait_or_key(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             break;
         }
         part(1, &mut g)?;
-        if (g.eax.wrapping_sub(g.ebx) as i32) >= 0 {
+        if time_up(g.eax, g.ebx) {
             g.eax = 0;
             break;
         }

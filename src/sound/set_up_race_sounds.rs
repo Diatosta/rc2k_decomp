@@ -15,7 +15,8 @@ use crate::framework::{
 use crate::install::stand_ins::{act, set_handler, stand_in};
 use crate::redirect::RedirectedCopy;
 use crate::service::harness::{at, capture, restore};
-use crate::sound::queue::{Queue, SET_5, send_command, sent};
+use crate::sound::apply_settings::{Step, run_steps};
+use crate::sound::queue::{Queue, send_command, sent};
 use crate::sound::stop_music::stop_music_in_game;
 use crate::sound::wait_for_commands::{Game, wait_for_commands};
 use std::sync::Mutex;
@@ -42,27 +43,12 @@ const LOAD_RVA: usize = rva(0x40EED8); // sound::load_race_sounds
 
 // ---- Rust version ----
 
-/// What the function does besides its two stores.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Step {
-    StopMusic,
-    /// Command 5, queued with these registers.
-    SendMode,
-    LoadSounds,
-    Wait,
-}
-
 pub unsafe fn set_up_race_sounds(entry: &Regs, step: &mut dyn FnMut(Step, &Regs)) {
+    // Converted: `rc2k_core::sound::set_up::race`.
+    use rc2k_core::sound::set_up::{RACE, race};
     unsafe {
-        game_write(APPLIED_RVA, 2u32);
-        step(Step::StopMusic, entry);
-        let r = Regs {
-            eax: game_read(RACE_MODE_RVA),
-            ..*entry
-        };
-        step(Step::SendMode, &r);
-        step(Step::LoadSounds, &r);
-        step(Step::Wait, &r);
+        game_write(APPLIED_RVA, RACE);
+        run_steps(entry, &race(game_read(RACE_MODE_RVA)), step);
         game_write(HELD_BACK_RVA, 0u32);
     }
 }
@@ -78,9 +64,9 @@ extern "C" fn dispatch(r: &mut Regs) {
     unsafe {
         set_up_race_sounds(r, &mut |step, regs| match step {
             Step::StopMusic => stop_music_in_game(regs),
-            Step::SendMode => send_command(&Queue::game(), SET_5, sent(regs)),
+            Step::Send { command, .. } => send_command(&Queue::game(), command, sent(regs)),
             // Through its hook, which has the way out for what the Rust version refuses.
-            Step::LoadSounds => call_game(&mut { *regs }, game_addr(LOAD_RVA)),
+            Step::LoadRaceSounds => call_game(&mut { *regs }, game_addr(LOAD_RVA)),
             Step::Wait => wait_for_commands(&mut Game(sent(regs))),
         });
     }
@@ -138,8 +124,8 @@ fn self_test() -> (usize, usize) {
                 set_up_race_sounds(&before, &mut |step, regs| {
                     let place = match step {
                         Step::StopMusic => 0,
-                        Step::SendMode => 1,
-                        Step::LoadSounds => 2,
+                        Step::Send { .. } => 1,
+                        Step::LoadRaceSounds => 2,
                         Step::Wait => 3,
                     };
                     act(place, &mut { *regs });

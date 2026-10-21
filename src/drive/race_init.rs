@@ -30,6 +30,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::physics::flow::{a, g, p};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
+use rc2k_core::drive::race_steps;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -57,30 +58,32 @@ fn indented(
     r: &mut Regs,
     part: &mut dyn FnMut(&mut Regs) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    p(INDENT, g(INDENT).wrapping_add(3));
+    p(INDENT, g(INDENT).wrapping_add(race_steps::LOG_INDENT));
     part(r)?;
-    p(INDENT, g(INDENT).wrapping_sub(3));
+    p(INDENT, g(INDENT).wrapping_sub(race_steps::LOG_INDENT));
     Ok(())
 }
 
 /// The steps; `r` as the original leaves it.
+// Converted: `rc2k_core::drive::race_steps::{no_best_line, NO_BEST_LINE, SETTLING_STEPS,
+// LOG_INDENT}`.
 pub fn steps(r: &mut Regs) -> Result<(), Refused> {
     log(0x4DC558);
-    p(INDENT, g(INDENT).wrapping_add(3));
+    p(INDENT, g(INDENT).wrapping_add(race_steps::LOG_INDENT));
     *r = unsafe {
         crate::race::best_line::build_best_line(r, &mut crate::race::best_line::build_part)
     }?;
-    if (g(0x623640).wrapping_sub(2) as i32) < 0 {
+    if race_steps::no_best_line(g(0x623640)) {
         if g(0x621514) != 0 {
             return Ok(());
         }
         return Err(FatalError {
-            code: 0x8060_0D1E,
+            code: race_steps::NO_BEST_LINE,
             message: "Race initialisation failed - no best line",
         }
         .into());
     }
-    p(INDENT, g(INDENT).wrapping_sub(3));
+    p(INDENT, g(INDENT).wrapping_sub(race_steps::LOG_INDENT));
     log(0x4DC56F);
     indented(r, &mut |r| {
         *r = unsafe {
@@ -128,9 +131,9 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
         Ok(())
     })?;
     log(0x4DC616);
-    p(INDENT, g(INDENT).wrapping_add(3));
+    p(INDENT, g(INDENT).wrapping_add(race_steps::LOG_INDENT));
     r.ecx = 0;
-    while r.ecx != 0x32 {
+    while r.ecx != race_steps::SETTLING_STEPS {
         let mut c = *r;
         unsafe { crate::drive::race_cars_step::race_cars_step(&c) }?;
         c = *r;
@@ -146,7 +149,7 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
     let s = unsafe { crate::race::race_init::clear_race_slots(r) };
     r.edi = s.edi;
     r.ecx = s.ecx;
-    p(INDENT, g(INDENT).wrapping_sub(3));
+    p(INDENT, g(INDENT).wrapping_sub(race_steps::LOG_INDENT));
     log(0x4DC62F);
     indented(r, &mut |r| {
         let g = unsafe { crate::race::car_grades::grade_all_cars(r) };

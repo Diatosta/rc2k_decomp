@@ -20,6 +20,7 @@ use crate::install::installer::{
 };
 use crate::install::list_test::TestList;
 use crate::race::viewer::{Saved, dispatch_parts};
+use rc2k_core::install::items::{self, ItemKey, PageKey};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -58,30 +59,30 @@ pub fn page_key(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
     let key = r.eax as u8;
     logic(&mut r, key as u32);
-    if key == 0 || key & 0x80 != 0 {
+    // Converted: `rc2k_core::install::items` (`page_key`, `takes_every_key`, `STAYS`,
+    // `SCREENSHOT_KEY`).
+    let Some(way) = items::page_key(key) else {
         return Ok(r);
-    }
+    };
     let kind = rb(r.esi) & 0xF;
     r.ebx = r.ebx & !0xFF | kind as u32;
-    let mut edited = false;
     cmp(&mut r, kind as u32, 4);
-    if kind == 4 {
+    let edited = items::takes_every_key(kind, || {
         r.ebx = rd(r.esi + 0xC);
         let editing = rb(r.ebx) & 1 != 0;
         logic(&mut r, editing as u32);
-        if editing {
-            part(at(CALLEES[0] as usize), &mut r)?;
-            edited = true;
-        }
-    }
-    if !edited {
-        let callee = match key {
-            0x66 => Some(1),
-            0x6B => Some(2),
-            0x68 => Some(3),
-            0x69 => Some(4),
-            2..=0xA => Some(5),
-            0x1C => Some(6),
+        editing
+    });
+    if edited {
+        part(at(CALLEES[0] as usize), &mut r)?;
+    } else {
+        let callee = match way {
+            PageKey::Item(ItemKey::Up) => Some(1),
+            PageKey::Item(ItemKey::Down) => Some(2),
+            PageKey::Item(ItemKey::Left) => Some(3),
+            PageKey::Item(ItemKey::Right) => Some(4),
+            PageKey::Item(ItemKey::Number) => Some(5),
+            PageKey::Enter => Some(6),
             _ => None,
         };
         if let Some(n) = callee {
@@ -91,8 +92,8 @@ pub fn page_key(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             part(at(CALLEES[n] as usize), &mut r)?;
             return Ok(took(r));
         }
-        if key == 1 {
-            let flags = rb(r.edi) & 0x10;
+        if way == PageKey::Escape {
+            let flags = rb(r.edi) & items::STAYS;
             logic(&mut r, flags as u32);
             if flags == 0 {
                 pb(LIST_ANSWER, 0);
@@ -103,7 +104,7 @@ pub fn page_key(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         cmp(&mut r, key as u32, 1);
     }
     let flags = r.eflags;
-    if gb(SCREENSHOTS_ON) != 0 && (r.eax as u8) == 0x52 {
+    if gb(SCREENSHOTS_ON) != 0 && (r.eax as u8) == items::SCREENSHOT_KEY {
         part(at(CALLEES[7] as usize), &mut r)?;
     }
     r.eflags = flags;

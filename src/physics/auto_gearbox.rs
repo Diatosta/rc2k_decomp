@@ -32,6 +32,7 @@ use crate::physics::manual_gearbox::reverse;
 use crate::physics::pick_start_gear::pick_start_gear_in;
 use crate::screens::harness::Left;
 use crate::service::harness::dispatch_state;
+use rc2k_core::physics::gear_shifts::{self as shifts, Shift};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -46,96 +47,90 @@ hook_asm!(
     original = ORIGINAL
 );
 
-enum To {
-    Up,
-    DownFrom,
-    Neutral,
-    Start,
-    Reverse,
-    Done,
-}
-
 /// Up (0x43C66D).
-fn up(r: &mut Regs) -> Result<To, Refused> {
+fn up(r: &mut Regs) -> Result<Shift, Refused> {
     r.ebx = g(GEAR);
-    if r.ebx == g(GEAR_COUNT) {
-        return Ok(To::Done);
-    }
-    if r.ebx == u32::MAX {
-        return Ok(To::Start);
+    if let Some(shift) = shifts::auto_up(r.ebx, g(GEAR_COUNT)) {
+        return Ok(shift);
     }
     wheels(r)?;
     p(GEAR, g(GEAR).wrapping_add(1));
     revs(r)?;
     settle();
-    Ok(To::Done)
+    Ok(Shift::Done)
 }
 
 /// Down (0x43C6B7).
-fn down(r: &mut Regs) -> Result<To, Refused> {
+fn down(r: &mut Regs) -> Result<Shift, Refused> {
     wheels(r)?;
     p(GEAR, g(GEAR).wrapping_sub(1));
     revs(r)?;
     if below(g(ENGINE), g(0x614104)) {
         settle();
-        return Ok(To::Done);
+        return Ok(Shift::Done);
     }
     p(GEAR, g(GEAR).wrapping_add(1));
     revs(r)?;
-    Ok(To::Neutral)
+    Ok(Shift::Neutral)
 }
 
 /// The automatic's tests (0x43C798).
-fn tests(r: &mut Regs) -> Result<To, Refused> {
+fn tests(r: &mut Regs) -> Result<Shift, Refused> {
     r.ebx = g(GEAR);
     let kept = g(ENGINE);
     revs_speed(r)?;
     p(SCRATCH, over_top());
     p(ENGINE, kept);
-    if (r.ebx.wrapping_sub(1) as i32) >= 0 && g(0x71A22C) == 0 && !below(g(SCRATCH), g(0x5CB958)) {
-        return Ok(To::Up);
-    }
-    if r.ebx == u32::MAX && g(0x71A614) != 0 && !below(g(SPEED), g(0x613E98)) {
-        return Ok(To::Start);
-    }
-    p(SCRATCH, over_top());
-    if (r.ebx.wrapping_sub(2) as i32) >= 0 {
-        let (rb, rl) = (ratio(r.ebx)?, ratio(r.ebx.wrapping_sub(1))?);
-        if mul_div_status(g(SCRATCH), rb, rl, g(0x5CB964)) & 0x100 != 0 {
-            let point = if g(0x71A614) != 0 { 0x5CB960 } else { 0x5CB95C };
-            if below(g(SCRATCH), g(point)) {
-                return Ok(To::DownFrom);
+    let gear = r.ebx;
+    shifts::auto_tests(
+        gear,
+        || g(0x71A22C) != 0,
+        || g(0x71A614) != 0,
+        || !below(g(SCRATCH), g(0x5CB958)),
+        || !below(g(SPEED), g(0x613E98)),
+        || {
+            p(SCRATCH, over_top());
+            if !shifts::above_first(gear) {
+                return Ok(false);
             }
-        }
-    }
-    if r.ebx == 1 && g(0x71A614) != 0 && below(g(SPEED), g(0x613E94)) {
-        return Ok(To::Reverse);
-    }
-    Ok(To::Done)
+            let (rb, rl) = (ratio(gear)?, ratio(gear.wrapping_sub(1))?);
+            if mul_div_status(g(SCRATCH), rb, rl, g(0x5CB964)) & 0x100 == 0 {
+                return Ok(false);
+            }
+            let point = if shifts::down_point_clutch(g(0x71A614)) {
+                0x5CB960
+            } else {
+                0x5CB95C
+            };
+            Ok(below(g(SCRATCH), g(point)))
+        },
+        || below(g(SPEED), g(0x613E94)),
+    )
 }
 
 /// The steps on `r`.
+// Converted: `rc2k_core::physics::gear_shifts` (the engine's sums and compares stay x87).
 pub fn auto_gearbox_in(r: &mut Regs) -> Result<(), Refused> {
     p(CHANGED, 0);
     let mut to = 'first: {
         if bit(r, g(GEAR))? {
-            break 'first To::Neutral;
+            break 'first Shift::Neutral;
         }
         if g(GEAR) != 0 && below(g(ENGINE), g(0x6140F8)) {
-            break 'first To::Neutral;
+            break 'first Shift::Neutral;
         }
         if g(GEAR) == 0 {
             if mul_status(g(LIMIT), g(0x613F18), g(ENGINE)) & 0x100 == 0 {
                 return Ok(());
             }
             break 'first if g(0x6138A8) == u32::MAX {
-                To::Reverse
+                Shift::Reverse
             } else {
-                To::Start
+                Shift::Start
             };
         }
         if g(0x71A408) != 0 {
-            break 'first To::Neutral;
+            break 'first Shift::Neutral;
         }
         if g(HOLD) != 0 {
             p(HOLD, g(HOLD).wrapping_sub(1));
@@ -148,24 +143,24 @@ pub fn auto_gearbox_in(r: &mut Regs) -> Result<(), Refused> {
     };
     loop {
         to = match to {
-            To::Up => up(r)?,
-            To::DownFrom => {
+            Shift::Up => up(r)?,
+            Shift::Down => {
                 r.ebx = g(GEAR);
                 down(r)?
             }
-            To::Neutral => {
+            Shift::Neutral => {
                 neutral();
-                To::Done
+                Shift::Done
             }
-            To::Start => {
+            Shift::Start => {
                 pick_start_gear_in(r)?;
-                To::Done
+                Shift::Done
             }
-            To::Reverse => {
+            Shift::Reverse => {
                 reverse(r, false)?;
-                To::Done
+                Shift::Done
             }
-            To::Done => return Ok(()),
+            Shift::Done => return Ok(()),
         };
     }
 }

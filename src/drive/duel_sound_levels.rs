@@ -17,6 +17,7 @@ use crate::framework::{EAX, EBX, EDX, RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::{a, g, p};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use rc2k_core::drive::replay_views::{RARE_FROM, first_level, rare_draw, second_level};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -33,33 +34,22 @@ hook_asm!(
 
 const B: usize = 0x70F3EC; // g_carBlockStore
 
-fn held(v: u32) -> u32 {
-    let v = if (v as i32) < 0 { 0 } else { v };
-    if (v.wrapping_sub(0x40) as i32) < 0 {
-        v
-    } else {
-        0x40
-    }
-}
-
 /// The Rust version.
+// Converted: `rc2k_core::drive::replay_views::{first_level, rare_draw, second_level}`.
 pub unsafe fn duel_sound_levels(entry: &Regs) -> Left {
     let mut left = Left::nothing();
-    p(0x5165BC, held((g(B + 0x900) >> 2).wrapping_sub(4)));
-    if g(0x5165BC) >= 0x38 {
+    p(0x5165BC, first_level(g(B + 0x900)));
+    if g(0x5165BC) >= RARE_FROM {
         let r = unsafe { crate::math::next_random::next_random() };
-        let product = i64::from(r as i32) * 500;
         left = left.with(EBX, 500);
-        if (product >> 32) as u32 == 0 {
+        if rare_draw(r) {
             p(0x5165A8, 1);
         }
     }
-    let x = g(B + 0x908);
-    let square = i64::from(x as i32) * i64::from(x as i32);
-    let eax = held(((square as u32) >> 12).wrapping_sub(8));
+    let (eax, high) = second_level(g(B + 0x908));
     p(0x5165C0, eax);
     let _ = entry;
-    left.with(EAX, eax).with(EDX, (square >> 32) as u32)
+    left.with(EAX, eax).with(EDX, high)
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

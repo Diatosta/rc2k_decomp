@@ -10,13 +10,16 @@
 //!
 //! Caller: `menu::calc_cpu_times`. Logs through the `logfile::` Rust versions (level 1).
 //! Shadow mode runs the original alone (it logs). Self-test: the
-//! original and the Rust version on a record of the test's, times and sections by lot.
+//! original and the Rust version on a record of the test's, times and sections by lot, at
+//! the test precisions (exact at 0x027F; the times within one at 0x037F, exact there too
+//! below 2^29).
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::menu::standings::*;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::floats::{Floats, ROUNDED, at_test_precisions, check_state_floats};
+use crate::service::harness::{Region, at, capture, dispatch_state, restore};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -62,16 +65,15 @@ fn prepare(case: u32) {
 
 /// The section held to 0 .. 5.
 pub fn held_section() -> u32 {
-    (unsafe { game_read::<i32>(SECTION_RVA) }).clamp(0, 5) as u32
+    rc2k_core::menu::stage_scale::held_section(unsafe { game_read(SECTION_RVA) })
 }
 
 /// The four times as scaled (see the header), and the two factors.
 pub fn scaled(times: [u32; 4], section: u32) -> ([u32; 4], [u32; 2]) {
     let f: [u32; 2] = FACTORS_RVA.map(|r| unsafe { game_read(r + 4 * section as usize) });
-    let mut out = times;
-    for (k, t) in out.iter_mut().enumerate() {
-        *t = crate::math::x87::int_times_to_int(*t as i32, f[usize::from(k == 0)]) as u32;
-    }
+    // Converted: `rc2k_core::menu::stage_scale` (exact at the game's precisions for times
+    // below 2^29; its header).
+    let out = rc2k_core::menu::stage_scale::scale_times(times, f.map(f32::from_bits));
     (out, f)
 }
 
@@ -146,20 +148,29 @@ fn self_test() -> (usize, usize) {
     if refused {
         return t.skip("the Rust version refuses the game's tables");
     }
-    for case in 0..CASES {
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            test_entry(case),
-            &|| {
-                restore(&vars, &saved);
-                prepare(case);
-            },
-            &regions,
-            &rust,
-        );
-    }
+    let places = [((game_addr(TIMES_RVA) as u32, 16), ROUNDED)];
+    let tolerant = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, held| {
+        for case in 0..CASES {
+            check_state_floats(
+                &mut t,
+                "menu::scale_stage_times",
+                &format!("control word {word:#x}, case {case}"),
+                call_original,
+                test_entry(case),
+                &|| {
+                    restore(&vars, &saved);
+                    prepare(case);
+                },
+                &regions,
+                held,
+                &rust,
+            );
+        }
+    });
     restore(&vars, &saved);
     t.finish()
 }

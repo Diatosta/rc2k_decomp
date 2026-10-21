@@ -42,23 +42,21 @@ const CLEARED: [usize; 26] = [
 /// addresses) its kind from `g_raceCarKinds`. Leaves ecx 8, esi the last block, eax the
 /// number x 100.
 pub unsafe fn reset_car_blocks(entry: &Regs) -> Regs {
+    // Converted: `rc2k_core::race::cars::reset_block`.
+    use rc2k_core::race::cars::{CAR_BLOCKS, reset_block};
     let mut g = *entry;
     unsafe {
         let cars: u32 = game_read(CARS_RVA);
-        for n in 0..8u32 {
+        for n in 0..CAR_BLOCKS {
             let b: u32 = game_read(CAR_BLOCKS_RVA + 4 * n as usize);
-            let put = |off: u32, v: u32| ((b + off) as *mut u32).write_unaligned(v);
-            put(0x25C, (n < cars) as u32);
-            for &off in &CLEARED[..22] {
-                put(off as u32, 0);
+            for (off, v) in reset_block(n, cars, game_read(SPEEDS_RVA)) {
+                ((b + off) as *mut u32).write_unaligned(v);
             }
-            put(0x38, 1);
             g.eax = game_read::<u32>(SPEEDS_RVA).wrapping_mul(100);
-            put(0x8C, g.eax);
             g.esi = b;
         }
-        g.ecx = 8;
-        for n in 0..8 {
+        g.ecx = CAR_BLOCKS;
+        for n in 0..CAR_BLOCKS as usize {
             game_write(block(n) + 0x24, game_read::<u32>(CAR_KINDS_RVA + 4 * n));
         }
     }
@@ -356,15 +354,11 @@ pub unsafe fn auto_set_up_car(entry: &Regs, part: Part) -> Result<Regs, Refused>
 /// `dword_75AD2C` / `dword_75AE98` held for a block's +0x3C: below 0 is 0, 100 or more
 /// 0x100, else times 2.56 (`fild` / `fmul` / `fistp`).
 unsafe fn brake_value(n: usize) -> u32 {
+    // Converted: `rc2k_core::race::cars::held_brake` (the product the x87's).
     unsafe {
-        let v: i32 = game_read(BRAKES_RVA[n]);
-        if v < 0 {
-            0
-        } else if v.wrapping_sub(100) >= 0 {
-            0x100
-        } else {
+        rc2k_core::race::cars::held_brake(game_read(BRAKES_RVA[n]), |v| {
             crate::math::x87::int_times_to_int(v, game_read(BRAKE_SCALE_RVA)) as u32
-        }
+        })
     }
 }
 
@@ -377,11 +371,10 @@ unsafe fn brake_value(n: usize) -> u32 {
 pub unsafe fn set_up_mode_0_cars(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
-        let all = game_read::<u32>(ALL_AUTO_RVA) != 0;
+        // Converted: `rc2k_core::race::cars::{every_car_set_up, held_brake}`.
         let cars: u32 = game_read(CARS_RVA);
-        if all && (cars == 0 || cars > 8) {
-            return Err(BadInput("no cars or more than eight").into());
-        }
+        let all =
+            rc2k_core::race::cars::every_car_set_up(game_read::<u32>(ALL_AUTO_RVA) != 0, cars)?;
         part(14, &mut g)?;
         if !all {
             part(15, &mut g)?;
@@ -591,36 +584,23 @@ pub unsafe fn set_car_times(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     unsafe {
         let stage: u32 = game_read(STAGE_RVA);
         let count: u32 = game_read(CHECK_POSITS_RVA);
-        if stage < 0x4F && (count == 0 || count as usize > MOST_NUMBERS) {
+        if stage < rc2k_core::race::stage::UNTIMED_STAGES
+            && (count == 0 || count as usize > MOST_NUMBERS)
+        {
             return Err(BadInput("a checkpoint count of 0 or past the numbers").into());
         }
-        let mut kind: i32 = game_read(CAR_KINDS_RVA);
-        if kind < 0 {
-            kind = 0;
-        }
-        if kind.wrapping_sub(0x16) >= 0 {
-            kind = 0x16;
-        }
+        // Converted: `rc2k_core::race::stage::{timed_kind, rally_of, difficulty}`; the
+        // factor's float steps stay the x87's (whole numbers rounded from them).
+        use rc2k_core::race::stage::{difficulty, rally_of, timed_kind};
+        let kind = timed_kind(game_read(CAR_KINDS_RVA));
         let factor = crate::math::x87::loaded(game_read(KIND_FACTORS_RVA + 4 * kind as usize));
         game_write(KIND_FACTOR_RVA, factor);
         g.eax = stage;
-        let (base, level) = if stage < 0x1D {
-            (0x15, 0)
-        } else if stage < 0x27 {
-            (0x1F, 3)
-        } else if stage < 0x31 {
-            (0x29, 5)
-        } else if stage < 0x3B {
-            (0x33, 1)
-        } else if stage < 0x45 {
-            (0x3D, 4)
-        } else if stage < 0x4F {
-            (0x47, 2)
-        } else {
+        let Some(rally) = rally_of(stage) else {
             return Ok(g);
         };
-        g.ebx = level;
-        g.eax = stage.wrapping_sub(base).wrapping_add(6 * level);
+        g.ebx = rally.1;
+        g.eax = difficulty(stage, rally);
         log(9, w(0), &g, part)?;
         log(11, count, &g, part)?;
         log(9, w(1), &g, part)?;
@@ -725,7 +705,12 @@ pub unsafe fn set_up_mode_2_cars(entry: &Regs, part: Part) -> Result<Regs, Refus
         game_write(ARCADE_A_RVA, g.eax);
         g.eax = game_read(rva(0x6046B4) + 4 * rally as usize);
         game_write(ARCADE_B_RVA, g.eax);
-        if game_read::<u32>(ARCADE_KIND_RVA) == 2 || stage_in == 0 {
+        // Converted: `rc2k_core::race::cars::{arcade_start_is_last, arcade_number,
+        // arcade_type_draw, arcade_swap_draw}`.
+        use rc2k_core::race::cars::{
+            arcade_number, arcade_start_is_last, arcade_swap_draw, arcade_type_draw,
+        };
+        if arcade_start_is_last(game_read(ARCADE_KIND_RVA), stage_in) {
             g.eax = cars;
             game_write(START_POS_RVA, cars);
         }
@@ -756,19 +741,13 @@ pub unsafe fn set_up_mode_2_cars(entry: &Regs, part: Part) -> Result<Regs, Refus
         g.esi = 1;
         loop {
             loop {
-                if g.esi == game_read::<u32>(block(0) + 0xAA8) {
-                    g.esi += 1;
-                }
-                if game_read::<u32>(PLAYERS_RVA) != 1 && g.esi == game_read::<u32>(block(1) + 0xAA8)
-                {
-                    g.esi += 1;
-                }
+                let first: u32 = game_read(block(0) + 0xAA8);
+                let second = (game_read::<u32>(PLAYERS_RVA) != 1)
+                    .then(|| game_read::<u32>(block(1) + 0xAA8));
+                g.esi = arcade_number(g.esi, first, second);
                 part(18, &mut g)?;
-                g.eax = g.eax.rotate_right(g.ecx & 0x1F);
+                (g.eax, g.edx) = arcade_type_draw(g.eax, g.ecx);
                 g.ebx = 3;
-                let product = g.eax as u64 * 3;
-                g.eax = product as u32;
-                g.edx = (product >> 32) as u32;
                 if g.edx != g.ebp {
                     break;
                 }
@@ -788,9 +767,7 @@ pub unsafe fn set_up_mode_2_cars(entry: &Regs, part: Part) -> Result<Regs, Refus
             let mine: u32 = game_read(ARCADE_ORDER_RVA + 4 * g.ecx as usize);
             part(18, &mut g)?;
             g.ebx = cars;
-            let product = g.eax as u64 * cars as u64;
-            g.eax = product as u32;
-            g.edx = (product >> 32) as u32;
+            (g.eax, g.edx) = arcade_swap_draw(g.eax, cars);
             let other: u32 = game_read(ARCADE_ORDER_RVA + 4 * g.edx as usize);
             game_write(ARCADE_ORDER_RVA + 4 * g.ecx as usize, other);
             game_write(ARCADE_ORDER_RVA + 4 * g.edx as usize, mine);
@@ -877,32 +854,27 @@ pub unsafe fn set_up_cars(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     unsafe {
         log(9, game_addr(rva(0x4DB9EB)) as u32, &g, part)?;
         log(12, game_read(MODE_RVA), &g, part)?;
+        // Converted: `rc2k_core::race::cars::{PLAYER_RESETS, cars_steps}`.
+        use rc2k_core::race::cars::{CarsStep, PLAYER_RESETS, cars_steps};
         for n in 0..2 {
-            game_write(block(n) + 0x5FC, 0u32);
-            for k in [0xA0C, 0xA14, 0xA10, 0xA1C, 0xA18] {
-                game_write(block(n) + k, u32::MAX);
+            for (off, v) in PLAYER_RESETS {
+                game_write(block(n) + off as usize, v);
             }
         }
-        match game_read::<u32>(MODE_RVA) {
-            2 => {
-                part(1, &mut g)?;
-                part(2, &mut g)?;
-                part(3, &mut g)?;
-                for k in 0..0x40 {
-                    game_write(rva(0x601C68) + 4 * k, 0u32);
+        for &step in cars_steps(game_read(MODE_RVA)) {
+            match step {
+                CarsStep::Numbers => part(1, &mut g)?,
+                CarsStep::Times => part(2, &mut g)?,
+                CarsStep::SetUp(mode) => part([6, 4, 3, 5, 7][mode as usize], &mut g)?,
+                CarsStep::ClearArcadeTable => {
+                    for k in 0..0x40 {
+                        game_write(rva(0x601C68) + 4 * k, 0u32);
+                    }
+                    g.edi = game_addr(rva(0x601C68 + 0x100)) as u32;
+                    g.eax = 0;
+                    g.ecx = 0;
                 }
-                g.edi = game_addr(rva(0x601C68 + 0x100)) as u32;
-                g.eax = 0;
-                g.ecx = 0;
             }
-            1 => part(4, &mut g)?,
-            3 => part(5, &mut g)?,
-            0 => {
-                part(1, &mut g)?;
-                part(6, &mut g)?;
-            }
-            4 => part(7, &mut g)?,
-            _ => {}
         }
     }
     Ok(g)

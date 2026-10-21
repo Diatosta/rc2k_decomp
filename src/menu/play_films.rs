@@ -32,6 +32,7 @@
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, log, rva, shadow};
 use crate::install::stand_ins::{act, set_handler, stand_in};
 use crate::redirect::RedirectedCopy;
+use rc2k_core::menu::films::{self, Film, Flags, Step};
 use std::sync::Mutex;
 use std::sync::atomic::AtomicUsize;
 
@@ -80,69 +81,86 @@ const DEMONSTRATION: usize = 0x463666;
 /// back as it leaves them.
 pub type CallAt<'a> = &'a mut dyn FnMut(usize, &mut Regs);
 
+/// The game for `rc2k_core::menu::films`: the settings where `settings` says, the steps
+/// at their addresses with the registers the original gives them (one set carried
+/// through, `r`).
+struct Game<'a, 'b> {
+    r: &'a mut Regs,
+    settings: [*const u32; 2],
+    call: CallAt<'b>,
+}
+
+fn film(f: Film) -> u32 {
+    game_addr(match f {
+        Film::AlLogo => AL_LOGO_RVA,
+        Film::MfLogo => MF_LOGO_RVA,
+        Film::Intro => INTRO_RVA,
+    }) as u32
+}
+
+impl films::Films for Game<'_, '_> {
+    fn no_fmv(&mut self) -> bool {
+        unsafe { self.settings[0].read_unaligned() != 0 }
+    }
+
+    fn screen_bits(&mut self) -> u32 {
+        unsafe { self.settings[1].read_unaligned() }
+    }
+
+    fn step(&mut self, s: Step) -> Flags {
+        let r = &mut *self.r;
+        let at = match s {
+            Step::StopMusic => 0x40F826,
+            Step::Step4059F4 => 0x4059F4,
+            Step::TakeKey => TAKE_KEY,
+            Step::SwapMissingExtension(f) => {
+                r.eax = film(f);
+                SWAP_MISSING_EXTENSION
+            }
+            Step::Player(f) => {
+                if let Some(f) = f {
+                    r.eax = film(f);
+                }
+                r.ebx = 0;
+                PLAYER
+            }
+            Step::LitEngine => 0x415515,
+            Step::Render3dTidy => 0x4433A7,
+            Step::ObjectsTidy => 0x44346B,
+            Step::Nothing => 0x44347E,
+            Step::ReleaseTextures => 0x443396,
+            Step::FileExists(f) => {
+                r.eax = film(f);
+                FILE_EXISTS
+            }
+            Step::Demonstration => DEMONSTRATION,
+            Step::Step409B76 => 0x409B76,
+            Step::SetUpEngine => 0x442AF6,
+            Step::FrontEndScene => 0x474E04,
+            Step::Tune3 => 0x40F780,
+        };
+        if s == Step::Demonstration {
+            // ebp is pushed and popped around this one.
+            let kept = r.ebp;
+            (self.call)(at, r);
+            r.ebp = kept;
+        } else {
+            (self.call)(at, r);
+        }
+        Flags {
+            carry: r.carry(),
+            zero: r.eflags & ZERO_FLAG != 0,
+        }
+    }
+}
+
 /// `r` holds the registers at entry (eax the mode); `settings` are where `g_noFmv` and
 /// `g_screenBits` are.
 pub unsafe fn play_films(r: &mut Regs, settings: [*const u32; 2], call: CallAt) {
-    unsafe {
-        let mode = r.eax;
-        let no_fmv = || settings[0].read_unaligned() != 0;
-        r.ebp = mode;
-        call(0x40F826, r);
-        call(0x4059F4, r);
-        call(TAKE_KEY, r);
-        if mode == 0 {
-            if no_fmv() {
-                return;
-            }
-            if settings[1].read_unaligned() == 0x10 {
-                r.eax = game_addr(AL_LOGO_RVA) as u32;
-                call(SWAP_MISSING_EXTENSION, r);
-                r.ebx = 0;
-                call(PLAYER, r);
-            }
-            r.eax = game_addr(MF_LOGO_RVA) as u32;
-            r.ebx = 0;
-            call(PLAYER, r);
-            call(0x4059F4, r);
-        }
-        call(0x415515, r);
-        if mode != 0 {
-            call(0x4433A7, r);
-            call(0x44346B, r);
-            call(0x44347E, r);
-            call(0x443396, r);
-        }
-        loop {
-            if !no_fmv() {
-                r.eax = game_addr(INTRO_RVA) as u32;
-                call(FILE_EXISTS, r);
-                if !r.carry() {
-                    r.ebx = 0;
-                    call(PLAYER, r);
-                    if r.eflags & ZERO_FLAG == 0 {
-                        break;
-                    }
-                }
-            }
-            // ebp is pushed and popped around this one.
-            let kept = r.ebp;
-            call(DEMONSTRATION, r);
-            r.ebp = kept;
-            call(0x40F826, r);
-            call(TAKE_KEY, r);
-            if r.eflags & ZERO_FLAG == 0 {
-                break;
-            }
-        }
-        call(0x409B76, r);
-        call(0x4059F4, r);
-        if mode != 0 {
-            call(0x442AF6, r);
-            call(0x474E04, r);
-            call(0x442AF6, r);
-            call(0x40F780, r);
-        }
-    }
+    let mode = r.eax;
+    r.ebp = mode;
+    // Converted: `rc2k_core::menu::films::play_films`.
+    films::play_films(&mut Game { r, settings, call }, mode != 0);
 }
 
 // ---- hook ----

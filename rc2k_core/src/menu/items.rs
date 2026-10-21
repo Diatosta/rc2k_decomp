@@ -1,7 +1,7 @@
 //! A menu's items: where each lies, and the looks the item actions give them (converted
 //! 2026-10-21 from `menu::item_at` 0x471CEF, `menu::disable_item` 0x46B4F6 /
 //! `enable_item` 0x46B50F, `menu::hide_in_game_options` 0x46FB63 /
-//! `show_in_game_options` 0x46FBE3 and `menu::reset_cars_750724` 0x46FC52).
+//! `show_in_game_options` 0x46FBE3 and `menu::reset_cars_750724` 0x46FC52, `menu::run_item_action` 0x474683).
 
 use crate::Invalid;
 use crate::menu::navigation::CAN_BE_CHOSEN;
@@ -82,6 +82,33 @@ pub fn shown_in_game_option(n: u32) -> Look {
     }
 }
 
+/// An item's type (+0x10), what `dword_755525` (the highlighted item) holds.
+pub const ITEM_TYPE: u32 = 0x10;
+/// A menu's items end with this dword.
+pub const ITEMS_END: u32 = u32::MAX;
+/// The most items `run_item_action` looks through.
+pub const MOST_ITEMS: u32 = 256;
+
+/// `menu::run_item_action`'s search: the number (from 0) of the first item whose type
+/// (`item_type(n)`) is `highlighted`, or None when the items end first (`word(n)` an
+/// item's first dword, the end mark; the first item is not checked for it). Refused:
+/// no end in `MOST_ITEMS` items.
+pub fn highlighted_item(
+    highlighted: u32,
+    mut item_type: impl FnMut(u32) -> u32,
+    mut word: impl FnMut(u32) -> u32,
+) -> Result<Option<u32>, Invalid> {
+    for n in 0..MOST_ITEMS {
+        if item_type(n) == highlighted {
+            return Ok(Some(n));
+        }
+        if word(n + 1) == ITEMS_END {
+            return Ok(None);
+        }
+    }
+    Err(Invalid("a menu without an end"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -108,5 +135,16 @@ mod tests {
             }
         );
         assert_eq!(HIDDEN.behind, 0xFFFF_FFA9);
+    }
+
+    #[test]
+    fn highlighted() {
+        let types = [5u32, 7, 9];
+        let words = [u32::MAX, 0, 0, u32::MAX];
+        let find = |h| highlighted_item(h, |n| types[n as usize], |n| words[n as usize]);
+        assert_eq!(find(5), Ok(Some(0)));
+        assert_eq!(find(9), Ok(Some(2)));
+        assert_eq!(find(1), Ok(None));
+        assert!(highlighted_item(1, |_| 0, |_| 0).is_err());
     }
 }

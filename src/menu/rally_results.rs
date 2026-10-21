@@ -46,7 +46,8 @@ pub unsafe fn rally_results(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     unsafe {
         game_write(FLAG_RVA, 1u32);
         g = crate::menu::standings_a_from_all::standings_a_from_all(&g)?;
-        if game_read::<u32>(EVENT_MODE_RVA) != 0x13 {
+        // Converted: `rc2k_core::menu::results_pages::class_pages_only`.
+        if !rc2k_core::menu::results_pages::class_pages_only(game_read(EVENT_MODE_RVA)) {
             g = crate::menu::sort_standings_by_total::sort_standings_by_total(&g)?;
             g = crate::menu::clear_standings_a::clear_standings_a(&g)?;
             g = crate::menu::number_all_a::number_all_a(&g)?;

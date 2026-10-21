@@ -49,6 +49,7 @@ use crate::service::harness::{Region, at, capture, restore};
 use crate::sound::turn_parts::{
     CLOCK, OBJECT_LEN, Part, SCRATCH, both, dispatch_turn, test_object,
 };
+use rc2k_core::sound::engine::{Left, Words, extrapolation, over_256, readings, state};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -85,56 +86,35 @@ pub fn kind_of(o: u32) -> Result<u32, BadInput> {
 
 // ---- Rust version ----
 
+/// The object's dwords where the original reads and writes them.
+struct Object(u32);
+
+impl Words for Object {
+    fn get(&self, at: u32) -> u32 {
+        unsafe { ((self.0 + at) as *const u32).read_unaligned() }
+    }
+    fn set(&mut self, at: u32, value: u32) {
+        unsafe { ((self.0 + at) as *mut u32).write_unaligned(value) }
+    }
+}
+
 pub fn car_engine_state_in(c: &mut Regs, _: Part) -> Result<(), Refused> {
+    // Converted: `rc2k_core::sound::engine` (`extrapolation`, `readings`, `state`,
+    // `over_256`); the floats are the original's x87 still.
     let o = c.ebx;
     let kind = kind_of(o)?;
-    let w = |at: u32| unsafe { ((o + at) as *const u32).read_unaligned() };
-    let set = |at: u32, v: u32| unsafe { ((o + at) as *mut u32).write_unaligned(v) };
+    let mut object = Object(o);
     let clock = g(CLOCK);
     let (b, bx, di) = (base(), o, kind);
     // The revs extrapolated, worked out first: its `idiv` may trap.
-    let mut revs = None;
-    if w(0x10) != 1 && g(HOLD) != 1 {
-        let gap = w(0x98).wrapping_sub(w(0x94));
-        if gap != 0 {
-            let gap = if gap as i32 > 1000 { 1000 } else { gap };
-            let since = clock.wrapping_sub(w(0x98)) as i32 as i64;
-            let rise = w(0xA0).wrapping_sub(w(0x9C)) as i32 as i64;
-            let product = since * rise;
-            let quotient = product / gap as i32 as i64;
-            if quotient != quotient as i32 as i64 {
-                return Err(BadInput(
-                    "a revs quotient that does not fit: the original's idiv traps",
-                )
-                .into());
-            }
-            revs = Some((
-                gap,
-                quotient as i32 as u32,
-                (product % gap as i32 as i64) as u32,
-            ));
-        }
-    }
+    let revs = extrapolation(&object, clock, || g(HOLD)).map_err(BadInput::from)?;
     c.edi = kind;
-    if w(0x10) == 1 {
-        set(0x94, w(0x98));
-        set(0x98, clock);
-        set(0x9C, w(0xA0));
-        c.eax = w(0x14);
-        set(0xA0, c.eax);
-        set(0x10, 0);
-    } else if let Some((gap, quotient, remainder)) = revs {
-        c.ecx = gap;
-        c.edx = remainder;
-        c.eax = quotient.wrapping_add(w(0xA0));
-        if (c.eax as i32) < 1000 {
-            c.eax = 1000;
-        }
-        set(0x14, c.eax);
-    } else if g(HOLD) != 1 {
-        // The readings' gap was 0.
-        c.ecx = 0;
-    }
+    let mut left = Left {
+        eax: c.eax,
+        ecx: c.ecx,
+        edx: c.edx,
+    };
+    readings(&mut object, clock, revs, || g(HOLD), &mut left);
     x87_run!(
         "fild dword ptr [{bx} + 0x14]",
         "fsub dword ptr [{di} + 0x4]",
@@ -142,15 +122,7 @@ pub fn car_engine_state_in(c: &mut Regs, _: Part) -> Result<(), Refused> {
         "fstp dword ptr [{bx} + 0x100]";
         bx = bx, di = di
     );
-    let v = from_int(w(0x18) as i32);
-    set(
-        0x104,
-        if v & 0x7FFF_FFFF != 0 {
-            v.wrapping_sub(0x400_0000)
-        } else {
-            v
-        },
-    );
+    object.set(0x104, over_256(from_int(object.get(0x18) as i32)));
     x87_run!(
         "fld dword ptr [{bx} + 0x1C]",
         ".byte 0xD9, 0xE1",
@@ -158,115 +130,20 @@ pub fn car_engine_state_in(c: &mut Regs, _: Part) -> Result<(), Refused> {
         "fstp dword ptr [{bx} + 0x108]";
         bx = bx, b = b
     );
-    set(0x110, w(0x10C));
-    let revs_now = w(0x14);
-    set(
-        0x10C,
-        match revs_now {
-            0 => 0,
-            1..=1000 => 1,
-            _ => 2,
-        },
-    );
-    if w(0x20) != 0 {
-        set(0x20, 0);
-        set(0x10C, 3);
+    let flags = || unsafe { (kind as *const u32).read_unaligned() };
+    if let Some(low) = state(&mut object, flags, clock, &mut left) {
+        unsafe { game_write(rva(SCRATCH), low) };
+        x87_run!(
+            "fild dword ptr [{b} + 0x1183CC]",
+            "mov dword ptr [{b} + 0x1183CC], 0x3C888889",
+            "fmul dword ptr [{b} + 0x1183CC]",
+            "mov dword ptr [{b} + 0x1183CC], 0x3F400000",
+            "fadd dword ptr [{b} + 0x1183CC]",
+            "fstp dword ptr [{bx} + 0x210]";
+            b = b, bx = bx
+        );
     }
-    c.ecx = w(0x18);
-    let followed = w(0x118);
-    c.eax = c.ecx.wrapping_sub(followed);
-    set(0x11C, c.eax);
-    if c.eax == 0 {
-        set(0x12C, 0);
-        if w(0x128) == 1 {
-            set(0x128, 2);
-        }
-        if w(0x130) == 1 {
-            set(0x130, 2);
-        }
-    } else if (c.ecx as i32) < (followed as i32) {
-        set(0x130, w(0x130).wrapping_add(1));
-        set(0x128, 0);
-        set(0x12C, 2);
-        c.eax = w(0x118) >> 7;
-        set(0x118, w(0x118).wrapping_sub(c.eax).wrapping_sub(1));
-        if (w(0x118) as i32) < (c.ecx as i32) {
-            set(0x118, c.ecx);
-        }
-    } else {
-        set(0x128, w(0x128).wrapping_add(1));
-        set(0x130, 0);
-        set(0x12C, 1);
-        c.eax = 0x100u32.wrapping_sub(w(0x118)) >> 6;
-        set(0x118, w(0x118).wrapping_add(c.eax).wrapping_add(1));
-        if (w(0x118) as i32) > (c.ecx as i32) {
-            set(0x118, c.ecx);
-        }
-    }
-    let last = w(0xFC);
-    set(0xFC, w(0x12C));
-    if last.wrapping_add(w(0x12C)) == 3 {
-        set(0xF4, w(0xF4).wrapping_add(5));
-    }
-    c.eax = w(0xE8);
-    if c.eax != w(0xEC) {
-        set(0xEC, c.eax);
-        set(0xF4, w(0xF4).wrapping_add(7));
-        let k = unsafe { (kind as *const u32).read_unaligned() };
-        if k & 0x2000 != 0 && c.eax as i32 > 1 && w(0x11C) as i32 >= 0x32 {
-            set(0x1FC, 1);
-            set(0xF0, 1);
-            c.eax = clock & 0xF;
-            unsafe { game_write(rva(SCRATCH), c.eax) };
-            x87_run!(
-                "fild dword ptr [{b} + 0x1183CC]",
-                "mov dword ptr [{b} + 0x1183CC], 0x3C888889",
-                "fmul dword ptr [{b} + 0x1183CC]",
-                "mov dword ptr [{b} + 0x1183CC], 0x3F400000",
-                "fadd dword ptr [{b} + 0x1183CC]",
-                "fstp dword ptr [{bx} + 0x210]";
-                b = b, bx = bx
-            );
-        }
-    }
-    c.eax = (c.eax == 0) as u32;
-    set(0x24, c.eax);
-    let k = unsafe { (kind as *const u32).read_unaligned() };
-    if k & 0x1000 != 0 {
-        if w(0x12C) == 1 {
-            for at in [0x1E0, 0x1E4, 0x1F4, 0x1EC] {
-                set(at, 0);
-            }
-        } else if w(0x118) <= 0xF0 {
-            let wait = w(0x1F4).wrapping_sub(1);
-            set(0x1F4, wait);
-            if (wait as i32) < 0 {
-                let over = w(0x14).wrapping_sub(0x7D0);
-                c.ecx = (if (over as i32) < 0 { 0 } else { over }) >> 9;
-                c.eax = (g(CLOCK) & 3).wrapping_add(c.ecx).wrapping_add(1);
-                set(0x1F4, c.eax);
-                set(0x1E0, 1);
-                c.eax = w(0x1EC).wrapping_add(8);
-                if c.eax as i32 > 0x20 {
-                    c.eax = 0x20;
-                }
-                set(0x1EC, c.eax);
-            }
-        }
-        if w(0x12C) == 1 {
-            set(0xF8, 0);
-        } else if w(0xF8) != 1 && w(0x12C) == 2 && (w(0x11C) as i32) < -0x14 {
-            if w(0x14) >= 0xFA0 {
-                c.eax = unsafe { (kind as *const u32).read_unaligned() } & 0xFFF;
-                set(0x1C4, c.eax);
-                set(0x1C8, 1);
-            }
-            set(0xF8, 1);
-        }
-    }
-    if w(0xF4) != 0 {
-        set(0xF4, w(0xF4).wrapping_sub(1));
-    }
+    (c.ecx, c.edx) = (left.ecx, left.edx);
     x87_run!(
         "fld dword ptr [{bx} + 0x134]",
         "fld dword ptr [{bx} + 0x2C]",
@@ -284,7 +161,7 @@ pub fn car_engine_state_in(c: &mut Regs, _: Part) -> Result<(), Refused> {
         "fstp dword ptr [{bx} + 0x138]";
         bx = bx, b = b
     );
-    set(0x140, 0);
+    object.set(0x140, 0);
     x87_run!(
         "fld dword ptr [{bx} + 0x138]",
         "fadd dword ptr [{b} + 0x1124F8]",
@@ -295,8 +172,8 @@ pub fn car_engine_state_in(c: &mut Regs, _: Part) -> Result<(), Refused> {
         "fstp dword ptr [{bx} + 0x13C]";
         bx = bx, b = b
     );
-    set(0x140, 0x3F80_0000);
-    c.eax = w(0x134);
+    object.set(0x140, 0x3F80_0000);
+    c.eax = object.get(0x134);
     if c.eax as i32 > 0x3F80_0000 {
         x87_run!(
             ".byte 0xD9, 0xE8",

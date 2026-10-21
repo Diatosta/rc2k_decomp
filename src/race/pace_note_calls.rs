@@ -38,6 +38,7 @@ hook_asm!(
 
 /// The Rust version on a course.
 pub fn pace_note_calls(r: &Regs, course: Course) -> Result<Left, crate::errors::Refused> {
+    // Converted: `rc2k_core::race::pace_notes::Notes::note_calls`.
     let mut m = Machine::load(r, course);
     m.note_calls()?;
     m.commit();
@@ -46,7 +47,7 @@ pub fn pace_note_calls(r: &Regs, course: Course) -> Result<Left, crate::errors::
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &|r| {
-        pace_note_calls(r, Course::game())
+        pace_note_calls(r, crate::race::pace_notes::game_course())
     });
 }
 

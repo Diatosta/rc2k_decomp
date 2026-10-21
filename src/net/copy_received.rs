@@ -23,6 +23,7 @@ use crate::input::effects::compare;
 use crate::net::types::NetPlayerBlock;
 use crate::net::{LOCK, PLAYERS, Part, RECEIVED, RECEIVED_LEN, UNLOCK, a, dispatch_net};
 use crate::system::api_stand_ins::copy_with;
+use rc2k_core::net::inbox;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -42,8 +43,6 @@ hook_asm!(
 
 /// The records' room: 16 players.
 pub const MOST_PLAYERS: u32 = 16;
-/// +0x34 .. +0x4040: what is copied (0x1003 dwords).
-const COPIED: usize = 0x1003 * 4;
 
 /// The Rust version on the records at `received` and the count at `players`.
 pub fn copy_received_with(
@@ -61,17 +60,14 @@ pub fn copy_received_with(
     let mut player = 0u32;
     loop {
         let record = received + RECEIVED_LEN * player;
-        let byte = unsafe {
-            std::ptr::copy(
-                (record + field!(NetPlayerBlock, count)) as *const u8,
-                (record + field!(NetPlayerBlock, copied_count)) as *mut u8,
-                COPIED,
-            );
-            ((record + field!(NetPlayerBlock, count)) as *mut u32).write_unaligned(0);
-            let byte = ((record + 0x4039) as *const u8).read();
-            ((record + 0x4038) as *mut u8).write(byte);
-            byte
+        // Converted: `rc2k_core::net::inbox::hand_over`, on the inbox and its copy.
+        let both = unsafe {
+            std::slice::from_raw_parts_mut(
+                (record + field!(NetPlayerBlock, count)) as *mut u8,
+                2 * inbox::COPIED,
+            )
         };
+        let byte = inbox::hand_over(both);
         // The registers as the loop leaves them (the unlock's call sees them).
         g.eax = g.eax & !0xFF | byte as u32;
         g.ecx = 0;

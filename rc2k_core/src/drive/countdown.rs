@@ -1,6 +1,7 @@
-//! The start's count down (converted 2026-10-21 from `drive::countdown_beep` 0x440EA3
-//! and `hold_count_tick` 0x460C10): a car's second of the count down and when its beep
-//! is cued; a hold counted down after the start.
+//! The start's count down (converted 2026-10-21 from `drive::countdown_beep` 0x440EA3,
+//! `hold_count_tick` 0x460C10 and `countdown_sound` 0x40EC9C): a car's second of the
+//! count down and when its beep is cued; the beep played for a listed car; a hold counted
+//! down after the start.
 
 /// The count down's length in hundredths (held there) and the seconds it shows.
 pub const LENGTH: u32 = 1500;
@@ -53,6 +54,28 @@ pub fn hold_tick(hold: &mut u32) {
     }
 }
 
+/// How `drive::countdown_sound` plays the beep (`sound::play_sound`'s registers: eax the
+/// sound, ebx and edx the volume, ecx, edi, ebp 0).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BeepSound {
+    /// The car's sound slot plus the beep (eax).
+    pub sound: u32,
+    /// -0x6F (ebx, edx).
+    pub volume: u32,
+}
+
+/// The beeps' volume (ebx and edx).
+pub const BEEP_VOLUME: u32 = 0xFFFF_FF91;
+
+/// `drive::countdown_sound`: for a listed car's sound slot 0 or 1 (unsigned) the beep
+/// played on its channel; else none.
+pub fn beep_sound(slot: u32, sound: u32) -> Option<BeepSound> {
+    (slot <= 1).then(|| BeepSound {
+        sound: slot.wrapping_add(sound),
+        volume: BEEP_VOLUME,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -95,5 +118,18 @@ mod tests {
         hold_tick(&mut h);
         hold_tick(&mut h);
         assert_eq!(h, 0);
+    }
+
+    #[test]
+    fn beep_sounds() {
+        assert_eq!(beep_sound(2, 5), None);
+        assert_eq!(beep_sound(u32::MAX, 5), None);
+        assert_eq!(
+            beep_sound(1, 5),
+            Some(BeepSound {
+                sound: 6,
+                volume: BEEP_VOLUME
+            })
+        );
     }
 }

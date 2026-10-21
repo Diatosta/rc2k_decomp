@@ -62,7 +62,6 @@ const FIRST_TIME_RVA: usize = rva(0x7559BC); // g_firstPlayerTime
 const PLACE_RVA: usize = rva(0x7559AC); // seconds
 const GAP_RVA: usize = rva(0x7559C0); // glyph
 const SPRITE_Y_RVA: usize = rva(0x7559B0); // dword_7559B0
-const LIMIT: u32 = 0x400;
 const LINE_LEN: usize = 0x100;
 
 fn g(a: usize) -> u32 {
@@ -75,54 +74,22 @@ fn get(a: u32) -> u32 {
 /// Each row's entry and place, and the place left after the last.
 type Rows = (Vec<(u32, u32)>, Option<u32>);
 
-/// The rows to draw (each entry with its place), worked out before anything is drawn, and
-/// the place `seconds` is left at when the list ends while the next row is looked for (the
-/// loop writes it before it looks).
+/// The rows to draw, worked out before anything is drawn.
 fn rows() -> Result<Rows, Refused> {
-    let (list, class, first) = (g(LIST_RVA), g(CLASS_RVA), g(FIRST_PLACE_RVA));
-    let mut e = list;
-    let mut seen = 0u32;
-    let mut steps = 0;
-    let mut step = |e: &mut u32| -> Result<bool, Refused> {
-        steps += 1;
-        if steps > LIMIT {
-            return Err(BadInput("a list without its end in 0x400 entries").into());
-        }
-        *e += ENTRY_LEN;
-        Ok(get(*e) == u32::MAX)
-    };
-    loop {
-        if get(e + 0x1C) == class {
-            seen = seen.wrapping_add(1);
-            if seen == first {
-                break;
-            }
-        }
-        if step(&mut e)? {
-            return Err(
-                BadInput("a page that starts past the list (the original reads on)").into(),
-            );
-        }
-    }
-    let mut out = Vec::new();
-    let mut place = first;
-    loop {
-        while get(e + 0x1C) != class {
-            if step(&mut e)? {
-                return Ok((out, Some(place)));
-            }
-        }
-        out.push((e, place));
-        if step(&mut e)? {
-            return Err(
-                BadInput("a row just before the end mark (the original's stack slip)").into(),
-            );
-        }
-        place = place.wrapping_add(1);
-        if place == first.wrapping_add(10) {
-            return Ok((out, None));
-        }
-    }
+    // Converted: `rc2k_core::screens::results_pages::class_rows`.
+    let list = g(LIST_RVA);
+    let at = |n: u32| list.wrapping_add(n.wrapping_mul(ENTRY_LEN));
+    let (rows, after) = rc2k_core::screens::results_pages::class_rows(
+        |n| get(at(n) + 0x1C),
+        |n| get(at(n)) == u32::MAX,
+        g(CLASS_RVA),
+        g(FIRST_PLACE_RVA),
+    )
+    .map_err(BadInput::from)?;
+    Ok((
+        rows.into_iter().map(|(n, place)| (at(n), place)).collect(),
+        after,
+    ))
 }
 
 /// The Rust version.

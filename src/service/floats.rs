@@ -31,10 +31,41 @@ pub enum Tolerance {
     /// An 80-bit value (ten bytes from the place's start), compared as `f64`s: this much
     /// of the larger magnitude, or this far either way (a sum that nearly cancels).
     Extended(f64, f64),
+    /// An `f32`: this many units in the last place, or this far either way (a sum of
+    /// products that nearly cancels: its error is the terms' size, not the result's).
+    Near(u32, f32),
+    /// The same bits, or both NaNs whatever their sign and payload (owner, 2026-10-21: the
+    /// x87 keeps the NaN with the larger significand where two meet, Rust's floats promise
+    /// no NaN's bits; the game makes no NaN in play). What a place is held to at the
+    /// game's double precision.
+    Exact,
+    /// `Exact` for an 80-bit place.
+    ExactExtended,
+}
+
+impl Tolerance {
+    /// What a place with this tolerance is held to where the two must agree bit for bit.
+    pub fn exact(self) -> Tolerance {
+        match self {
+            Tolerance::Extended(..) | Tolerance::ExactExtended => Tolerance::ExactExtended,
+            Tolerance::Rounded(_) => Tolerance::Rounded(0),
+            _ => Tolerance::Exact,
+        }
+    }
 }
 
 /// What the converted functions are held to at the x87's single and extended precision.
 pub const FLOAT: Tolerance = Tolerance::Ulps(8);
+/// For a sum of products of a matrix's size: `FLOAT`, or 2^-20 either way where the sum
+/// nearly cancels (seen 2026-10-21, `scene::multiply_matrices` at 0x037F: 9 units off on
+/// a result of about 1.8e-12 from terms of about 1; an `f64`'s error on such terms is
+/// about 2^-52, the game's matrices hold places up to about 2^20).
+pub const SUM: Tolerance = Tolerance::Near(8, 1.0 / (1u32 << 20) as f32);
+/// For a radius times a sine or cosine (`fsincos` against `f64`'s): `FLOAT`, or 2^-20
+/// either way where the angle is near a multiple of pi / 2 and the result near 0 (seen
+/// 2026-10-21, `marks::set_up_squares` / `set_up_hexagons` at 0x027F: 7.7e-14 against
+/// 7.7e-14 plus 377 units, the x87's 64-bit pi against `f64`'s).
+pub const TRIG: Tolerance = Tolerance::Near(8, 1.0 / (1u32 << 20) as f32);
 pub const ROUNDED: Tolerance = Tolerance::Rounded(1);
 /// For an 80-bit result made at extended precision and compared with an `f64`'s: the
 /// rounding of each step (64 bits against 53) adds up to about 2^-49 over a sum of
@@ -105,8 +136,25 @@ pub fn close(theirs: u32, mine: u32, tolerance: Tolerance) -> bool {
             }
             (a - b).abs() <= d
         }
-        Tolerance::Extended(..) => false,
+        Tolerance::Near(n, d) => {
+            let (a, b) = (f32::from_bits(theirs), f32::from_bits(mine));
+            if a.is_nan() || b.is_nan() {
+                return a.is_nan() && b.is_nan();
+            }
+            (ordered(theirs) - ordered(mine)).unsigned_abs() <= n as u64
+                || (a.is_finite() && b.is_finite() && (a - b).abs() <= d)
+        }
+        Tolerance::Exact => f32::from_bits(theirs).is_nan() && f32::from_bits(mine).is_nan(),
+        Tolerance::Extended(..) | Tolerance::ExactExtended => false,
     }
+}
+
+/// Whether ten bytes are an 80-bit NaN (all exponent bits set, a fraction below the
+/// integer bit).
+fn extended_nan(v: [u8; 10]) -> bool {
+    let exponent = u16::from_le_bytes([v[8], v[9]]) & 0x7FFF;
+    let fraction = u64::from_le_bytes(v[..8].try_into().unwrap()) << 1;
+    exponent == 0x7FFF && fraction != 0
 }
 
 /// Two 80-bit values within `relative` of the larger magnitude, or within `absolute`.
@@ -127,15 +175,22 @@ pub fn close_extended(theirs: [u8; 10], mine: [u8; 10], relative: f64, absolute:
 }
 
 /// Runs `case` at each of the tests' control words with what it is held to there: exact
-/// at the game's double precision, `tolerant` at extended.
+/// at the game's double precision (`Tolerance::exact`: a NaN matches any NaN), `tolerant`
+/// at extended.
 pub fn at_test_precisions(tolerant: &Floats, case: &mut dyn FnMut(u16, &Floats)) {
     use crate::math::x87_run::{DOUBLE, TEST_CONTROL_WORDS, with_control_word};
+    let memory: Vec<_> = tolerant
+        .memory
+        .iter()
+        .map(|&(r, t)| (r, t.exact()))
+        .collect();
+    let regs: Vec<_> = tolerant.regs.iter().map(|&(r, t)| (r, t.exact())).collect();
+    let exact = Floats {
+        memory: &memory,
+        regs: &regs,
+    };
     for word in TEST_CONTROL_WORDS {
-        let floats = if word == DOUBLE {
-            &Floats::EXACT
-        } else {
-            tolerant
-        };
+        let floats = if word == DOUBLE { &exact } else { tolerant };
         with_control_word(word, &mut || case(word, floats));
     }
 }
@@ -189,7 +244,7 @@ pub fn compare_memory(
             let Some(&((at, _), tolerance)) = found else {
                 return Agreement::Differ;
             };
-            if let Tolerance::Extended(relative, absolute) = tolerance {
+            if let Tolerance::Extended(..) | Tolerance::ExactExtended = tolerance {
                 // The ten bytes the place is in, which must lie in this capture region.
                 let start = place - (place - at) % 10;
                 let offset = start.wrapping_sub(address) as usize;
@@ -197,7 +252,14 @@ pub fn compare_memory(
                     return Agreement::Differ;
                 }
                 let value = |s: &[u8]| -> [u8; 10] { s[offset..offset + 10].try_into().unwrap() };
-                if !close_extended(value(a), value(b), relative, absolute) {
+                let (x, y) = (value(a), value(b));
+                let agree = match tolerance {
+                    Tolerance::Extended(relative, absolute) => {
+                        close_extended(x, y, relative, absolute)
+                    }
+                    _ => x == y || (extended_nan(x) && extended_nan(y)),
+                };
+                if !agree {
                     return Agreement::Differ;
                 }
                 drifts += 1;
@@ -412,6 +474,10 @@ mod tests {
         let one = 1.0f32.to_bits();
         assert!(close(one, one + 8, FLOAT));
         assert!(!close(one, one + 9, FLOAT));
+        assert!(close(0x7FC0_0000, 0xFFC0_0000, Tolerance::Exact));
+        assert!(close(0xABF8_68F7, 0xABF8_6900, SUM));
+        assert!(!close(0xABF8_68F7, 0xABF8_6900, FLOAT));
+        assert!(!close(one, one + 1, Tolerance::Exact));
         assert!(close(0x8000_0000, 0, FLOAT)); // minus and plus zero are neighbours
         assert!(close(3, 4, ROUNDED));
         assert!(!close(3, 5, ROUNDED));

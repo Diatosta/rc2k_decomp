@@ -25,16 +25,15 @@ hook_asm!(
     original = ORIGINAL
 );
 
-const STATES: [(u32, u32); 5] = [(4, 0x15), (1, 0x1B), (5, 0x13), (6, 0x14), (0, 0x1C)];
-
 /// A call by place: 1 `set_render_state`.
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::scene::render_states::OVERLAY`
 pub unsafe fn overlay_states(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut g = *entry;
-    for (value, state) in STATES {
-        [g.eax, g.ebx] = [value, state];
+    for s in rc2k_core::scene::render_states::OVERLAY {
+        [g.eax, g.ebx] = [s.value, s.state];
         part(1, &mut g)?;
     }
     Ok(g)

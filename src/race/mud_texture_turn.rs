@@ -46,7 +46,8 @@ pub unsafe fn mud_texture_turn(entry: &Regs, part: Part) -> Result<Regs, Refused
     texture_and_mud()?;
     let mut r = *entry;
     let [red, green, blue] = mud_colour();
-    r.eax = (red << 16) & 0xFFFF_0000 | (green & 0xFF) << 8 | (blue & 0xFF);
+    // Converted: `rc2k_core::race::mud::packed_colour`.
+    r.eax = rc2k_core::race::mud::packed_colour([red, green, blue]);
     r.ebx = green;
     r.ecx = blue;
     unsafe {

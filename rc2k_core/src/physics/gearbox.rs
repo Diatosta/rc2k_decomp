@@ -1,8 +1,9 @@
 //! The gearbox's rules (converted 2026-10-21 from `physics::gear_bit` 0x43C5B7,
 //! `higher_free_gear` 0x43C5A0, `lower_free_gear` 0x43C58E, `allowed_gear` 0x4651B5,
-//! `gear_input_rules` 0x439BF6 and `gear_change_sound` 0x45C551): which gears cannot be
-//! taken, the search for the next free one up or down, the gear asked for let through or
-//! not, the gearbox's held inputs by the car's state, and the change heard.
+//! `gear_input_rules` 0x439BF6, `gear_change_sound` 0x45C551, `gearbox_step` 0x43C15C
+//! and `take_asked_gear` 0x43C1E3): which gears cannot be taken, the search for the next
+//! free one up or down, the gear asked for let through or not, the gearbox's held inputs
+//! by the car's state, the change heard, and which box runs a turn.
 
 use crate::Invalid;
 
@@ -225,6 +226,54 @@ pub fn gear_change(word: u32) -> Option<GearChange> {
     }
 }
 
+/// What `physics::gearbox_step` (0x43C15C, converted 2026-10-21) runs this turn.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GearboxTurn {
+    /// Nothing (finished, or before the start's 0x320 outside race mode 1).
+    Idle,
+    /// `physics::manual_gearbox` (grade mode 2, or the box's kind not 2).
+    Manual,
+    /// `physics::take_asked_gear`, and the turn ends there.
+    Asked,
+    /// `physics::auto_gearbox` (the box's kind, +0x38, 2).
+    Auto,
+}
+
+/// No gear asked for: +0x468's bits 8 .. 11 (`ASKED_MASK`) 0xE.
+pub const ASKED_MASK: u32 = 0xF00;
+pub const NONE_ASKED: u32 = 0xE00;
+
+/// `physics::gearbox_step`'s choice: the car's finish (+0xA8), the race mode, the start
+/// timer (+0x14, by the sign against 0x320), the grade mode (+0x25C), the inputs word
+/// (+0x468) and the box's kind (+0x38), each asked only where the original reads it.
+pub fn gearbox_turn(
+    finished: u32,
+    race_mode: impl FnOnce() -> u32,
+    timer: impl FnOnce() -> u32,
+    grade_mode: impl FnOnce() -> u32,
+    inputs: impl FnOnce() -> u32,
+    kind: impl FnOnce() -> u32,
+) -> GearboxTurn {
+    if finished != 0 || (race_mode() != 1 && (timer().wrapping_sub(0x320) as i32) < 0) {
+        return GearboxTurn::Idle;
+    }
+    if grade_mode() == 2 {
+        GearboxTurn::Manual
+    } else if inputs() & ASKED_MASK != NONE_ASKED {
+        GearboxTurn::Asked
+    } else if kind() == 2 {
+        GearboxTurn::Auto
+    } else {
+        GearboxTurn::Manual
+    }
+}
+
+/// `physics::take_asked_gear` (0x43C1E3, converted 2026-10-21): the gear asked for,
+/// bits 8 .. 11 of the inputs word as a signed nibble.
+pub fn asked_gear(inputs: u32) -> u32 {
+    (((inputs & ASKED_MASK) << 20) as i32 >> 28) as u32
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -351,5 +400,19 @@ mod tests {
         let mut gear = 4;
         k.apply_rules(&mut gear, &off);
         assert_eq!(gear, 0);
+    }
+
+    #[test]
+    fn turns() {
+        let t = |f, m, tm, g, i, k| gearbox_turn(f, || m, || tm, || g, || i, || k);
+        assert_eq!(t(1, 1, 0, 0, 0, 0), GearboxTurn::Idle);
+        assert_eq!(t(0, 0, 0x31F, 0, 0, 0), GearboxTurn::Idle);
+        assert_eq!(t(0, 1, 0, 2, 0, 0), GearboxTurn::Manual);
+        assert_eq!(t(0, 0, 0x320, 0, 0x300, 0), GearboxTurn::Asked);
+        assert_eq!(t(0, 0, 0x320, 0, 0xE00, 2), GearboxTurn::Auto);
+        assert_eq!(t(0, 0, 0x320, 0, 0xE00, 1), GearboxTurn::Manual);
+        assert_eq!(asked_gear(0xF00), u32::MAX);
+        assert_eq!(asked_gear(0x700), 7);
+        assert_eq!(asked_gear(0x800), (-8i32) as u32);
     }
 }

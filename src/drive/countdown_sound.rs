@@ -25,14 +25,15 @@ hook_asm!(
 );
 
 /// The Rust version.
+// Converted: `rc2k_core::drive::countdown::beep_sound`.
 pub fn countdown_sound(slot: u32, sound: u32) {
-    if slot > 1 {
+    let Some(beep) = rc2k_core::drive::countdown::beep_sound(slot, sound) else {
         return;
-    }
+    };
     let play = Regs {
-        eax: slot.wrapping_add(sound),
-        ebx: 0xFFFF_FF91,
-        edx: 0xFFFF_FF91,
+        eax: beep.sound,
+        ebx: beep.volume,
+        edx: beep.volume,
         ecx: 0,
         edi: 0,
         ebp: 0,

@@ -34,10 +34,11 @@ hook_asm!(
 const B: usize = 0x70F3EC;
 
 /// The Rust version.
+// Converted: `rc2k_core::drive::race_ticks::{tick_runs, NO_CAR_FATAL}`.
 pub unsafe fn race_tick(entry: &Regs) -> Result<Left, Refused> {
     if g(B + 0x260) == 0 {
         return Err(FatalError {
-            code: 0x8060_0655,
+            code: rc2k_core::drive::race_ticks::NO_CAR_FATAL,
             message: "",
         }
         .into());
@@ -46,10 +47,7 @@ pub unsafe fn race_tick(entry: &Regs) -> Result<Left, Refused> {
         return unsafe { crate::drive::simple_car_step::simple_car_step(entry) };
     }
     p(0x6235F8, g(0x6235F8).wrapping_add(1));
-    let tick = g(0x6235F8);
-    let every = g(0x63DB84);
-    let run = every == 0 || (tick & 1 != 0 && (every == 1 || tick & 2 != 0));
-    if !run {
+    if !rc2k_core::drive::race_ticks::tick_runs(g(0x6235F8), g(0x63DB84)) {
         return Ok(Left::nothing());
     }
     let left = unsafe { crate::drive::replay_step::replay_step(entry) }?;

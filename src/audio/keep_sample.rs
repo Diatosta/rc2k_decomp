@@ -34,7 +34,8 @@ pub unsafe fn keep_sample(
     v: &mut Voice,
     allocate: &mut dyn FnMut(u32) -> Result<u32, Refused>,
 ) -> Result<(), Refused> {
-    if v.data == 0 || v.length == 0 || v.data_key == 0 {
+    // Converted: `rc2k_core::audio::buffers::keeps_sample`.
+    if !rc2k_core::audio::buffers::keeps_sample(v) {
         return Ok(());
     }
     let to = allocate(v.length)?;

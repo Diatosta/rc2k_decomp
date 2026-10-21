@@ -15,6 +15,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::net::lobby::{
     BLOCK, PLAYERS, Part, RECEIVED, SORTED, Saved, a, dword, fill, g, movsb, p, region, run_both,
 };
+use rc2k_core::net::players::{self, Standing};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -35,43 +36,41 @@ fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
 }
 
-/// Whether the block at `x` goes after the next one.
-fn after(x: u32) -> bool {
-    let (time, next_time) = (get(x + 0x2C), get(x + BLOCK + 0x2C));
-    match (time == u32::MAX, next_time == u32::MAX) {
-        (true, false) => return true,
-        (false, true) => return false,
-        _ => {}
+/// The block at `x` as the lobby's table sorts it.
+fn standing(x: u32) -> Standing {
+    Standing {
+        total: get(x + 0x30),
+        time: get(x + 0x2C),
+        id: get(x + 0x20),
     }
-    let key = |at: u32| (get(at + 0x30), get(at + 0x2C), get(at + 0x20));
-    key(x) > key(x + BLOCK)
+}
+
+/// The blocks at `x` and the next swapped, a dword at a time.
+pub fn swap_blocks(x: u32) {
+    for n in 0..BLOCK / 4 {
+        let (one, two) = (x + 4 * n, x + BLOCK + 4 * n);
+        let v = get(one);
+        unsafe {
+            (one as *mut u32).write_unaligned(get(two));
+            (two as *mut u32).write_unaligned(v);
+        }
+    }
 }
 
 /// The Rust version: the registers it leaves (the entry's).
 pub fn sort_players(entry: &Regs, _: Part) -> Result<Regs, Refused> {
     let players = g(PLAYERS);
-    if players > 8 {
+    if players > players::MOST {
         return Err(BadInput("more than eight players").into());
     }
     movsb(a(SORTED), a(RECEIVED), ALL);
-    let passes = players.wrapping_sub(1) as i32;
-    let mut pass = passes;
-    while pass > 0 {
-        for k in 0..pass as u32 {
-            let x = a(SORTED) + k * BLOCK;
-            if after(x) {
-                for n in 0..BLOCK / 4 {
-                    let (one, two) = (x + 4 * n, x + BLOCK + 4 * n);
-                    let v = get(one);
-                    unsafe {
-                        (one as *mut u32).write_unaligned(get(two));
-                        (two as *mut u32).write_unaligned(v);
-                    }
-                }
-            }
-        }
-        pass -= 1;
-    }
+    // Converted: `rc2k_core::net::players` (`bubble`, `goes_after`).
+    let x = |k: u32| a(SORTED) + k * BLOCK;
+    players::bubble(
+        players,
+        |k| players::goes_after(standing(x(k)), standing(x(k) + BLOCK)),
+        |k| swap_blocks(x(k)),
+    );
     Ok(*entry)
 }
 

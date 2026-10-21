@@ -17,11 +17,12 @@
 //! the finders refuse, before anything. Shadow mode runs the original alone. Self-test: a
 //! copy whose calls go to stand-ins, against the Rust version, in both event modes.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
-use crate::menu::finish_calls::{ON_RVA, PLACES, Part, calls, game_part, regions, set_up};
+use crate::menu::finish_calls::{Game, PLACES, Part, game_part, regions};
 use crate::menu::standings::*;
 use crate::service::harness::{at, capture, restore};
+use rc2k_core::menu::finish;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -37,49 +38,10 @@ hook_asm!(
     ungated
 );
 
-const KEPT_RVA: usize = rva(0x75ACE4); // dword_75ACE4
-const LEADER_RVA: usize = rva(0x75ACCC); // dword_75ACCC
-const EVENT_MODE_RVA: usize = rva(0x7556D0); // g_eventMode
-
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn championship_finish(entry: &Regs, mut part: Part) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    unsafe {
-        game_write(ON_RVA, 0u32);
-        game_write(KEPT_RVA, 0u32);
-        g.edi = game_read(TABLE_B_RVA);
-        let found = if game_read::<u32>(EVENT_MODE_RVA) == 0x13 {
-            g.ebx = 0;
-            crate::menu::first_player_b::first_player_b(&g)?
-        } else {
-            g.ebx = 0x63;
-            crate::menu::first_player_unplaced::first_player_unplaced(&g)?
-        };
-        g = found;
-        if g.edx == 1 {
-            if g.ecx >= 4 || player(g.ecx) == 0 {
-                return Err(BadInput("the leader's ecx past the players").into());
-            }
-            game_write(LEADER_RVA, 1u32);
-            game_write(ON_RVA, 1u32);
-            g.edi = player(g.ecx);
-        } else {
-            game_write(ON_RVA, 0u32);
-            g = crate::menu::find_section_player::find_section_player(&g)?;
-            if g.ecx == 0xFFFF_FFFF {
-                g.eax = 0;
-                part(14, &mut g)?;
-                return Ok(*entry);
-            }
-        }
-        set_up(&g);
-        g.eax = game_read(SECTION_RVA);
-        calls(&mut g, &[1, 2, 3, 4, 5, 6, 7, 8], &mut part)?;
-        game_write(ON_RVA, 0u32);
-        calls(&mut g, &[9, 10, 2, 3, 11, 12, 11, 9, 13], &mut part)?;
-        g.eax = 0;
-        part(14, &mut g)?;
-    }
+pub unsafe fn championship_finish(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::menu::finish::championship_finish`.
+    finish::championship_finish(&mut Game { g: *entry, part })?;
     Ok(*entry)
 }
 

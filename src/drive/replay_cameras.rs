@@ -22,6 +22,7 @@ use crate::framework::{EAX, ESI, RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::{a, g, guard, p};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use rc2k_core::drive::replay_views::{WishStep, wish_step};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -43,6 +44,7 @@ fn byte(x: usize) -> u32 {
     unsafe { (a(x) as *const u8).read() as u32 }
 }
 
+// Converted: `rc2k_core::drive::replay_views::wish_step`.
 fn steps(entry: &Regs) -> Result<Left, Refused> {
     let mut r = *entry;
     p(0x6EF7D0, g(B));
@@ -51,9 +53,9 @@ fn steps(entry: &Regs) -> Result<Left, Refused> {
         let block = B + NEXT * c;
         let wish = g(0x719F14 + 4 * byte(B + c) as usize);
         r.eax = wish;
-        if matches!(wish, 0x23..=0x25) {
-            r.ebx = g(0x5C2530).wrapping_sub(g(0x719FD0 + 4 * c));
-            if r.ebx >= 3 {
+        match wish_step(wish, g(0x5C2530), g(0x719FD0 + 4 * c), || g(block + 0x684)) {
+            WishStep::Draw(since) => {
+                r.ebx = since;
                 p(0x719FD0 + 4 * c, g(0x5C2530));
                 unsafe { crate::drive::pick_replay_camera::pick_replay_camera(&r) }?.apply(&mut r);
                 p(block + 0x684, r.edx);
@@ -61,13 +63,19 @@ fn steps(entry: &Regs) -> Result<Left, Refused> {
                 r.eax = g(block + 8);
                 p(block + 0x690, r.eax);
             }
-        } else if wish != g(block + 0x684) {
-            p(block + 0x688, wish);
-            p(block + 0x684, wish);
-            p(block + 0x694, 0);
-            r.eax = g(block + 8);
-            p(block + 0x690, r.eax);
-            p(0x719FD0 + 4 * c, 0);
+            WishStep::Nothing(since) => {
+                if let Some(since) = since {
+                    r.ebx = since;
+                }
+            }
+            WishStep::Set => {
+                p(block + 0x688, wish);
+                p(block + 0x684, wish);
+                p(block + 0x694, 0);
+                r.eax = g(block + 8);
+                p(block + 0x690, r.eax);
+                p(0x719FD0 + 4 * c, 0);
+            }
         }
     }
     p(B + 0x220, g(0x63DB7C));

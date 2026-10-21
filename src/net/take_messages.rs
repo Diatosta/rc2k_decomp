@@ -37,6 +37,7 @@ use crate::net::{
     CHAT_LINE, LOCK, Part, RECEIVE, RECEIVED_LEN, SEND, STORE, SYSTEM_MESSAGE, TICK, UNLOCK,
     dispatch_net,
 };
+use rc2k_core::net::messages::{self, Kind};
 use std::sync::atomic::AtomicUsize;
 
 /// The calls' offsets (receive, system message, chat line, send twice, tick, lock, store,
@@ -60,13 +61,6 @@ hook_asm!(
 
 /// The players the blocks have room for.
 pub const MOST_PLAYERS: u32 = 16;
-const CHAT: u32 = 0x22;
-const ALL_READY: u32 = 0x40;
-const READY_ANSWER: u32 = 0x41;
-const ALL_DONE: u32 = 0x50;
-const DONE_ANSWER: u32 = 0x51;
-const RACE_BIT: u32 = 0x80;
-const HOST_BIT: u8 = 0x10;
 
 /// The Rust version on the variables at `v`.
 pub fn take_messages_with(r: &mut Regs, v: &MessageVars, part: Part) -> Result<(), Refused> {
@@ -100,55 +94,47 @@ pub fn take_messages_with(r: &mut Regs, v: &MessageVars, part: Part) -> Result<(
             continue;
         }
         c.eax = get8(c.ebx) as u32;
-        let host = get8(v.own) & HOST_BIT != 0;
+        // Converted: `rc2k_core::net::messages` (`Kind`, `this_round`, `answers_call`,
+        // `notes_answer`, `answer`, `race_fits`).
+        let own_state = get8(v.own);
         let round = |c: &mut Regs| {
-            if c.ecx != 2 {
-                return false;
-            }
-            c.eax = get8(c.ebx + 1) as u32;
-            c.eax as u8 == get8(v.sync)
+            messages::this_round(c.ecx, || {
+                c.eax = get8(c.ebx + 1) as u32;
+                (c.eax as u8, get8(v.sync))
+            })
         };
-        match c.eax {
-            CHAT => {
+        match Kind::of(c.eax as u8) {
+            Kind::Chat => {
                 c.eax = c.edx;
                 set8(c.ecx.wrapping_add(c.ebx), 0);
                 c.ebx = c.ebx.wrapping_add(1);
                 part(CHAT_LINE, &mut c)?;
             }
-            ALL_READY | ALL_DONE => {
-                let kind = c.eax;
-                if !round(&mut c) || host {
+            Kind::Call { reply, ready } => {
+                let same = round(&mut c);
+                if !messages::answers_call(same, own_state) {
                     continue;
                 }
                 c.eax = get(c.edi + 0x20);
                 c.ebx = v.answer;
-                let reply = if kind == ALL_READY {
-                    READY_ANSWER
-                } else {
-                    DONE_ANSWER
-                };
-                c.ecx = (c.ecx & 0xFFFF_0000) | (get8(v.sync) as u32) << 8 | reply;
+                c.ecx = (c.ecx & 0xFFFF_0000) | messages::answer(reply, get8(v.sync)) as u32;
                 unsafe { (c.ebx as *mut u16).write_unaligned(c.ecx as u16) };
                 c.ecx = 2;
                 c.edx = 0;
                 part(SEND, &mut c)?;
-                let flag = if kind == ALL_READY {
-                    v.all_raced
-                } else {
-                    v.race_over
-                };
-                set(flag, 1);
+                set(if ready { v.all_raced } else { v.race_over }, 1);
             }
-            READY_ANSWER | DONE_ANSWER => {
-                if !round(&mut c) || !host {
+            Kind::Answer => {
+                let same = round(&mut c);
+                if !messages::notes_answer(same, own_state) {
                     continue;
                 }
                 set8(v.synced.wrapping_add(c.edx), 1);
             }
-            kind if kind & RACE_BIT != 0 => {
+            Kind::Race => {
                 c.ebx = c.ebx.wrapping_add(1);
                 c.ecx = c.ecx.wrapping_sub(1);
-                if c.ecx > 0xFE {
+                if !messages::race_fits(c.ecx) {
                     continue;
                 }
                 let first = c.eax;
@@ -159,7 +145,7 @@ pub fn take_messages_with(r: &mut Regs, v: &MessageVars, part: Part) -> Result<(
                 part(STORE, &mut c)?;
                 part(UNLOCK, &mut c)?;
             }
-            _ => {}
+            Kind::Other => {}
         }
     }
     // popa; the flags of `cmp g_dplay, 0` or `test ecx, ecx` on 0.

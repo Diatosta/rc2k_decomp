@@ -14,6 +14,7 @@ use crate::framework::{ECX, EDI, ESI, RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::{a, p};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use rc2k_core::drive::replay_frames::{START_DWORDS, START_PIECES, StartPiece, start_layout};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -30,29 +31,35 @@ hook_asm!(
 
 const B: usize = 0x70F3EC; // g_carBlockStore (four blocks of 0xFE0)
 const SAVED: usize = 0x7172EC; // unk_7172EC
+
+/// Where a piece of the starting state is.
+pub fn piece_at(piece: StartPiece) -> usize {
+    match piece {
+        StartPiece::Car(k) => B + 0xFE0 * k as usize,
+        StartPiece::RaceSlots => 0x71BAC8, // g_raceSlots
+        StartPiece::Extra => 0x71BF84,     // unk_71BF84
+    }
+}
+
 /// The pieces in order: (where, dwords).
-const PIECES: [(usize, usize); 6] = [
-    (B, 0x1A1),
-    (B + 0xFE0, 0x1A1),
-    (B + 0x1FC0, 0x1A1),
-    (B + 0x2FA0, 0x1A1),
-    (0x71BAC8, 0xF0),  // g_raceSlots
-    (0x71BF84, 0x100), // unk_71BF84
-];
-const TOTAL: usize = 4 * 0x1A1 + 0xF0 + 0x100;
+pub fn pieces() -> Vec<(usize, usize)> {
+    START_PIECES
+        .iter()
+        .map(|&(x, n)| (piece_at(x), n))
+        .collect()
+}
 
 /// The Rust version.
+// Converted: `rc2k_core::drive::replay_frames::start_layout`.
 pub fn save_replay_cars() -> Left {
-    let mut to = a(SAVED);
-    for (from, n) in PIECES {
-        unsafe { std::ptr::copy(a(from) as *const u32, to as *mut u32, n) };
-        to += 4 * n as u32;
+    let mut end = 0;
+    for (piece, offset, n) in start_layout() {
+        let (state, place) = (a(SAVED) + 4 * offset as u32, a(piece_at(piece)));
+        unsafe { std::ptr::copy(place as *const u32, state as *mut u32, n) };
+        end = place + 4 * n as u32;
     }
-    let (last, n) = PIECES[5];
-    Left::nothing()
-        .with(ECX, 0)
-        .with(ESI, a(last) + 4 * n as u32)
-        .with(EDI, to)
+    let past = a(SAVED) + 4 * START_DWORDS as u32;
+    Left::nothing().with(ECX, 0).with(ESI, end).with(EDI, past)
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
@@ -60,7 +67,13 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &[(a(SAVED), 4 * TOTAL)], &rust);
+    dispatch_state(
+        &HOOK,
+        r,
+        call_original,
+        &[(a(SAVED), 4 * START_DWORDS)],
+        &rust,
+    );
 }
 
 fn self_test() -> (usize, usize) {
@@ -68,14 +81,14 @@ fn self_test() -> (usize, usize) {
         return (0, 0);
     };
     let all: Vec<Region> = {
-        let mut v: Vec<Region> = PIECES.iter().map(|&(x, n)| (a(x), 4 * n)).collect();
-        v.push((a(SAVED), 4 * TOTAL));
+        let mut v: Vec<Region> = pieces().iter().map(|&(x, n)| (a(x), 4 * n)).collect();
+        v.push((a(SAVED), 4 * START_DWORDS));
         v
     };
     let saved = capture(&all);
     for case in 0..2u32 {
         let set = || {
-            for (k, &(x, n)) in PIECES.iter().enumerate() {
+            for (k, &(x, n)) in pieces().iter().enumerate() {
                 for j in 0..n {
                     p(x + 4 * j, (k * 0x1000 + j) as u32 ^ case);
                 }

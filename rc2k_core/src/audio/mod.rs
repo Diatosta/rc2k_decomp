@@ -1,6 +1,8 @@
 //! The audio thread's mixer and sample files.
 
+pub mod buffers;
 pub mod commands;
+pub mod device;
 pub mod levels;
 pub mod load;
 pub mod mixer;

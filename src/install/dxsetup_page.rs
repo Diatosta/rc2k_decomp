@@ -29,7 +29,8 @@ pub fn dxsetup_page(entry: &Regs) -> Regs {
     if (r.ebx as i32) < 0 {
         let answer = gb(LIST_ANSWER) as u32;
         logic(&mut r, answer.wrapping_sub(1));
-        if answer == 1 {
+        // Converted: `rc2k_core::install::pages::runs_dxsetup`.
+        if rc2k_core::install::pages::runs_dxsetup(answer as u8) {
             p(RUN_DXSETUP, 1);
         }
     }

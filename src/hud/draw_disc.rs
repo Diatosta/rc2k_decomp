@@ -13,6 +13,11 @@
 //! `add_triangle`'s Rust version. Shadow mode runs the original alone (it draws).
 //! Self-test: a copy whose triangle call goes to a stand-in (the vertex calls to their
 //! hook), against the Rust version, angles by lot.
+//!
+//! Converted 2026-10-21: the ring's angles and the triangles' entries through
+//! `rc2k_core::hud::disc` (whole numbers; the sines are copied); the texture's turn stays
+//! the x87's (its rounding follows the control word), worked out once (the original works
+//! the same value out sixteen times into `dword_75C060`).
 
 use crate::errors::Refused;
 use crate::framework::{
@@ -21,6 +26,7 @@ use crate::framework::{
 use crate::hud::disc_vertex::{disc_vertex, tables, test_tables};
 use crate::math::x87;
 use crate::service::harness::{Region, at, capture, restore};
+use rc2k_core::hud::disc::SEGMENTS;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -42,7 +48,6 @@ const COSINES_RVA: usize = rva(0xA24AE4); // g_cosines
 const TURN_RVA: [usize; 3] = [rva(0x75C05C), rva(0x75C028), rva(0x75C024)];
 const SCRATCH_RVA: usize = rva(0x75C060); // dword_75C060
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
-const SEGMENTS: u32 = 0x10;
 
 /// A call by place: 1 `add_triangle`.
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
@@ -58,48 +63,34 @@ fn negated_times_times_to_int(a: u32, b: u32, c: u32) -> u32 {
 }
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::hud::disc::{ring_angles, disc_triangle}`
 pub unsafe fn draw_disc(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
-        for k in 0..SEGMENTS {
-            let a = k << 8;
-            let n = 4 * (k as usize + 1);
-            game_write(
-                RING_RVA[0] + n,
-                x87::loaded(game_read(SINES_RVA + 4 * a as usize)),
-            );
-            game_write(
-                RING_RVA[1] + n,
-                x87::loaded(game_read(COSINES_RVA + 4 * a as usize)),
-            );
-            let t = negated_times_times_to_int(
-                game_read(TURN_RVA[0]),
-                game_read(TURN_RVA[1]),
-                game_read(TURN_RVA[2]),
-            );
-            game_write(SCRATCH_RVA, t);
-            g.eax = a.wrapping_add(t) & 0xFFF;
-            game_write(
-                TEXTURE_RING_RVA[0] + n,
-                x87::loaded(game_read(SINES_RVA + 4 * g.eax as usize)),
-            );
-            game_write(
-                TEXTURE_RING_RVA[1] + n,
-                x87::loaded(game_read(COSINES_RVA + 4 * g.eax as usize)),
-            );
+        use rc2k_core::hud::disc::{disc_triangle, ring_angles};
+        // The texture's turn follows the x87's control word: the x87's.
+        let t = negated_times_times_to_int(
+            game_read(TURN_RVA[0]),
+            game_read(TURN_RVA[1]),
+            game_read(TURN_RVA[2]),
+        );
+        let table = |r: usize, a: u32| x87::loaded(game_read(r + 4 * a as usize));
+        for (k, [a, b]) in ring_angles(t).into_iter().enumerate() {
+            let n = 4 * (k + 1);
+            game_write(RING_RVA[0] + n, table(SINES_RVA, a));
+            game_write(RING_RVA[1] + n, table(COSINES_RVA, a));
+            game_write(TEXTURE_RING_RVA[0] + n, table(SINES_RVA, b));
+            game_write(TEXTURE_RING_RVA[1] + n, table(COSINES_RVA, b));
+            g.eax = b;
         }
+        game_write(SCRATCH_RVA, t);
         // as the first loop leaves them (`div ebx`, then `mov edx, 0`)
         [g.ebx, g.ecx, g.edx] = [SEGMENTS, SEGMENTS, 0];
         let base = game_addr(VERTICES_RVA) as u32;
         for k in 0..SEGMENTS {
-            let third = if k + 2 > SEGMENTS {
-                k + 2 - SEGMENTS
-            } else {
-                k + 2
-            };
             let mut r = g;
             r.edx = k;
-            for (n, e) in [0, k + 1, third].into_iter().enumerate() {
+            for (n, e) in disc_triangle(k).into_iter().enumerate() {
                 r.edi = base + 0x20 * n as u32;
                 r.ecx = e;
                 r = disc_vertex(&r)?;

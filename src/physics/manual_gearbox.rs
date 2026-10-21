@@ -38,6 +38,7 @@ use crate::physics::lower_free_gear::lower_free_gear;
 use crate::physics::pick_start_gear::pick_start_gear_in;
 use crate::screens::harness::Left;
 use crate::service::harness::dispatch_state;
+use rc2k_core::physics::gear_shifts::{self as shifts, Shift};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -52,69 +53,48 @@ hook_asm!(
     original = ORIGINAL
 );
 
-enum To {
-    Up,
-    Down,
-    Neutral,
-    Start,
-    Reverse,
-    Done,
-}
-
 /// Up (0x43C340).
-fn up(r: &mut Regs) -> Result<To, Refused> {
+fn up(r: &mut Regs) -> Result<Shift, Refused> {
     r.ebx = g(GEAR);
-    if r.ebx == u32::MAX {
-        return Ok(To::Neutral);
-    }
-    if r.ebx == 0 {
-        return Ok(To::Start);
-    }
-    if r.ebx == g(GEAR_COUNT) {
-        return Ok(To::Done);
+    if let Some(shift) = shifts::manual_up(r.ebx, || g(GEAR_COUNT)) {
+        return Ok(shift);
     }
     wheels(r)?;
     let f = unsafe { higher_free_gear(r.ebx) }?;
     f.apply(r);
     if f.carry {
-        return Ok(To::Done);
+        return Ok(Shift::Done);
     }
     p(GEAR, r.ecx);
     revs(r)?;
     settle();
-    Ok(To::Done)
+    Ok(Shift::Done)
 }
 
 /// Down (0x43C379).
-fn down(r: &mut Regs) -> Result<To, Refused> {
+fn down(r: &mut Regs) -> Result<Shift, Refused> {
     r.ebx = g(GEAR);
-    if r.ebx == 1 {
-        return Ok(To::Neutral);
-    }
-    if r.ebx == 0 {
-        return Ok(To::Reverse);
-    }
-    if r.ebx == u32::MAX {
-        return Ok(To::Done);
+    if let Some(shift) = shifts::manual_down(r.ebx) {
+        return Ok(shift);
     }
     wheels(r)?;
     let f = unsafe { lower_free_gear(r.ebx, r.eax) }?;
     f.apply(r);
     if f.carry {
-        return Ok(To::Neutral);
+        return Ok(Shift::Neutral);
     }
     p(GEAR, r.ecx);
     revs(r)?;
     if !below(g(ENGINE), g(0x614104)) {
         p(GEAR, g(GEAR).wrapping_add(1));
         revs(r)?;
-        p(HOLD, 20);
+        p(HOLD, shifts::HOLD);
         p(CHANGED, u32::MAX);
         p(CHANGED_2, 1);
-        return Ok(To::Done);
+        return Ok(Shift::Done);
     }
     settle();
-    Ok(To::Done)
+    Ok(Shift::Done)
 }
 
 /// Into reverse (0x43C433; with `quarter` the engine speed x 0.25 first, as here; the
@@ -133,57 +113,49 @@ pub fn reverse(r: &mut Regs, quarter: bool) -> Result<(), Refused> {
 }
 
 /// The start-line rules (0x43C48F).
-fn start_line(r: &mut Regs) -> Result<To, Refused> {
+fn start_line(r: &mut Regs) -> Result<Shift, Refused> {
     r.ebx = g(GEAR);
-    if g(0x6138A4) != 0 {
-        if r.ebx == 0 {
-            return Ok(To::Reverse);
-        }
-        if (r.ebx as i32) >= 0 {
-            return Ok(To::Neutral);
-        }
-    }
-    if g(0x6138A0) != 0 {
-        if r.ebx == 0 {
-            return Ok(To::Start);
-        }
-        if (r.ebx as i32) < 0 {
-            return Ok(To::Neutral);
-        }
+    if let Some(shift) = shifts::start_line_keys(r.ebx, g(0x6138A4) != 0, || g(0x6138A0) != 0) {
+        return Ok(shift);
     }
     if g(0x71A22C) != 0 {
-        return Ok(To::Done);
+        return Ok(Shift::Done);
     }
-    if (r.ebx.wrapping_sub(1) as i32) >= 0 {
+    if shifts::forward(r.ebx) {
         let kept = g(ENGINE);
         revs_speed(r)?;
         p(SCRATCH, over_top());
         p(ENGINE, kept);
         if !below(g(SCRATCH), g(0x5CB958)) {
-            return Ok(To::Up);
+            return Ok(Shift::Up);
         }
     }
-    if (r.ebx.wrapping_sub(2) as i32) < 0 {
-        return Ok(To::Done);
+    if !shifts::above_first(r.ebx) {
+        return Ok(Shift::Done);
     }
     p(SCRATCH, over_top());
     let f = unsafe { lower_free_gear(r.ebx, r.eax) }?;
     f.apply(r);
     if f.carry {
-        return Ok(To::Done);
+        return Ok(Shift::Done);
     }
     let (rb, rc) = (ratio(r.ebx)?, ratio(r.ecx)?);
     if mul_div_status(g(SCRATCH), rb, rc, g(0x5CB964)) & 0x100 == 0 {
-        return Ok(To::Done);
+        return Ok(Shift::Done);
     }
-    let point = if g(0x71A614) != 0 { 0x5CB960 } else { 0x5CB95C };
+    let point = if shifts::down_point_clutch(g(0x71A614)) {
+        0x5CB960
+    } else {
+        0x5CB95C
+    };
     if !below(g(SCRATCH), g(point)) {
-        return Ok(To::Done);
+        return Ok(Shift::Done);
     }
-    Ok(To::Down)
+    Ok(Shift::Down)
 }
 
 /// The steps on `r`.
+// Converted: `rc2k_core::physics::gear_shifts` (the engine's sums and compares stay x87).
 pub fn manual_gearbox_in(r: &mut Regs) -> Result<(), Refused> {
     p(CHANGED, 0);
     let mut to = 'first: {
@@ -192,7 +164,7 @@ pub fn manual_gearbox_in(r: &mut Regs) -> Result<(), Refused> {
         }
         let gear = g(GEAR);
         if bit(r, gear)? || g(0x71A408) != 0 {
-            break 'first To::Neutral;
+            break 'first Shift::Neutral;
         }
         if g(HOLD) != 0 {
             p(HOLD, g(HOLD).wrapping_sub(1));
@@ -205,31 +177,25 @@ pub fn manual_gearbox_in(r: &mut Regs) -> Result<(), Refused> {
             break 'first start_line(r)?;
         }
         r.ebx = g(GEAR);
-        if g(0x6138A0) != 0 {
-            To::Up
-        } else if g(0x6138A4) != 0 {
-            To::Down
-        } else {
-            To::Done
-        }
+        shifts::manual_keys(g(0x6138A0) != 0, || g(0x6138A4) != 0)
     };
     loop {
         to = match to {
-            To::Up => up(r)?,
-            To::Down => down(r)?,
-            To::Neutral => {
+            Shift::Up => up(r)?,
+            Shift::Down => down(r)?,
+            Shift::Neutral => {
                 neutral();
-                To::Done
+                Shift::Done
             }
-            To::Start => {
+            Shift::Start => {
                 pick_start_gear_in(r)?;
-                To::Done
+                Shift::Done
             }
-            To::Reverse => {
+            Shift::Reverse => {
                 reverse(r, true)?;
-                To::Done
+                Shift::Done
             }
-            To::Done => return Ok(()),
+            Shift::Done => return Ok(()),
         };
     }
 }

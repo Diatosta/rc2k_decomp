@@ -3,8 +3,11 @@
 //! In:  al = the surface (low four bits)
 //! Out: with a weight, eax & 0xF; the rest preserved
 //!
-//! See `race/best_line.rs`. Eight call sites in `sub_445E30`. Self-test: the original and
-//! the Rust version on the game's variables, put back afterwards.
+//! See `race/best_line.rs`. Eight call sites in `sub_445E30` (whose Rust version keeps the
+//! exact x87 `add_surface_share`: it rounds the shares to whole numbers). The Rust version
+//! is `add_surface_share_plain`. Shadow mode: by state, the shares within `FLOAT`.
+//! Self-test, at the test precisions: the original and the Rust version on the game's
+//! variables, put back afterwards.
 
 use crate::errors::Refused;
 use crate::framework::{
@@ -12,7 +15,10 @@ use crate::framework::{
 };
 use crate::race::best_line::*;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::floats::{
+    FLOAT, Floats, at_test_precisions, check_state_floats, dispatch_state_floats,
+};
+use crate::service::harness::{Region, at, capture, restore};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -33,7 +39,8 @@ fn shares() -> Region {
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     let weighted = unsafe { game_read::<u32>(WEIGHT_RVA) } != 0;
-    let g = unsafe { add_surface_share(r) };
+    // Converted: `rc2k_core::race::best_line::surface_share`.
+    let g = unsafe { add_surface_share_plain(r) };
     Ok(if weighted {
         Left::nothing().with(EAX, g.eax)
     } else {
@@ -42,7 +49,11 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &[shares()], &rust);
+    let floats = Floats {
+        memory: &[(shares(), FLOAT)],
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &[shares()], &floats, &rust);
 }
 
 fn self_test() -> (usize, usize) {
@@ -51,35 +62,45 @@ fn self_test() -> (usize, usize) {
     };
     let regions = [shares(), at(WEIGHT_RVA), at(CHECK_COUNT_RVA)];
     let saved = capture(&regions);
-    for (eax, weight, count) in [
-        (0x1234_5603u32, 0x80u32, 7u32),
-        (0xFFFF_FF1Fu32, 0x100, 1),
-        (0x0Au32, 0, 7),
-        (0x0Fu32, 0x37, 0x1234),
-        (5u32, 0xFFFF_FF00, 3),
-    ] {
-        check_state(
-            &mut t,
-            &format!("eax {eax:#x}, weight {weight:#x}, {count} checkpoints"),
-            call_original,
-            Regs {
-                eax,
-                ..Regs::SENTINEL
-            },
-            &|| unsafe {
-                for n in 0..16u32 {
-                    game_write(
-                        SHARES_RVA + 4 * n as usize,
-                        (n as f32 * 1.5 - 4.0).to_bits(),
-                    );
-                }
-                game_write(WEIGHT_RVA, weight);
-                game_write(CHECK_COUNT_RVA, count);
-            },
-            &regions,
-            &rust,
-        );
-    }
+    let tolerant = Floats {
+        memory: &[(shares(), FLOAT)],
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, floats| {
+        for (eax, weight, count) in [
+            (0x1234_5603u32, 0x80u32, 7u32),
+            (0xFFFF_FF1Fu32, 0x100, 1),
+            (0x0Au32, 0, 7),
+            (0x0Fu32, 0x37, 0x1234),
+            (5u32, 0xFFFF_FF00, 3),
+        ] {
+            check_state_floats(
+                &mut t,
+                "race::add_surface_share",
+                &format!(
+                    "control word {word:#x}, eax {eax:#x}, weight {weight:#x}, {count} checkpoints"
+                ),
+                call_original,
+                Regs {
+                    eax,
+                    ..Regs::SENTINEL
+                },
+                &|| unsafe {
+                    for n in 0..16u32 {
+                        game_write(
+                            SHARES_RVA + 4 * n as usize,
+                            (n as f32 * 1.5 - 4.0).to_bits(),
+                        );
+                    }
+                    game_write(WEIGHT_RVA, weight);
+                    game_write(CHECK_COUNT_RVA, count);
+                },
+                &regions,
+                floats,
+                &rust,
+            );
+        }
+    });
     restore(&regions, &saved);
     t.finish()
 }

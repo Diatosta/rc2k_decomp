@@ -21,6 +21,8 @@ use crate::install::installer::{
 };
 use crate::install::list_test::TestList;
 use crate::race::viewer::{Saved, check_original, dispatch_regs};
+use rc2k_core::install::items::{self, MARKS};
+use rc2k_core::install::pages::UNUSABLE;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -39,53 +41,28 @@ pub fn mark_page(entry: &Regs) -> Regs {
     let list = entry.edi;
     let mut cl = 0u8;
     let mut esi = list + 0x18;
+    // Converted: `rc2k_core::install::items` (`walked`, `mark_choices`, `lone_choice`,
+    // `lit`).
+    let table = |item: u32| unsafe {
+        std::slice::from_raw_parts_mut(rd(item + 0xC) as *mut u8, 2 * items::walked(rb(item + 1)))
+    };
     loop {
         let byte = rb(esi);
-        let mut al = byte & 0xF;
-        if al == 2 {
-            let ah = byte & 0xC0;
-            if ah == 0x80 {
-                let mut dl = rb(esi + 1);
-                let mut ebx = rd(esi + 0xC).wrapping_add(1);
-                loop {
-                    if rb(ebx) & 0xC0 == 0 {
-                        wb(ebx, rb(ebx) | ah);
-                    }
-                    ebx = ebx.wrapping_add(2);
-                    dl = dl.wrapping_sub(1);
-                    if dl == 0 {
-                        break;
-                    }
-                }
-            } else if ah == 0 {
-                let mut dl = rb(esi + 1);
-                let mut dh = 0u8;
-                let mut ebx = rd(esi + 0xC).wrapping_add(1);
-                loop {
-                    if rb(ebx) & 0xC0 == 0 {
-                        dh = dh.wrapping_add(1);
-                        al = dl;
-                    }
-                    ebx = ebx.wrapping_add(2);
-                    dl = dl.wrapping_sub(1);
-                    if dl == 0 {
-                        break;
-                    }
-                }
-                if dh <= 1 {
-                    let chosen = al.wrapping_neg().wrapping_add(rb(esi + 1));
-                    wb(rd(esi + 8), chosen);
-                    wb(esi, rb(esi) | 0x80);
-                }
+        if byte & 0xF == 2 {
+            let ah = byte & MARKS;
+            if ah == UNUSABLE {
+                items::mark_choices(table(esi), ah);
+            } else if ah == 0
+                && let Some(chosen) = items::lone_choice(table(esi), rb(esi + 1))
+            {
+                wb(rd(esi + 8), chosen);
+                wb(esi, rb(esi) | UNUSABLE);
             }
         }
         let byte = rb(esi);
-        let mut al = byte;
-        if byte & 0xC0 == 0 && cl as u32 == g(CHOICE) {
-            al = byte & 0xF;
-            let mut lit = false;
-            let mut by_clock = true;
-            if al == 4 {
+        if byte & MARKS == 0 && cl as u32 == g(CHOICE) {
+            let mut editing = None;
+            if byte & 0xF == 4 {
                 let record = rd(esi + 0xC);
                 if rb(record) & 4 != 0 {
                     crate::install::next_edit::next_edit(&Regs {
@@ -94,24 +71,20 @@ pub fn mark_page(entry: &Regs) -> Regs {
                         ..*entry
                     });
                 }
-                if rb(record) & 1 != 0 {
-                    lit = true;
-                    by_clock = false;
-                }
+                editing = Some(rb(record) & 1 != 0);
             }
-            if by_clock && g(FRAME_CLOCK).wrapping_sub(g(MOVE_CLOCK)) & 8 == 0 {
-                lit = true;
-            }
-            if lit {
-                wb(esi, rb(esi) | 0xC0);
+            let clock = || g(FRAME_CLOCK).wrapping_sub(g(MOVE_CLOCK));
+            if editing == Some(true) || items::lit(editing, clock()) {
+                wb(esi, rb(esi) | MARKS);
             }
         }
-        if al & 0xF == 2 {
-            let table = rd(esi + 0xC).wrapping_add(1);
+        if byte & 0xF == 2 {
             let chosen = rb(rd(esi + 8));
             if chosen < rb(esi + 1) {
-                let at = table.wrapping_add(2 * chosen as u32);
-                wb(at, rb(at) | 0xC0);
+                let at = rd(esi + 0xC)
+                    .wrapping_add(1)
+                    .wrapping_add(2 * chosen as u32);
+                wb(at, rb(at) | MARKS);
             }
         }
         esi = esi.wrapping_add(0x10);

@@ -36,11 +36,9 @@ hook_asm!(
 // ---- game data ----
 
 const ACTION_VALUE_RVA: usize = rva(0x755A38); // dword_755A38
-const TYPE_OFFSET: u32 = 0x10;
+const TYPE_OFFSET: u32 = rc2k_core::menu::items::ITEM_TYPE;
 const ACTION_OFFSET: u32 = 0x44;
 const VALUE_OFFSET: u32 = 0x54;
-const END: u32 = u32::MAX;
-const ITEM_LIMIT: u32 = 256;
 
 unsafe fn dword(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
@@ -50,26 +48,27 @@ unsafe fn dword(at: u32) -> u32 {
 
 /// `entry_regs` are the registers at entry: the action gets them, with eax and ebp set.
 pub unsafe fn run_item_action(menu: u32, entry_regs: &Regs, call: Call) -> Result<(), BadInput> {
+    let first = menu.wrapping_add(MENU_HEAD_LEN);
+    let item_at = |n: u32| first.wrapping_add(n.wrapping_mul(ITEM_LEN));
     unsafe {
         let highlighted: u32 = game_read(MENU_ITEM_RVA);
-        let mut item = menu.wrapping_add(MENU_HEAD_LEN);
-        for _ in 0..ITEM_LIMIT {
-            if dword(item + TYPE_OFFSET) == highlighted {
-                let value = dword(item + VALUE_OFFSET);
-                game_write(ACTION_VALUE_RVA, value);
-                let mut g = *entry_regs;
-                (g.eax, g.ebp) = (value, item);
-                call(dword(item + ACTION_OFFSET), &mut g);
-                game_write(MENU_ITEM_RVA, dword(item + TYPE_OFFSET));
-                return Ok(());
-            }
-            item = item.wrapping_add(ITEM_LEN);
-            if dword(item) == END {
-                return Ok(());
-            }
+        // Converted: `rc2k_core::menu::items::highlighted_item`.
+        let found = rc2k_core::menu::items::highlighted_item(
+            highlighted,
+            |n| dword(item_at(n) + TYPE_OFFSET),
+            |n| dword(item_at(n)),
+        )?;
+        if let Some(n) = found {
+            let item = item_at(n);
+            let value = dword(item + VALUE_OFFSET);
+            game_write(ACTION_VALUE_RVA, value);
+            let mut g = *entry_regs;
+            (g.eax, g.ebp) = (value, item);
+            call(dword(item + ACTION_OFFSET), &mut g);
+            game_write(MENU_ITEM_RVA, dword(item + TYPE_OFFSET));
         }
     }
-    Err(BadInput("a menu without an end"))
+    Ok(())
 }
 
 // ---- hook ----
@@ -128,7 +127,7 @@ fn self_test() -> (usize, usize) {
         menu[item + 0x44 / 4] = fake_action as *const () as u32;
         menu[item + 0x54 / 4] = value;
     }
-    menu[1 + 3 * 0x5C / 4] = END;
+    menu[1 + 3 * 0x5C / 4] = u32::MAX;
     let before = Regs {
         edi: menu.as_ptr() as u32,
         ..Regs::SENTINEL

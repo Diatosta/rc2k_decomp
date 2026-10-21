@@ -11,7 +11,7 @@
 //! Refuses (before anything) ecx 0 (the original would loop 2^32 times) or above 0x100.
 //! Self-test: a copy of the original on a test buffer, counts 1 .. 0x20.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{ECX, EDI, RawHook, Regs, SelfTest, call_game, hook_asm, rva};
 use crate::screens::harness::Left;
 use crate::service::harness::{capture, dispatch_state};
@@ -31,12 +31,12 @@ hook_asm!(
 );
 
 /// The Rust version.
+// Converted: `rc2k_core::physics::pushes::{record_count, CLEARED_DWORDS}`.
 pub unsafe fn clear_records(at: u32, count: u32) -> Result<Left, Refused> {
-    if count == 0 || count > 0x100 {
-        return Err(BadInput("a record count of 0 or above 0x100").into());
-    }
+    use rc2k_core::physics::pushes::{CLEARED_DWORDS, record_count};
+    let count = record_count(count, "a record count of 0 or above 0x100")?;
     for k in 0..count {
-        for d in 0..6 {
+        for d in 0..CLEARED_DWORDS {
             unsafe { ((at + 0x20 * k + 4 * d) as *mut u32).write_unaligned(0) };
         }
     }

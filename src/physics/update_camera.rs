@@ -36,7 +36,7 @@
 //! version on the stage (everything written saved and put back), the camera where it is,
 //! moved below the car, every mode and a switch under way.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::physics::camera_ground::{Check, dispatch_carry};
@@ -47,6 +47,7 @@ use crate::race::car_starts::Part;
 use crate::scene::matrix3::rounded;
 use crate::screens::harness::CallOriginal;
 use crate::service::harness::{Region, capture, restore};
+use rc2k_core::physics::camera_view;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -161,6 +162,8 @@ fn fixed_camera(r: &mut Regs, second: bool) {
 }
 
 /// The steps; `r` as the original leaves it.
+// Converted: `rc2k_core::physics::camera_view::{fixed_camera, keeps_light_figure,
+// switch_over, mode_after_switch, check_modes}` (the x87 sums stay).
 pub fn steps(r: &mut Regs, part: Part) -> Result<(), Refused> {
     *r = unsafe { crate::physics::camera_low_switch::camera_low_switch(r, part) }?;
     for k in 0..3 {
@@ -200,21 +203,14 @@ pub fn steps(r: &mut Regs, part: Part) -> Result<(), Refused> {
     p(0x606630, rd(r.edi + 0xC));
     r.eax = rd(r.edi + 0x1C);
     p(0x606630, r.eax);
-    if !(car < 0x22 && g(0x5C5AC0 + 4 * car as usize) != 0) {
+    if !camera_view::keeps_light_figure(car, || g(0x5C5AC0 + 4 * car as usize)) {
         p(0x606574, crate::math::x87::loaded(rd(r.edi + 0x28)));
     }
-    if g(0x71A66C) == 0 {
-        match g(MODE) {
-            0x2A..=0x2D | 9 | 0xA => {
-                fixed_camera(r, true);
-                return Ok(());
-            }
-            0x2E..=0x31 | 7 | 8 => {
-                fixed_camera(r, false);
-                return Ok(());
-            }
-            _ => {}
-        }
+    if g(0x71A66C) == 0
+        && let Some(second) = camera_view::fixed_camera(g(MODE))
+    {
+        fixed_camera(r, second);
+        return Ok(());
     }
     // 0x437BE4: the camera at the car, the views blended.
     for (k, copy) in [0x5CCDA0usize, 0x5CCDC0, 0x5CCDE0].iter().enumerate() {
@@ -226,15 +222,16 @@ pub fn steps(r: &mut Regs, part: Part) -> Result<(), Refused> {
     p(0x5CCD60, r.eax);
     if g(0x71A66C) != 0 {
         r.eax = g(0x719FE0).wrapping_sub(g(0x71A668));
-        if (r.eax.wrapping_sub(g(0x71A670)) as i32) >= 0 {
+        if camera_view::switch_over(g(0x719FE0), g(0x71A668), g(0x71A670)) {
             p(0x71A66C, 0);
             p(0x71A674, 0);
             r.eax = g(0x71A660);
             p(MODE, r.eax);
-            p(0x71AF88, 8);
+            p(0x71AF88, camera_view::SWITCH_HOLD);
             r.eax = 7;
-            if g(MODE) >= 7 {
-                p(MODE, 0);
+            let after = camera_view::mode_after_switch(g(MODE));
+            if after != g(MODE) {
+                p(MODE, after);
             }
         } else {
             x87_run!(
@@ -249,9 +246,7 @@ pub fn steps(r: &mut Regs, part: Part) -> Result<(), Refused> {
         }
     }
     let (mode, before) = (g(MODE), g(0x71A660));
-    if mode > 0x33 || before > 0x33 {
-        return Err(BadInput("a camera mode past 0x33 (off_606320's room)").into());
-    }
+    camera_view::check_modes(mode, before)?;
     r.eax = mode;
     r.esi = g(0x606320 + 4 * mode as usize);
     unsafe { crate::physics::take_view_a::take_view_a(r) }.apply(r);

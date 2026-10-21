@@ -32,6 +32,7 @@ use crate::framework::{
 use crate::install::stand_ins::{act, set_handler, stand_in};
 use crate::redirect::RedirectedCopy;
 use crate::service::harness::{Region, at, capture, restore};
+use rc2k_core::gfx::picture_size as sizes;
 use std::sync::Mutex;
 use std::sync::atomic::AtomicUsize;
 
@@ -58,7 +59,7 @@ const PICTURE_WIDTH_RVA: usize = rva(0x4F49D0); // g_pictureWidth, height, row b
 const SCREEN_WIDTH_RVA: usize = rva(0x4F494C); // g_screenWidth
 const SCREEN_HEIGHT_RVA: usize = rva(0x4F4950); // g_screenHeight
 const SCREEN_MODE_FLAGS_RVA: usize = rva(0x4F4934); // g_screenModeFlags
-const THREE_PAGES: u32 = 0x40000;
+use rc2k_core::gfx::picture_size::THREE_PAGES;
 const DECODED_WIDTH_RVA: usize = rva(0x519124); // g_decodedWidth
 const FONT_PALETTES_RVA: usize = rva(0x51DEB0); // g_fontPalettes
 const LOADING_FONT_RVA: usize = rva(0x51EAA4); // stru_51EAA4
@@ -87,17 +88,15 @@ pub unsafe fn show_picture_file(r: &mut Regs, call: CallAt) {
     unsafe {
         call(PUMP_MESSAGES, r);
         game_write(SHOWING_RVA, 1u32);
-        game_write(PICTURE_WIDTH_RVA, [800u32, 600, 0xFFFF_FFFD]);
+        // Converted: `rc2k_core::gfx::picture_size` (`READ`, `screen`, `pages`,
+        // `rescaled`).
+        game_write(PICTURE_WIDTH_RVA, sizes::READ.dwords());
         call(READ_PICTURE_FILE, r);
         let read = !r.carry();
         let (width, height): (u32, u32) =
             (game_read(SCREEN_WIDTH_RVA), game_read(SCREEN_HEIGHT_RVA));
-        game_write(PICTURE_WIDTH_RVA, [width, height, width << 2]);
-        let pages = if game_read::<u32>(SCREEN_MODE_FLAGS_RVA) & THREE_PAGES != 0 {
-            3
-        } else {
-            2
-        };
+        game_write(PICTURE_WIDTH_RVA, sizes::screen(width, height).dwords());
+        let pages = sizes::pages(game_read::<u32>(SCREEN_MODE_FLAGS_RVA));
         if !read {
             call(CLEAR_PICTURE, r);
         } else {
@@ -114,7 +113,7 @@ pub unsafe fn show_picture_file(r: &mut Regs, call: CallAt) {
                 inner.edx = 0x2F;
                 call(DRAW_STRING_BY_ID, &mut inner);
             }
-            if game_read::<u32>(DECODED_WIDTH_RVA) != width {
+            if sizes::rescaled(game_read::<u32>(DECODED_WIDTH_RVA), width) {
                 for _ in 0..pages {
                     call(LOCK_SURFACE, r);
                     if r.carry() {

@@ -31,7 +31,8 @@ hook_asm!(
 );
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(all_regs(&unsafe { add_skid_point(r) }))
+    // Converted: `rc2k_core::race::skids::add_skid_point`.
+    Ok(all_regs(&unsafe { add_skid_point(r)? }))
 }
 
 fn regions(slot: u32) -> Vec<Region> {

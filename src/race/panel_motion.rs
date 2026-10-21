@@ -8,15 +8,19 @@
 //!
 //! See `race/frame_draw.rs`. Caller: `sub_45AB36` (0x45AB45), each frame drawn. The values
 //! (+0xAE8/+0xAEC speeds, +0x9C0 a heading: a reading) are not settled. Shadow mode: by
-//! state. Self-test: the game's view blocks with patterns, clocks before and after the 800;
-//! all put back (skipped without view blocks).
+//! state, the six floats within `FLOAT`. The Rust version is `panel_motion_plain`.
+//! Self-test, at the test precisions: the game's view blocks with patterns, clocks before
+//! and after the 800; all put back (skipped without view blocks).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
 use crate::race::frame::VIEW_BLOCKS;
 use crate::race::frame_draw::*;
 use crate::screens::harness::Left;
-use crate::service::harness::{at, capture, check_state, dispatch_state, restore};
+use crate::service::floats::{
+    Floats, at_test_precisions, check_state_floats, dispatch_state_floats,
+};
+use crate::service::harness::{at, capture, restore};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -39,11 +43,17 @@ fn view_blocks() -> Vec<u32> {
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { panel_motion() })
+    // Converted: `rc2k_core::race::panel::{motion, heading_turn, heading, shown_for}`.
+    Ok(unsafe { panel_motion_plain() })
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &panel_regions(), &rust);
+    let places = motion_float_places();
+    let floats = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &panel_regions(), &floats, &rust);
 }
 
 fn self_test() -> (usize, usize) {
@@ -61,35 +71,44 @@ fn self_test() -> (usize, usize) {
         kept.extend([(b + 0xAE8, 8), (b + 0x9C0, 4)]);
     }
     let saved = capture(&kept);
-    for (seed, clock, since) in [
-        (1u32, 5000u32, 1000u32),
-        (0x8000_0001, 1000, 900),
-        (0xDEAD_BEEF, 0, 0xFFFF_FF00),
-        (0x1234_5678, 0x8000_0000, 0),
-    ] {
-        check_state(
-            &mut t,
-            &format!("seed {seed:#x} clock {clock} since {since}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                let w = |a: u32, v: u32| (a as *mut u32).write_unaligned(v);
-                for &(a, len) in &regions {
-                    std::ptr::write_bytes(a as *mut u8, 0xAA, len);
-                }
-                game_write(SCENE_CLOCK, clock);
-                game_write(SHOWN_SINCE, since);
-                for (n, &b) in views.iter().enumerate() {
-                    let s = seed.wrapping_mul(n as u32 * 2 + 1);
-                    w(b + 0xAE8, s);
-                    w(b + 0xAEC, s.rotate_left(7));
-                    w(b + 0x9C0, s.rotate_left(13));
-                }
-            },
-            &regions,
-            &rust,
-        );
-    }
+    let places = motion_float_places();
+    let tolerant = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, floats| {
+        for (seed, clock, since) in [
+            (1u32, 5000u32, 1000u32),
+            (0x8000_0001, 1000, 900),
+            (0xDEAD_BEEF, 0, 0xFFFF_FF00),
+            (0x1234_5678, 0x8000_0000, 0),
+        ] {
+            check_state_floats(
+                &mut t,
+                "race::panel_motion",
+                &format!("control word {word:#x}, seed {seed:#x} clock {clock} since {since}"),
+                call_original,
+                Regs::SENTINEL,
+                &|| unsafe {
+                    let w = |a: u32, v: u32| (a as *mut u32).write_unaligned(v);
+                    for &(a, len) in &regions {
+                        std::ptr::write_bytes(a as *mut u8, 0xAA, len);
+                    }
+                    game_write(SCENE_CLOCK, clock);
+                    game_write(SHOWN_SINCE, since);
+                    for (n, &b) in views.iter().enumerate() {
+                        let s = seed.wrapping_mul(n as u32 * 2 + 1);
+                        w(b + 0xAE8, s);
+                        w(b + 0xAEC, s.rotate_left(7));
+                        w(b + 0x9C0, s.rotate_left(13));
+                    }
+                },
+                &regions,
+                floats,
+                &rust,
+            );
+        }
+    });
     restore(&kept, &saved);
     t.finish()
 }

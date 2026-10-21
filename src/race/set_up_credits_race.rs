@@ -39,8 +39,8 @@ hook_asm!(
     original = ORIGINAL
 );
 
-const STAGES: usize = 0x71C3E4; // dword_71C3E4, 36 stages
-const KINDS: usize = 0x71C474; // dword_71C474, 23 car kinds
+const STAGES: usize = 0x71C3E4; // dword_71C3E4, `RACE_STAGES` stages
+const KINDS: usize = 0x71C474; // dword_71C474, `RACE_KINDS` car kinds
 const STAGE: usize = 0x623850; // g_stageNumber
 const CAR_KINDS: usize = 0x623858; // g_raceCarKinds
 
@@ -122,27 +122,22 @@ pub const WRITES: [(usize, u32); 74] = [
     (0x70F684, 0xFFFF_FFFF),
 ];
 
-/// A draw times n: the high dword, held to 0 .. n - 1 by the sign tests.
+/// A draw (`math::next_random`) as a place among n.
 fn drawn_index(n: u32) -> u32 {
-    let mut edx = ((unsafe { next_random() } as u64 * n as u64) >> 32) as u32;
-    if (edx as i32) < 0 {
-        edx = 0;
-    }
-    if (edx.wrapping_sub(n - 1) as i32) >= 0 {
-        edx = n - 1;
-    }
-    edx
+    rc2k_core::race::credits::drawn_place(unsafe { next_random() }, n)
 }
 
 /// The Rust version.
 pub fn set_up_credits_race(_: &Regs) -> Result<Left, Refused> {
+    // Converted: `rc2k_core::race::credits::drawn_place`.
+    use rc2k_core::race::credits::{RACE_KINDS, RACE_STAGES};
     unsafe {
-        let stage = drawn_index(36);
+        let stage = drawn_index(RACE_STAGES);
         game_write(
             rva(STAGE),
             game_read::<u32>(rva(STAGES) + 4 * stage as usize),
         );
-        let kind = drawn_index(23);
+        let kind = drawn_index(RACE_KINDS);
         game_write(
             rva(CAR_KINDS),
             game_read::<u32>(rva(KINDS) + 4 * kind as usize),

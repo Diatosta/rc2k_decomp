@@ -30,6 +30,7 @@ use crate::install::stand_ins::{set_handler, stand_in};
 use crate::redirect::RedirectedCopy;
 use crate::sound::play_sound::play_sound_in_game;
 use crate::sound::queue::sent;
+use rc2k_core::sound::placed::{self, MODE_3D, SAMPLES};
 use std::sync::Mutex;
 use std::sync::atomic::AtomicUsize;
 
@@ -51,13 +52,9 @@ pub const MODE_RVA: usize = rva(0x4F82BC); // g_soundMode
 pub const SAMPLES_RVA: usize = rva(0x50A7A4); // unk_50A7A4
 const CENTRE_RVA: usize = rva(0x512500); // flt_512500
 const PER_ANGLE_RVA: usize = rva(0x512504); // flt_512504
-const SAMPLES: u32 = 0x1CD;
 const SAMPLE_LEN: usize = 0x40;
 /// The request's length in dwords.
 const REQUEST: usize = 10;
-const NO_SOUND: u32 = 0x8000;
-const MODE_3D: u32 = 0x10_0000;
-const MODE_DOLBY: u32 = 0x200_0000;
 
 // ---- the x87's arithmetic, with the original's instructions ----
 
@@ -125,19 +122,18 @@ pub unsafe fn play_placed_sound(
         }
         let get = |n: usize| request.add(n).read_unaligned();
         let put = |n: usize, value: u32| request.add(n).write_unaligned(value);
+        // Converted: `rc2k_core::sound::placed` (`played`, `sample_of`, `volume`,
+        // `place`); the products and the angle are the original's x87.
         let sound = get(0);
-        if sound & NO_SOUND != 0 {
+        if !placed::played(sound) {
             return Ok(());
         }
         let (ebx, ecx, edi, ebp);
         if mode & MODE_3D == 0 {
-            let number = sound as u16 as i16 as i32;
-            if !(0..SAMPLES as i32).contains(&number) {
-                return Err(BadInput("a sound past the sample records"));
-            }
+            let number = placed::sample_of(sound)?;
             let record = samples + number as usize * SAMPLE_LEN;
             let factor = ((record + 0x24) as *const u32).read_unaligned();
-            let volume = (product3_to_int(get(2), factor, get(9)) as i32).clamp(0, 0x40) as u32;
+            let volume = placed::volume(product3_to_int(get(2), factor, get(9)));
             put(2, volume);
             let (angle, place) = angle_and_place(
                 get(5),
@@ -147,10 +143,7 @@ pub unsafe fn play_placed_sound(
             );
             put(6, angle);
             put(7, place);
-            let mut place = if get(3) & 0x7FFF_FFFF == 0 { 0 } else { place };
-            if mode & MODE_DOLBY != 0 && (angle as i32) < 0 {
-                place ^= 0xFF00;
-            }
+            let place = placed::place(place, get(3), angle, mode);
             (ebx, ecx, edi, ebp) = (volume, place, record as u32, entry.ebp);
         } else {
             (ebx, ecx, edi, ebp) = (to_int(get(2)), get(3), get(4), get(5));

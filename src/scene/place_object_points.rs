@@ -23,6 +23,13 @@
 //! Refuses an object's number of 0x100 or more, no records, no points' table, no
 //! matrix, and normals without points (the original goes on from whatever eax and
 //! ecx hold).
+//!
+//! Converted 2026-10-21: the hook's Rust version is `place_object_points_plain`, through
+//! `rc2k_core::scene::projection` (plain floats; the x87 version stays for the Rust callers
+//! in unconverted code, and the moved point stays the x87's, its rounding following the
+//! control word). Shadow mode and the self-test compare the records' floats and
+//! `dword_62400C` within `service::floats`' tolerances (the self-test at both test
+//! precisions, exact at double).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{
@@ -33,10 +40,10 @@ use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::polygon::{dword, put};
 use crate::scene::project_point::{
     CENTRE_X_RVA, CENTRE_Y_RVA, FLAT_DEPTH_RVA, FLAT_RVA, NEAR, RECORD_LEN, RECORDS_RVA, SCALE_RVA,
-    rotate, to_screen,
+    rotate, same_world, to_screen,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, dispatch_state, restore};
+use crate::service::harness::{Region, at, capture, restore};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -262,6 +269,69 @@ pub unsafe fn place_object_points(entry: &Regs) -> Result<Left, Refused> {
     }
 }
 
+/// The converted `place_object_points` (plain floats): the hook's. The x87 version above
+/// stays for the Rust callers in unconverted code. The moved point (`sub_45C29B`) stays the
+/// x87's: its rounding follows the control word.
+// Converted: `rc2k_core::scene::projection::{make_record, turn_normal}`
+pub unsafe fn place_object_points_plain(entry: &Regs) -> Result<Left, Refused> {
+    use rc2k_core::scene::projection::{make_record, turn_normal};
+    unsafe {
+        let object = object()?;
+        let left = Left::nothing()
+            .with(ESI, object.matrix)
+            .with(EBX, object.number)
+            .with(EBP, object.normals.min(0) as u32);
+        if object.points <= 0 {
+            return Ok(left.with(EAX, entry.eax).with(ECX, entry.ecx));
+        }
+        let matrix = (object.matrix as *const [u32; 16])
+            .read_unaligned()
+            .map(f32::from_bits);
+        let move_by: u32 = game_read(MOVE_BY_RVA);
+        let mut number = object.first;
+        let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));
+        for _ in 0..object.points {
+            let record = record_of(object.records, number) as usize;
+            put(record, number);
+            let point = if move_by != 0 {
+                moved(from as usize, move_by);
+                game_addr(MOVED_RVA)
+            } else {
+                from as usize
+            };
+            let made = make_record(
+                (point as *const [i32; 3]).read_unaligned(),
+                &matrix,
+                crate::scene::project_point::screen,
+                false,
+            );
+            for (k, v) in made.view.into_iter().enumerate() {
+                put(record + 0x10 + 4 * k, v.to_bits());
+            }
+            put(record + 0xC, made.screen[0].to_bits());
+            put(record + 0x1C, made.screen[1].to_bits());
+            if let Some(checked) = made.checked {
+                game_write(CHECKED_RVA, checked.to_bits());
+            }
+            from = from.wrapping_add(12);
+            number = number.wrapping_add(1);
+        }
+        for _ in 0..object.normals.max(0) {
+            let record = record_of(object.records, number) as usize;
+            put(record, number);
+            let normal = (from as *const [u32; 3])
+                .read_unaligned()
+                .map(f32::from_bits);
+            for (k, v) in turn_normal(normal, &matrix).into_iter().enumerate() {
+                put(record + 0x10 + 4 * k, v.to_bits());
+            }
+            from = from.wrapping_add(12);
+            number = number.wrapping_add(1);
+        }
+        Ok(left.with(EAX, number).with(ECX, from))
+    }
+}
+
 // ---- hook ----
 
 fn regions() -> Vec<Region> {
@@ -284,11 +354,29 @@ fn regions() -> Vec<Region> {
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { place_object_points(r) }
+    unsafe { place_object_points_plain(r) }
+}
+
+/// The float places of `regions()`: `dword_62400C` and the records' five floats (`moved`'s
+/// whole numbers are the x87's).
+fn float_places() -> Vec<(Region, crate::service::floats::Tolerance)> {
+    use crate::service::floats::FLOAT;
+    let mut places = vec![(at(CHECKED_RVA), FLOAT)];
+    places.extend(regions().into_iter().skip(2).flat_map(|(start, len)| {
+        (0..len as u32 / RECORD_LEN as u32)
+            .map(move |k| ((start + k * RECORD_LEN as u32 + 0xC, 0x14), FLOAT))
+    }));
+    places
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+    use crate::service::floats::{Floats, dispatch_state_floats};
+    let places = float_places();
+    let floats = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
 }
 
 // ---- self-test: an object of the test's in a slot of the game's tables ----
@@ -350,69 +438,78 @@ fn self_test() -> (usize, usize) {
             0.0009765, 1.7320508, 0.0, -333.33334, 0.1, 600.7, 0.0,
         ],
     ];
-    let mut records = vec![[0u32; 8]; 0x2000];
-    let mut cases = 0u32;
-    for matrix in matrices {
-        let matrix = matrix.map(f);
-        for (points, normals) in [(0i32, 0i32), (-1, -5), (4, 0), (3, 3), (5, -2), (1, 6)] {
-            for (move_by, fraction) in [(0u32, 0.0f32), (12, 0.25), (24, 0.6666667), (36, -1.5)] {
-                cases += 1;
-                let flat = cases.is_multiple_of(3);
-                let before = Regs::SENTINEL;
-                let set = |records: &mut Vec<[u32; 8]>| unsafe {
-                    records.fill([0xAAAA_AAAA; 8]);
-                    game_write(OBJECT_RVA, OBJECT);
-                    game_write(FIRST_RVA + slot, FIRST);
-                    game_write(POINT_COUNT_RVA + slot, points);
-                    game_write(NORMAL_COUNT_RVA + slot, normals);
-                    game_write(TABLE_RVA, table.as_ptr() as u32);
-                    game_write(RECORDS_RVA, records.as_mut_ptr() as u32);
-                    game_write(MATRIX_RVA, matrix.as_ptr() as u32);
-                    game_write(MOVE_BY_RVA, move_by);
-                    game_write(MOVE_FRACTION_RVA, f(fraction));
-                    game_write(FLAT_RVA, flat as u32);
-                    game_write(FLAT_DEPTH_RVA, 7999u32);
-                    game_write(SCALE_RVA, f(640.0));
-                    game_write(CENTRE_X_RVA, f(400.0));
-                    game_write(CENTRE_Y_RVA, f(300.5));
-                    game_write(CHECKED_RVA, 0xAAAA_AAAAu32);
-                    game_write(MOVED_RVA, [0xAAAA_AAAAu32; 3]);
-                };
-                let state = |records: &Vec<[u32; 8]>| unsafe {
-                    (
-                        records.clone(),
-                        game_read::<u32>(CHECKED_RVA),
-                        game_read::<[u32; 3]>(MOVED_RVA),
-                    )
-                };
-                set(&mut records);
-                let mut ro = before;
-                unsafe { call_original(&mut ro) };
-                let theirs = state(&records);
-                set(&mut records);
-                let mine = rust(&before);
-                let left = state(&records);
-                let regs_ok = mine.as_ref().is_ok_and(|left| left.matches(&before, &ro));
-                t.check(regs_ok && theirs == left, || {
-                    let n = theirs.0.iter().zip(&left.0).position(|(a, b)| a != b);
-                    format!(
-                        "{points} points, {normals} normals, moved by {move_by} {fraction}, flat {flat}, case {cases}: regs_ok={regs_ok} original eax {:#x} ecx {:#x} ebx {:#x} esi {:#x} ebp {:#x}, rust {mine:x?}; checked {:#x} {:#x}, moved {:x?} {:x?}; first different record {n:?}: {:x?} {:x?}",
-                        ro.eax,
-                        ro.ecx,
-                        ro.ebx,
-                        ro.esi,
-                        ro.ebp,
-                        theirs.1,
-                        left.1,
-                        theirs.2,
-                        left.2,
-                        n.map(|n| theirs.0[n]),
-                        n.map(|n| left.0[n]),
-                    )
-                });
+    let places = [(at(CHECKED_RVA), crate::service::floats::FLOAT)];
+    let tolerant = crate::service::floats::Floats {
+        memory: &places,
+        regs: &[],
+    };
+    crate::service::floats::at_test_precisions(&tolerant, &mut |word, held| {
+        let tolerance = held.memory[0].1;
+        let mut records = vec![[0u32; 8]; 0x2000];
+        let mut cases = 0u32;
+        for matrix in matrices {
+            let matrix = matrix.map(f);
+            for (points, normals) in [(0i32, 0i32), (-1, -5), (4, 0), (3, 3), (5, -2), (1, 6)] {
+                for (move_by, fraction) in [(0u32, 0.0f32), (12, 0.25), (24, 0.6666667), (36, -1.5)]
+                {
+                    cases += 1;
+                    let flat = cases.is_multiple_of(3);
+                    let before = Regs::SENTINEL;
+                    let set = |records: &mut Vec<[u32; 8]>| unsafe {
+                        records.fill([0xAAAA_AAAA; 8]);
+                        game_write(OBJECT_RVA, OBJECT);
+                        game_write(FIRST_RVA + slot, FIRST);
+                        game_write(POINT_COUNT_RVA + slot, points);
+                        game_write(NORMAL_COUNT_RVA + slot, normals);
+                        game_write(TABLE_RVA, table.as_ptr() as u32);
+                        game_write(RECORDS_RVA, records.as_mut_ptr() as u32);
+                        game_write(MATRIX_RVA, matrix.as_ptr() as u32);
+                        game_write(MOVE_BY_RVA, move_by);
+                        game_write(MOVE_FRACTION_RVA, f(fraction));
+                        game_write(FLAT_RVA, flat as u32);
+                        game_write(FLAT_DEPTH_RVA, 7999u32);
+                        game_write(SCALE_RVA, f(640.0));
+                        game_write(CENTRE_X_RVA, f(400.0));
+                        game_write(CENTRE_Y_RVA, f(300.5));
+                        game_write(CHECKED_RVA, 0xAAAA_AAAAu32);
+                        game_write(MOVED_RVA, [0xAAAA_AAAAu32; 3]);
+                    };
+                    let state = |records: &Vec<[u32; 8]>| unsafe {
+                        (
+                            records.clone(),
+                            game_read::<u32>(CHECKED_RVA),
+                            game_read::<[u32; 3]>(MOVED_RVA),
+                        )
+                    };
+                    set(&mut records);
+                    let mut ro = before;
+                    unsafe { call_original(&mut ro) };
+                    let theirs = state(&records);
+                    set(&mut records);
+                    let mine = rust(&before);
+                    let left = state(&records);
+                    let regs_ok = mine.as_ref().is_ok_and(|left| left.matches(&before, &ro));
+                    t.check(regs_ok && same_world(&(theirs.0.clone(), theirs.1), &(left.0.clone(), left.1), tolerance) && theirs.2 == left.2, || {
+                        let n = theirs.0.iter().zip(&left.0).position(|(a, b)| a != b);
+                        format!(
+                            "control word {word:#x}, {points} points, {normals} normals, moved by {move_by} {fraction}, flat {flat}, case {cases}: regs_ok={regs_ok} original eax {:#x} ecx {:#x} ebx {:#x} esi {:#x} ebp {:#x}, rust {mine:x?}; checked {:#x} {:#x}, moved {:x?} {:x?}; first different record {n:?}: {:x?} {:x?}",
+                            ro.eax,
+                            ro.ecx,
+                            ro.ebx,
+                            ro.esi,
+                            ro.ebp,
+                            theirs.1,
+                            left.1,
+                            theirs.2,
+                            left.2,
+                            n.map(|n| theirs.0[n]),
+                            n.map(|n| left.0[n]),
+                        )
+                    });
+                }
             }
         }
-    }
+    });
     restore(&inputs, &saved);
     t.finish()
 }

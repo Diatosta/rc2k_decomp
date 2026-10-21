@@ -20,6 +20,7 @@ use crate::net::lobby::{
     LOCK, MOVE_CLOCK, Part, SHOW_FRAME, Saved, UNLOCK, a, answer, dispatch_lobby, dword, g, p,
     run_both,
 };
+use rc2k_core::net::screens;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -67,17 +68,18 @@ pub fn list_frame(
     r.edx = r.ebp;
     r.ebp += 0x2C;
     part(DRAW_STRING, &mut r)?;
-    for row in 0..16u32 {
-        let item = row.wrapping_add(g(CHOICE_BEFORE));
-        if item >= g(count) {
+    // Converted: `rc2k_core::net::screens` (`LIST_ROWS`, `listed`, `blink_lit`).
+    for row in 0..screens::LIST_ROWS {
+        let Some(item) = screens::listed(row, g(CHOICE_BEFORE), g(count)) else {
             continue;
-        }
+        };
         r.esi = item;
         r.eax = a(FONT);
         if item == g(CHOICE) {
             r.ebx = a(lit_ebx);
-            r.ecx = g(FRAME_CLOCK).wrapping_sub(g(MOVE_CLOCK));
-            if r.ecx & 8 == 0 {
+            let (frame, moved) = (g(FRAME_CLOCK), g(MOVE_CLOCK));
+            r.ecx = frame.wrapping_sub(moved);
+            if screens::blink_lit(frame, moved) {
                 r.eax = a(LIT);
             }
         }
@@ -92,7 +94,7 @@ pub fn list_frame(
             .wrapping_add(unsafe { ((r.eax + 8) as *const u32).read_unaligned() });
         part(DRAW_TEXT, &mut r)?;
     }
-    r.esi = 16;
+    r.esi = screens::LIST_ROWS;
     part(UNLOCK, &mut r)?;
     part(SHOW_FRAME, &mut r)?;
     done(&r)
@@ -100,7 +102,14 @@ pub fn list_frame(
 
 /// The Rust version: the registers it leaves (the entry's).
 pub fn connections_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    list_frame(entry, 0x14E, CONNECTIONS, CONNECTION_ENTRY, 0x51E704, part)
+    list_frame(
+        entry,
+        screens::CONNECTIONS_TITLE,
+        CONNECTIONS,
+        CONNECTION_ENTRY,
+        0x51E704,
+        part,
+    )
 }
 
 extern "C" fn dispatch(r: &mut Regs) {

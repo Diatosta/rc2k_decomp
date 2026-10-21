@@ -85,16 +85,15 @@ pub fn fill_left(r: &mut crate::framework::Regs, at: u32, bytes: u32, s: &AudioS
 /// `audio::stop_stream`: not playing; the buffer stopped and released; the file closed.
 pub unsafe fn stop_stream(s: &mut AudioStream) -> Result<(), Refused> {
     not_a3d("A3D (0x40D1D0)")?;
-    s.playing = 0;
+    // Converted: `rc2k_core::audio::streams::AudioStream::stop`.
+    let (buffer, file) = s.stop();
     unsafe {
-        if s.buffer != 0 {
-            crate::audio::com::call(s.buffer, crate::audio::buffer_play::STOP);
-            crate::audio::com::call(s.buffer, crate::audio::com::RELEASE);
-            s.buffer = 0;
+        if let Some(b) = buffer {
+            crate::audio::com::call(b, crate::audio::buffer_play::STOP);
+            crate::audio::com::call(b, crate::audio::com::RELEASE);
         }
-        if s.open == 1 {
-            crate::files::handle::close(s.file);
-            s.open = 0;
+        if let Some(f) = file {
+            crate::files::handle::close(f);
         }
     }
     Ok(())
@@ -186,10 +185,8 @@ pub unsafe fn start_stream(
             return failed(s);
         }
         crate::audio::com::call1(s.buffer, crate::audio::buffer_settings::SET_VOLUME, volume);
-        s.write_at = s.step;
-        s.play_cursor = 0;
-        s.tail = s.step as i32;
-        s.format = f.format;
+        // Converted: `rc2k_core::audio::streams::AudioStream::start_ring`.
+        s.start_ring(f.format);
         let play: unsafe extern "system" fn(u32, u32, u32, u32) -> i32 = std::mem::transmute(
             crate::audio::com::method(s.buffer, crate::audio::buffer_play::PLAY),
         );

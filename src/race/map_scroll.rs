@@ -27,18 +27,18 @@ const MAP_Y: u32 = CAR + 0xAE4;
 /// unless `dword_52A910`) drawn from tile (corner x >> 4, corner y >> 4) (part 1:
 /// `sub_45B68F`, ecx / edx the tile, eax the slot).
 pub unsafe fn map_tiles(r: &mut Regs, part: crate::race::frame::Part) -> Result<(), Refused> {
-    r.ecx = ((k(CORNER_X) as i32) >> 4) as u32;
-    r.edx = ((k(CORNER_Y) as i32) >> 4) as u32;
-    r.eax = k(0x5D0E00);
-    if k(0x52A910) == 0 {
-        r.eax = r.eax.wrapping_add(k(0x71B3F8));
-    }
+    // Converted: `rc2k_core::race::map::{first_tile, picture_slot}`.
+    use rc2k_core::race::map::{first_tile, picture_slot};
+    r.ecx = first_tile(k(CORNER_X));
+    r.edx = first_tile(k(CORNER_Y));
+    let one_view = k(0x52A910) != 0;
+    // The car is read only for both views.
+    r.eax = picture_slot(
+        k(0x5D0E00),
+        one_view,
+        if one_view { 0 } else { k(0x71B3F8) },
+    );
     part(1, r)
-}
-
-/// `n` x 0x60 / 1000 as `imul` / `idiv`.
-fn scaled(n: u32) -> u32 {
-    ((n as i32 as i64 * 0x60) / 1000) as i32 as u32
 }
 
 /// What `scroll_map` reads through the course: refused before anything.
@@ -56,6 +56,9 @@ unsafe fn scroll_refuses() -> Result<(), Refused> {
 /// `map_tiles`), +0xADC 1; its place in the picture ((place - corner << 16 - 0x300000) x 2).
 /// Gives the registers it leaves. Refuses (before anything) no course faces or points.
 pub unsafe fn scroll_map(r: &mut Regs, part: crate::race::frame::Part) -> Result<(), Refused> {
+    // Converted: `rc2k_core::race::map::{on_map, pixel, well_inside, centred_corner,
+    // picture_place}`.
+    use rc2k_core::race::map::{centred_corner, on_map, picture_place, pixel, well_inside};
     unsafe {
         scroll_refuses()?;
         w(REDRAWN, 0);
@@ -74,38 +77,31 @@ pub unsafe fn scroll_map(r: &mut Regs, part: crate::race::frame::Part) -> Result
         let pz = ((p + 8) as *const u32).read_unaligned();
         w(
             MAP_X,
-            k(MAP_X).wrapping_add(scaled(k(CAR + 0x134).wrapping_sub(px))),
+            k(MAP_X).wrapping_add(on_map(k(CAR + 0x134).wrapping_sub(px)).0),
         );
         let dz = k(CAR + 0x13C).wrapping_sub(pz).wrapping_neg();
-        w(MAP_Y, k(MAP_Y).wrapping_add(scaled(dz)));
+        let (y_off, rest) = on_map(dz);
+        w(MAP_Y, k(MAP_Y).wrapping_add(y_off));
         // edx the last `idiv`'s remainder (of dz x 0x60 / 1000)
-        r.edx = ((dz as i32 as i64 * 0x60) % 1000) as i32 as u32;
+        r.edx = rest;
         r.ebx = 1000;
-        let x = ((k(MAP_X) as i32) >> 16) as u32;
-        let y = ((k(MAP_Y) as i32) >> 16) as u32;
+        let x = pixel(k(MAP_X));
+        let y = pixel(k(MAP_Y));
         let (dx, dy) = (x.wrapping_sub(k(CORNER_X)), y.wrapping_sub(k(CORNER_Y)));
-        let inside =
-            |d: u32| (d.wrapping_sub(0x34) as i32) >= 0 && (d.wrapping_sub(0x4C) as i32) < 0;
         r.eax = dx;
         r.ebx = dy;
-        if !(inside(dx) && inside(dy)) {
-            w(CORNER_X, x.wrapping_add(8).wrapping_sub(0x40) & !0xF);
-            w(CORNER_Y, y.wrapping_add(8).wrapping_sub(0x40) & !0xF);
+        if !(well_inside(dx) && well_inside(dy)) {
+            w(CORNER_X, centred_corner(x));
+            w(CORNER_Y, centred_corner(y));
             // the corner as the original has just stored it, through eax and ebx
             r.eax = k(CORNER_X);
             r.ebx = k(CORNER_Y);
             part(1, r)?;
             w(REDRAWN, 1);
         }
-        let at = |corner: u32, place: u32| {
-            (corner.wrapping_neg() << 16)
-                .wrapping_add(place)
-                .wrapping_sub(0x30_0000)
-                << 1
-        };
-        r.eax = at(k(CORNER_X), k(MAP_X));
+        r.eax = picture_place(k(CORNER_X), k(MAP_X));
         w(CAR + 0xAE8, r.eax);
-        r.eax = at(k(CORNER_Y), k(MAP_Y));
+        r.eax = picture_place(k(CORNER_Y), k(MAP_Y));
         w(CAR + 0xAEC, r.eax);
         Ok(())
     }
@@ -116,15 +112,15 @@ pub unsafe fn scroll_map(r: &mut Regs, part: crate::race::frame::Part) -> Result
 /// `store_car_c`), else the first and, unless `dword_63DB98` is 1, the second. Refuses
 /// (before anything) a view car without its block, or what `scroll_map` refuses.
 pub unsafe fn scroll_maps(r: &mut Regs, part: crate::race::frame::Part) -> Result<(), Refused> {
+    // Converted: `rc2k_core::race::map::scrolled_views`.
     use crate::race::frame::{VIEW_CARS, load_view_car, store_view_car};
     unsafe {
-        let views: &[usize] = if k(0x52A910) != 0 {
-            &[2]
-        } else if k(0x63DB98) == 1 {
-            &[0]
-        } else {
-            &[0, 1]
-        };
+        let third_only = k(0x52A910) != 0;
+        // The player count is read only without the third view.
+        let views = rc2k_core::race::map::scrolled_views(
+            third_only,
+            if third_only { 0 } else { k(0x63DB98) },
+        );
         for &v in views {
             let car = game_read::<u32>(VIEW_CARS[v]) & 7;
             if k(0x71B3B8 + 4 * car) == 0 {

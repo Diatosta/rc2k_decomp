@@ -42,7 +42,7 @@ const SET: usize = 0x409B1F; // sub_409B1F
 const STOP: usize = 0x409B0D; // sub_409B0D
 const CALLEES: [usize; 3] = [START, SET, STOP];
 const ROWS_RVA: usize = rva(0x4F6E08); // unk_4F6E08
-const ROWS: i32 = 14;
+use rc2k_core::input::effect_changes::ROWS;
 
 /// One effect's function, as IDA shows it.
 #[derive(Clone, Copy)]
@@ -60,90 +60,51 @@ fn put(effect: u32, o: u32, v: u32) {
 fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
-fn value(v: u32) -> u32 {
-    ((v as i32).wrapping_mul(10000) >> 8) as u32
-}
-fn blend(a: u32, b: u32, by: u32) -> u32 {
-    (((b.wrapping_sub(a) as i32).wrapping_mul(by as i32)) >> 8) as u32
-}
 
 /// The Rust version: the registers it leaves.
 pub unsafe fn effect_change(entry: &Regs, number: u32, part: Part) -> Result<Regs, Refused> {
+    use rc2k_core::input::effect_changes::{Call, Field, plan};
     let mut r = *entry;
     let e = entry.edi;
-    let (ecx, edx) = (entry.ecx, entry.edx);
-    match (entry.eax, number) {
-        (1, 1) => put(e, field!(ForceEffect, type_specific), 0),
-        (1, 2 | 3 | 5) => {
-            let long = [0, 0, 500_000, 250_000, 0, 200_000][number as usize];
-            put(e, field!(ForceEffect, effect.duration), long);
-            if number == 5 {
-                put(e, field!(ForceEffect, axes), 4);
-            }
-            if number != 3 {
-                put(
-                    e,
-                    field!(ForceEffect, effect.envelope),
-                    e + field!(ForceEffect, envelope),
-                );
-                put(e, field!(ForceEffect, envelope.fade_time), long);
-            }
-            if number == 2 {
-                put(e, field!(ForceEffect, type_specific) + 12, 100_000);
-            }
-            put(e, field!(ForceEffect, type_specific), 0);
-            if number == 5 && get(entry.esi + field!(InputDevice, sensitivity)) > 1 {
-                put(e, field!(ForceEffect, found), 0);
-            }
-        }
-        (1, 4) => {
-            put(e, field!(ForceEffect, type_specific) + 4, 0);
-            put(e, field!(ForceEffect, type_specific) + 8, 0);
-        }
-        (2, 0 | 1 | 4) => part(0, &mut r)?,
-        (3, 0) => {
-            put(e, field!(ForceEffect, type_specific) + 4, value(ecx));
-            put(e, field!(ForceEffect, type_specific) + 8, value(ecx));
-            put(e, field!(ForceEffect, type_specific), value(edx));
-            r.eax = 0x100;
+    let row_at = |n: u32| game_addr(ROWS_RVA) as u32 + 16 * n;
+    // Converted: `rc2k_core::input::effect_changes::plan`.
+    let p = plan(
+        number,
+        entry.eax,
+        entry.ecx,
+        entry.edx,
+        || get(entry.esi + field!(InputDevice, sensitivity)),
+        |n| std::array::from_fn(|k| get(row_at(n) + 4 * k as u32)),
+    )
+    .map_err(BadInput::from)?;
+    for (f, v) in p.stores {
+        let (at, v) = match f {
+            Field::Duration => (field!(ForceEffect, effect.duration), v),
+            Field::FirstAxis => (field!(ForceEffect, axes), v),
+            Field::EnvelopePointer => (
+                field!(ForceEffect, effect.envelope),
+                e + field!(ForceEffect, envelope),
+            ),
+            Field::FadeTime => (field!(ForceEffect, envelope.fade_time), v),
+            Field::Specific(n) => (field!(ForceEffect, type_specific) + 4 * n, v),
+            Field::Found => (field!(ForceEffect, found), v),
+        };
+        put(e, at, v);
+    }
+    if let Some((divisor, remainder)) = p.division {
+        // The registers at the call: the row, the divisor and the `idiv`'s remainder.
+        r.ebx = row_at(entry.ecx);
+        r.ecx = divisor;
+        r.edx = remainder;
+    }
+    match p.call {
+        Some(Call::Start) => part(0, &mut r)?,
+        Some(Call::Set(flags)) => {
+            r.eax = flags;
             part(1, &mut r)?;
         }
-        (3, 1) => {
-            if !(0..ROWS).contains(&(ecx as i32)) {
-                return Err(BadInput("a row past the effect's table").into());
-            }
-            let row = game_addr(ROWS_RVA) as u32 + 16 * ecx;
-            let first = blend(get(row), get(row + 8), edx).wrapping_add(get(row));
-            let second = blend(get(row + 4), get(row + 12), edx).wrapping_add(get(row + 4));
-            if second == 0 {
-                return Err(BadInput("a blend of 0 (the original's idiv traps)").into());
-            }
-            put(e, field!(ForceEffect, type_specific), value(first));
-            put(
-                e,
-                field!(ForceEffect, type_specific) + 12,
-                (10_000_000i32 / second as i32) as u32,
-            );
-            // The registers at the call: the row, the divisor and the `idiv`'s remainder.
-            r.ebx = row;
-            r.ecx = second;
-            r.edx = (10_000_000i32 % second as i32) as u32;
-            r.eax = 0x100;
-            part(1, &mut r)?;
-        }
-        (3, 2 | 3 | 5) => {
-            put(e, field!(ForceEffect, type_specific), value(ecx));
-            r.eax = 0x2000_0100;
-            part(1, &mut r)?;
-        }
-        (3, 4) => {
-            put(e, field!(ForceEffect, type_specific) + 4, value(ecx));
-            put(e, field!(ForceEffect, type_specific) + 8, value(ecx));
-            r.eax = 0x100;
-            part(1, &mut r)?;
-        }
-        (4, _) => part(2, &mut r)?,
-        _ => {}
+        Some(Call::Stop) => part(2, &mut r)?,
+        None => {}
     }
     Ok(*entry)
 }
@@ -199,7 +160,10 @@ pub fn test_effect(hook: &RawHook, e: Effect) -> (usize, usize) {
                 if ecx as i32 >= ROWS || ecx as i32 <= -1 {
                     continue;
                 }
-                if blend(get(row + 4), get(row + 12), edx).wrapping_add(get(row + 4)) == 0 {
+                let (a, b) = (get(row + 4), get(row + 12));
+                if (((b.wrapping_sub(a) as i32).wrapping_mul(edx as i32)) >> 8) as u32
+                    == a.wrapping_neg()
+                {
                     continue;
                 }
             }

@@ -37,15 +37,15 @@ pub const FORMAT_POINTER_RVA: usize = rva(0x4F49B8);
 
 /// Where the pixel goes and how wide it is.
 pub unsafe fn place(x: u32, y: u32) -> (u32, u32) {
+    // Converted: `rc2k_core::gfx::picture_size::pixel_place`.
     unsafe {
-        let base: u32 = game_read(BASE_RVA);
-        let row = base.wrapping_add(y.wrapping_mul(game_read(PITCH_RVA)));
-        let wide = if game_read::<u32>(BITS_PER_PIXEL_RVA) == 16 {
-            2
-        } else {
-            4
-        };
-        (row.wrapping_add(x.wrapping_mul(wide)), wide)
+        rc2k_core::gfx::picture_size::pixel_place(
+            game_read(BASE_RVA),
+            game_read(PITCH_RVA),
+            game_read(BITS_PER_PIXEL_RVA),
+            x,
+            y,
+        )
     }
 }
 

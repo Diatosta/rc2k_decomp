@@ -49,7 +49,7 @@ pub fn below(a: u32, b: u32) -> bool {
 /// The common end of a change: +0x1D0 = `dword_613FA4`, the hold 20, both words 1.
 pub fn settle() {
     p(0x71A1A8, g(0x613FA4));
-    p(HOLD, 20);
+    p(HOLD, rc2k_core::physics::gear_shifts::HOLD);
     p(CHANGED, 1);
     p(CHANGED_2, 1);
 }

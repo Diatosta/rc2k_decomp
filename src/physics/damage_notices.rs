@@ -21,12 +21,13 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::math::x87::from_int;
 use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
-use crate::physics::flow::{a, c0, g, guard, p};
+use crate::physics::flow::{a, g, guard, p};
 use crate::physics::queue_notice::{Contacts, queue_notice};
 use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::test_floats;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use rc2k_core::physics::damage_notices::{LEVELS, damage_notices as damage_notices_core};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -44,154 +45,28 @@ hook_asm!(
 /// `flt_75B36C`: the threshold being compared.
 const LIMIT: usize = 0x75B36C;
 
-/// One step: a level, the level it applies at, the threshold, the gauge, the new level;
-/// a rising one also the notice and its rank.
-#[derive(Clone, Copy)]
-enum Step {
-    Up {
-        level: usize,
-        from: u32,
-        limit: i32,
-        gauge: usize,
-        to: u32,
-        notice: u32,
-        rank: u32,
-    },
-    Down {
-        level: usize,
-        from: u32,
-        limit: i32,
-        gauge: usize,
-        to: u32,
-    },
-}
-use Step::{Down, Up};
+const LEVELS_AT: usize = 0x71A340; // unk_71A340: the levels
+const GAUGES_AT: usize = 0x71A284; // unk_71A284: the gauges
 
-/// The original's steps, in order.
-#[rustfmt::skip]
-const STEPS: [Step; 82] = [
-    Up { level: 0x71A398, from: 0, limit: 1, gauge: 0x71A28C, to: 1, notice: 0xCF, rank: 1 },
-    Down { level: 0x71A398, from: 1, limit: 1, gauge: 0x71A28C, to: 0 },
-    Up { level: 0x71A398, from: 1, limit: 50, gauge: 0x71A28C, to: 2, notice: 0xCF, rank: 2 },
-    Down { level: 0x71A398, from: 2, limit: 50, gauge: 0x71A28C, to: 1 },
-    Up { level: 0x71A398, from: 2, limit: 75, gauge: 0x71A28C, to: 3, notice: 0xD0, rank: 3 },
-    Down { level: 0x71A398, from: 3, limit: 75, gauge: 0x71A28C, to: 2 },
-    Up { level: 0x71A39C, from: 0, limit: 75, gauge: 0x71A284, to: 1, notice: 0xD1, rank: 1 },
-    Down { level: 0x71A39C, from: 1, limit: 75, gauge: 0x71A284, to: 0 },
-    Up { level: 0x71A3A0, from: 0, limit: 75, gauge: 0x71A288, to: 1, notice: 0xD1, rank: 1 },
-    Down { level: 0x71A3A0, from: 1, limit: 75, gauge: 0x71A288, to: 0 },
-    Up { level: 0x71A340, from: 0, limit: 50, gauge: 0x71A290, to: 1, notice: 0xD2, rank: 1 },
-    Up { level: 0x71A340, from: 1, limit: 75, gauge: 0x71A290, to: 2, notice: 0xD2, rank: 2 },
-    Up { level: 0x71A340, from: 2, limit: 90, gauge: 0x71A290, to: 3, notice: 0xD3, rank: 3 },
-    Up { level: 0x71A340, from: 3, limit: 100, gauge: 0x71A290, to: 4, notice: 0xD4, rank: 4 },
-    Up { level: 0x71A344, from: 0, limit: 50, gauge: 0x71A294, to: 1, notice: 0xD5, rank: 1 },
-    Up { level: 0x71A344, from: 1, limit: 75, gauge: 0x71A294, to: 2, notice: 0xD5, rank: 2 },
-    Up { level: 0x71A344, from: 2, limit: 90, gauge: 0x71A294, to: 3, notice: 0xD6, rank: 3 },
-    Up { level: 0x71A344, from: 3, limit: 100, gauge: 0x71A294, to: 4, notice: 0xD7, rank: 4 },
-    Up { level: 0x71A348, from: 0, limit: 50, gauge: 0x71A298, to: 1, notice: 0xD8, rank: 1 },
-    Up { level: 0x71A348, from: 1, limit: 75, gauge: 0x71A298, to: 2, notice: 0xD8, rank: 2 },
-    Up { level: 0x71A348, from: 2, limit: 90, gauge: 0x71A298, to: 3, notice: 0xD9, rank: 3 },
-    Up { level: 0x71A348, from: 3, limit: 100, gauge: 0x71A298, to: 4, notice: 0xDA, rank: 4 },
-    Up { level: 0x71A34C, from: 0, limit: 50, gauge: 0x71A29C, to: 1, notice: 0xDB, rank: 1 },
-    Up { level: 0x71A34C, from: 1, limit: 75, gauge: 0x71A29C, to: 2, notice: 0xDB, rank: 2 },
-    Up { level: 0x71A34C, from: 2, limit: 90, gauge: 0x71A29C, to: 3, notice: 0xDC, rank: 3 },
-    Up { level: 0x71A34C, from: 3, limit: 100, gauge: 0x71A29C, to: 4, notice: 0xDD, rank: 4 },
-    Up { level: 0x71A350, from: 0, limit: 50, gauge: 0x71A2A0, to: 1, notice: 0xDE, rank: 1 },
-    Up { level: 0x71A350, from: 1, limit: 75, gauge: 0x71A2A0, to: 2, notice: 0xDE, rank: 2 },
-    Up { level: 0x71A350, from: 2, limit: 90, gauge: 0x71A2A0, to: 3, notice: 0xDF, rank: 3 },
-    Up { level: 0x71A350, from: 3, limit: 100, gauge: 0x71A2A0, to: 4, notice: 0xE0, rank: 4 },
-    Up { level: 0x71A354, from: 0, limit: 50, gauge: 0x71A2A4, to: 1, notice: 0xE1, rank: 1 },
-    Up { level: 0x71A354, from: 1, limit: 75, gauge: 0x71A2A4, to: 2, notice: 0xE1, rank: 2 },
-    Up { level: 0x71A354, from: 2, limit: 90, gauge: 0x71A2A4, to: 3, notice: 0xE2, rank: 3 },
-    Up { level: 0x71A354, from: 3, limit: 100, gauge: 0x71A2A4, to: 4, notice: 0xE3, rank: 4 },
-    Up { level: 0x71A358, from: 0, limit: 50, gauge: 0x71A2CC, to: 1, notice: 0xE4, rank: 1 },
-    Up { level: 0x71A358, from: 1, limit: 75, gauge: 0x71A2CC, to: 2, notice: 0xE4, rank: 2 },
-    Up { level: 0x71A358, from: 2, limit: 90, gauge: 0x71A2CC, to: 3, notice: 0xE5, rank: 3 },
-    Up { level: 0x71A358, from: 3, limit: 100, gauge: 0x71A2CC, to: 4, notice: 0xE6, rank: 4 },
-    Up { level: 0x71A35C, from: 0, limit: 50, gauge: 0x71A2E4, to: 1, notice: 0xE7, rank: 1 },
-    Up { level: 0x71A35C, from: 1, limit: 75, gauge: 0x71A2E4, to: 2, notice: 0xE7, rank: 2 },
-    Up { level: 0x71A35C, from: 2, limit: 90, gauge: 0x71A2E4, to: 3, notice: 0xE8, rank: 3 },
-    Up { level: 0x71A35C, from: 3, limit: 100, gauge: 0x71A2E4, to: 4, notice: 0xE9, rank: 4 },
-    Up { level: 0x71A360, from: 0, limit: 50, gauge: 0x71A2E8, to: 1, notice: 0xEA, rank: 1 },
-    Up { level: 0x71A360, from: 1, limit: 75, gauge: 0x71A2E8, to: 2, notice: 0xEA, rank: 2 },
-    Up { level: 0x71A360, from: 2, limit: 90, gauge: 0x71A2E8, to: 3, notice: 0xEB, rank: 3 },
-    Up { level: 0x71A360, from: 3, limit: 100, gauge: 0x71A2E8, to: 4, notice: 0xEC, rank: 4 },
-    Up { level: 0x71A364, from: 0, limit: 50, gauge: 0x71A308, to: 1, notice: 0xED, rank: 1 },
-    Up { level: 0x71A364, from: 1, limit: 75, gauge: 0x71A308, to: 2, notice: 0xED, rank: 2 },
-    Up { level: 0x71A364, from: 2, limit: 90, gauge: 0x71A308, to: 3, notice: 0xEE, rank: 3 },
-    Up { level: 0x71A364, from: 3, limit: 100, gauge: 0x71A308, to: 4, notice: 0xEF, rank: 4 },
-    Up { level: 0x71A368, from: 0, limit: 50, gauge: 0x71A328, to: 1, notice: 0xF0, rank: 1 },
-    Up { level: 0x71A368, from: 1, limit: 75, gauge: 0x71A328, to: 2, notice: 0xF0, rank: 2 },
-    Up { level: 0x71A368, from: 2, limit: 90, gauge: 0x71A328, to: 3, notice: 0xF1, rank: 3 },
-    Up { level: 0x71A368, from: 3, limit: 100, gauge: 0x71A328, to: 4, notice: 0xF2, rank: 4 },
-    Up { level: 0x71A374, from: 0, limit: 50, gauge: 0x71A31C, to: 1, notice: 0xF3, rank: 1 },
-    Up { level: 0x71A374, from: 1, limit: 75, gauge: 0x71A31C, to: 2, notice: 0xF3, rank: 2 },
-    Up { level: 0x71A374, from: 2, limit: 90, gauge: 0x71A31C, to: 3, notice: 0xF4, rank: 3 },
-    Up { level: 0x71A374, from: 3, limit: 100, gauge: 0x71A31C, to: 4, notice: 0xF5, rank: 4 },
-    Up { level: 0x71A36C, from: 0, limit: 50, gauge: 0x71A304, to: 1, notice: 0xF6, rank: 1 },
-    Up { level: 0x71A36C, from: 1, limit: 75, gauge: 0x71A304, to: 2, notice: 0xF6, rank: 2 },
-    Up { level: 0x71A36C, from: 2, limit: 90, gauge: 0x71A304, to: 3, notice: 0xF7, rank: 3 },
-    Up { level: 0x71A3A4, from: 0, limit: 100, gauge: 0x71A2EC, to: 1, notice: 0xF8, rank: 1 },
-    Up { level: 0x71A3A8, from: 0, limit: 100, gauge: 0x71A2F0, to: 1, notice: 0xF9, rank: 1 },
-    Up { level: 0x71A3AC, from: 0, limit: 100, gauge: 0x71A2F4, to: 1, notice: 0xFA, rank: 1 },
-    Up { level: 0x71A3B0, from: 0, limit: 100, gauge: 0x71A2F8, to: 1, notice: 0xFB, rank: 1 },
-    Up { level: 0x71A3B4, from: 0, limit: 100, gauge: 0x71A2FC, to: 1, notice: 0xFC, rank: 1 },
-    Up { level: 0x71A3B8, from: 0, limit: 100, gauge: 0x71A300, to: 1, notice: 0xFD, rank: 1 },
-    Up { level: 0x71A3BC, from: 0, limit: 101, gauge: 0x71A2D0, to: 1, notice: 0xFE, rank: 1 },
-    Up { level: 0x71A3C0, from: 0, limit: 101, gauge: 0x71A2D4, to: 1, notice: 0xFF, rank: 1 },
-    Up { level: 0x71A3C4, from: 0, limit: 101, gauge: 0x71A2D8, to: 1, notice: 0x100, rank: 1 },
-    Up { level: 0x71A3C8, from: 0, limit: 101, gauge: 0x71A2DC, to: 1, notice: 0x101, rank: 1 },
-    Up { level: 0x71A370, from: 0, limit: 50, gauge: 0x71A33C, to: 1, notice: 0x102, rank: 1 },
-    Up { level: 0x71A370, from: 1, limit: 75, gauge: 0x71A33C, to: 2, notice: 0x102, rank: 2 },
-    Up { level: 0x71A370, from: 2, limit: 90, gauge: 0x71A33C, to: 3, notice: 0x103, rank: 3 },
-    Up { level: 0x71A378, from: 0, limit: 100, gauge: 0x71A2A8, to: 1, notice: 0x104, rank: 1 },
-    Up { level: 0x71A37C, from: 0, limit: 100, gauge: 0x71A2B0, to: 1, notice: 0x105, rank: 1 },
-    Up { level: 0x71A380, from: 0, limit: 100, gauge: 0x71A2B4, to: 1, notice: 0x106, rank: 1 },
-    Up { level: 0x71A384, from: 0, limit: 100, gauge: 0x71A2B8, to: 1, notice: 0x107, rank: 1 },
-    Up { level: 0x71A388, from: 0, limit: 100, gauge: 0x71A2BC, to: 1, notice: 0x108, rank: 1 },
-    Up { level: 0x71A38C, from: 0, limit: 100, gauge: 0x71A2C0, to: 1, notice: 0x109, rank: 1 },
-    Up { level: 0x71A390, from: 0, limit: 100, gauge: 0x71A2C4, to: 1, notice: 0x10A, rank: 1 },
-    Up { level: 0x71A394, from: 0, limit: 100, gauge: 0x71A2C8, to: 1, notice: 0x10B, rank: 1 },
-];
-
+// Converted: `rc2k_core::physics::damage_notices::damage_notices`.
 fn steps(r: &mut Regs) -> Result<(), Refused> {
-    for step in STEPS {
-        let (level, from, limit, gauge) = match step {
-            Up {
-                level,
-                from,
-                limit,
-                gauge,
-                ..
-            }
-            | Down {
-                level,
-                from,
-                limit,
-                gauge,
-                ..
-            } => (level, from, limit, gauge),
-        };
-        if g(level) != from {
-            continue;
-        }
-        p(LIMIT, from_int(limit));
-        let below = c0(g(gauge), g(LIMIT));
-        match step {
-            Up {
-                to, notice, rank, ..
-            } if !below => {
-                p(level, to);
-                r.esi = notice;
-                r.eax = g(gauge);
-                r.ebx = rank;
-                unsafe { queue_notice(r) }?.apply(r);
-            }
-            Down { to, .. } if below => p(level, to),
-            _ => {}
-        }
+    let mut levels: [u32; LEVELS] = std::array::from_fn(|k| g(LEVELS_AT + 4 * k));
+    let result = damage_notices_core(
+        &mut levels,
+        |k| f32::from_bits(g(GAUGES_AT + 4 * k)),
+        |t| p(LIMIT, from_int(t)),
+        |q| {
+            r.esi = q.notice;
+            r.eax = g(GAUGES_AT + 4 * q.gauge);
+            r.ebx = q.rank;
+            unsafe { queue_notice(r) }?.apply(r);
+            Ok::<(), Refused>(())
+        },
+    );
+    for (k, &v) in levels.iter().enumerate() {
+        p(LEVELS_AT + 4 * k, v);
     }
-    Ok(())
+    result
 }
 
 /// What it writes: the levels, the threshold, the queue.

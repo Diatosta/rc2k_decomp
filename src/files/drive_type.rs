@@ -29,13 +29,16 @@ hook_asm!(
     original = ORIGINAL
 );
 
-pub const CD_ROM: u32 = 5;
+pub const CD_ROM: u32 = rc2k_core::files::paths::CD_ROM;
 
 // ---- Rust version ----
 
 /// The root that is asked about: `x:\`, or none for the current drive.
 pub unsafe fn drive_root(letter: u8) -> Option<[u8; 4]> {
-    (letter != 0).then(|| unsafe { [game_read::<u8>(LOWER_RVA + letter as usize), b':', b'\\', 0] })
+    // Converted: `rc2k_core::files::paths::drive_root`.
+    rc2k_core::files::paths::drive_root(letter, |l| unsafe {
+        game_read::<u8>(LOWER_RVA + l as usize)
+    })
 }
 
 pub unsafe fn drive_type(letter: u8) -> u32 {

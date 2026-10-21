@@ -44,10 +44,10 @@ pub static HOOK: RawHook = RawHook::new(
 
 /// The Rust version: eax.
 pub fn player_found(args: &[u32], part: Part) -> Result<u32, Refused> {
-    let count = g(PLAYERS);
-    if count >= 8 {
+    // Converted: `rc2k_core::net::lists::player_found`.
+    let Some(count) = rc2k_core::net::lists::player_found(g(PLAYERS)) else {
         return Ok(0);
-    }
+    };
     p(PLAYERS, count + 1);
     let at = block(count);
     unsafe { ((at + field!(NetPlayerBlock, id)) as *mut u32).write_unaligned(args[0]) };

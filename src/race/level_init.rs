@@ -202,28 +202,32 @@ pub unsafe fn build_texture_infos(entry: &Regs, v: &Vars) -> Result<Regs, Refuse
                 return Err(BadInput("a texture kind past the course info").into());
             }
         }
+        // Converted: `rc2k_core::race::stage::texture_info`.
         for n in 0..TEXTURES {
             let out = v.texture_infos + n * 0x40;
             let kind = get(v.texture_kinds + 4 * n);
-            put(out + 0x24, kind & 0xF);
-            put(out + 0x20, kind >> 4);
             let rec = info + kind * 0x80;
-            put(out + 0x10, get(rec + 0x20));
-            put(out + 0x14, get(rec + 0x10));
-            put(out + 0x18, get(rec + 0x14));
-            let byte = |at: u32| *(at as *const u8);
-            *((out + 0x1C) as *mut u8) = byte(rec + 0x18);
-            for k in 0..3 {
-                *((out + 0x2C + k) as *mut u8) = byte(rec + 0x24 + k);
+            let t = rc2k_core::race::stage::texture_info(
+                kind,
+                |o| get(rec + o),
+                |o| *((rec + o) as *const u8),
+            );
+            put(out + 0x24, t.row);
+            put(out + 0x20, t.group);
+            for (k, &value) in t.values.iter().enumerate() {
+                put(out + 0x10 + 4 * k as u32, value);
             }
-            for k in 0..4 {
-                put(out + 4 * k, get(rec + 4 * k));
+            *((out + 0x1C) as *mut u8) = t.byte;
+            for (k, &b) in t.bytes.iter().enumerate() {
+                *((out + 0x2C + k as u32) as *mut u8) = b;
             }
-            let marked = (kind >> 4) | 0x8000_0000;
-            put(out + 0x28, marked);
+            for (k, &value) in t.first.iter().enumerate() {
+                put(out + 4 * k as u32, value);
+            }
+            put(out + 0x28, t.marked);
             g.esi = out;
             g.edi = rec;
-            g.eax = marked;
+            g.eax = t.marked;
         }
         g.ecx = TEXTURES;
     }

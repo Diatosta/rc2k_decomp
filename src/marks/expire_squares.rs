@@ -13,7 +13,6 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
@@ -40,7 +39,9 @@ const RUNS_RVA: usize = rva(0x833D7E); // g_marksMaskRunCount
 const MASKS_RVA: [usize; 2] = [rva(0x833DC2), rva(0x83BDC2)]; // g_marksMaskA / B
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::marks::expiry::{cell, square_ends}`
 pub unsafe fn expire_squares(entry: &Regs) -> Regs {
+    use rc2k_core::marks::expiry;
     let mut g = *entry;
     unsafe {
         g.eax = game_read(SHAPES_RVA[0]);
@@ -52,18 +53,16 @@ pub unsafe fn expire_squares(entry: &Regs) -> Regs {
             if (e as *const u32).read_unaligned() != 1 {
                 continue;
             }
-            let z = x87::to_int(((e + 0x24) as *const u32).read_unaligned());
-            let x = x87::to_int(((e + 0x20) as *const u32).read_unaligned());
-            game_write(PLACE_RVA[1], z);
-            game_write(PLACE_RVA[0], x);
-            g.ecx = ((x as u32) >> 3) & 0xFF;
-            g.edx = ((((z as u32) >> 3) & 0x7F) << 8) + g.ecx;
-            if game_read::<u8>(MASKS_RVA[0] + g.edx as usize) == al {
-                (e as *mut u32).write_unaligned(0);
-            }
-            if game_read::<i32>(RUNS_RVA) > 1
-                && game_read::<u8>(MASKS_RVA[1] + g.edx as usize) == al
-            {
+            let f = |o: u32| f32::from_bits(((e + o) as *const u32).read_unaligned());
+            let c = expiry::cell(f(0x20), f(0x24));
+            game_write(PLACE_RVA[1], c.z);
+            game_write(PLACE_RVA[0], c.x);
+            [g.ecx, g.edx] = [c.column, c.at];
+            if expiry::square_ends(
+                al,
+                || game_read(RUNS_RVA),
+                |n| game_read(MASKS_RVA[n] + c.at as usize),
+            ) {
                 (e as *mut u32).write_unaligned(0);
             }
         }

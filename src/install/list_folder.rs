@@ -15,6 +15,7 @@ use crate::install::installer::{
     DIR_COUNT, DIR_CURSOR, DIR_SCAN, DIRS, Part, RESOLVE_PATH, at, fatal, g, p, region, str_append,
 };
 use crate::race::viewer::Saved;
+use rc2k_core::install::script;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -29,8 +30,6 @@ hook_asm!(
     original = ORIGINAL
 );
 
-const DIRS_ROOM: u32 = 0x10000;
-
 pub fn list_folder(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
     part(at(RESOLVE_PATH), &mut r)?;
@@ -40,9 +39,13 @@ pub fn list_folder(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     p(DIR_CURSOR, r.ebx);
     p(DIR_SCAN, r.ebx);
     p(DIR_COUNT, g(DIR_COUNT).wrapping_add(1));
-    if r.ebx.wrapping_sub(g(DIRS)) >= DIRS_ROOM {
-        return Err(fatal(0x80AF_2205));
-    }
+    // Converted: `rc2k_core::install::script::room_left`.
+    script::room_left(
+        r.ebx.wrapping_sub(g(DIRS)),
+        script::FOLDERS_ROOM,
+        script::FOLDERS_FULL,
+    )
+    .map_err(fatal)?;
     Ok(Regs { ..*entry })
 }
 

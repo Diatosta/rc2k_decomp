@@ -33,6 +33,7 @@ use crate::physics::place_sound_object::place_sound_object;
 use crate::scene::matrix3::test_floats;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use rc2k_core::drive::lit_faces::{LIST_ROOM, Touch, fall_mark, lucky, touch};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -71,6 +72,7 @@ fn mark(face: u32, mark: u32, clear_9: bool) -> u32 {
 }
 
 /// The Rust version.
+// Converted: `rc2k_core::drive::lit_faces::{touch, fall_mark, lucky}`.
 pub unsafe fn touch_face() -> Result<Left, Refused> {
     let number = g(FACE);
     let face = (number << 6).wrapping_add(g(FACES));
@@ -80,10 +82,10 @@ pub unsafe fn touch_face() -> Result<Left, Refused> {
     }
     let count = g(LIT_COUNT);
     let left = left.with(EDX, count);
-    if count == 0x100 {
+    if count == LIST_ROOM {
         return Ok(left);
     }
-    if count > 0x100 {
+    if count > LIST_ROOM {
         return Err(BadInput("g_litFaceCount past 0x100 (the list's room)").into());
     }
     let all = [
@@ -94,24 +96,24 @@ pub unsafe fn touch_face() -> Result<Left, Refused> {
     let eax = guard(&all, || {
         p(LIT + 4 * count as usize, number);
         let kind = g(KIND);
-        let eax = match kind {
-            9 | 1 => {
+        let eax = match touch(kind) {
+            Touch::MarkIfFast => {
                 if c0(g(0x71A19C), g(0x5C5D50)) {
                     return Ok(kind);
                 }
                 mark(face, 1, true)
             }
-            2 | 3 | 8 => mark(face, 1, true),
-            4 => mark(face, (g(0x6D3B74) >> 14).min(0x40), false),
-            0xFF => {
-                let r = unsafe { next_random() } & 0xFF;
-                if r < 3 {
+            Touch::Mark => mark(face, 1, true),
+            Touch::Fall => mark(face, fall_mark(g(0x6D3B74)), false),
+            Touch::Chance => {
+                let (r, lucky) = lucky(unsafe { next_random() });
+                if lucky {
                     put(face + 0x11, 0xF);
                     p(LIT_COUNT, count + 1);
                 }
                 return Ok(r);
             }
-            _ => kind,
+            Touch::Sound => kind,
         };
         unsafe { place_sound_object() }?;
         p(LIT_COUNT, count + 1);

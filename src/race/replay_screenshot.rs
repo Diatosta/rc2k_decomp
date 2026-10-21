@@ -62,20 +62,12 @@ pub unsafe fn replay_screenshot(entry: &Regs, part: Part) -> Result<Regs, Refuse
         }
         let kept: u32 = game_read(PICTURE_NAME_RVA);
         r.eax = game_addr(NAME_RVA) as u32;
-        r.ecx = 5;
-        loop {
-            r.ebx = r.ecx.wrapping_add(r.eax).wrapping_add(4);
-            let digit = r.ebx as *mut u8;
-            *digit = (*digit).wrapping_add(1);
-            if *digit <= b'9' {
-                break;
-            }
-            *digit = b'0';
-            r.ecx = r.ecx.wrapping_sub(1);
-            if (r.ecx as i32) < 0 {
-                break;
-            }
-        }
+        // Converted: `rc2k_core::race::viewer::count_up` (the name's six digits from +4).
+        let digits = (r.eax + 4) as *mut [u8; 6];
+        let (counted, last, ecx) = rc2k_core::race::viewer::count_up(digits.read());
+        digits.write(counted);
+        r.ebx = r.eax + 4 + last as u32;
+        r.ecx = ecx;
         game_write(PICTURE_NAME_RVA, r.eax);
         let saved = (|| {
             part(1, &mut r)?;

@@ -56,10 +56,8 @@ pub fn lets_race(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     r.esi = g(CAR_BLOCKS + 4 * r.eax as usize);
     let get = |offset: u32| unsafe { ((r.esi + offset) as *const u32).read_unaligned() };
     r.eax = get(0x88);
-    r.ebx = get(0xB0);
-    if r.ebx != u32::MAX {
-        r.ebx = 0;
-    }
+    // Converted: `rc2k_core::net::record::not_finished`.
+    r.ebx = rc2k_core::net::record::not_finished(get(0xB0));
     Ok(r)
 }
 

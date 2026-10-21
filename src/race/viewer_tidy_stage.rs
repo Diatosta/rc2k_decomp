@@ -55,20 +55,34 @@ const LOADED: usize = 0x5BECC0; // dword_5BECC0
 
 /// The Rust version: the registers it leaves (the entry's).
 pub fn viewer_tidy_stage(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::viewer_flow::{tidies, TIDY_FIRST, frees_fonts,
+    // TIDY_AFTER}` (the fonts' switch read after the first steps, as the original).
+    use rc2k_core::race::viewer_flow::{TIDY_AFTER, TIDY_FIRST, TidyStep, frees_fonts, tidies};
+    let place = |step| match step {
+        TidyStep::TidyEverything => 1,
+        TidyStep::MenuScreenMode => 2,
+        TidyStep::LoadingPicture => 3,
+        TidyStep::ClearRaceSounds => 4,
+        TidyStep::SoundSettings => 5,
+        TidyStep::FreeFonts => 6,
+        TidyStep::SetUpEngine => 7,
+        TidyStep::SetUpFrontEnd => 8,
+        TidyStep::TakeKey => 9,
+    };
     let mut r = *entry;
-    if get(LOADED) == 1 {
+    if tidies(get(LOADED)) {
         put(LOADED, 0);
-        for place in 1..=5 {
-            part(place, &mut r)?;
+        for step in TIDY_FIRST {
+            part(place(step), &mut r)?;
         }
-        if get(FONTS_BUILT) == 1 {
-            part(6, &mut r)?;
+        if frees_fonts(get(FONTS_BUILT)) {
+            part(place(TidyStep::FreeFonts), &mut r)?;
         }
-        for place in [7, 8, 7] {
-            part(place, &mut r)?;
+        for step in TIDY_AFTER {
+            part(place(step), &mut r)?;
         }
     }
-    part(9, &mut r)?;
+    part(place(TidyStep::TakeKey), &mut r)?;
     Ok(*entry)
 }
 

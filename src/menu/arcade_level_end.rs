@@ -14,7 +14,7 @@
 //! whose calls go to stand-ins, against the Rust version: lost, won the first time, won
 //! again.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{
     RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva,
 };
@@ -55,20 +55,19 @@ const SECRET_CARS_RVA: usize = rva(0x75A12E); // off_75A12E
 pub unsafe fn arcade_level_end(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     unsafe {
         let mut r = *entry;
-        if game_read::<u32>(WON_RVA) != 1 {
+        // Converted: `rc2k_core::menu::arcade` (`won`, `won_level`, `first_win`).
+        use rc2k_core::menu::arcade::{first_win, won, won_level};
+        if !won(game_read(WON_RVA)) {
             part(0, &mut r)?;
             part(1, &mut r)?;
             game_write(RETRY_RVA, 1u32);
             return Ok(*entry);
         }
-        let level: u32 = game_read(LEVEL_RVA);
-        if level > 5 {
-            return Err(BadInput("an arcade level past 5").into());
-        }
+        let level = won_level(game_read(LEVEL_RVA))?;
         part(2, &mut r)?;
         part(3, &mut r)?;
         r.eax = level;
-        if game_read::<u8>(DONE_RVA + level as usize) == 0 {
+        if first_win(game_read(DONE_RVA + level as usize)) {
             game_write(DONE_RVA + level as usize, 1u8);
             r.esi = game_addr(SECRET_CARS_RVA) as u32;
             part(4, &mut r)?;

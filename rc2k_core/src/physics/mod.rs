@@ -1,24 +1,46 @@
 //! The cars' physics: the rules of the work copy's state (gearbox, start, notices,
 //! splits, ...) as plain Rust.
 
+pub mod camera_ground;
+pub mod camera_place;
 pub mod camera_view;
 pub mod car_events;
+pub mod car_specs;
 pub mod car_word;
+pub mod clear_place;
+pub mod contacts;
+pub mod course_records;
+pub mod damage_notices;
 pub mod drive_forces;
 pub mod easing;
 pub mod engine;
+pub mod face_contacts;
 pub mod faces;
+pub mod gear_shifts;
 pub mod gearbox;
 pub mod gearing;
 pub mod grades;
 pub mod ground;
+pub mod ground_search;
+pub mod handling;
+pub mod lighting;
+pub mod limits;
+pub mod line_places;
 pub mod listed_cars;
 pub mod motion;
 pub mod notices;
+pub mod pace_calls;
+pub mod parts;
 pub mod patches;
+pub mod progress;
+pub mod pushes;
+pub mod saved_car;
 pub mod sound_bands;
+pub mod sound_places;
+pub mod sound_queue;
 pub mod splits;
 pub mod springs;
 pub mod start;
+pub mod walls;
 pub mod wheels;
 pub mod x87;

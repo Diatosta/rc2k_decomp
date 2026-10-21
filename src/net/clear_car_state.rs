@@ -24,65 +24,10 @@ hook_asm!(
     original = ORIGINAL
 );
 
-/// The block's dwords written, in the original's order, and what goes in them.
-const WRITES: [(u32, u32); 52] = [
-    (0x2B8, 0),
-    (0x2BC, 0),
-    (0x310, 0),
-    (0x2C0, 0),
-    (0x2C4, 0),
-    (0x330, 0),
-    (0x2C8, 0),
-    (0x2CC, 0),
-    (0x344, 0),
-    (0x364, 0),
-    (0x350, 0),
-    (0x32C, 0),
-    (0x2F4, 0),
-    (0x30C, 0),
-    (0x2D0, 0),
-    (0x2D8, 0),
-    (0x2DC, 0),
-    (0x2E0, 0),
-    (0x2E4, 0),
-    (0x2E8, 0),
-    (0x2EC, 0),
-    (0x2F0, 0),
-    (0x2F8, 0),
-    (0x2FC, 0),
-    (0x300, 0),
-    (0x304, 0),
-    (0x308, 0),
-    (0x314, 0),
-    (0x318, 0),
-    (0x31C, 0),
-    (0x320, 0),
-    (0x324, 0),
-    (0x328, 0),
-    (0x334, 0),
-    (0x338, 0),
-    (0x33C, 0),
-    (0x340, 0),
-    (0x348, 0),
-    (0x34C, 0),
-    (0x354, 0),
-    (0x358, 0),
-    (0x35C, 0),
-    (0x360, 0),
-    (0x64, 0),
-    (0x68, 0),
-    (0x6C, 0),
-    (0x70, 0),
-    (0x74, 0),
-    (0x78, 0),
-    (0x7C, 0),
-    (0x80, 0),
-    (0x298, 0xFFFF_FFFF),
-];
-
 /// The Rust version on the block at `block`.
 pub fn clear_block(block: u32) {
-    for (offset, v) in WRITES {
+    // Converted: `rc2k_core::net::cars::CLEARED`.
+    for (offset, v) in rc2k_core::net::cars::CLEARED {
         unsafe { ((block + offset) as *mut u32).write_unaligned(v) };
     }
 }

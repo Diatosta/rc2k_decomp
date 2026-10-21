@@ -13,7 +13,7 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::race::viewer::{
     BLOCKS, CAMERAS, PLACES, Saved, TABLE_LEN, UNDO_BLOCKS, UNDO_CAMERAS, UNDO_PLACES,
-    check_original, dispatch_regs, dword, fill, get, move_dwords, put, region,
+    check_original, dispatch_regs, dword, fill, get, put, region, table,
 };
 use crate::service::harness::Region;
 use std::sync::atomic::AtomicUsize;
@@ -32,9 +32,15 @@ hook_asm!(
 
 /// The Rust version.
 pub fn keep_undo() {
+    // Converted: `rc2k_core::race::viewer_flow::copy_tables`.
     put(UNDO_BLOCKS, get(BLOCKS));
-    move_dwords(UNDO_PLACES, PLACES, TABLE_LEN / 4);
-    move_dwords(UNDO_CAMERAS, CAMERAS, TABLE_LEN / 4);
+    let n = TABLE_LEN / 4;
+    unsafe {
+        rc2k_core::race::viewer_flow::copy_tables(
+            (table(UNDO_PLACES, n), table(UNDO_CAMERAS, n)),
+            (table(PLACES, n), table(CAMERAS, n)),
+        );
+    }
 }
 
 pub fn regions() -> Vec<Region> {

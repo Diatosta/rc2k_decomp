@@ -5,7 +5,7 @@
 //! In:  nothing
 //! Out: the registers as the sort leaves them (a `call` follows)
 //!
-//! The sort is the original's step for step (`quick_sort` in `race/frame_draw.rs`): its
+//! The sort is the original's step for step (`rc2k_core::race::quick_sort`): its
 //! first scan moves on only past an entry above the pivot, and equal entries after a swap
 //! move the left end on; the result keeps the original's order of equal keys. Caller:
 //! `sub_4557AB`. Shadow mode: by state (the list). Self-test: the list filled from seeds
@@ -38,8 +38,9 @@ fn regions() -> Vec<Region> {
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
+    // Converted: `rc2k_core::race::quick_sort::quick_sort`.
     Ok(all_regs(&unsafe {
-        sort_entries(r, DEPTH_COUNT_RVA, ENTRIES)
+        sort_entries(r, DEPTH_COUNT_RVA, ENTRIES)?
     }))
 }
 

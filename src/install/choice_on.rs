@@ -10,9 +10,10 @@
 //! Callers `install::key_down`, `install::key_right`. Shadow mode compares. Self-test:
 //! items of the test's against the original.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::install::installer::{CF, ZF, rb, rd, wb};
+use crate::install::choice_back::{choice_places, store_choice};
+use crate::install::installer::{CF, ZF, rb, rd};
 use crate::race::viewer::dispatch_regs;
 use std::sync::atomic::AtomicUsize;
 
@@ -30,26 +31,12 @@ hook_asm!(
 
 pub fn choice_on(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
-    r.edx = rd(r.esi + 8);
-    r.ebx = rd(r.esi + 0xC);
-    let mut cl = rb(r.edx);
-    for _ in 0..crate::install::choice_back::ROUND {
-        cl = cl.wrapping_add(1);
-        if cl >= rb(r.esi + 1) {
-            cl = 0;
-        }
-        let free = rb(r.ebx.wrapping_add(2 * cl as u32 + 1)) & 0xC0 == 0;
-        if cl == rb(r.edx) || free {
-            if cl != rb(r.edx) {
-                wb(r.edx, cl);
-            }
-            r.ecx = cl as u32;
-            r.set_zero(true);
-            r.set_carry(false);
-            return Ok(r);
-        }
-    }
-    Err(BadInput("every choice marked and the chosen one past them").into())
+    let free = choice_places(&mut r);
+    let chosen = rb(r.edx);
+    // Converted: `rc2k_core::install::items::choice_on`.
+    let cl = rc2k_core::install::items::choice_on(chosen, || rb(entry.esi + 1), free)?;
+    store_choice(&mut r, chosen, cl);
+    Ok(r)
 }
 
 extern "C" fn dispatch(r: &mut Regs) {

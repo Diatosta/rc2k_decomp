@@ -17,6 +17,7 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::physics::flow::{a, g, p};
 use crate::service::harness::{capture, restore};
+use rc2k_core::drive::replay_frames::written_view;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -37,6 +38,7 @@ hook_asm!(
 );
 
 /// The Rust version.
+// Converted: `rc2k_core::drive::replay_frames::written_view`.
 pub unsafe fn write_replay_frames(entry: &Regs) -> Result<(), Refused> {
     if g(0x5BEC88) != 1 {
         return Ok(());
@@ -47,7 +49,7 @@ pub unsafe fn write_replay_frames(entry: &Regs) -> Result<(), Refused> {
     p(0x9613A8, 0);
     if g(0x719B34) != 1 {
         let at = a(0x9613A9) as *mut i8;
-        let v = unsafe { at.read() }.clamp(2, 3);
+        let v = written_view(unsafe { at.read() });
         unsafe { at.write(v) };
     }
     unsafe { crate::race::replay::write_replay_block(entry, &mut crate::race::replay::game_part) }?;

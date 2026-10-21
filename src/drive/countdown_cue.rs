@@ -8,7 +8,7 @@
 //! Refuses a current car past 7. Shadow mode runs the original alone (a sound command).
 //! Self-test: none (a sound command).
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::physics::flow::g;
 use std::sync::atomic::AtomicUsize;
@@ -26,13 +26,12 @@ hook_asm!(
 );
 
 /// The Rust version: eax.
+// Converted: `rc2k_core::physics::listed_cars::listed_entry`.
 pub fn countdown_cue(sound: u32) -> Result<u32, Refused> {
-    let car = g(0x71B3F8);
-    if car > 7 {
-        return Err(BadInput("a current car past 7").into());
-    }
-    let slot = g(0x641680 + 4 * car as usize);
-    if slot != u32::MAX {
+    let (slot, listed) = rc2k_core::physics::listed_cars::listed_entry(g(0x71B3F8), |car| {
+        g(0x641680 + 4 * car as usize)
+    })?;
+    if listed {
         crate::drive::countdown_sound::countdown_sound(slot, sound);
     }
     Ok(slot)

@@ -12,15 +12,15 @@
 //! Refuses (before anything) a car number past 7, a null sound object when it is
 //! written, an object past 0x100 or a kind past the 0x4B0 records.
 //! Self-test: `physics/car_sounds.rs` (`test_sound`): the original and the Rust version on
-//! the game's variables (saved and put back) with a test object, under three precisions.
+//! the game's variables (saved and put back) with a test object, exact at double precision.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, game_addr, hook_asm, rva};
-use crate::physics::car_sounds::{g, listed, object, place, put, test_sound};
+use crate::physics::car_sounds::{cue_plain, dispatch_placed, g, listed, object, test_sound};
 use crate::physics::sound_band_2::TWIN;
-use crate::physics::sound_bands::band_value;
+use crate::physics::sound_bands::band_value_plain;
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use rc2k_core::physics::sound_places::{FIRST, object_sound};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -41,22 +41,19 @@ hook_asm!(
 );
 
 /// The Rust version.
+// Converted: `rc2k_core::physics::sound_places::{object_sound, place}`.
 pub unsafe fn place_sound_object() -> Result<Left, Refused> {
     if !listed(g(0x71B3F8))? {
         return Ok(Left::nothing());
     }
-    let thing = g(0x6D321C);
-    if thing >= 0x100 {
-        return Err(BadInput("an object past 0x100").into());
-    }
-    let kind = g(0x5CD27C + 4 * thing as usize);
-    if kind >= 0x4B0 {
-        return Err(BadInput("a kind past the 0x4B0 records").into());
-    }
-    let byte = unsafe { *(game_addr(rva(0x97DF54 + 0x80 * kind as usize)) as *const u8) } as u32;
-    let sound = g(0x6D1A90 + 4 * (byte & 0xF) as usize);
+    let sound = object_sound(
+        g(0x6D321C),
+        |thing| g(0x5CD27C + 4 * thing as usize),
+        |kind| unsafe { *(game_addr(rva(0x97DF54 + 0x80 * kind as usize)) as *const u8) },
+        |n| g(0x6D1A90 + 4 * n as usize),
+    )?;
     let scratch = g(0x6D1AEC);
-    let b = unsafe { band_value(TWIN) };
+    let b = unsafe { band_value_plain(TWIN) };
     if b == 0 {
         return Ok(Left::nothing());
     }
@@ -68,12 +65,8 @@ pub unsafe fn place_sound_object() -> Result<Left, Refused> {
             return Err(e);
         }
     };
-    unsafe {
-        put(o + 0x238, sound);
-        put(o + 0x23C, b);
-        place(o, 0x240, Some([g(0x6D3B4C), g(0x6D3B50), g(0x6D3B54)]));
-        put(o + 0x10, 1);
-    }
+    let offset = Some([g(0x6D3B4C), g(0x6D3B50), g(0x6D3B54)]);
+    unsafe { cue_plain(o, FIRST, sound, b, offset) };
     Ok(Left::nothing())
 }
 
@@ -82,15 +75,7 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    let regions = match object() {
-        Ok(o) => vec![
-            (o + 0x10, 4),
-            (o + 0x238, 0x28),
-            (game_addr(rva(0x6D1AEC)) as u32, 4),
-        ],
-        Err(_) => vec![],
-    };
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
+    dispatch_placed(&HOOK, r, call_original, &[], &rust);
 }
 
 fn self_test() -> (usize, usize) {

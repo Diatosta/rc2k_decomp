@@ -9,16 +9,21 @@
 //! See `race/frame_draw.rs`. It begins with a call: private copy (0x24, its seven calls
 //! relocated), manual patch. Refuses (before anything) what `panel_neighbours` or
 //! `both_split_colours` would. Shadow mode: by state (the panel 0x6D13FE .. 0x6D14CA, the
-//! scratch dword, the labels, the lights and their flags, the colour buffers). Self-test:
-//! on the game's state with the outputs filled with 0xAA, the mode as it is and 0; all put
-//! back (skipped without view blocks or when the game's state would be refused).
+//! scratch dword, the labels, the lights and their flags, the colour buffers; the eight
+//! floats of `panel_values_plain` and `panel_motion_plain`, which it calls, within
+//! `FLOAT`). Self-test, at the test precisions: on the game's state with the outputs filled
+//! with 0xAA, the mode as it is and 0; all put back (skipped without view blocks or when
+//! the game's state would be refused).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::race::frame::VIEW_BLOCKS;
 use crate::race::frame_draw::*;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::floats::{
+    Floats, Tolerance, at_test_precisions, check_state_floats, dispatch_state_floats,
+};
+use crate::service::harness::{Region, at, capture, restore};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -52,11 +57,27 @@ fn regions() -> Vec<Region> {
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
+    // Converted: its float callees' `_plain` versions.
     Ok(all_regs(&unsafe { set_up_panel(r)? }))
 }
 
+/// The floats its callees write, within `FLOAT`.
+fn float_places() -> Vec<(Region, Tolerance)> {
+    let mut v: Vec<(Region, Tolerance)> = PANEL_FLOATS
+        .iter()
+        .map(|&a| (at(a), crate::service::floats::FLOAT))
+        .collect();
+    v.extend(motion_float_places());
+    v
+}
+
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+    let places = float_places();
+    let floats = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
 }
 
 fn self_test() -> (usize, usize) {
@@ -75,29 +96,38 @@ fn self_test() -> (usize, usize) {
     kept.push(at(MODE));
     let saved = capture(&kept);
     let mode: u32 = unsafe { game_read(MODE) };
-    for m in [mode, 0] {
-        unsafe { game_write(MODE, m) };
-        let refused = unsafe { set_up_panel(&Regs::SENTINEL) }.is_err();
-        restore(&kept, &saved);
-        if refused {
-            t.check(true, String::new);
-            continue;
+    let places = float_places();
+    let tolerant = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, floats| {
+        for m in [mode, 0] {
+            unsafe { game_write(MODE, m) };
+            let refused = unsafe { set_up_panel(&Regs::SENTINEL) }.is_err();
+            restore(&kept, &saved);
+            if refused {
+                t.check(true, String::new);
+                continue;
+            }
+            check_state_floats(
+                &mut t,
+                "race::set_up_panel",
+                &format!("control word {word:#x}, mode {m}"),
+                call_original,
+                Regs::SENTINEL,
+                &|| unsafe {
+                    for &(r, len) in &regions {
+                        std::ptr::write_bytes(r as *mut u8, 0xAA, len);
+                    }
+                    game_write(MODE, m);
+                },
+                &regions,
+                floats,
+                &rust,
+            );
         }
-        check_state(
-            &mut t,
-            &format!("mode {m}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                for &(r, len) in &regions {
-                    std::ptr::write_bytes(r as *mut u8, 0xAA, len);
-                }
-                game_write(MODE, m);
-            },
-            &regions,
-            &rust,
-        );
-    }
+    });
     restore(&kept, &saved);
     t.finish()
 }

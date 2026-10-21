@@ -15,6 +15,7 @@ use crate::framework::{RawHook, Regs, SelfTest, game_read, hook_asm, rva};
 use crate::install::installer::{CHOICE, DRIVE_LETTERS, PATH_PROBLEM, TYPED, a, g, gb, p, pb, rb};
 use crate::race::viewer::dispatch_regs;
 use crate::settings::find_key::LOWER_RVA;
+use rc2k_core::install::pages;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -33,29 +34,26 @@ pub fn drive_page(entry: &Regs) -> Regs {
     let mut r = *entry;
     if r.ebx == 0 {
         let letter: u8 = unsafe { game_read(LOWER_RVA + gb(TYPED) as usize) };
-        let mut ecx = 0u32;
         let letters = a(DRIVE_LETTERS);
-        while rb(letters + 0x10 * ecx) != letter && ecx < 0x1A {
-            ecx += 1;
-        }
-        r.ecx = ecx;
-        r.edx = letters + 0x10 * ecx;
-        r.eax = ecx.wrapping_add(2);
-        // cmp al, [edi+1]; jnb ret
-        if (r.eax as u8) < rb(r.edi + 1) {
-            p(CHOICE, r.eax);
+        // Converted: `rc2k_core::install::pages` (`drive_highlight`, `chosen_drive`).
+        let at = |n: u32| letters + pages::DRIVE_TEXT * n;
+        let (place, highlight) = pages::drive_highlight(letter, |n| rb(at(n)), rb(r.edi + 1));
+        r.ecx = place;
+        r.edx = at(place);
+        r.eax = place.wrapping_add(2);
+        if let Some(highlight) = highlight {
+            p(CHOICE, highlight);
         }
     }
     r.set_zero(false);
     r.set_carry(false);
     if (r.ebx as i32) < 0 {
-        r.eax = g(CHOICE);
         r.edx = a(DRIVE_LETTERS);
-        r.eax = r.eax.wrapping_sub(2);
-        r.set_carry((r.eax as i32) < 0);
-        if (r.eax as i32) >= 0 {
-            r.eax = r.eax.wrapping_mul(0x10);
-            r.eax = r.eax & !0xFF | rb(r.eax.wrapping_add(r.edx)) as u32;
+        let chosen = pages::chosen_drive(g(CHOICE));
+        r.eax = g(CHOICE).wrapping_sub(2);
+        r.set_carry(chosen.is_none());
+        if let Some(offset) = chosen {
+            r.eax = offset & !0xFF | rb(offset.wrapping_add(r.edx)) as u32;
             pb(TYPED, r.eax as u8);
             pb(0x95EBF9, b':');
             p(PATH_PROBLEM, 0);

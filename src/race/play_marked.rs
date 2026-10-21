@@ -53,28 +53,26 @@ pub fn play_tail(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 
 /// `play_marked`.
 pub fn play_marked(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    play_tail(
-        &Regs {
-            eax: get(MARK_IN),
-            ebx: get(MARK_OUT),
-            ecx: 0,
-            ..*entry
-        },
-        part,
-    )
+    // Converted: `rc2k_core::race::viewer_flow::marked_play`.
+    let play = rc2k_core::race::viewer_flow::marked_play(get(MARK_IN), get(MARK_OUT));
+    play_tail(&play_regs(entry, play), part)
+}
+
+/// The tail's registers for a play: eax the block, ebx the block to stop at, ecx the frame.
+fn play_regs(entry: &Regs, play: rc2k_core::race::viewer_flow::Play) -> Regs {
+    Regs {
+        eax: play.from,
+        ebx: play.end,
+        ecx: play.frame,
+        ..*entry
+    }
 }
 
 /// `play_from_here`.
 pub fn play_from_here(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    play_tail(
-        &Regs {
-            eax: get(BLOCK),
-            ebx: get(BLOCKS),
-            ecx: get(FRAME),
-            ..*entry
-        },
-        part,
-    )
+    // Converted: `rc2k_core::race::viewer_flow::play_from_here`.
+    let play = rc2k_core::race::viewer_flow::play_from_here(get(BLOCK), get(FRAME), get(BLOCKS));
+    play_tail(&play_regs(entry, play), part)
 }
 
 /// In the game: the Rust versions.

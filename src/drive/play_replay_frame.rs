@@ -31,14 +31,17 @@ hook_asm!(
 );
 
 /// The Rust version.
+// Converted: `rc2k_core::drive::race_steps::play_frame`.
 pub unsafe fn play_replay_frame(entry: &Regs) -> Result<Left, Refused> {
-    if g(0x5C5CE0) != 2 {
-        return Ok(Left::nothing());
-    }
     let mut r = *entry;
-    p(0x6EF7E0, g(0x5C2530));
-    p(0x6EF7E4, g(0x5C2534));
-    if g(0x6EF7E4) == 0 {
+    let Some(whole) = rc2k_core::drive::race_steps::play_frame(g(0x5C5CE0), || {
+        p(0x6EF7E0, g(0x5C2530));
+        p(0x6EF7E4, g(0x5C2534));
+        g(0x6EF7E4)
+    }) else {
+        return Ok(Left::nothing());
+    };
+    if whole {
         unsafe { crate::drive::load_replay_frame::load_replay_frame() }?.apply(&mut r);
         crate::drive::load_replay_cars::load_replay_cars().apply(&mut r);
     }

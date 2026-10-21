@@ -76,7 +76,8 @@ pub unsafe fn arcade_finale(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     p(0x75ACE8, f(8));
     p(0x75ACE4, 0);
     r.ebx = unsafe { game_read(rva(0x7587EC)) };
-    r.eax = 5u32.wrapping_sub(r.ebx);
+    // Converted: `rc2k_core::menu::arcade::levels_left`.
+    r.eax = rc2k_core::menu::arcade::levels_left(r.ebx);
     p(0x75B0FC, r.eax);
     p(0x75B108, 0);
     for place in ORDER {

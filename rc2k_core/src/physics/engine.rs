@@ -3,7 +3,9 @@
 //! the speed's share of its top, a curve of eight steps read by it, and the factors
 //! after; the cut at the top; the engine revving free; the drive's two figures of
 //! `physics::drive_force` 0x43CB14; and when `physics::share_engine_sound` 0x45D294
-//! passes the engine's figures to the car's sound object.
+//! passes the engine's figures to the car's sound object. The revs heard eased toward
+//! the engine's speed (converted 2026-10-21 from `physics::engine_sound` 0x43DC72; its
+//! speed figures and the rounding stay the hook's x87).
 //!
 //! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the
 //! original stores (`physics::x87`): the same bits at the game's double precision. The
@@ -175,9 +177,37 @@ pub fn shares_figures(figure: f32, kept: f32) -> bool {
     !below(figure as f64, kept as f64) && figure != kept
 }
 
+/// The revs heard (`g_car` +0x1E4) held to these (by the sign of the difference).
+pub const REVS_LOW: u32 = 2000;
+pub const REVS_HIGH: u32 = 12000;
+
+/// `physics::engine_sound`: the revs heard eased toward the engine's speed (`target`, the
+/// whole number the x87 made of it, at least `flt_6140F8`) by 50/256 of the gap (`imul`,
+/// `sar`), then held to `REVS_LOW` ..= `REVS_HIGH`. (the revs, the step: the original's
+/// eax).
+pub fn ease_revs(revs: u32, target: u32) -> (u32, u32) {
+    let step = ((target.wrapping_sub(revs).wrapping_mul(50)) as i32 >> 8) as u32;
+    let mut r = revs.wrapping_add(step);
+    if (r.wrapping_sub(REVS_LOW) as i32) < 0 {
+        r = REVS_LOW;
+    }
+    if (r.wrapping_sub(REVS_HIGH) as i32) >= 0 {
+        r = REVS_HIGH;
+    }
+    (r, step)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn revs() {
+        assert_eq!(ease_revs(3000, 3512), (3100, 100));
+        assert_eq!(ease_revs(3000, 0), (2414, (-586i32) as u32));
+        assert_eq!(ease_revs(2000, 0).0, REVS_LOW);
+        assert_eq!(ease_revs(11990, 20000).0, REVS_HIGH);
+    }
 
     #[test]
     fn torque() {

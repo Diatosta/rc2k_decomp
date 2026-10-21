@@ -26,6 +26,7 @@ hook_asm!(
 );
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::hud::signs` (through `signs_with`)
 pub unsafe fn draw_signs_1a(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     unsafe { signs_with(entry, 0xA4, 0xB4, 0xFFFFFF38, 0x70, 0x20, part) }
 }

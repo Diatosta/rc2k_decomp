@@ -56,8 +56,10 @@ pub fn draw_viewer_item(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         return Ok(*entry);
     }
     let mut picture = word(item + 0xC);
+    // Converted: `rc2k_core::race::viewer::{switch_byte, centred, item_colour}`.
+    use rc2k_core::race::viewer::{centred, item_colour, switch_byte};
     if picture == a(SWITCH_A) {
-        let n = camera_byte(if byte(1) == 0xE { 2 } else { 3 });
+        let n = camera_byte(switch_byte(byte(1)) as usize);
         picture = word(picture.wrapping_add(4 * n));
     }
     if picture == a(SWITCH_B) {
@@ -69,21 +71,15 @@ pub fn draw_viewer_item(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let place = word(item + 4);
     let width = (word(picture + 8) as i32).unsigned_abs();
     p(PLACE + 8, width);
-    p(
-        PLACE,
-        (((word(place + 8).wrapping_sub(width) as i32) >> 1) as u32).wrapping_add(word(place)),
-    );
+    p(PLACE, centred(word(place), word(place + 8), width));
     p(PLACE + 4, word(place + 4));
     p(PLACE + 0xC, word(place + 0xC));
-    let colour = if byte(0) & 0x80 != 0 {
-        0x0066_6666
-    } else if entry.ecx != g(CHOICE) {
-        0x00FF_FFFF
-    } else if g(CAMERA_EDIT) != 0 || g(FRAME_CLOCK).wrapping_sub(g(MOVE_CLOCK)) & 8 == 0 {
-        0x00FF_0000
-    } else {
-        0x00FF_FF00
-    };
+    let colour = item_colour(
+        byte(0),
+        entry.ecx == g(CHOICE),
+        || g(CAMERA_EDIT) != 0,
+        || g(FRAME_CLOCK).wrapping_sub(g(MOVE_CLOCK)),
+    );
     let mut r = Regs {
         eax: picture,
         ebx: a(PLACE),

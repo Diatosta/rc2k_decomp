@@ -2,8 +2,9 @@
 //! `sound::match_spot_voices` 0x40E642, `sound::exclusive_spot_voices` 0x40EAF3 and
 //! `sound::spot_voice_distances` 0x40E733; 2026-10-21 the pickers `sound::merge_spot_voices`
 //! 0x40E809 and `thin_spot_voices` 0x40E9F8, `repeat_spot_voices` 0x40EB44 and
-//! `free_spot_voices` 0x40E6F4): 0x48 voices the race sound keeps in step with
-//! the spots the frame shares (a waterfall, the crowd: kinds 1 ..= 0x15).
+//! `free_spot_voices` 0x40E6F4, and `play_spot_voices` 0x40EB9E's choices): 0x48 voices
+//! the race sound keeps in step with the spots the frame shares (a waterfall, the crowd:
+//! kinds 1 ..= 0x15).
 
 use crate::Invalid;
 
@@ -15,6 +16,15 @@ pub const FREE: u32 = 0x1888_FFFF;
 pub const MOST_SPOTS: usize = 36;
 /// The last kind.
 pub const MOST_KIND: u32 = 0x15;
+
+/// The sounds whose voices are merged each turn, in order (converted 2026-10-21 from
+/// `sound::merge_spot_voices_all` 0x40E7CA).
+pub const MERGED_SOUNDS: [u32; 6] = [0x1B7, 0x1B8, 0x1BB, 0x1BC, 0x1C1, 0x1BF];
+/// The sounds whose voices are thinned each turn, in order (converted 2026-10-21 from
+/// `sound::thin_spot_voices_all` 0x40E97D).
+pub const THINNED_SOUNDS: [u32; 12] = [
+    0x1B1, 0x1B2, 0x1B3, 0x1B4, 0x1B5, 0x1B6, 0x1B9, 0x1BA, 0x1B0, 0x1BE, 0x1C0, 0x1C3,
+];
 
 /// A spot the frame shares.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -404,6 +414,62 @@ pub fn free_unheard<E>(
     Ok(())
 }
 
+/// What `sound::play_spot_voices` does with a voice heard this turn.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Played {
+    /// Told to start (+0x24 1): its settings and end worked out, playing.
+    Start,
+    /// Playing (+0x28 1): it goes on.
+    GoOn,
+    /// Neither: nothing sent.
+    Silent,
+}
+
+/// A heard voice's play this turn: `start` (+0x24) first, `playing` (+0x28) asked only
+/// when it is not told to start.
+pub fn played(start: u32, playing: impl FnOnce() -> u32) -> Played {
+    if start == 1 {
+        Played::Start
+    } else if playing() == 1 {
+        Played::GoOn
+    } else {
+        Played::Silent
+    }
+}
+
+/// A voice going on: its sound with bit 31 set (sent again without restarting it)
+/// unless its sample loops (the sample record's +0x14 is 1).
+pub fn going_on(sound: u32, looping: u32) -> u32 {
+    if looping != 1 {
+        sound | 0x8000_0000
+    } else {
+        sound
+    }
+}
+
+/// A started voice's end: its sample's duration from now, after its delay (wrapping).
+pub fn end_time(duration: u32, clock: u32, delay: u32) -> u32 {
+    duration.wrapping_add(clock).wrapping_add(delay)
+}
+
+/// Whether a voice's time is up: the clock at or past its end (`js`: a signed
+/// difference).
+pub fn time_up(clock: u32, end: u32) -> bool {
+    clock.wrapping_sub(end) as i32 >= 0
+}
+
+/// The request's dwords a voice fills, with the voice's offsets they come from, in order:
+/// the volume, the rate, the two factors, the place.
+pub const REQUEST_FROM: [(usize, u32); 7] = [
+    (2, 0x3C),
+    (1, 0x38),
+    (8, 0x48),
+    (9, 0x4C),
+    (3, 8),
+    (4, 0xC),
+    (5, 0x10),
+];
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -563,5 +629,16 @@ mod tests {
             (f[3].id, f[3].sound, f[4].sound, f[5].id),
             (FREE, 0xFFFF_FFFE, 9, FREE)
         );
+    }
+
+    #[test]
+    fn plays() {
+        assert_eq!(played(1, || unreachable!()), Played::Start);
+        assert_eq!(played(0, || 1), Played::GoOn);
+        assert_eq!(played(2, || 0), Played::Silent);
+        assert_eq!(going_on(5, 1), 5);
+        assert_eq!(going_on(5, 0), 0x8000_0005);
+        assert_eq!(end_time(100, 0xFFFF_FFF0, 0x20), 116);
+        assert!(time_up(10, 10) && !time_up(9, 10) && time_up(1, 0xFFFF_FFFF));
     }
 }

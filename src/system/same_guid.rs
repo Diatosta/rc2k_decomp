@@ -26,9 +26,9 @@ hook_asm!(
 
 /// The Rust version: whether the GUIDs at the two addresses are the same.
 pub fn same_guid(a: u32, b: u32) -> bool {
-    (0..4).all(|k| unsafe {
-        ((a + 4 * k) as *const u32).read_unaligned() == ((b + 4 * k) as *const u32).read_unaligned()
-    })
+    // Converted: `rc2k_core::system::machine::same_guid`.
+    let at = |base: u32| move |k: u32| unsafe { ((base + 4 * k) as *const u32).read_unaligned() };
+    rc2k_core::system::machine::same_guid(at(a), at(b))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {

@@ -20,6 +20,7 @@ use crate::net::lobby::{
     MAYBE_LEXICON, MOVE_CLOCK, Part, QUITTING, RUN_FRAME, SCREENSHOT, SCREENSHOTS_ON, Saved,
     answer, dispatch_lobby, dword, g, game, p, run_both, test_eax,
 };
+use rc2k_core::net::screens::{self, ListKey};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -40,33 +41,21 @@ const FRAME: u32 = 0x4175C7; // net::connections_frame
 /// A list's up (0x66) or down (0x6B) on a list of `count` items: the highlight and the top
 /// moved, as the original's eax and ebx leave them; false for another key.
 pub fn list_move(r: &mut Regs, key: u8, count: u32) -> bool {
-    match key {
-        0x66 => {
-            r.eax = g(CHOICE).wrapping_sub(1);
-            if (r.eax as i32) < 0 {
-                r.eax = 0;
-            }
-            p(CHOICE, r.eax);
-            r.eax = g(CHOICE_BEFORE);
-            if (r.eax as i32) > (g(CHOICE) as i32) {
-                r.eax = g(CHOICE);
-            }
-            p(CHOICE_BEFORE, r.eax);
+    // Converted: `rc2k_core::net::screens` (`ListKey`, `up`, `down`).
+    match ListKey::of(key) {
+        ListKey::Up => {
+            let (choice, top) = screens::up(g(CHOICE), g(CHOICE_BEFORE));
+            p(CHOICE, choice);
+            p(CHOICE_BEFORE, top);
+            r.eax = top;
             true
         }
-        0x6B => {
-            r.eax = g(CHOICE).wrapping_add(1);
-            r.ebx = count.wrapping_sub(1);
-            if (r.eax as i32) > (r.ebx as i32) {
-                r.eax = r.ebx;
-            }
-            p(CHOICE, r.eax);
-            r.eax = g(CHOICE_BEFORE);
-            r.ebx = g(CHOICE).wrapping_sub(0xF);
-            if (r.eax as i32) < (r.ebx as i32) {
-                r.eax = r.ebx;
-            }
-            p(CHOICE_BEFORE, r.eax);
+        ListKey::Down => {
+            let (choice, top) = screens::down(g(CHOICE), g(CHOICE_BEFORE), count);
+            p(CHOICE, choice);
+            p(CHOICE_BEFORE, top);
+            r.eax = top;
+            r.ebx = choice.wrapping_sub(screens::LIST_ROWS - 1);
             true
         }
         _ => false,
@@ -105,10 +94,10 @@ pub fn choose_connection(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         if list_move(&mut r, key, g(CONNECTIONS)) {
             r.ebx = g(FRAME_CLOCK);
             p(MOVE_CLOCK, r.ebx);
-        } else if key == 0x1C {
+        } else if ListKey::of(key) == ListKey::Enter {
             r.eax = g(CHOICE);
             return Ok(chosen(entry, &r));
-        } else if key == 1 {
+        } else if ListKey::of(key) == ListKey::Escape {
             break;
         } else {
             if g(SCREENSHOTS_ON) != 0 && key == 0x52 {

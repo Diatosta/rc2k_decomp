@@ -10,17 +10,20 @@
 //!
 //! Caller: `sub_441324` (its tail).
 //! Refuses (before anything) a null sound object.
-//! Self-test: the original and the Rust version on the game's variables (the place, the
-//! view matrix and the object table saved and put back) with a test object, under three
-//! precisions.
+//! Self-test: the original and the converted version on the game's variables (the place,
+//! the view matrix and the object table saved and put back) with a test object, exact at
+//! double precision, the place within `FLOAT` at extended.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, ext_times, ints_diff_80, with_control_word};
+use crate::math::x87_run::{ext_times, ints_diff_80};
 use crate::scene::matrix3::{rounded, test_floats};
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::floats::{
+    FLOAT, Floats, Tolerance, at_test_precisions, check_state_floats, dispatch_state_floats,
+};
+use crate::service::harness::{Region, capture, restore};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -50,7 +53,7 @@ fn object() -> u32 {
     g(OBJECTS + 4 * (g(0x71B3F8) & 7) as usize)
 }
 
-/// The Rust version.
+/// The exact x87 version (for `physics::sound_on_bit`).
 pub unsafe fn place_car_sound() -> Result<Left, Refused> {
     let o = object();
     if o == 0 {
@@ -74,18 +77,46 @@ pub unsafe fn place_car_sound() -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
+/// The converted version (`rc2k_core::physics::sound_places::place`, plain floats): the
+/// hook's.
+// Converted: `rc2k_core::physics::sound_places::place`.
+pub unsafe fn place_car_sound_plain() -> Result<Left, Refused> {
+    let o = object();
+    if o == 0 {
+        return Err(BadInput("a null sound object").into());
+    }
+    unsafe {
+        put(o + 0x224, 1);
+        crate::physics::car_sounds::place_plain(o, 0x214, None);
+        put(o + 0x10, 1);
+    }
+    Ok(Left::nothing())
+}
+
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { place_car_sound() }
+    unsafe { place_car_sound_plain() }
+}
+
+/// The float places: the place heard from.
+fn floats_of(o: u32) -> [(Region, Tolerance); 1] {
+    [((o + 0x214, 12), FLOAT)]
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let o = object();
-    let regions: Vec<Region> = if o == 0 {
-        vec![]
+    let (regions, memory): (Vec<Region>, Vec<(Region, Tolerance)>) = if o == 0 {
+        (vec![], vec![])
     } else {
-        vec![(o + 0x10, 4), (o + 0x214, 0x14)]
+        (
+            vec![(o + 0x10, 4), (o + 0x214, 0x14)],
+            floats_of(o).to_vec(),
+        )
     };
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
+    let floats = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions, &floats, &rust);
 }
 
 fn self_test() -> (usize, usize) {
@@ -104,45 +135,50 @@ fn self_test() -> (usize, usize) {
         (a(VIEW_TURN), 0x40),
     ];
     let saved = capture(&all);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 1..=6u32 {
-                let set = || unsafe {
-                    for k in 0..0x98u32 {
-                        put(o + 4 * k, 0xA5A5_0000 | k);
-                    }
-                    game_write(rva(0x71B3F8), seed);
-                    for k in 0..8 {
-                        game_write(rva(OBJECTS + 4 * k), o);
-                    }
-                    for k in 0..3usize {
-                        game_write(
-                            rva(0x71A10C + 4 * k),
-                            seed.wrapping_mul(0x0135_7913 + k as u32),
-                        );
-                        game_write(
-                            rva(0x71A67C + 4 * k),
-                            (seed + k as u32).wrapping_mul(0x8642_0864),
-                        );
-                    }
-                    let mut f = [0u32; 16];
-                    test_floats(seed * 17 + 1, &mut f);
-                    for (k, v) in f.iter().enumerate() {
-                        game_write(rva(VIEW_TURN + 4 * k), *v);
-                    }
-                };
-                check_state(
-                    &mut t,
-                    &format!("control word {word:#x}, seed {seed}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &set,
-                    &all,
-                    &rust,
-                );
-            }
-        });
-    }
+    let memory = floats_of(o);
+    let tolerant = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, floats| {
+        for seed in 1..=6u32 {
+            let set = || unsafe {
+                for k in 0..0x98u32 {
+                    put(o + 4 * k, 0xA5A5_0000 | k);
+                }
+                game_write(rva(0x71B3F8), seed);
+                for k in 0..8 {
+                    game_write(rva(OBJECTS + 4 * k), o);
+                }
+                for k in 0..3usize {
+                    game_write(
+                        rva(0x71A10C + 4 * k),
+                        seed.wrapping_mul(0x0135_7913 + k as u32),
+                    );
+                    game_write(
+                        rva(0x71A67C + 4 * k),
+                        (seed + k as u32).wrapping_mul(0x8642_0864),
+                    );
+                }
+                let mut f = [0u32; 16];
+                test_floats(seed * 17 + 1, &mut f);
+                for (k, v) in f.iter().enumerate() {
+                    game_write(rva(VIEW_TURN + 4 * k), *v);
+                }
+            };
+            check_state_floats(
+                &mut t,
+                "physics::place_car_sound",
+                &format!("control word {word:#x}, seed {seed}"),
+                call_original,
+                Regs::SENTINEL,
+                &set,
+                &all,
+                floats,
+                &rust,
+            );
+        }
+    });
     restore(&all, &saved);
     drop(object);
     t.finish()

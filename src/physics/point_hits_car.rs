@@ -22,13 +22,14 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::math::turn_scratch_xz::scratch;
 use crate::math::x87::loaded;
-use crate::math::x87_run::{TEST_CONTROL_WORDS, abs_compare, abs_of, with_control_word};
+use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::physics::flow::{a, base, g, p, x87_run};
 use crate::physics::turn_by_heading::turn_by_heading;
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::{rounded, test_floats};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use rc2k_core::physics::contacts;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -47,15 +48,19 @@ hook_asm!(
 pub const KIND: usize = 0x6D3624;
 
 /// The Rust version: whether the point at `point` of the object at `object` is inside.
+// Converted: `rc2k_core::physics::contacts::{point_part, inside_box, kind_hits}` (the x87
+// steps stay).
 pub unsafe fn point_hits_car(point: u32, object: u32) -> bool {
     let rd = |x: u32| unsafe { (x as *const u32).read_unaligned() };
     p(0x614110, g(0x614110).wrapping_add(1));
     let mut y = 0;
     for k in 0..3u32 {
-        let v = rd(point + 4 * k)
-            .wrapping_add(rd(object + 0x30 + 4 * k))
-            .wrapping_add(g(0x6D3B40 + 4 * k as usize))
-            .wrapping_sub(g(0x71A10C + 4 * k as usize));
+        let v = contacts::point_part(
+            rd(point + 4 * k),
+            rd(object + 0x30 + 4 * k),
+            g(0x6D3B40 + 4 * k as usize),
+            g(0x71A10C + 4 * k as usize),
+        );
         p(0x6D3B4C + 4 * k as usize, v);
         if k == 1 {
             y = v;
@@ -89,16 +94,11 @@ pub unsafe fn point_hits_car(point: u32, object: u32) -> bool {
         "fistp dword ptr [{b} + 0x2D3098]";
         b = base()
     );
-    let sign = |v: u32| (v as i32) < 0;
     let (x, z) = (g(0x6D3090), g(0x6D3098));
-    let inside = sign(x.wrapping_sub(g(0x614BC8)))
-        && !sign(x.wrapping_add(g(0x614BC8)))
-        && sign(z.wrapping_sub(g(0x614BC0)))
-        && !sign(z.wrapping_add(g(0x614BC4)));
-    if !inside {
+    if !contacts::inside_box(x, z, g(0x614BC8), g(0x614BC0), g(0x614BC4)) {
         return false;
     }
-    if matches!(g(KIND), 10 | 1 | 5 | 6) {
+    if contacts::kind_hits(g(KIND)) {
         x87_run!(
             "fild dword ptr [{b} + 0x2D3090]",
             "fdiv dword ptr [{b} + 0x1C5D98]",
@@ -111,8 +111,11 @@ pub unsafe fn point_hits_car(point: u32, object: u32) -> bool {
             b = base()
         );
         p(0x6D3108, rounded(unsafe { vector_length(a(0x71A170)) }));
-        if abs_compare(g(0x6D3108), g(0x71A208)) & 0x100 == 0 {
-            p(0x71A208, abs_of(g(0x6D3108)));
+        if let Some(hit) = rc2k_core::physics::walls::raised_hit(
+            f32::from_bits(g(0x6D3108)),
+            f32::from_bits(g(0x71A208)),
+        ) {
+            p(0x71A208, hit.to_bits());
         }
         p(0x71A20C, 1);
         p(0x71A1CC, 0x32);

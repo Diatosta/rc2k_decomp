@@ -64,6 +64,46 @@ fn prepare(case: u32) {
     }
 }
 
+/// The steps of `rc2k_core::menu::bests::record_entries`: their Rust versions.
+struct Entries<'a> {
+    entry: &'a Regs,
+}
+
+impl rc2k_core::menu::bests::RecordEntries for Entries<'_> {
+    type Error = Refused;
+
+    fn clear(&mut self) -> Result<(), Refused> {
+        unsafe { crate::menu::clear_record_entries::clear_record_entries(self.entry)? };
+        Ok(())
+    }
+
+    fn set_entered(&mut self, on: u32) {
+        unsafe { game_write(ENTERED_RVA, on) };
+    }
+
+    fn set_current(&mut self, n: u32) {
+        unsafe { game_write(CURRENT_RVA, n) };
+    }
+
+    fn beats(&mut self, n: u32) -> Result<bool, Refused> {
+        let g = Regs {
+            ecx: n,
+            ..*self.entry
+        };
+        unsafe { crate::menu::beat_target_time::beat_target_time(&g)? };
+        Ok(unsafe { game_read::<u32>(BEATEN_RVA) } == 1)
+    }
+
+    fn enter(&mut self, n: u32) -> Result<(), Refused> {
+        let g = Regs {
+            ecx: n,
+            ..*self.entry
+        };
+        unsafe { crate::menu::enter_record_entry::enter_record_entry(&g)? };
+        Ok(())
+    }
+}
+
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn record_entries_pass(entry: &Regs) -> Result<Regs, Refused> {
     let players = counted_players()?;
@@ -71,19 +111,8 @@ pub unsafe fn record_entries_pass(entry: &Regs) -> Result<Regs, Refused> {
     if players.iter().any(|&p| get(p + 0x18) == 0) {
         return Err(BadInput("a player without a name").into());
     }
-    unsafe {
-        crate::menu::clear_record_entries::clear_record_entries(entry)?;
-        game_write(ENTERED_RVA, 0u32);
-        for n in 0..players.len() as u32 {
-            game_write(CURRENT_RVA, n);
-            let g = Regs { ecx: n, ..*entry };
-            crate::menu::beat_target_time::beat_target_time(&g)?;
-            if game_read::<u32>(BEATEN_RVA) == 1 {
-                game_write(ENTERED_RVA, 1u32);
-                crate::menu::enter_record_entry::enter_record_entry(&g)?;
-            }
-        }
-    }
+    // Converted: `rc2k_core::menu::bests::record_entries`.
+    rc2k_core::menu::bests::record_entries(players.len() as u32, &mut Entries { entry })?;
     Ok(*entry)
 }
 

@@ -15,7 +15,7 @@
 use crate::errors::BadInput;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
 use crate::memory::allocate::allocate;
-use crate::memory::{HELD_RVA, MOST_HELD_RVA, MemoryList, OWN_HEAP_RVA};
+use crate::memory::{HELD_RVA, MOST_HELD_RVA, MemoryList, OWN_HEAP_RVA, with_figures};
 use std::sync::atomic::AtomicUsize;
 use windows_sys::Win32::System::Memory::{
     MEM_FREE, MEM_RELEASE, MEMORY_BASIC_INFORMATION, VirtualFree, VirtualQuery,
@@ -47,14 +47,12 @@ pub unsafe fn free_list(list: *mut MemoryList) -> Result<(), BadInput> {
         if block != 0 && game_read::<u32>(OWN_HEAP_RVA) == 1 {
             return Err(BadInput("the game's own heap is in use (altmemenable)"));
         }
-        game_write(
-            HELD_RVA,
-            game_read::<u32>(HELD_RVA).wrapping_sub((*list).total),
-        );
+        // Converted: `rc2k_core::memory` (`Figures::given_back`, `List::emptied`).
+        with_figures(|f| f.given_back((*list).total));
         if block == 0 {
             return Ok(());
         }
-        *list = MemoryList::default();
+        block = (*list).emptied();
         while block != 0 {
             let before = (block as *const u32).read();
             VirtualFree(block as _, 0, MEM_RELEASE);

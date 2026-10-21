@@ -32,6 +32,7 @@ use crate::framework::{
 use crate::math::x87;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, dispatch_state, restore};
+use rc2k_core::drive::controls::{FLIP_BIT, VIEW_BIT, computer_drives, flipped, read_keys};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -62,10 +63,11 @@ const CURRENT: u32 = 0x71B3F8; // g_currentCar
 
 /// Does a computer drive this step?
 fn computer() -> bool {
-    g(0x71C3E0) != 0 || (g(0x62389C) == 2 && g(0x71A234) == 2)
+    computer_drives(g(0x71C3E0), || g(0x62389C), || g(0x71A234))
 }
 
 /// The Rust version: `r` as the original leaves it.
+// Converted: `rc2k_core::drive::controls::{read_keys, computer_drives, flipped}`.
 pub unsafe fn read_car_controls(r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         if computer() && g(0x623640) == 0 && g(0x719FEC) >= 0x320 {
@@ -86,25 +88,26 @@ pub unsafe fn read_car_controls(r: &mut Regs) -> Result<(), Refused> {
         ] {
             p(to, g(from));
         }
-        let pressed = !g(0x5C694C) & g(0x71A440);
+        let keys = read_keys(g(0x5C694C), g(0x71A440));
+        let pressed = keys.pressed;
         p(0x71A44C, pressed);
         p(0x613894, g(0x71A43C));
         p(0x613890, g(0x71A444));
         p(0x613898, g(0x71A448));
-        p(0x61389C, (g(0x71A440) & 4).wrapping_mul(0x60));
-        p(0x6138A0, ((pressed & 1) * 0x100) >> 8);
-        r.eax = ((pressed & 2) * 0x80) >> 8;
+        p(0x61389C, keys.hand);
+        p(0x6138A0, keys.up);
+        r.eax = keys.down;
         p(0x6138A4, r.eax);
         let replay = g(0x52A910) != 0;
         if !replay {
             r.eax = g(CURRENT);
         }
         if replay || g(CURRENT) < g(0x63DB94) {
-            r.eax = pressed & 8;
+            r.eax = pressed & FLIP_BIT;
             if r.eax != 0 {
-                p(0x71A05C, g(0x71A05C).wrapping_add(1) & 1);
+                p(0x71A05C, flipped(g(0x71A05C)));
             }
-            r.eax = pressed & 0x20;
+            r.eax = pressed & VIEW_BIT;
             if r.eax != 0 {
                 r.esi = a(0x719FD8);
                 next_camera_view(r.esi).apply(r);

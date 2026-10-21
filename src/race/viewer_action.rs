@@ -38,13 +38,13 @@
 //! memory (all but the plays, 0x14 .. 0x16 and 0x25 .. 0x28), with `read_replay_frame`'s
 //! test replay; the tables set by the test, everything put back.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, ZERO_FLAG, hook_asm, rva};
 use crate::physics::flow::a;
 use crate::race::viewer::{
     BLOCK, BLOCKS, CAMERA_EDIT, CAMERAS, CLIP_BLOCKS, CLIP_CAMERAS, CLIP_PLACES, FRAME,
-    KEY_AFTER_PLAY, LAST_RACE_VIEWED, LIST_LEAVE, MARK_IN, MARK_OUT, MOST_BLOCKS, ONE_PLAYER, OPEN,
-    PLACES, PLAY_FROM_HERE, Part, SLOT, SNAPSHOT, Saved, TABLE_LEN, dispatch_parts, dword, get,
+    KEY_AFTER_PLAY, LAST_RACE_VIEWED, LIST_LEAVE, MARK_IN, MARK_OUT, ONE_PLAYER, OPEN, PLACES,
+    PLAY_FROM_HERE, Part, SLOT, SNAPSHOT, Saved, TABLE_LEN, dispatch_parts, dword, get,
     move_dwords, pb, put, region,
 };
 use crate::service::harness::Region;
@@ -103,51 +103,57 @@ pub fn viewer_action(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 
 /// `sub_41DE81`: whether the action is one.
 fn action(entry: &Regs, part: Part) -> Result<bool, Refused> {
+    // Converted: `rc2k_core::race::viewer::{Action, goto_block, frame_back, frame_on,
+    // mark_in_here, mark_out_here}`.
+    use rc2k_core::race::viewer::{
+        Action, Var, frame_back, frame_on, goto_block, mark_in_here, mark_out_here,
+    };
     let mut r = Regs {
         eax: entry.ebx,
         ebp: 0,
         ..*entry
     };
-    let read_0 = |part: Part, r: &mut Regs, block: u32| {
-        r.eax = block;
-        part(1, r)
+    let Some(action) = Action::of(entry.ebx) else {
+        return Ok(false);
     };
-    let held = |v: u32| -> u32 {
-        if (v as i32) > (get(BLOCKS) as i32) {
-            get(BLOCKS)
-        } else {
-            v
+    match action {
+        Action::Goto(goto) => {
+            r.eax = goto_block(goto, |v| {
+                get(match v {
+                    Var::Block => BLOCK,
+                    Var::Blocks => BLOCKS,
+                    Var::MarkIn => MARK_IN,
+                    Var::MarkOut => MARK_OUT,
+                })
+            });
+            part(1, &mut r)?;
         }
-    };
-    let at_least_0 = |v: u32| if (v as i32) < 0 { 0 } else { v };
-    match entry.ebx {
-        0 => read_0(part, &mut r, 0)?,
-        1 => read_0(part, &mut r, get(MARK_IN))?,
-        2 => {
-            if get(BLOCK) <= get(MARK_OUT) {
+        Action::MarkIn => {
+            if mark_in_here(get(BLOCK), get(MARK_OUT)) {
                 put(MARK_IN, get(BLOCK));
             }
         }
-        3 => read_0(part, &mut r, at_least_0(get(BLOCK).wrapping_sub(10)))?,
-        4 => read_0(part, &mut r, at_least_0(get(BLOCK).wrapping_sub(1)))?,
-        5 => {
-            let (mut block, mut frame) = (get(BLOCK), get(FRAME));
-            if block != 0 || frame != 0 {
-                frame = frame.wrapping_sub(1);
-                if (frame as i32) < 0 {
-                    frame = 99;
-                    block = at_least_0(block.wrapping_sub(1));
-                }
+        Action::MarkOut => {
+            if mark_out_here(get(BLOCK), get(MARK_IN)) {
+                put(MARK_OUT, get(BLOCK));
             }
+        }
+        Action::FrameBack => {
+            let (block, frame) = frame_back(get(BLOCK), get(FRAME));
             read_at(part, &mut r, block, frame)?;
         }
-        6 => part(3, &mut r)?,
-        0x22 => {
-            put(PLAY_FROM_HERE, 1);
+        Action::FrameOn => {
+            let (block, frame) = frame_on(get(BLOCK), get(FRAME), get(BLOCKS));
+            read_at(part, &mut r, block, frame)?;
+        }
+        Action::PlayHere { from_here } => {
+            if from_here {
+                put(PLAY_FROM_HERE, 1);
+            }
             part(3, &mut r)?;
         }
-        0x1A => part(4, &mut r)?,
-        0x23 => loop {
+        Action::PlayMarked => part(4, &mut r)?,
+        Action::PlayAgain => loop {
             put(BLOCK, 0);
             put(FRAME, 0);
             part(3, &mut r)?;
@@ -155,45 +161,28 @@ fn action(entry: &Regs, part: Part) -> Result<bool, Refused> {
                 break;
             }
         },
-        7 => {
-            let (mut block, mut frame) = (get(BLOCK), get(FRAME));
-            if block != get(BLOCKS) {
-                frame = frame.wrapping_add(1);
-                if frame >= 100 {
-                    frame = 0;
-                    block = held(block.wrapping_add(1));
-                }
-            }
-            read_at(part, &mut r, block, frame)?;
-        }
-        8 => read_0(part, &mut r, held(get(BLOCK).wrapping_add(1)))?,
-        9 => read_0(part, &mut r, held(get(BLOCK).wrapping_add(10)))?,
-        0xA => {
-            if get(BLOCK) >= get(MARK_IN) {
-                put(MARK_OUT, get(BLOCK));
+        Action::Cut => cut(part, &mut r)?,
+        Action::CopyMarked => part(6, &mut r)?,
+        Action::Paste => paste(part, &mut r)?,
+        Action::Undo { end_edit } => {
+            part(8, &mut r)?;
+            if end_edit {
+                put(CAMERA_EDIT, 0);
             }
         }
-        0xB => read_0(part, &mut r, get(MARK_OUT))?,
-        0xC => read_0(part, &mut r, get(BLOCKS))?,
-        0x11 => cut(part, &mut r)?,
-        0x1B => part(6, &mut r)?,
-        0x12 => paste(part, &mut r)?,
-        0x13 => part(8, &mut r)?,
-        0x14 => another_replay(part, &mut r)?,
-        0x15 | 0x16 => save(part, &mut r, entry.ebx == 0x15)?,
-        0x17 => put(SNAPSHOT, 1),
-        0xF => {
-            if get(ONE_PLAYER) != 1 {
-                cycle_byte(part, &mut r, 5, |dl| if (dl as i8) > 3 { 2 } else { dl })?;
+        Action::AnotherReplay => another_replay(part, &mut r)?,
+        Action::Save { back } => save(part, &mut r, back)?,
+        Action::Snapshot => put(SNAPSHOT, 1),
+        Action::Cycle { byte } => {
+            if byte == 4 || get(ONE_PLAYER) != 1 {
+                cycle_byte(part, &mut r, byte as usize)?;
             }
         }
-        0x10 => cycle_byte(part, &mut r, 4, |dl| if (dl as i8) > 2 { 0 } else { dl })?,
-        0xE | 0x18 => {
+        Action::Flip { byte } => {
             part(5, &mut r)?;
             r.eax = get(BLOCK);
             if r.eax != get(BLOCKS) {
-                let byte = CAMERAS + if entry.ebx == 0xE { 2 } else { 3 };
-                r.ebx = a(byte).wrapping_add(r.eax.wrapping_mul(8));
+                r.ebx = a(CAMERAS + byte as usize).wrapping_add(r.eax.wrapping_mul(8));
                 let at = r.ebx as *mut u8;
                 let old = unsafe { at.read() };
                 r.edx = r.edx & !0xFF00 | (old as u32) << 8;
@@ -201,27 +190,20 @@ fn action(entry: &Regs, part: Part) -> Result<bool, Refused> {
                 part(16, &mut r)?;
             }
         }
-        0x1C | 0x24 | 0x1D => {
-            part(if entry.ebx == 0x1D { 18 } else { 17 }, &mut r)?;
-            part(if entry.ebx == 0x24 { 20 } else { 19 }, &mut r)?;
+        Action::EditAndStep { camera, back } => {
+            part(16 + camera, &mut r)?;
+            part(if back { 20 } else { 19 }, &mut r)?;
             put(CAMERA_EDIT, 0);
         }
-        0xD => part(17, &mut r)?,
-        0x19 => part(18, &mut r)?,
-        0x1E => part(20, &mut r)?,
-        0x1F => part(19, &mut r)?,
-        0x20 => {
-            part(8, &mut r)?;
-            put(CAMERA_EDIT, 0);
-        }
-        0x21 => put(CAMERA_EDIT, 0),
-        0x25..=0x28 => {
-            r.eax = [0, 0xA0, 0x50, 0x28][entry.ebx as usize - 0x25];
+        Action::Edit { camera } => part(16 + camera, &mut r)?,
+        Action::Step { back } => part(if back { 20 } else { 19 }, &mut r)?,
+        Action::EndEdit => put(CAMERA_EDIT, 0),
+        Action::Pictures { time } => {
+            r.eax = time;
             part(21, &mut r)?;
             part(4, &mut r)?;
             part(22, &mut r)?;
         }
-        _ => return Ok(false),
     }
     Ok(true)
 }
@@ -235,8 +217,8 @@ fn read_at(part: Part, r: &mut Regs, block: u32, frame: u32) -> Result<(), Refus
     part(2, r)
 }
 
-/// 0xF, 0x10: the block's camera byte `byte` one on, as `next` holds it, spread on.
-fn cycle_byte(part: Part, r: &mut Regs, byte: usize, next: fn(u8) -> u8) -> Result<(), Refused> {
+/// 0xF, 0x10: the block's camera byte `byte` one on (`viewer::next_byte`), spread on.
+fn cycle_byte(part: Part, r: &mut Regs, byte: usize) -> Result<(), Refused> {
     part(5, r)?;
     r.eax = get(BLOCK);
     if r.eax == get(BLOCKS) {
@@ -245,25 +227,19 @@ fn cycle_byte(part: Part, r: &mut Regs, byte: usize, next: fn(u8) -> u8) -> Resu
     r.ebx = a(CAMERAS + byte).wrapping_add(r.eax.wrapping_mul(8));
     let at = r.ebx as *mut u8;
     let old = unsafe { at.read() };
-    let dl = next(old.wrapping_add(1));
+    let dl = rc2k_core::race::viewer::next_byte(byte as u32, old);
     r.edx = r.edx & !0xFFFF | (old as u32) << 8 | dl as u32;
     unsafe { at.write(dl) };
     part(16, r)
 }
 
-/// 0x11: the marked blocks cut.
+/// 0x11: the marked blocks cut (`viewer::cut_marks`).
 fn cut(part: Part, r: &mut Regs) -> Result<(), Refused> {
-    let (first, second) = (get(MARK_IN), get(MARK_OUT));
-    if (second as i32) <= (first as i32) {
+    let Some((first, second)) =
+        rc2k_core::race::viewer::cut_marks(get(MARK_IN), get(MARK_OUT), get(BLOCKS))?
+    else {
         return Ok(());
-    }
-    if (first as i32) < 0
-        || second > MOST_BLOCKS
-        || get(BLOCKS) > MOST_BLOCKS
-        || second > get(BLOCKS)
-    {
-        return Err(BadInput("a cut outside the replay's table").into());
-    }
+    };
     part(5, r)?;
     part(6, r)?;
     let count = r.edx;
@@ -281,18 +257,12 @@ fn cut(part: Part, r: &mut Regs) -> Result<(), Refused> {
     part(7, r)
 }
 
-/// 0x12: the clipboard pasted at the block shown.
+/// 0x12: the clipboard pasted at the block shown (`viewer::pastes`).
 fn paste(part: Part, r: &mut Regs) -> Result<(), Refused> {
     let clip = get(CLIP_BLOCKS);
-    if clip == 0 || get(BLOCKS).wrapping_add(clip) > MOST_BLOCKS {
-        return Ok(());
-    }
     let (block, blocks) = (get(BLOCK), get(BLOCKS));
-    if block > blocks {
-        return Err(BadInput(
-            "a paste past the replay's end: the original moves memory by a negative count",
-        )
-        .into());
+    if !rc2k_core::race::viewer::pastes(clip, blocks, block)? {
+        return Ok(());
     }
     part(5, r)?;
     // The blocks from the one shown up by the clipboard's count, from the top down.

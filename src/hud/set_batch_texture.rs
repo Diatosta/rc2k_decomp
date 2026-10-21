@@ -9,7 +9,7 @@
 //! anything. Shadow mode runs the original alone (it tells the device). Self-test: a copy
 //! whose call goes to a stand-in, against the Rust version.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
 use crate::hud::batch::SHOWN_TEXTURE_RVA;
 use crate::service::harness::{Region, at, capture, restore};
@@ -28,19 +28,16 @@ hook_asm!(
 );
 
 const SLOTS_RVA: usize = rva(0x5D1AE8); // g_kindFirstSlots
-const SLOTS: u32 = 0x400; // `scene::reset_texture_tables` clears 0x400 (0x87 was IDA's next name)
 
 /// A call by place: 1 `set_texture`.
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::hud::batch::texture_slot`
 pub unsafe fn set_batch_texture(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let n: u32 = unsafe { game_read(SHOWN_TEXTURE_RVA) };
-    if n >= SLOTS {
-        return Err(BadInput("a HUD texture past g_kindFirstSlots").into());
-    }
+    let n = rc2k_core::hud::batch::texture_slot(unsafe { game_read(SHOWN_TEXTURE_RVA) })?;
     let mut r = Regs {
-        eax: unsafe { game_read(SLOTS_RVA + 4 * n as usize) },
+        eax: unsafe { game_read(SLOTS_RVA + 4 * n) },
         ..*entry
     };
     part(1, &mut r)?;

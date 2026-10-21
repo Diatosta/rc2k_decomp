@@ -22,6 +22,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::{a, g, p};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use rc2k_core::drive::replay_frames::{frame_fault, past_end};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -46,21 +47,10 @@ pub unsafe fn read_replay_frame(frame: u32, tenth: u32) -> Result<bool, Refused>
     if g(0x5BEC88) != 1 {
         return Ok(true);
     }
-    if frame > 0x708 {
-        return Err(FatalError {
-            code: 0x80A6_1151,
-            message: "",
-        }
-        .into());
+    if let Some(code) = frame_fault(frame, tenth) {
+        return Err(FatalError { code, message: "" }.into());
     }
-    if tenth > 0x64 {
-        return Err(FatalError {
-            code: 0x80A6_1152,
-            message: "",
-        }
-        .into());
-    }
-    if frame >= g(0x5BECD0) {
+    if past_end(frame, g(0x5BECD0)) {
         p(0x5BEC90, 1);
         p(0x5C2530, g(0x5BECD0));
         p(0x5C2534, 0);

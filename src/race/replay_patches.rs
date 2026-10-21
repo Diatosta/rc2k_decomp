@@ -25,10 +25,12 @@ const APPLIED: usize = 0x71C72C; // g_patchesApplied
 
 /// `apply_replay_patches`.
 pub fn apply_replay_patches(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    if get(IN_HEADER) != 0 && get(IN_FORCE) == 0 {
+    // Converted: `rc2k_core::race::viewer_flow::{patches_change, PATCH_DWORDS}`.
+    use rc2k_core::race::viewer_flow::{PATCH_DWORDS, patches_change};
+    if patches_change(get(IN_HEADER), get(IN_FORCE), false) {
         put(IN_FORCE, 1);
-        move_dwords(KEPT, SWITCHES, 13);
-        move_dwords(SWITCHES, REPLAYS, 13);
+        move_dwords(KEPT, SWITCHES, PATCH_DWORDS);
+        move_dwords(SWITCHES, REPLAYS, PATCH_DWORDS);
         put(APPLIED, 0);
         let mut r = Regs {
             ecx: 0,
@@ -43,9 +45,11 @@ pub fn apply_replay_patches(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 
 /// `restore_replay_patches`.
 pub fn restore_replay_patches(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    if get(IN_HEADER) != 0 && get(IN_FORCE) != 0 {
+    // Converted: `rc2k_core::race::viewer_flow::{patches_change, PATCH_DWORDS}`.
+    use rc2k_core::race::viewer_flow::{PATCH_DWORDS, patches_change};
+    if patches_change(get(IN_HEADER), get(IN_FORCE), true) {
         put(IN_FORCE, 0);
-        move_dwords(SWITCHES, KEPT, 13);
+        move_dwords(SWITCHES, KEPT, PATCH_DWORDS);
         put(APPLIED, 0);
         let mut r = Regs {
             ecx: 0,

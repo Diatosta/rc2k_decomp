@@ -45,20 +45,18 @@ pub fn row(y: u32) -> u32 {
 
 /// The row: `y`, or `lift` higher with `dword_6D1502` 0.
 pub fn row_by(y: u32, lift: u32) -> u32 {
-    if unsafe { game_read::<u32>(FLAT_RVA) } == 0 {
-        y.wrapping_sub(lift)
-    } else {
-        y
-    }
+    rc2k_core::hud::signs::row(y, lift, unsafe { game_read(FLAT_RVA) })
 }
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::hud::signs` (through `signs_with`)
 pub unsafe fn draw_signs(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     unsafe { signs_with(entry, 0xA4, 0xB4, 0, 0x36, 0x20, part) }
 }
 
 /// Four signs from the record's `first` .. on, the places from its `start` field plus
 /// `shift`, at row `y` (shared with `hud::draw_signs_1a` / `_1b`).
+// Converted: `rc2k_core::hud::signs::{sign, place, row}`
 pub unsafe fn signs_with(
     entry: &Regs,
     first: u32,
@@ -68,25 +66,22 @@ pub unsafe fn signs_with(
     lift: u32,
     part: Part,
 ) -> Result<Regs, Refused> {
+    use rc2k_core::hud::signs;
     let mut g = *entry;
     unsafe {
         let get = |o: u32| ((g.ebp + o) as *const u32).read_unaligned();
-        g.ebx = get(start).wrapping_add(shift);
-        for n in 0..4u32 {
-            if n > 0 {
-                g.ebx = g.ebx.wrapping_add(0x40);
-            }
+        let places = get(start).wrapping_add(shift);
+        for n in 0..signs::SIGNS as u32 {
+            g.ebx = signs::place(places, n);
             let v = get(first + 4 * n);
             g.ecx = v;
-            if v == 0 {
+            let Some(sign) = signs::sign(places, n, v, |k| game_read(WIDTHS_RVA + 4 * k as usize))
+            else {
                 continue;
-            }
-            let w: u32 = game_read(WIDTHS_RVA + 4 * (v.wrapping_sub(1) & 7) as usize);
-            let x = ((0x40u32.wrapping_sub(w) as i32) >> 1) as u32;
-            let x = x.wrapping_add(g.ebx);
-            g.eax = ((v.wrapping_sub(1) & 0xF) + 0x4C) * 0x10;
+            };
+            g.eax = sign.rectangle;
             let mut r = Regs {
-                ebx: x,
+                ebx: sign.x,
                 ecx: row_by(y, lift),
                 esi: game_addr(RECTS_RVA) as u32 + g.eax,
                 ..g

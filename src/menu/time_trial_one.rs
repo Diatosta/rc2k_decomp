@@ -1,16 +1,16 @@
 //! `menu::time_trial_one` (0x48AE39): the time trial for one player (event mode 0x14).
 //! `menu::clear_players_284`, `take_player1_units`; `dword_755984` 1, `dword_755988`
 //! 0x14, `dword_755954` 3, `dword_75555D` 0, `g_eventMode` 3; `menu::begin_event`; the
-//! car choice (`rounds::choose_cars`, the time trial's list; left, it ends at once). Then
+//! car choice (`rc2k_core::menu::rounds::choose_cars`, the time trial's list; left, it ends at once). Then
 //! each stage: the stage choice (`menu::time_trial_select_stage_loop`; a yes or
 //! `dword_75555D` ends it), `begin_event`, `dword_755938` 1, the service
 //! (`menu::time_trial_service`; a yes ends it), the race (`race::single_rally_race`, eax
 //! 0, ebx 3); unless its result is -1: the current player 0, the result page
 //! (`menu::stage_result_loop`; a yes ends it), the stage's record in edi
-//! (`rounds::stage_into`), `menu::keep_stage_best`, `dword_755918` 0,
+//! (the stage's record (`Hand::Stage`)), `menu::keep_stage_best`, `dword_755918` 0,
 //! `menu::time_trial_qualifies`, and when it qualifies `clear_time_trial_marks`,
 //! `enter_time_trial_best` and the best times page (`time_trial_best_times_loop`; a yes
-//! ends it); the review (`rounds::review`, eax 1, a yes asked). The end: `rounds::end`.
+//! ends it); the review (`rc2k_core::menu::rounds::review`, eax 1, a yes asked). The end: `rc2k_core::menu::rounds::end`.
 //!
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
@@ -18,15 +18,16 @@
 //! Reached through the time trial's start menu (0x48BCDC's items). A call at +1: a
 //! private copy (0x197 bytes, its 19 calls relocated) and a jump written by hand. Ungated
 //! (a whole event). Refuses a missing player before anything, and what the callees and
-//! `rounds::stage_into` refuse when they are reached. Shadow mode runs the original alone.
+//! the stage's record (`Hand::Stage`) refuse when they are reached. Shadow mode runs the original alone.
 //! Self-test: `rounds::test_rounds`.
 
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::menu::event_flow::*;
+use crate::menu::flow_game::Game;
 use crate::menu::rounds::*;
-use crate::menu::run_championship::SERVICE_DUE;
 use crate::menu::time_trial_qualifies::QUALIFIES;
+use rc2k_core::menu::rounds;
 
 const CALLS: &[usize] = &[
     0x1, 0x6, 0x3D, 0x52, 0x57, 0x69, 0x6E, 0x8D, 0x9C, 0xB8, 0xD0, 0x104, 0x113, 0x121, 0x126,
@@ -43,56 +44,8 @@ flow_hook!(
 
 pub unsafe fn time_trial_one(entry: &Regs, call: Call) -> Result<Regs, Refused> {
     players_there(1)?;
-    let mut g = *entry;
-    call(CLEAR_PLAYERS_284, &mut g)?;
-    call(TAKE_PLAYER1_UNITS, &mut g)?;
-    set(PLAYER_COUNT, 1);
-    set(EVENT_MODE, 0x14);
-    set(EVENT_TYPE, 3);
-    set(LEAVE, 0);
-    set(MODE, 3);
-    call(BEGIN_EVENT, &mut g)?;
-    if !choose_cars(&mut g, call, 1, true, &[])? {
-        return Ok(*entry);
-    }
-    loop {
-        call(TIME_TRIAL_SELECT_STAGE, &mut g)?;
-        if yes() || get(LEAVE) == 1 {
-            break;
-        }
-        call(BEGIN_EVENT, &mut g)?;
-        set(SERVICE_DUE, 1);
-        call(TIME_TRIAL_SERVICE, &mut g)?;
-        if yes() {
-            break;
-        }
-        g.eax = 0;
-        g.ebx = 3;
-        call(RACE, &mut g)?;
-        if get(RACE_RESULT) != u32::MAX {
-            set(CURRENT, 0);
-            call(STAGE_RESULT_LOOP, &mut g)?;
-            if yes() {
-                break;
-            }
-            stage_into(&mut g)?;
-            call(KEEP_STAGE_BEST, &mut g)?;
-            set(QUALIFIES, 0);
-            call(TIME_TRIAL_QUALIFIES, &mut g)?;
-            if get(QUALIFIES) == 1 {
-                call(CLEAR_TIME_TRIAL_MARKS, &mut g)?;
-                call(ENTER_TIME_TRIAL_BEST, &mut g)?;
-                call(TIME_TRIAL_BEST_TIMES_LOOP, &mut g)?;
-                if yes() {
-                    break;
-                }
-            }
-        }
-        if review(&mut g, call, Some(1), true)? {
-            break;
-        }
-    }
-    end(&mut g, call)?;
+    // Converted: `rc2k_core::menu::rounds::time_trial_one`.
+    rounds::time_trial_one(&mut Game::new(entry, call))?;
     Ok(*entry)
 }
 

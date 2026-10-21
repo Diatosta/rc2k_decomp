@@ -12,7 +12,7 @@
 
 use crate::framework::{RawHook, Regs, SelfTest, ZERO_FLAG, hook_asm, rva, shadow};
 use std::sync::atomic::AtomicUsize;
-use windows_sys::Win32::Foundation::{CloseHandle, WAIT_FAILED, WAIT_TIMEOUT};
+use windows_sys::Win32::Foundation::CloseHandle;
 use windows_sys::Win32::System::Threading::WaitForSingleObject;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -35,31 +35,11 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// What the wait ended in, as the flags say it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Waited {
-    Signalled,
-    TimedOut,
-    Failed,
-}
-
-impl Waited {
-    /// (carry, zero).
-    pub fn flags(self) -> (bool, bool) {
-        match self {
-            Waited::Signalled => (false, false),
-            Waited::TimedOut => (false, true),
-            Waited::Failed => (true, true),
-        }
-    }
-}
+pub use rc2k_core::threading::Waited;
 
 pub fn wait_for_object(handle: u32, milliseconds: u32) -> Waited {
-    match unsafe { WaitForSingleObject(handle as _, milliseconds) } {
-        WAIT_FAILED => Waited::Failed,
-        WAIT_TIMEOUT => Waited::TimedOut,
-        _ => Waited::Signalled,
-    }
+    // Converted: `rc2k_core::threading::Waited`.
+    Waited::of(unsafe { WaitForSingleObject(handle as _, milliseconds) })
 }
 
 // ---- hook ----

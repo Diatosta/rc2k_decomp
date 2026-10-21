@@ -50,16 +50,20 @@ const START_RVA: usize = rva(0x40F743); // sound::start_stream
 
 /// `start` gets the registers `sound::start_stream` is called with.
 pub unsafe fn play_car_stream(r: &Regs, start: &mut dyn FnMut(&mut Regs)) -> Result<(), Refused> {
+    // Converted: `rc2k_core::sound::set_up::car_stream`.
     unsafe {
         let car = shown_car()?;
-        game_write(ON_RVA, 1u32);
-        let stream: u32 = game_read(STREAMS_RVA + car as usize * 4);
-        game_write(STREAM_RVA, stream);
-        let first = (stream as *const u32).read_unaligned();
-        game_write(PLACE_RVA, 0u32);
+        let s = rc2k_core::sound::set_up::car_stream(
+            game_read(STREAMS_RVA + car as usize * 4),
+            |list| (list as *const u32).read_unaligned(),
+            game_read(VOLUME_RVA),
+        );
+        game_write(ON_RVA, s.on);
+        game_write(STREAM_RVA, s.list);
+        game_write(PLACE_RVA, s.place);
         let mut inner = Regs {
-            eax: first,
-            ecx: game_read(VOLUME_RVA),
+            eax: s.first,
+            ecx: s.volume,
             ..*r
         };
         start(&mut inner);

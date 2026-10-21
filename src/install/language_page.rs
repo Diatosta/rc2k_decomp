@@ -20,6 +20,7 @@ use crate::install::installer::{
 };
 use crate::install::list_test::TestList;
 use crate::race::viewer::{Saved, dispatch_parts};
+use rc2k_core::install::pages;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -40,8 +41,10 @@ pub fn language_page(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     if r.ebx == 0 {
         // The same version, or at most one language (unsigned): the item itself hidden
         // (`or byte ptr [edi], 40h`, its flags). Else on to the hide loop (`loc_4141B4`).
-        if g(SAME_VERSION) == 1 || g(LANGUAGE_COUNT) <= 1 {
-            let v = rb(r.edi) | 0x40;
+        // Converted: `rc2k_core::install::pages` (`language_page_skipped`,
+        // `hidden_languages`).
+        if pages::language_page_skipped(g(SAME_VERSION) == 1, g(LANGUAGE_COUNT)) {
+            let v = rb(r.edi) | pages::HIDDEN;
             wb(r.edi, v);
             logic(&mut r, v as u32);
             return Ok(r);
@@ -54,14 +57,14 @@ pub fn language_page(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         }
     }
     // hide the items past the languages
-    r.ecx = g(LANGUAGE_COUNT).wrapping_mul(0x10);
-    r.edx = r.ecx.wrapping_add(r.edi).wrapping_add(0x18);
-    r.ecx = 9u32.wrapping_sub(g(LANGUAGE_COUNT));
+    let (first, hidden) = pages::hidden_languages(g(LANGUAGE_COUNT));
+    r.edx = first.wrapping_add(r.edi).wrapping_add(0x18);
+    r.ecx = hidden;
     let c = r.ecx;
     logic(&mut r, c);
     if r.ecx != 0 {
         loop {
-            wb(r.edx, rb(r.edx) | 0x40);
+            wb(r.edx, rb(r.edx) | pages::HIDDEN);
             r.edx = r.edx.wrapping_add(0x10);
             r.ecx = r.ecx.wrapping_sub(1);
             if r.ecx == 0 {

@@ -29,7 +29,8 @@ const SESSION_ENTRY: u32 = 0x418553; // net::session_entry
 
 /// The Rust version: the registers it leaves (the entry's).
 pub fn sessions_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let title = if g(SESSIONS) != 0 { 0x150 } else { 0x152 };
+    // Converted: `rc2k_core::net::screens::sessions_title`.
+    let title = rc2k_core::net::screens::sessions_title(g(SESSIONS));
     list_frame(entry, title, SESSIONS, SESSION_ENTRY, 0x51E744, part)
 }
 

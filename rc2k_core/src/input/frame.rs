@@ -43,6 +43,11 @@ pub struct KeyTables {
 }
 
 impl KeyTables {
+    /// The keys down (`g_keysDown`, the window's) copied for the frame (`copy_keys`).
+    pub fn copy_keys(&mut self, down: &[u8; KEYS]) {
+        self.now = *down;
+    }
+
     /// Each pair of keys made one: both the `or` of the two.
     pub fn join_pairs(&mut self) {
         for (a, b) in PAIRS {
@@ -100,6 +105,24 @@ impl KeyTables {
     }
 }
 
+/// The frame's dwords `end_frame` clears (`dword_6138F4`, `dword_6138F8`).
+pub const FRAME_CLEARED: usize = 2;
+
+/// `input::end_frame` (0x43AA91): with screenshots on, `check` (the screenshot key looked
+/// at); the frame's dwords as they are left.
+pub fn end_frame(screenshots_on: u32, check: impl FnOnce()) -> [u32; FRAME_CLEARED] {
+    if screenshots_on != 0 {
+        check();
+    }
+    [0; FRAME_CLEARED]
+}
+
+/// `gfx::screenshot_if_key` (0x43B573): a screenshot while the key (`SCREENSHOT_KEY`) is
+/// down in the frame's copy.
+pub fn screenshot_wanted(key_now: u8) -> bool {
+    key_now != 0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -119,6 +142,11 @@ mod tests {
         t.before[6] = 1;
         t.now[6] = 1;
         t.repeat[6] = 0x40;
+        let mut down = [0; KEYS];
+        down[0x1D] = 1;
+        down[5] = 1;
+        down[6] = 1;
+        t.copy_keys(&down);
         t.join_pairs();
         assert_eq!(t.now[0x61], 1);
         t.buttons_to_keys(1, 0);
@@ -127,5 +155,15 @@ mod tests {
         assert_eq!((t.pressed[5], t.pressed[6], t.repeat[6]), (1, 1, 0x40));
         assert_eq!(t.before[5], 1);
         assert_eq!(t.clicks(), [1, 0]);
+    }
+
+    #[test]
+    fn frame_end() {
+        let mut checked = false;
+        assert_eq!(end_frame(0, || checked = true), [0, 0]);
+        assert!(!checked);
+        end_frame(1, || checked = true);
+        assert!(checked);
+        assert!(!screenshot_wanted(0) && screenshot_wanted(2));
     }
 }

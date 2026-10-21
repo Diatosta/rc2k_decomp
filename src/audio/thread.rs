@@ -49,8 +49,6 @@ const SLOT_RVA: usize = rva(0x518604); // stru_518604, the audio thread's slot
 const TURN_TICK_RVA: usize = rva(0x4F82B8); // g_audioTurnTick
 const START_TEXT: usize = rva(0x4DA5F2); // "AUDIOTDB:START"
 const QUIT_TEXT: usize = rva(0x4DA601); // "AUDIOTDB:QUIT"
-/// A turn's length, in milliseconds.
-const TURN: u32 = 20;
 
 /// The calls by place.
 const CALLEES: [usize; 16] = [
@@ -144,8 +142,8 @@ pub unsafe fn audio_thread(entry: &Regs, v: &ThreadVars, part: Part) -> Result<(
                 c.ebx = read(v.turn_tick);
                 call(6, &mut c)?;
                 write(v.turn_tick, c.eax);
-                let left = c.ebx.wrapping_sub(c.eax).wrapping_add(TURN);
-                c.eax = if (left as i32) > 0 { left } else { 1 };
+                // Converted: `rc2k_core::audio::device::turn_sleep`.
+                c.eax = rc2k_core::audio::device::turn_sleep(c.ebx, c.eax);
                 call(7, &mut c)?;
                 c.edx = 1;
                 call(8, &mut c)?;

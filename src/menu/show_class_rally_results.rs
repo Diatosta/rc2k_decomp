@@ -18,6 +18,7 @@ use crate::framework::{
 };
 use crate::menu::standings::*;
 use crate::service::harness::{Region, at, capture, restore};
+use rc2k_core::menu::results_pages::{Page, held_figure};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -53,17 +54,9 @@ pub unsafe fn show_class_rally_results(entry: &Regs, part: Part) -> Result<Regs,
         game_write(CLASS_RVA, g.ebx);
         g.edi = game_read(TABLE_A_RVA);
         let found = crate::menu::first_player_a::first_player_a(&g)?;
-        let mut count = found.edx;
-        let most = if game_read::<u32>(EVENT_MODE_RVA) == 0x13 {
-            0x51
-        } else {
-            0x33
-        };
-        count = if (count as i32) > most {
-            most as u32
-        } else {
-            count
-        };
+        // Converted: `rc2k_core::menu::results_pages::held_figure`.
+        let a8 = game_read::<u32>(EVENT_MODE_RVA) == rc2k_core::menu::results_pages::A8;
+        let count = held_figure(Page::ClassRally { a8 }, found.edx);
         game_write(COUNT_RVA, count);
         let g = crate::menu::first_page_stage::first_page_stage(&found)?;
         let mut r = crate::menu::stage_range_caption::stage_range_caption(&g)?;

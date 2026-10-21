@@ -10,6 +10,7 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::install::installer::{CF, ZF, cmp, rb, rd};
 use crate::race::viewer::dispatch_regs;
+use rc2k_core::install::items::{Helper, ItemKey};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -24,15 +25,30 @@ hook_asm!(
     original = ORIGINAL
 );
 
-pub fn key_up(entry: &Regs) -> Result<Regs, Refused> {
+/// A key on the item at esi: its kind into bl, then the helper the key has for it, or the
+/// flags of the last compare.
+pub fn item_key(entry: &Regs, key: ItemKey) -> Result<Regs, Refused> {
     let mut r = *entry;
-    let kind = rb(r.esi) & 0x2F;
+    let kind = rb(r.esi) & key.kind_mask();
     r.ebx = r.ebx & !0xFF | kind as u32;
-    if kind == 0x22 {
-        return crate::install::choice_back::choice_back(&r);
+    // Converted: `rc2k_core::install::items::ItemKey::helper`.
+    use crate::install as i;
+    match key.helper(kind) {
+        Some(Helper::ChoiceBack) => i::choice_back::choice_back(&r),
+        Some(Helper::ChoiceOn) => i::choice_on::choice_on(&r),
+        Some(Helper::ChoiceByNumber) => i::choice_by_number::choice_by_number(&r),
+        Some(Helper::ValueDown) => i::value_down::value_down(&r),
+        Some(Helper::ValueUp) => i::value_up::value_up(&r),
+        Some(Helper::ValueByNumber) => i::value_by_number::value_by_number(&r),
+        None => {
+            cmp(&mut r, kind as u32, key.last_compared() as u32);
+            Ok(r)
+        }
     }
-    cmp(&mut r, kind as u32, 0x22);
-    Ok(r)
+}
+
+pub fn key_up(entry: &Regs) -> Result<Regs, Refused> {
+    item_key(entry, ItemKey::Up)
 }
 
 extern "C" fn dispatch(r: &mut Regs) {

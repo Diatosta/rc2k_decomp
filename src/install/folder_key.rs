@@ -15,6 +15,7 @@ use crate::install::installer::{
 };
 use crate::install::list_test::TestList;
 use crate::race::viewer::{Saved, check_original, dispatch_regs};
+use rc2k_core::install::items::FolderKey;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -31,34 +32,34 @@ hook_asm!(
 
 pub fn folder_key(entry: &Regs) -> Regs {
     let mut r = *entry;
-    if r.eax & 0x800 == 0 {
-        // test eax, eax
-        let v = r.eax;
-        logic(&mut r, v);
-        return r;
-    }
-    match r.eax as u8 {
-        1 => {
-            // test byte [edi], 10h
-            let held = rb(r.edi) & 0x10;
-            r.set_zero(held == 0);
-            r.set_carry(false);
-            if held == 0 {
-                pb(LIST_ANSWER, 0);
-                pb(LIST_LEAVE, 1);
-            }
+    // Converted: `rc2k_core::install::items::FolderKey`.
+    let key = FolderKey::of(r.eax);
+    let answer = key.answer(|| rb(r.edi));
+    match key {
+        FolderKey::NotEdited => {
+            // test eax, eax
+            let v = r.eax;
+            logic(&mut r, v);
         }
-        0x1C => {
-            pb(LIST_ANSWER, 1);
-            pb(LIST_LEAVE, 1);
-            // cmp al, 1Ch: equal
+        // test byte [edi], 10h
+        FolderKey::Back => {
+            r.set_zero(answer.is_some());
+            r.set_carry(false);
+        }
+        // cmp al, 1Ch: equal
+        FolderKey::On => {
             r.set_zero(true);
             r.set_carry(false);
         }
-        other => {
-            // cmp al, 1Ch: not equal
-            logic(&mut r, other.wrapping_sub(0x1C) as u32);
+        // cmp al, 1Ch: not equal
+        FolderKey::Other => {
+            let v = (r.eax as u8).wrapping_sub(0x1C) as u32;
+            logic(&mut r, v);
         }
+    }
+    if let Some(answer) = answer {
+        pb(LIST_ANSWER, answer);
+        pb(LIST_LEAVE, 1);
     }
     r
 }

@@ -42,18 +42,13 @@ pub fn viewer_snapshot(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         eax: a(SNAPSHOT_PATH),
         ..*entry
     };
-    for n in (0..3).rev() {
-        unsafe {
-            let d = digits.add(n);
-            d.write(d.read().wrapping_add(1));
-            r.ebx = d as u32;
-            r.ecx = n as u32;
-            if d.read() <= b'9' {
-                break;
-            }
-            d.write(b'0');
-            r.ecx = (n as u32).wrapping_sub(1);
-        }
+    // Converted: `rc2k_core::race::viewer::next_snapshot`.
+    unsafe {
+        let (next, last, ecx) =
+            rc2k_core::race::viewer::next_snapshot(digits.cast::<[u8; 3]>().read());
+        digits.cast::<[u8; 3]>().write(next);
+        r.ebx = digits.add(last) as u32;
+        r.ecx = ecx;
     }
     put(PICTURE_NAME, r.eax);
     part(1, &mut r)?;

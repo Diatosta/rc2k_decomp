@@ -24,12 +24,11 @@ hook_asm!(
     original = ORIGINAL
 );
 
-const STATES: [(u32, u32); 3] = [(1, 7), (1, 0xE), (8, 0x17)];
-
 /// The Rust version (see the header): the registers it leaves on `r`.
+// Converted: `rc2k_core::scene::render_states::GLOW`
 pub unsafe fn glow_render_states(r: &mut Regs) {
-    for (value, state) in STATES {
-        unsafe { crate::scene::set_render_state::set_render_state(r, value, state) };
+    for s in rc2k_core::scene::render_states::GLOW {
+        unsafe { crate::scene::set_render_state::set_render_state(r, s.value, s.state) };
     }
 }
 

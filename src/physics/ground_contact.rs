@@ -25,7 +25,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, abs_compare, abs_of, with_control_word};
+use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::physics::contact_force::{self, RECORD, contact_force};
 use crate::physics::crash_contact::{
     point_number, set_test_inputs, sign, sound_regions, take_contact, test_inputs,
@@ -55,12 +55,14 @@ hook_asm!(
 /// Contact record 2 (`g_contactRecords` + 0x40).
 const FORCE: usize = 0x614A90;
 
+// Converted: `rc2k_core::physics::contacts::touches` and `walls::raised_hit` (the x87 steps stay).
 fn steps(r: &mut Regs) -> Result<(), Refused> {
     p(0x6D3028, 0);
     unsafe { lowest_body_point(r) }?;
     let depth = g(0x6D3068);
     r.eax = depth;
-    if !sign(depth.wrapping_sub(0x1000)) || (g(0x71A22C) == 0 && !sign(depth)) {
+    let limit = rc2k_core::physics::contacts::GROUND_LIMIT;
+    if !rc2k_core::physics::contacts::touches(depth, limit, g(0x71A22C) != 0) {
         return Ok(());
     }
     let n = point_number()?;
@@ -74,8 +76,11 @@ fn steps(r: &mut Regs) -> Result<(), Refused> {
     p(RECORD, a(FORCE));
     unsafe { contact_force() }.apply(r);
     unsafe { place_sound_e1() }?;
-    if abs_compare(g(0x6D3108), g(0x71A208)) & 0x100 == 0 {
-        p(0x71A208, abs_of(g(0x6D3108)));
+    if let Some(hit) = rc2k_core::physics::walls::raised_hit(
+        f32::from_bits(g(0x6D3108)),
+        f32::from_bits(g(0x71A208)),
+    ) {
+        p(0x71A208, hit.to_bits());
     }
     copy3(0x6D3018, FORCE);
     r.eax = g(0x6D3068);

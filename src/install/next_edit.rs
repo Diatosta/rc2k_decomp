@@ -39,18 +39,16 @@ pub fn next_edit(entry: &Regs) -> Regs {
         return r;
     }
     let count = rb(entry.edi + 1) as u32;
-    loop {
-        let item = entry.edi + 0x18 + 0x10 * g(CHOICE);
-        if rb(item) & 0xF == 4 {
-            r = crate::install::start_edit::start_edit(&Regs { esi: item, ..r });
-            break;
-        }
-        p(CHOICE, g(CHOICE).wrapping_add(1));
-        if count <= g(CHOICE) {
-            cmp(&mut r, count, g(CHOICE));
-            p(CHOICE, 0);
-            break;
-        }
+    let item = |n: u32| entry.edi + 0x18 + 0x10 * n;
+    // Converted: `rc2k_core::install::items::next_edit` (the highlight stored once, where
+    // it ends).
+    let (n, found) = rc2k_core::install::items::next_edit(g(CHOICE), count, |n| rb(item(n)));
+    if found {
+        p(CHOICE, n);
+        r = crate::install::start_edit::start_edit(&Regs { esi: item(n), ..r });
+    } else {
+        cmp(&mut r, count, n);
+        p(CHOICE, 0);
     }
     let flags = r.eflags;
     Regs {

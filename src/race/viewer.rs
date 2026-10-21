@@ -115,6 +115,17 @@ pub fn move_dwords(to: usize, from: usize, dwords: usize) {
     }
 }
 
+/// A table of `dwords` dwords at IDA address `x` (dword-aligned there, so here too) as a
+/// slice, for the core.
+///
+/// # Safety
+/// No other reference to the table may be alive while the slice is.
+pub unsafe fn table(x: usize, dwords: usize) -> &'static mut [u32] {
+    let at = a(x) as *mut u32;
+    debug_assert!(at.is_aligned());
+    unsafe { std::slice::from_raw_parts_mut(at, dwords) }
+}
+
 /// The flags of `cmp v, 1` as `jb` / `jz` read them.
 pub fn cmp_one(r: &mut Regs, v: u32) {
     r.set_carry(v < 1);

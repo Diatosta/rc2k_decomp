@@ -16,6 +16,7 @@ use crate::net::lobby::{
     CHOICE, FORMAT_U32, HOST_ADDRESS, MACHINE_NAME, MOST_PLAYERS, NUMBER_TEXT, PALETTE, Part,
     Saved, a, answer, dispatch_lobby, dword, g, p, region, run_both,
 };
+use rc2k_core::net::editing::{self, Setting};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -35,15 +36,17 @@ const BEGIN_EDIT: u32 = 0x416E1A; // net::begin_edit
 /// The Rust version: the registers it leaves.
 pub fn begin_setting_edit(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
+    // Converted: `rc2k_core::net::editing` (`Setting`, `WIDTH`).
     r.eax = g(CHOICE);
-    r.ebx = match r.eax {
-        1 => a(MACHINE_NAME),
-        3 => a(HOST_ADDRESS),
+    let setting = Setting::of(r.eax);
+    r.ebx = match setting {
+        Setting::Name => a(MACHINE_NAME),
+        Setting::HostAddress => a(HOST_ADDRESS),
         _ => g(MOST_PLAYERS),
     };
-    match r.eax {
-        1 | 3 => {}
-        2 => {
+    match setting {
+        Setting::Name | Setting::HostAddress => {}
+        Setting::MostPlayers => {
             let item = r.eax;
             r.eax = r.ebx;
             r.ebx = a(NUMBER_TEXT);
@@ -53,9 +56,9 @@ pub fn begin_setting_edit(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             r.ebx = a(NUMBER_TEXT);
             r.eax = item;
         }
-        _ => return Ok(r),
+        Setting::None => return Ok(r),
     }
-    r.ecx = 0x30C;
+    r.ecx = editing::WIDTH;
     r.edx = a(PALETTE);
     part(BEGIN_EDIT, &mut r)?;
     Ok(r)

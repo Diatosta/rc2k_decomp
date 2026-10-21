@@ -36,34 +36,22 @@ const SCREEN_RVA: [usize; 2] = [rva(0x4F494C), rva(0x4F4950)];
 /// A call by place: 1 `draw_screen_quad`.
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
-/// `v` times `size` over `of` (`mul`, `div`): the quotient and the rest.
-fn scaled(v: u32, size: u32, of: u32) -> (u32, u32) {
-    let n = u64::from(v) * u64::from(size);
-    ((n / u64::from(of)) as u32, (n % u64::from(of)) as u32)
-}
-
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn loading_bar_quad(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::loading::loading_bar`.
+    use rc2k_core::race::loading::{BAR_COLOUR, loading_bar};
     let mut g = *entry;
     unsafe {
         let [w, h] = SCREEN_RVA.map(|r| game_read::<u32>(r));
         let q = |o: usize, v: u32| game_write(QUAD_IN_RVA + o, v);
-        let (left, _) = scaled(0, w, 0x320);
-        q(0x28, left);
-        q(0, 0xFF_0000);
-        q(0x38, scaled(0x24D, h, 0x258).0);
-        q(0x3C, scaled(0x258, h, 0x258).0);
-        let share: u32 = game_read(SHARE_RVA);
-        let share = if (share as i32) < 0 { 0 } else { share };
-        let share = if (share as i32).wrapping_sub(0x64) < 0 {
-            share
-        } else {
-            0x64
-        };
-        let (right, rest) = scaled(w, share, 0x64);
-        g.eax = right.wrapping_add(left);
+        let bar = loading_bar(w, h, game_read(SHARE_RVA));
+        q(0x28, bar.left);
+        q(0, BAR_COLOUR);
+        q(0x38, bar.top);
+        q(0x3C, bar.bottom);
+        g.eax = bar.right;
         q(0x2C, g.eax);
-        [g.ebx, g.ecx, g.edx] = [0x64, 0x258, rest];
+        [g.ebx, g.ecx, g.edx] = [0x64, 0x258, bar.rest];
         game_write(SWITCH_RVA, 0xFFFF_FFFFu32);
         part(1, &mut g)?;
     }

@@ -21,9 +21,9 @@
 //! version on the stage's own faces (everything written saved and put back): probe
 //! lists of faces chosen by their wall bits, none met, a wall met, the 0xC00 fallback.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, abs_compare, abs_of, with_control_word};
+use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::physics::contact_force;
 use crate::physics::flow::{a, g, guard, p};
 use crate::physics::touch_face::FACES;
@@ -32,6 +32,7 @@ use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::test_floats;
 use crate::screens::harness::{CallOriginal, Left};
 use crate::service::harness::{Region, Rust, capture, check_state, dispatch_state, restore};
+use rc2k_core::physics::walls;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -64,64 +65,70 @@ fn after(r: &mut Regs) -> Result<(), Refused> {
 }
 
 /// The steps, not guarded (`check` before).
+// Converted: `rc2k_core::physics::walls::walk`.
 pub fn steps(r: &mut Regs) -> Result<(), Refused> {
-    let n = g(0x71A238);
     r.edx = 0;
     r.ebp = 0;
-    loop {
-        let k = r.ebp as usize;
+    let walked = walls::walk(g(0x71A238), |k| {
+        r.ebp = k;
+        let k = k as usize;
         r.ebx = g(0x71ADC8 + 4 * k);
         p(0x6D3174, r.ebx);
         r.esi = (r.ebx << 6).wrapping_add(g(FACES));
-        r.eax = word(r.ebx);
-        r.edx |= r.eax;
+        let now_word = word(r.ebx);
+        r.eax = now_word;
         let before = g(0x6D2814 + 4 * k);
-        if r.ebx != before {
-            r.ebx = before;
+        let before_word = (r.ebx != before).then(|| {
             p(0x6D3170, before);
             r.esi = (before << 6).wrapping_add(g(FACES));
             r.ebx = word(before);
-            r.eax = (r.eax | r.ebx) & 0xC00;
-            if r.eax == 0xC00 {
-                // 0x45D83E: a wall met.
-                p(0x6D3214, r.ebp);
-                p(0x71A1FC, g(0x71AAC8 + 4 * k));
-                p(0x71A200, g(0x71ABC8 + 4 * k));
-                p(0x71A204, g(0x71ACC8 + 4 * k));
-                crate::physics::wall_edge_contact::steps(r)?;
-                if abs_compare(g(0x6D3108), g(0x71A208)) & 0x100 == 0 {
-                    p(0x71A208, abs_of(g(0x6D3108)));
-                }
-                return after(r);
+            r.eax = (now_word | r.ebx) & 0xC00;
+            r.ebx
+        });
+        Ok::<_, Refused>(walls::ProbeFaces {
+            now_word,
+            before_word,
+        })
+    })?;
+    match walked {
+        walls::Walk::Met { probe, words } => {
+            // 0x45D83E: a wall met.
+            r.edx = words;
+            let k = probe as usize;
+            p(0x6D3214, r.ebp);
+            p(0x71A1FC, g(0x71AAC8 + 4 * k));
+            p(0x71A200, g(0x71ABC8 + 4 * k));
+            p(0x71A204, g(0x71ACC8 + 4 * k));
+            crate::physics::wall_edge_contact::steps(r)?;
+            if let Some(hit) = rc2k_core::physics::walls::raised_hit(
+                f32::from_bits(g(0x6D3108)),
+                f32::from_bits(g(0x71A208)),
+            ) {
+                p(0x71A208, hit.to_bits());
             }
+            after(r)
         }
-        r.ebp += 1;
-        if r.ebp == n {
-            break;
+        walls::Walk::Clear { bits } => {
+            r.ebp = u32::MAX;
+            r.eax = g(0x6D3170);
+            p(0x6D3174, r.eax);
+            r.edx = bits;
+            p(0x6D3038, r.edx);
+            if r.edx != walls::WALL_BITS {
+                return Ok(());
+            }
+            p(0x71A1FC, g(0x71A17C));
+            p(0x71A200, g(0x71A180));
+            p(0x71A204, g(0x71A184));
+            crate::physics::wall_push_back::steps(r)?;
+            after(r)
         }
     }
-    r.ebp = u32::MAX;
-    r.eax = g(0x6D3170);
-    p(0x6D3174, r.eax);
-    r.edx &= 0xC00;
-    p(0x6D3038, r.edx);
-    if r.edx != 0xC00 {
-        return Ok(());
-    }
-    p(0x71A1FC, g(0x71A17C));
-    p(0x71A200, g(0x71A180));
-    p(0x71A204, g(0x71A184));
-    crate::physics::wall_push_back::steps(r)?;
-    after(r)
 }
 
 /// The probe count checked: 0 or past 0x40 refused.
 pub fn check() -> Result<(), Refused> {
-    let n = g(0x71A238);
-    if n == 0 || n > 0x40 {
-        return Err(BadInput("a probe count of 0 or past 0x40").into());
-    }
-    Ok(())
+    Ok(walls::check_probe_count(g(0x71A238))?)
 }
 
 /// The Rust version.

@@ -7,7 +7,12 @@
 //! 0x43FDFE, `set_car_counter` 0x43A96C, `set_both_counters` 0x43A987,
 //! `set_start_states` 0x446D2E and `store_results_by_mode` 0x449957; the set-up's
 //! choice converted 2026-10-21 from `auto_set_up_car` 0x436F08, the opponents' draws from
-//! `choose_arcade_opponents` 0x449B79).
+//! `choose_arcade_opponents` 0x449B79; the blocks' reset converted 2026-10-21 from
+//! `race::reset_car_blocks` 0x43658A; the modes' steps, the brakes and the arcade's draws
+//! converted 2026-10-21 from `race::set_up_cars` 0x43603C, `set_up_mode_0_cars`
+//! 0x4364BD and `set_up_mode_2_cars` 0x43613A; the race state's reset from
+//! `race::reset_car_race_state` 0x444C1D; the collision points' floats and their two
+//! new corners from `race::set_up_car_points` 0x426B67).
 
 use crate::Invalid;
 use crate::math::random::Random;
@@ -324,9 +329,176 @@ pub fn opponent_distance(place: u32, first: u32) -> (u32, bool) {
     (d, d < OPPONENT_REACH)
 }
 
+/// The car blocks reset for a race.
+pub const CAR_BLOCKS: u32 = 8;
+
+/// The block offsets `reset_block` sets to 0, in the original's order.
+pub const CLEARED: [u32; 22] = [
+    0xFA8, 0xAC, 0x88, 0xA8, 0xA4, 0xA0, 0x29C, 0x98, 0x2AC, 0x2B0, 0x2A4, 0x2A8, 0x2B4, 0x2A0,
+    0x428, 0x40C, 0x410, 0x414, 0x418, 0x41C, 0x420, 0x424,
+];
+
+/// What `race::reset_car_blocks` writes into car block `n` (offset, value, in order):
+/// +0x25C 1 for the race's cars (`cars`, unsigned) else 0, the `CLEARED` offsets 0, +0x38
+/// 1, +0x8C the stage's number (`dword_601430`) x 100.
+pub fn reset_block(n: u32, cars: u32, number: u32) -> Vec<(u32, u32)> {
+    let mut writes = vec![(0x25C, (n < cars) as u32)];
+    writes.extend(CLEARED.iter().map(|&off| (off, 0)));
+    writes.push((0x38, 1));
+    writes.push((0x8C, number.wrapping_mul(100)));
+    writes
+}
+
+/// What `race::reset_car_race_state` writes into each car block (offset, value, in the
+/// original's order): +0x730 0, +0x72C 0x12C, +0x724 0, +0x71C 0xCA, +0x720 0, +0x728 0,
+/// the five dwords +0xA0C .. -1.
+pub const RACE_STATE: [(u32, u32); 11] = [
+    (0x730, 0),
+    (0x72C, 0x12C),
+    (0x724, 0),
+    (0x71C, 0xCA),
+    (0x720, 0),
+    (0x728, 0),
+    (0xA0C, u32::MAX),
+    (0xA10, u32::MAX),
+    (0xA14, u32::MAX),
+    (0xA18, u32::MAX),
+    (0xA1C, u32::MAX),
+];
+/// The race's four text dwords' reset (0x6D1838 ..): four spaces.
+pub const BLANK_TEXT: u32 = 0x2020_2020;
+/// The four at 0x6D1850 ..: none (-1).
+pub const UNSET_TEXT: u32 = u32::MAX;
+
+/// A car block's collision points: x, y and z lists of 0x40 floats' bits (+0xAF0,
+/// +0xBF0, +0xCF0).
+pub type PointLists = [[u32; 0x40]; 3];
+
+/// `race::set_up_car_points`: a point's place (16.16) as a float (`fild` / `fdiv` by
+/// 65536 / `fstp`: one rounding).
+pub fn point_float(whole: u32, scale: f32) -> u32 {
+    ((whole as i32 as f64 / scale as f64) as f32).to_bits()
+}
+
+/// `race::set_up_car_points`: points 4 .. 0x3D moved two on (from the last down), the
+/// new 4 at 0 and the new 5 at 0 with the y of the new 6.
+pub fn open_two_points(lists: &mut PointLists) {
+    for n in (4..=0x3Dusize).rev() {
+        for list in lists.iter_mut() {
+            list[n + 2] = list[n];
+        }
+    }
+    lists[0][4] = 0;
+    lists[1][4] = 0;
+    lists[2][4] = 0;
+    lists[0][5] = 0;
+    lists[1][5] = lists[1][6];
+    lists[2][5] = 0;
+}
+
+/// One of race init's "cars" steps for a game mode.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CarsStep {
+    /// The stage's numbers read (`race::read_stage_car_numbers`).
+    Numbers,
+    /// The cars' times (`race::set_car_times`).
+    Times,
+    /// The mode's set-up: 2 the arcade's, 1, 0, 4 theirs, 3 `race::set_up_race_cars`.
+    SetUp(u32),
+    /// The arcade's 0x40 dwords at `dword_601C68` cleared.
+    ClearArcadeTable,
+}
+
+/// `race::set_up_cars`: the steps for a mode (`dword_62389C`); none for others.
+pub fn cars_steps(mode: u32) -> &'static [CarsStep] {
+    use CarsStep::*;
+    match mode {
+        2 => &[Numbers, Times, SetUp(2), ClearArcadeTable],
+        1 => &[SetUp(1)],
+        3 => &[SetUp(3)],
+        0 => &[Numbers, SetUp(0)],
+        4 => &[SetUp(4)],
+        _ => &[],
+    }
+}
+
+/// What `race::set_up_cars` writes into both players' blocks first (offset, value).
+pub const PLAYER_RESETS: [(u32, u32); 6] = [
+    (0x5FC, 0),
+    (0xA0C, u32::MAX),
+    (0xA14, u32::MAX),
+    (0xA10, u32::MAX),
+    (0xA1C, u32::MAX),
+    (0xA18, u32::MAX),
+];
+
+/// A player's brake setting (`dword_75AD2C` / `dword_75AE98`) for the block's +0x3C:
+/// below 0 is 0, 100 or more 0x100, else `scaled` (the x87's x 2.56, rounded).
+pub fn held_brake(v: i32, scaled: impl FnOnce(i32) -> u32) -> u32 {
+    if v < 0 {
+        0
+    } else if v.wrapping_sub(100) >= 0 {
+        0x100
+    } else {
+        scaled(v)
+    }
+}
+
+/// `race::set_up_mode_0_cars`: with every car set up automatically (`dword_52A910`) the
+/// race's cars (`g_raceCars`) must be 1 .. 8 (the original's `jnz` runs on otherwise).
+pub fn every_car_set_up(all: bool, cars: u32) -> Result<bool, Invalid> {
+    if all && (cars == 0 || cars > CAR_BLOCKS) {
+        return Err(Invalid("no cars or more than eight"));
+    }
+    Ok(all)
+}
+
+/// The arcade's start place: the cars' count with `dword_60101C` 2 or at the rally's
+/// first stage; else it stays.
+pub fn arcade_start_is_last(kind: u32, stage_in_rally: u32) -> bool {
+    kind == 2 || stage_in_rally == 0
+}
+
+/// `race::set_up_mode_2_cars`: the next number a car takes, the players' numbers
+/// (+0xAA8; the second only with two players) skipped in turn.
+pub fn arcade_number(number: u32, first: u32, second: Option<u32>) -> u32 {
+    let mut n = number;
+    if n == first {
+        n += 1;
+    }
+    if second == Some(n) {
+        n += 1;
+    }
+    n
+}
+
+/// `race::set_up_mode_2_cars`: a car's type drawn from noise (turned right by the car's
+/// index, x 3): (the product's low half, its high half: the type less one, 0 .. 2).
+pub fn arcade_type_draw(noise: u32, car: u32) -> (u32, u32) {
+    let p = noise.rotate_right(car & 0x1F) as u64 * 3;
+    (p as u32, (p >> 32) as u32)
+}
+
+/// `race::set_up_mode_2_cars`: the place a car's number is swapped with (noise x the
+/// count): (the product's low half, its high half).
+pub fn arcade_swap_draw(noise: u32, cars: u32) -> (u32, u32) {
+    let p = noise as u64 * cars as u64;
+    (p as u32, (p >> 32) as u32)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn block_reset() {
+        let w = reset_block(2, 3, 7);
+        assert_eq!(w.len(), 25);
+        assert_eq!(w[0], (0x25C, 1));
+        assert_eq!(w[23], (0x38, 1));
+        assert_eq!(w[24], (0x8C, 700));
+        assert_eq!(reset_block(3, 3, 0)[0], (0x25C, 0));
+    }
 
     #[test]
     fn set_ups_and_opponents() {
@@ -438,5 +610,42 @@ mod tests {
         assert_eq!(margin(10, 400), 600);
         assert_eq!(margin(10, 2000), 0);
         assert_eq!(margin(4000, 0), 300_000);
+    }
+
+    #[test]
+    fn modes_and_draws() {
+        assert_eq!(cars_steps(0), [CarsStep::Numbers, CarsStep::SetUp(0)]);
+        assert_eq!(cars_steps(2).len(), 4);
+        assert!(cars_steps(5).is_empty());
+        assert_eq!(held_brake(-1, |_| unreachable!()), 0);
+        assert_eq!(held_brake(100, |_| unreachable!()), 0x100);
+        assert_eq!(held_brake(50, |v| v as u32 * 2), 100);
+        assert!(every_car_set_up(true, 0).is_err() && every_car_set_up(true, 9).is_err());
+        assert_eq!(every_car_set_up(false, 0), Ok(false));
+        assert_eq!(every_car_set_up(true, 8), Ok(true));
+        assert!(arcade_start_is_last(2, 3) && arcade_start_is_last(0, 0));
+        assert!(!arcade_start_is_last(1, 1));
+        assert_eq!(arcade_number(3, 3, Some(4)), 5);
+        assert_eq!(arcade_number(3, 4, Some(3)), 4);
+        assert_eq!(arcade_number(3, 3, None), 4);
+        assert_eq!(arcade_type_draw(0x8000_0000, 0), (0x8000_0000, 1));
+        assert_eq!(arcade_type_draw(1, 1), (0x8000_0000, 1));
+        assert_eq!(arcade_swap_draw(0xFFFF_FFFF, 4), (0xFFFF_FFFC, 3));
+    }
+
+    #[test]
+    fn collision_points() {
+        assert_eq!(point_float(0x18000, 65536.0), 1.5f32.to_bits());
+        assert_eq!(point_float(0xFFFF_0000, 65536.0), (-1.0f32).to_bits());
+        let mut l: PointLists = [[0; 0x40]; 3];
+        for (k, list) in l.iter_mut().enumerate() {
+            for (n, v) in list.iter_mut().enumerate() {
+                *v = (k as u32) << 8 | n as u32;
+            }
+        }
+        open_two_points(&mut l);
+        assert_eq!(l[0][..8], [0, 1, 2, 3, 0, 0, 4, 5]);
+        assert_eq!(l[1][5], 0x104);
+        assert_eq!(l[2][0x3F], 0x23D);
     }
 }

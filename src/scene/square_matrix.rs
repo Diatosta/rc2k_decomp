@@ -20,7 +20,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::scene::matrix::{MATRIX_LEN, float_places, test_floats};
+use crate::scene::matrix::{MATRIX_LEN, sum_places, test_floats};
 use crate::scene::view_matrix::{self, squaring_regions};
 use crate::screens::harness::Left;
 use crate::service::floats::*;
@@ -62,7 +62,7 @@ extern "C" fn dispatch(r: &mut Regs) {
     } else {
         regions(r.esi)
     };
-    let places = float_places(&regions);
+    let places = sum_places(&regions);
     let floats = Floats {
         memory: &places,
         regs: &[],
@@ -80,7 +80,7 @@ fn self_test() -> (usize, usize) {
     let regions = regions(work.as_ptr() as u32);
     let saved = capture(&squaring_regions());
     let mut seed = 0x5A69_7887u32;
-    let tolerant_places = float_places(&regions);
+    let tolerant_places = sum_places(&regions);
     let tolerant = Floats {
         memory: &tolerant_places,
         regs: &[],

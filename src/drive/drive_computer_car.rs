@@ -44,6 +44,7 @@ use crate::race::norms::normalise_work_vector;
 use crate::scene::view_matrix::cross_product;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, dispatch_state, restore};
+use rc2k_core::drive::computer_driver as driver;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -88,11 +89,7 @@ const SLOT: u32 = 0x71C0CC;
 /// `table[n + k]`, the index held to the count less one (unsigned) as the original holds
 /// it (through `lea`, `sub` and `shr 2`).
 fn held(table: u32, n: u32, k: u32) -> u32 {
-    let mut i = (n.wrapping_add(k).wrapping_mul(4)) >> 2;
-    let count = g(COUNT);
-    if i >= count {
-        i = count.wrapping_sub(1);
-    }
+    let i = driver::held_index(n, k, g(COUNT));
     g(table.wrapping_add(i.wrapping_mul(4)))
 }
 
@@ -133,9 +130,11 @@ unsafe fn normalised(from: u32, to: u32) {
 }
 
 /// The Rust version.
+// Converted: `rc2k_core::drive::computer_driver` (the x87 steps stay).
 pub unsafe fn drive_computer_car() -> Result<(), Refused> {
     unsafe {
-        let reaches = g(0x719FEC) >= 0x320 && compare_full(g(0x71A0A0), g(0x71BF70)) & 0x100 == 0;
+        let reaches = g(0x719FEC) >= driver::FIRST_STEP
+            && compare_full(g(0x71A0A0), g(0x71BF70)) & 0x100 == 0;
         if reaches && g(COUNT) == 0 {
             return Err(BadInput("no checkpoints (the tables' indices would be -1)").into());
         }
@@ -159,7 +158,7 @@ pub unsafe fn drive_computer_car() -> Result<(), Refused> {
         );
         p(0x71C0D4, b1);
         p(0x71C0D8, b2);
-        if (b1.wrapping_add(b2).wrapping_sub(0x12) as i32) < 0 {
+        if driver::narrow(b1, b2) {
             p(0x71C0BC, 1);
             p(0x71C0D0, 1);
         }
@@ -167,112 +166,62 @@ pub unsafe fn drive_computer_car() -> Result<(), Refused> {
         let speed = (float_hypot_to_int(g(0x71A170), g(0x71A178)) as u32) << 1;
         p(SPEED, speed);
         let edx = g(SLOT);
-        let (first, second, ahead) = if g(0x71C0D0) == 1 {
-            if g(0x71A8F8) >= 3 {
-                if speed >= 0x46 {
-                    (0xF, 0x10, 0xF)
-                } else {
-                    (3, 4, 3)
-                }
-            } else if speed >= 0x5A {
-                (0xE, 0xF, 0xE)
-            } else {
-                (4, 5, 4)
-            }
-        } else if speed >= 0x6E {
-            (0xF, 0x10, 0xF)
-        } else {
-            (4, 5, 4)
-        };
-        let turn =
-            (held(LINE, n, second).wrapping_sub(held(LINE, n, first)) as i32 >> 16).unsigned_abs();
+        let (first, second, ahead) = driver::lookahead(g(0x71C0D0) == 1, g(0x71A8F8), speed);
+        let turn = driver::turn(held(LINE, n, first), held(LINE, n, second));
         p(0x71BFFC, turn);
-        let limit = if g(0x71C0D0) == 1 { 0x780 } else { 0x980 };
-        if (turn.wrapping_sub(limit) as i32) >= 0 {
-            if (turn.wrapping_sub(0xC00) as i32) >= 0 {
+        if driver::bend_noted(turn, g(0x71C0D0) == 1) {
+            if driver::sharp(turn) {
                 p(0x71C038 + 4 * g(SLOT), 1);
             }
             let to = n.wrapping_add(ahead);
-            if (turn.wrapping_sub(g(0x71C088 + 4 * edx)) as i32) >= 0 {
+            if driver::bigger_bend(turn, g(0x71C088 + 4 * edx)) {
                 p(0x71C088 + 4 * edx, turn);
                 p(0x71C010 + 4 * edx, to);
             }
         }
         let edx = g(SLOT);
-        if (n.wrapping_sub(g(0x71C010 + 4 * edx)) as i32) >= 0 {
+        if driver::bend_passed(n, g(0x71C010 + 4 * edx)) {
             p(0x71C010 + 4 * edx, 0);
             p(0x71C088 + 4 * edx, 0);
         }
-        let mut bend =
-            ((held(LINE, n, 4).wrapping_sub(held(LINE, n, 0)) as i32) >> 25).unsigned_abs() + 10;
-        if bend >= 0x18 {
-            bend = 0x18;
-        }
-        if bend >= 0x10 {
+        let bend = driver::table_entry(held(LINE, n, 0), held(LINE, n, 4));
+        if driver::tight(bend) {
             p(0x71C0E4, 1);
         }
-        let mut table = 0x71BF1C;
-        if g(0x71C0D0) == 1 {
-            table = 0x71BF38;
-        }
-        if g(0x71A8F8) >= 3 {
-            table = 0x71BF54;
-        }
-        let mut want = u32::from((a(table) as *const u8).add(bend as usize).read());
+        let table =
+            [0x71BF1C, 0x71BF38, 0x71BF54][driver::speed_table(g(0x71C0D0) == 1, g(0x71A8F8))];
+        let listed = u32::from((a(table) as *const u8).add(bend as usize).read());
         let s = g(SLOT);
-        if g(0x71C010 + 4 * s) != 0 {
-            want = if g(0x71C038 + 4 * s) != 0 {
-                0x19
-            } else if (speed.wrapping_sub(0x28) as i32) < 0 {
-                0x32
-            } else {
-                0x28
-            };
-        } else {
+        let near = g(0x71C010 + 4 * s) != 0;
+        let want = driver::wanted_speed(listed, near, near && g(0x71C038 + 4 * s) != 0, speed);
+        if !near {
             p(0x71C038 + 4 * s, 0);
         }
         p(0x71C008, want);
-        if want >= 0x32 {
+        if driver::eased(want) {
             p(
                 0x71C008,
                 int_toward_to_int(want as i32, g(0x604EC8), g(0x71BFA4)) as u32,
             );
         }
-        let want = g(0x71C008);
-        if speed < want {
-            p(0x71BF8C, 0x100);
-        } else if speed >= want.wrapping_add(5) {
-            if speed >= want.wrapping_add(0xF) {
-                p(0x71BF94, 1);
-            }
-            p(0x71BF90, 0xFF);
+        let pedals = driver::pedals(speed, g(0x71C008));
+        if let Some(t) = pedals.throttle {
+            p(0x71BF8C, t);
         }
-        let k = n.wrapping_add(g(SLOT)) & 0x1F;
+        if pedals.hard {
+            p(0x71BF94, 1);
+        }
+        if let Some(b) = pedals.brake {
+            p(0x71BF90, b);
+        }
+        let k = driver::offset_entry(n, g(SLOT));
         p(0x71C0C8, x87::loaded(g(0x71BE9C + 4 * k)));
         let (x, z) = face_point(held(CHECKPOINT_FACES, n, 0));
         p(0x71C228, x);
         p(0x71C230, z);
         p(0x71C22C, 0);
-        let aim = if g(0x71C038 + 4 * g(SLOT)) != 0 {
-            if speed >= 0x46 {
-                5
-            } else if speed >= 0x28 {
-                4
-            } else {
-                2
-            }
-        } else {
-            let mut k = 2;
-            if g(0x71C0E4) == 1 && speed >= 0x46 {
-                k = 4;
-            }
-            if speed >= 0x5A {
-                k = 5;
-            } else if speed >= 0x3C {
-                k = 3;
-            }
-            k
-        };
+        let sharp = g(0x71C038 + 4 * g(SLOT)) != 0;
+        let aim = driver::aim_ahead(sharp, !sharp && g(0x71C0E4) == 1, speed);
         let (x, z) = face_point(held(CHECKPOINT_FACES, n, aim));
         p(0x71C238, x);
         p(0x71C240, z);
@@ -307,29 +256,24 @@ pub unsafe fn drive_computer_car() -> Result<(), Refused> {
         );
         let (i, status) = times_fist_compare(g(0x71C2CC), g(0x5C5E2C), g(0x5C5D90));
         p(0x71C000, i as u32);
-        let mut steer = sign_abs(i as u32);
-        if status & 0x100 != 0 {
-            steer = steer.wrapping_neg();
-        }
-        if g(GEAR) == u32::MAX {
-            steer = steer.wrapping_neg();
-        }
+        let steer = driver::steering(i as u32, status & 0x100 != 0, g(GEAR) == u32::MAX);
         p(0x71BF88, steer);
         let s = g(SLOT);
-        let back = g(0x71BFD0 + 4 * s);
-        if back != 0 {
-            p(0x71BFD0 + 4 * s, back - 1);
-            if g(GEAR) != u32::MAX {
-                p(0x71BF9C, 1);
-                p(0x71BF90, 0x100);
-            }
-        } else if (g(GEAR).wrapping_sub(1) as i32) < 0 {
+        let (left, reversing, handbrake) = driver::reverse_step(g(0x71BFD0 + 4 * s), g(GEAR));
+        if let Some(left) = left {
+            p(0x71BFD0 + 4 * s, left);
+        }
+        if reversing {
+            p(0x71BF9C, 1);
+            p(0x71BF90, 0x100);
+        }
+        if handbrake {
             p(0x71BF98, 1);
         }
         let s = g(SLOT);
         let steps = g(0x71BFA8 + 4 * s).wrapping_add(1);
         p(0x71BFA8 + 4 * s, steps);
-        if (steps.wrapping_sub(0xC8) as i32) < 0 {
+        if !driver::check_due(steps) {
             return Ok(());
         }
         p(0x71BFA8 + 4 * s, 0);
@@ -337,43 +281,24 @@ pub unsafe fn drive_computer_car() -> Result<(), Refused> {
         let (ax, az, cx, cz) = (at(now), at(now + 8), at(then), at(then + 8));
         put(then, ax);
         put(then + 8, az);
-        let mut dx = ax.wrapping_sub(cx);
-        if (dx as i32) < 0 {
-            dx = dx.wrapping_neg();
-        }
-        let mut dz = az.wrapping_sub(cz);
-        if (dz as i32) < 0 {
-            dz = dz.wrapping_neg();
-        }
-        if (dx.wrapping_sub(dz) as i32) < 0 {
-            dz >>= 1;
-        } else {
-            dx >>= 1;
-        }
-        let moved = dx.wrapping_add(dz);
+        let moved = driver::moved((ax, az), (cx, cz));
         p(0x71BFF8, moved);
-        if (moved.wrapping_sub(0x8000) as i32) >= 0 {
+        if !driver::stuck(moved) {
             return Ok(());
         }
         if g(GEAR) != u32::MAX {
-            p(0x71BFD0 + 4 * g(SLOT), 0xFA);
+            p(0x71BFD0 + 4 * g(SLOT), driver::REVERSE_STEPS);
             return Ok(());
         }
         let s = g(SLOT);
         p(0x71BFD0 + 4 * s, 0);
-        let mut tries = g(0x71C060 + 4 * s).wrapping_add(1);
-        if tries >= 4 {
-            tries = 0;
+        let (tries, fourth) = driver::reverse_tries(g(0x71C060 + 4 * s));
+        if fourth {
             p(0x71BFA0, 1);
         }
         p(0x71C060 + 4 * s, tries);
         Ok(())
     }
-}
-
-/// `cmp 0; jns; neg`.
-fn sign_abs(v: u32) -> u32 {
-    if (v as i32) < 0 { v.wrapping_neg() } else { v }
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {

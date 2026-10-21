@@ -42,7 +42,8 @@ pub fn free_own_heap_with(
     part: Part,
 ) -> Result<(), Refused> {
     let rd = |at: u32| unsafe { (at as *const u32).read_volatile() };
-    if rd(on) != 1 {
+    // Converted: `rc2k_core::memory::own_heap_on`.
+    if !rc2k_core::memory::own_heap_on(rd(on)) {
         return Ok(());
     }
     let mut g = Regs {

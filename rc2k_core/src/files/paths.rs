@@ -104,6 +104,16 @@ pub fn missing_partner(path: &[u8]) -> Option<&'static [u8; 4]> {
         .map(|(_, to)| *to)
 }
 
+/// The root `files::drive_type` (0x4031D8, converted 2026-10-21) asks about: `x:\` with
+/// the letter lowered (`lower`, the game's case table), with its NUL; None (the current
+/// drive) for a letter of 0.
+pub fn drive_root(letter: u8, lower: impl FnOnce(u8) -> u8) -> Option<[u8; 4]> {
+    (letter != 0).then(|| [lower(letter), b':', b'\\', 0])
+}
+
+/// `GetDriveTypeA`'s answer for a CD-ROM drive.
+pub const CD_ROM: u32 = 5;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -153,5 +163,14 @@ mod tests {
         assert_eq!(missing_partner(b"a.png"), Some(b".pcx"));
         assert_eq!(missing_partner(b".png"), None);
         assert_eq!(missing_partner(b"a.PNG"), None);
+    }
+
+    #[test]
+    fn drive_roots() {
+        assert_eq!(
+            drive_root(b'D', |b| b.to_ascii_lowercase()),
+            Some(*b"d:\\\0")
+        );
+        assert_eq!(drive_root(0, |_| unreachable!()), None);
     }
 }

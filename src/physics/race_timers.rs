@@ -15,7 +15,6 @@
 //! Self-test: `physics/splits.rs` (`test_splits`), every mode.
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::math::x87;
 use crate::physics::count_down_start::count_down_start;
 use crate::physics::count_start_second::count_start_second;
 use crate::physics::count_stop_timers::count_stop_timers;
@@ -41,22 +40,23 @@ hook_asm!(
 );
 
 /// The steps on `r`.
+// Converted: `rc2k_core::physics::splits::{timer_rate, timer_run}`.
 pub fn race_timers_in(r: &mut Regs) -> Result<(), Refused> {
-    let one = 0x3F80_0000;
-    p(0x614170, one);
-    let rate = if g(DONE) != 0 {
-        x87::mul(one, g(0x601028))
-    } else {
-        one
-    };
-    p(0x614170, rate);
-    let mode = g(MODE);
-    if mode > 3 {
+    use rc2k_core::physics::splits::{TimerRun, timer_rate, timer_run};
+    p(0x614170, 1.0f32.to_bits());
+    let finished = g(DONE) != 0;
+    let factor = if finished { g(0x601028) } else { 0 };
+    p(
+        0x614170,
+        timer_rate(finished, f32::from_bits(factor)).to_bits(),
+    );
+    let run = timer_run(g(MODE));
+    if run == TimerRun::None {
         return Ok(());
     }
     unsafe {
         count_start_second().apply(r);
-        if mode == 2 {
+        if run == TimerRun::Start {
             count_down_start()?.apply(r);
             take_split_counted_in(r)?;
             start_go_notice()?.apply(r);

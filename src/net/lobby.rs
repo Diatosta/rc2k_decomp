@@ -267,12 +267,9 @@ pub const fn fatal(code: u32) -> crate::errors::FatalError {
     crate::errors::FatalError { code, message: "" }
 }
 
-pub const NO_CONNECTION: u32 = 0x80A6_1010; // a connection's number past the list
-pub const NO_CONNECTIONS: u32 = 0x80A6_1011; // the connections' table not taken
-pub const NO_SESSION: u32 = 0x80A6_1030;
-pub const NO_SESSIONS: u32 = 0x80A6_1031;
-pub const NO_CONNECTION_MEMORY: u32 = 0x80E6_8021;
-pub const NO_SESSION_MEMORY: u32 = 0x80E6_8022;
+pub use rc2k_core::net::lists::{NO_CONNECTION, NO_CONNECTIONS, NO_SESSION, NO_SESSIONS};
+pub const NO_CONNECTION_MEMORY: u32 = rc2k_core::net::lists::NO_CONNECTION_MEMORY;
+pub const NO_SESSION_MEMORY: u32 = rc2k_core::net::lists::NO_SESSION_MEMORY;
 pub const CONNECTION_LEN: u32 = std::mem::size_of::<crate::net::types::NetConnection>() as u32;
 pub const SESSION_LEN: u32 = std::mem::size_of::<crate::net::types::NetSession>() as u32;
 
@@ -285,13 +282,9 @@ pub fn record_of(
     len: u32,
     codes: [u32; 2],
 ) -> Result<u32, Refused> {
-    if index >= g(count) {
-        return Err(fatal(codes[0]).into());
-    }
-    if g(table) == 0 {
-        return Err(fatal(codes[1]).into());
-    }
-    Ok(index.wrapping_mul(len).wrapping_add(g(table)))
+    // Converted: `rc2k_core::net::lists::record`.
+    rc2k_core::net::lists::record(index, g(count), || g(table), len, codes)
+        .map_err(|missing| fatal(missing.0).into())
 }
 
 /// A connection's record (`net::connection_entry`).

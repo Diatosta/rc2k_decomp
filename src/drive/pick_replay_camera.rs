@@ -20,6 +20,7 @@ use crate::math::next_random::STATE_RVA;
 use crate::physics::flow::{a, g, p};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use rc2k_core::drive::replay_views::{MODES as MODE_COUNT, draw, fits, kept_mode, wish_kind};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -42,34 +43,28 @@ fn kind_of(mode: u32) -> u32 {
 }
 
 /// The Rust version.
+// Converted: `rc2k_core::drive::replay_views::{wish_kind, fits, draw, kept_mode}`.
 pub unsafe fn pick_replay_camera(entry: &Regs) -> Result<Left, Refused> {
-    let kind = match entry.eax {
-        0x23 => 0,
-        0x24 => 1,
-        0x25 => 2,
-        _ => return Ok(Left::nothing()),
+    let Some(kind) = wish_kind(entry.eax) else {
+        return Ok(Left::nothing());
     };
-    // 0x23's loop is `cmp [ebx], 0 / jz`: it stops at the first mode whose kind is NOT 0
-    // (0x24's and 0x25's stop at their kind).
-    let fits = |mode: u32| (kind_of(mode) == kind) != (kind == 0);
-    if !(0..0x34).any(fits) {
+    let fits = |mode: u32| fits(kind, kind_of(mode));
+    if !(0..MODE_COUNT).any(fits) {
         return Err(BadInput("no camera mode the wish stops at").into());
     }
-    let (mut eax, mut edx);
-    loop {
-        let product = u64::from(unsafe { crate::math::next_random::next_random() }) * 0x34;
-        eax = product as u32;
-        edx = (product >> 32) as u32;
+    let (eax, edx) = loop {
+        let (eax, edx) = draw(unsafe { crate::math::next_random::next_random() });
         if fits(edx) {
-            break;
+            break (eax, edx);
         }
-    }
+    };
     let ebx = g(MODES + 4 * edx as usize);
-    if matches!(edx, 2 | 3)
-        && (g(B + 0x24) > 0x16 || (g(0x63DB94) != 1 && g(B + 0xFE0 + 0x24) > 0x16))
-    {
-        edx = 4;
-    }
+    let edx = kept_mode(
+        edx,
+        || g(B + 0x24),
+        || g(0x63DB94) != 1,
+        || g(B + 0xFE0 + 0x24),
+    );
     Ok(Left::nothing().with(EAX, eax).with(EBX, ebx).with(EDX, edx))
 }
 

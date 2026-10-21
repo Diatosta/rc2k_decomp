@@ -32,7 +32,8 @@ hook_asm!(
 
 /// The Rust version: the registers it leaves (the entry's).
 pub fn close_viewed_replay(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    if get(OPEN) == 1 {
+    // Converted: `rc2k_core::race::viewer_flow::closes`.
+    if rc2k_core::race::viewer_flow::closes(get(OPEN)) {
         let mut r = *entry;
         part(1, &mut r)?;
         r.eax = get(HANDLE);

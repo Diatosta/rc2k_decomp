@@ -40,7 +40,6 @@ use crate::redirect::RedirectedCopy;
 use crate::service::harness::{Region, at, capture, restore};
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::copy_printable::copy_printable;
-use crate::strings::format_u32::format_u32;
 use std::sync::Mutex;
 use std::sync::atomic::AtomicUsize;
 use windows_sys::Win32::System::WindowsProgramming::GetUserNameA;
@@ -65,21 +64,23 @@ hook_asm!(
 const RUNS_RVA: usize = rva(0x518BB0); // dword_518BB0
 const ALL_SECRET_CARS_RVA: usize = rva(0x758710); // g_allSecretCars
 const PLAYER_NAMES_RVA: usize = rva(0x755784); // byte_755784, four of 0x20 bytes
-const PLAYER_NAME_IDS: [u32; 4] = [0x18C, 0x18D, 0x18E, 0x18F];
 const MACHINE_NAME_RVA: usize = rva(0x52AB90); // byte_52AB90
 const MACHINE_NAME_ROOM: usize = 0x40;
-const MACHINE_NAME_ID: u32 = 0x14D;
 const DRIVER_NAME_RVA: usize = rva(0x5BEC08); // dword_5BEC08
 const TYRE_CHANGE_RECORD_RVA: usize = rva(0x5BEC28); // g_tyreChangeRecord (hundredths)
-const DRIVER_NAME_IDS: (u32, u32) = (0x5A5, 0xB4);
 const SETUP_NAMES_RVA: usize = rva(0x527880); // byte_527880
-const SLOTS: u32 = 100;
-const ALL_CARS_CHEATS: u32 = 0x1FBC;
-const USER_NAME_ROOM: u32 = 0x1F;
 /// More draws than a name can need.
 const MOST_DRAWS: usize = 10_000;
 
 // ---- Rust version ----
+
+// Converted: `rc2k_core::system::game_data` (the choices, the default names, the drawn
+// driver's name).
+use rc2k_core::system::game_data::{
+    ALL_CARS_CHEATS, DRIVER_NAME_IDS, MACHINE_NAME_ID, PLAYER_NAME_IDS, REPLAY_NAME_ID,
+    SAVEGAME_NAME_ID, SETUP_NAME_ID, SLOTS, TYRE_CHANGE_RECORD, USER_NAME_ROOM, all_secret_cars,
+    drawn_again, removes_secret_cars,
+};
 
 /// What the function calls.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -109,13 +110,10 @@ pub type Outside<'a> = &'a mut dyn FnMut(Call) -> Result<u32, Refused>;
 /// The string and what follows it, with a NUL, at `to`.
 unsafe fn default_name(to: usize, room: usize, id: u32, after: &[u8]) -> Result<(), BadInput> {
     unsafe {
-        let mut name = Vec::new();
-        push_string(&mut name, id);
-        name.extend_from_slice(after);
-        name.push(0);
-        if name.len() > room {
-            return Err(BadInput("a default name longer than its place"));
-        }
+        let mut string = Vec::new();
+        push_string(&mut string, id);
+        let name = rc2k_core::system::game_data::default_name(&string, after, room)
+            .ok_or(BadInput("a default name longer than its place"))?;
         std::ptr::copy(name.as_ptr(), game_addr(to) as *mut u8, name.len());
         Ok(())
     }
@@ -127,7 +125,11 @@ unsafe fn number_empty_names(names: usize, id: u32) -> Result<(), BadInput> {
         for slot in 0..SLOTS {
             let name = names + slot as usize * NAME_LEN;
             if game_read::<u8>(name) == 0 {
-                default_name(name, NAME_LEN, id, &format_u32(slot, 0x12))?;
+                let mut string = Vec::new();
+                push_string(&mut string, id);
+                let bytes = rc2k_core::system::game_data::slot_name(&string, slot, NAME_LEN)
+                    .ok_or(BadInput("a default name longer than its place"))?;
+                std::ptr::copy(bytes.as_ptr(), game_addr(name) as *mut u8, bytes.len());
             }
         }
         Ok(())
@@ -143,10 +145,10 @@ pub unsafe fn load_game_data(outside: Outside) -> Result<(), Refused> {
         game_write(RUNS_RVA, game_read::<u32>(RUNS_RVA).wrapping_add(1));
         outside(Call::ReadDriverNames)?;
         outside(Call::ApplyPatches)?;
-        if game_read::<u32>(ALL_SECRET_CARS_RVA) == 0 {
+        if removes_secret_cars(game_read(ALL_SECRET_CARS_RVA)) {
             outside(Call::RemoveSecretCars)?;
         }
-        if game_read::<u32>(ALL_SECRET_CARS_RVA) == 1 {
+        if all_secret_cars(game_read(ALL_SECRET_CARS_RVA)) {
             game_write(CHEATS_RVA, game_read::<u32>(CHEATS_RVA) | ALL_CARS_CHEATS);
             outside(Call::ApplyCheats)?;
         }
@@ -191,7 +193,7 @@ pub unsafe fn load_game_data(outside: Outside) -> Result<(), Refused> {
                     game_addr(DRIVER_NAME_RVA) as *mut u8,
                     name.len(),
                 );
-                if game_read::<u32>(DRIVER_NAME_RVA) != u32::from_le_bytes(*b"andr") {
+                if !drawn_again(game_read(DRIVER_NAME_RVA)) {
                     break name.len();
                 }
                 draws += 1;
@@ -200,21 +202,21 @@ pub unsafe fn load_game_data(outside: Outside) -> Result<(), Refused> {
                 }
             };
             game_write(DRIVER_NAME_RVA + end, 0u8);
-            game_write(TYRE_CHANGE_RECORD_RVA, 0x5208u32);
+            game_write(TYRE_CHANGE_RECORD_RVA, TYRE_CHANGE_RECORD);
         }
 
         for slot in 0..SLOTS {
             outside(Call::ReadSavegameSlot(slot))?;
         }
-        number_empty_names(SAVEGAME_NAMES_RVA, 0x4E0)?;
+        number_empty_names(SAVEGAME_NAMES_RVA, SAVEGAME_NAME_ID)?;
         for slot in 0..SLOTS {
             outside(Call::ReadReplaySlot(slot))?;
         }
-        number_empty_names(REPLAY_NAMES_RVA, 0x4E2)?;
+        number_empty_names(REPLAY_NAMES_RVA, REPLAY_NAME_ID)?;
         for slot in 0..SLOTS {
             outside(Call::ReadSetupSlot(slot))?;
         }
-        number_empty_names(SETUP_NAMES_RVA, 0x4E1)?;
+        number_empty_names(SETUP_NAMES_RVA, SETUP_NAME_ID)?;
         Ok(())
     }
 }

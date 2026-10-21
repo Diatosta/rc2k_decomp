@@ -10,10 +10,11 @@
 //! original goes round for ever). Callers `install::key_up`, `install::key_left`. Shadow
 //! mode compares. Self-test: items of the test's against the original.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::install::installer::{CF, ZF, rb, rd, wb};
 use crate::race::viewer::dispatch_regs;
+use rc2k_core::install::items::{self, MARKS};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -28,31 +29,33 @@ hook_asm!(
     original = ORIGINAL
 );
 
-/// Steps a choice may take before it is clear that the original goes round for ever.
-pub const ROUND: usize = 0x202;
+/// An item of choices' places: the chosen byte (edx) and the table (ebx); and whether
+/// choice `cl` is free.
+pub fn choice_places(r: &mut Regs) -> impl Fn(u8) -> bool + use<> {
+    r.edx = rd(r.esi + 8);
+    r.ebx = rd(r.esi + 0xC);
+    let table = r.ebx;
+    move |cl: u8| rb(table.wrapping_add(2 * cl as u32 + 1)) & MARKS == 0
+}
+
+/// The choice reached stored (when it changed) and left in ecx; zero set, carry clear.
+pub fn store_choice(r: &mut Regs, chosen: u8, cl: u8) {
+    if cl != chosen {
+        wb(r.edx, cl);
+    }
+    r.ecx = cl as u32;
+    r.set_zero(true);
+    r.set_carry(false);
+}
 
 pub fn choice_back(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
-    r.edx = rd(r.esi + 8);
-    r.ebx = rd(r.esi + 0xC);
-    let mut cl = rb(r.edx);
-    for _ in 0..ROUND {
-        cl = cl.wrapping_sub(1);
-        if cl & 0x80 != 0 {
-            cl = rb(r.esi + 1).wrapping_sub(1);
-        }
-        let free = rb(r.ebx.wrapping_add(2 * cl as u32 + 1)) & 0xC0 == 0;
-        if cl == rb(r.edx) || free {
-            if cl != rb(r.edx) {
-                wb(r.edx, cl);
-            }
-            r.ecx = cl as u32;
-            r.set_zero(true);
-            r.set_carry(false);
-            return Ok(r);
-        }
-    }
-    Err(BadInput("every choice marked and the chosen one past them").into())
+    let free = choice_places(&mut r);
+    let chosen = rb(r.edx);
+    // Converted: `rc2k_core::install::items::choice_back`.
+    let cl = items::choice_back(chosen, || rb(entry.esi + 1), free)?;
+    store_choice(&mut r, chosen, cl);
+    Ok(r)
 }
 
 extern "C" fn dispatch(r: &mut Regs) {

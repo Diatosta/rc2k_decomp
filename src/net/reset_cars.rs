@@ -11,6 +11,7 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::net::lobby::{Part, Saved, dispatch_lobby, dword, g, p, region, run_both};
+use rc2k_core::net::cars;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -32,20 +33,15 @@ const AFTER: [usize; 2] = [0x6238CC, 0x6238D0]; // dword_6238CC, dword_6238D0
 /// The Rust version: the registers it leaves.
 pub fn reset_cars(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
-    for car in 0..8u32 {
+    for car in 0..cars::CARS {
         let mut c = r;
         c.ecx = car;
         c.esi = g(CAR_BLOCKS + 4 * car as usize);
         c.eax = car + 1;
-        let set =
-            |offset: u32, v: u32| unsafe { ((c.esi + offset) as *mut u32).write_unaligned(v) };
-        set(0xAA8, c.eax);
-        set(0x684, 4);
-        set(0x28, 2);
-        set(0x34, 0x80);
-        set(0x30, 0x80);
-        set(0x20, 0x80);
-        set(0x3C, 0x80);
+        // Converted: `rc2k_core::net::cars::reset_fields`.
+        for (offset, v) in cars::reset_fields(car) {
+            unsafe { ((c.esi + offset) as *mut u32).write_unaligned(v) };
+        }
         part(CLEAR_CAR_STATE, &mut c)?;
         r.eflags = c.eflags;
     }

@@ -20,6 +20,7 @@ use crate::framework::{
 };
 use crate::screens::font_at;
 use crate::text::draw_text::{Canvas, GameCanvas};
+use rc2k_core::screens::message_box::{FILL, FRAME, STRING, layout};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -35,7 +36,6 @@ hook_asm!(
 );
 
 const BOX: usize = 0x52983C; // dword_52983C .. dword_529848
-const STRING: u32 = 0x1FE;
 
 fn k(a: usize) -> u32 {
     unsafe { game_read(rva(a)) }
@@ -51,23 +51,26 @@ pub unsafe fn draw_message_box(x: i32, canvas: &mut dyn Canvas) -> Result<(), Re
         if bits != 16 && bits != 32 {
             return Err(BadInput("a message box on a surface of neither 16 nor 32 bits").into());
         }
+        // Converted: `rc2k_core::screens::message_box::layout`.
         let m = measure_string_by_id_at(STRING, font_at(0x51E824), x, canvas)?;
-        let w = m.width.wrapping_add(0x32);
-        let h = (m.outcome.y as u32).wrapping_add(0x19);
-        game_write(rva(BOX + 8), w);
-        game_write(rva(BOX + 0xC), h);
         let (sw, sh) = (k(0x4F49A0), k(0x4F49A4));
-        game_write(rva(BOX), (sw.wrapping_sub(w) as i32 >> 1) as u32);
-        game_write(rva(BOX + 4), (sh.wrapping_sub(h) as i32 >> 1) as u32);
+        let font = font_at(0x51E904);
+        let b = layout(
+            m.width,
+            m.outcome.y,
+            sw,
+            sh,
+            (font as *const u8).add(8).cast::<u32>().read_unaligned(),
+        );
+        game_write(rva(BOX + 8), b.rect[2]);
+        game_write(rva(BOX + 0xC), b.rect[3]);
+        game_write(rva(BOX), b.rect[0]);
+        game_write(rva(BOX + 4), b.rect[1]);
         let rect = game_addr(rva(BOX)) as u32;
         let palettes = k(0x51DEB0);
-        fill_rect(rect, 1, palettes)?;
-        frame_rect(rect, 0, 0, 0xA, palettes);
-        let font = font_at(0x51E904);
-        let y = (sh.wrapping_sub((font as *const u8).add(8).cast::<u32>().read_unaligned()) as i32
-            >> 1)
-            - 1;
-        draw_string_by_id_at(STRING, font, (sw as i32) >> 1, y, canvas)?;
+        fill_rect(rect, FILL, palettes)?;
+        frame_rect(rect, 0, 0, FRAME, palettes);
+        draw_string_by_id_at(STRING, font, b.text_x, b.text_y, canvas)?;
         Ok(())
     }
 }

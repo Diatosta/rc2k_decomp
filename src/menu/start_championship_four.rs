@@ -9,6 +9,7 @@
 //! they are reached. Shadow mode runs the original alone. Self-test: `start_event::test_starter`.
 
 use crate::menu::start_event::{Starter, starter_hook};
+use rc2k_core::menu::starters::{self, Championship, Seats};
 
 pub const START_CHAMPIONSHIP_FOUR: Starter = Starter {
     address: 0x4A29F4,
@@ -20,10 +21,10 @@ pub const START_CHAMPIONSHIP_FOUR: Starter = Starter {
     calls: &[
         0x1F, 0x6B, 0x76, 0x88, 0xAC, 0xB7, 0xC9, 0xED, 0xF8, 0x106, 0x12A, 0x135, 0x143, 0x152,
     ],
-    event_type: 4,
-    players: 4,
-    mode: 0xD,
-    first: false,
+    kind: starters::Starter {
+        championship: Championship::First,
+        seats: Seats::Four,
+    },
 };
 
 starter_hook!("menu::start_championship_four", START_CHAMPIONSHIP_FOUR,);

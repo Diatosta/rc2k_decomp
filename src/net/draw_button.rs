@@ -24,6 +24,7 @@ use crate::net::lobby::{
     BLIT, CHOICE, DRAW_STRING, EDITED, FRAME_CLOCK, MEASURE_STRING, MOVE_CLOCK, PALETTE, Part,
     SPRITES, Saved, a, answer, dispatch_lobby, dword, g, p, region, run_both,
 };
+use rc2k_core::net::screens::{self, ButtonFont};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -49,9 +50,9 @@ const FONT_DIM: usize = 0x51E7C4; // stru_51E7C4
 /// The font of item `item`'s text: lit when it is the highlighted item and being edited
 /// or in the blink's lit half.
 pub fn item_font(item: u32, plain: usize, lit: usize) -> u32 {
-    if item == g(CHOICE)
-        && (item == g(EDITED) || g(FRAME_CLOCK).wrapping_sub(g(MOVE_CLOCK)) & 8 == 0)
-    {
+    // Converted: `rc2k_core::net::screens::{item_lit, blink_lit}`.
+    let blink = || screens::blink_lit(g(FRAME_CLOCK), g(MOVE_CLOCK));
+    if screens::item_lit(item, g(CHOICE), || g(EDITED), blink) {
         a(lit)
     } else {
         a(plain)
@@ -69,23 +70,14 @@ pub fn draw_button(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     r.ebx = a(PALETTE);
     part(MEASURE_STRING, &mut r)?;
     p(WIDTH, r.ecx);
-    r.ecx = r.ecx.wrapping_add(0x1F) >> 5;
-    if (r.ecx as i32) < 1 {
-        r.ecx = 1;
-    }
-    p(TILES, r.ecx);
+    // Converted: `rc2k_core::net::screens` (`button`, `item_lit`, `button_font`).
     let flags = g(ARGS + 4);
-    r.ecx = g(WIDTH);
-    r.edi = g(ARGS + 8);
-    r.ecx = r.ecx.wrapping_add(0x44);
-    if flags & 1 == 0 {
-        r.ecx = (r.ecx as i32 >> 1) as u32;
+    let place = screens::button(g(WIDTH), g(ARGS + 8), flags);
+    p(TILES, place.tiles);
+    if flags & screens::CENTRED != 0 {
+        p(ARGS + 8, place.text_x);
     }
-    r.edi = r.edi.wrapping_sub(r.ecx);
-    if flags & 1 != 0 {
-        r.ecx = (r.ecx as i32 >> 1) as u32;
-        p(ARGS + 8, g(ARGS + 8).wrapping_sub(r.ecx));
-    }
+    r.edi = place.left;
     let blit = |r: &mut Regs, glyph: u32, part: Part| -> Result<(), Refused> {
         r.eax = glyph;
         r.ecx = r.edi;
@@ -93,39 +85,41 @@ pub fn draw_button(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         r.esi = g(SPRITES);
         part(BLIT, r)
     };
-    blit(&mut r, 0x11, part)?;
-    r.edi = r.edi.wrapping_add(0x22);
+    blit(&mut r, screens::LEFT_END, part)?;
+    r.edi = r.edi.wrapping_add(screens::END_WIDTH);
     let kept = r.edi;
     r.ebp = g(TILES);
     loop {
-        blit(&mut r, 0x12, part)?;
-        r.edi = r.edi.wrapping_add(0x20);
+        blit(&mut r, screens::TILE, part)?;
+        r.edi = r.edi.wrapping_add(screens::TILE_WIDTH);
         r.ebp = r.ebp.wrapping_sub(1);
         if r.ebp == 0 {
             break;
         }
     }
     r.edi = kept.wrapping_add(g(WIDTH));
-    blit(&mut r, 0x13, part)?;
-    r.edi = r.edi.wrapping_add(0x22);
+    blit(&mut r, screens::RIGHT_END, part)?;
+    r.edi = r.edi.wrapping_add(screens::END_WIDTH);
     r.eax = g(ARGS);
     r.ecx = g(ARGS + 8);
     r.edx = g(ARGS + 12);
     r.esi = g(ITEM);
-    r.ebx = a(FONT_PLAIN);
-    if r.esi == g(CHOICE) {
-        if r.esi == g(EDITED) {
-            r.ebx = a(FONT_LIT);
-        } else {
-            r.edi = g(FRAME_CLOCK).wrapping_sub(g(MOVE_CLOCK));
-            if r.edi & 8 == 0 {
-                r.ebx = a(FONT_LIT);
-            }
-        }
-    }
-    if flags & 2 != 0 {
-        r.ebx = a(FONT_DIM);
-    }
+    let lit = screens::item_lit(
+        r.esi,
+        g(CHOICE),
+        || g(EDITED),
+        || {
+            // The blink's clock is left in edi.
+            let (frame, moved) = (g(FRAME_CLOCK), g(MOVE_CLOCK));
+            r.edi = frame.wrapping_sub(moved);
+            screens::blink_lit(frame, moved)
+        },
+    );
+    r.ebx = a(match screens::button_font(flags, lit) {
+        ButtonFont::Plain => FONT_PLAIN,
+        ButtonFont::Lit => FONT_LIT,
+        ButtonFont::Dim => FONT_DIM,
+    });
     part(DRAW_STRING, &mut r)?;
     Ok(Regs {
         eflags: r.eflags,

@@ -22,6 +22,7 @@ use crate::net::dplay::{DELETE_PLAYER_FROM_GROUP, method};
 use crate::net::lobby::{FLAGS, TestObject, answer, cmp_flags, run_both, set_sign};
 use crate::net::message_vars::{MessageVars, TestVars, as_rust, get, get8, set, set8};
 use crate::net::{DESTROY, Part, dispatch_net};
+use rc2k_core::net::players::{A_PLAYER, System, made_host};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -40,18 +41,17 @@ pub const CREATE_PLAYER_OR_GROUP: u32 = 3;
 pub const DESTROY_PLAYER_OR_GROUP: u32 = 5;
 pub const SESSION_LOST: u32 = 0x31;
 pub const HOST: u32 = 0x101;
-/// DPPLAYERTYPE_PLAYER.
-const A_PLAYER: u32 = 1;
 
 /// The Rust version on the variables at `v`.
 pub fn system_message_with(r: &mut Regs, v: &MessageVars, part: Part) -> Result<(), Refused> {
     let kind = get(r.ebx);
-    match kind {
-        CREATE_PLAYER_OR_GROUP => {
+    // Converted: `rc2k_core::net::players` (`System`, `made_host`).
+    match System::of(kind) {
+        System::Created => {
             cmp_flags(r, kind, CREATE_PLAYER_OR_GROUP);
             set(v.sync_first, 1);
         }
-        DESTROY_PLAYER_OR_GROUP => {
+        System::Destroyed => {
             set(v.sync_first, 1);
             let what = get(r.ebx + 4);
             cmp_flags(r, what, A_PLAYER);
@@ -65,13 +65,13 @@ pub fn system_message_with(r: &mut Regs, v: &MessageVars, part: Part) -> Result<
                 };
             }
         }
-        SESSION_LOST => {
+        System::SessionLost => {
             let mut c = Regs { eax: kind, ..*r };
             part(DESTROY, &mut c)?;
             r.eflags = c.eflags;
         }
-        HOST => {
-            let own = (get8(v.own) | 0x10) & 0xFE;
+        System::Host => {
+            let own = made_host(get8(v.own));
             set8(v.own, own);
             r.set_carry(false);
             r.set_zero(own == 0);
@@ -79,7 +79,7 @@ pub fn system_message_with(r: &mut Regs, v: &MessageVars, part: Part) -> Result<
             set(v.sync_first, 1);
             set(v.stage_item, 1);
         }
-        _ => cmp_flags(r, kind, HOST),
+        System::Other => cmp_flags(r, kind, HOST),
     }
     Ok(())
 }

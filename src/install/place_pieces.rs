@@ -8,7 +8,7 @@
 //! compares. Self-test: pages laid out by `install::lay_out_pieces` from lists of the
 //! test's, measured as the test says, against the original.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::install::installer::{LAYOUT, a, g, rd, region, wd};
 use crate::install::lay_out_pieces::{MOST_PIECES, PIECE};
@@ -31,35 +31,20 @@ hook_asm!(
 const TITLE_BOX: usize = 0x51DD98; // unk_51DD98
 
 pub fn place_pieces(entry: &Regs) -> Result<Regs, Refused> {
-    let mut left = g(LAYOUT);
-    if left == 0 {
-        return Err(BadInput("a page of no pieces").into());
-    }
-    let mut esi = a(LAYOUT) + 4;
+    let base = a(LAYOUT) + 4;
+    let at = |k: u32| base.wrapping_add(PIECE * k);
+    // Converted: `rc2k_core::install::layout::rows` (each piece's box read through its item).
+    let rows = rc2k_core::install::layout::rows(g(LAYOUT), |k| rd(rd(at(k) + 4) + 4))?;
     let mut r = *entry;
-    loop {
-        let the_box = rd(rd(esi + 4) + 4);
-        let first = esi;
-        let mut n = 0u32;
-        loop {
-            esi = esi.wrapping_add(PIECE);
-            n += 1;
-            left -= 1;
-            if left == 0 || rd(rd(esi + 4) + 4) != the_box {
-                break;
-            }
-        }
+    for (first, n, the_box) in rows {
         let place = if the_box == 0 { a(TITLE_BOX) } else { the_box };
         r = crate::install::place_row::place_row(&Regs {
             eax: the_box,
-            ebx: first,
+            ebx: at(first),
             ecx: n,
             esi: place,
             ..r
         })?;
-        if left == 0 {
-            break;
-        }
     }
     Ok(*entry)
 }

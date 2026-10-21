@@ -3,4 +3,5 @@
 pub mod cars;
 pub mod defaults;
 pub mod kept;
+pub mod savegame;
 pub mod tables;

@@ -35,27 +35,15 @@ pub unsafe fn take_from_list(list: *mut MemoryList, bytes: u32) -> Result<Option
     if list.is_null() {
         return Err(BadInput("no list to take from"));
     }
-    unsafe {
-        if bytes > (*list).remaining {
-            return Ok(None);
-        }
-        (*list).remaining -= bytes;
-        let taken = (*list).cursor;
-        (*list).cursor = taken.wrapping_add(bytes);
-        Ok(Some(taken))
-    }
+    // Converted: `rc2k_core::memory::List::take`.
+    Ok(unsafe { (*list).take(bytes) })
 }
 
 /// `memory::rewind_list` (0x402941): the cursor back to the newest block's start, and all
 /// of the list's bytes left.
 pub unsafe fn rewind_list(list: *mut MemoryList) {
-    unsafe {
-        (*list).cursor = match (*list).head {
-            0 => 0,
-            head => head.wrapping_add(crate::memory::HEADER_LEN),
-        };
-        (*list).remaining = (*list).total;
-    }
+    // Converted: `rc2k_core::memory::List::rewind`.
+    unsafe { (*list).rewind() }
 }
 
 // ---- hook ----

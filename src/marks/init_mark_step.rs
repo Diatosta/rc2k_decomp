@@ -17,7 +17,7 @@
 //! marks' set-up takes memory). Self-test: a copy whose `init_marks` call goes to a
 //! stand-in, against the Rust version, on test blocks and records.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{
     RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
@@ -46,56 +46,29 @@ const BLOCKS_RVA: usize = rva(0x71B3B8); // g_carBlocks
 const RECORDS_RVA: usize = rva(0x71B3D8); // g_carRecords
 const ROWS_RVA: usize = rva(0x5C90D8); // dword_5C90D8 ..: rows of 0x134
 const SETTINGS_RVA: usize = rva(0x5C2F84); // asc_5C2F84
-const MOST_CARS: u32 = 8;
-/// (the record's field, the row's offset from `dword_5C90D8`)
-const COPIES: [(u32, usize); 7] = [
-    (0x30C, 0),
-    (0x310, 0x20),
-    (0x314, 0x24),
-    (0x318, 0x18),
-    (0x31C, 0x1C),
-    (0x320, 0x14),
-    (0x324, 0x28),
-];
-const FIXED: [u32; 17] = [
-    0xA, 0xB, 0x18, 0x19, 0xC, 0xD, 0x16, 0x17, 0x1A, 0x1B, 0xE, 0xF, 0x10, 0x11, 0x13, 0x14, 0x12,
-];
-
 /// A call by place: 1 `init_marks`.
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::marks::race::{check_cars, kind_row, car_fields}`
 pub unsafe fn init_mark_step(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    use rc2k_core::marks::race;
     let mut g = *entry;
     unsafe {
         let count: u32 = game_read(COUNT_RVA);
-        if count == 0 || count > MOST_CARS {
-            return Err(BadInput("an init mark of 0 or more than 8 cars").into());
-        }
         let block = |n: u32| game_read::<u32>(BLOCKS_RVA + 4 * n as usize);
         let record = |n: u32| game_read::<u32>(RECORDS_RVA + 4 * n as usize);
-        if (0..count).any(|n| block(n) == 0 || record(n) == 0) {
-            return Err(BadInput("an init mark car without its block or record").into());
-        }
+        race::check_cars(count, |n| block(n) != 0 && record(n) != 0)?;
         game_write(CARS_COPY_RVA, game_read::<u32>(RACE_CARS_RVA));
         game_write(SET_RVA[0], 0x50u32);
         game_write(SET_RVA[1], 1u32);
         g.eax = crate::race::mud::car_file_number(game_read(KIND_RVA));
         game_write(FILE_RVA, g.eax);
         for n in 0..count {
-            let kind = ((block(n) + 0x24) as *const i32)
-                .read_unaligned()
-                .clamp(0, 0x16) as usize;
-            let row = ROWS_RVA + kind * 0x134;
-            let put = |o: u32, v: u32| ((record(n) + o) as *mut u32).write_unaligned(v);
-            let place = n * 0x14 + 0x50;
-            put(0x23C, place);
-            put(0x240, place + 0xA);
-            for (field, off) in COPIES {
-                put(field, game_read(row + off));
-            }
-            for (k, v) in FIXED.into_iter().enumerate() {
-                put(0x36C + 4 * k as u32, v);
+            let kind = ((block(n) + 0x24) as *const i32).read_unaligned();
+            let row = ROWS_RVA + race::kind_row(kind);
+            for (field, v) in race::car_fields(n, |offset| game_read(row + offset)) {
+                ((record(n) + field) as *mut u32).write_unaligned(v);
             }
         }
         g.ecx = count;

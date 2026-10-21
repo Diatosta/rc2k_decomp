@@ -19,21 +19,19 @@
 //!   `dword_9ED808` change over the note's length times 60), + 8 for a note of 0x780000 or
 //!   longer, + 0x10 turning one way.
 //!
-//! The functions are modelled here on a machine of the registers and an image of the
-//! tables: the Rust versions read and write the image, which is written back only when the
-//! function is done (so a refusal writes nothing). Every place read is checked: a table
-//! place outside 0x615E10 .. 0x61FE18, a checkpoint 0x1418 or past (`g_checkpointFaces`'
-//! room), a face outside the course memory: refused (the original reads elsewhere, or past
-//! its memory). The original's own slips are kept (section 16): the last group is walked
-//! from the place after the last note (a dangling start or a left-over of an earlier
-//! stage), the last group's text has no NUL, a corner after a corner in one walk reads the
-//! tables at the remainder of the first one's division (edx), 'b' moves the text on
-//! without writing.
+//! The functions run on `rc2k_core::race::pace_notes::Notes` (the registers and an image of
+//! the tables, written back only when the function is done, so a refusal writes nothing);
+//! here the game's stage it asks and the image's load and store.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{EAX, EBP, EBX, ECX, EDI, EDX, ESI, Regs, game_addr, game_read, rva};
 use crate::screens::harness::Left;
 use crate::service::harness::Region;
+pub use rc2k_core::race::pace_notes::{
+    COUNT, ENDS, GAPS, GROUP_CHECKPOINTS, GROUP_TEXTS, GROUPS, IMAGE_END, IMAGE_START, KINDS,
+    MOST_CHECKPOINTS, STARTS, TEXT, TEXT_LEN,
+};
+use rc2k_core::race::pace_notes::{IMAGE_LEN, Notes, Registers, Stage};
 
 pub const SLOT_RVA: usize = rva(0x614D34); // dword_614D34: the slot 0 .. 7
 const SLOT_OFFSETS_RVA: usize = rva(0x614D14); // dword_614D14: each slot's byte in the face
@@ -45,55 +43,32 @@ pub const ANGLES_RVA: usize = rva(0x9ED808); // dword_9ED808: the checkpoints' a
 pub const COURSE_FACES_RVA: usize = rva(0x5CCCBC); // g_courseFaces
 const COURSE_MEMORY_RVA: usize = rva(0x5C6F94); // g_courseMemory
 const COURSE_MEMORY_LEN: u32 = 0x130_0000;
-/// `g_checkpointFaces`' room.
-pub const MOST_CHECKPOINTS: u32 = 0x1418;
 
-/// The tables as IDA shows them.
-pub const IMAGE_START: u32 = 0x615E10;
-pub const IMAGE_END: u32 = 0x61FE18;
-pub const COUNT: u32 = 0x615E10; // dword_615E10
-pub const GROUPS: u32 = 0x615E14; // dword_615E14
-pub const STARTS: u32 = 0x615E18; // dword_615E18
-pub const ENDS: u32 = 0x616E18; // dword_616E18
-pub const KINDS: u32 = 0x617E18; // dword_617E18
-pub const GAPS: u32 = 0x618E18; // dword_618E18
-pub const GROUP_CHECKPOINTS: u32 = 0x619E18; // dword_619E18
-pub const GROUP_TEXTS: u32 = 0x61AE18; // dword_61AE18
-pub const TEXT: u32 = 0x61BE18; // byte_61BE18
-pub const TEXT_LEN: u32 = 0x4000;
-
-use rc2k_core::race::pace::{B, C, D, JOIN};
-
-/// Where the course is: the faces (`g_courseFaces`), where they may be read, the count.
-#[derive(Clone, Copy)]
-pub struct Course {
-    pub faces: u32,
-    pub window: (u32, u32),
-    pub count: u32,
-}
+/// Where the course is (`rc2k_core::race::pace_notes::Course`).
+pub type Course = rc2k_core::race::pace_notes::Course;
 
 /// A test stage's faces while one is up (start, end): the originals' calls of the hooks
 /// read them there.
 static TEST_WINDOW: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
-impl Course {
-    pub fn game() -> Self {
-        unsafe {
-            let memory: u32 = game_read(COURSE_MEMORY_RVA);
-            let faces: u32 = game_read(COURSE_FACES_RVA);
-            let test = TEST_WINDOW.load(std::sync::atomic::Ordering::SeqCst);
-            let (lo, hi) = (test as u32, (test >> 32) as u32);
-            Self {
-                faces,
-                window: if test != 0 && faces >= lo && faces < hi {
-                    (lo, hi)
-                } else if memory == 0 {
-                    (0, 0)
-                } else {
-                    (memory, memory.wrapping_add(COURSE_MEMORY_LEN))
-                },
-                count: game_read(CHECKPOINT_COUNT_RVA),
-            }
+/// The game's course: the faces (`g_courseFaces`), where they may be read (the course
+/// memory, or a test stage's faces), the checkpoints' count.
+pub fn game_course() -> Course {
+    unsafe {
+        let memory: u32 = game_read(COURSE_MEMORY_RVA);
+        let faces: u32 = game_read(COURSE_FACES_RVA);
+        let test = TEST_WINDOW.load(std::sync::atomic::Ordering::SeqCst);
+        let (lo, hi) = (test as u32, (test >> 32) as u32);
+        Course {
+            faces,
+            window: if test != 0 && faces >= lo && faces < hi {
+                (lo, hi)
+            } else if memory == 0 {
+                (0, 0)
+            } else {
+                (memory, memory.wrapping_add(COURSE_MEMORY_LEN))
+            },
+            count: game_read(CHECKPOINT_COUNT_RVA),
         }
     }
 }
@@ -109,36 +84,66 @@ pub fn regions() -> Vec<Region> {
     ]
 }
 
-fn refuse(why: &'static str) -> Refused {
-    BadInput(why).into()
-}
+/// The game's stage, as the walk asks it.
+pub struct GameStage;
 
-/// A checkpoint's entry of a table by checkpoint (0x1418 or past refused).
-fn by_checkpoint(table: usize, k: u32) -> Result<u32, Refused> {
-    if k >= MOST_CHECKPOINTS {
-        return Err(refuse("a pace note place past g_checkpointFaces' room"));
+impl Stage for GameStage {
+    fn checkpoint_face(&self, k: u32) -> u32 {
+        unsafe { game_read(CHECKPOINT_FACES_RVA + 4 * k as usize) }
     }
-    Ok(unsafe { game_read(table + 4 * k as usize) })
+    fn distance(&self, k: u32) -> u32 {
+        unsafe { game_read(DISTANCES_RVA + 4 * k as usize) }
+    }
+    fn angle(&self, k: u32) -> u32 {
+        unsafe { game_read(ANGLES_RVA + 4 * k as usize) }
+    }
+    fn slot_offset(&self, slot: u32) -> u32 {
+        unsafe { game_read(SLOT_OFFSETS_RVA + 4 * slot as usize) }
+    }
+    fn word(&self, tens: u32) -> u8 {
+        unsafe { game_read(WORDS_RVA + tens as usize) }
+    }
+    fn face_byte(&self, at: u32) -> u8 {
+        unsafe { (at as *const u8).read() }
+    }
 }
 
-/// The registers, the slot and the tables' image.
-pub struct Machine {
-    pub r: Regs,
-    pub slot: u32,
-    image: Vec<u8>,
-    course: Course,
+/// The core's machine on the game's slot and tables. Converted:
+/// `rc2k_core::race::pace_notes::Notes`.
+pub struct Machine(Notes<'static, GameStage>);
+
+impl std::ops::Deref for Machine {
+    type Target = Notes<'static, GameStage>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for Machine {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
 }
 
 impl Machine {
     pub fn load(r: &Regs, course: Course) -> Self {
-        let len = (IMAGE_END - IMAGE_START) as usize;
         let at = game_addr(rva(IMAGE_START as usize)) as *const u8;
-        Self {
-            r: *r,
-            slot: unsafe { game_read(SLOT_RVA) },
-            image: unsafe { std::slice::from_raw_parts(at, len) }.to_vec(),
+        let regs = Registers {
+            eax: r.eax,
+            ebx: r.ebx,
+            ecx: r.ecx,
+            edx: r.edx,
+            esi: r.esi,
+            edi: r.edi,
+            ebp: r.ebp,
+        };
+        Self(Notes::new(
+            regs,
+            unsafe { game_read(SLOT_RVA) },
+            unsafe { std::slice::from_raw_parts(at, IMAGE_LEN) }.to_vec(),
             course,
-        }
+            &GameStage,
+        ))
     }
 
     /// The slot and the tables written back.
@@ -163,289 +168,24 @@ impl Machine {
             .with(EBP, r.ebp)
     }
 
-    fn place(&self, at: u32, len: u32) -> Result<usize, Refused> {
-        let off = at.wrapping_sub(IMAGE_START);
-        if off > IMAGE_END - IMAGE_START - len {
-            return Err(refuse(
-                "a pace notes table place outside 0x615E10 .. 0x61FE18",
-            ));
-        }
-        Ok(off as usize)
-    }
-
-    pub fn get(&self, at: u32) -> Result<u32, Refused> {
-        let o = self.place(at, 4)?;
-        Ok(u32::from_le_bytes(self.image[o..o + 4].try_into().unwrap()))
-    }
-
-    pub fn put(&mut self, at: u32, v: u32) -> Result<(), Refused> {
-        let o = self.place(at, 4)?;
-        self.image[o..o + 4].copy_from_slice(&v.to_le_bytes());
-        Ok(())
-    }
-
-    pub fn get8(&self, at: u32) -> Result<u8, Refused> {
-        Ok(self.image[self.place(at, 1)?])
-    }
-
-    pub fn put8(&mut self, at: u32, v: u8) -> Result<(), Refused> {
-        let o = self.place(at, 1)?;
-        self.image[o] = v;
-        Ok(())
-    }
-
-    /// Checkpoint k's face: (its number, its address) as `mov ebx, g_checkpointFaces[k*4];
-    /// mov esi, ebx; shl esi, 6; add esi, g_courseFaces`.
-    fn face(&self, k: u32) -> Result<(u32, u32), Refused> {
-        let n = by_checkpoint(CHECKPOINT_FACES_RVA, k)?;
-        Ok((n, (n << 6).wrapping_add(self.course.faces)))
-    }
-
-    fn face_byte(&self, at: u32) -> Result<u32, Refused> {
-        let (lo, hi) = self.course.window;
-        if at < lo || at >= hi {
-            return Err(refuse("a pace note face outside the course memory"));
-        }
-        Ok(unsafe { (at as *const u8).read() } as u32)
-    }
-
-    fn distance(&self, k: u32) -> Result<u32, Refused> {
-        by_checkpoint(DISTANCES_RVA, k)
-    }
-
-    fn angle(&self, k: u32) -> Result<u32, Refused> {
-        by_checkpoint(ANGLES_RVA, k)
-    }
-
-    /// `sub_441A37` (`race::pace_note_code`): eax the face esi's code at the slot.
+    /// `sub_441A37` (`race::pace_note_code`).
     pub fn code(&mut self) -> Result<(), Refused> {
-        // Converted: `rc2k_core::race::pace::code_place`.
-        let place = rc2k_core::race::pace::code_place(self.r.esi, self.slot, |slot| unsafe {
-            game_read(SLOT_OFFSETS_RVA + 4 * slot as usize)
-        })?;
-        self.r.eax = self.face_byte(place)?;
-        Ok(())
+        Ok(self.0.code()?)
     }
 
-    /// `sub_441A4B` (`race::next_pace_slot`): the slot on; past 7 back to 0, ebp on.
-    pub fn next_slot(&mut self) {
-        // Converted: `rc2k_core::race::pace::next_slot`.
-        (self.slot, self.r.ebp) = rc2k_core::race::pace::next_slot(self.slot, self.r.ebp);
-    }
-
-    /// The place ebp x 8 + the slot.
-    fn here(&self) -> u32 {
-        (self.r.ebp << 3).wrapping_add(self.slot)
-    }
-
-    /// `sub_441C78` (`race::pace_distance_word`): the distance eax (16.16) / 10, at most
-    /// 40, its word from `byte_614D38`; unless 0, at the text's edi, edi on.
+    /// `sub_441C78` (`race::pace_distance_word`).
     pub fn distance_word(&mut self) -> Result<(), Refused> {
-        // Converted: `rc2k_core::race::pace::distance_tens` (shr 16; div 10; mul 10;
-        // div 10: the tens).
-        let tens = rc2k_core::race::pace::distance_tens(self.r.eax);
-        let word: u8 = unsafe { game_read(WORDS_RVA + tens as usize) };
-        if word != 0 {
-            self.put8(TEXT.wrapping_add(self.r.edi), word)?;
-            self.r.edi = self.r.edi.wrapping_add(1);
-        }
-        Ok(())
+        Ok(self.0.distance_word()?)
     }
 
-    /// `sub_441C6D` / `sub_441E01` (the text's NUL / ')' and edi on; not hooked: one-line
-    /// cursor helpers).
-    fn append(&mut self, byte: u8) -> Result<(), Refused> {
-        self.put8(TEXT.wrapping_add(self.r.edi), byte)?;
-        self.r.edi = self.r.edi.wrapping_add(1);
-        Ok(())
-    }
-
-    /// `sub_441CB4` (`race::pace_note_calls`): from place ebx, each code to the next 0 or
-    /// 'd' into the text at edi (see the header); edx the note before (its +1's end and
-    /// start are read for a corner). ecx and edx kept; ebx, esi, eax where it stopped;
-    /// ebp a corner's flags.
+    /// `sub_441CB4` (`race::pace_note_calls`).
     pub fn note_calls(&mut self) -> Result<(), Refused> {
-        let (ecx, edx) = (self.r.ecx, self.r.edx);
-        loop {
-            let place = self.r.ebx;
-            self.r.esi = self.face(place >> 3)?.1;
-            self.slot = place & 7;
-            self.code()?;
-            if self.r.eax == 0 || self.r.eax == D {
-                break;
-            }
-            let kept = self.r.ebx;
-            if self.r.eax == C {
-                self.corner()?;
-            }
-            let al = self.r.eax as u8;
-            if al as u32 != B {
-                if rc2k_core::race::pace::replaces_join(al)
-                    && self.get8(TEXT.wrapping_sub(1).wrapping_add(self.r.edi))? == JOIN
-                {
-                    self.r.edi = self.r.edi.wrapping_sub(1);
-                }
-                // (`mov ebx, off_61FE18[eax*4]`: overwritten by the `pop ebx`.)
-                self.put8(TEXT.wrapping_add(self.r.edi), al)?;
-            }
-            self.r.ebx = kept.wrapping_add(1);
-            self.r.edi = self.r.edi.wrapping_add(1);
-        }
-        self.r.ecx = ecx;
-        self.r.edx = edx;
-        Ok(())
+        Ok(self.0.note_calls()?)
     }
 
-    /// 0x441CFB: a corner's code into eax (ecx, edx, ebx, ebp changed).
-    fn corner(&mut self) -> Result<(), Refused> {
-        // Converted: `rc2k_core::race::pace::{corner_start, corner}`.
-        use rc2k_core::race::pace::{corner, corner_start};
-        let n = self.r.edx.wrapping_mul(4);
-        let next_end = ENDS.wrapping_add(4).wrapping_add(n);
-        let next_start = STARTS.wrapping_add(4).wrapping_add(n);
-        let e = self.get(next_end)? >> 3;
-        let s = self.get(next_start)? >> 3;
-        let length = self.distance(e)?.wrapping_sub(self.distance(s)?);
-        let at_end = self.angle(self.get(next_end)? >> 3)?;
-        let ebx = corner_start(self.get(next_start)?);
-        let c = corner(length, at_end.wrapping_sub(self.angle(ebx)?));
-        let r = &mut self.r;
-        r.edx = c.remainder;
-        r.ecx = c.length;
-        r.ebx = ebx;
-        r.ebp = c.flags;
-        r.eax = c.code;
-        Ok(())
-    }
-
-    /// `sub_441A66` (`race::init_pace_notes`): the tables made (see the header).
+    /// `sub_441A66` (`race::init_pace_notes`).
     pub fn init(&mut self) -> Result<(), Refused> {
-        let count = self.course.count;
-        self.put(GROUPS, 0)?;
-        self.put(COUNT, 0)?;
-        if count < 2 {
-            return Ok(());
-        }
-        // The first checkpoint whose face is of kind 2 (or the count).
-        self.r.ebp = 0;
-        loop {
-            (self.r.ebx, self.r.esi) = self.face(self.r.ebp)?;
-            if self.face_byte(self.r.esi.wrapping_add(0x26))? == 2 {
-                break;
-            }
-            self.r.ebp = self.r.ebp.wrapping_add(1);
-            if self.r.ebp == count {
-                break;
-            }
-        }
-        self.r.ebp = self.r.ebp.wrapping_add(2) << 3;
-        self.put(STARTS, self.r.ebp)?;
-        self.r.ebp = self.r.ebp.wrapping_add(1);
-        self.put(ENDS, self.r.ebp)?;
-        self.r.ebp >>= 3;
-        self.put(GROUPS, 0)?;
-        self.put(COUNT, 1)?;
-        self.slot = 0;
-        // Its loops end only on ebp equal to the count (tested after a slot moved on
-        // without a note's end or start): past it they would run on.
-        let runs_on = || refuse("the pace notes' search past the checkpoints' count");
-        'notes: loop {
-            self.r.edx = self.get(COUNT)?;
-            loop {
-                (self.r.ebx, self.r.esi) = self.face(self.r.ebp)?;
-                self.code()?;
-                let e = self.r.eax;
-                if rc2k_core::race::pace::starts_note(e) {
-                    self.r.eax = self.here();
-                    self.put(STARTS.wrapping_add(self.r.edx.wrapping_mul(4)), self.r.eax)?;
-                    self.next_slot();
-                    break;
-                }
-                self.next_slot();
-                if self.r.ebp == count {
-                    break 'notes;
-                }
-                if self.r.ebp > count {
-                    return Err(runs_on());
-                }
-            }
-            loop {
-                (self.r.ebx, self.r.esi) = self.face(self.r.ebp)?;
-                self.code()?;
-                let e = self.r.eax;
-                if rc2k_core::race::pace::ends_note(e) {
-                    let n = self.r.edx.wrapping_mul(4);
-                    self.put(KINDS.wrapping_add(n), e)?;
-                    self.r.eax = self.here();
-                    self.put(ENDS.wrapping_add(n), self.r.eax)?;
-                    self.put(COUNT, self.get(COUNT)?.wrapping_add(1))?;
-                    self.next_slot();
-                    continue 'notes;
-                }
-                self.next_slot();
-                if self.r.ebp == count {
-                    break 'notes;
-                }
-                if self.r.ebp > count {
-                    return Err(runs_on());
-                }
-            }
-        }
-        if self.get(COUNT)? < 1 {
-            return Ok(());
-        }
-        // Each note's distance to the next start.
-        self.r.edx = 0;
-        loop {
-            let n = self.r.edx.wrapping_mul(4);
-            self.get(STARTS.wrapping_add(n))?;
-            self.r.ebx = self.get(STARTS.wrapping_add(4).wrapping_add(n))? >> 3;
-            self.r.eax = self.distance(self.r.ebx)?;
-            self.r.ebx = self.get(ENDS.wrapping_add(n))? >> 3;
-            self.r.eax = self.r.eax.wrapping_sub(self.distance(self.r.ebx)?);
-            self.put(GAPS.wrapping_add(n), self.r.eax)?;
-            self.r.edx = self.r.edx.wrapping_add(1);
-            if self.r.edx == self.get(COUNT)? {
-                break;
-            }
-        }
-        // The groups.
-        self.r.ecx = 0;
-        self.r.edx = 0;
-        self.r.edi = 0;
-        loop {
-            let n = self.r.edx.wrapping_mul(4);
-            self.r.ebx = self.get(ENDS.wrapping_add(n))? >> 3;
-            let g = self.r.ecx.wrapping_mul(4);
-            self.put(GROUP_CHECKPOINTS.wrapping_add(g), self.r.ebx)?;
-            self.put(GROUP_TEXTS.wrapping_add(g), self.r.edi)?;
-            self.r.eax = self.get(GAPS.wrapping_add(n))?;
-            self.distance_word()?;
-            self.r.ebx = self.get(STARTS.wrapping_add(4).wrapping_add(n))?;
-            self.note_calls()?;
-            loop {
-                self.r.edx = self.r.edx.wrapping_add(1);
-                if self.r.edx == self.get(COUNT)? {
-                    self.put(GROUPS, self.r.ecx)?;
-                    self.put(GROUPS, self.get(GROUPS)?.wrapping_add(1))?;
-                    return Ok(());
-                }
-                let n = self.r.edx.wrapping_mul(4);
-                self.r.eax = self.get(GAPS.wrapping_add(n))?;
-                if self.r.eax > 0x1E_0000 {
-                    break;
-                }
-                self.r.eax = self.get(KINDS.wrapping_add(n))?;
-                if self.r.eax == B {
-                    break;
-                }
-                self.append(JOIN)?;
-                self.r.ebx = self.get(STARTS.wrapping_add(4).wrapping_add(n))?;
-                self.note_calls()?;
-            }
-            self.append(0)?;
-            self.r.ecx = self.r.ecx.wrapping_add(1);
-        }
+        Ok(self.0.init()?)
     }
 }
 

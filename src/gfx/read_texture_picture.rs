@@ -18,13 +18,14 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{
-    EBX, ECX, EDX, RawHook, Regs, SelfTest, call_game, game_read, game_write, hook_asm, rva, shadow,
+    EBX, ECX, EDX, RawHook, Regs, SelfTest, call_game, game_read, hook_asm, rva, shadow,
 };
 use crate::gfx::load_picture::{LoaderTest, TEST_PATHS};
 use crate::gfx::pcx::{DECODED_HEIGHT_RVA, DECODED_WIDTH_RVA, PIXELS_RVA};
-use crate::gfx::picture::{HEIGHT_RVA, ROW_BYTES_RVA, WIDTH_RVA, picture};
+use crate::gfx::picture::{HEIGHT_RVA, WIDTH_RVA, picture};
 use crate::gfx::read_picture_file::read_picture_file;
 use crate::screens::harness::Left;
+use rc2k_core::gfx::picture_size as sizes;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -39,9 +40,6 @@ hook_asm!(
     original = ORIGINAL
 );
 
-/// The dwords filled with -1: a picture of 256 x 256.
-const FILLED: usize = 0x10000;
-
 // ---- Rust version ----
 
 /// The registers it leaves: the pixels, their width and height, and whether the
@@ -52,10 +50,9 @@ pub unsafe fn read_texture_picture(path: *mut u8) -> Result<(u32, u32, u32, bool
         if buffer.is_null() {
             return Err(BadInput("no picture buffer").into());
         }
-        game_write(WIDTH_RVA, 0x100u32);
-        game_write(HEIGHT_RVA, 0x100u32);
-        game_write(ROW_BYTES_RVA, 0xFFFF_FFFDu32);
-        std::ptr::write_bytes(buffer, 0xFF, FILLED * 4);
+        // Converted: `rc2k_core::gfx::picture_size` (`TEXTURE`, `TEXTURE_FILLED`).
+        crate::gfx::picture::set_size(sizes::TEXTURE);
+        std::ptr::write_bytes(buffer, 0xFF, sizes::TEXTURE_FILLED * 4);
         let failed = if path.is_null() {
             false
         } else if read_picture_file(path)? {

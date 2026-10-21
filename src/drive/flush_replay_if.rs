@@ -15,6 +15,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::physics::flow::{a, g, p};
 use crate::screens::harness::Left;
 use crate::service::harness::{capture, check_state, restore};
+use rc2k_core::drive::replay_frames::flush_due;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -30,8 +31,9 @@ hook_asm!(
 );
 
 /// The Rust version.
+// Converted: `rc2k_core::drive::replay_frames::flush_due`.
 pub unsafe fn flush_replay_if(entry: &Regs) -> Result<Left, Refused> {
-    if g(0x5C5CE0) == 1 && g(0x6EF7DC) == 0x63 {
+    if flush_due(g(0x5C5CE0), g(0x6EF7DC)) {
         return unsafe { crate::drive::flush_replay::flush_replay(entry) };
     }
     Ok(Left::nothing())

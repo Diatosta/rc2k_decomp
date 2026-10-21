@@ -20,6 +20,7 @@ use crate::framework::{
 use crate::gfx::clear_picture::clear_picture;
 use crate::gfx::fill_row_table::{ROW_TABLE_ROOM, ROW_TABLE_RVA};
 use crate::gfx::pcx::{DECODED_WIDTH_RVA, reader_inputs, reader_regions};
+use crate::gfx::picture::set_size;
 use crate::gfx::picture::{
     FLAGS_RVA, HEIGHT_RVA, PICTURE_DWORDS, ROW_BYTES_RVA, WIDTH_RVA, picture,
 };
@@ -29,6 +30,7 @@ use crate::gfx::read_picture_file::read_picture_file;
 use crate::gfx::rescale_picture::rescale_picture;
 use crate::gfx::surface::CLIP_LEFT_RVA;
 use crate::service::harness::{Region, at, capture, restore};
+use rc2k_core::gfx::picture_size as sizes;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -57,19 +59,19 @@ pub unsafe fn load_picture(path: *mut u8) -> Result<bool, Refused> {
         if picture().is_null() {
             clear_picture()?;
         }
-        game_write(WIDTH_RVA, 800u32);
-        game_write(HEIGHT_RVA, 600u32);
-        game_write(ROW_BYTES_RVA, 0xFFFF_FFFDu32);
+        // Converted: `rc2k_core::gfx::picture_size` (`READ`, `screen`, `rescaled`).
+        set_size(sizes::READ);
         clear_picture()?;
         let read = read_picture_file(path);
         let screen_width: u32 = game_read(SCREEN_WIDTH_RVA);
-        game_write(WIDTH_RVA, screen_width);
-        game_write(HEIGHT_RVA, game_read::<u32>(SCREEN_HEIGHT_RVA));
-        game_write(ROW_BYTES_RVA, screen_width << 2);
+        set_size(sizes::screen(
+            screen_width,
+            game_read::<u32>(SCREEN_HEIGHT_RVA),
+        ));
         if !read? {
             return Ok(false);
         }
-        if game_read::<u32>(DECODED_WIDTH_RVA) != screen_width {
+        if sizes::rescaled(game_read::<u32>(DECODED_WIDTH_RVA), screen_width) {
             rescale_picture()?;
         }
         Ok(true)

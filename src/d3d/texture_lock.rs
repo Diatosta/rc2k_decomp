@@ -55,10 +55,7 @@ pub const fn fatal(code: u32) -> FatalError {
     FatalError { code, message: "" }
 }
 
-/// The flags of `cmp dword [record + 0x60], 1` (carry, zero).
-pub fn compared_with_one(locked: u32) -> (bool, bool) {
-    (locked < 1, locked == 1)
-}
+pub use rc2k_core::d3d::textures::compared_with_one;
 
 // ---- the test: a surface of the test's ----
 

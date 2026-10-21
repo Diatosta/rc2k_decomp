@@ -21,7 +21,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::scene::matrix::{self, composed_inputs, composed_regions, float_places, set_composed};
+use crate::scene::matrix::{self, composed_inputs, composed_regions, set_composed, sum_places};
 use crate::screens::harness::Left;
 use crate::service::floats::*;
 use crate::service::harness::{capture, restore};
@@ -50,7 +50,7 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    let places = float_places(&composed_regions());
+    let places = sum_places(&composed_regions());
     let floats = Floats {
         memory: &places,
         regs: &[],
@@ -71,7 +71,7 @@ fn self_test() -> (usize, usize) {
         lot = lot.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
         (lot >> 8) % below
     };
-    let tolerant_places = float_places(&regions);
+    let tolerant_places = sum_places(&regions);
     let tolerant = Floats {
         memory: &tolerant_places,
         regs: &[],

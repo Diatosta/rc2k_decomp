@@ -156,7 +156,7 @@ fn self_test() -> (usize, usize) {
 
     let mut keys: Vec<Option<usize>> = vec![None, Some(0x4F6D17), Some(0x4F6D18)];
     keys.extend([0x4F6D19, 0x4F6D1A, 0x4F6D1B].map(Some));
-    keys.extend(BIT_KEYS.map(|k| Some(k.0)));
+    keys.extend(BIT_KEYS.map(Some));
     let mut cases = Vec::new();
     for second in [false, true] {
         for &key in &keys {

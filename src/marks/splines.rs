@@ -18,7 +18,6 @@ const SECONDS: u32 = 0x254;
 const COORDS: u32 = 0x654;
 const CENTRE: u32 = 0xC54;
 const GRADES: u32 = 0xC90;
-const PONG_FROM_RVA: usize = rva(0x769182); // flt_769182 .. flt_76919E
 /// Where `reset_pong` puts the eight floats: four (x, y) pairs 0x18 apart.
 const PONG_TO: [usize; 8] = [
     0x768688, 0x76868C, 0x7686A0, 0x7686A4, 0x7686B8, 0x7686BC, 0x7686D0, 0x7686D4,
@@ -210,14 +209,11 @@ pub fn find_farthest_points(entry: &Regs) -> Regs {
 
 /// `marks::reset_pong` (0x4B7E64): the eight floats from `flt_769182` to four (x, y)
 /// pairs from `flt_768688`, `dword_768700` 5, `dword_7687D0` 0. Every register kept.
+/// Converted: `rc2k_core::marks::pong::Court::reset` (exact at every precision: `fld;
+/// fstp` of a float only makes a signalling NaN quiet).
 pub unsafe fn reset_pong() {
-    unsafe {
-        for (n, to) in PONG_TO.into_iter().enumerate() {
-            game_write(rva(to), x87::loaded(game_read(PONG_FROM_RVA + 4 * n)));
-        }
-        game_write(OUTLINE_COUNT_RVA, 5u32);
-        game_write(OUTLINE_MARK_RVA, 0u32);
-    }
+    let rules = crate::marks::pong::rules();
+    crate::marks::pong::with_court(|c| c.reset(&rules));
 }
 
 /// What `reset_pong` writes.
@@ -510,31 +506,20 @@ pub unsafe fn order_spline_points(entry: &Regs) -> Result<Regs, Refused> {
 /// into the centre (+0xC54); the angle between `g_marksSplineUp` and the size
 /// (`scene::angle_between_vectors`, both normalised) into +0x20. Leaves eax, ebx, ecx the
 /// middle, esi `g_marksSplineUp`, edi `g_marksSplineSize`. Refuses more than 0x80 points.
+/// Converted: `rc2k_core::marks::splines::bounds` (the floats, the sizes made floats and the
+/// angle, stay the x87's: the first round as its control word says).
 pub unsafe fn bound_spline_points(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         let s = g.ebp;
         let n = count(s)?;
-        let mut low = [i32::MAX; 3];
-        let mut high = [0x8000_0001u32 as i32; 3];
-        for k in (0..n).rev() {
-            g.edi = k * 12;
-            for c in 0..3 {
-                let v = get(s + COORDS + g.edi + 4 * c as u32) as i32;
-                if v < low[c] {
-                    low[c] = v;
-                }
-                if v > high[c] {
-                    high[c] = v;
-                }
-            }
-        }
-        let size: [i32; 3] = std::array::from_fn(|c| high[c].wrapping_sub(low[c]));
+        let b = rc2k_core::marks::splines::bounds(&triples(s + COORDS, n));
+        let size = b.size;
         g.esi = game_addr(UP_RVA) as u32;
         g.edi = game_addr(SIZE_RVA) as u32;
         put(g.edi + 4, x87::from_int(size[1]));
         put(g.edi + 8, x87::from_int(size[2]));
-        let middle: [u32; 3] = std::array::from_fn(|c| (size[c] >> 1).wrapping_add(low[c]) as u32);
+        let middle = b.middle.map(|m| m as u32);
         for (c, &m) in middle.iter().enumerate() {
             put(s + CENTRE + 4 * c as u32, m);
         }

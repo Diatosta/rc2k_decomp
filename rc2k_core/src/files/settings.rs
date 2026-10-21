@@ -189,9 +189,31 @@ pub fn apply(
     Ok(found)
 }
 
+/// The room a settings text is read into (`settings::read_text` 0x41155A, converted
+/// 2026-10-21), its NUL after it.
+pub const TEXT_ROOM: u32 = 0xFFFF;
+
+/// `settings::read_text`: a read (whether it worked, the bytes it read) -> where the NUL
+/// goes (the text's length), or None when there is no text.
+pub fn text_read(ok: bool, bytes: Option<u32>) -> Option<u32> {
+    match (ok, bytes) {
+        (true, Some(bytes)) => Some(bytes),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn texts_read() {
+        assert_eq!(text_read(true, Some(5)), Some(5));
+        assert_eq!(
+            (text_read(false, Some(5)), text_read(true, None)),
+            (None, None)
+        );
+    }
 
     #[test]
     fn tables_and_applying() {

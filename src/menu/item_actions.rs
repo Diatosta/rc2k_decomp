@@ -85,7 +85,9 @@ const VIEW_STAGE_CALLEES: [usize; 2] = [0x48F1F4, 0x47FD37];
 
 pub unsafe fn view_stage_details(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
-    part(if g(EVENT_TYPE_RVA) == 3 { 0 } else { 1 }, &mut r)?;
+    // Converted: `rc2k_core::menu::stage_screens::time_trial_details`.
+    let time_trial = rc2k_core::menu::stage_screens::time_trial_details(g(EVENT_TYPE_RVA));
+    part(if time_trial { 0 } else { 1 }, &mut r)?;
     Ok(r)
 }
 
@@ -94,12 +96,14 @@ const NEW_SIMULATION_CALLEES: [usize; 3] = [0x40F059, 0x41100C, 0x4A99AA];
 
 pub unsafe fn new_simulation_if_unlocked(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
-    if g(UNLOCKED_RVA) == 1 {
+    // Converted: `rc2k_core::menu::stage_screens::simulation_unlocked`.
+    use rc2k_core::menu::stage_screens::{REFUSED_SLEEP, REFUSED_SOUND, simulation_unlocked};
+    if simulation_unlocked(g(UNLOCKED_RVA)) {
         part(2, &mut r)?;
     } else {
-        r.eax = 8;
+        r.eax = REFUSED_SOUND;
         part(0, &mut r)?;
-        r.eax = 0xFA;
+        r.eax = REFUSED_SLEEP;
         part(1, &mut r)?;
     }
     Ok(*entry)

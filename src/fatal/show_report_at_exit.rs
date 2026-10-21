@@ -71,8 +71,9 @@ pub fn show_report_at_exit_with(
 ) -> Result<(), Refused> {
     unsafe {
         if (v.reported as *const u8).read_volatile() == 1 {
-            if (v.code as *const u32).read_volatile() & 0x1000_0000 != 0 {
-                ((v.caption + 5) as *mut u8).write_volatile(0);
+            // Converted: `rc2k_core::fatal::caption_cut`.
+            if rc2k_core::fatal::caption_cut((v.code as *const u32).read_volatile()) {
+                ((v.caption + rc2k_core::fatal::CAPTION_CUT as u32) as *mut u8).write_volatile(0);
             }
             api(MESSAGE_BOX, &[0, v.text, v.caption, 0x2030]);
         }

@@ -20,7 +20,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva};
-use crate::scene::matrix::{float_places, test_floats};
+use crate::scene::matrix::{sum_places, test_floats};
 use crate::scene::view_matrix::{self, VIEW_ANGLES_RVA, VIEW_PLACE_RVA, view_regions};
 use crate::screens::harness::Left;
 use crate::service::floats::*;
@@ -46,7 +46,7 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    let places = float_places(&view_regions());
+    let places = sum_places(&view_regions());
     let floats = Floats {
         memory: &places,
         regs: &[],
@@ -67,7 +67,7 @@ fn self_test() -> (usize, usize) {
     ];
     let saved = (capture(&regions), capture(&inputs));
     let mut seed = 0x3141_5927u32;
-    let tolerant_places = float_places(&regions);
+    let tolerant_places = sum_places(&regions);
     let tolerant = Floats {
         memory: &tolerant_places,
         regs: &[],

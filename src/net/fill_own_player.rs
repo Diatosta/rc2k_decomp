@@ -20,6 +20,7 @@ use crate::net::lobby::{
     COPY_PRINTABLE, NEXT_RANDOM, OWN, OWN_TIME, OWN_TOTAL, PLAYER_NAME, Part, Saved, a, answer,
     dispatch_lobby, dword, fill, g, p, pb, region, run_both,
 };
+use rc2k_core::net::record;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -77,20 +78,21 @@ pub fn fill_own_player(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         ..r
     };
     part(COPY_PRINTABLE, &mut c)?;
-    pb(OWN, 0);
-    pb(OWN + 1, g(CAR) as u8);
-    pb(OWN + 2, g(COLOURS) as u8);
-    pb(OWN + 6, g(RACE_NUMBER) as u8);
-    pb(OWN + 3, g(NATIONALITY) as u8);
-    pb(OWN + 4, g(STAGE) as u8);
-    pb(OWN + 5, g(DIRECTION) as u8);
-    if crate::net::lobby::gb(OWN + 4) == 0 {
-        pb(OWN + 4, 0x29);
-        pb(OWN + 5, 0);
+    // Converted: `rc2k_core::net::record::own_record`.
+    let own = record::own_record(
+        g(CAR) as u8,
+        g(COLOURS) as u8,
+        g(NATIONALITY) as u8,
+        g(STAGE) as u8,
+        g(DIRECTION) as u8,
+        g(RACE_NUMBER) as u8,
+    );
+    for (n, b) in own.into_iter().enumerate() {
+        pb(OWN + n, b);
     }
     r.eax = g(DIRECTION);
     part(NEXT_RANDOM, &mut r)?;
-    pb(OWN + 7, r.eax as u8);
+    pb(OWN + record::RANDOM, r.eax as u8);
     r.eax = 0;
     p(OWN_TIME, 0);
     p(OWN_TOTAL, 0);

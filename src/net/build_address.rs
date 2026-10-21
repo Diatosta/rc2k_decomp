@@ -27,6 +27,7 @@ use crate::net::lobby::{
     run_both, test_eax,
 };
 use crate::net::types::NetConnection;
+use rc2k_core::net::address::{self, Provider};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -49,7 +50,6 @@ pub const TCPIP: usize = 0x5AB360; // DPSPGUID_TCPIP
 const SERVICE_PROVIDER: usize = 0x5AB3A0; // DPAID_ServiceProvider
 const INET: usize = 0x5AB3E0; // DPAID_INet
 const INET_PORT: usize = 0x5AB3F0; // DPAID_INetPort
-const BUFFER_TOO_SMALL: u32 = 0x8877_001E;
 
 /// The Rust version: the registers it leaves (the entry's, the flags).
 pub fn build_address(entry: &Regs, part: Part) -> Result<Regs, Refused> {
@@ -70,38 +70,43 @@ pub fn build_address(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     p(ADDRESS_SIZE, 0);
     p(POSTING, 0);
     r.eax = r.eax.wrapping_add(0x40);
-    r.ebx = a(IPX);
-    part(SAME_GUID, &mut r)?;
+    // Converted: `rc2k_core::net::address` (`provider`, the elements' sizes, `has_port`,
+    // `posts`, `address::BUFFER_TOO_SMALL`).
     let element = |r: &mut Regs, kind: usize, size: u32, part: Part| -> Result<(), Refused> {
         r.eax = a(kind);
         r.ecx = size;
         part(ADD_ELEMENT, r)
     };
-    if r.eflags & ZERO_FLAG != 0 {
-        element(&mut r, SERVICE_PROVIDER, 0x10, part)?;
-    } else {
-        r.ebx = a(TCPIP);
+    let provider = address::provider(|which| -> Result<bool, Refused> {
+        r.ebx = a(if which == Provider::Ipx { IPX } else { TCPIP });
         part(SAME_GUID, &mut r)?;
-        if r.eflags & ZERO_FLAG != 0 {
-            element(&mut r, SERVICE_PROVIDER, 0x10, part)?;
+        Ok(r.eflags & ZERO_FLAG != 0)
+    })?;
+    match provider {
+        Provider::Ipx => element(&mut r, SERVICE_PROVIDER, address::PROVIDER_SIZE, part)?,
+        Provider::TcpIp => {
+            element(&mut r, SERVICE_PROVIDER, address::PROVIDER_SIZE, part)?;
             r.eax = a(INET);
             r.ebx = a(HOST_ADDRESS);
             part(TEXT_LENGTH, &mut r)?;
-            r.ecx = r.ecx.wrapping_add(1);
+            r.ecx = address::host_address_size(r.ecx);
             part(ADD_ELEMENT, &mut r)?;
-            if g(PORT) != 0 {
+            if address::has_port(g(PORT)) {
                 r.eax = a(INET_PORT);
                 r.ebx = a(PORT);
-                r.ecx = 2;
+                r.ecx = address::PORT_SIZE;
                 part(ADD_ELEMENT, &mut r)?;
             }
-        } else {
+        }
+        Provider::Other => {
             r.ebx = r.eax;
-            r.ecx = 0x10;
+            r.ecx = address::PROVIDER_SIZE;
             r.eax = a(SERVICE_PROVIDER);
             part(ADD_ELEMENT, &mut r)?;
-            p(POSTING, 1);
         }
+    }
+    if address::posts(provider) {
+        p(POSTING, 1);
     }
     let make = |at: u32| unsafe {
         call(
@@ -112,8 +117,8 @@ pub fn build_address(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     };
     r.eax = make(0);
     let v = r.eax;
-    cmp_flags(&mut r, v, BUFFER_TOO_SMALL);
-    if r.eax != BUFFER_TOO_SMALL {
+    cmp_flags(&mut r, v, address::BUFFER_TOO_SMALL);
+    if r.eax != address::BUFFER_TOO_SMALL {
         r.set_carry(true);
         return Ok(left(&r));
     }
@@ -177,27 +182,27 @@ fn self_test() -> (usize, usize) {
     // asked gives, the memory given, what the address gives)
     type Case = (&'static str, bool, u32, u32, u32, bool, u32);
     let cases: [Case; 9] = [
-        ("no lobby", false, 0, 0, BUFFER_TOO_SMALL, true, 0),
-        ("IPX", true, 0, 0, BUFFER_TOO_SMALL, true, 0),
-        ("TCP/IP", true, 1, 0, BUFFER_TOO_SMALL, true, 0),
+        ("no lobby", false, 0, 0, address::BUFFER_TOO_SMALL, true, 0),
+        ("IPX", true, 0, 0, address::BUFFER_TOO_SMALL, true, 0),
+        ("TCP/IP", true, 1, 0, address::BUFFER_TOO_SMALL, true, 0),
         (
             "TCP/IP with a port",
             true,
             1,
             2300,
-            BUFFER_TOO_SMALL,
+            address::BUFFER_TOO_SMALL,
             true,
             0,
         ),
-        ("a modem", true, 2, 0, BUFFER_TOO_SMALL, true, 0),
+        ("a modem", true, 2, 0, address::BUFFER_TOO_SMALL, true, 0),
         ("the size not asked", true, 0, 0, 0, true, 0),
-        ("no memory", true, 0, 0, BUFFER_TOO_SMALL, false, 0),
+        ("no memory", true, 0, 0, address::BUFFER_TOO_SMALL, false, 0),
         (
             "the address fails",
             true,
             1,
             0,
-            BUFFER_TOO_SMALL,
+            address::BUFFER_TOO_SMALL,
             true,
             0x8877_0005,
         ),

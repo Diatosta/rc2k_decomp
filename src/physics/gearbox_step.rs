@@ -37,20 +37,25 @@ hook_asm!(
 );
 
 /// The steps on `r`.
+// Converted: `rc2k_core::physics::gearbox::gearbox_turn`.
 pub fn gearbox_step_in(r: &mut Regs) -> Result<(), Refused> {
-    let run =
-        g(0x71A080) == 0 && (g(0x62389C) == 1 || (g(0x719FEC).wrapping_sub(0x320) as i32) >= 0);
-    if run {
-        if g(0x71A234) == 2 {
-            manual_gearbox_in(r)?;
-        } else if g(0x71A440) & 0xF00 != 0xE00 {
+    use rc2k_core::physics::gearbox::{GearboxTurn, gearbox_turn};
+    let turn = gearbox_turn(
+        g(0x71A080),
+        || g(0x62389C),
+        || g(0x719FEC),
+        || g(0x71A234),
+        || g(0x71A440),
+        || g(0x71A010),
+    );
+    match turn {
+        GearboxTurn::Idle => {}
+        GearboxTurn::Manual => manual_gearbox_in(r)?,
+        GearboxTurn::Asked => {
             unsafe { take_asked_gear() }?.apply(r);
             return Ok(());
-        } else if g(0x71A010) == 2 {
-            auto_gearbox_in(r)?;
-        } else {
-            manual_gearbox_in(r)?;
         }
+        GearboxTurn::Auto => auto_gearbox_in(r)?,
     }
     if g(CHANGED) == 1 {
         p(ENGINE, x87::mul(g(ENGINE), g(0x613E9C)));

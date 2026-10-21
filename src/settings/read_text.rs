@@ -34,7 +34,8 @@ pub unsafe fn read_text(path: *const u8) -> Result<Option<(*const u8, u32)>, Bad
     unsafe {
         let text = game_addr(TEXT_RVA) as *mut u8;
         let read = read_file(path, text, TEXT_ROOM, 0)?;
-        let (true, Some(bytes)) = (read.ok, read.bytes_read) else {
+        // Converted: `rc2k_core::files::settings::text_read`.
+        let Some(bytes) = rc2k_core::files::settings::text_read(read.ok, read.bytes_read) else {
             return Ok(None);
         };
         text.add(bytes as usize).write(0);

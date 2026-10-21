@@ -44,6 +44,9 @@ use crate::input::di_harness::{
 use crate::input::types::{
     Controller as C, DiPropDword as W, DiPropHeader, DiPropRange as R, InputDevice as D,
 };
+use rc2k_core::input::acquire::{
+    Acquire, HAS_DEVICE, acquire, axis_offset, dead_zone_value, saturation, two_axes,
+};
 use std::mem::size_of;
 use std::sync::atomic::AtomicUsize;
 
@@ -92,31 +95,48 @@ fn log_int(v: u32, newline: bool) {
 
 /// The settings from the configuration, and the log's line.
 fn settings(record: u32, entry: u32) {
+    use rc2k_core::input::acquire::{Config, Settings, settings};
+    // Converted: `rc2k_core::input::acquire::settings`.
     let kind = field!(D, kind);
-    if at(record, kind) == 0 {
-        put(record, kind, 2);
-        if at(entry, field!(C, axes)) > 3 {
-            put(record, kind, 3);
-        }
-    }
-    let configured = g(KIND_RVA) as i32;
-    if configured != 0 && (1..=3).contains(&configured) {
-        put(record, kind, configured as u32);
-    }
-    if (g(CODE_RVA) as i32) >= 0 {
-        put(record, field!(D, axis_code), g(CODE_RVA));
-    }
-    for (from, to) in [
-        (STRENGTH_RVA, field!(D, strength)),
-        (DEAD_RVA, field!(D, dead_zone)),
-        (END_RVA, field!(D, end_zone)),
-    ] {
-        if g(from) <= 100 {
-            put(record, to, g(from));
-        }
-    }
-    if (g(FLAG_RVA) as i32) >= 0 {
-        put(record, field!(D, axis_pick), g(FLAG_RVA));
+    let fields = [
+        kind,
+        field!(D, axis_code),
+        field!(D, strength),
+        field!(D, dead_zone),
+        field!(D, end_zone),
+        field!(D, axis_pick),
+    ];
+    let [k, code, strength, dead, end, pick] = fields.map(|f| at(record, f));
+    let config = Config {
+        kind: g(KIND_RVA),
+        axis_code: g(CODE_RVA),
+        dead_zone: g(DEAD_RVA),
+        end_zone: g(END_RVA),
+        axis_pick: g(FLAG_RVA),
+        strength: g(STRENGTH_RVA),
+    };
+    let s = settings(
+        Settings {
+            kind: k,
+            axis_code: code,
+            strength,
+            dead_zone: dead,
+            end_zone: end,
+            axis_pick: pick,
+        },
+        || at(entry, field!(C, axes)),
+        &config,
+    );
+    let values = [
+        s.kind,
+        s.axis_code,
+        s.strength,
+        s.dead_zone,
+        s.end_zone,
+        s.axis_pick,
+    ];
+    for (f, v) in fields.into_iter().zip(values) {
+        put(record, f, v);
     }
     log_text(JOY_RVA);
     log_int(at(record, field!(D, controller)), false);
@@ -137,8 +157,7 @@ fn settings(record: u32, entry: u32) {
 /// The axis at offset (the record's axis pick `n` & 7) x 4.
 fn axis(record: u32, n: u32) -> u32 {
     let at = record.wrapping_add(field!(D, axis_pick) + n);
-    let b = unsafe { (at as *const u8).read() } as u32;
-    (b & 7) * 4
+    axis_offset(unsafe { (at as *const u8).read() })
 }
 
 /// The ranges, dead zones and saturation.
@@ -163,7 +182,9 @@ fn properties(record: u32) {
     put(range, field!(R, min), (-256i32) as u32);
     put(range, field!(R, max), 0x100);
     set(DIPROP_RANGE, range);
-    let two_axes = at(record, field!(D, kind)) <= 2;
+    // Converted: `rc2k_core::input::acquire` (`axis_offset`, `two_axes`,
+    // `dead_zone_value`, `saturation`).
+    let two_axes = two_axes(at(record, field!(D, kind)));
     if two_axes {
         put(range, object, axis(record, 0));
         set(DIPROP_RANGE, range);
@@ -186,7 +207,7 @@ fn properties(record: u32) {
     put(
         dword,
         field!(W, data),
-        at(record, field!(D, dead_zone)).wrapping_mul(100),
+        dead_zone_value(at(record, field!(D, dead_zone))),
     );
     set(DIPROP_DEADZONE, dword);
     if two_axes {
@@ -194,27 +215,28 @@ fn properties(record: u32) {
         set(DIPROP_DEADZONE, dword);
     }
     start(None);
-    let rest = 100u32.wrapping_sub(at(record, field!(D, dead_zone)));
-    if (rest as i32) > 0 {
-        let live = rest.wrapping_sub(at(record, field!(D, end_zone)));
-        if (live as i32) > 0 {
-            put(dword, field!(W, data), live.wrapping_mul(10000) / rest);
-            set(DIPROP_SATURATION, dword);
-        }
+    if let Some(data) = saturation(
+        at(record, field!(D, dead_zone)),
+        at(record, field!(D, end_zone)),
+    ) {
+        put(dword, field!(W, data), data);
+        set(DIPROP_SATURATION, dword);
     }
 }
 
 /// The Rust version (see the header).
 pub fn acquire_device(record: u32, part: crate::input::make_effect::Part) -> Result<(), Refused> {
-    if at(record, field!(D, controller)) >= g(CONTROLLER_COUNT_RVA) {
-        return Ok(());
-    }
+    // Converted: `rc2k_core::input::acquire::acquire`.
     let entry = entry_of(record);
-    if at(entry, field!(C, attached)) != 1 {
-        return Ok(());
-    }
-    if at(record, field!(D, device)) != 0 {
-        return Err(fatal(0x8023_831D).into());
+    match acquire(
+        at(record, field!(D, controller)),
+        g(CONTROLLER_COUNT_RVA),
+        || at(entry, field!(C, attached)),
+        || at(record, field!(D, device)),
+    ) {
+        Acquire::Nothing => return Ok(()),
+        Acquire::HasDevice => return Err(fatal(HAS_DEVICE).into()),
+        Acquire::Acquire => {}
     }
     settings(record, entry);
     let hr = method(

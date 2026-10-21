@@ -28,10 +28,8 @@ pub fn value_up(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     r.edx = rd(r.esi + 8);
     r.ebx = rb(r.esi + 0xD) as u32;
-    r.ecx = (rb(r.edx) as u32).wrapping_add(g(REPEATS));
-    if (r.ecx as i32) > r.ebx as i32 {
-        r.ecx = r.ebx;
-    }
+    // Converted: `rc2k_core::install::items::value_up`.
+    r.ecx = rc2k_core::install::items::value_up(rb(r.edx), g(REPEATS), r.ebx as u8);
     wb(r.edx, r.ecx as u8);
     r.set_zero(true);
     r.set_carry(false);

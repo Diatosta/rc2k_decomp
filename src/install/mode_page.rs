@@ -26,10 +26,8 @@ hook_asm!(
 pub fn mode_page(entry: &Regs) -> Regs {
     let mut r = *entry;
     if r.ebx == 0 {
-        r.eax = g(MEDIA_MODE);
-        if r.eax == 0 {
-            r.eax = 2;
-        }
+        // Converted: `rc2k_core::install::pages::mode_highlight`.
+        r.eax = rc2k_core::install::pages::mode_highlight(g(MEDIA_MODE));
         p(CHOICE, r.eax);
         p(PATH_PROBLEM, 0);
     }

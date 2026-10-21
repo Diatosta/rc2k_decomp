@@ -50,20 +50,24 @@ pub unsafe fn championship_standings(entry: &Regs, part: Part) -> Result<Regs, R
     let mut g = *entry;
     unsafe {
         use crate::menu::{sort_standings_b_by_figure as fig, sort_standings_b_by_points as pts};
+        // Converted: `rc2k_core::menu::results_pages` (`class_pages_only`, `standings_sorts`).
+        use rc2k_core::menu::results_pages::{Sort, class_pages_only, standings_sorts};
         g = crate::menu::standings_b_from_all::standings_b_from_all(&g)?;
-        if game_read::<u32>(EVENT_MODE_RVA) != 0x13 {
-            g = fig::sort_standings_b_by_figure(&g)?;
-            g = crate::menu::sort_standings_b_by_score::sort_standings_b_by_score(&g)?;
-            g = crate::menu::number_all_b::number_all_b(&g)?;
-            game_write(FLAG_RVA, 1u32);
-            part(1, &mut g)?;
-        } else {
-            g = fig::sort_standings_b_by_figure(&g)?;
-            g = fig::sort_standings_b_by_figure(&g)?;
-            g = pts::sort_standings_b_by_points(&g)?;
-            game_write(FLAG_RVA, 1u32);
-            part(2, &mut g)?;
+        let a8 = class_pages_only(game_read(EVENT_MODE_RVA));
+        for sort in standings_sorts(a8) {
+            g = match sort {
+                Sort::ByFigure => fig::sort_standings_b_by_figure(&g)?,
+                Sort::ByScore => {
+                    crate::menu::sort_standings_b_by_score::sort_standings_b_by_score(&g)?
+                }
+                Sort::ByPoints => pts::sort_standings_b_by_points(&g)?,
+            };
         }
+        if !a8 {
+            g = crate::menu::number_all_b::number_all_b(&g)?;
+        }
+        game_write(FLAG_RVA, 1u32);
+        part(if a8 { 2 } else { 1 }, &mut g)?;
         game_write(FLAG_RVA, 0u32);
     }
     Ok(*entry)

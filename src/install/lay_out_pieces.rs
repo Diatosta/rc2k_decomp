@@ -20,6 +20,8 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::install::installer::{LAYOUT, a, fatal, rb, region, rw, wb, wd, ww};
 use crate::install::list_test::TestList;
 use crate::race::viewer::{Saved, check_original, dispatch_regs};
+use rc2k_core::install::layout;
+use rc2k_core::install::pieces::{self, LayoutError, ListMemory};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -34,138 +36,52 @@ hook_asm!(
     original = ORIGINAL
 );
 
-pub const PIECE: u32 = 0x30;
-pub const MOST_PIECES: u32 = 0xFFC / PIECE;
+pub const PIECE: u32 = layout::PIECE;
+pub const MOST_PIECES: u32 = pieces::MOST_PIECES;
 const TITLE: usize = 0x51DD78; // unk_51DD78: the title's item
 const TEXT_FONTS: usize = 0x51D52C; // byte_51D52C
 
-fn hidden(b: u8) -> bool {
-    b & 0xC0 == 0x40
-}
+/// The game's lists, read where the original reads them.
+struct GameList;
 
-/// The pieces a list makes, or the fatal error of a kind it does not know.
-fn count(list: u32) -> Result<u32, Refused> {
-    let mut n = if hidden(rb(list)) { 0 } else { 1 };
-    let items = match rb(list + 1) {
-        0 => 0x100,
-        c => c as u32,
-    };
-    for k in 0..items {
-        let item = list + 0x18 + 0x10 * k;
-        let b = rb(item);
-        if hidden(b) {
-            continue;
-        }
-        n += match b & 0xF {
-            1 | 3 | 5 | 6 => 1 + (b & 0xF != 1 && b & 0xF != 5 && b & 0xF != 6) as u32,
-            4 => 1 + (b & 0x10 == 0) as u32,
-            2 => {
-                let choices = match rb(item + 1) {
-                    0 => 0x100,
-                    c => c as u32,
-                };
-                let table = crate::install::installer::rd(item + 0xC);
-                1 + (0..choices)
-                    .filter(|&c| !hidden(rb(table + 2 * c + 1)))
-                    .count() as u32
-            }
-            _ => return Err(fatal(0x80A9_7451)),
-        };
+impl ListMemory for GameList {
+    fn byte(&self, at: u32) -> u8 {
+        rb(at)
     }
-    Ok(n)
-}
-
-fn piece(at: u32, kind: u8, piece_kind: u8, text: u16, item: u32) {
-    ww(at + 2, text);
-    second_piece(at, kind, piece_kind, item);
-}
-
-/// A value's or an edit's second piece: its text word is not written (it keeps what the
-/// table held there).
-fn second_piece(at: u32, kind: u8, piece_kind: u8, item: u32) {
-    wb(at, kind);
-    wb(at + 1, piece_kind);
-    wd(at + 4, item);
-    for k in 0..4 {
-        wd(at + 8 + 4 * k, 0);
+    fn word(&self, at: u32) -> u16 {
+        rw(at)
+    }
+    fn dword(&self, at: u32) -> u32 {
+        crate::install::installer::rd(at)
+    }
+    fn text_font(&self, font: u8) -> u8 {
+        rb(a(TEXT_FONTS) + 8 * font as u32)
     }
 }
 
 pub fn lay_out_pieces(entry: &Regs) -> Result<Regs, Refused> {
-    let list = entry.edi;
-    if count(list)? > MOST_PIECES {
-        return Err(BadInput("more pieces than the page's table holds").into());
-    }
+    // Converted: `rc2k_core::install::pieces::lay_out`; the pieces written here.
+    let made = match pieces::lay_out(entry.edi, a(TITLE), &GameList) {
+        Ok(made) => made,
+        Err(LayoutError::UnknownKind) => return Err(fatal(pieces::UNKNOWN_KIND)),
+        Err(LayoutError::TooMany) => {
+            return Err(BadInput("more pieces than the page's table holds").into());
+        }
+    };
     let base = a(LAYOUT);
-    let mut n = 0u32;
-    let at = |n: &mut u32| {
-        let place = base + 4 + PIECE * *n;
-        *n += 1;
-        place
-    };
-    if !hidden(rb(list)) {
-        piece(at(&mut n), 5, 0x10, rw(list + 2), a(TITLE));
-    }
-    let items = match rb(list + 1) {
-        0 => 0x100,
-        c => c as u32,
-    };
-    for k in 0..items {
-        let item = list + 0x18 + 0x10 * k;
-        let b = rb(item);
-        if hidden(b) {
-            continue;
+    for (n, piece) in made.iter().enumerate() {
+        let at = base + 4 + PIECE * n as u32;
+        if let Some(text) = piece.text {
+            ww(at + 2, text);
         }
-        let text = rw(item + 2);
-        match b & 0xF {
-            1 => piece(at(&mut n), b, 0, text, item),
-            2 => {
-                piece(at(&mut n), b, 1, text, item);
-                let marks = b & 0x3F;
-                let table = crate::install::installer::rd(item + 0xC);
-                let choices = match rb(item + 1) {
-                    0 => 0x100,
-                    c => c as u32,
-                };
-                for c in 0..choices {
-                    let word = rw(table + 2 * c);
-                    let high = (word >> 8) as u8 & 0xC0;
-                    if high == 0x40 {
-                        continue;
-                    }
-                    piece(
-                        at(&mut n),
-                        high | marks,
-                        2,
-                        word - ((high as u16) << 8),
-                        item,
-                    );
-                }
-            }
-            3 => {
-                piece(at(&mut n), b, 1, text, item);
-                second_piece(at(&mut n), b, 0x12, item);
-            }
-            4 => {
-                let label = at(&mut n);
-                piece(label, b, 1, text, item);
-                if b & 0x10 != 0 {
-                    n -= 1;
-                }
-                let place = base + 4 + PIECE * n;
-                n += 1;
-                second_piece(place, b & 0xEF, 0x12, item);
-            }
-            5 => {
-                let place = at(&mut n);
-                piece(place, b, 0, text, item);
-                let font = rb(a(TEXT_FONTS) + 8 * rb(item + 1) as u32);
-                wb(place + 1, font | 0x10);
-            }
-            _ => piece(at(&mut n), b, 0x14, text, item),
+        wb(at, piece.marks);
+        wb(at + 1, piece.kind);
+        wd(at + 4, piece.item);
+        for k in 0..4 {
+            wd(at + 8 + 4 * k, 0);
         }
     }
-    wd(base, n);
+    wd(base, made.len() as u32);
     Ok(*entry)
 }
 

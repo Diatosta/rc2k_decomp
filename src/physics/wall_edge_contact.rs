@@ -23,7 +23,7 @@
 //! (`g_courseFaces`, `g_scenePoints` pointed at them), every edge shared and none, under
 //! three precisions.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, hook_asm, rva};
 use crate::math::turn_float_point_xz::turn_float_point_xz;
 use crate::math::x87::mul;
@@ -35,7 +35,7 @@ use crate::physics::wall_contacts::{WALL_RECORD, regions, test_walls};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
 use crate::service::harness::dispatch_state;
-use rc2k_core::physics::faces::has_edge;
+use rc2k_core::physics::walls;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -94,6 +94,7 @@ pub fn edge_normal(first: u32, second: u32) -> [u32; 4] {
 }
 
 /// The steps, not guarded.
+// Converted: `rc2k_core::physics::walls::shared_edge` (the edge's heading stays x87).
 pub fn steps(r: &mut Regs) -> Result<(), Refused> {
     r.ebp = (g(0x6D3170) << 6).wrapping_add(g(FACES));
     r.esi = (g(0x6D3174) << 6).wrapping_add(g(FACES));
@@ -103,23 +104,15 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
         rd(r.esi + 0xC),
         rd(r.esi + 0x10),
     ];
-    let mut shared = false;
-    for (x, y) in [(4u32, 8u32), (0xC, 4), (0x10, 0xC), (8, 0x10)] {
-        r.eax = rd(r.ebp + x);
-        r.ebx = rd(r.ebp + y);
-        if has_edge(r.eax, r.ebx, corners) {
-            shared = true;
-            break;
-        }
-    }
+    let wall = r.ebp;
+    let shared;
+    (shared, r.eax, r.ebx) = walls::shared_edge(|j| rd(wall + 4 + 4 * j as u32), corners);
     if !shared {
         return crate::physics::wall_push_back::steps(r);
     }
     // 0x45DA9E: along the edge.
     let n = g(0x6D3214);
-    if n > 0x3F {
-        return Err(BadInput("a probe point past 0x3F (the tables' room)").into());
-    }
+    walls::check_probe(n)?;
     let (from, to) = (r.ebx, r.eax);
     p(0x6D3178, from);
     p(0x6D317C, to);

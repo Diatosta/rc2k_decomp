@@ -73,10 +73,12 @@ const PIXELS: usize = 0x4F49C0; // g_surface.pixels
 const HEIGHT: usize = 0x4F49A4; // g_surface.height
 const ROW_DWORDS: usize = 0x4F49B4; // g_surface.row_dwords
 const ROW_GAP: usize = 0x4F49C4; // g_surface.row_gap
-const DIM: u32 = 0x0055_5555;
 
 /// The Rust version: the registers it leaves (the entry's).
 pub fn draw_viewer_panel(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::viewer_flow::{shown_time, replay_length, camera_name,
+    // switch_lights}`.
+    use rc2k_core::race::viewer_flow::{camera_name, replay_length, shown_time, switch_lights};
     let mut r = *entry;
     r.eax = g(TEXTURE);
     part(1, &mut r)?;
@@ -112,16 +114,13 @@ pub fn draw_viewer_panel(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     r.ecx = 4;
     r.edx = 0;
     string(part, &mut r, 0x1A4)?;
-    for (hundredths, font) in [
-        (g(BLOCK).wrapping_mul(100).wrapping_add(g(FRAME)), FONT_B),
-        (0, FONT_D),
-    ] {
+    for (hundredths, font) in [(shown_time(g(BLOCK), g(FRAME)), FONT_B), (0, FONT_D)] {
         if font == FONT_D {
             r.ebx = a(FONT_C);
             r.ecx = 0x60;
             r.edx = r.edx.wrapping_add(0x11);
             string(part, &mut r, 0x1A5)?;
-            r.eax = g(BLOCKS).wrapping_mul(100);
+            r.eax = replay_length(g(BLOCKS));
         } else {
             r.eax = hundredths;
         }
@@ -136,10 +135,7 @@ pub fn draw_viewer_panel(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     // The two cameras' names.
     r.edx = 0x32;
     for byte in 0..2usize {
-        let mut camera = gb((CAMERAS + byte).wrapping_add(8 * g(BLOCK) as usize)) as u32;
-        if (camera as i32) > 0x2E {
-            camera = 0x2E;
-        }
+        let camera = camera_name(gb((CAMERAS + byte).wrapping_add(8 * g(BLOCK) as usize)));
         r.eax = unsafe { (a(CAMERA_NAMES + 2 * camera as usize) as *const u16).read_unaligned() }
             as u32;
         r.ebx = a(TEXT);
@@ -173,8 +169,7 @@ pub fn draw_viewer_panel(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     part(8, &mut r)?;
     // The quads.
     let camera_5 = gb((CAMERAS + 5).wrapping_add(8 * g(BLOCK) as usize));
-    r.esi = if camera_5 == 1 { DIM } else { 0x00FF_FFFF };
-    r.edi = if camera_5 == 0 { DIM } else { 0x00FF_FFFF };
+    (r.esi, r.edi) = switch_lights(camera_5);
     r.edx = g(BLOCK);
     r.eax = a(UV);
     r.ebx = a(RECT);

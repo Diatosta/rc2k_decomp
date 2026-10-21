@@ -10,10 +10,11 @@
 //! Self-test: a copy of the original (the car number, both tables the test's) on test
 //! objects: cars 0 .. 7, entries -1 and not.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, dispatch_state};
+use rc2k_core::physics::listed_cars::{CUE_E5, cue_e5_object};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -37,22 +38,19 @@ unsafe fn put(a: u32, v: u32) {
 }
 
 /// The core: the car number, the listed table, the sound objects at these places.
+// Converted: `rc2k_core::physics::listed_cars::{cue_e5_object, CUE_E5}`.
 pub unsafe fn sound_cue_e5_at(current: u32, listed: u32, objects: u32) -> Result<Left, Refused> {
     unsafe {
-        let car = at(current);
-        if car > 7 {
-            return Err(BadInput("a current car past 7").into());
+        let object = cue_e5_object(
+            at(current),
+            |car| at(listed + 4 * car),
+            |slot| at(objects + 4 * slot),
+        )?;
+        if let Some(object) = object {
+            for (offset, v) in CUE_E5 {
+                put(object + offset, v);
+            }
         }
-        if at(listed + 4 * car) == u32::MAX {
-            return Ok(Left::nothing());
-        }
-        let object = at(objects + 4 * (car & 7));
-        if object == 0 {
-            return Err(BadInput("a null sound object").into());
-        }
-        put(object + 0x24C, 0xE5);
-        put(object + 0x250, 0);
-        put(object + 0x10, 1);
         Ok(Left::nothing())
     }
 }

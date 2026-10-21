@@ -23,13 +23,15 @@
 //! versions (level 1). Refuses a current player past 3 or missing, a car past 0xFF or
 //! without its table, before anything. Shadow mode runs the original alone (it logs).
 //! Self-test: the original and the Rust version on the game's player
-//! and cars, wear and switches by lot; put back.
+//! and cars, wear and switches by lot, at the test precisions (exact at 0x027F; the whole
+//! numbers made by the float steps within one at 0x037F); put back.
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::menu::standings::*;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::floats::{Floats, ROUNDED, at_test_precisions, check_state_floats};
+use crate::service::harness::{Region, at, capture, dispatch_state, restore};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -150,81 +152,47 @@ pub fn car_table(p: u32) -> Result<u32, BadInput> {
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn driver_stats(entry: &Regs) -> Result<Regs, Refused> {
     use crate::logfile::{log_int::log_int, log_write::log_write};
-    use crate::math::x87::{int_over_int_times_to_int, int_over_times_int_to_int};
+    // Converted: `rc2k_core::menu::driver_figures` (float: exact at the game's 0x027F).
+    use rc2k_core::menu::driver_figures::{Car, Constants, Table, figures};
     let (p, t) = player_and_table()?;
     unsafe {
-        let steps: u32 = game_read(STEPS_RVA);
-        let scale: u32 = game_read(SCALE_RVA);
-        for k in 0..PARTS {
-            let at = 8 * (k / 2) + if k % 2 == 1 { 0x38 } else { 0 };
-            let (low, high) = (get(t + at), get(t + at + 4));
-            let wear = get(p + 0xD4 + 4 * k);
-            game_write(FIGURE_RVA, wear);
-            let value = if wear == 0 {
-                0
-            } else {
-                game_write(FIGURE_RVA, wear.wrapping_sub(1));
-                let span = high.wrapping_sub(low);
-                if span == 0 {
-                    low
-                } else {
-                    game_write(SPAN_RVA, span);
-                    let f =
-                        int_over_times_int_to_int(span as i32, steps, wear.wrapping_sub(1) as i32)
-                            as u32;
-                    game_write(FIGURE_RVA, f);
-                    low.wrapping_add(f)
-                }
-            };
-            game_write(VALUES_RVA + 4 * k as usize, value);
-            game_write(HIGHS_RVA + 4 * k as usize, high);
-            let mut limit = get(t + 0x78 + 4 * k);
-            let wanted = match k {
-                1 => Some(0x1E0),
-                13 => Some(0x1E),
-                _ => None,
-            };
-            if let Some(bits) = wanted
-                && get(p + 0x278) & bits != bits
-            {
-                limit = 0xA;
-            }
-            game_write(LIMITS_RVA + 4 * k as usize, limit);
+        let table = Table::read(|o| get(t + o as u32));
+        let car = Car {
+            wear: std::array::from_fn(|k| get(p + 0xD4 + 4 * k as u32)),
+            fitted: get(p + 0x278),
+            setup: [get(p + 0x114), get(p + 0x118)],
+        };
+        let c = Constants {
+            steps: f32::from_bits(game_read(STEPS_RVA)),
+            scale: f32::from_bits(game_read(SCALE_RVA)),
+            keep_part_1: game_read(SWITCH_RVA[0]),
+            short_part_5: game_read(SWITCH_RVA[1]),
+        };
+        let f = figures(&table, &car, &c);
+        game_write(VALUES_RVA, f.values);
+        game_write(HIGHS_RVA, f.highs);
+        game_write(LIMITS_RVA, f.limits);
+        game_write(TOTAL_RVA, f.total);
+        for (n, &at) in KEPT_RVA.iter().enumerate() {
+            game_write(at, f.kept[n]);
         }
-        let total = INSPECTED.iter().fold(0u32, |s, &k| {
-            s.wrapping_add(game_read(HIGHS_RVA + 4 * k as usize))
-        });
-        game_write(TOTAL_RVA, total);
-        game_write(VALUES_RVA + 4 * 14, get(t + 0x70));
-        game_write(VALUES_RVA + 4 * 15, get(t + 0x74));
-        game_write(VALUES_RVA + 4 * 12, get(t + 0x30));
-        game_write(VALUES_RVA + 4 * 13, get(t + 0x68));
-        game_write(KEPT_RVA[1], get(p + 0x114));
-        game_write(KEPT_RVA[0], get(p + 0x114));
-        game_write(KEPT_RVA[3], get(p + 0x118));
-        game_write(KEPT_RVA[2], get(p + 0x118));
-        for (slot, &k) in INSPECTED.iter().enumerate() {
-            let k = k as usize;
-            let high: u32 = game_read(HIGHS_RVA + 4 * k);
-            let weight = int_over_int_times_to_int(high as i32, total as i32, scale) as u32;
-            game_write(FIGURE_RVA, weight);
-            game_write(WEIGHTS_RVA + 4 * k, weight);
-            let mut limit: u32 = game_read(LIMITS_RVA + 4 * k);
-            if (k == 1 && game_read::<u32>(SWITCH_RVA[0]) != 1)
-                || (k == 5 && game_read::<u32>(SWITCH_RVA[1]) == 1)
-            {
-                limit = 0xA;
+        for k in 0..PARTS as usize {
+            if let Some(w) = f.weights[k] {
+                game_write(WEIGHTS_RVA + 4 * k, w);
             }
-            let wear = get(p + 0xD4 + 4 * k as u32);
+            if let Some(v) = f.penalties[k] {
+                game_write(PENALTIES_RVA + 4 * k, v);
+            }
+        }
+        game_write(FIGURE_RVA, f.figure);
+        if let Some(span) = f.span {
+            game_write(SPAN_RVA, span);
+        }
+        for (slot, line) in f.logged.iter().enumerate() {
             log_write(game_addr(NAMES_RVA[slot]) as *const u8, false, 1);
-            log_int(wear as i32, false, 1);
+            log_int(line.wear as i32, false, 1);
             log_write(game_addr(EQUALS_RVA[slot]) as *const u8, false, 1);
-            log_int(limit as i32, true, 1);
-            if wear as i32 >= limit as i32 {
-                let penalty = int_over_times_int_to_int(wear as i32, scale, weight as i32) as u32;
-                game_write(FIGURE_RVA, penalty);
-                game_write(PENALTIES_RVA + 4 * k, penalty);
-            }
+            log_int(line.limit as i32, true, 1);
         }
     }
     Ok(*entry)
@@ -274,20 +242,35 @@ fn self_test() -> (usize, usize) {
     if refused {
         return t.skip("the Rust version refuses the game's tables");
     }
-    for case in 0..CASES {
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            test_entry(case),
-            &|| {
-                restore(&vars, &saved);
-                prepare(case);
-            },
-            &regions,
-            &rust,
-        );
-    }
+    // The whole numbers made by the float steps: a rounding edge may differ by one at
+    // extended precision.
+    let places = [
+        ((game_addr(VALUES_RVA) as u32, 14 * 4), ROUNDED),
+        ((game_addr(WEIGHTS_RVA) as u32, 2 * 14 * 4), ROUNDED),
+        (at(FIGURE_RVA), ROUNDED),
+    ];
+    let tolerant = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, held| {
+        for case in 0..CASES {
+            check_state_floats(
+                &mut t,
+                "menu::driver_stats",
+                &format!("control word {word:#x}, case {case}"),
+                call_original,
+                test_entry(case),
+                &|| {
+                    restore(&vars, &saved);
+                    prepare(case);
+                },
+                &regions,
+                held,
+                &rust,
+            );
+        }
+    });
     restore(&vars, &saved);
     t.finish()
 }

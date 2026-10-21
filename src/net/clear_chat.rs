@@ -25,7 +25,8 @@ hook_asm!(
 
 /// The Rust version: the registers it leaves (the entry's).
 pub fn clear_chat(entry: &Regs, _: Part) -> Result<Regs, Refused> {
-    unsafe { (a(CHAT) as *mut [u8; 8]).write_unaligned(*b"\n\n\n\n\n\n\n\0") };
+    // Converted: `rc2k_core::net::chat::EMPTY`.
+    unsafe { (a(CHAT) as *mut [u8; 8]).write_unaligned(rc2k_core::net::chat::EMPTY) };
     Ok(*entry)
 }
 

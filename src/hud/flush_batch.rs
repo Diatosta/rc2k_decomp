@@ -36,10 +36,11 @@ const DEVICE_CALL_RVA: usize = rva(0x45A869); // sub_45A869
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::hud::batch::flush_due`
 pub unsafe fn flush_batch(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
-        if game_read::<u32>(INDEX_COUNT_RVA) == 0 {
+        if !rc2k_core::hud::batch::flush_due(game_read(INDEX_COUNT_RVA)) {
             return Ok(g);
         }
         part(1, &mut g)?;

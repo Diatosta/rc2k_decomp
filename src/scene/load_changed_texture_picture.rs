@@ -11,6 +11,8 @@
 //! Refuses a texture past the tables.
 //! Shadow mode runs the original alone and checks what the texture has afterwards.
 //! Self-test: a redirected copy whose loading notes its registers.
+//!
+//! Converted 2026-10-21: the rule through `rc2k_core::scene::pictures::changed_picture`.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{
@@ -50,6 +52,7 @@ pub const TEXTURES: u32 = 0x400;
 
 /// `load`: what stands for `scene::load_texture_picture`, given the picture and the
 /// texture.
+// Converted: `rc2k_core::scene::pictures::changed_picture`
 pub unsafe fn load_changed_texture_picture(
     texture: u32,
     load: &mut dyn FnMut(u32, u32) -> Result<(), Refused>,
@@ -59,11 +62,12 @@ pub unsafe fn load_changed_texture_picture(
             return Err(BadInput("a texture past the pictures' tables").into());
         }
         let at = texture as usize * 4;
-        let wanted: u32 = game_read(WANTED_PICTURES_RVA + at);
-        if wanted == u32::MAX || wanted == 0 || wanted == game_read::<u32>(LOADED_PICTURES_RVA + at)
-        {
+        let Some(wanted) = rc2k_core::scene::pictures::changed_picture(
+            game_read(WANTED_PICTURES_RVA + at),
+            || game_read(LOADED_PICTURES_RVA + at),
+        ) else {
             return Ok(());
-        }
+        };
         load(wanted, texture)?;
         game_write(LOADED_PICTURES_RVA + at, wanted);
         Ok(())

@@ -34,7 +34,7 @@ unsafe fn at(a: u32) -> u32 {
 }
 
 /// The exact x87 version on the value, the factor and the scratch at these places (for
-/// `physics::place_sound_*`, not yet converted).
+/// `physics::place_sound_e1`'s exact version).
 pub unsafe fn band_at(value: u32, factor: u32, scratch: u32, step: u32) -> u32 {
     unsafe {
         let n = x87::mul_to_int(at(value), at(factor)) as u32;
@@ -67,11 +67,15 @@ pub unsafe fn band_at_plain(value: u32, factor: u32, scratch: u32, step: u32) ->
     }
 }
 
+/// The converted band on the game's variables.
+pub unsafe fn band_value_plain(twin: Twin) -> u32 {
+    let g = |a: usize| crate::framework::game_addr(crate::framework::rva(a)) as u32;
+    unsafe { band_at_plain(g(twin.1), g(twin.2), g(SCRATCH), twin.3) }
+}
+
 /// The converted version on the game's variables: the hooks'.
 pub unsafe fn band_plain(twin: Twin) -> Left {
-    let g = |a: usize| crate::framework::game_addr(crate::framework::rva(a)) as u32;
-    let b = unsafe { band_at_plain(g(twin.1), g(twin.2), g(SCRATCH), twin.3) };
-    Left::nothing().with(EBX, b)
+    Left::nothing().with(EBX, unsafe { band_value_plain(twin) })
 }
 
 /// The test of one twin.

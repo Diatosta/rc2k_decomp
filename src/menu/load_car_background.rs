@@ -14,7 +14,7 @@
 //! Self-test: a redirected copy whose `load_background` notes what it gets, every page
 //! with the game's records.
 
-use crate::errors::{BadInput, FatalError, Refused};
+use crate::errors::{FatalError, Refused};
 use crate::framework::{
     RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
@@ -45,7 +45,6 @@ hook_asm!(
 const PAGE_RVA: usize = rva(0x755998); // dword_755998
 const CAR_RVA: usize = rva(0x755990); // dword_755990
 const PATHS_RVA: usize = rva(0x759AD2); // off_759AD2: a table of paths a page
-const PAGES: u32 = 4;
 const LOAD_RVA: usize = rva(0x47EFFF); // menu::load_background
 
 // ---- Rust version ----
@@ -53,7 +52,8 @@ const LOAD_RVA: usize = rva(0x47EFFF); // menu::load_background
 /// The car of the entry shown, 0x21 counting as 0x17.
 pub fn shown_car() -> Result<u32, Refused> {
     let car = unsafe { read(shown_description()?) }.car;
-    Ok(if car == 0x21 { 0x17 } else { car })
+    // Converted: `rc2k_core::menu::slides::picture_car`.
+    Ok(rc2k_core::menu::slides::picture_car(car))
 }
 
 /// `load` gets the path and the car; it returns whether the carry was set.
@@ -61,10 +61,8 @@ pub unsafe fn load_car_background(
     load: &mut dyn FnMut(u32, u32) -> Result<bool, Refused>,
 ) -> Result<(), Refused> {
     unsafe {
-        let page: u32 = game_read(PAGE_RVA);
-        if page >= PAGES {
-            return Err(BadInput("a page past the four").into());
-        }
+        // Converted: `rc2k_core::menu::slides::background_page`.
+        let page = rc2k_core::menu::slides::background_page(game_read(PAGE_RVA))?;
         let car = shown_car()?;
         let table: u32 = game_read(PATHS_RVA + page as usize * 4);
         let path = ((table + car * 4) as *const u32).read_unaligned();
@@ -134,7 +132,7 @@ fn self_test() -> (usize, usize) {
     set_handler(handler);
     let records = TestRecords::new(&TEST_CARS, &[0x249]);
     let entries: Vec<u32> = (0..records.len()).collect();
-    for page in 0..PAGES {
+    for page in 0..rc2k_core::menu::slides::PAGES {
         for &car in &entries {
             let run = |rust: bool| unsafe {
                 game_write(PAGE_RVA, page);

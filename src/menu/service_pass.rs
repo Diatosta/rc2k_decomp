@@ -69,17 +69,20 @@ pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn service_pass(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::menu::passes` (who is serviced, the minutes, the money, the
+    // pauses, `goes_on`).
+    use rc2k_core::menu::passes;
     let players = counted_players()?;
     let due = unsafe { game_read::<u32>(DUE_RVA) } == 1;
     for &p in &players {
-        if due && get(p + 0xD0) == 1 {
+        if due && passes::takes_part(get(p + 0xD0)) {
             crate::menu::driver_stats::car_table(p)?;
         }
     }
     let mut g = *entry;
     unsafe {
         game_write(MONEY_RVA, 0u32);
-        game_write(TIME_RVA, game_read::<u32>(TIME_RVA).wrapping_add(0x384));
+        game_write(TIME_RVA, passes::more_minutes(game_read(TIME_RVA)));
         game_write(GOES_ON_RVA, 1u32);
         g.ebx = 0;
         'all: {
@@ -89,21 +92,21 @@ pub unsafe fn service_pass(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                 g.edi = p;
                 g.eax = get(p + 0xD0);
                 g.ebx = g.ebx.wrapping_add(g.eax);
-                if g.eax != 1 || game_read::<u32>(DUE_RVA) != 1 {
+                if !passes::serviced(g.eax, || game_read(DUE_RVA)) {
                     continue;
                 }
                 part(5, &mut g)?;
-                g.eax = 1000;
+                g.eax = passes::SCREEN_PAUSE;
                 part(1, &mut g)?;
                 part(3, &mut g)?;
-                g.eax = 0xFA;
+                g.eax = passes::FADE_PAUSE;
                 part(1, &mut g)?;
                 game_write(CLEARED_RVA[0], 0u32);
                 crate::menu::driver_stats::driver_stats(&g)?;
                 game_write(CLEARED_RVA[1], 0u32);
                 crate::menu::reset_driver_condition::reset_driver_condition(&g)?;
                 crate::service::clear_repair_flags::clear_repair_flags()?;
-                for _ in 0..6 {
+                for _ in 0..passes::DROPPED_KEYS {
                     part(8, &mut g)?;
                 }
                 part(6, &mut g)?;
@@ -113,7 +116,7 @@ pub unsafe fn service_pass(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                 part(7, &mut g)?;
                 g = crate::menu::set_player_entry_kind::set_player_entry_kind(&g)?;
                 g.edi = p;
-                if get(p + 0xD0) == 2 {
+                if passes::is_out(get(p + 0xD0)) {
                     crate::menu::inspection_faults::inspection_faults(&g)?;
                     part(2, &mut g)?;
                     if game_read::<u32>(ANSWER_RVA) == 1 {
@@ -122,10 +125,10 @@ pub unsafe fn service_pass(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                     game_write(OUT_RVA, game_read::<u32>(OUT_RVA).wrapping_add(1));
                 }
                 g.edi = p;
-                g.eax = game_read::<u32>(MONEY_RVA).wrapping_mul(100);
+                g.eax = passes::spent(game_read(MONEY_RVA));
                 put(p + 0x288, g.eax);
             }
-            if game_read::<u32>(OUT_RVA) == game_read::<u32>(PLAYER_COUNT_RVA) {
+            if !passes::goes_on(game_read(OUT_RVA), game_read(PLAYER_COUNT_RVA)) {
                 game_write(GOES_ON_RVA, 0u32);
             }
         }

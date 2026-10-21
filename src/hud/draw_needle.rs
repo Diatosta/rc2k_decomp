@@ -16,6 +16,12 @@
 //! versions. Shadow mode runs the original alone (it draws). Self-test: a copy whose calls
 //! go to stand-ins (the corners' taking their values off), against the Rust version,
 //! values by lot on both ways.
+//!
+//! Converted 2026-10-21: the holds, the choice of the angle's way, the turn's register and
+//! the corners through `rc2k_core::hud::disc` (compares of floats only: exact); the value
+//! made a float and the turn's arithmetic and rounding stay the x87's (they follow its
+//! control word). `dword_75C060` is written once, with the turn (the original also holds
+//! the value there between, read by nothing).
 
 use crate::errors::Refused;
 use crate::framework::{
@@ -50,22 +56,8 @@ const TURN_K_RVA: [usize; 2] = [rva(0x75C010), rva(0x75C014)];
 const CORNERS_RVA: [usize; 4] = [rva(0x75C2A8), rva(0x75C2AC), rva(0x75C2B0), rva(0x75C2B4)];
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 
-fn k(n: usize) -> u32 {
-    unsafe { game_read(K_RVA + 4 * n) }
-}
-
 /// A call by place (see the header), with its x87 values (st(0) first).
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs, &[[u8; 10]]) -> Result<(), Refused>;
-
-/// `fld b; fld a; fcompp`: C0 (a below b, or unordered).
-fn below(a: u32, b: u32) -> bool {
-    let (v, mut s) = ([a, b], 0u16);
-    unsafe {
-        core::arch::asm!("fld dword ptr [{v} + 4]", "fld dword ptr [{v}]", "fcompp", "fnstsw word ptr [{s}]",
-            v = in(reg) v.as_ptr(), s = in(reg) &raw mut s, out("st(0)") _, out("st(1)") _, options(nostack))
-    };
-    s & 0x100 != 0
-}
 
 /// `fld v [; fsub less]; fdiv over; fadd plus; fmul k0; fmul k1; fistp`.
 fn turn_of(v: u32, less: Option<u32>, over: u32, plus: u32, k: [u32; 2]) -> u32 {
@@ -85,39 +77,27 @@ fn turn_of(v: u32, less: Option<u32>, over: u32, plus: u32, k: [u32; 2]) -> u32 
 }
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::hud::disc::{needle_turn, needle_edx, needle_corners}`
 pub unsafe fn draw_needle(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
-        let held = |most: u32| {
-            let mut v = x87::from_int(game_read(VALUE_RVA));
-            game_write(SCRATCH_RVA, v);
-            let least: u32 = game_read(LEAST_RVA);
-            if below(v, least) {
-                v = x87::loaded(least);
-                game_write(SCRATCH_RVA, v);
-            }
-            if !below(v, most) {
-                v = x87::loaded(most);
-                game_write(SCRATCH_RVA, v);
-            }
-            v
-        };
+        use rc2k_core::hud::disc::{needle_corners, needle_edx, needle_turn};
+        let f = |r: usize| f32::from_bits(game_read(r));
+        let kind = game_read::<u32>(KIND_RVA) != 0;
+        let value = f32::from_bits(x87::from_int(game_read(VALUE_RVA)));
+        let t = needle_turn(value, kind, f(LEAST_RVA), |n| f(K_RVA + 4 * n));
         let tk = TURN_K_RVA.map(|r| game_read::<u32>(r));
-        let turn = if game_read::<u32>(KIND_RVA) != 0 {
-            let v = held(k(3));
-            turn_of(v, None, k(4), k(0), tk)
-        } else {
-            let v = held(k(6));
-            if below(v, k(2)) {
-                turn_of(v, None, k(5), k(0), tk)
-            } else {
-                turn_of(v, Some(k(2)), k(4), k(1), tk)
-            }
-        };
+        // The rounding follows the x87's control word: the x87's.
+        let turn = turn_of(
+            t.value.to_bits(),
+            t.less.map(f32::to_bits),
+            t.over.to_bits(),
+            t.plus.to_bits(),
+            tk,
+        );
         game_write(SCRATCH_RVA, turn);
-        g.edx = (turn << 4).wrapping_neg();
-        let [x0, y0, x1, y1] = CORNERS_RVA.map(|r| game_read::<u32>(r));
-        for (n, (x, y)) in [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+        g.edx = needle_edx(turn);
+        for (n, (x, y)) in needle_corners(CORNERS_RVA.map(|r| game_read::<u32>(r)))
             .into_iter()
             .enumerate()
         {
@@ -135,7 +115,7 @@ pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused
     use crate::hud::{add_polygon as ap, turned_vertex as tv};
     unsafe {
         *r = match place {
-            1 => tv::turned_vertex(r, [v[0], v[1]])?,
+            1 => tv::turned_vertex(r, [v[0], v[1]].map(rc2k_core::math::extended::to_f64))?,
             _ => ap::add_polygon(r, &mut ap::game_part)?,
         };
     }

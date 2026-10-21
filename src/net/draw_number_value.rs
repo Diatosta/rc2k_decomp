@@ -17,6 +17,7 @@ use crate::net::lobby::{
     APPEND_STRING, DRAW_TEXT, EDITED, FORMAT_U32, NUMBER_TEXT, Part, STR_APPEND, Saved, TEXT, a,
     answer, dispatch_lobby, dword, g, p, put_text, region, run_both,
 };
+use rc2k_core::net::screens::{self, Number};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -43,14 +44,16 @@ const ENTRY: [u8; 0x3C] = [
 /// The Rust version: the registers it leaves.
 pub fn draw_number_value(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
-    if r.esi == g(EDITED) {
+    // Converted: `rc2k_core::net::screens` (`number_value`, `Number`, `NOTHING`).
+    let shown = screens::number_value(r.esi == g(EDITED), r.eax);
+    if shown == Number::Typed {
         r.eax = a(NUMBER_TEXT);
     } else {
         r.ebx = a(TEXT);
         let kept_ecx = r.ecx;
         r.ecx = 0;
-        if r.eax == 0 {
-            r.eax = 0x16E;
+        if shown == Number::Nothing {
+            r.eax = screens::NOTHING;
             part(APPEND_STRING, &mut r)?;
         } else {
             part(FORMAT_U32, &mut r)?;

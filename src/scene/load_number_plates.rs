@@ -54,8 +54,7 @@ const WHICH_CAR_RVA: usize = rva(0x52A920); // dword_52A920
 const BLOCKS_RVA: usize = rva(0x71B3B8); // g_carBlocks
 const FIRSTS_RVA: usize = rva(0x5DCD9C); // dword_5DCD9C
 const SECONDS_RVA: usize = rva(0x5DCE2C); // dword_5DCE2C
-/// The tables' room: 0x90 bytes each.
-const NUMBERS: u32 = 0x24;
+use rc2k_core::scene::plates::NUMBERS;
 const UPLOAD_RVA: usize = rva(0x41B2F2); // scene::upload_plate
 /// `files\b\tx1822.pcx` .. `tx1825.pcx`.
 const NAMES: [usize; 4] = [rva(0x60AEB7), rva(0x60AECA), rva(0x60AEDD), rva(0x60AEF0)];
@@ -63,10 +62,12 @@ const NAMES: [usize; 4] = [rva(0x60AEB7), rva(0x60AECA), rva(0x60AEDD), rva(0x60
 // ---- Rust version ----
 
 /// `upload` is called with the registers the original hands `scene::upload_plate`.
+// Converted: `rc2k_core::scene::plates`
 pub unsafe fn load_number_plates(
     r: &mut Regs,
     upload: &mut dyn FnMut(&mut Regs) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
+    use rc2k_core::scene::plates;
     unsafe {
         let texture: u32 = game_read(TEXTURE_RVA);
         r.ebx = texture;
@@ -74,11 +75,8 @@ pub unsafe fn load_number_plates(
             return Ok(());
         }
         let player = if game_read::<u32>(ONE_CAR_RVA) != 0 {
-            let car: u32 = game_read(WHICH_CAR_RVA);
-            if car >= 8 {
-                return Err(BadInput("the one car's number is past the blocks").into());
-            }
-            let block: u32 = game_read(BLOCKS_RVA + car as usize * 4);
+            let car = plates::one_car(game_read(WHICH_CAR_RVA))?;
+            let block: u32 = game_read(BLOCKS_RVA + car * 4);
             if block == 0 {
                 return Err(BadInput("a car without its block").into());
             }
@@ -90,16 +88,14 @@ pub unsafe fn load_number_plates(
             known_kind_plate(player),
             known_kind_plate(game_read(OTHER_CAR_RVA)),
         ];
-        if numbers.iter().any(|&n| n >= NUMBERS) {
-            return Err(BadInput("a plate's number past its tables").into());
-        }
-        for (number, ebp) in numbers.into_iter().zip([0x68, 0x94]) {
-            let names = if number < 0x12 { 0 } else { 2 };
+        plates::check_numbers(numbers)?;
+        for (number, ebp) in numbers.into_iter().zip(plates::ROWS) {
+            let names = plates::pictures(number);
             r.eax = game_addr(NAMES[names]) as u32;
             r.ecx = game_addr(NAMES[names + 1]) as u32;
             r.edx = game_read(FIRSTS_RVA + number as usize * 4);
             r.esi = game_read(SECONDS_RVA + number as usize * 4);
-            r.edi = 0xAD;
+            r.edi = plates::COLUMN;
             r.ebp = ebp;
             r.ebx = texture;
             upload(r)?;

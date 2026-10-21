@@ -32,8 +32,11 @@ hook_asm!(
 const CAR_RVA: usize = rva(0x719FD8); // g_car
 
 /// Refused before anything?
+// Converted: `rc2k_core::physics::pushes::record_count`.
 pub fn refusal(count: u32) -> Option<&'static str> {
-    (count == 0 || count > 0x100).then_some("a torque record count of 0 or above 0x100")
+    rc2k_core::physics::pushes::record_count(count, "a torque record count of 0 or above 0x100")
+        .err()
+        .map(|e| e.0)
 }
 
 /// The Rust version: `count` records from `first` on the work car.

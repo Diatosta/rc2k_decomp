@@ -14,6 +14,7 @@ use crate::net::lobby::{
     CONNECTIONS, FLAGS, Part, SAME_GUID, SAVED_CONNECTION, Saved, a, answer, dispatch_lobby, dword,
     g, p, run_both, test_eax,
 };
+use rc2k_core::net::lists;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -38,28 +39,24 @@ const CONNECTION_ENTRY: u32 = 0x418530; // net::connection_entry
 /// The Rust version: the registers it leaves.
 pub fn find_saved_connection(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
-    if g(CONNECTIONS) != 0 {
-        r.ebx = a(SAVED_CONNECTION);
-        r.ecx = 0;
-        loop {
-            r.eax = r.ecx;
-            part(CONNECTION_ENTRY, &mut r)?;
-            r.eax = r.eax.wrapping_add(0x40);
-            part(SAME_GUID, &mut r)?;
-            if r.eflags & ZERO_FLAG != 0 {
-                r.eax = r.ecx;
-                test_eax(&mut r);
-                return Ok(Regs {
-                    ebx: entry.ebx,
-                    ecx: entry.ecx,
-                    ..r
-                });
-            }
-            r.ecx = r.ecx.wrapping_add(1);
-            if r.ecx == g(CONNECTIONS) {
-                break;
-            }
-        }
+    // Converted: `rc2k_core::net::lists::find_listed`.
+    r.ebx = a(SAVED_CONNECTION);
+    let found = lists::find_listed(g(CONNECTIONS), |n| -> Result<bool, Refused> {
+        r.ecx = n;
+        r.eax = n;
+        part(CONNECTION_ENTRY, &mut r)?;
+        r.eax = r.eax.wrapping_add(0x40);
+        part(SAME_GUID, &mut r)?;
+        Ok(r.eflags & ZERO_FLAG != 0)
+    })?;
+    if let Some(n) = found {
+        r.eax = n;
+        test_eax(&mut r);
+        return Ok(Regs {
+            ebx: entry.ebx,
+            ecx: entry.ecx,
+            ..r
+        });
     }
     // The flags of the compare that came out equal (the count with 0, or the number with
     // the count), and the carry set.

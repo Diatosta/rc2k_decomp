@@ -43,14 +43,14 @@ const FOLDER: usize = 0x5C2CD8; // "rpl"
 
 /// The Rust version.
 pub fn start_frame_pictures(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let rate = (get(PICTURE_RATE) as i32).clamp(1, 100) as u32;
-    if get(PICTURE_RATE) as i32 != rate as i32 {
+    // Converted: `rc2k_core::race::viewer::{picture_rate, picture_time}`.
+    use rc2k_core::race::viewer::{picture_rate, picture_time};
+    let rate = picture_rate(get(PICTURE_RATE));
+    if get(PICTURE_RATE) != rate {
         put(PICTURE_RATE, rate);
     }
     let mut r = *entry;
-    if r.eax == 0 {
-        r.eax = 1000 / rate;
-    }
+    r.eax = picture_time(r.eax, rate);
     put(PICTURE_TIME, r.eax);
     r.edx = a(FOLDER);
     part(1, &mut r)?;

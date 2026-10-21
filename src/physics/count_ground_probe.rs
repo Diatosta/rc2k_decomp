@@ -19,6 +19,7 @@ use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write
 use crate::physics::reset_parts::{FIND_GROUND, both_with, copy_of, dispatch_reset, regions};
 use crate::race::car_starts::{Case, Part, prepare};
 use crate::service::harness::{Region, capture, restore};
+use rc2k_core::physics::walls::ProbeCounts;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -47,18 +48,25 @@ fn p(x: usize, v: u32) {
 }
 
 /// The Rust version, `find_ground` through `part` (place 18).
+// Converted: `rc2k_core::physics::walls::ProbeCounts`.
 pub unsafe fn count_ground_probe(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
+    let mut counts = ProbeCounts {
+        tries: g(0x608C3C),
+        found: g(0x608C40),
+        same: g(0x608C44),
+    };
     p(0x620470, 0x40);
-    p(0x608C3C, g(0x608C3C).wrapping_add(1));
+    counts.tried();
+    p(0x608C3C, counts.tries);
     part(FIND_GROUND, &mut r)?;
-    if g(0x639830) != 0 {
-        p(0x608C40, g(0x608C40).wrapping_add(1));
+    let found = g(0x639830) != 0;
+    if found {
         // the original's `mov eax, dword_5CCC78` for its compare
         r.eax = g(0x5CCC78);
-        if r.eax == g(0x5CCC74) {
-            p(0x608C44, g(0x608C44).wrapping_add(1));
-        }
+        counts.searched(true, r.eax, g(0x5CCC74));
+        p(0x608C40, counts.found);
+        p(0x608C44, counts.same);
     }
     Ok(r)
 }

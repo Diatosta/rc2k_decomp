@@ -20,9 +20,10 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::install::installer::{
     DRIVE_COUNT, DRIVE_LETTERS, DRIVE_TYPE, DRIVES, FIRST_DRIVE, FREE_SPACE, Part, a, at, both, g,
-    p, quiet, region, wb, wd, ww,
+    p, quiet, region, wb, wd,
 };
 use crate::race::viewer::{Saved, dispatch_parts};
+use rc2k_core::install::drives::{self, DriveMenu};
 use std::sync::Mutex;
 use std::sync::atomic::AtomicUsize;
 
@@ -42,9 +43,6 @@ const MENU_8: usize = 0x51D7F8; // off_51D7F8
 const MENU_16: usize = 0x51D8B0; // off_51D8B0
 const MENU_MORE: usize = 0x51D9E8; // off_51D9E8
 const CHOSEN_MENU: usize = 0x51D5F8; // off_51D5F8
-const KB_ID: u32 = 0xA6;
-const MB_ID: u32 = 0xA7;
-const GB_ID: u32 = 0xA8;
 
 pub fn list_drives(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let drives = a(DRIVES);
@@ -54,7 +52,9 @@ pub fn list_drives(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     loop {
         r.eax = r.ecx;
         part(at(DRIVE_TYPE), &mut r)?;
-        if r.eax != 5 && r.eax != 6 {
+        // Converted: `rc2k_core::install::drives` (`offered`, `LISTED`, `free`, `text`,
+        // `menu`, `items`).
+        if drives::offered(r.eax) {
             r.eax = r.ecx;
             part(at(FREE_SPACE), &mut r)?;
             if !r.carry() {
@@ -71,55 +71,35 @@ pub fn list_drives(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     p(DRIVE_COUNT, 0);
     let mut ebx = a(DRIVE_LETTERS);
     // 'a' .. 'y': the loop's `cmp ecx, 7Ah; jb` leaves 'z' out (the game's slip, section 16)
-    for letter in b'a' as u32..b'z' as u32 {
-        let slot = drives + 8 * (letter - b'a' as u32);
+    for letter in drives::LISTED {
+        let slot = drives + 8 * (letter - b'a') as u32;
         if g_at(slot) == 0 {
             continue;
         }
         p(DRIVE_COUNT, g(DRIVE_COUNT) + 1);
         let row = ebx;
-        wb(row, letter as u8);
-        // the original writes the letter, skips a byte (`add ebx, 2`), then a space
-        let mut cursor = row + 2;
-        wb(cursor, b' ');
-        cursor += 1;
-        let mut eax = g_at(slot + 4);
-        let mut id = KB_ID;
-        if eax >= 0x400 {
-            eax >>= 10;
-            id = MB_ID;
-            if eax >= 0x400 {
-                eax >>= 10;
-                id = GB_ID;
-                ww(cursor, 0x3D3E); // ">="
-                cursor += 2;
-            }
-        }
-        let digits = crate::strings::format_u32::format_u32(eax, 0);
-        for b in digits {
-            wb(cursor, b);
-            cursor += 1;
-        }
-        let mut out = cursor;
+        wb(row, letter);
+        let free = drives::free(g_at(slot + 4));
+        let mut unit = Vec::new();
         unsafe {
-            crate::strings::append_string_by_id::append_string_by_id(id, &mut |from, n| {
-                std::ptr::copy(from, out as *mut u8, n);
-                out += n as u32;
+            crate::strings::append_string_by_id::append_string_by_id(free.unit, &mut |from, n| {
+                unit.extend_from_slice(std::slice::from_raw_parts(from, n));
             });
         }
-        wb(out, 0);
+        // the original writes the letter, skips a byte (`add ebx, 2`), then the rest
+        for (n, &b) in drives::text(free, &unit).iter().enumerate() {
+            wb(row + 2 + n as u32, b);
+        }
         ebx = row + 0x10;
     }
     let count = g(DRIVE_COUNT);
-    let menu = if count <= 8 {
-        MENU_8
-    } else if count <= 16 {
-        MENU_16
-    } else {
-        MENU_MORE
+    let menu = match drives::menu(count) {
+        DriveMenu::Eight => MENU_8,
+        DriveMenu::Sixteen => MENU_16,
+        DriveMenu::More => MENU_MORE,
     };
     p(CHOSEN_MENU, a(menu));
-    wb(a(menu) + 1, (count + 2) as u8);
+    wb(a(menu) + 1, drives::items(count));
     Ok(*entry)
 }
 

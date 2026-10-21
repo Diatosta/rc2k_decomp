@@ -3,18 +3,19 @@
 //! face's), summed into the eight settings blocks (at `g_marksSettings` + 0x29C, 0x4C8
 //! apart) by the face's kind, and then made shares of what they were.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{Regs, game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::objects::{
     FACE_COUNTS_RVA, FACES, FACES_RVA, FIRST_FACE_RVA, FIRST_POINT_RVA, POINT_COUNTS_RVA,
     POINTS_RVA,
 };
+use rc2k_core::marks::lines as core;
 
 pub const SETTINGS_RVA: usize = rva(0x767A28); // g_marksSettings
-pub const BLOCKS_AT: u32 = 0x29C;
-pub const BLOCK_LEN: u32 = 0x4C8;
-pub const MOST_BLOCKS: u32 = 8;
+pub const BLOCKS_AT: u32 = core::BLOCKS_AT;
+pub const BLOCK_LEN: u32 = core::BLOCK_LEN;
+pub const MOST_BLOCKS: u32 = core::MOST_BLOCKS;
 /// The last line's x, y, z differences (`dword_93C870` .. `dword_93C878`).
 pub const DIFFERENCE_RVA: usize = rva(0x93C870);
 pub const CURRENT_RVA: usize = rva(0x93C8A8); // dword_93C8A8: the block being measured
@@ -41,6 +42,23 @@ unsafe fn byte(at: u32) -> u8 {
 /// the length to `to`'s, added to the whole number at `sum`. Leaves eax, ebx, ecx the last
 /// differences; `then` runs after each difference (the measuring's `mov ebx`).
 unsafe fn lines(g: &mut Regs, from: u32, to: u32, sum: u32, then: &dyn Fn(&mut Regs)) {
+    unsafe { lines_with(g, from, to, sum, then, x87_length) }
+}
+
+/// The x87's `length_plus_int`.
+fn x87_length(d: [i32; 3], sum: i32) -> i32 {
+    x87::length_plus_int(d[0], d[1], d[2], sum)
+}
+
+/// `lines` with the length worked out by `length`.
+unsafe fn lines_with(
+    g: &mut Regs,
+    from: u32,
+    to: u32,
+    sum: u32,
+    then: &dyn Fn(&mut Regs),
+    length: fn([i32; 3], i32) -> i32,
+) {
     unsafe {
         let count = get(from);
         let points: u32 = game_read(POINTS_RVA);
@@ -49,13 +67,11 @@ unsafe fn lines(g: &mut Regs, from: u32, to: u32, sum: u32, then: &dyn Fn(&mut R
             let (a, b) = (get(from + 0x10 + 0x10 * n), get(to + 0x10 + 0x10 * n));
             let p = points.wrapping_add(a.wrapping_mul(12));
             let q = points.wrapping_add(b.wrapping_mul(12));
-            let d = [0, 4, 8].map(|o| get(p + o).wrapping_sub(get(q + o)));
+            let d = core::difference([0, 4, 8].map(|o| get(p + o)), [0, 4, 8].map(|o| get(q + o)));
             [g.eax, g.ebx, g.ecx] = d;
             game_write(DIFFERENCE_RVA, d);
             then(g);
-            let length =
-                x87::length_plus_int(d[0] as i32, d[1] as i32, d[2] as i32, get(sum) as i32);
-            put(sum, length as u32);
+            put(sum, length(d.map(|v| v as i32), get(sum) as i32) as u32);
             n += 1;
         }
         g.eax = count;
@@ -64,17 +80,28 @@ unsafe fn lines(g: &mut Regs, from: u32, to: u32, sum: u32, then: &dyn Fn(&mut R
 
 /// `marks::measure_slot_lines` (0x4D1167): faces esi and edi, block ebp: for each of the
 /// block's 8 slots whose kind (the low byte of +0xD0 ..) is the face's +7, its lines into
-/// the slot's sum (+0xF0 ..). Leaves eax 8, ebx and ecx the last differences.
+/// the slot's sum (+0xF0 ..). Leaves eax 8, ebx and ecx the last differences. The x87's,
+/// for `measure_lines` (unconverted).
 pub unsafe fn measure_slot_lines(entry: &Regs) -> Regs {
+    unsafe { slot_lines_with(entry, x87_length) }
+}
+
+/// The converted `measure_slot_lines` (plain floats): the hook's.
+// Converted: `rc2k_core::marks::lines::{slot_takes, difference, length_plus}`
+pub unsafe fn measure_slot_lines_plain(entry: &Regs) -> Regs {
+    unsafe { slot_lines_with(entry, core::length_plus) }
+}
+
+unsafe fn slot_lines_with(entry: &Regs, length: fn([i32; 3], i32) -> i32) -> Regs {
     let mut g = *entry;
     unsafe {
         let (from, to, block) = (g.esi, g.edi, g.ebp);
-        for k in 0..8 {
-            if get(block + 0xD0 + 4 * k) as u8 == byte(from + 7) {
-                lines(&mut g, from, to, block + 0xF0 + 4 * k, &|_| {});
+        for k in 0..core::SLOTS {
+            if core::slot_takes(get(block + 0xD0 + 4 * k), byte(from + 7)) {
+                lines_with(&mut g, from, to, block + 0xF0 + 4 * k, &|_| {}, length);
             }
         }
-        g.eax = 8;
+        g.eax = core::SLOTS;
     }
     g
 }
@@ -82,56 +109,68 @@ pub unsafe fn measure_slot_lines(entry: &Regs) -> Regs {
 /// `marks::measure_kind_lines` (0x4D1225): faces esi and edi, block ebp: for each of the
 /// block's 0x11 kinds (the low byte of +0x130 ..) that is the face's +6, with the face's
 /// +0xB 1: its point count added to +0x240 .., its lines into +0x1B8 ... Leaves eax 0x11,
-/// ebx and ecx the last differences.
+/// ebx and ecx the last differences. The x87's, for `measure_lines` (unconverted).
 pub unsafe fn measure_kind_lines(entry: &Regs) -> Regs {
+    unsafe { kind_lines_with(entry, x87_length) }
+}
+
+/// The converted `measure_kind_lines` (plain floats): the hook's.
+// Converted: `rc2k_core::marks::lines::{kind_takes, difference, length_plus}`
+pub unsafe fn measure_kind_lines_plain(entry: &Regs) -> Regs {
+    unsafe { kind_lines_with(entry, core::length_plus) }
+}
+
+unsafe fn kind_lines_with(entry: &Regs, length: fn([i32; 3], i32) -> i32) -> Regs {
     let mut g = *entry;
     unsafe {
         let (from, to, block) = (g.esi, g.edi, g.ebp);
-        for k in 0..0x11 {
-            if get(block + 0x130 + 4 * k) as u8 == byte(from + 6) && byte(from + 0xB) == 1 {
+        for k in 0..core::KINDS {
+            if core::kind_takes(get(block + 0x130 + 4 * k), byte(from + 6), byte(from + 0xB)) {
                 let count = block + 0x240 + 4 * k;
                 put(count, get(count).wrapping_add(get(from)));
-                lines(&mut g, from, to, block + 0x1B8 + 4 * k, &|_| {});
+                lines_with(&mut g, from, to, block + 0x1B8 + 4 * k, &|_| {}, length);
             }
         }
-        g.eax = 0x11;
+        g.eax = core::KINDS;
     }
     g
 }
 
-/// The blocks `measure_lines` would measure: (block, its first faces, its face count).
-unsafe fn measured(settings: u32, every: bool) -> Result<Vec<(u32, u32, u32, u32)>, Refused> {
-    unsafe {
-        let count = get(settings + 0x5C) as i32;
-        if count > MOST_BLOCKS as i32 {
-            return Err(BadInput("more than 8 marks' blocks").into());
-        }
-        let mut out = Vec::new();
-        for k in (0..count.max(0) as u32).rev() {
-            let block = settings.wrapping_add(BLOCK_LEN * k).wrapping_add(BLOCKS_AT);
-            if !every && get(block + 0xC) == 0 {
-                continue;
-            }
-            let (a, b) = (get(block), get(block + 4));
-            if a >= 0x100 || b >= 0x100 {
-                return Err(BadInput("a block's object past 0xFF").into());
-            }
-            let faces: u32 = game_read(FACE_COUNTS_RVA + 4 * a as usize);
-            let (first_a, first_b): (u32, u32) = (
-                game_read(FIRST_FACE_RVA + 4 * a as usize),
-                game_read(FIRST_FACE_RVA + 4 * b as usize),
-            );
-            let n = (faces as i32).max(0) as u32;
-            if [first_a, first_b]
-                .iter()
-                .any(|&f| f.checked_add(n).is_none_or(|end| end > FACES))
-            {
-                return Err(BadInput("a block's faces past g_faces").into());
-            }
-            out.push((block, first_a, first_b, faces));
-        }
-        Ok(out)
+/// The game's tables for `core::measured`: the settings' blocks and the objects' faces.
+struct GameBlocks(u32);
+
+impl core::Blocks for GameBlocks {
+    fn marked(&self, k: u32) -> bool {
+        unsafe { get(core::block_at(self.0, k) + 0xC) != 0 }
     }
+    fn objects(&self, k: u32) -> [u32; 2] {
+        let block = core::block_at(self.0, k);
+        unsafe { [get(block), get(block + 4)] }
+    }
+    fn face_count(&self, object: u32) -> u32 {
+        unsafe { game_read(FACE_COUNTS_RVA + 4 * object as usize) }
+    }
+    fn first_face(&self, object: u32) -> u32 {
+        unsafe { game_read(FIRST_FACE_RVA + 4 * object as usize) }
+    }
+}
+
+/// The blocks `measure_lines` would measure (`core::measured`): (block, its first faces,
+/// its face count).
+unsafe fn measured(settings: u32, every: bool) -> Result<Vec<(u32, u32, u32, u32)>, Refused> {
+    let count = unsafe { get(settings + 0x5C) };
+    let blocks = core::measured(count, every, &GameBlocks(settings), FACES)?;
+    Ok(blocks
+        .into_iter()
+        .map(|m| {
+            (
+                core::block_at(settings, m.block),
+                m.first[0],
+                m.first[1],
+                m.faces,
+            )
+        })
+        .collect())
 }
 
 /// `marks::measure_lines` (0x4D0EB4): `dword_93C8BC` 0; for the blocks (+0x5C of the
@@ -143,6 +182,8 @@ unsafe fn measured(settings: u32, every: bool) -> Result<Vec<(u32, u32, u32, u32
 /// `dword_93C8B8` 1 each sum then becomes 100 less its share of 100 of what it was
 /// (+0x34 .., +0x110 .., +0x1FC ..), with a `finit` after the first six (as the original).
 /// Refuses more than 8 blocks, an object past 0xFF, faces past `g_faces`.
+// Converted: `rc2k_core::marks::lines::{measured, block_at}` (the lengths and shares
+// stay x87: its `finit` between)
 pub unsafe fn measure_lines(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
@@ -154,7 +195,7 @@ pub unsafe fn measure_lines(entry: &Regs) -> Result<Regs, Refused> {
         let count = get(settings + 0x5C) as i32;
         let mut todo = blocks.into_iter().peekable();
         for k in (0..count.max(0) as u32).rev() {
-            g.ebp = settings.wrapping_add(BLOCK_LEN * k).wrapping_add(BLOCKS_AT);
+            g.ebp = block_at(settings, k);
             let Some(&(block, first_a, first_b, faces)) = todo.peek() else {
                 continue;
             };
@@ -224,7 +265,7 @@ pub unsafe fn measure_lines(entry: &Regs) -> Result<Regs, Refused> {
 }
 
 fn block_at(settings: u32, k: u32) -> u32 {
-    settings.wrapping_add(BLOCK_LEN * k).wrapping_add(BLOCKS_AT)
+    core::block_at(settings, k)
 }
 
 /// `marks::measure_starting_sums` (0x4D0DB5): `measure_lines` with every block and no
@@ -233,6 +274,7 @@ fn block_at(settings: u32, k: u32) -> u32 {
 /// cleared; then `g_marksMeasureEvery` 0 and `g_marksMakeShares` 1. Leaves eax the first
 /// block's last moved, ebx 0, ebp that block (the settings with none). Refuses as
 /// `measure_lines` with every block, before writing anything.
+// Converted: `rc2k_core::marks::lines::{measured, block_at}`
 pub unsafe fn measure_starting_sums(entry: &Regs) -> Result<Regs, Refused> {
     unsafe {
         let settings: u32 = game_read(SETTINGS_RVA);
@@ -272,13 +314,12 @@ pub unsafe fn measure_starting_sums(entry: &Regs) -> Result<Regs, Refused> {
 /// `g_objectPointCount2` of 12 bytes from `g_objectFirstPoint` in `g_objectPoints`, to the
 /// block's +0x8C. Leaves eax the last dword copied (the count with none), esi and edi past
 /// them. Refuses an object past 0xFF.
+// Converted: `rc2k_core::marks::lines::check_object`
 pub unsafe fn copy_block_points(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         let object = get(g.ebp);
-        if object >= 0x100 {
-            return Err(BadInput("a block's object past 0xFF").into());
-        }
+        core::check_object(object)?;
         g.edi = get(g.ebp + 0x8C);
         g.eax = game_read(POINT_COUNTS_RVA + 4 * object as usize);
         let count = g.eax as i32;
@@ -300,7 +341,7 @@ pub unsafe fn copy_block_points(entry: &Regs) -> Result<Regs, Refused> {
 pub fn point_regions(block: u32) -> Vec<crate::service::harness::Region> {
     unsafe {
         let object = get(block);
-        if object >= 0x100 {
+        if core::check_object(object).is_err() {
             return Vec::new();
         }
         let count: u32 = game_read(POINT_COUNTS_RVA + 4 * object as usize);
@@ -315,6 +356,7 @@ pub fn point_regions(block: u32) -> Vec<crate::service::harness::Region> {
 /// +0x90 .. +0xAC the eight floats of `g_marksBlockStart`. Leaves the registers as the first
 /// block's copy (ebx its +0x4C, ebp it). Refuses as `measure_starting_sums`, before
 /// anything is taken.
+// Converted: `rc2k_core::marks::lines::{measured, block_at}`
 pub unsafe fn set_up_blocks(
     entry: &Regs,
     part: crate::race::level_init::Part,

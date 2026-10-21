@@ -38,41 +38,37 @@ const PLAYERS_RVA: usize = rva(0x6238A4); // dword_6238A4
 /// A call by place (see the header).
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
-/// Whether esi's block's strip is shown (see the header); edx / ebx as the test leaves them.
+/// Whether esi's block's strip is shown (see the header); eax / edx / ebx as the test
+/// leaves them.
 unsafe fn flashing(g: &mut Regs) -> bool {
+    use rc2k_core::hud::strips::{Strip, strip};
     let b = g.esi;
-    let get = |o: u32| unsafe { ((b + o) as *const u32).read_unaligned() };
-    if get(0xFA8) != 0 || get(0x728) == 0 {
-        return false;
+    let s = strip(|o| unsafe { ((b + o) as *const u32).read_unaligned() });
+    if let Strip::Flashing(f) = s {
+        [g.eax, g.edx, g.ebx] = [f.quotient, f.remainder, f.half];
     }
-    let period = get(0x730);
-    if (period as i32) <= 0 {
-        return true;
-    }
-    g.eax = get(0x72C);
-    g.edx = g.eax % period;
-    g.eax /= period;
-    g.ebx = period >> 1;
-    g.edx < g.ebx
+    s.shown()
 }
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::hud::strips`
 pub unsafe fn draw_view_strips(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    use rc2k_core::hud::strips::{SECOND_VIEW, TEXTURES};
     let mut g = *entry;
     unsafe {
         if game_read::<u32>(OFF_RVA) == 0 {
             g.esi = game_read(BLOCKS_RVA);
             if flashing(&mut g) {
                 g.ebp = game_read(PLAYERS_RVA);
-                game_write(TEXTURE_RVA, 0xC4u32);
+                game_write(TEXTURE_RVA, TEXTURES[0]);
                 part(1, &mut g)?;
             }
             g.ebp = game_read(PLAYERS_RVA);
             if g.ebp != 0 {
                 g.esi = game_read(BLOCKS_RVA + 4);
                 if flashing(&mut g) {
-                    g.ebp = game_read::<u32>(PLAYERS_RVA).wrapping_add(3);
-                    game_write(TEXTURE_RVA, 0xC5u32);
+                    g.ebp = game_read::<u32>(PLAYERS_RVA).wrapping_add(SECOND_VIEW);
+                    game_write(TEXTURE_RVA, TEXTURES[1]);
                     part(1, &mut g)?;
                 }
             }

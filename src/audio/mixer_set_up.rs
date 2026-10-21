@@ -8,7 +8,6 @@ use crate::errors::Refused;
 use crate::framework::{game_addr, rva};
 
 pub const PRIMARY_CAPS_RVA: usize = rva(0x506B08); // g_primaryCaps (DSBCAPS, 0x14 bytes)
-pub const MODE_OWN_BUFFERS: u32 = 0x1_0000;
 pub const MODE_MIXER: u32 = 0x4_0000;
 /// `SetCooperativeLevel`: write the primary buffer.
 const WRITE_PRIMARY: u32 = 4;
@@ -75,23 +74,24 @@ pub unsafe fn set_up_primary_mixer(v: &MixerVars, part: Part) -> Result<bool, Re
         if level(ds, read(v.window), WRITE_PRIMARY) != 0 || part(8, 0, 0)? {
             return failed(part);
         }
-        let mut mode = read(v.mode);
-        if part(9, mode, 0)? {
-            mode = (mode & !0xF0) | 0x10;
-            if part(9, mode, 0)? {
-                mode = (mode & !0xF00) | 0x100;
-                if part(9, mode, 0)? {
-                    return failed(part);
-                }
+        // Converted: `rc2k_core::audio::device::{mixer_formats, mixer_figures}`.
+        use rc2k_core::audio::device::{mixer_figures, mixer_formats};
+        let mut chosen = None;
+        for mode in mixer_formats(read(v.mode)) {
+            if !part(9, mode, 0)? {
+                chosen = Some(mode);
+                break;
             }
         }
+        let Some(mode) = chosen else {
+            return failed(part);
+        };
         write(v.mode, mode);
         let rate = read(v.wave + 4);
         write(v.rate, rate);
-        let block = (read(v.wave + 0xC) & 0xFFFF) as u16 as u32;
-        let most = (rate.wrapping_add(rate) / 50).wrapping_mul(block);
+        let (most, shift) = mixer_figures(rate, read(v.wave + 0xC));
         write(v.most, most);
-        write(v.shift, block >> 1);
+        write(v.shift, shift);
         write(v.play, 0);
         write(v.write, most);
         std::ptr::write_bytes(v.caps as *mut u8, 0, 0x14);
@@ -108,24 +108,24 @@ pub unsafe fn set_up_primary_mixer(v: &MixerVars, part: Part) -> Result<bool, Re
 /// `audio::open_way`: the voices' own buffers: `clear_channels` (6); the mixer:
 /// `set_up_primary_mixer` (11); neither: the carry. Returns the carry.
 pub fn open_way(mode: u32, part: Part) -> Result<bool, Refused> {
-    if mode & MODE_OWN_BUFFERS != 0 {
+    // Converted: `rc2k_core::audio::device::way`.
+    use rc2k_core::audio::device::{Way, way};
+    match way(mode) {
         // A jump into it: the carry is the one it leaves.
-        return part(6, 0, 0);
+        Some(Way::OwnBuffers) => part(6, 0, 0),
+        Some(Way::Mixer) => part(11, 0, 0),
+        None => Ok(true),
     }
-    if mode & MODE_MIXER != 0 {
-        return part(11, 0, 0);
-    }
-    Ok(true)
 }
 
 /// `audio::close_way`: as `open_way`, with `close_primary_mixer` (10) for the mixer.
 pub fn close_way(mode: u32, part: Part) -> Result<bool, Refused> {
-    if mode & MODE_OWN_BUFFERS != 0 {
+    // Converted: `rc2k_core::audio::device::way`.
+    use rc2k_core::audio::device::{Way, way};
+    match way(mode) {
         // A jump into it: the carry is the one it leaves.
-        return part(6, 0, 0);
+        Some(Way::OwnBuffers) => part(6, 0, 0),
+        Some(Way::Mixer) => part(10, 0, 0),
+        None => Ok(true),
     }
-    if mode & MODE_MIXER != 0 {
-        return part(10, 0, 0);
-    }
-    Ok(true)
 }

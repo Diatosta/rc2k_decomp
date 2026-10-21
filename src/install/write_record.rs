@@ -13,8 +13,7 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::install::installer::{
-    GAME_DIR, LOCALE, MEDIA_MODE, Part, TEXT, WRITE_FILE, a, append_byte, at, both, g, gb, quiet,
-    region, str_append, wb,
+    GAME_DIR, LOCALE, MEDIA_MODE, Part, TEXT, WRITE_FILE, a, at, both, g, gb, quiet, region, wb,
 };
 use crate::race::viewer::{Saved, dispatch_parts};
 use std::sync::atomic::AtomicUsize;
@@ -31,41 +30,20 @@ hook_asm!(
     original = ORIGINAL
 );
 
-const HEADER: usize = 0x518BB4; // "; Rally Championship\r\n; INSTALLATION CONFIGURATION\r\n\r\n"
-const CDROM: usize = 0x518BED; // "cdrom"
-const EQUALS: usize = 0x518BEB; // "="
-const CRLF: usize = 0x518BE8; // aRallyChampions+0x34: "\r\n"
-const LANGUAGE: usize = 0x518BF3; // "language"
-const INSTALLATION: usize = 0x518BFC; // "installation"
 const PATH: usize = 0x5295C0; // "var\ral.zog"
 
 pub fn write_record(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
-    r.ebx = a(TEXT);
-    let start = r.ebx;
-    for text in [HEADER, CDROM, EQUALS, GAME_DIR, CRLF] {
-        r.eax = a(text);
-        str_append(&mut r);
+    let start = a(TEXT);
+    // Converted: `rc2k_core::install::config::record_text` (the header and keys as its
+    // constants).
+    let text_at = |x: usize| unsafe { std::ffi::CStr::from_ptr(a(x) as *const _) }.to_bytes();
+    let locale = (gb(LOCALE) != 0).then(|| text_at(LOCALE));
+    let text = rc2k_core::install::config::record_text(text_at(GAME_DIR), locale, g(MEDIA_MODE));
+    for (n, &b) in text.iter().enumerate() {
+        wb(start + n as u32, b);
     }
-    if gb(LOCALE) != 0 {
-        for text in [LANGUAGE, EQUALS, LOCALE, CRLF] {
-            r.eax = a(text);
-            str_append(&mut r);
-        }
-    }
-    for text in [INSTALLATION, EQUALS] {
-        r.eax = a(text);
-        str_append(&mut r);
-    }
-    let digits = crate::strings::format_u32::format_u32(g(MEDIA_MODE), 0);
-    for b in digits {
-        wb(r.ebx, b);
-        r.ebx += 1;
-    }
-    let _ = append_byte;
-    r.eax = a(CRLF);
-    str_append(&mut r);
-    r.ecx = r.ebx.wrapping_sub(start);
+    r.ecx = text.len() as u32;
     r.eax = a(PATH);
     r.ebx = start;
     part(at(WRITE_FILE), &mut r)?;

@@ -65,22 +65,14 @@ const BEGIN_CHAT: u32 = 0x4180C5; // net::begin_chat
 /// The players' states and-ed together (those with bit 0x80 left out), starting from
 /// `bits`, as the original's al: over `count` players (at least one turn: `count` > 0).
 pub fn all_states(r: &mut Regs, bits: u8, count: u32) -> u8 {
-    let mut al = bits;
-    r.ebx = block(0);
-    r.ecx = count;
-    loop {
-        let ah = gb_at(r.ebx + field!(NetPlayerBlock, record.state));
-        r.eax = r.eax & !0xFFFF | (ah as u32) << 8 | al as u32;
-        if ah & 0x80 == 0 {
-            al &= ah;
-            r.eax = r.eax & !0xFF | al as u32;
-        }
-        r.ebx = r.ebx.wrapping_add(BLOCK);
-        r.ecx = r.ecx.wrapping_sub(1);
-        if r.ecx == 0 {
-            break;
-        }
-    }
+    let state = |n: u32| gb_at(block(n) + field!(NetPlayerBlock, record.state));
+    // Converted: `rc2k_core::net::players::all_in_state`; the registers as the loop leaves
+    // them (ah the last player's state, again read).
+    let al = rc2k_core::net::players::all_in_state(bits, count, state);
+    let ah = state(count.wrapping_sub(1));
+    r.eax = r.eax & !0xFFFF | (ah as u32) << 8 | al as u32;
+    r.ebx = block(0).wrapping_add(BLOCK.wrapping_mul(count));
+    r.ecx = 0;
     al
 }
 

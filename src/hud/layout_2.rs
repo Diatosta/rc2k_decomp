@@ -49,6 +49,8 @@ fn lower(y: u32) -> u32 {
 }
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::hud::panels` (through `layout_0`'s panels and `needle_sign`),
+// `rc2k_core::hud::quads::int_over` (the sprites' scales)
 pub unsafe fn layout_2(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut part = part;
     let mut g = *entry;

@@ -1,8 +1,9 @@
 //! The marks' masks (converted 2026-10-21 from `marks::collect_points_a` 0x4BD551,
 //! `collect_points_b` 0x4BD59F, `reset_mask_cursor` 0x4BE0A3, `fill_mask_spans` 0x4BE712,
-//! `draw_mask_shape` 0x4BE6FB and `draw_mask` 0x4BE6C2, under `marks::make_masks`): the
-//! points of faces gathered into lists, and shapes' rows of spans filled into a mask of
-//! 0x8000 bytes (rows of 0x100) with the shape's number, 0xFF elsewhere.
+//! `draw_mask_shape` 0x4BE6FB and `draw_mask` 0x4BE6C2, under `marks::make_masks`, and
+//! `swap_mask` 0x4C95F5): the points of faces gathered into lists, shapes' rows of spans
+//! filled into a mask of 0x8000 bytes (rows of 0x100) with the shape's number, 0xFF
+//! elsewhere, and a mask put into the marks' texture when the settings switch masks.
 
 use crate::Invalid;
 use crate::marks::points::{Collected, add_points};
@@ -142,6 +143,32 @@ pub fn draw_mask(mask: &mut [u8], entries: &[ShapeRows]) -> Result<(), Invalid> 
     Ok(())
 }
 
+/// The rows of a mask put into the texture, and the texture's row the first goes to.
+pub const TEXTURE_ROWS: u32 = 0x7E;
+pub const TEXTURE_ROW_AT: u32 = 0x80;
+
+/// `swap_mask`: with the settings' switch (+0x2704) not the one last seen, which mask goes
+/// into the texture: the second (`g_marksBMaskBlock`) with the switch set; None when it
+/// has not changed.
+pub fn swapped(switch: u32, seen: u32) -> Option<bool> {
+    (switch != seen).then_some(switch != 0)
+}
+
+/// Refuses a locked texture wider than a mask's row (its rows would be read past them).
+pub fn check_width(width: u32) -> Result<(), Invalid> {
+    if width > ROW {
+        return Err(Invalid("a locked mask texture wider than the mask's 0x100"));
+    }
+    Ok(())
+}
+
+/// The pixels put, in order: (row, column, the mask's dword); each row's first pixel put
+/// whatever the width (the original tests the column after it).
+pub fn texture_pixels(width: u32) -> impl Iterator<Item = (u32, u32, u32)> {
+    (0..TEXTURE_ROWS)
+        .flat_map(move |row| (0..width.max(1)).map(move |col| (row, col, (row << 8) + col)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -220,5 +247,17 @@ mod tests {
                 run_count: 0
             }
         );
+    }
+
+    #[test]
+    fn swaps() {
+        assert_eq!(swapped(1, 1), None);
+        assert_eq!(swapped(2, 0), Some(true));
+        assert_eq!(swapped(0, 2), Some(false));
+        assert!(check_width(0x101).is_err() && check_width(0x100).is_ok());
+        let p: Vec<_> = texture_pixels(0).collect();
+        assert_eq!((p.len(), p[1]), (0x7E, (1, 0, 0x100)));
+        let p: Vec<_> = texture_pixels(3).collect();
+        assert_eq!((p.len(), p[4]), (3 * 0x7E, (1, 1, 0x101)));
     }
 }

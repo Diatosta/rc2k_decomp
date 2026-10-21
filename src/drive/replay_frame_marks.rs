@@ -28,8 +28,9 @@ hook_asm!(
 );
 
 /// The Rust version.
+// Converted: `rc2k_core::drive::replay_frames::marks_offset`.
 pub fn replay_frame_marks() {
-    let at = a(0x963BB4).wrapping_add(g(0x5C2530).wrapping_mul(8));
+    let at = a(0x963BB4).wrapping_add(rc2k_core::drive::replay_frames::marks_offset(g(0x5C2530)));
     for k in 0..2u32 {
         p(0x9613A4 + 4 * k as usize, unsafe {
             ((at + 4 * k) as *const u32).read_unaligned()

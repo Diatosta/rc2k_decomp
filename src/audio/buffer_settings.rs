@@ -72,7 +72,8 @@ pub unsafe fn set_buffer_place(v: &Voice) -> Result<i32, Refused> {
     if v.buffer_3d == 0 {
         return Err(BadInput("a voice without its 3D buffer").into());
     }
-    let deferred = u32::from(v.state == 2);
+    // Converted: `rc2k_core::audio::buffers::place_deferral`.
+    let deferred = rc2k_core::audio::buffers::place_deferral(v);
     unsafe {
         let f: unsafe extern "system" fn(u32, u32, u32, u32, u32) -> i32 =
             std::mem::transmute(com::method(v.buffer_3d, SET_POSITION));

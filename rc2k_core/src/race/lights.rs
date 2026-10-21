@@ -1,6 +1,9 @@
 //! The race cars' lights and parts' sounds (converted 2026-10-21 from
 //! `race::car_light_modes` 0x455B70, `race::car_lights` 0x455CFF and
-//! `race::wake_part_sounds` 0x45D1EA).
+//! `race::wake_part_sounds` 0x45D1EA; the light at a place, its colours added and
+//! multiplied, converted 2026-10-21 from `race::light_colour_at` 0x4537CE (`sub_44F601`,
+//! `sub_44F691`, `sub_44F863`), `race::view_light` 0x455896 and `race::face_colours`
+//! 0x452887).
 
 use crate::Invalid;
 
@@ -107,9 +110,187 @@ pub fn part_wake(flag: u32, count: u32) -> PartWake {
     }
 }
 
+/// Two colours added byte by byte, each held to 0xFF: all four bytes with MMX
+/// (`paddusb`), else the low three, the top byte left as `a`'s (the original's
+/// `add al, cl` / `add ah, ch` / `ror` steps).
+pub fn add_colours(a: u32, b: u32, mmx: bool) -> u32 {
+    let bytes = if mmx { 4 } else { 3 };
+    let mut out = a;
+    for k in 0..bytes {
+        let s = ((a >> (8 * k)) & 0xFF) + ((b >> (8 * k)) & 0xFF);
+        out = (out & !(0xFF << (8 * k))) | (s.min(0xFF) << (8 * k));
+    }
+    out
+}
+
+/// Two colours multiplied byte by byte, (a x b) >> 8 for each, all four bytes.
+pub fn multiply_colours(a: u32, b: u32) -> u32 {
+    let mut out = 0;
+    for k in 0..4 {
+        let p = (((a >> (8 * k)) & 0xFF) * ((b >> (8 * k)) & 0xFF)) >> 8;
+        out |= p << (8 * k);
+    }
+    out
+}
+
+/// A whole number held to 0 ..= 0xFF (signed).
+pub fn clamp_byte(v: u32) -> u32 {
+    (v as i32).clamp(0, 0xFF) as u32
+}
+
+/// `sub_44F601`: whether car n's headlights light the place: with one car chosen
+/// (`dword_52A910`) that car (`dword_52A920`) or all with `dword_6238B8` 1; else the
+/// players' cars (all with `dword_6238B8` 1), outside one player and modes 0 and 2 only
+/// the drawn view's car. Each value asked where the original reads it.
+pub fn headlights_light(
+    n: u32,
+    one_chosen: bool,
+    chosen: impl FnOnce() -> u32,
+    all: bool,
+    players: impl Fn() -> u32,
+    mode: impl FnOnce() -> u32,
+    view_car: impl FnOnce() -> u32,
+) -> bool {
+    if one_chosen {
+        n == chosen() || all
+    } else if !all && n >= players() {
+        false
+    } else if players() == 1 || matches!(mode(), 0 | 2) {
+        true
+    } else {
+        n == view_car()
+    }
+}
+
+/// `sub_44F691`'s strength of a car's headlights at the place, an index into the car
+/// light table (`g_carLightTable`): from the spread ahead (`spread`, the x87's scaled
+/// square sum), the place's height off the beam (`side`, the turned y) and the car's
+/// marks (+0xABC).
+pub fn headlight_index(spread: u32, side: u32, marks: u32) -> u32 {
+    let mut ecx = clamp_byte(((spread >> 2).wrapping_sub(0x100)).wrapping_neg());
+    ecx = ecx.wrapping_add(ecx);
+    let side = (side as i32).wrapping_abs() as u32;
+    let f = clamp_byte(((0x10_0000u32.wrapping_sub(side)) as i32 >> 12) as u32);
+    let mut eax = f.wrapping_mul(ecx) >> 8;
+    eax = eax.wrapping_mul(marks) >> 8;
+    clamp_byte(eax)
+}
+
+/// `sub_44F863`'s grey of a lamp at the place: ((0x200000 - its distance) x its
+/// strength) >> 17, held to 0 ..= 0xFF, in the three colour bytes; with the product's
+/// high half (the original's edx).
+pub fn lamp_grey(distance: u32, strength: u32) -> (u32, u32) {
+    let product = (0x20_0000u32.wrapping_sub(distance) as i32 as i64) * (strength as i32 as i64);
+    let grey = clamp_byte(((product as u32) as i32 >> 0x11) as u32);
+    (
+        (grey << 16 | grey << 8 | grey) & 0xFF_FFFF,
+        (product >> 32) as u32,
+    )
+}
+
+/// The lamps there are at most (`light_colour_at`'s refusal past them).
+pub const MOST_LIGHT_LAMPS: u32 = 16;
+
+/// `light_colour_at`'s refusals: no cars (its loop tests at its end), more than eight, a
+/// null block it would read, more than 16 lamps.
+pub fn check_light_colour(
+    cars: u32,
+    block: impl Fn(u32) -> u32,
+    lamps: impl FnOnce() -> u32,
+) -> Result<(), Invalid> {
+    if cars == 0 || cars > 8 {
+        return Err(Invalid("no race cars or more than eight"));
+    }
+    if (0..cars).any(|n| block(n) == 0) {
+        return Err(Invalid("a null car block"));
+    }
+    if lamps() > MOST_LIGHT_LAMPS {
+        return Err(Invalid("more than 16 lamps"));
+    }
+    Ok(())
+}
+
+/// `face_colours`: a corner's colour, its light (`g_lightTable` by +0x14 ..) and with the
+/// face's flag 4 the two extra lights added (`extra`, asked only then).
+pub fn corner_colour(light: u32, lit: bool, extra: impl FnOnce() -> (u32, u32), mmx: bool) -> u32 {
+    if !lit {
+        return light;
+    }
+    let (a, b) = extra();
+    add_colours(add_colours(light, a, mmx), b, mmx)
+}
+
+/// The face's flag (+2) for the extra lights.
+pub const EXTRA_LIGHTS: u16 = 4;
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn colours() {
+        assert_eq!(
+            add_colours(0x80_F0_10_20, 0x90_20_F0_01, true),
+            0xFF_FF_FF_21
+        );
+        assert_eq!(
+            add_colours(0x80_F0_10_20, 0x90_20_F0_01, false),
+            0x80_FF_FF_21
+        );
+        assert_eq!(
+            multiply_colours(0xFF_80_40_FF, 0x80_80_FF_02),
+            0x7F_40_3F_01
+        );
+        assert_eq!(clamp_byte(0x1234), 0xFF);
+        assert_eq!(clamp_byte(u32::MAX), 0);
+        assert!(headlights_light(
+            2,
+            true,
+            || 2,
+            false,
+            || unreachable!(),
+            || 0,
+            || 0
+        ));
+        assert!(headlights_light(
+            3,
+            true,
+            || 2,
+            true,
+            || unreachable!(),
+            || 0,
+            || 0
+        ));
+        assert!(!headlights_light(3, false, || 0, false, || 2, || 0, || 0));
+        assert!(headlights_light(
+            1,
+            false,
+            || 0,
+            false,
+            || 2,
+            || 0,
+            || unreachable!()
+        ));
+        assert!(headlights_light(1, false, || 0, false, || 2, || 1, || 1));
+        assert!(!headlights_light(1, false, || 0, false, || 2, || 1, || 0));
+        assert_eq!(headlight_index(0x400, 0, 0x100), 0);
+        assert_eq!(headlight_index(0, 0, 0x100), 0xFF);
+        // spread 0: 0x100 less nothing held to 0xFF, doubled; side 0: 0xFF.
+        assert_eq!(
+            headlight_index(0, 0, 0x20),
+            (((0xFF * 0x1FE) >> 8) * 0x20) >> 8
+        );
+        assert_eq!(lamp_grey(0x20_0000, 5), (0, 0));
+        assert_eq!(lamp_grey(0, 0x100), (0xFF_FFFF, 0));
+        assert_eq!(lamp_grey(0x10_0000, 0x2), (0x10_1010, 0));
+        assert_eq!(lamp_grey(0x40_0000, 0x7FFF_FFFF), (0x10_1010, 0xFFF0_0000));
+        assert!(check_light_colour(0, |_| 1, || 0).is_err());
+        assert!(check_light_colour(1, |_| 0, || 0).is_err());
+        assert!(check_light_colour(1, |_| 1, || 17).is_err());
+        assert!(check_light_colour(1, |_| 1, || 16).is_ok());
+        assert_eq!(corner_colour(5, false, || unreachable!(), true), 5);
+        assert_eq!(corner_colour(5, true, || (1, 2), true), 8);
+    }
 
     #[test]
     fn drawn() {

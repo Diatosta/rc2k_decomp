@@ -12,8 +12,9 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::net::lobby::{
-    ELEMENT_TABLE, ELEMENTS, Part, Saved, a, dword, fill, g, movsb, p, region, run_both,
+    ELEMENT_TABLE, ELEMENTS, Part, Saved, a, dword, fill, g, p, region, run_both,
 };
+use rc2k_core::net::address;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -28,19 +29,16 @@ hook_asm!(
     original = ORIGINAL
 );
 
-const ELEMENT_LEN: u32 = 0x18;
-
 /// The Rust version: the registers it leaves.
 pub fn add_address_element(entry: &Regs, _: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
-    r.edx = g(ELEMENTS).wrapping_mul(ELEMENT_LEN);
+    // Converted: `rc2k_core::net::address` (`element_at`, `element`).
+    r.edx = address::element_at(g(ELEMENTS));
     p(ELEMENTS, g(ELEMENTS).wrapping_add(1));
     let at = a(ELEMENT_TABLE).wrapping_add(r.edx);
-    movsb(at, r.eax, 16);
-    unsafe {
-        ((at + 0x10) as *mut u32).write_unaligned(r.ecx);
-        ((at + 0x14) as *mut u32).write_unaligned(r.ebx);
-    }
+    let data_type = unsafe { (r.eax as *const [u8; 16]).read_unaligned() };
+    let bytes = address::element(&data_type, r.ecx, r.ebx);
+    unsafe { std::ptr::copy(bytes.as_ptr(), at as *mut u8, bytes.len()) };
     Ok(r)
 }
 
@@ -49,7 +47,10 @@ fn regions() -> Vec<crate::service::harness::Region> {
     let n = g(ELEMENTS) as usize;
     vec![
         dword(ELEMENTS),
-        region(ELEMENT_TABLE + n.wrapping_mul(ELEMENT_LEN as usize), 0x18),
+        region(
+            ELEMENT_TABLE + n.wrapping_mul(address::ELEMENT_LEN as usize),
+            0x18,
+        ),
     ]
 }
 

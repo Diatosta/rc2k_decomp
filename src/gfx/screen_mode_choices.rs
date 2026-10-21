@@ -45,6 +45,7 @@ use crate::race::viewer::{
 };
 use crate::system::find_entry_with_bits::find_entry_with_bits;
 use crate::system::next_entry::next_entry;
+use rc2k_core::gfx::mode_choices as mc;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -63,7 +64,6 @@ hook_asm!(
 
 const RECORD: usize = 0x4F50C0; // unk_4F50C0: the choices
 const LIST: usize = RECORD + 0x28;
-const MOST: u32 = 16; // the list's room, up to 0x4F51F0
 const KIND_BITS: usize = 0x4F4E30; // dword_4F4E30: two pixel kinds' bits
 const THIRD_BITS: usize = 0x4F4E38; // dword_4F4E38: two
 const THIRD_TABLE: usize = 0x4F4E90; // dword_4F4E90: three entries
@@ -134,6 +134,7 @@ fn modes_of(kind: u32) -> Option<Vec<u32>> {
 
 /// The Rust version: the registers and flags it leaves.
 pub fn screen_mode_choices(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::gfx::mode_choices`.
     let mut out = *entry;
     let failed = |mut out: Regs| {
         out.set_carry(true);
@@ -144,31 +145,32 @@ pub fn screen_mode_choices(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let kind = if made {
         field(4)
     } else {
-        ((get(RACE_MODE) & 0xF000) != get(KIND_BITS)) as u32
+        mc::kind_of_race(get(RACE_MODE), get(KIND_BITS))
     };
     let rebuilding = !made || entry.eax == 0;
     let modes = if rebuilding { modes_of(kind) } else { None };
     if let Some(modes) = &modes
-        && modes.len() as u32 > MOST
+        && modes.len() as u32 > mc::ROOM
     {
         return Err(BadInput("more screen modes than the choices' list holds").into());
     }
     if made {
         // ebp: the list's mode at the place chosen (read before eax is looked at).
-        if field(8) >= 0x1000 {
+        if field(8) >= mc::PLACE_LIMIT {
             return Err(BadInput("a size's place far past the choices' list").into());
         }
         let current = read(game_addr(rva(LIST)) as u32 + 16 * field(8) + 0xC);
         if entry.eax != 0 {
             // The choice tried.
             let (third, place) = (field(0xC), field(8));
-            if kind > 1 || place >= field(0x24) || third > 1 {
+            if !mc::can_try(kind, place, field(0x24), third) {
                 return failed(out);
             }
-            let mode = 0x30_0000
-                | get(KIND_BITS + 4 * kind as usize)
-                | read(game_addr(rva(LIST)) as u32 + 16 * place + 0xC)
-                | get(THIRD_BITS + 4 * third as usize);
+            let mode = mc::tried_mode(
+                get(KIND_BITS + 4 * kind as usize),
+                read(game_addr(rva(LIST)) as u32 + 16 * place + 0xC),
+                get(THIRD_BITS + 4 * third as usize),
+            );
             let mut r = Regs {
                 eax: mode,
                 ebx: third,
@@ -180,7 +182,7 @@ pub fn screen_mode_choices(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             let mut worked = !r.carry();
             if worked {
                 r.ebx = field(0x10);
-                worked = r.ebx <= get(TEXTURE_FIGURE);
+                worked = mc::kept(r.ebx, get(TEXTURE_FIGURE));
             }
             if worked {
                 part(1, &mut r)?;
@@ -210,40 +212,36 @@ fn rebuild(entry: &Regs, current: u32, modes: Option<Vec<u32>>) -> Result<Regs, 
         out.set_carry(true);
         return Ok(out);
     };
+    let mut listed = Vec::new();
     for (n, &at) in modes.iter().enumerate() {
         let mode = read(at);
-        let size = entry_or_past(mode & 0xFF, SIZES, 8);
-        let kind = entry_or_past(mode & 0xF00, PIXEL_KINDS, 2);
+        let (size_key, kind_key) = mc::keys(mode);
+        let size = entry_or_past(size_key, SIZES, 8);
+        let kind = entry_or_past(kind_key, PIXEL_KINDS, 2);
+        let l = mc::Listed {
+            width: read_word(size + 4),
+            height: read_word(size + 6),
+            figure: read(kind + 4),
+            mode,
+        };
         let slot = LIST + 16 * n;
-        put(slot, read_word(size + 4));
-        put(slot + 4, read_word(size + 6));
-        put(slot + 8, read(kind + 4));
-        put(slot + 0xC, mode);
+        put(slot, l.width);
+        put(slot + 4, l.height);
+        put(slot + 8, l.figure);
+        put(slot + 0xC, l.mode);
         set(0x24, field(0x24) + 1);
+        listed.push(l.mode);
     }
     set(0x20, get(TEXTURE_FIGURE));
     set(0x1C, 1);
-    let count = field(0x24);
-    let list = |n: u32| read(game_addr(rva(LIST)) as u32 + 16 * n + 0xC);
-    // The current mode's place (its low 12 bits); else the first place (the original's
-    // search by width keeps 0: its bound, ecx, stays 0).
-    let place = (0..count)
-        .find(|&n| (list(n) ^ current) & 0xFFF == 0)
-        .unwrap_or(0);
-    set(8, place);
+    set(8, mc::in_use_place(&listed, current));
     let race = get(RACE_MODE);
-    match (0..count).find(|&n| list(n) & 0xFFF == race & 0xFFF) {
-        Some(n) => {
-            set(8, n);
-            let third = entry_or_past(race & 0xF_0000, THIRD_TABLE, 3);
-            set(0xC, (read(third + 4) as i32).wrapping_sub(1).max(0) as u32);
-        }
-        None => {
-            set(8, 0);
-            set(0xC, 0);
-        }
-    }
-    let figure = field(0x10) & field(0x20);
+    let (place, third) = mc::race_place(&listed, race, || {
+        read(entry_or_past(mc::third_key(race), THIRD_TABLE, 3) + 4)
+    });
+    set(8, place);
+    set(0xC, third);
+    let figure = mc::figure(field(0x10), field(0x20));
     set(0x10, figure);
     set(0, 1);
     out.set_carry(false);

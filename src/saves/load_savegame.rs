@@ -55,6 +55,7 @@ use crate::saves::read_savegame_slot::read_savegame_slot;
 use crate::saves::write_savegame_slot::{FILE_LEN, FILE_RVA, SLOTS, slot_name};
 use crate::service::harness::{Region, at, capture, restore};
 use crate::service::state::{MENU_ITEM_RVA, menu_item};
+use rc2k_core::saves::savegame::{A8_MODE, CORRUPT, Resume, resume};
 use std::ptr::copy_nonoverlapping;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
@@ -131,10 +132,8 @@ fn in_game(callee: Callee, regs: &mut Regs) -> Result<(), Refused> {
 
 /// The slot the highlighted menu item stands for.
 fn highlighted_slot() -> u32 {
-    unsafe { game_read::<u32>(SAVEGAME_PAGE_RVA) }
-        .wrapping_mul(10)
-        .wrapping_add(menu_item())
-        .wrapping_sub(1)
+    // Converted: `rc2k_core::saves::savegame::slot`.
+    rc2k_core::saves::savegame::slot(unsafe { game_read::<u32>(SAVEGAME_PAGE_RVA) }, menu_item())
 }
 
 // ---- Rust version ----
@@ -196,20 +195,21 @@ pub unsafe fn load_savegame(entry: &Regs, game: Game) -> Result<(), Refused> {
         g.eax = ((cars[0] + 0x274) as *const u32).read_unaligned();
         game_write(CAR0_B_RVA, g.eax);
 
+        // Converted: `rc2k_core::saves::savegame` (`resume`, `A8_MODE`).
         game(Callee::EventState, &mut g)?;
-        match g.eax {
-            4 | 5 => {
+        match resume(g.eax) {
+            Resume::NextSection => {
                 game_write(SECTION_RVA, game_read::<u32>(SECTION_RVA).wrapping_add(1));
                 game_write(INDEX_RVA, 0u32);
             }
-            0 | 1 => game_write(INDEX_RVA, game_read::<u32>(INDEX_RVA).wrapping_add(1)),
-            3 => {
+            Resume::NextStage => game_write(INDEX_RVA, game_read::<u32>(INDEX_RVA).wrapping_add(1)),
+            Resume::Over => {
                 go_back::go_back();
                 return Ok(());
             }
-            _ => {
+            Resume::Corrupt => {
                 return Err(FatalError {
-                    code: 0x8070_2821,
+                    code: CORRUPT,
                     message: "Corrupt SaveGame",
                 }
                 .into());
@@ -217,7 +217,7 @@ pub unsafe fn load_savegame(entry: &Regs, game: Game) -> Result<(), Refused> {
         }
         game_write(CONTINUING_RVA, 1u32);
         game(Callee::BeforeEvent, &mut g)?;
-        if game_read::<u32>(MODE_RVA) == 0x13 {
+        if game_read::<u32>(MODE_RVA) == A8_MODE {
             game(Callee::RunEventMode13, &mut g)?;
         } else {
             game(Callee::RunEvent, &mut g)?;

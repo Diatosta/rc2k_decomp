@@ -12,19 +12,18 @@
 //! Refuses a value of 0x80 bytes or more (the original writes on into the next slot).
 //! Self-test: a redirected copy that reads a file of the test's.
 
+use crate::bridge::Raw;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_write, hook_asm, rva};
 use crate::install::choose_language::{
     LANGUAGE_COUNT_RVA, LANGUAGE_SLOT, LANGUAGE_SLOTS, LANGUAGES_RVA, choose_language,
 };
 use crate::install::{LOCALE_RVA, PATH_ROOM, copy_reading};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, dispatch_state, restore};
-use crate::settings::copy_value::value_at;
-use crate::settings::find_key::find_key;
 use crate::settings::read_text::read_text;
+use crate::strings::same_text::case_table;
+use rc2k_core::install::config;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -42,9 +41,6 @@ hook_asm!(
 // ---- game data ----
 
 const PATH_RVA: usize = rva(0x51C36E); // "lang.cfg"
-/// aLang1: per language its key, the address of its slot and 0x7F; a 0 ends them.
-const KEYS_RVA: usize = rva(0x51C378);
-const KEYS_END_RVA: usize = rva(0x51C3F6);
 
 // ---- Rust version ----
 
@@ -53,48 +49,20 @@ pub unsafe fn read_languages(path: *const u8) -> Result<(), BadInput> {
         let Some((text, _)) = read_text(path)? else {
             return Ok(());
         };
-        // `sub_4139AB`: found first, stored after.
-        let mut found = Vec::new();
-        let mut at = KEYS_RVA;
-        while game_read::<u8>(at) != 0 {
-            let key = game_addr(at) as *const u8;
-            while game_read::<u8>(at) != 0 {
-                at += 1;
-            }
-            let slot = game_read::<u32>(at + 1) as *mut u8;
-            at += 9;
-            if at > KEYS_END_RVA {
-                return Err(BadInput("the languages' key table has no end"));
-            }
-            if let Some(value) = find_key(text, key)? {
-                let value = value_at(value);
-                if value.len() >= LANGUAGE_SLOT {
-                    return Err(BadInput("a language longer than its slot"));
-                }
-                found.push((slot, value));
-            }
-        }
+        // Converted: `rc2k_core::install::config` (`find_languages`, its keys as constants;
+        // `keep_languages`). Found first, stored after (`sub_4139AB`).
+        let found = config::find_languages(&Raw::new(text), &case_table())?;
+        let slots = std::slice::from_raw_parts_mut(
+            game_addr(LANGUAGES_RVA) as *mut u8,
+            LANGUAGE_SLOT * LANGUAGE_SLOTS,
+        );
         for (slot, value) in found {
-            std::ptr::copy(value.as_ptr(), slot, value.len());
-            slot.add(value.len()).write(0);
+            let at = slot * LANGUAGE_SLOT;
+            slots[at..at + value.len()].copy_from_slice(&value);
+            slots[at + value.len()] = 0;
         }
-
-        let slots = game_addr(LANGUAGES_RVA) as *mut u8;
-        let mut kept = 0usize;
-        for slot in 0..LANGUAGE_SLOTS {
-            let from = slots.add(slot * LANGUAGE_SLOT);
-            let text = std::slice::from_raw_parts_mut(from, LANGUAGE_SLOT);
-            if text[0] <= b' ' || text[0] == b':' {
-                continue;
-            }
-            let Some(colon) = text.iter().position(|&c| c == b':') else {
-                continue;
-            };
-            text[colon] = 0;
-            std::ptr::copy(from, slots.add(kept * LANGUAGE_SLOT), LANGUAGE_SLOT);
-            kept += 1;
-        }
-        game_write(LANGUAGE_COUNT_RVA, kept as u32);
+        let kept = config::keep_languages(slots);
+        game_write(LANGUAGE_COUNT_RVA, kept);
         choose_language(1)
     }
 }

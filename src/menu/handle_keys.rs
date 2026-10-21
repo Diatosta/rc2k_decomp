@@ -70,9 +70,6 @@ const TOGGLE_RVA: usize = rva(0x755575); // dword_755575: flipped by key 0x20
 const SWITCHES_RVA: usize = rva(0x75870C); // dword_75870C: bit 14 lets key 0x14 add time
 const MENU_RVA: usize = rva(0x731BBB); // dword_731BBB
 
-const NO_SOUND: u32 = 0x6F;
-const ENTER_SOUND: u32 = 0x14D;
-
 /// What the function and the ones under it may write.
 fn regions() -> Vec<Region> {
     [
@@ -95,15 +92,17 @@ fn regions() -> Vec<Region> {
 
 /// `entry` are the registers at entry. Returns what is left in the registers.
 pub unsafe fn handle_keys(entry: &Regs, out: &mut dyn Outside) -> Result<Left, Refused> {
-    let nothing = Left::nothing().with(EAX, 1);
+    // Converted: `rc2k_core::menu::keys` (`keys_off`, `action`, `entered_with_4`).
+    use rc2k_core::menu::keys::{self, Action, Move};
+    let nothing = Left::nothing().with(EAX, keys::NOTHING);
     unsafe {
-        if game_read::<u32>(EDIT_MODE_RVA) == 1 || game_read::<u32>(KEYS_OFF_RVA) == 1 {
+        if keys::keys_off(game_read(EDIT_MODE_RVA), || game_read(KEYS_OFF_RVA)) {
             return Ok(nothing);
         }
         if game_read::<u32>(ASKING_RVA) == 1 && !has_layout() {
             return Err(BadInput("no keyboard layout").into());
         }
-        game_write(SOUND_RVA, NO_SOUND);
+        game_write(SOUND_RVA, keys::NO_SOUND);
         game_write(BACK_RVA, 0u32);
         let key = take_key();
         if key == 0 {
@@ -111,14 +110,16 @@ pub unsafe fn handle_keys(entry: &Regs, out: &mut dyn Outside) -> Result<Left, R
         }
         let eax = entry.eax & !0xFF | key as u32;
         handle_yes_no(eax)?;
-        if key == 0x38 {
-            return Ok(nothing);
-        }
-        if key == 1 {
-            game_write(BACK_RVA, 1u32);
-            game_write(ESCAPED_RVA, 1u32);
-            game_write(LEAVING_RVA, 1u32);
-            return Ok(Left::nothing().with(EAX, 2));
+        let action = keys::action(key, || game_read(SWITCHES_RVA));
+        match action {
+            Action::Ignored => return Ok(nothing),
+            Action::Escape => {
+                game_write(BACK_RVA, 1u32);
+                game_write(ESCAPED_RVA, 1u32);
+                game_write(LEAVING_RVA, 1u32);
+                return Ok(Left::nothing().with(EAX, keys::ESCAPED));
+            }
+            _ => {}
         }
         let clock: u32 = game_read(CLOCK_RVA);
         let regs = Regs {
@@ -126,32 +127,35 @@ pub unsafe fn handle_keys(entry: &Regs, out: &mut dyn Outside) -> Result<Left, R
             edx: clock,
             ..*entry
         };
-        if key == 0x1C {
-            game_write(SOUND_RVA, ENTER_SOUND);
+        if action == Action::Enter {
+            game_write(SOUND_RVA, keys::ENTER_SOUND);
             game_write(LAST_KEY_TIME_RVA, clock);
-            game_write(ENTER_WITH_4_RVA, (eax >> 8 & 0xFF == 4) as u32);
-            out.click(&Regs { eax: 2, ..regs });
-            return Ok(Left::nothing().with(EAX, 3).with(EDX, clock));
+            game_write(ENTER_WITH_4_RVA, keys::entered_with_4(eax));
+            out.click(&Regs {
+                eax: keys::ENTER_CLICK,
+                ..regs
+            });
+            return Ok(Left::nothing().with(EAX, keys::ENTERED).with(EDX, clock));
         }
         game_write(LAST_KEY_TIME_RVA, clock);
         let nothing = nothing.with(EDX, clock);
-        let direction = match key {
-            0x66 => Direction::Up,
-            0x6B => Direction::Down,
-            0x69 => Direction::Right,
-            0x68 => Direction::Left,
-            0x52 => {
+        let direction = match action {
+            Action::Move(Move::Up) => Direction::Up,
+            Action::Move(Move::Down) => Direction::Down,
+            Action::Move(Move::Right) => Direction::Right,
+            Action::Move(Move::Left) => Direction::Left,
+            Action::Screenshot => {
                 out.screenshot(&regs);
                 return Ok(nothing);
             }
-            0x20 => {
+            Action::Toggle => {
                 game_write(TOGGLE_RVA, game_read::<u32>(TOGGLE_RVA) ^ 1);
                 return Ok(nothing);
             }
-            0x14 if game_read::<u32>(SWITCHES_RVA) >> 14 & 1 != 0 => {
+            Action::AddTime => {
                 game_write(
                     TIME_BUDGET_RVA,
-                    game_read::<u32>(TIME_BUDGET_RVA).wrapping_add(60),
+                    game_read::<u32>(TIME_BUDGET_RVA).wrapping_add(keys::ADDED_TIME),
                 );
                 return Ok(nothing);
             }

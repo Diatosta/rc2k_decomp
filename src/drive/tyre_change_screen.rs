@@ -50,10 +50,10 @@ extern "C" fn dispatch(r: &mut Regs) {
 }
 
 /// The Rust version, the screen through `part`.
+// Converted: `rc2k_core::drive::race_ticks::tyre_change_shown`.
 pub unsafe fn tyre_change_screen(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
-    let change = g(0x70F3EC + 0x26C);
-    if change == 0 || change == u32::MAX {
+    if !rc2k_core::drive::race_ticks::tyre_change_shown(g(0x70F3EC + 0x26C)) {
         return Ok(r);
     }
     r.eax = g(0x6238A4);

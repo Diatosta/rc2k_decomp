@@ -8,6 +8,9 @@
 //! Self-test: the original and the Rust version on a record of the test's (0 .. 0x80
 //! points) with the two vectors by lot, the refusal; the game's vectors put back
 //! afterwards.
+//!
+//! Converted 2026-10-21: the box through `rc2k_core::marks::splines::bounds`; the sizes
+//! made floats and the angle stay the x87's. Compared exactly as before.
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};

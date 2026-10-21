@@ -26,6 +26,7 @@ use crate::net::lobby::{
     region, run_both,
 };
 use crate::net::types::NetSession;
+use rc2k_core::net::screens::{self, ListKey};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -79,13 +80,12 @@ fn refresh(r: &mut Regs, part: Part) -> Result<bool, Refused> {
             r.eax = r.eax.wrapping_add(0x40);
             part(SAME_GUID, r)?;
             if r.eflags & ZERO_FLAG != 0 {
-                r.edx = 0;
-                if g(SESSIONS) > 0x10 {
-                    r.edx = g(CHOICE_BEFORE).wrapping_sub(g(CHOICE)).wrapping_add(r.ecx);
-                    if (r.edx as i32) < 0 {
-                        r.edx = 0;
-                    }
-                }
+                // Converted: `rc2k_core::net::screens` (`keeps_top`, `moved_top`).
+                r.edx = if screens::keeps_top(g(SESSIONS)) {
+                    screens::moved_top(r.ecx, g(CHOICE_BEFORE), g(CHOICE))
+                } else {
+                    0
+                };
                 break;
             }
             r.ecx = r.ecx.wrapping_add(1);
@@ -132,10 +132,10 @@ pub fn choose_session(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         if any && list_move(&mut r, key, g(SESSIONS)) {
             r.ebx = g(FRAME_CLOCK);
             p(MOVE_CLOCK, r.ebx);
-        } else if any && key == 0x1C {
+        } else if any && ListKey::of(key) == ListKey::Enter {
             r.eax = g(CHOICE);
             return Ok(chosen(entry, &r));
-        } else if key == 1 {
+        } else if ListKey::of(key) == ListKey::Escape {
             break;
         } else {
             if g(SCREENSHOTS_ON) != 0 && key == 0x52 {

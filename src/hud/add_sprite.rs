@@ -14,6 +14,7 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva, shadow};
 use crate::hud::add_quad::QUAD_RVA;
 use crate::service::harness::{Region, capture, restore};
+use rc2k_core::hud::quads;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -32,46 +33,34 @@ hook_asm!(
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 /// The quad record's texture places from the rectangle at `s` (shared with
-/// `hud::add_scaled_sprite`).
+/// `hud::add_scaled_sprite`): the rectangle.
 pub unsafe fn put_places(s: u32) -> [u32; 4] {
     unsafe {
-        let rect = |o: u32| ((s + o) as *const u32).read_unaligned();
-        let q = |n: usize, v: u32| game_write(QUAD_RVA + 4 * n, v);
-        let [left, top, w, h] = [rect(0), rect(4), rect(8), rect(12)];
-        let [u0, u1] = [left << 16, left.wrapping_add(w) << 16];
-        let [v0, v1] = [top << 16, top.wrapping_add(h) << 16];
-        for (n, v) in [
-            (6, u0),
-            (12, u0),
-            (8, u1),
-            (10, u1),
-            (7, v0),
-            (9, v0),
-            (11, v1),
-            (13, v1),
-        ] {
-            q(n, v);
+        let rect: [u32; 4] =
+            std::array::from_fn(|n| ((s + 4 * n as u32) as *const u32).read_unaligned());
+        for (n, v) in quads::sprite_places(rect) {
+            game_write(QUAD_RVA + 4 * n, v);
         }
-        [left, top, w, h]
+        rect
     }
 }
 
-/// `abs` as the original's `cmp 0; jns; neg`.
-pub fn positive(v: u32) -> u32 {
-    if (v as i32) < 0 { v.wrapping_neg() } else { v }
+/// The quad record's corners (see `quads::sprite_corners`).
+pub unsafe fn put_corners(x: u32, y: u32, w: u32, h: u32) {
+    for (n, v) in quads::sprite_corners(x, y, w, h) {
+        unsafe { game_write(QUAD_RVA + 4 * n, v) };
+    }
 }
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::hud::quads::{sprite_places, sprite_corners}`
 pub unsafe fn add_sprite(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     unsafe {
         let [_, _, w, h] = put_places(entry.esi);
-        game_write(QUAD_RVA + 4, entry.ebx);
-        game_write(QUAD_RVA + 12, positive(w).wrapping_add(entry.ebx));
-        game_write(QUAD_RVA + 8, entry.ecx);
-        game_write(QUAD_RVA + 16, positive(h).wrapping_add(entry.ecx));
+        put_corners(entry.ebx, entry.ecx, w, h);
     }
     let mut r = Regs {
-        eax: unsafe { crate::framework::game_read(QUAD_RVA + 16) },
+        eax: unsafe { crate::framework::game_read(QUAD_RVA + 4 * quads::BOTTOM) },
         ..*entry
     };
     part(1, &mut r)?;

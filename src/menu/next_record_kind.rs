@@ -10,9 +10,9 @@
 //! before anything. Self-test: the original and the Rust version on the game's records,
 //! sections and indexes by lot; put back.
 
-use crate::errors::{BadInput, Refused};
+use crate::bridge::Raw;
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::menu::standings::*;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
@@ -40,15 +40,9 @@ pub unsafe fn next_record_kind(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     let section: u32 = unsafe { game_read(SECTION_RVA) };
     let index: u32 = unsafe { game_read(INDEX_RVA) };
-    let table = game_addr(RECORDS_RVA) as u32;
-    if section >= 64
-        || index.wrapping_add(1) >= 64
-        || !crate::records::find_record::has_section(table, section, 600)
-    {
-        return Err(BadInput("a record past the table").into());
-    }
-    let record = crate::records::find_record::find_record_in(table, index as i32 + 1, section);
-    g.eax = get(record);
+    let table = unsafe { Raw::new(game_addr(RECORDS_RVA) as *const u8) };
+    // Converted: `rc2k_core::menu::record_kinds::next_record_kind`.
+    g.eax = rc2k_core::menu::record_kinds::next_record_kind(&table, section, index)?;
     unsafe { game_write(KIND_RVA, g.eax) };
     Ok(g)
 }

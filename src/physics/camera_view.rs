@@ -156,6 +156,18 @@ pub fn view_test_floats(
     rust: Rust,
     floats: &[(usize, usize, Tolerance)],
 ) -> (usize, usize) {
+    view_test_floats_regs(hook, name, call_original, rust, floats, &[])
+}
+
+/// `view_test_floats` with float registers too.
+pub fn view_test_floats_regs(
+    hook: &RawHook,
+    name: &'static str,
+    call_original: CallOriginal,
+    rust: Rust,
+    floats: &[(usize, usize, Tolerance)],
+    regs: &[(u8, Tolerance)],
+) -> (usize, usize) {
     let Some(mut t) = SelfTest::begin(hook) else {
         return (0, 0);
     };
@@ -170,7 +182,7 @@ pub fn view_test_floats(
         .collect();
     let tolerant = Floats {
         memory: &memory,
-        regs: &[],
+        regs,
     };
     at_test_precisions(&tolerant, &mut |word, fl| {
         for seed in 0..16u32 {

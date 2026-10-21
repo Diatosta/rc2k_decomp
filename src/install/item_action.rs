@@ -33,7 +33,8 @@ pub fn item_action(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
     let action = rd(r.esi + 8);
     cmp(&mut r, action, 1);
-    if action >= 1 {
+    // Converted: `rc2k_core::install::items::has_action`.
+    if rc2k_core::install::items::has_action(action) {
         part(action, &mut r)?;
     }
     Ok(r)

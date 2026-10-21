@@ -23,6 +23,7 @@ use crate::install::installer::{
 use crate::install::lay_out_pieces::{MOST_PIECES, PIECE};
 use crate::install::list_test::TestList;
 use crate::race::viewer::{Saved, dispatch_parts};
+use rc2k_core::install::pieces::{self, Way};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -41,8 +42,8 @@ fn font(index: u32) -> u32 {
     rd(a(FONTS) + 4 * index)
 }
 
-fn colour(marks: u32, kind: u32) -> u32 {
-    rb(a(COLOURS) + marks + 8 * kind) as u32
+fn colour(marks: u8, kind: u32) -> u32 {
+    rb(a(COLOURS) + pieces::colour_at(marks, kind)) as u32
 }
 
 pub fn draw_pieces(entry: &Regs, part: Part) -> Result<Regs, Refused> {
@@ -58,68 +59,70 @@ pub fn draw_pieces(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         let esi = r.esi;
         let first = rb(esi);
         let marks = (first >> 6) as u32 & 3;
-        if rb(esi + 1) & 0x10 == 0 {
-            let kind = (first & 0x10) as u32 | (rb(esi + 1) & 0xF) as u32;
-            r.ebx = colour(marks, kind);
-            r.eax = rw(esi + 2) as u32;
-            r.ecx = rd(esi + 8);
-            r.edx = rd(esi + 0xC);
-            r.ebx = font(r.ebx);
-            part(at(DRAW_STRING), &mut r)?;
-        } else {
-            let kind = first & 0xF;
-            r.eax = r.eax & !0xFF | kind as u32;
-            match kind {
-                4 => {
-                    r.edi = rd(esi + 4);
-                    r.ebx = marks;
-                    r.ecx = rd(r.edi + 0xC);
-                    let record = r.ecx;
-                    r.eax = colour(marks, rb(record + 4) as u32);
-                    r.ebx = rd(r.edi + 8);
-                    if marks == 3 && rb(record) & 1 != 0 && rb(record) & 2 != 0 {
-                        let mut s = Regs {
-                            eax: r.ebx,
-                            ebx: a(TEXT),
-                            ..r
-                        };
-                        str_append(&mut s);
-                        s.eax = 4;
-                        append_string_by_id(&mut s);
-                        append_byte(&mut s, 0);
+        // Converted: `rc2k_core::install::pieces` (`Way`, `colour_at`, `caret`).
+        match Way::of(first, rb(esi + 1)) {
+            Way::String { font_kind } => {
+                r.ebx = rb(a(COLOURS) + pieces::colour_at(first, font_kind)) as u32;
+                r.eax = rw(esi + 2) as u32;
+                r.ecx = rd(esi + 8);
+                r.edx = rd(esi + 0xC);
+                r.ebx = font(r.ebx);
+                part(at(DRAW_STRING), &mut r)?;
+            }
+            way => {
+                r.eax = r.eax & !0xFF | (first & 0xF) as u32;
+                match way {
+                    Way::Edit => {
+                        r.edi = rd(esi + 4);
+                        r.ebx = marks;
+                        r.ecx = rd(r.edi + 0xC);
+                        let record = r.ecx;
+                        r.eax = colour(first, rb(record + 4) as u32);
+                        r.ebx = rd(r.edi + 8);
+                        if pieces::caret(first, rb(record)) {
+                            let mut s = Regs {
+                                eax: r.ebx,
+                                ebx: a(TEXT),
+                                ..r
+                            };
+                            str_append(&mut s);
+                            s.eax = 4;
+                            append_string_by_id(&mut s);
+                            append_byte(&mut s, 0);
+                            r.ebx = a(TEXT);
+                            r.edx = s.edx;
+                        }
+                        r.ecx = rd(esi + 8);
+                        r.edx = rd(esi + 0xC);
+                        r.eax = font(r.eax);
+                        part(at(DRAW_TEXT), &mut r)?;
+                    }
+                    Way::Text => {
+                        r.edi = rd(esi + 4);
+                        r.eax = rw(esi + 2) as u32;
                         r.ebx = a(TEXT);
-                        r.edx = s.edx;
+                        append_string_by_id(&mut r);
+                        let action = rd(r.edi + 0xC);
+                        if action != 0 {
+                            r.eax = rd(r.edi + 8);
+                            part(action, &mut r)?;
+                        }
+                        append_byte(&mut r, 0);
+                        r.eax = colour(first, rb(r.edi + 1) as u32);
+                        r.ebx = a(TEXT);
+                        r.ecx = rd(esi + 8);
+                        r.edx = rd(esi + 0xC);
+                        r.eax = font(r.eax);
+                        part(at(DRAW_TEXT), &mut r)?;
                     }
-                    r.ecx = rd(esi + 8);
-                    r.edx = rd(esi + 0xC);
-                    r.eax = font(r.eax);
-                    part(at(DRAW_TEXT), &mut r)?;
-                }
-                5 => {
-                    r.edi = rd(esi + 4);
-                    r.eax = rw(esi + 2) as u32;
-                    r.ebx = a(TEXT);
-                    append_string_by_id(&mut r);
-                    let action = rd(r.edi + 0xC);
-                    if action != 0 {
-                        r.eax = rd(r.edi + 8);
-                        part(action, &mut r)?;
+                    Way::Action => {
+                        r.edi = rd(esi + 4);
+                        r.ecx = rd(esi + 8);
+                        r.edx = rd(esi + 0xC);
+                        part(rd(r.edi + 0xC), &mut r)?;
                     }
-                    append_byte(&mut r, 0);
-                    r.eax = colour(marks, rb(r.edi + 1) as u32);
-                    r.ebx = a(TEXT);
-                    r.ecx = rd(esi + 8);
-                    r.edx = rd(esi + 0xC);
-                    r.eax = font(r.eax);
-                    part(at(DRAW_TEXT), &mut r)?;
+                    _ => {}
                 }
-                6 => {
-                    r.edi = rd(esi + 4);
-                    r.ecx = rd(esi + 8);
-                    r.edx = rd(esi + 0xC);
-                    part(rd(r.edi + 0xC), &mut r)?;
-                }
-                _ => {}
             }
         }
         r.ecx = left.wrapping_sub(1);

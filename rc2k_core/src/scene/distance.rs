@@ -1,5 +1,6 @@
 //! A line's length near enough, without a square root (converted 2026-10-21 from
-//! `scene::approximate_distance` 0x44EB78): the lamps' and the race's distances.
+//! `scene::approximate_distance` 0x44EB78): the lamps' and the race's distances; and the
+//! stage objects' radius (from `scene::widen_object_radius` 0x426A7F), with one.
 
 /// The length and the two smaller parts' shares of it (what the original leaves in ebx
 /// and ecx).
@@ -36,6 +37,20 @@ pub fn approximate(differences: [i32; 3]) -> Approximate {
     }
 }
 
+/// `widen_object_radius`' distance: `fistp` of the root of x^2 + z^2 (each step as an
+/// `f64`: the x87's at double precision; for x^2 + z^2 under 2^50 the root is at least
+/// 2^-28 from a half, so the whole number is the same at every precision).
+pub fn radius_distance(x: i32, z: i32) -> i32 {
+    let (x, z) = (x as f64, z as f64);
+    crate::math::geometry::fistp64((x * x + z * z).sqrt())
+}
+
+/// The radius after a point at `distance`: raised to it when the distance less the
+/// radius is not negative (signed, wrapping).
+pub fn widened(distance: u32, radius: u32) -> Option<u32> {
+    ((distance.wrapping_sub(radius) as i32) >= 0).then_some(distance)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -59,5 +74,16 @@ mod tests {
             approximate([i32::MIN, 0, 0]).length,
             0x80_0000u32.wrapping_mul(0xF2)
         );
+    }
+
+    #[test]
+    fn radius() {
+        assert_eq!(radius_distance(3, 4), 5);
+        assert_eq!(radius_distance(-3, 4), 5);
+        assert_eq!(radius_distance(1, 1), 1);
+        assert_eq!(radius_distance(0x7FFF, 0x7FFF), 46340);
+        assert_eq!(widened(5, 5), Some(5));
+        assert_eq!(widened(5, 7), None);
+        assert_eq!(widened(5, 0x8000_0000), None);
     }
 }

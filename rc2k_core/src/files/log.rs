@@ -1,5 +1,6 @@
 //! The texts the game's log writes (converted 2026-10-20 from `logfile::log_int` 0x401440,
-//! `log_int_fmt` 0x40148B, `log_float` 0x4014D8, `date_text` 0x401D74).
+//! `log_int_fmt` 0x40148B, `log_float` 0x4014D8, `date_text` 0x401D74; the entry's gate of
+//! `logfile::log_write` 0x4013CB converted 2026-10-21).
 
 use crate::strings::format::{Pad, decimal};
 use crate::strings::table::nth_string;
@@ -192,6 +193,30 @@ mod tests {
     }
 }
 
+/// What `logfile::log_write` does with a line.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Entry {
+    /// Logging is off (`g_logEnabled` 0 or less): nothing changes.
+    Off,
+    /// The log level is 0: the original's lock function returns straight to the caller's
+    /// caller (eax left the code address after its call).
+    Skipped,
+    /// The lock taken and the line written.
+    Written,
+}
+
+/// `logfile::log_write`'s gate: `enabled` (signed) first, then the level (asked only
+/// then).
+pub fn entry(enabled: i32, level: impl FnOnce() -> u32) -> Entry {
+    if enabled <= 0 {
+        Entry::Off
+    } else if level() == 0 {
+        Entry::Skipped
+    } else {
+        Entry::Written
+    }
+}
+
 /// The most bytes a log line keeps: bytes are stored while the line is no longer (the line
 /// buffer 0x93E080 .. 0x93E42C).
 pub const LINE_LIMIT: usize = 0x93E42C - 0x93E080;
@@ -339,5 +364,13 @@ mod head_tests {
         assert_eq!(free_kb(0x1000, 0x1000, 0x40000), u32::MAX);
         // The cluster's bytes wrap in 32 bits, as the original's.
         assert_eq!(free_kb(0x10000, 0x10000, 0x400), 0);
+    }
+
+    #[test]
+    fn gate() {
+        assert_eq!(entry(0, || unreachable!()), Entry::Off);
+        assert_eq!(entry(-1, || unreachable!()), Entry::Off);
+        assert_eq!(entry(1, || 0), Entry::Skipped);
+        assert_eq!(entry(10, || 2), Entry::Written);
     }
 }

@@ -8,8 +8,10 @@
 //! test's against the original.
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::install::installer::{CF, ZF, cmp, rb, rd};
+use crate::install::installer::{CF, ZF, rd};
+use crate::install::key_up::item_key;
 use crate::race::viewer::dispatch_regs;
+use rc2k_core::install::items::ItemKey;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -25,14 +27,8 @@ hook_asm!(
 );
 
 pub fn key_down(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    let kind = rb(r.esi) & 0x2F;
-    r.ebx = r.ebx & !0xFF | kind as u32;
-    if kind == 0x22 {
-        return crate::install::choice_on::choice_on(&r);
-    }
-    cmp(&mut r, kind as u32, 0x22);
-    Ok(r)
+    // Converted: `rc2k_core::install::items::ItemKey::helper`.
+    item_key(entry, ItemKey::Down)
 }
 
 extern "C" fn dispatch(r: &mut Regs) {

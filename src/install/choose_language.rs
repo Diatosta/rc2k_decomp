@@ -15,6 +15,7 @@ use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write
 use crate::install::{LOCALE_RVA, PATH_ROOM};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use rc2k_core::install::config;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -33,27 +34,23 @@ hook_asm!(
 
 pub const LANGUAGE_COUNT_RVA: usize = rva(0x51BEEA); // dword_51BEEA
 pub const LANGUAGES_RVA: usize = rva(0x51BEEE); // unk_51BEEE
-pub const LANGUAGE_SLOT: usize = 0x80;
-pub const LANGUAGE_SLOTS: usize = 9;
+pub const LANGUAGE_SLOT: usize = config::SLOT;
+pub const LANGUAGE_SLOTS: usize = config::SLOTS;
 
 // ---- Rust version ----
 
 pub unsafe fn choose_language(number: u32) -> Result<(), BadInput> {
     unsafe {
-        if number > game_read::<u32>(LANGUAGE_COUNT_RVA) {
+        // Converted: `rc2k_core::install::config` (`language_slot`, `language_directory`).
+        let Some(slot) = config::language_slot(number, game_read::<u32>(LANGUAGE_COUNT_RVA))?
+        else {
             return Ok(());
-        }
-        if number == 0 || number as usize > LANGUAGE_SLOTS {
-            return Err(BadInput("a language number without a slot"));
-        }
+        };
         let slot = std::slice::from_raw_parts(
-            game_addr(LANGUAGES_RVA + (number as usize - 1) * LANGUAGE_SLOT) as *const u8,
+            game_addr(LANGUAGES_RVA + slot * LANGUAGE_SLOT) as *const u8,
             LANGUAGE_SLOT,
         );
-        let mut texts = slot.split(|&c| c == 0);
-        let (Some(_), Some(directory), Some(_)) = (texts.next(), texts.next(), texts.next()) else {
-            return Err(BadInput("a language slot whose texts do not end in it"));
-        };
+        let directory = config::language_directory(slot)?;
         let to = game_addr(LOCALE_RVA) as *mut u8;
         std::ptr::copy(directory.as_ptr(), to, directory.len());
         to.add(directory.len()).write(0);

@@ -42,29 +42,8 @@ const QUIT_RVA: usize = rva(0x51837C); // dword_51837C
 
 // ---- Rust version ----
 
-/// What the wait is made of.
-pub trait Parts {
-    /// Queues an "end of turn" command.
-    fn end_turn(&mut self);
-    /// Whether commands are still waiting.
-    fn pending(&mut self) -> bool;
-    fn sleep_a_millisecond(&mut self);
-    fn pump_messages(&mut self);
-    /// The quit switch is 1.
-    fn quitting(&mut self) -> bool;
-}
-
-pub fn wait_for_commands(parts: &mut dyn Parts) {
-    parts.end_turn();
-    parts.end_turn();
-    while parts.pending() {
-        parts.sleep_a_millisecond();
-        parts.pump_messages();
-        if parts.quitting() {
-            break;
-        }
-    }
-}
+// Converted: `rc2k_core::sound::set_up::wait_for_commands` (its parts the trait `Waiting`).
+pub use rc2k_core::sound::set_up::{Waiting as Parts, wait_for_commands};
 
 // ---- hook ----
 

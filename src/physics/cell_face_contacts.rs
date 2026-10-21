@@ -42,9 +42,9 @@ hook_asm!(
 );
 
 /// The steps, not guarded.
+// Converted: `rc2k_core::physics::ground_search::cell_key`.
 pub fn steps(r: &mut Regs, touched: &mut Touched) -> Result<(), Refused> {
-    r.ecx = (r.ecx >> 21) << 11;
-    r.eax = (r.eax >> 21).wrapping_add(r.ecx);
+    (r.eax, r.ecx) = rc2k_core::physics::ground_search::cell_key(r.eax, r.ecx);
     let found = unsafe { find_course_record(r) }?;
     found.apply(r);
     if found.carry.unwrap_or(false) {
@@ -67,17 +67,7 @@ extern "C" fn dispatch(r: &mut Regs) {
 }
 
 /// The nine cells' offsets, in `face_contacts_around`'s order.
-pub const AROUND: [(u32, u32); 9] = [
-    (0, 0),
-    (0xFFE0_0000, 0xFFE0_0000),
-    (0, 0xFFE0_0000),
-    (0x20_0000, 0xFFE0_0000),
-    (0x20_0000, 0),
-    (0x20_0000, 0x20_0000),
-    (0, 0x20_0000),
-    (0xFFE0_0000, 0x20_0000),
-    (0xFFE0_0000, 0),
-];
+pub use rc2k_core::physics::ground_search::CELLS as AROUND;
 
 fn self_test() -> (usize, usize) {
     in_race_test(&HOOK, &mut |t, put_back| {

@@ -18,11 +18,14 @@
 use crate::framework::{EAX, RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva, shadow};
 use crate::install::stand_ins::{set_handler, stand_in};
 use crate::math::x87::loaded;
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::physics::flow::{a, base, c0, g, p, x87_run};
 use crate::redirect::RedirectedCopy;
 use crate::screens::harness::Left;
+use crate::service::floats::{
+    Agreement, FLOAT, Floats, at_test_precisions, compare_memory, note_drift,
+};
 use crate::service::harness::{capture, restore};
+use rc2k_core::drive::finish_timing::FinishFigures;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -103,10 +106,42 @@ pub fn timing_from(now: u32) -> Left {
     Left::nothing().with(EAX, since)
 }
 
-/// The Rust version.
+/// The converted core (`rc2k_core::drive::finish_timing`, plain floats) from the clock's
+/// reading `now`.
+// Converted: `rc2k_core::drive::finish_timing::finish_timing`.
+pub fn timing_from_plain(now: u32) -> Left {
+    let since = now.wrapping_sub(g(0x64BB60));
+    p(0x62400C, since);
+    let f = |x: usize| f32::from_bits(g(x));
+    let out = rc2k_core::drive::finish_timing::finish_timing(
+        since,
+        &FinishFigures {
+            units: f(0x5C5D18),
+            ease: [f(0x64BB44), f(0x64BB48)],
+            half: f(0x5C5E40),
+            share: [f(0x64BB70), f(0x64BB74)],
+            switch: g(0x75B108) != 0,
+        },
+    );
+    p(T, out.time.to_bits());
+    p(0x64BB68, out.eased.to_bits());
+    p(0x64BB6C, out.share.to_bits());
+    if out.flag {
+        p(0x5C2F88, 1);
+    }
+    Left::nothing().with(EAX, since)
+}
+
+/// The Rust version (the exact one, for `drive::finish_run`).
 pub unsafe fn finish_timing() -> Left {
     let now = crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
     timing_from(now)
+}
+
+/// The converted version: the hook's.
+pub unsafe fn finish_timing_plain() -> Left {
+    let now = crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
+    timing_from_plain(now)
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
@@ -115,7 +150,7 @@ extern "C" fn dispatch(r: &mut Regs) {
         unsafe { call_original(r) };
         return;
     }
-    unsafe { finish_timing() }.apply(r);
+    unsafe { finish_timing_plain() }.apply(r);
 }
 
 static NOW: AtomicU32 = AtomicU32::new(0);
@@ -164,33 +199,41 @@ fn self_test() -> (usize, usize) {
         }
         p(0x5C2F88, 0);
     };
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for (now, flag) in [
-                (1100u32, 1u32),
-                (1300, 1),
-                (1350, 0),
-                (1450, 1),
-                (1800, 1),
-                (3000, 1),
-            ] {
-                NOW.store(now, Ordering::SeqCst);
-                set_figures();
-                p(0x75B108, flag);
-                let mut ro = Regs::SENTINEL;
-                unsafe { call_game(&mut ro, copy.addr()) };
-                let theirs = (ro.eax, capture(&all));
-                set_figures();
-                p(0x75B108, flag);
-                p(0x613830, now);
-                let mine = timing_from(now);
-                let state = capture(&all);
-                t.check(mine == Left::nothing().with(EAX, theirs.0) && state == theirs.1, || {
-                    format!("control word {word:#x}, now {now}, flag {flag}: original eax {:x}; rust {mine:?}", theirs.0)
+    let tolerant = Floats {
+        memory: &[((a(T), 12), FLOAT)],
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, floats| {
+        for (now, flag) in [
+            (1100u32, 1u32),
+            (1300, 1),
+            (1350, 0),
+            (1450, 1),
+            (1800, 1),
+            (3000, 1),
+        ] {
+            NOW.store(now, Ordering::SeqCst);
+            set_figures();
+            p(0x75B108, flag);
+            let mut ro = Regs::SENTINEL;
+            unsafe { call_game(&mut ro, copy.addr()) };
+            let theirs = (ro.eax, capture(&all));
+            set_figures();
+            p(0x75B108, flag);
+            p(0x613830, now);
+            let mine = timing_from_plain(now);
+            let state = capture(&all);
+            let agree = compare_memory(&all, &theirs.1, &state, floats);
+            if let Agreement::Drift(n) = agree {
+                note_drift("drive::finish_timing", || {
+                    format!("self-test now {now}: {n} places")
                 });
             }
-        });
-    }
+            t.check(mine == Left::nothing().with(EAX, theirs.0) && agree != Agreement::Differ, || {
+                    format!("control word {word:#x}, now {now}, flag {flag}: original eax {:x}; rust {mine:?}", theirs.0)
+                });
+        }
+    });
     restore(&all, &saved);
     t.finish()
 }

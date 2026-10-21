@@ -16,6 +16,7 @@ use crate::install::installer::{
 };
 use crate::install::list_test::TestList;
 use crate::race::viewer::{Saved, dispatch_parts};
+use rc2k_core::install::pages;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -42,15 +43,19 @@ pub fn folder_page(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     if (entry.ebx as i32) < 0 {
         p(PATH_PROBLEM, 0);
     }
-    cmp(&mut r, g(PATH_PROBLEM), 1);
-    if g(PATH_PROBLEM) != 1 {
-        wb(r.edi + 0x38, rb(r.edi + 0x38) | 0x40);
-        wb(r.edi + 0x48, rb(r.edi + 0x48) | 0x40);
+    // Converted: `rc2k_core::install::pages::hidden_notices`.
+    let hide = |r: &Regs, offsets: [u32; 2]| {
+        for o in offsets {
+            wb(r.edi + o, rb(r.edi + o) | pages::HIDDEN);
+        }
+    };
+    cmp(&mut r, g(PATH_PROBLEM), pages::BAD_FOLDER);
+    if pages::hidden_notices(g(PATH_PROBLEM)).0 {
+        hide(&r, [0x38, 0x48]);
     }
-    cmp(&mut r, g(PATH_PROBLEM), 2);
-    if g(PATH_PROBLEM) != 2 {
-        wb(r.edi + 0x58, rb(r.edi + 0x58) | 0x40);
-        wb(r.edi + 0x68, rb(r.edi + 0x68) | 0x40);
+    cmp(&mut r, g(PATH_PROBLEM), pages::NO_ROOM);
+    if pages::hidden_notices(g(PATH_PROBLEM)).1 {
+        hide(&r, [0x58, 0x68]);
     }
     Ok(r)
 }

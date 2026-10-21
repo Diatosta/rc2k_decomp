@@ -15,6 +15,7 @@ use crate::framework::{EAX, EBX, ECX, EDX, ESI, RawHook, Regs, SelfTest, hook_as
 use crate::physics::flow::{a, g, p};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use rc2k_core::drive::replay_frames::{on_tape, tape_offset};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -33,12 +34,13 @@ const TAPE: usize = 0x7194BC; // dword_7194BC / 7194C0: the replay's inputs, 16 
 const CURRENT: usize = 0x71B3F8; // g_currentCar
 
 /// The Rust version.
+// Converted: `rc2k_core::drive::replay_frames::{on_tape, tape_offset}`.
 pub unsafe fn play_inputs(entry: &Regs) -> Left {
     let car = g(CURRENT);
-    if car >= 2 {
+    if !on_tape(car) {
         return Left::nothing();
     }
-    let esi = g(0x6EF7E4).wrapping_mul(16).wrapping_add(car * 8);
+    let esi = tape_offset(g(0x6EF7E4), car);
     let at = |o: u32| a(TAPE).wrapping_add(esi).wrapping_add(o);
     let ebx = unsafe { (at(0) as *const u32).read_unaligned() };
     let [eax, ecx, edx] = crate::drive::unpack_inputs::unpack_inputs(unsafe {

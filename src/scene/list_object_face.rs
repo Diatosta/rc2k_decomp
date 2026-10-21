@@ -47,6 +47,7 @@ use crate::scene::face_sort_key::{KEY_RVA, face_sort_key};
 use crate::scene::polygon::dword;
 use crate::scene::project_point::RECORDS_RVA;
 use crate::service::harness::{Region, at, capture, restore};
+use rc2k_core::scene::face_tests::{Face, FaceWorld, dropped, listed_key};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -66,7 +67,6 @@ hook_asm!(
 pub const SEE_THROUGH_RVA: usize = rva(0x639970); // g_objectSeeThrough
 const IN_RACE_RVA: usize = rva(0x5C5CEC); // dword_5C5CEC
 const OBJECT_RVA: usize = rva(0x6214FC); // g_objectNumber
-const OBJECTS: u32 = 0x100;
 const OBJECT_KINDS_RVA: usize = rva(0x5CD27C); // dword_5CD27C
 const KNOWN_KINDS_RVA: usize = rva(0x5C5790); // dword_5C5790
 const KNOWN_KINDS: usize = 0x22;
@@ -98,66 +98,69 @@ unsafe fn byte(at: usize) -> u32 {
     unsafe { (at as *const u8).read() as u32 }
 }
 
-/// The four tests of the function's own. Ok(true): the face is dropped.
-unsafe fn dropped(face: usize) -> Result<bool, BadInput> {
-    unsafe {
-        let group = byte(face + 7) & 0x1F;
-        let object: u32 = game_read(OBJECT_RVA);
-        let in_race = game_read::<u32>(IN_RACE_RVA) != 0;
-        if !in_race {
-            if object >= OBJECTS {
-                return Err(BadInput("an object's number past the tables"));
-            }
-            let kind: u32 = game_read(OBJECT_KINDS_RVA + object as usize * 4);
-            let known: [u32; KNOWN_KINDS] = game_read(KNOWN_KINDS_RVA);
-            let place = known
-                .iter()
-                .position(|&entry| kind == entry || kind == entry.wrapping_add(1));
-            if let Some(place) = place {
-                let groups: [u32; 2] = game_read(KIND_GROUPS_RVA + place * KIND_LEN);
-                game_write(HIDDEN_GROUPS_RVA, groups);
-                if groups.contains(&group) {
-                    return Ok(true);
-                }
-            }
-        }
-        if object >= 0x50 && object.is_multiple_of(0x14) {
-            let bit = |mask: usize| game_read::<u32>(mask) >> group & 1 != 0;
-            if !bit(GROUP_MASK_RVA) {
-                return Ok(true);
-            }
-            if game_read::<u32>(MASK_KIND_RVA) == 5 {
-                if game_read::<u32>(GROUP_TABLE_RVA + group as usize * 4) == 0 {
-                    return Ok(true);
-                }
-            } else if game_read::<u32>(NO_MASK_2_RVA) == 0 && !bit(GROUP_MASK_2_RVA) {
-                return Ok(true);
-            }
-            if group == game_read::<u32>(LONE_GROUP_RVA) && game_read::<u32>(LONE_GROUP_ON_RVA) == 0
-            {
-                return Ok(true);
-            }
-            let which: u32 = game_read(GROUPS_WHICH_RVA);
-            if game_read::<[u32; 2]>(HIDDEN_GROUPS_RVA).contains(&group) {
-                if which == 1 {
-                    return Ok(true);
-                }
-            } else if game_read::<[u32; 2]>(OTHER_GROUPS_RVA).contains(&group) && which == 0 {
-                return Ok(true);
-            }
-        }
-        if (byte(face + 8) >> 2) & 3 != 0 && game_read::<u32>(SEE_THROUGH_ON_RVA) != 0 {
-            let value: u32 = game_read(SEE_THROUGH_VALUE_RVA);
-            if value == 0 {
-                return Ok(true);
-            }
-            game_write(SEE_THROUGH_RVA, value);
-        }
-        let (kind, extra) = (byte(face + 6), byte(face + 0xB));
-        if kind == 0x1C {
-            if !in_race || extra == 0 || extra > 6 {
-                return Ok(true);
-            }
+/// The game's variables the tests read and write.
+struct GameFace;
+
+impl FaceWorld for GameFace {
+    fn in_race(&self) -> bool {
+        unsafe { game_read::<u32>(IN_RACE_RVA) != 0 }
+    }
+    fn object(&self) -> u32 {
+        unsafe { game_read(OBJECT_RVA) }
+    }
+    fn object_kind(&self, object: u32) -> u32 {
+        unsafe { game_read(OBJECT_KINDS_RVA + object as usize * 4) }
+    }
+    fn known_kind(&self, place: usize) -> u32 {
+        unsafe { game_read(KNOWN_KINDS_RVA + place * 4) }
+    }
+    fn kind_groups(&self, place: usize) -> [u32; 2] {
+        unsafe { game_read(KIND_GROUPS_RVA + place * KIND_LEN) }
+    }
+    fn hidden_groups(&self) -> [u32; 2] {
+        unsafe { game_read(HIDDEN_GROUPS_RVA) }
+    }
+    fn set_hidden_groups(&mut self, groups: [u32; 2]) {
+        unsafe { game_write(HIDDEN_GROUPS_RVA, groups) }
+    }
+    fn other_groups(&self) -> [u32; 2] {
+        unsafe { game_read(OTHER_GROUPS_RVA) }
+    }
+    fn group_mask(&self) -> u32 {
+        unsafe { game_read(GROUP_MASK_RVA) }
+    }
+    fn mask_kind(&self) -> u32 {
+        unsafe { game_read(MASK_KIND_RVA) }
+    }
+    fn group_table(&self, group: u32) -> u32 {
+        unsafe { game_read(GROUP_TABLE_RVA + group as usize * 4) }
+    }
+    fn no_second_mask(&self) -> u32 {
+        unsafe { game_read(NO_MASK_2_RVA) }
+    }
+    fn second_mask(&self) -> u32 {
+        unsafe { game_read(GROUP_MASK_2_RVA) }
+    }
+    fn lone_group(&self) -> u32 {
+        unsafe { game_read(LONE_GROUP_RVA) }
+    }
+    fn lone_group_on(&self) -> u32 {
+        unsafe { game_read(LONE_GROUP_ON_RVA) }
+    }
+    fn groups_which(&self) -> u32 {
+        unsafe { game_read(GROUPS_WHICH_RVA) }
+    }
+    fn see_through_on(&self) -> u32 {
+        unsafe { game_read(SEE_THROUGH_ON_RVA) }
+    }
+    fn see_through_value(&self) -> u32 {
+        unsafe { game_read(SEE_THROUGH_VALUE_RVA) }
+    }
+    fn set_see_through(&mut self, value: u32) {
+        unsafe { game_write(SEE_THROUGH_RVA, value) }
+    }
+    fn line_value(&self, extra: u32) -> Result<u32, rc2k_core::Invalid> {
+        unsafe {
             let which: u32 = game_read(BLOCK_RVA);
             let block: u32 = if which < BLOCKS {
                 game_read(BLOCKS_RVA + which as usize * 4)
@@ -165,19 +168,29 @@ unsafe fn dropped(face: usize) -> Result<bool, BadInput> {
                 0
             };
             if block == 0 {
-                return Err(BadInput("no block for a face of kind 0x1C"));
+                return Err(rc2k_core::Invalid("no block for a face of kind 0x1C"));
             }
-            let value = dword(block as usize + extra as usize * 4 + 0x6FC);
-            if value == 0x8000_0000 || value < 0xA {
-                return Ok(true);
-            }
-        } else if kind != 0 && extra != game_read::<u32>(KIND_BYTES_RVA + kind as usize * 4) {
-            return Ok(true);
+            Ok(dword(block as usize + extra as usize * 4 + 0x6FC))
         }
-        Ok(false)
+    }
+    fn kind_byte(&self, kind: u32) -> u32 {
+        unsafe { game_read(KIND_BYTES_RVA + kind as usize * 4) }
     }
 }
 
+/// The face's bytes the tests read.
+unsafe fn face_bytes(face: usize) -> Face {
+    unsafe {
+        Face {
+            kind: byte(face + 6) as u8,
+            group: byte(face + 7) as u8,
+            flags: byte(face + 8) as u8,
+            extra: byte(face + 0xB) as u8,
+        }
+    }
+}
+
+// Converted: `rc2k_core::scene::face_tests::{dropped, listed_key}`
 pub unsafe fn list_object_face(face: usize) -> Result<(), Refused> {
     unsafe {
         if face == 0 {
@@ -194,7 +207,8 @@ pub unsafe fn list_object_face(face: usize) -> Result<(), Refused> {
         ];
         let before = capture(&regions);
         game_write(SEE_THROUGH_RVA, 0x100u32);
-        match dropped(face) {
+        let bytes = face_bytes(face);
+        match dropped(&mut GameFace, bytes) {
             Ok(true) => return Ok(()),
             Ok(false) => {}
             Err(why) => {
@@ -213,7 +227,7 @@ pub unsafe fn list_object_face(face: usize) -> Result<(), Refused> {
         game_write(KEY_RVA, 0u32);
         face_sort_key(face, count)?;
         let entry = LIST_RVA + listed as usize * 0x10;
-        let key = (((byte(face + 8) & 1) ^ 1) << 30).wrapping_add(game_read(KEY_RVA));
+        let key = listed_key(bytes, game_read(KEY_RVA));
         game_write(
             entry,
             [

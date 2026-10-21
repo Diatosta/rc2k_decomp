@@ -415,18 +415,6 @@ pub fn times_fist_compare(a: u32, k: u32, z: u32) -> (i32, u16) {
     (out, status & 0x4700)
 }
 
-/// `fild n; fild m; fsub one; fsubr st(1), st; fdivp st(1), st; fld hi; fsub lo; fmulp;
-/// fadd lo; fstp`: lo + ((m - 1) - n) / (m - 1) (hi - lo).
-pub fn start_share(n: i32, m: i32, one: u32, hi: u32, lo: u32) -> u32 {
-    let (v, mut out) = ([n as u32, m as u32, one, hi, lo], 0u32);
-    x87!("fild dword ptr [{v}]", "fild dword ptr [{v} + 4]", "fsub dword ptr [{v} + 8]",
-        ".byte 0xDC, 0xE1", ".byte 0xDE, 0xF9", "fld dword ptr [{v} + 12]",
-        "fsub dword ptr [{v} + 16]", ".byte 0xDE, 0xC9", "fadd dword ptr [{v} + 16]",
-        "fstp dword ptr [{o}]";
-        v = v.as_ptr(), o = &raw mut out);
-    out
-}
-
 /// `fld a; fdiv b; fmul c; fmul d; fmul e; fistp`.
 pub fn div_mul3_to_int(a: u32, b: u32, c: u32, d: u32, e: u32) -> i32 {
     let (v, mut out) = ([a, b, c, d, e], 0i32);

@@ -33,7 +33,8 @@ hook_asm!(
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     let mut g = *r;
-    unsafe { sort_points(BY_Y, &mut g) };
+    // Converted: `rc2k_core::race::quick_sort::quick_sort`.
+    unsafe { sort_points(BY_Y, &mut g)? };
     Ok(left_of(&g))
 }
 
