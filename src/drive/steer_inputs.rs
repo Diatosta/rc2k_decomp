@@ -17,14 +17,17 @@
 //! Callers: `drive::car_controls`, `sub_460835`, `sub_460B2F`.
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back) by lot: both kinds of steering, words left, right and 0, values about their
-//! ends, under three precisions.
+//! ends, against the converted version, exact at double precision.
 
 use crate::errors::Refused;
 use crate::framework::{EAX, EBX, EDX, RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::physics::flow::{a, base, c0, g, p, x87_run};
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, check_state, dispatch_state, restore};
+use crate::service::floats::{
+    Floats, ROUNDED, Tolerance, at_test_precisions, check_state_floats, dispatch_state_floats,
+};
+use crate::service::harness::{capture, restore};
+use rc2k_core::drive::steering::{SteerInputs, steer as steer_core};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -93,7 +96,8 @@ fn steer(value: usize, step: u32) {
     }
 }
 
-/// The Rust version.
+/// The Rust version (the exact one, for `drive::simple_car_step`, `drive::replay_step`
+/// and `race::step_replay_cars`).
 pub unsafe fn steer_inputs(entry: &Regs) -> Left {
     let mut r = *entry;
     let mut keys = g(WORD) == 0;
@@ -150,8 +154,43 @@ pub unsafe fn steer_inputs(entry: &Regs) -> Left {
         .with(EDX, r.edx)
 }
 
+/// The converted version (`rc2k_core::drive::steering`, plain floats): the hook's.
+// Converted: `rc2k_core::drive::steering::steer`.
+pub unsafe fn steer_inputs_plain(entry: &Regs) -> Left {
+    let f = |x: usize| f32::from_bits(g(x));
+    let s = steer_core(
+        &SteerInputs {
+            word: g(WORD),
+            mode: g(0x71A234),
+            keys: g(0x71A440),
+            device_factor: f(0x614C08),
+            key_factor: f(0x614C0C),
+            trim: f(0x71A3E0),
+            flags: g(0x719FE8),
+            figure: f(0x71A308),
+            limit: f(0x5C5D14),
+        },
+        [g(0x71A61C), g(0x71A620)],
+    );
+    p(0x71A61C, s.values[0]);
+    p(0x71A620, s.values[1]);
+    p(0x62400C, s.scratch);
+    p(0x71A1E0, s.trim);
+    p(0x71A624, s.trimmed[0]);
+    p(0x71A628, s.trimmed[1]);
+    Left::nothing()
+        .with(EAX, s.eax)
+        .with(EBX, s.ebx.unwrap_or(entry.ebx))
+        .with(EDX, s.edx.unwrap_or(entry.edx))
+}
+
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { steer_inputs(r) })
+    Ok(unsafe { steer_inputs_plain(r) })
+}
+
+/// The whole numbers made from floats, held to `ROUNDED` at extended precision.
+fn floats() -> [(crate::service::harness::Region, Tolerance); 2] {
+    [((a(0x71A61C), 0x10), ROUNDED), ((a(0x71A1E0), 4), ROUNDED)]
 }
 
 fn regions() -> [crate::service::harness::Region; 3] {
@@ -159,7 +198,12 @@ fn regions() -> [crate::service::harness::Region; 3] {
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+    let memory = floats();
+    let floats = Floats {
+        memory: &memory,
+        regs: &[(EAX, ROUNDED)],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
 }
 
 fn self_test() -> (usize, usize) {
@@ -179,42 +223,47 @@ fn self_test() -> (usize, usize) {
         (a(0x71A308), 4),
     ];
     let saved = capture(&all);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for case in 0..40u32 {
-                let set = || {
-                    p(
-                        WORD,
-                        [0u32, 0x80, 0xFFFF_FF80, 0x100, 0xFFFF_FF00][(case % 5) as usize],
-                    );
-                    p(0x71A234, if case % 3 == 0 { 2 } else { 1 });
-                    p(0x71A440, if case % 4 < 2 { 0x1000 } else { 0 });
-                    p(0x614C08, 0.7f32.to_bits());
-                    p(0x614C0C, [0.5f32, 3.0, 40.0][(case % 3) as usize].to_bits());
-                    for (k, x) in [0x71A61C, 0x71A620].iter().enumerate() {
-                        p(
-                            *x,
-                            [0u32, 0x1F00_0000, 0xE100_0000, 0x0010_0000, 0xFFF0_0000]
-                                [((case + k as u32) % 5) as usize],
-                        );
-                    }
-                    p(0x71A3E0, (0.01f32 * (case % 7) as f32 - 0.03).to_bits());
-                    p(0x719FE8, case % 2 * 0x10);
-                    p(0x71A308, [1.0f32, 50.0][(case / 5 % 2) as usize].to_bits());
-                    p(0x5C5D14, g(0x5C5D14));
-                };
-                check_state(
-                    &mut t,
-                    &format!("control word {word:#x}, case {case}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &set,
-                    &regions(),
-                    &rust,
+    let memory = floats();
+    let tolerant = Floats {
+        memory: &memory,
+        regs: &[(EAX, ROUNDED)],
+    };
+    at_test_precisions(&tolerant, &mut |word, fl| {
+        for case in 0..40u32 {
+            let set = || {
+                p(
+                    WORD,
+                    [0u32, 0x80, 0xFFFF_FF80, 0x100, 0xFFFF_FF00][(case % 5) as usize],
                 );
-            }
-        });
-    }
+                p(0x71A234, if case % 3 == 0 { 2 } else { 1 });
+                p(0x71A440, if case % 4 < 2 { 0x1000 } else { 0 });
+                p(0x614C08, 0.7f32.to_bits());
+                p(0x614C0C, [0.5f32, 3.0, 40.0][(case % 3) as usize].to_bits());
+                for (k, x) in [0x71A61C, 0x71A620].iter().enumerate() {
+                    p(
+                        *x,
+                        [0u32, 0x1F00_0000, 0xE100_0000, 0x0010_0000, 0xFFF0_0000]
+                            [((case + k as u32) % 5) as usize],
+                    );
+                }
+                p(0x71A3E0, (0.01f32 * (case % 7) as f32 - 0.03).to_bits());
+                p(0x719FE8, case % 2 * 0x10);
+                p(0x71A308, [1.0f32, 50.0][(case / 5 % 2) as usize].to_bits());
+                p(0x5C5D14, g(0x5C5D14));
+            };
+            check_state_floats(
+                &mut t,
+                "drive::steer_inputs",
+                &format!("control word {word:#x}, case {case}"),
+                call_original,
+                Regs::SENTINEL,
+                &set,
+                &regions(),
+                fl,
+                &rust,
+            );
+        }
+    });
     restore(&all, &saved);
     t.finish()
 }

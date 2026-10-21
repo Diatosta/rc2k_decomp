@@ -10,15 +10,16 @@
 //! Caller: `sub_43B635` (0x43B99F), every physics step.
 //! Refuses (before anything) a null sound object.
 //! Self-test: a copy of the original (the current car, the objects' table and the work
-//! car's five the test's) on a test object, values above, at, below and NaN.
+//! car's five the test's) on a test object against the converted version, values
+//! above, at, below and NaN.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{
     EDI, RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva,
 };
-use crate::math::x87_run::compare_full;
 use crate::screens::harness::Left;
 use crate::service::harness::{capture, dispatch_state};
+use rc2k_core::physics::engine::shares_figures;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -51,15 +52,17 @@ unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
 }
 
-/// The Rust core on the variables at `v` (`VARIABLES`' order).
+/// The Rust core on the variables at `v` (`VARIABLES`' order; a compare of floats only:
+/// the same at any precision).
+// Converted: `rc2k_core::physics::engine::shares_figures`.
 pub unsafe fn share_at(v: &[u32]) -> Result<Left, Refused> {
     unsafe {
         let o = get(v[1] + 4 * (get(v[0]) & 7));
         if o == 0 {
             return Err(BadInput("a null sound object").into());
         }
-        let status = compare_full(get(v[5]), get(o + 0xD0));
-        if status & 0x4000 == 0 && status & 0x100 == 0 {
+        let f = |a: u32| f32::from_bits(get(a));
+        if shares_figures(f(v[5]), f(o + 0xD0)) {
             for k in 0..4 {
                 put(o + 0xC4 + 4 * k, get(v[2 + k as usize]));
             }

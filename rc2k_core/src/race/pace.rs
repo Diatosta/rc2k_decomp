@@ -1,8 +1,11 @@
-//! The pace notes' rules (converted 2026-10-21 from `race::next_pace_slot` 0x441A4B,
+//! The pace notes' rules (converted 2026-10-21 from `race::pace_note_code` 0x441A37,
+//! `race::next_pace_slot` 0x441A4B,
 //! `pace_distance_word` 0x441C78, and the codes and the corner of `race::pace_note_calls`
 //! 0x441CB4 / `race::init_pace_notes` 0x441A66): a place on the line is a checkpoint and
 //! one of its face's eight slots; a note runs from a code in 1 .. 0x63 other than 'b' to
 //! the next 'b' or 'd'.
+
+use crate::Invalid;
 
 /// A note's end that is not joined to the next ('b').
 pub const B: u32 = 0x62;
@@ -15,6 +18,16 @@ pub const JOIN: u8 = 0x29;
 
 /// The slots a checkpoint's face has.
 pub const SLOTS: u32 = 8;
+
+/// `race::pace_note_code`: where the face's code for `slot` is: the face plus the slot's
+/// offset (`dword_614D14[slot]`, asked only for a slot below 8). Refused past 7 (the
+/// original reads past its table).
+pub fn code_place(face: u32, slot: u32, offset: impl FnOnce(u32) -> u32) -> Result<u32, Invalid> {
+    if slot >= SLOTS {
+        return Err(Invalid("a pace note slot past 7"));
+    }
+    Ok(offset(slot).wrapping_add(face))
+}
 
 /// `race::next_pace_slot`: the slot on by one; at 8 or past (unsigned) back to 0 and the
 /// checkpoint on by one. (slot, checkpoint).
@@ -120,6 +133,13 @@ pub fn corner(length: u32, turn: u32) -> Corner {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn code_places() {
+        assert_eq!(code_place(0x100, 3, |s| s * 4), Ok(0x10C));
+        assert_eq!(code_place(4, 7, |_| u32::MAX), Ok(3));
+        assert!(code_place(0, 8, |_| unreachable!()).is_err());
+    }
 
     #[test]
     fn places_and_words() {

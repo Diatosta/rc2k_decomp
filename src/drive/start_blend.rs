@@ -8,15 +8,17 @@
 //! Out: eax the held count; the rest kept; no flags read (`fld` next)
 //!
 //! Caller: `sub_43A35A` (0x43A486).
-//! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables), 24 cases.
+//! Self-test: `physics/copy_hooks_test.rs` (`test_moves_floats`: a copy on test
+//! variables against the converted version), 24 cases, exact at double precision.
 
 use crate::errors::Refused;
 use crate::framework::{EAX, RawHook, Regs, game_addr, game_read, hook_asm, rva};
 use crate::math::x87;
 use crate::math::x87_run::{add3, compare_full};
-use crate::physics::copy_hooks_test::{lot, test_moves};
+use crate::physics::copy_hooks_test::{lot, test_moves_floats};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::floats::{FLOAT, Floats, dispatch_state_floats};
+use rc2k_core::drive::start_blend::start_blend as start_blend_core;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -71,6 +73,29 @@ pub unsafe fn blend_at(v: &[u32]) -> u32 {
     }
 }
 
+/// The converted version (`rc2k_core::drive::start_blend`, plain floats) on the variables
+/// at `v`: the held count.
+// Converted: `rc2k_core::drive::start_blend::start_blend`.
+pub unsafe fn blend_at_plain(v: &[u32]) -> u32 {
+    unsafe {
+        let f = |k: usize| f32::from_bits(get(v, k));
+        let k = |a: usize| f32::from_bits(game_read::<u32>(a));
+        let b = start_blend_core(
+            get(v, 0),
+            get(v, 1),
+            k(STEP_RVA),
+            f(4),
+            f(5),
+            k(LOW_RVA),
+            k(HIGH_RVA),
+        );
+        put(v, 2, b.count);
+        put(v, 3, b.share.to_bits());
+        put(v, 6, b.blend.to_bits());
+        b.count
+    }
+}
+
 fn game() -> Vec<u32> {
     VARIABLES
         .iter()
@@ -78,22 +103,27 @@ fn game() -> Vec<u32> {
         .collect()
 }
 
-/// The Rust version.
+/// The Rust version (the exact one, for `drive::read_car_controls`).
 pub unsafe fn start_blend() -> u32 {
     unsafe { blend_at(&game()) }
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(Left::nothing().with(EAX, unsafe { start_blend() }))
+    Ok(Left::nothing().with(EAX, unsafe { blend_at_plain(&game()) }))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let v = game();
-    dispatch_state(
+    let floats = Floats {
+        memory: &[((v[3], 4), FLOAT), ((v[6], 4), FLOAT)],
+        regs: &[],
+    };
+    dispatch_state_floats(
         &HOOK,
         r,
         call_original,
         &[(v[2], 4), (v[3], 4), (v[6], 4)],
+        &floats,
         &rust,
     );
 }
@@ -107,7 +137,7 @@ fn fill(seed: u32, out: &mut [u32]) {
 }
 
 fn self_test() -> (usize, usize) {
-    test_moves(
+    test_moves_floats(
         &HOOK,
         0x43773D,
         0x93,
@@ -116,6 +146,8 @@ fn self_test() -> (usize, usize) {
         13,
         24,
         &fill,
-        &|v, _| Left::nothing().with(EAX, unsafe { blend_at(v) }),
+        &|v, _| Left::nothing().with(EAX, unsafe { blend_at_plain(v) }),
+        &[(3, FLOAT), (6, FLOAT)],
+        &[],
     )
 }

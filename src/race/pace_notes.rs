@@ -219,11 +219,11 @@ impl Machine {
 
     /// `sub_441A37` (`race::pace_note_code`): eax the face esi's code at the slot.
     pub fn code(&mut self) -> Result<(), Refused> {
-        if self.slot >= 8 {
-            return Err(refuse("a pace note slot past 7"));
-        }
-        let off: u32 = unsafe { game_read(SLOT_OFFSETS_RVA + 4 * self.slot as usize) };
-        self.r.eax = self.face_byte(off.wrapping_add(self.r.esi))?;
+        // Converted: `rc2k_core::race::pace::code_place`.
+        let place = rc2k_core::race::pace::code_place(self.r.esi, self.slot, |slot| unsafe {
+            game_read(SLOT_OFFSETS_RVA + 4 * slot as usize)
+        })?;
+        self.r.eax = self.face_byte(place)?;
         Ok(())
     }
 

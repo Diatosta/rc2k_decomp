@@ -7,15 +7,17 @@
 //!
 //! See `race/sound_tables.rs`. One caller, `race::set_up_race_sound_objects` (0x415C93).
 //! Shadow mode: the Rust version, the records and tables put back, the original's,
-//! compared. Self-test: a copy whose 20 references to the four variables are the test's
-//! (records of its own), against the Rust version on the same: not done (records filled
-//! two ways) and done.
+//! compared (the floats within `FLOAT`: the sines go through `fsin`, which no precision
+//! rounds). The Rust version is `prepare_sound_tables_plain`. Self-test: a copy whose 20
+//! references to the four variables are the test's (records of its own), against the
+//! Rust version on the same: not done (records filled two ways) and done.
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::race::sound_tables::*;
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, dispatch_state};
+use crate::service::floats::{Agreement, Floats, compare_memory, dispatch_state_floats};
+use crate::service::harness::capture;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -36,18 +38,18 @@ hook_asm!(
 );
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { prepare_sound_tables(&TableVars::game()) };
+    unsafe { prepare_sound_tables_plain(&TableVars::game()) };
     Ok(Left::nothing())
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(
-        &HOOK,
-        r,
-        call_original,
-        &table_regions(&TableVars::game()),
-        &rust,
-    );
+    let v = TableVars::game();
+    let places = table_floats(&v);
+    let floats = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &table_regions(&v), &floats, &rust);
 }
 
 fn self_test() -> (usize, usize) {
@@ -89,6 +91,11 @@ fn self_test() -> (usize, usize) {
         Err(why) => return t.skip(&why),
     };
     let regions = table_regions(&v);
+    let places = table_floats(&v);
+    let floats = Floats {
+        memory: &places,
+        regs: &[],
+    };
     let values = [
         0u32,
         7,
@@ -118,12 +125,12 @@ fn self_test() -> (usize, usize) {
         unsafe { crate::framework::call_game(&mut ro, copy.addr()) };
         let theirs = (capture(&regions), ro.preserved_except(&before, 0));
         prepare();
-        unsafe { prepare_sound_tables(&v) };
+        unsafe { prepare_sound_tables_plain(&v) };
         let mine = capture(&regions);
-        t.check(theirs.0 == mine && theirs.1, || {
+        let same = compare_memory(&regions, &theirs.0, &mine, &floats) != Agreement::Differ;
+        t.check(same && theirs.1, || {
             format!(
-                "done {done}, values from {k}: same {}, registers kept {}",
-                theirs.0 == mine,
+                "done {done}, values from {k}: same {same}, registers kept {}",
                 theirs.1
             )
         });

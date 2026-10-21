@@ -21,32 +21,62 @@ unsafe fn put(at: u32, v: u32) {
 /// when it looks like a whole number (its top byte 0 or 0xFF). Leaves eax its top byte's
 /// mask (`and 0xFF000000`).
 pub unsafe fn whole_to_float(at: u32) -> u32 {
+    // Converted: `rc2k_core::race::sound_tables::whole_to_float` (one rounding: the same
+    // at every precision, so no exact twin).
     unsafe {
-        let top = get(at) & 0xFF00_0000;
-        if top == 0 || top == 0xFF00_0000 {
-            put(at, x87::from_int(get(at) as i32));
+        let (top, float) = rc2k_core::race::sound_tables::whole_to_float(get(at));
+        if let Some(f) = float {
+            put(at, f);
         }
         top
     }
 }
 
-/// `race::sound_span` (0x40D71B): two dwords from ebx made floats, the third their
-/// difference (`fld` / `fsub` / `fstp`). Leaves eax as the second `whole_to_float`, ebx
-/// at the second.
-pub unsafe fn sound_span(entry: &Regs) -> Regs {
+/// The span's subtraction: the x87's (exact) or the core's (plain).
+type Sub = fn(u32, u32) -> u32;
+
+fn span_plain(second: u32, first: u32) -> u32 {
+    rc2k_core::race::sound_tables::span(f32::from_bits(first), f32::from_bits(second)).to_bits()
+}
+
+unsafe fn span_with(entry: &Regs, sub: Sub) -> Regs {
     let mut g = *entry;
     unsafe {
         whole_to_float(g.ebx);
         g.ebx += 4;
         g.eax = whole_to_float(g.ebx);
-        put(g.ebx + 4, x87::sub(get(g.ebx), get(g.ebx - 4)));
+        put(g.ebx + 4, sub(get(g.ebx), get(g.ebx - 4)));
     }
     g
+}
+
+/// `race::sound_span` (0x40D71B): two dwords from ebx made floats, the third their
+/// difference (`fld` / `fsub` / `fstp`). Leaves eax as the second `whole_to_float`, ebx
+/// at the second. The exact x87 version (`prepare_sound_tables`' for
+/// `race::set_up_race_sound_objects`, not yet converted).
+pub unsafe fn sound_span(entry: &Regs) -> Regs {
+    unsafe { span_with(entry, x87::sub) }
+}
+
+/// `sound_span` converted: the hook's.
+// Converted: `rc2k_core::race::sound_tables::span`.
+pub unsafe fn sound_span_plain(entry: &Regs) -> Regs {
+    unsafe { span_with(entry, span_plain) }
 }
 
 /// `race::sound_row` (0x40D731): a row at edx: +4, +8, +0xC made floats, spans at +0x10
 /// and +0x1C. Leaves ebx at edx + 0x20, eax as the last.
 pub unsafe fn sound_row(entry: &Regs) -> Regs {
+    unsafe { row_with(entry, x87::sub) }
+}
+
+/// `sound_row` converted: the hook's.
+// Converted: `rc2k_core::race::sound_tables::{whole_to_float, span}`.
+pub unsafe fn sound_row_plain(entry: &Regs) -> Regs {
+    unsafe { row_with(entry, span_plain) }
+}
+
+unsafe fn row_with(entry: &Regs, sub: Sub) -> Regs {
     let mut g = *entry;
     unsafe {
         for off in [4, 8, 0xC] {
@@ -54,9 +84,9 @@ pub unsafe fn sound_row(entry: &Regs) -> Regs {
             g.eax = whole_to_float(g.ebx);
         }
         g.ebx = g.edx + 0x10;
-        g = sound_span(&g);
+        g = span_with(&g, sub);
         g.ebx = g.edx + 0x1C;
-        g = sound_span(&g);
+        g = span_with(&g, sub);
     }
     g
 }
@@ -129,7 +159,63 @@ pub unsafe fn prepare_sound_tables(v: &TableVars) {
     }
 }
 
+/// `prepare_sound_tables` converted: the hook's.
+// Converted: `rc2k_core::race::sound_tables::{reciprocal, sines}`.
+pub unsafe fn prepare_sound_tables_plain(v: &TableVars) {
+    use rc2k_core::race::sound_tables::{reciprocal, sines};
+    unsafe {
+        if get(v.done) == 1 {
+            return;
+        }
+        put(v.done, 1);
+        for n in 0..RECORDS {
+            let record = get(v.records + 4 * n);
+            sound_span_plain(&Regs {
+                ebx: record + 4,
+                ..Regs::default()
+            });
+            put(
+                record + 0xC,
+                reciprocal(f32::from_bits(get(record + 0xC))).to_bits(),
+            );
+            for k in 0..3 {
+                sound_row_plain(&Regs {
+                    edx: record + 0x10 + 0x28 * k,
+                    ..Regs::default()
+                });
+            }
+        }
+        let (table, last) = sines();
+        for (k, f) in table.iter().enumerate() {
+            put(v.sines + 4 * k as u32, f.to_bits());
+        }
+        // The scratch: 0x20, the step, then each x: the last left.
+        put(v.scratch, last.to_bits());
+    }
+}
+
 /// What `prepare_sound_tables` writes.
+/// The float places `prepare_sound_tables` writes: each record's span and reciprocal
+/// (+0xC) and its rows' spans; the sines and the scratch.
+pub fn table_floats(v: &TableVars) -> Vec<(Region, crate::service::floats::Tolerance)> {
+    use crate::service::floats::FLOAT;
+    let mut f = Vec::new();
+    for n in 0..RECORDS {
+        let record = unsafe { get(v.records + 4 * n) };
+        f.push(((record + 0xC, 4), FLOAT));
+        for k in 0..3 {
+            for o in [0x28, 0x34] {
+                f.push(((record + o + 0x28 * k, 4), FLOAT));
+            }
+        }
+    }
+    f.extend([
+        ((v.sines, 4 * SINES as usize), FLOAT),
+        ((v.scratch, 4), FLOAT),
+    ]);
+    f
+}
+
 pub fn table_regions(v: &TableVars) -> Vec<Region> {
     let mut r: Vec<Region> = (0..RECORDS)
         .map(|n| (unsafe { get(v.records + 4 * n) }, RECORD_LEN))

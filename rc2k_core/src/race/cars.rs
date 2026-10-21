@@ -5,7 +5,9 @@
 //! `reset_car_starts` 0x444BBC, `nonzero_random` 0x444C14, `seed_car_randoms` 0x444BF6,
 //! `drop_absent_player` 0x436402, `grade_car_values` 0x43FE24, `grade_all_cars`
 //! 0x43FDFE, `set_car_counter` 0x43A96C, `set_both_counters` 0x43A987,
-//! `set_start_states` 0x446D2E and `store_results_by_mode` 0x449957).
+//! `set_start_states` 0x446D2E and `store_results_by_mode` 0x449957; the set-up's
+//! choice converted 2026-10-21 from `auto_set_up_car` 0x436F08, the opponents' draws from
+//! `choose_arcade_opponents` 0x449B79).
 
 use crate::Invalid;
 use crate::math::random::Random;
@@ -274,9 +276,75 @@ pub fn margin(total: u32, time: u32) -> u32 {
     v as u32
 }
 
+/// The first stage with an automatic set-up (`race::auto_set_up_car`).
+pub const FIRST_SET_UP_STAGE: u32 = 0x15;
+/// The stages with one end before this.
+pub const SET_UP_STAGES_END: u32 = 0x50;
+
+/// The set-up `race::auto_set_up_car` picks.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SetUpPick {
+    /// Its number in `dword_6043FC` (16 bytes each): (stage - 0x15) / 10 x 6 + the rest.
+    pub index: u32,
+    /// (stage - 0x15) % 10.
+    pub rest: u32,
+}
+
+/// `race::auto_set_up_car`: the set-up for `stage` (0x15 .. 0x4F; None for the others).
+/// Refused for stage 0x14, which the original's range test lets in: its `sub` makes an
+/// index of 0x9999999B (a read far outside).
+pub fn set_up_pick(stage: u32) -> Result<Option<SetUpPick>, Invalid> {
+    if stage == FIRST_SET_UP_STAGE - 1 {
+        return Err(Invalid("stage 0x14: the set-up index runs outside"));
+    }
+    if !(FIRST_SET_UP_STAGE - 1..SET_UP_STAGES_END).contains(&stage) {
+        return Ok(None);
+    }
+    let v = stage - FIRST_SET_UP_STAGE;
+    Ok(Some(SetUpPick {
+        index: (v / 10) * 6 + v % 10,
+        rest: v % 10,
+    }))
+}
+
+/// `race::choose_arcade_opponents`: a kind drawn from a random number (x 0x22, the high
+/// half).
+pub fn drawn_kind(random: u32) -> u32 {
+    ((random as u64 * TABLE_CARS as u64) >> 32) as u32
+}
+
+/// How far apart in the kinds' order an opponent may be from the first car (below).
+pub const OPPONENT_REACH: u32 = 5;
+
+/// `race::choose_arcade_opponents`: the places' distance (`cmp` / `jns` / `neg`) and
+/// whether an opponent at `place` is close enough to the first car's (unsigned, below 5).
+pub fn opponent_distance(place: u32, first: u32) -> (u32, bool) {
+    let d = place.wrapping_sub(first);
+    let d = if (d as i32) < 0 { d.wrapping_neg() } else { d };
+    (d, d < OPPONENT_REACH)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn set_ups_and_opponents() {
+        assert!(set_up_pick(0x14).is_err());
+        assert_eq!(set_up_pick(0x13), Ok(None));
+        assert_eq!(set_up_pick(0x50), Ok(None));
+        assert_eq!(set_up_pick(0x15), Ok(Some(SetUpPick { index: 0, rest: 0 })));
+        assert_eq!(
+            set_up_pick(0x4F),
+            Ok(Some(SetUpPick { index: 38, rest: 8 }))
+        );
+        assert_eq!(set_up_pick(0x1E), Ok(Some(SetUpPick { index: 9, rest: 9 })));
+        assert_eq!(drawn_kind(u32::MAX), 0x21);
+        assert_eq!(drawn_kind(0x8000_0000), 0x11);
+        assert_eq!(opponent_distance(3, 7), (4, true));
+        assert_eq!(opponent_distance(12, 7), (5, false));
+        assert_eq!(opponent_distance(0x8000_0000, 0), (0x8000_0000, false));
+    }
 
     #[test]
     fn tables_and_kinds() {

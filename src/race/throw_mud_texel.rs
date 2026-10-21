@@ -41,7 +41,7 @@ hook_asm!(
 );
 
 pub const THROWN_RVA: usize = rva(0x623D80); // dword_623D80: each texture's count
-pub const LAST_THROWN: u32 = 0x60000;
+pub use rc2k_core::race::mud::LAST_THROWN;
 pub const EXTRA_SUM_RVA: usize = rva(0x623D30); // dword_623D30
 
 /// The counts, the sum and the random state: what a throw writes besides the texels.
@@ -56,6 +56,7 @@ pub fn throw_regions() -> Vec<Region> {
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn throw_mud_texel(entry: &Regs) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::mud::{LAST_THROWN, extra_throw}`.
     let (n, _) = texture_and_mud()?;
     guard(&throw_regions(), || unsafe {
         let mut r = Regs { ebx: n, ..*entry };
@@ -68,7 +69,7 @@ pub unsafe fn throw_mud_texel(entry: &Regs) -> Result<Regs, Refused> {
         r.eax = count;
         r = muddy_texel(&r)?;
         r.ebx = n;
-        let (sum, carried) = game_read::<u32>(EXTRA_SUM_RVA).overflowing_add(0x1000_0000);
+        let (sum, carried) = rc2k_core::race::mud::extra_throw(game_read(EXTRA_SUM_RVA));
         game_write(EXTRA_SUM_RVA, sum);
         if !carried {
             return Ok(r);

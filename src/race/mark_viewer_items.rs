@@ -36,53 +36,23 @@ hook_asm!(
 
 /// The Rust version.
 pub unsafe fn mark_viewer_items(list: u32) {
+    // Converted: `rc2k_core::race::viewer::item_marks`.
     unsafe { crate::menu::list_clear_marks::list_clear_marks(list) };
-    let mark = |item: u32, bit: u8| unsafe {
-        let at = (list + 0x18 + 0x10 * item) as *mut u8;
-        at.write(at.read() | bit);
-    };
     let block = get(BLOCK);
-    let blocks = get(BLOCKS);
-    if get(LAST_RACE_VIEWED) == 1 {
-        mark(0x14, 0x40);
-    }
-    if block == blocks {
-        for item in [0xF, 0x10, 0xD, 0xE, 0x19, 0x18, 0x17] {
-            mark(item, 0x80);
-        }
-    }
-    if (get(MARK_OUT) as i32) <= (get(MARK_IN) as i32) {
-        mark(0x11, 0x80);
-    }
-    let clip = get(CLIP_BLOCKS);
-    if clip == 0 || blocks.wrapping_add(clip) > 0x708 {
-        mark(0x12, 0x80);
-    }
-    if get(UNDO_BLOCKS) == 0 {
-        mark(0x13, 0x80);
-    }
-    if block <= get(MARK_IN) {
-        mark(0xA, 0x80);
-    }
-    if block >= get(MARK_OUT) {
-        mark(2, 0x80);
-    }
-    if blocks == 0 {
-        for item in (0..=0x11).chain(0x15..=0x19) {
-            mark(item, 0x80);
-        }
-    }
-    let camera = gb((CAMERAS + 5).wrapping_add(block.wrapping_mul(8) as usize));
-    if camera == 0 {
-        mark(0x18, 0x80);
-        mark(0x19, 0x80);
-    }
-    if camera == 1 {
-        mark(0xE, 0x80);
-        mark(0xD, 0x80);
-    }
-    if get(ONE_PLAYER) == 1 {
-        mark(0xF, 0x80);
+    let state = rc2k_core::race::viewer::ViewerState {
+        last_race: get(LAST_RACE_VIEWED) == 1,
+        block,
+        blocks: get(BLOCKS),
+        mark_in: get(MARK_IN),
+        mark_out: get(MARK_OUT),
+        clip_blocks: get(CLIP_BLOCKS),
+        undo_blocks: get(UNDO_BLOCKS),
+        camera: gb((CAMERAS + 5).wrapping_add(block.wrapping_mul(8) as usize)),
+        one_player: get(ONE_PLAYER) == 1,
+    };
+    for (item, bit) in rc2k_core::race::viewer::item_marks(&state) {
+        let at = (list + 0x18 + 0x10 * item) as *mut u8;
+        unsafe { at.write(at.read() | bit) };
     }
 }
 

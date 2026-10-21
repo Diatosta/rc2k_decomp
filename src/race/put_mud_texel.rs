@@ -41,7 +41,8 @@ pub unsafe fn put_mud_texel(entry: &Regs) -> Result<u32, Refused> {
         return Ok(entry.eax);
     };
     unsafe {
-        if x >= game_read::<u32>(WIDTH_RVA) || y >= game_read::<u32>(HEIGHT_RVA) {
+        // Converted: `rc2k_core::race::mud::inside` (the place by `texel_place`).
+        if !rc2k_core::race::mud::inside(x, y, game_read(WIDTH_RVA), game_read(HEIGHT_RVA)) {
             return Ok(entry.eax);
         }
         let put = Regs {

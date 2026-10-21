@@ -93,17 +93,11 @@ pub unsafe fn find_snapshot_number() {
         let mut highest = 0u32;
         if find_first(a(SNAPSHOT_PATH)) {
             loop {
+                // Converted: `rc2k_core::race::viewer::snapshot_number`.
                 let name = &(*(a(FIND_DATA) as *const WIN32_FIND_DATAA)).cFileName;
-                let mut number = 0u32;
-                let all_digits = (0..3).all(|n| {
-                    let digit = (name[n] as u8).wrapping_sub(b'0');
-                    if digit > 9 {
-                        return false;
-                    }
-                    number = number.wrapping_mul(10).wrapping_add(digit as u32);
-                    true
-                });
-                if all_digits && number > highest {
+                if let Some(number) = rc2k_core::race::viewer::snapshot_number(|n| name[n] as u8)
+                    && number > highest
+                {
                     highest = number;
                 }
                 if !find_next_wanted() {

@@ -10,6 +10,11 @@
 //! each of the three a whole number (signed) of it: the third for st(3), the second for
 //! st(2), the first for st(1). Thunk by `quad_triple_hook!`. Callers: four in the marks'
 //! particles. Self-test: as `marks::jitter_point`'s.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `spread_point_plain`, through
+//! `rc2k_core::marks::particles::spread` (plain floats; the x87 version stays for the Rust
+//! callers in unconverted code). Shadow mode and the self-test compare within
+//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, rva};
@@ -19,7 +24,8 @@ use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::vector3::{Quad80, quad_triple_hook};
 use crate::screens::harness::Left;
-use crate::service::harness::{at, capture, check_state, dispatch_state, restore};
+use crate::service::floats::*;
+use crate::service::harness::{at, capture, restore};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -58,18 +64,37 @@ pub unsafe fn spread_point(inputs: [[u8; 10]; 4]) -> ([[u8; 10]; 3], u32) {
     }
 }
 
+/// The converted version (plain floats): the hook's.
+// Converted: `rc2k_core::marks::particles::spread`
+pub unsafe fn spread_point_plain(inputs: [[u8; 10]; 4]) -> ([[u8; 10]; 3], u32) {
+    use rc2k_core::math::extended::{from_f64, to_f64};
+    let [spread, b, c, d] = inputs.map(|v| to_f64(v) as f32);
+    unsafe {
+        let scale = f64::from_bits(game_read(SCALE_RVA));
+        let (point, third) =
+            rc2k_core::marks::particles::spread(spread, [b, c, d], game_read(RANDOM_RVA), scale);
+        game_write(RANDOM_RVA, third);
+        (point.map(|v| from_f64(v as f64)), third)
+    }
+}
+
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    let (out, eax) = unsafe { spread_point(QUAD.inputs()) };
+    let (out, eax) = unsafe { spread_point_plain(QUAD.inputs()) };
     QUAD.set_outputs(out);
     Ok(left_of(&Regs { eax, ..*r }))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(
+    let floats = Floats {
+        memory: &[(QUAD.output_region(), EXTENDED)],
+        regs: &[],
+    };
+    dispatch_state_floats(
         &HOOK,
         r,
         original_with_quad,
         &[QUAD.output_region(), at(RANDOM_RVA)],
+        &floats,
         &rust,
     );
 }
@@ -80,23 +105,34 @@ fn self_test() -> (usize, usize) {
     };
     let regions = [QUAD.output_region(), at(RANDOM_RVA)];
     let saved = capture(&[at(RANDOM_RVA)]);
-    for seed in 1..=30u32 {
-        let inputs = test_inputs(seed);
-        let random = seed.wrapping_mul(0x9E37_79B9);
-        check_state(
-            &mut t,
-            &format!("seed {seed}: inputs {inputs:x?}, random {random:#x}"),
-            original_with_quad,
-            Regs::SENTINEL,
-            &|| {
-                unsafe { game_write(RANDOM_RVA, random) };
-                QUAD.set_inputs(inputs);
-                QUAD.set_outputs([[0xAA; 10]; 3]);
-            },
-            &regions,
-            &rust,
-        );
-    }
+    let tolerant_places = [(QUAD.output_region(), EXTENDED)];
+    let tolerant = Floats {
+        memory: &tolerant_places,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, held| {
+        for seed in 1..=30u32 {
+            let inputs = test_inputs(seed);
+            let random = seed.wrapping_mul(0x9E37_79B9);
+            check_state_floats(
+                &mut t,
+                "marks::spread_point",
+                &format!(
+                    "control word {word:#x}, seed {seed}: inputs {inputs:x?}, random {random:#x}"
+                ),
+                original_with_quad,
+                Regs::SENTINEL,
+                &|| {
+                    unsafe { game_write(RANDOM_RVA, random) };
+                    QUAD.set_inputs(inputs);
+                    QUAD.set_outputs([[0xAA; 10]; 3]);
+                },
+                &regions,
+                held,
+                &rust,
+            );
+        }
+    });
     restore(&[at(RANDOM_RVA)], &saved);
     t.finish()
 }

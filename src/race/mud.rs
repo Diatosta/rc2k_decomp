@@ -73,7 +73,8 @@ pub unsafe fn raw_pixel(x: u32, y: u32) -> (u32, u32) {
 /// `race::mud_pixel` (0x44A58A): `read_pixel` inside the surface (unsigned), else 0.
 pub unsafe fn mud_pixel(x: u32, y: u32) -> u32 {
     unsafe {
-        if x >= game_read::<u32>(WIDTH_RVA) || y >= game_read::<u32>(HEIGHT_RVA) {
+        // Converted: `rc2k_core::race::mud::inside`.
+        if !rc2k_core::race::mud::inside(x, y, game_read(WIDTH_RVA), game_read(HEIGHT_RVA)) {
             return 0;
         }
         read_pixel(x, y)

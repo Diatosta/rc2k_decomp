@@ -49,6 +49,70 @@ pub unsafe fn turn_kept_vectors() {
     }
 }
 
+// ---- the converted versions (`rc2k_core::marks::view`) ----
+
+use rc2k_core::marks::view::{KeptVectors, SineCosine};
+
+/// The kept vectors now.
+pub unsafe fn kept_vectors() -> KeptVectors {
+    KeptVectors(VECTORS_RVA.map(|v| unsafe { game_read::<[u32; 3]>(v) }.map(f32::from_bits)))
+}
+
+/// The kept vectors' `parts` written back, in that order (nothing overlaps).
+unsafe fn put_kept_vectors(k: &KeptVectors, parts: &[usize]) {
+    for (v, at) in k.0.iter().zip(VECTORS_RVA) {
+        for &n in parts {
+            unsafe { game_write(at + 4 * n, v[n].to_bits()) };
+        }
+    }
+}
+
+/// A stored sine and cosine.
+unsafe fn stored(sc: [usize; 2]) -> SineCosine {
+    unsafe {
+        SineCosine {
+            sine: f32::from_bits(game_read(sc[0])),
+            cosine: f32::from_bits(game_read(sc[1])),
+        }
+    }
+}
+
+/// The converted `turn_kept_xz` (plain floats): the hook's.
+// Converted: `rc2k_core::marks::view::KeptVectors::turn_xz`
+pub unsafe fn turn_kept_xz_plain() {
+    unsafe {
+        let mut k = kept_vectors();
+        k.turn_xz(stored(SECOND_RVA));
+        put_kept_vectors(&k, &[2, 0]);
+    }
+}
+
+/// The converted `turn_kept_zy` (plain floats): the hook's.
+// Converted: `rc2k_core::marks::view::KeptVectors::turn_zy`
+pub unsafe fn turn_kept_zy_plain() {
+    unsafe {
+        let mut k = kept_vectors();
+        k.turn_zy(stored(FIRST_RVA));
+        put_kept_vectors(&k, &[1, 2]);
+    }
+}
+
+/// The converted `turn_kept_vectors` (plain floats): the hook's.
+// Converted: `rc2k_core::marks::view::turn_kept_vectors`
+pub unsafe fn turn_kept_vectors_plain() {
+    unsafe {
+        let angles = ANGLES_RVA.map(|a| f32::from_bits(game_read(a)));
+        let mut k = kept_vectors();
+        let turns = rc2k_core::marks::view::turn_kept_vectors(&mut k, angles);
+        for (t, to) in turns.into_iter().zip([FIRST_RVA, SECOND_RVA]) {
+            game_write(to[0], t.sine.to_bits());
+            game_write(to[1], t.cosine.to_bits());
+        }
+        // Between them the two turns write every part.
+        put_kept_vectors(&k, &[0, 1, 2]);
+    }
+}
+
 /// The kept vectors' dwords.
 pub fn vector_dwords() -> Vec<usize> {
     VECTORS_RVA

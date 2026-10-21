@@ -7,6 +7,11 @@
 //! See `marks/turns.rs`. Thunk by `pair_hook!` (two values popped in, two pushed out).
 //! Callers: `sub_4BEFD2` (eight). Self-test: the original and the Rust version on pairs and
 //! turns by lot, put back afterwards.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `turns::turn_pair_plain`, through
+//! `rc2k_core::marks::turns::turn_pair` (plain floats; the x87 version stays for the Rust
+//! callers in unconverted code). Shadow mode and the self-test compare within
+//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_write, rva};
@@ -14,7 +19,8 @@ use crate::marks::turns::*;
 use crate::race::stage_prefs::left_of;
 use crate::scene::vector3::{Pair80, pair_hook};
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, check_state, dispatch_state, restore};
+use crate::service::floats::*;
+use crate::service::harness::{capture, restore};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -33,12 +39,23 @@ pair_hook!(
 );
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    PAIR.set_outputs(unsafe { turn_pair(PAIR.inputs()) });
+    PAIR.set_outputs(unsafe { turn_pair_plain(PAIR.inputs()) });
     Ok(left_of(r))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, original_with_pair, &[PAIR.output_region()], &rust);
+    let floats = Floats {
+        memory: &[(PAIR.output_region(), EXTENDED)],
+        regs: &[],
+    };
+    dispatch_state_floats(
+        &HOOK,
+        r,
+        original_with_pair,
+        &[PAIR.output_region()],
+        &floats,
+        &rust,
+    );
 }
 
 fn self_test() -> (usize, usize) {
@@ -47,25 +64,34 @@ fn self_test() -> (usize, usize) {
     };
     let turn = turn_regions();
     let saved = capture(&turn);
-    for seed in 1..=12u32 {
-        check_state(
-            &mut t,
-            &format!("seed {seed}"),
-            original_with_pair,
-            Regs::SENTINEL,
-            &|| {
-                let mut m = [0u32; 4];
-                crate::scene::matrix3::test_floats(seed + 40, &mut m);
-                for (r, v) in TURN_RVA.iter().zip(m) {
-                    unsafe { game_write(*r, v) };
-                }
-                PAIR.set_inputs(test_pair(seed));
-                PAIR.set_outputs([[0xAA; 10]; 2]);
-            },
-            &[PAIR.output_region()],
-            &rust,
-        );
-    }
+    let tolerant_places = [(PAIR.output_region(), EXTENDED)];
+    let tolerant = Floats {
+        memory: &tolerant_places,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, held| {
+        for seed in 1..=12u32 {
+            check_state_floats(
+                &mut t,
+                "marks::turn_pair",
+                &format!("control word {word:#x}, seed {seed}"),
+                original_with_pair,
+                Regs::SENTINEL,
+                &|| {
+                    let mut m = [0u32; 4];
+                    crate::scene::matrix3::test_floats(seed + 40, &mut m);
+                    for (r, v) in TURN_RVA.iter().zip(m) {
+                        unsafe { game_write(*r, v) };
+                    }
+                    PAIR.set_inputs(test_pair(seed));
+                    PAIR.set_outputs([[0xAA; 10]; 2]);
+                },
+                &[PAIR.output_region()],
+                held,
+                &rust,
+            );
+        }
+    });
     restore(&turn, &saved);
     t.finish()
 }

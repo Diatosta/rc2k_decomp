@@ -10,6 +10,10 @@
 //! +0 the cosine, +4 the sine, +0x10 the sine negated, +0x14 the cosine. Three callers
 //! (`race::get_mat_crash` and two more). Self-test: 41 angles on the game's matrix, put
 //! back afterwards.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `set_turn_z_16_plain`, through
+//! `rc2k_core::scene::matrices::set_table_turn`; compared exactly as before (the earlier
+//! version stays for the Rust callers in unconverted code).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
@@ -43,7 +47,7 @@ fn regions() -> [Region; 2] {
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { matrix::set_turn_z_16(r.edx) })
+    Ok(unsafe { matrix::set_turn_z_16_plain(r.edx) })
 }
 
 extern "C" fn dispatch(r: &mut Regs) {

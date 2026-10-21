@@ -7,6 +7,10 @@
 //!
 //! Caller: `marks::squares_spawn` (twice). The call is `spawn_square`'s Rust version.
 //! Self-test: the original and the Rust version on the game's items, randoms by lot.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `pick_square_plain`, through
+//! `rc2k_core::marks::items::pick_square`; compared exactly as before (the earlier version
+//! stays for the Rust callers in unconverted code).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
@@ -46,6 +50,22 @@ pub unsafe fn pick_square(entry: &Regs) -> Regs {
     g
 }
 
+/// The converted version: the hook's.
+// Converted: `rc2k_core::marks::items::pick_square`
+pub unsafe fn pick_square_plain(entry: &Regs) -> Regs {
+    unsafe {
+        let p = rc2k_core::marks::items::pick_square(game_read(RANDOM_RVA));
+        game_write(RANDOM_RVA, p.random);
+        let ecx = spawn_square::spawn_square_plain(p.x, p.z, p.kind);
+        Regs {
+            eax: p.x,
+            ebx: p.z,
+            ecx,
+            ..*entry
+        }
+    }
+}
+
 fn regions() -> Vec<crate::service::harness::Region> {
     let mut r = spawn_square::regions();
     r.push(at(RANDOM_RVA));
@@ -53,7 +73,7 @@ fn regions() -> Vec<crate::service::harness::Region> {
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { pick_square(r) }))
+    Ok(left_of(&unsafe { pick_square_plain(r) }))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {

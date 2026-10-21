@@ -311,10 +311,9 @@ pub fn number_regions() -> Vec<Region> {
 pub unsafe fn auto_set_up_car(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
+        // Converted: `rc2k_core::race::cars::set_up_pick`.
         let stage: u32 = game_read(STAGE_RVA);
-        if stage == 0x14 {
-            return Err(BadInput("stage 0x14: the set-up index runs outside").into());
-        }
+        let pick = rc2k_core::race::cars::set_up_pick(stage)?;
         let b = g.esi;
         let put = |off: u32, v: u32| ((b.wrapping_add(off)) as *mut u32).write_unaligned(v);
         for off in [0x20, 0x3C, 0x30, 0x34] {
@@ -326,13 +325,12 @@ pub unsafe fn auto_set_up_car(entry: &Regs, part: Part) -> Result<Regs, Refused>
         g.eax = stage;
         log(9, word(1), &g, part)?;
         log(11, g.eax, &g, part)?;
-        if !(0x14..0x50).contains(&stage) {
+        let Some(pick) = pick else {
             return Ok(g);
-        }
-        let v = stage - 0x15;
+        };
         g.ebx = 10;
-        g.edx = v % 10;
-        g.eax = (v / 10) * 6 + v % 10;
+        g.edx = pick.rest;
+        g.eax = pick.index;
         log(9, word(2), &g, part)?;
         log(11, g.eax, &g, part)?;
         g.eax <<= 4;
@@ -957,25 +955,10 @@ unsafe fn opponent_kinds(first: u32) -> Vec<u32> {
                 })
                 .eax;
                 !crate::race::race_shell::kind_unusable(k).0
-                    && place.wrapping_sub(ebp).wrapping_abs_i32() < 5
+                    && rc2k_core::race::cars::opponent_distance(place, ebp).1
                     && k != first
             })
             .collect()
-    }
-}
-
-trait WrappingAbs {
-    fn wrapping_abs_i32(self) -> u32;
-}
-
-impl WrappingAbs for u32 {
-    /// `cmp eax, 0` / `jns` / `neg`.
-    fn wrapping_abs_i32(self) -> u32 {
-        if (self as i32) < 0 {
-            self.wrapping_neg()
-        } else {
-            self
-        }
     }
 }
 
@@ -1019,16 +1002,18 @@ pub unsafe fn choose_arcade_opponents(entry: &Regs, part: Part) -> Result<Regs, 
                 } else {
                     crate::math::next_random::next_random()
                 };
+                // Converted: `rc2k_core::race::cars::{drawn_kind, opponent_distance}`.
                 g.ebx = 0x22;
-                g.edx = ((g.eax as u64 * 0x22) >> 32) as u32;
+                g.edx = rc2k_core::race::cars::drawn_kind(g.eax);
                 g.eax = g.edx;
                 if kind_unusable(g.eax).0 {
                     continue;
                 }
                 g = index_of_kind(&g);
                 g.ebx = g.eax;
-                g.eax = g.eax.wrapping_sub(g.ebp).wrapping_abs_i32();
-                if g.eax >= 5 || taken.contains(&g.edx) {
+                let close;
+                (g.eax, close) = rc2k_core::race::cars::opponent_distance(g.eax, g.ebp);
+                if !close || taken.contains(&g.edx) {
                     continue;
                 }
                 break;

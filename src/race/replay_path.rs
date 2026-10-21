@@ -14,7 +14,7 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::a;
-use crate::race::viewer::{CF, LAST_RACE, Saved, ZF, check_original, dispatch_regs, region};
+use crate::race::viewer::{CF, Saved, ZF, check_original, dispatch_regs, region};
 use crate::service::harness::Region;
 use std::sync::atomic::AtomicUsize;
 
@@ -38,17 +38,20 @@ const PATHS: usize = 0x94E8B0; // `numbered_path`'s buffer
 /// The Rust version: the registers and flags it leaves.
 pub fn replay_path(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
+    // Converted: `rc2k_core::race::viewer::ReplayFile`.
+    use rc2k_core::race::viewer::ReplayFile;
     r.eax = a(LAST_RACE_PATH);
     r.set_carry(false);
-    if r.ebx == LAST_RACE {
-        r.set_zero(true);
-        return Ok(r);
-    }
-    let template = if r.ebx < 100 {
-        SAVED_TEMPLATE
-    } else {
-        r.ebx -= 100;
-        OWN_TEMPLATE
+    let template = match ReplayFile::of(r.ebx) {
+        ReplayFile::LastRace => {
+            r.set_zero(true);
+            return Ok(r);
+        }
+        ReplayFile::Saved(_) => SAVED_TEMPLATE,
+        ReplayFile::Own(n) => {
+            r.ebx = n;
+            OWN_TEMPLATE
+        }
     };
     let path = unsafe {
         crate::files::numbered_path::numbered_path_in_game(a(template) as *const u8, r.ebx)

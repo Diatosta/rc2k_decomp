@@ -23,8 +23,8 @@ pub const VIEW_TURN_RVA: usize = rva(0x5EA24C); // dword_5EA24C
 pub const OBJECT_RVA: usize = rva(0x5EA30C); // flt_5EA30C
 pub const MATRIX_LEN: usize = 0x40;
 
-const SINES_RVA: usize = rva(0xA23AE4); // flt_A23AE4, 0x1000 floats
-const COSINES_RVA: usize = rva(0xA24AE4); // dword_A24AE4
+pub const SINES_RVA: usize = rva(0xA23AE4); // flt_A23AE4, 0x1000 floats
+pub const COSINES_RVA: usize = rva(0xA24AE4); // dword_A24AE4
 pub const TURN_X_WORK_RVA: usize = rva(0x624148); // dword_624148, dword_62414C
 pub const TURN_Y_WORK_RVA: usize = rva(0x624150); // dword_624150, dword_624154
 pub const LIGHT_DIRECTION_RVA: usize = rva(0x6240A8); // g_lightDirection, three floats
@@ -207,6 +207,167 @@ pub unsafe fn make_object_matrix() -> Left {
             .with(EDI, game_addr(PLACED_RVA) as u32)
             .with(EBP, game_addr(OBJECT_RVA) as u32)
     }
+}
+
+// ---- the converted versions (`rc2k_core::scene::matrices`) ----
+
+/// The game's memory as the core's `Places`: a place is an address (unaligned allowed).
+pub struct GamePlaces(());
+
+impl GamePlaces {
+    /// # Safety
+    /// Every place the core is given must be the game's memory, readable and writable
+    /// where the original reads and writes.
+    pub unsafe fn new() -> Self {
+        Self(())
+    }
+}
+
+impl rc2k_core::scene::places::Places for GamePlaces {
+    fn dword(&self, at: u32) -> u32 {
+        // SAFETY: as `new` says.
+        unsafe { (at as *const u32).read_unaligned() }
+    }
+
+    fn set_dword(&mut self, at: u32, value: u32) {
+        // SAFETY: as `new` says.
+        unsafe { (at as *mut u32).write_unaligned(value) }
+    }
+}
+
+/// Where the matrices and their work are in the game.
+pub fn layout() -> rc2k_core::scene::matrices::Layout {
+    use crate::scene::view_matrix::*;
+    let a = |rva: usize| game_addr(rva) as u32;
+    rc2k_core::scene::matrices::Layout {
+        turn_x: a(TURN_X_RVA),
+        turn_y: a(TURN_Y_RVA),
+        turn_z: a(TURN_Z_RVA),
+        placed: a(PLACED_RVA),
+        turned: a(TURNED_RVA),
+        lit: a(LIT_RVA),
+        view_turn: a(VIEW_TURN_RVA),
+        object: a(OBJECT_RVA),
+        identity: a(IDENTITY_RVA),
+        kept_place: a(KEPT_PLACE_RVA),
+        view_back: a(VIEW_BACK_RVA),
+        view: a(VIEW_RVA),
+        turn_x_work: a(TURN_X_WORK_RVA),
+        turn_y_work: a(TURN_Y_WORK_RVA),
+        turn_z_work: a(TURN_Z_WORK_RVA),
+        light_direction: a(LIGHT_DIRECTION_RVA),
+        checked: a(CHECKED_RVA),
+        squared: a(SQUARED_RVA),
+        inverted: a(INVERTED_RVA),
+        sines: a(SINES_RVA),
+        cosines: a(COSINES_RVA),
+        half_turns: a(HALF_TURNS_RVA),
+        turn: a(TURN_RVA),
+        nothing: a(NOTHING_RVA),
+    }
+}
+
+/// A table turning through the core, with the registers it leaves.
+unsafe fn set_table_turn_plain(axis: rc2k_core::scene::matrices::Axis, angle: u32) -> Left {
+    let l = layout();
+    let t = rc2k_core::scene::matrices::set_table_turn(
+        &mut unsafe { GamePlaces::new() },
+        &l,
+        axis,
+        angle,
+    );
+    Left::nothing()
+        .with(EAX, t.sine)
+        .with(EBX, t.cosine)
+        .with(ECX, t.negated())
+        .with(EDI, axis.places(&l).0)
+}
+
+/// The converted `set_turn_x`: the hook's.
+// Converted: `rc2k_core::scene::matrices::set_table_turn`
+pub unsafe fn set_turn_x_plain(angle: u32) -> Left {
+    unsafe { set_table_turn_plain(rc2k_core::scene::matrices::Axis::X, angle) }
+}
+
+/// The converted `set_turn_y`: the hook's.
+// Converted: `rc2k_core::scene::matrices::set_table_turn`
+pub unsafe fn set_turn_y_plain(angle: u32) -> Left {
+    unsafe { set_table_turn_plain(rc2k_core::scene::matrices::Axis::Y, angle) }
+}
+
+/// The converted `set_turn_z_16`: the hook's.
+// Converted: `rc2k_core::scene::matrices::set_table_turn`
+pub unsafe fn set_turn_z_16_plain(angle: u32) -> Left {
+    unsafe { set_table_turn_plain(rc2k_core::scene::matrices::Axis::Z, angle) }
+}
+
+/// The converted `set_place`: the hook's.
+// Converted: `rc2k_core::scene::matrices::set_place`
+pub unsafe fn set_place_plain(place: [u32; 3]) {
+    rc2k_core::scene::matrices::set_place(&mut unsafe { GamePlaces::new() }, &layout(), place);
+}
+
+/// The converted `multiply_matrices` (plain floats): the hook's.
+// Converted: `rc2k_core::scene::matrices::multiply`
+pub unsafe fn multiply_matrices_plain(a: usize, b: usize, out: usize) -> Left {
+    let p = &mut unsafe { GamePlaces::new() };
+    rc2k_core::scene::matrices::multiply(p, a as u32, b as u32, out as u32);
+    Left::nothing().with(ECX, 0).with(EDX, 0)
+}
+
+/// The converted `copy_matrix_with_place` (plain floats): the hook's.
+// Converted: `rc2k_core::scene::matrices::copy_with_place`
+pub unsafe fn copy_matrix_with_place_plain(from: usize, other: usize, out: usize) -> Left {
+    let p = &mut unsafe { GamePlaces::new() };
+    rc2k_core::scene::matrices::copy_with_place(p, from as u32, other as u32, out as u32);
+    Left::nothing().with(ECX, 0)
+}
+
+/// The light's two angles (x, y), as `set_light_direction` reads them.
+unsafe fn light_angles() -> [u32; 2] {
+    unsafe { [game_read(LIGHT_TURN_X_RVA), game_read(LIGHT_TURN_Y_RVA)] }
+}
+
+/// The converted `set_light_direction` (plain floats): the hook's.
+// Converted: `rc2k_core::scene::matrices::set_light_direction`
+pub unsafe fn set_light_direction_plain() {
+    unsafe {
+        rc2k_core::scene::matrices::set_light_direction(
+            &mut GamePlaces::new(),
+            &layout(),
+            light_angles(),
+        )
+    };
+}
+
+/// The converted `make_object_matrix` (plain floats): the hook's.
+// Converted: `rc2k_core::scene::matrices::make_object_matrix`
+pub unsafe fn make_object_matrix_plain() -> Left {
+    use rc2k_core::scene::matrices::{Object, make_object_matrix};
+    unsafe {
+        let object = Object {
+            angles: [game_read(ANGLE_Y_RVA), game_read(ANGLE_X_RVA)],
+            place: game_read(PLACE_RVA),
+            size: game_read(SIZE_RVA),
+        };
+        make_object_matrix(&mut GamePlaces::new(), &layout(), light_angles(), object);
+        Left::nothing()
+            .with(EAX, object.place[0])
+            .with(EBX, object.size)
+            .with(ECX, 0)
+            .with(EDX, 0)
+            .with(ESI, game_addr(TURNED_RVA) as u32)
+            .with(EDI, game_addr(PLACED_RVA) as u32)
+            .with(EBP, game_addr(OBJECT_RVA) as u32)
+    }
+}
+
+/// Each region a float place held to the converted functions' tolerance.
+pub fn float_places(regions: &[Region]) -> Vec<(Region, crate::service::floats::Tolerance)> {
+    regions
+        .iter()
+        .map(|&r| (r, crate::service::floats::FLOAT))
+        .collect()
 }
 
 // ---- for the self-tests ----

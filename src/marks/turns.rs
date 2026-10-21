@@ -148,6 +148,68 @@ pub unsafe fn clamp_pair(entry: &Regs, inputs: [[u8; 10]; 2]) -> (Regs, [[u8; 10
     (g, outputs)
 }
 
+// ---- the converted versions (`rc2k_core::marks::turns`) ----
+
+/// The line turn's four floats.
+fn line_turn_now() -> rc2k_core::marks::turns::LineTurn {
+    TURN_RVA.map(|r| f32::from_bits(unsafe { game_read(r) }))
+}
+
+/// The converted `set_line_turn` / `set_line_turn_back` (plain floats): the hooks'.
+// Converted: `rc2k_core::marks::turns::line_turn`
+pub unsafe fn set_line_turn_plain(line: u32, back: bool) {
+    use rc2k_core::marks::turns::{LINE_TURN_ORDER, line_turn};
+    let f = |o: u32| f32::from_bits(unsafe { get(line + o) });
+    let m = line_turn([f(0), f(4)], [f(0xC), f(0x10)], back);
+    for n in LINE_TURN_ORDER {
+        unsafe { game_write(TURN_RVA[n], m[n].to_bits()) };
+    }
+}
+
+/// The converted `scale_rows3` (plain floats): the hook's.
+// Converted: `rc2k_core::marks::turns::scale_rows`
+pub unsafe fn scale_rows3_plain(rows: u32) {
+    use crate::scene::vector3::{read_floats, write_floats};
+    unsafe {
+        let r: [[f32; 3]; 3] = std::array::from_fn(|n| read_floats(rows + 12 * n as u32));
+        let lengths: [u32; 3] = game_read(LENGTHS_RVA);
+        let made = rc2k_core::marks::turns::scale_rows(r, lengths.map(f32::from_bits));
+        write_floats(rows, made.as_flattened());
+    }
+}
+
+/// The converted `smooth_steps` (plain floats): the hook's.
+// Converted: `rc2k_core::marks::turns::smooth_pair`
+pub unsafe fn smooth_steps_plain(entry: &Regs) -> Regs {
+    let mut g = *entry;
+    unsafe {
+        let a = g.ebx;
+        let ease: u32 = game_read(EASE_RVA);
+        let steps: [i32; 2] = STEPS_RVA.map(|r| game_read(r));
+        let (c, b) = rc2k_core::marks::turns::smooth_pair(
+            g.eax,
+            f32::from_bits(g.ebx),
+            f32::from_bits(g.ecx),
+            f32::from_bits(ease),
+            steps,
+        );
+        (g.ecx, g.ebx) = (c.to_bits(), b.to_bits());
+        for r in SCRATCH_RVA {
+            game_write(r, a);
+        }
+    }
+    g
+}
+
+/// The converted `turn_pair` (plain floats): the hook's.
+// Converted: `rc2k_core::marks::turns::turn_pair`
+pub unsafe fn turn_pair_plain(inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
+    use rc2k_core::math::extended::{from_f64, to_f64};
+    let (a, b) =
+        rc2k_core::marks::turns::turn_pair(line_turn_now(), to_f64(inputs[0]), to_f64(inputs[1]));
+    [from_f64(a), from_f64(b)]
+}
+
 /// Two 80-bit values from floats, for the tests.
 pub fn test_pair(seed: u32) -> [[u8; 10]; 2] {
     let mut v = [0u32; 2];

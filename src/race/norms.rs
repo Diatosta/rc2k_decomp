@@ -2,7 +2,7 @@
 //! (faces of 0x40 bytes, points of 12), and each face's two normals (of its first three
 //! points and of its last three) stored in it.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
 
@@ -20,7 +20,6 @@ pub const NORMAL_WORK_LEN: usize = 15 * 4;
 const COURSE_MEMORY_RVA: usize = rva(0x5C6F94); // g_courseMemory
 const LAYOUT_RVA: usize = rva(0x5CCCB8); // dword_5CCCB8 .. : the layout's five
 const FIRST_COUNT_RVA: usize = rva(0x5CCD18); // dword_5CCD18: 0x20-byte records first
-const MOST_FACES: u32 = 0x10_0000;
 
 /// `race::normalise_work_vector` (0x41FC4D): `g_workVector` made one long by its 80-bit
 /// length (`math::x87::normalise_in_place`); a length equal to 0 makes it 0; -0.0 parts
@@ -88,27 +87,25 @@ pub unsafe fn face_normal(entry: &Regs) -> Regs {
 /// into +0x1C, +0x34, +0x3C. Every register preserved (`face` gives the callee).
 pub unsafe fn store_face_normal(face_number: u32, normal: &mut dyn FnMut(u32, u32, u32)) {
     unsafe {
+        // Converted: `rc2k_core::race::faces::{takes_normals, repeated_points,
+        // with_repeated, normal_made}`.
+        use rc2k_core::race::faces::{
+            NORMAL_TRIANGLES, normal_made, repeated_points, takes_normals, with_repeated,
+        };
         let faces: u32 = game_read(FACES_RVA);
         let face = faces.wrapping_add(face_number << 6);
         let dword = |o: u32| ((face + o) as *const u32).read_unaligned();
-        if *(face as *const u8) >= 0x10 {
+        if !takes_normals(*(face as *const u8)) {
             return;
         }
-        let same = |x: u32, y: u32| (dword(x) ^ dword(y)) & 0xFFF == 0;
-        let mut repeated = same(4, 8) || same(4, 0xC) || same(8, 0xC);
-        if !repeated && game_read::<u32>(QUAD_RVA) != u32::MAX {
-            repeated = same(4, 0x10) || same(8, 0x10) || same(0xC, 0x10);
-        }
+        let corners = [4, 8, 0xC, 0x10].map(dword);
+        let repeated = repeated_points(corners, || game_read::<u32>(QUAD_RVA) != u32::MAX);
         let flags = (face + 2) as *mut u16;
-        let f = flags.read_unaligned();
-        flags.write_unaligned(if repeated { f | 0x200 } else { f & 0xFDFF });
+        flags.write_unaligned(with_repeated(flags.read_unaligned(), repeated));
         let count: u32 = game_read(POINT_COUNT_RVA);
-        for (points, places) in [
-            ([4u32, 8, 0xC], [0x18u32, 0x30, 0x38]),
-            ([0x10, 0xC, 8], [0x1C, 0x34, 0x3C]),
-        ] {
-            let [a, b, c] = points.map(dword);
-            if a < count && b < count && c < count {
+        for (points, places) in NORMAL_TRIANGLES {
+            let [a, b, c] = points.map(|k| corners[k]);
+            if normal_made([a, b, c], count) {
                 normal(a, b, c);
             }
             let work: [u32; 3] = game_read(WORK_VECTOR_RVA);
@@ -125,15 +122,14 @@ pub unsafe fn store_face_normal(face_number: u32, normal: &mut dyn FnMut(u32, u3
 /// offset in `dword_5CCCC8`); the first at `dword_5CCCB8`. Every register preserved.
 pub unsafe fn lay_out_course() {
     unsafe {
-        let memory: u32 = game_read(COURSE_MEMORY_RVA);
-        let first = memory.wrapping_add(0x100);
-        let faces = first.wrapping_add(game_read::<u32>(FIRST_COUNT_RVA).wrapping_mul(0x20));
-        let points = faces.wrapping_add(game_read::<u32>(FACE_COUNT_RVA).wrapping_mul(0x40));
-        let after = points.wrapping_add(game_read::<u32>(POINT_COUNT_RVA).wrapping_mul(12));
-        game_write(
-            LAYOUT_RVA,
-            [first, faces, points, after, after.wrapping_sub(memory)],
+        // Converted: `rc2k_core::race::faces::CourseLayout`.
+        let layout = rc2k_core::race::faces::CourseLayout::of(
+            game_read(COURSE_MEMORY_RVA),
+            game_read(FIRST_COUNT_RVA),
+            game_read(FACE_COUNT_RVA),
+            game_read(POINT_COUNT_RVA),
         );
+        game_write(LAYOUT_RVA, layout.dwords());
     }
 }
 
@@ -146,12 +142,9 @@ pub unsafe fn store_norms(
 ) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
+        // Converted: `rc2k_core::race::faces::check_face_count`.
         let count: u32 = game_read(FACE_COUNT_RVA);
-        if count == 0 || count >= MOST_FACES {
-            return Err(
-                BadInput("no faces, or 0x100000 or more: the original counts round").into(),
-            );
-        }
+        rc2k_core::race::faces::check_face_count(count)?;
         lay_out_course();
         for face in 0..count {
             store_face_normal(face, normal);

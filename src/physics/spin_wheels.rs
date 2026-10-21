@@ -7,14 +7,16 @@
 //! Out: eax the second's turn; the rest kept; no flags read
 //!
 //! Caller: `sub_43B635` (0x43B90A), every physics step.
-//! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables), 8 fillings.
+//! Self-test: `physics/copy_hooks_test.rs` (`test_moves_floats`: a copy on test
+//! variables against the converted version), 8 fillings, exact at double precision.
 
 use crate::errors::Refused;
 use crate::framework::{EAX, RawHook, Regs, game_addr, game_read, hook_asm, rva};
 use crate::math::x87_run::div_mul3_to_int;
-use crate::physics::copy_hooks_test::{lot, test_moves};
+use crate::physics::copy_hooks_test::{lot, test_moves_floats};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::floats::{Floats, ROUNDED, dispatch_state_floats};
+use rc2k_core::physics::motion::spin;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -55,6 +57,29 @@ pub unsafe fn spin_at(v: &[u32]) -> u32 {
     }
 }
 
+/// The converted version (`rc2k_core::physics::motion`, plain floats) on the variables
+/// at `v`: the last turn added.
+// Converted: `rc2k_core::physics::motion::spin`.
+pub unsafe fn spin_at_plain(v: &[u32]) -> u32 {
+    unsafe {
+        let k = |x: usize| f32::from_bits(game_read::<u32>(rva(x)));
+        let speeds = [0, 1].map(|n| f32::from_bits(get(v, n)));
+        let mut turns = [get(v, 2), get(v, 3)];
+        let last = spin(
+            speeds,
+            &mut turns,
+            k(0x613EBC),
+            k(0x61388C),
+            k(0x5C5D98),
+            k(0x5C5DC8),
+        );
+        put(v, 4, last as u32);
+        put(v, 2, turns[0]);
+        put(v, 3, turns[1]);
+        last as u32
+    }
+}
+
 fn game() -> Vec<u32> {
     VARIABLES
         .iter()
@@ -62,18 +87,29 @@ fn game() -> Vec<u32> {
         .collect()
 }
 
-/// The Rust version.
+/// The Rust version (the exact one, for `physics::car_physics_step`).
 pub unsafe fn spin_wheels() -> u32 {
     unsafe { spin_at(&game()) }
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(Left::nothing().with(EAX, unsafe { spin_wheels() }))
+    Ok(Left::nothing().with(EAX, unsafe { spin_at_plain(&game()) }))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let v = game();
-    dispatch_state(&HOOK, r, call_original, &[(v[2], 8), (v[4], 4)], &rust);
+    let floats = Floats {
+        memory: &[((v[2], 8), ROUNDED), ((v[4], 4), ROUNDED)],
+        regs: &[(EAX, ROUNDED)],
+    };
+    dispatch_state_floats(
+        &HOOK,
+        r,
+        call_original,
+        &[(v[2], 8), (v[4], 4)],
+        &floats,
+        &rust,
+    );
 }
 
 fn fill(seed: u32, out: &mut [u32]) {
@@ -83,7 +119,7 @@ fn fill(seed: u32, out: &mut [u32]) {
 }
 
 fn self_test() -> (usize, usize) {
-    test_moves(
+    test_moves_floats(
         &HOOK,
         0x43CD1A,
         0x5F,
@@ -92,6 +128,8 @@ fn self_test() -> (usize, usize) {
         8,
         8,
         &fill,
-        &|v, _| Left::nothing().with(EAX, unsafe { spin_at(v) }),
+        &|v, _| Left::nothing().with(EAX, unsafe { spin_at_plain(v) }),
+        &[(2, ROUNDED), (3, ROUNDED), (4, ROUNDED)],
+        &[(EAX, ROUNDED)],
     )
 }

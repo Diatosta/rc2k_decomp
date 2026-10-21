@@ -22,7 +22,7 @@ pub const RECORD_COUNT_RVA: usize = rva(0x5CCD18); // g_courseRecordCount
 pub const KIND_TABLES_RVA: usize = rva(0x5CC3E4);
 pub const KIND_TABLES_LEN: usize = 0x800;
 const KINDS: u32 = 0x100;
-pub const MOST_FACES: u32 = 0x10_0000;
+pub use rc2k_core::race::faces::MOST_FACES;
 /// The records the course memory's first part (0xF00000 bytes) can hold.
 pub const MOST_RECORDS: u32 = 0x7_8000;
 
@@ -73,19 +73,18 @@ pub unsafe fn reset_face_lights(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         let count: u32 = game_read(FACE_COUNT_RVA);
-        if count == 0 || count >= MOST_FACES {
-            return Err(
-                BadInput("no faces, or 0x100000 or more: the original counts round").into(),
-            );
-        }
+        rc2k_core::race::faces::check_face_count(count)?;
+        // Converted: `rc2k_core::race::faces::reset_lights` (each record inside the
+        // faces the original walks; written back only when changed).
         let faces: u32 = game_read(FACES_RVA);
         for n in 0..count {
             g.esi = faces.wrapping_add(n << 6);
-            if *(g.esi as *const u8) == 0xFF {
-                for o in [0x30, 0x34, 0x38] {
-                    put(g.esi + o, 0);
-                }
-                std::ptr::write_bytes((g.esi + 0x11) as *mut u8, 0, 3);
+            let at = g.esi as *mut [u8; rc2k_core::race::faces::FACE_BYTES];
+            let mut face = at.read_unaligned();
+            let kept = face;
+            rc2k_core::race::faces::reset_lights(&mut face);
+            if face != kept {
+                at.write_unaligned(face);
             }
         }
         g.ebx = count;

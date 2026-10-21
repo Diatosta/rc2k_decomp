@@ -9,15 +9,18 @@
 //!      read
 //!
 //! Caller: `sub_437A53`.
-//! Self-test: `physics/camera_view.rs` (`view_test`), modes and times by lot, three
-//! precisions.
+//! Self-test: `physics/camera_view.rs` (`view_test_floats`), modes and times by lot,
+//! exact at double precision.
 
 use crate::errors::Refused;
 use crate::framework::{EAX, ESI, RawHook, Regs, hook_asm, rva};
-use crate::physics::camera_view::{rd, record, share_done, view_regions, view_test};
-use crate::physics::flow::{base, x87_run};
+use crate::physics::camera_view::{
+    rd, record, record_plain, share_done, share_done_plain, view_regions, view_test_floats,
+};
+use crate::physics::flow::{a, base, g, p, x87_run};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::floats::{FLOAT, Floats, ROUNDED, Tolerance, dispatch_state_floats};
+use rc2k_core::physics::camera_view::ease_blend;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -32,7 +35,7 @@ hook_asm!(
     original = ORIGINAL
 );
 
-/// The Rust version.
+/// The Rust version (the exact one, for `physics::update_camera`).
 pub unsafe fn ease_view_blend(_: &Regs) -> Left {
     let esi = record();
     let left = Left::nothing().with(ESI, esi);
@@ -66,14 +69,54 @@ pub unsafe fn ease_view_blend(_: &Regs) -> Left {
     left.with(EAX, eax)
 }
 
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { ease_view_blend(r) })
+/// The converted version (`rc2k_core::physics::camera_view`, plain floats): the hook's.
+// Converted: `rc2k_core::physics::camera_view::{share_done, ease_blend}`.
+pub unsafe fn ease_view_blend_plain(_: &Regs) -> Left {
+    let esi = record_plain();
+    let left = Left::nothing().with(ESI, esi);
+    if rd(esi + 0x58) == 0 || rd(esi + 0x3C) == 0 {
+        return left;
+    }
+    let eax = share_done_plain(esi);
+    let f = |x: usize| f32::from_bits(g(x));
+    let b = ease_blend(
+        f(0x605260),
+        (rd(esi + 0x58) as i32) < 0,
+        [f(0x608B20), f(0x608B24), f(0x608B28), f(0x608B2C)],
+        f(0x5C5D98),
+    );
+    p(0x605260, b.share.to_bits());
+    p(0x71A6A0, b.between.to_bits());
+    p(0x608B38, b.tilt as u32);
+    left.with(EAX, eax)
 }
 
+fn rust(r: &Regs) -> Result<Left, Refused> {
+    Ok(unsafe { ease_view_blend_plain(r) })
+}
+
+/// The float places and what they are held to at extended precision.
+const FLOATS: [(usize, usize, Tolerance); 3] = [
+    (0x605260, 4, FLOAT),
+    (0x71A6A0, 4, FLOAT),
+    (0x608B38, 4, ROUNDED),
+];
+
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &view_regions(), &rust);
+    let memory = FLOATS.map(|(x, len, tl)| ((a(x), len), tl));
+    let floats = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &view_regions(), &floats, &rust);
 }
 
 fn self_test() -> (usize, usize) {
-    view_test(&HOOK, call_original, &rust)
+    view_test_floats(
+        &HOOK,
+        "physics::ease_view_blend",
+        call_original,
+        &rust,
+        &FLOATS,
+    )
 }

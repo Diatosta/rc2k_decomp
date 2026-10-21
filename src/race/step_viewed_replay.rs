@@ -47,38 +47,45 @@ pub fn step_viewed_replay(entry: &Regs) -> Result<Regs, Refused> {
         }
         r.set_carry(true);
     };
-    if get(OPEN) != 1 {
-        stop(&mut r, true);
-        r.set_zero(false);
-        return Ok(r);
-    }
-    let mut block = get(BLOCK);
-    r.ebx = get(FRAME);
-    if block >= get(BLOCKS) {
-        stop(&mut r, true);
-        r.set_zero(block == get(BLOCKS));
-        return Ok(r);
-    }
-    r.ebx = r.ebx.wrapping_add(1);
-    if r.ebx >= 100 {
-        block = block.wrapping_add(1);
-        r.ebx = 0;
-        if block >= get(PLAY_END) {
-            stop(&mut r, false);
-            r.set_zero(block == get(PLAY_END));
-            return Ok(r);
-        }
-        let failed = guard(&regions(), || unsafe {
-            crate::drive::read_replay_frame::read_replay_frame(block, 0)
-        })?;
-        if failed {
+    // Converted: `rc2k_core::race::viewer::step`.
+    use rc2k_core::race::viewer::{Step, step};
+    let open = get(OPEN) == 1;
+    let (block, frame) = (get(BLOCK), get(FRAME));
+    let (block, frame) = match step(open, block, frame, get(BLOCKS), get(PLAY_END)) {
+        Step::Closed => {
             stop(&mut r, true);
+            r.set_zero(false);
             return Ok(r);
         }
-    }
+        Step::AtLast { last } => {
+            r.ebx = frame;
+            stop(&mut r, true);
+            r.set_zero(last);
+            return Ok(r);
+        }
+        Step::PlayEnd { end } => {
+            r.ebx = 0;
+            stop(&mut r, false);
+            r.set_zero(end);
+            return Ok(r);
+        }
+        Step::On { block, frame, read } => {
+            r.ebx = frame;
+            if read {
+                let failed = guard(&regions(), || unsafe {
+                    crate::drive::read_replay_frame::read_replay_frame(block, 0)
+                })?;
+                if failed {
+                    stop(&mut r, true);
+                    return Ok(r);
+                }
+            }
+            (block, frame)
+        }
+    };
     put(BLOCK, block);
-    put(FRAME, r.ebx);
-    r.ebx = (a(crate::race::viewer::BLOCK_DATA) + 0x2000).wrapping_add(r.ebx.wrapping_mul(16));
+    put(FRAME, frame);
+    r.ebx = (a(crate::race::viewer::BLOCK_DATA) + 0x2000).wrapping_add(frame.wrapping_mul(16));
     r.set_carry(false);
     r.set_zero(get(FRAME) == 0);
     Ok(r)

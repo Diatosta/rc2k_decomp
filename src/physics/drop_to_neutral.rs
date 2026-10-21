@@ -8,13 +8,14 @@
 //! Out: every register kept (eax pushed around `fnstsw`)
 //!
 //! Caller: `sub_43B635` (0x43B966), every physics step.
-//! Self-test: a copy of the original on test variables, every gate, speeds above, at,
-//! below the limit and NaN.
+//! Self-test: a copy of the original on test variables against the converted version,
+//! every gate, speeds above, at, below the limit and NaN.
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, dispatch_state};
+use rc2k_core::physics::gearing::drops_to_neutral;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -44,16 +45,13 @@ unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
 }
 
-/// The Rust core on the variables at `v` (in `VARIABLES`' order).
+/// The Rust core on the variables at `v` (in `VARIABLES`' order; a compare of floats
+/// only: the same at any precision).
+// Converted: `rc2k_core::physics::gearing::drops_to_neutral`.
 pub unsafe fn drop_to_neutral_at(v: &[u32; 10]) {
     unsafe {
-        if at(v[0]) == 0 || at(v[1]) == 0 {
-            return;
-        }
-        if crate::math::x87::compare_status(at(v[2]), at(v[3])) & 0x100 == 0 {
-            return;
-        }
-        if at(v[4]) != 0 {
+        let f = |k: usize| f32::from_bits(at(v[k]));
+        if !drops_to_neutral(at(v[0]), at(v[1]), f(2), f(3), || at(v[4])) {
             return;
         }
         put(v[1], 0);

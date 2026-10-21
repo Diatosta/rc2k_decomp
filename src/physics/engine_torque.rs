@@ -11,7 +11,8 @@
 //!
 //! Callers: `physics::engine_torque_or_cut`, `sub_421848`, `sub_43CAAB`, `sub_43EA80`.
 //! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back): engine speeds across the curve and past it, under three precisions.
+//! back), against the converted version: engine speeds across the curve and past it,
+//! exact at double precision (`test_engine_floats`).
 
 use crate::errors::Refused;
 use crate::framework::{
@@ -23,7 +24,11 @@ use crate::math::x87_run::{
 };
 use crate::scene::matrix3::test_floats;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::floats::{
+    FLOAT, Floats, at_test_precisions, check_state_floats, dispatch_state_floats,
+};
+use crate::service::harness::{Region, capture, check_state, restore};
+use rc2k_core::physics::engine::{Engine, engine_torque as engine_torque_core};
 use std::cmp::Ordering;
 use std::sync::atomic::AtomicUsize;
 
@@ -55,7 +60,41 @@ pub fn below(a: u32, b: u32) -> bool {
     )
 }
 
-/// The Rust version: ebx when the curve was read.
+/// The converted version (`rc2k_core::physics::engine`, plain floats): the hook's; ebx
+/// when the curve was read.
+// Converted: `rc2k_core::physics::engine::engine_torque`.
+pub unsafe fn engine_torque_plain() -> Left {
+    let f = |x: usize| f32::from_bits(g(x));
+    let engine = Engine {
+        speed: f(0x71A1B0),
+        top: f(0x71A1B4),
+        zero: f(0x5C5D90),
+        one: f(0x5C5D38),
+        steps: f(0x5C5D50),
+        quarter: f(0x613F94),
+        factor: f(0x71A3CC),
+    };
+    let curve = |i: u32| {
+        let k = 4 * i as usize;
+        (
+            [f(0x613FF0 + k), f(0x613FF4 + k)],
+            [f(0x614B7C + k), f(0x614B80 + k)],
+        )
+    };
+    let t = engine_torque_core(&engine, curve, || f(0x614B7C));
+    p(0x62400C, t.share.to_bits());
+    let mut left = Left::nothing();
+    if let Some(i) = t.entry {
+        p(0x623FB8, i);
+        left = left.with(EBX, i);
+    }
+    p(0x614744, t.revs.to_bits());
+    p(0x614748, t.torque.to_bits());
+    left
+}
+
+/// The Rust version (the exact one, for `physics::engine_torque_or_cut`, `drive_force`,
+/// `free_rev*`, `test_drive_run`): ebx when the curve was read.
 pub unsafe fn engine_torque() -> Left {
     let mut left = Left::nothing();
     let s = x87::div(g(0x71A1B0), g(0x71A1B4));
@@ -87,8 +126,11 @@ pub unsafe fn engine_torque() -> Left {
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { engine_torque() })
+    Ok(unsafe { engine_torque_plain() })
 }
+
+/// The float places `engine_torque` writes (IDA addresses, lengths).
+pub const TORQUE_FLOATS: [(usize, usize); 2] = [(0x62400C, 4), (0x614744, 8)];
 
 /// What the engine's steps write.
 pub fn regions() -> Vec<Region> {
@@ -101,8 +143,29 @@ pub fn regions() -> Vec<Region> {
     ]
 }
 
+/// The shadow comparison of a converted engine step: `regions`, the float places
+/// `floats` names (IDA addresses, lengths) within `FLOAT`.
+pub fn dispatch_engine(
+    hook: &'static RawHook,
+    r: &mut Regs,
+    call_original: crate::screens::harness::CallOriginal,
+    regions: &[Region],
+    floats: &[(usize, usize)],
+    rust: &dyn Fn(&Regs) -> Result<Left, Refused>,
+) {
+    let memory: Vec<_> = floats
+        .iter()
+        .map(|&(x, len)| ((game_addr(rva(x)) as u32, len), FLOAT))
+        .collect();
+    let floats = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    dispatch_state_floats(hook, r, call_original, regions, &floats, rust);
+}
+
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+    dispatch_engine(&HOOK, r, call_original, &regions(), &TORQUE_FLOATS, &rust);
 }
 
 /// The inputs the engine tests set.
@@ -186,10 +249,54 @@ pub fn test_engine(
     restore(&all, &saved);
 }
 
+/// `test_engine` for a converted step: exact at double precision, at extended the float
+/// places `floats` names (IDA addresses, lengths) within `FLOAT`.
+pub fn test_engine_floats(
+    t: &mut SelfTest,
+    name: &'static str,
+    original: unsafe extern "C" fn(*mut Regs),
+    rust: &dyn Fn(&Regs) -> Result<Left, Refused>,
+    floats: &[(usize, usize)],
+) {
+    let mut all = regions();
+    all.extend(inputs());
+    let saved = capture(&all);
+    let memory: Vec<_> = floats
+        .iter()
+        .map(|&(x, len)| ((game_addr(rva(x)) as u32, len), FLOAT))
+        .collect();
+    let tolerant = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, fl| {
+        for (seed, share) in SHARES.iter().enumerate() {
+            check_state_floats(
+                t,
+                name,
+                &format!("control word {word:#x}, share {share}"),
+                original,
+                Regs::SENTINEL,
+                &|| set_engine(seed as u32, *share),
+                &all,
+                fl,
+                rust,
+            );
+        }
+    });
+    restore(&all, &saved);
+}
+
 fn self_test() -> (usize, usize) {
     let Some(mut t) = SelfTest::begin(&HOOK) else {
         return (0, 0);
     };
-    test_engine(&mut t, call_original, &rust);
+    test_engine_floats(
+        &mut t,
+        "physics::engine_torque",
+        call_original,
+        &rust,
+        &TORQUE_FLOATS,
+    );
     t.finish()
 }

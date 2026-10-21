@@ -12,12 +12,12 @@
 //! from outside the tables). Shadow mode compares. Self-test: marks in order, equal,
 //! reversed, at the ends; the tables filled by the test, put back.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::a;
 use crate::race::viewer::{
-    CAMERAS, CLIP_BLOCKS, CLIP_CAMERAS, CLIP_PLACES, MARK_IN, MARK_OUT, MOST_BLOCKS, PLACES, Saved,
-    TABLE_LEN, check_original, dispatch_regs, dword, fill, get, move_dwords, put, region,
+    CAMERAS, CLIP_BLOCKS, CLIP_CAMERAS, CLIP_PLACES, MARK_IN, MARK_OUT, PLACES, Saved, TABLE_LEN,
+    check_original, dispatch_regs, dword, fill, get, move_dwords, put, region,
 };
 use crate::service::harness::Region;
 use std::sync::atomic::AtomicUsize;
@@ -37,15 +37,13 @@ hook_asm!(
 /// The Rust version: the registers it leaves.
 pub fn copy_marked(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
+    // Converted: `rc2k_core::race::viewer::clip`.
     r.eax = get(MARK_IN);
     r.ebx = get(MARK_OUT);
-    if (r.ebx as i32) <= (r.eax as i32) {
+    let Some((_, blocks)) = rc2k_core::race::viewer::clip(r.eax, r.ebx)? else {
         return Ok(r);
-    }
-    if (r.eax as i32) < 0 || r.ebx > MOST_BLOCKS {
-        return Err(BadInput("marks outside the replay's table").into());
-    }
-    r.edx = r.ebx - r.eax;
+    };
+    r.edx = blocks;
     put(CLIP_BLOCKS, r.edx);
     let dwords = 2 * r.edx as usize;
     move_dwords(CLIP_PLACES, PLACES + 8 * r.eax as usize, dwords);

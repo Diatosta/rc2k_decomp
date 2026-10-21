@@ -8,15 +8,16 @@
 //!      flags read
 //!
 //! Caller: `sub_437A53`.
-//! Self-test: `physics/camera_view.rs` (`view_test`), modes and figures by lot, three
-//! precisions.
+//! Self-test: `physics/camera_view.rs` (`view_test_floats`), modes and figures by lot,
+//! exact at double precision.
 
 use crate::errors::Refused;
 use crate::framework::{EAX, ESI, RawHook, Regs, hook_asm, rva};
-use crate::physics::camera_view::{rd, record, view_regions, view_test};
-use crate::physics::flow::{base, g, hold_high, hold_low, p, x87_run};
+use crate::physics::camera_view::{rd, record, record_plain, view_regions, view_test_floats};
+use crate::physics::flow::{a, base, g, hold_high, hold_low, p, x87_run};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::floats::{Floats, ROUNDED, Tolerance, dispatch_state_floats};
+use rc2k_core::physics::camera_view::height_bias;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -36,7 +37,7 @@ hook_asm!(
     original = ORIGINAL
 );
 
-/// The Rust version.
+/// The Rust version (the exact one, for `physics::update_camera`).
 pub unsafe fn camera_height_bias(_: &Regs) -> Left {
     let esi = record();
     let left = Left::nothing().with(ESI, esi);
@@ -72,14 +73,56 @@ pub unsafe fn camera_height_bias(_: &Regs) -> Left {
     left.with(EAX, eax)
 }
 
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { camera_height_bias(r) })
+/// The converted version (`rc2k_core::physics::camera_view`, plain floats): the hook's.
+// Converted: `rc2k_core::physics::camera_view::height_bias`.
+pub unsafe fn camera_height_bias_plain(_: &Regs) -> Left {
+    let esi = record_plain();
+    let left = Left::nothing().with(ESI, esi);
+    if rd(esi + 0x54) == 0 {
+        return left;
+    }
+    let f = |x: usize| f32::from_bits(g(x));
+    let n = height_bias(
+        f(0x60631C),
+        f(0x606290),
+        f(0x5C5D90),
+        f(0x5C5D38),
+        (rd(esi + 0x54) as i32) < 0,
+        f(0x5C5D98),
+        f(0x60628C),
+    ) as u32;
+    p(0x62400C, n);
+    p(0x606288, n);
+    p(0x71A680, g(0x71A680).wrapping_add(n));
+    left.with(EAX, n)
 }
 
+fn rust(r: &Regs) -> Result<Left, Refused> {
+    Ok(unsafe { camera_height_bias_plain(r) })
+}
+
+/// The whole numbers made from floats, held to `ROUNDED` at extended precision.
+const FLOATS: [(usize, usize, Tolerance); 3] = [
+    (0x62400C, 4, ROUNDED),
+    (0x606288, 4, ROUNDED),
+    (0x71A680, 4, ROUNDED),
+];
+
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &view_regions(), &rust);
+    let memory = FLOATS.map(|(x, len, tl)| ((a(x), len), tl));
+    let floats = Floats {
+        memory: &memory,
+        regs: &[(EAX, ROUNDED)],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &view_regions(), &floats, &rust);
 }
 
 fn self_test() -> (usize, usize) {
-    view_test(&HOOK, call_original, &rust)
+    view_test_floats(
+        &HOOK,
+        "physics::camera_height_bias",
+        call_original,
+        &rust,
+        &FLOATS,
+    )
 }

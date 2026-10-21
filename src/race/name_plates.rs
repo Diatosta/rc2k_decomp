@@ -159,12 +159,12 @@ pub unsafe fn update_name_plates(
         if blocks.contains(&0) {
             return Err(crate::errors::BadInput("a view without its car block").into());
         }
+        // Converted: `rc2k_core::race::plates::{times_changed, NameAsk}`.
+        use rc2k_core::race::plates::{NameAsk, times_changed};
         let field = |b: u32, o: u32| (b + o) as *mut u32;
-        let same = k(0x6D1838) == k(0x6D1850)
-            && k(0x6D183C) == k(0x6D1854)
-            && k(0x6D1844) == k(0x6D185C)
-            && k(0x6D1848) == k(0x6D1860);
-        if !same {
+        let now = [0x6D1838, 0x6D183C, 0x6D1844, 0x6D1848].map(k);
+        let kept = [0x6D1850, 0x6D1854, 0x6D185C, 0x6D1860].map(k);
+        if times_changed(now, kept) {
             r.eax = k(0x5D0DF8);
             part(1, r)?;
             for (from, to) in [
@@ -185,10 +185,12 @@ pub unsafe fn update_name_plates(
             r.esi = b;
             r.eax = k(slot);
             r.ebx = field(b, 0x71C).read_unaligned();
-            if r.ebx == 0 {
-                continue;
-            }
-            part(if r.ebx < 0x1_0000 { 2 } else { 3 }, r)?;
+            let place = match NameAsk::of(r.ebx) {
+                NameAsk::Nothing => continue,
+                NameAsk::Id(_) => 2,
+                NameAsk::Text(_) => 3,
+            };
+            part(place, r)?;
             r.esi = b;
             field(b, 0x724).write_unaligned(r.ebx);
             field(b, 0x71C).write_unaligned(0);

@@ -6,16 +6,19 @@
 //! Out: every register kept; no flags read
 //!
 //! Caller: `drive::finish_run`.
-//! Self-test: the original and the Rust version on the figures by lot, under three
-//! precisions.
+//! Self-test: the original and the converted version on the figures by lot, exact at
+//! double precision.
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
-use crate::physics::flow::{a, base, p, x87_run};
+use crate::physics::flow::{a, base, g, p, x87_run};
 use crate::scene::matrix3::test_floats;
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, check_state, dispatch_state, restore};
+use crate::service::floats::{
+    FLOAT, Floats, Tolerance, at_test_precisions, check_state_floats, dispatch_state_floats,
+};
+use crate::service::harness::{capture, restore};
+use rc2k_core::drive::finish_camera::{FinishLines, finish_camera as finish_camera_core};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -30,7 +33,7 @@ hook_asm!(
     original = ORIGINAL
 );
 
-/// The Rust version.
+/// The Rust version (the exact one, for `drive::finish_run`).
 pub fn finish_camera() {
     x87_run!(
         "fld dword ptr [{b} + 0x24BB68]",
@@ -58,9 +61,36 @@ pub fn finish_camera() {
     );
 }
 
+/// The converted version (`rc2k_core::drive::finish_camera`, plain floats): the hook's.
+// Converted: `rc2k_core::drive::finish_camera::finish_camera`.
+pub fn finish_camera_plain() {
+    let f = |x: usize| f32::from_bits(g(x));
+    let [a748, a730, a734, a744] = finish_camera_core(&FinishLines {
+        k4c: f(0x64BB4C),
+        k50: f(0x64BB50),
+        k54: f(0x64BB54),
+        k58: f(0x64BB58),
+        k5c: f(0x64BB5C),
+        time: f(0x64BB68),
+        share: f(0x64BB6C),
+        k78: f(0x64BB78),
+        k7c: f(0x64BB7C),
+    });
+    p(0x606748, a748.to_bits());
+    p(0x606730, a730.to_bits());
+    p(0x606734, a734.to_bits());
+    p(0x60672C, 0);
+    p(0x606744, a744.to_bits());
+}
+
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    finish_camera();
+    finish_camera_plain();
     Ok(Left::nothing())
+}
+
+/// The float places, held to `FLOAT` at extended precision.
+fn floats() -> [(crate::service::harness::Region, Tolerance); 2] {
+    [((a(0x606730), 8), FLOAT), ((a(0x606744), 8), FLOAT)]
 }
 
 fn regions() -> [crate::service::harness::Region; 3] {
@@ -68,7 +98,12 @@ fn regions() -> [crate::service::harness::Region; 3] {
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+    let memory = floats();
+    let floats = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
 }
 
 fn self_test() -> (usize, usize) {
@@ -78,28 +113,33 @@ fn self_test() -> (usize, usize) {
     let mut all = regions().to_vec();
     all.push((a(0x64BB4C), 0x34));
     let saved = capture(&all);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 0..8u32 {
-                let set = || {
-                    let mut f = [0u32; 13];
-                    test_floats(seed * 7 + 3, &mut f);
-                    for (k, v) in f.iter().enumerate() {
-                        p(0x64BB4C + 4 * k, *v);
-                    }
-                };
-                check_state(
-                    &mut t,
-                    &format!("control word {word:#x}, seed {seed}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &set,
-                    &regions(),
-                    &rust,
-                );
-            }
-        });
-    }
+    let memory = floats();
+    let tolerant = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, fl| {
+        for seed in 0..8u32 {
+            let set = || {
+                let mut f = [0u32; 13];
+                test_floats(seed * 7 + 3, &mut f);
+                for (k, v) in f.iter().enumerate() {
+                    p(0x64BB4C + 4 * k, *v);
+                }
+            };
+            check_state_floats(
+                &mut t,
+                "drive::finish_camera",
+                &format!("control word {word:#x}, seed {seed}"),
+                call_original,
+                Regs::SENTINEL,
+                &set,
+                &regions(),
+                fl,
+                &rust,
+            );
+        }
+    });
     restore(&all, &saved);
     t.finish()
 }

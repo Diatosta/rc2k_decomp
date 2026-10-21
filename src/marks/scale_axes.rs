@@ -6,12 +6,19 @@
 //! Callers: 0x4bf75e, 0x4c90b3. The original's instructions over the game's variables (register
 //! forms as their bytes). Self-test: the original and the Rust version on test floats in
 //! every variable it reads, all it writes compared; put back afterwards.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `scale_axes_plain`, through
+//! `rc2k_core::marks::scales::scale_axes` (plain floats; the x87 version stays for the Rust
+//! callers in unconverted code). Shadow mode and the self-test compare within
+//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::race::stage_prefs::left_of;
+use crate::scene::matrix::float_places;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::floats::*;
+use crate::service::harness::{Region, capture, restore};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -114,6 +121,34 @@ pub unsafe fn scale_axes(entry: &Regs) -> Regs {
     g
 }
 
+/// The converted version (plain floats): the hook's.
+// Converted: `rc2k_core::marks::scales::scale_axes`
+pub unsafe fn scale_axes_plain(entry: &Regs) -> Regs {
+    use rc2k_core::marks::scales::{Axes, scale_axes};
+    let f = |a: usize| f32::from_bits(unsafe { game_read(rva(a)) });
+    let three = |a: usize| [f(a), f(a + 4), f(a + 8)];
+    let made = scale_axes(&Axes {
+        axes: [three(0x89CF1A), three(0x89CF26)],
+        factor: f(0x89CECA),
+        own: [f(0x89CEEE), f(0x89CEF2)],
+        parts: [three(0x8BC1DE), three(0x8BC1EA)],
+        second_parts: [three(0x8BC1F6), three(0x8BC202)],
+    });
+    let put = |a: usize, v: [[f32; 3]; 2]| {
+        for (n, x) in v.as_flattened().iter().enumerate() {
+            unsafe { game_write(rva(a) + 4 * n, x.to_bits()) };
+        }
+    };
+    put(0x89CF3E, made.scaled);
+    put(0x89CF6E, made.weighted);
+    put(0x89CF56, made.second);
+    Regs {
+        edi: game_addr(rva(0x89CF62)) as u32,
+        esi: game_addr(rva(0x89CF4A)) as u32,
+        ..*entry
+    }
+}
+
 fn regions() -> Vec<Region> {
     WRITES
         .iter()
@@ -122,11 +157,16 @@ fn regions() -> Vec<Region> {
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { scale_axes(r) }))
+    Ok(left_of(&unsafe { scale_axes_plain(r) }))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+    let places = float_places(&regions());
+    let floats = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
 }
 
 fn self_test() -> (usize, usize) {
@@ -137,25 +177,35 @@ fn self_test() -> (usize, usize) {
     let mut vars = regions.clone();
     vars.extend(READS.iter().map(|&a| (game_addr(rva(a)) as u32, 4)));
     let saved = capture(&vars);
-    for case in 0..6u32 {
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&vars, &saved);
-                for (n, &a) in READS.iter().enumerate() {
-                    let x = ((n as u32).wrapping_mul(0x9E37_79B9) ^ case.wrapping_mul(0x85EB_CA6B))
-                        as i32 as f32
-                        / 3e8;
-                    game_write(rva(a), x.to_bits());
-                }
-            },
-            &regions,
-            &rust,
-        );
-    }
+    let tolerant_places = float_places(&regions);
+    let tolerant = Floats {
+        memory: &tolerant_places,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, held| {
+        for case in 0..6u32 {
+            check_state_floats(
+                &mut t,
+                "marks::scale_axes",
+                &format!("control word {word:#x}, case {case}"),
+                call_original,
+                Regs::SENTINEL,
+                &|| unsafe {
+                    restore(&vars, &saved);
+                    for (n, &a) in READS.iter().enumerate() {
+                        let x = ((n as u32).wrapping_mul(0x9E37_79B9)
+                            ^ case.wrapping_mul(0x85EB_CA6B)) as i32
+                            as f32
+                            / 3e8;
+                        game_write(rva(a), x.to_bits());
+                    }
+                },
+                &regions,
+                held,
+                &rust,
+            );
+        }
+    });
     restore(&vars, &saved);
     t.finish()
 }

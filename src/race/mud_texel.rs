@@ -34,24 +34,8 @@ pub const HALVINGS_RVA: usize = rva(0x5CEEE0); // dword_5CEEE0
 
 /// The texel's place on the texture, or None when it is skipped (an odd place halved).
 pub fn texel_place(x: u32, y: u32) -> Option<(u32, u32)> {
-    let halvings: u32 = unsafe { game_read(HALVINGS_RVA) };
-    let (mut x, mut y) = (x, y);
-    let times = match halvings {
-        0 => 0,
-        1 => 1,
-        _ => 2,
-    };
-    for _ in 0..times {
-        if x & 1 != 0 {
-            return None;
-        }
-        x >>= 1;
-        if y & 1 != 0 {
-            return None;
-        }
-        y >>= 1;
-    }
-    Some((x, y))
+    // Converted: `rc2k_core::race::mud::texel_place`.
+    rc2k_core::race::mud::texel_place(x, y, unsafe { game_read(HALVINGS_RVA) })
 }
 
 /// The Rust version (see the header): eax as it leaves it.

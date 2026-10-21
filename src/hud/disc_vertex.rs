@@ -11,13 +11,20 @@
 //! Caller: `hud::draw_disc` (three a triangle). Refuses an entry past 0x10, before
 //! anything. Self-test: the original and the Rust version on a vertex of the test's,
 //! every entry.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `disc_vertex_plain`, through
+//! `rc2k_core::hud::disc::vertex` (plain floats; the x87 version stays for the Rust callers
+//! in unconverted code). Shadow mode and the self-test compare within `service::floats`'
+//! tolerances (the self-test at both test precisions, exact at double).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, rva};
 use crate::hud::add_quad::QUAD_RVA;
 use crate::race::stage_prefs::left_of;
+use crate::scene::matrix::float_places;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, check_state, dispatch_state};
+use crate::service::floats::*;
+use crate::service::harness::Region;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -32,7 +39,7 @@ hook_asm!(
     original = ORIGINAL
 );
 
-pub const ENTRIES: u32 = 0x11;
+pub use rc2k_core::hud::disc::ENTRIES;
 
 unsafe fn place(b: u32, k: u32, e: u32) {
     unsafe {
@@ -85,17 +92,60 @@ pub unsafe fn disc_vertex(entry: &Regs) -> Result<Regs, Refused> {
     Ok(g)
 }
 
+/// The converted version (plain floats): the hook's.
+// Converted: `rc2k_core::hud::disc::vertex`
+pub unsafe fn disc_vertex_plain(entry: &Regs) -> Result<Regs, Refused> {
+    use rc2k_core::hud::disc::{Disc, RingEntry, vertex, white_under};
+    let mut g = *entry;
+    if g.ecx >= ENTRIES {
+        return Err(BadInput("a disc entry past the ring").into());
+    }
+    unsafe {
+        let f = |a: usize| f32::from_bits(game_read(rva(a)));
+        let ring = |table: usize| f32::from_bits(game_read(rva(table) + 4 * g.ecx as usize));
+        let e = RingEntry {
+            x: ring(0x75C188),
+            y: ring(0x75C1CC),
+            u: ring(0x75C210),
+            v: ring(0x75C254),
+        };
+        let d = Disc {
+            radius: f(0x75C050),
+            texture_scale: f(0x75C04C),
+            texture_middle: f(0x75C01C),
+            texture_shift: [f(0x75C054), f(0x75C058)],
+            texture_size: f(0x75C020),
+            centre: [f(0x75C044), f(0x75C048)],
+        };
+        let v = vertex(e, &d);
+        let put = |o: u32, x: u32| ((g.edi + o) as *mut u32).write_unaligned(x);
+        put(0x18, v.texture[0].to_bits());
+        put(0x1C, v.texture[1].to_bits());
+        put(0, v.place[0].to_bits());
+        put(4, v.place[1].to_bits());
+        g.eax = white_under(game_read(QUAD_RVA));
+        put(0x10, g.eax);
+        put(0x14, 0);
+    }
+    Ok(g)
+}
+
 fn regions_at(edi: u32) -> Vec<Region> {
     vec![(edi, 0x20)]
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { disc_vertex(r) }?))
+    Ok(left_of(&unsafe { disc_vertex_plain(r) }?))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let regions = regions_at(r.edi);
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
+    let places = float_places(&regions);
+    let floats = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions, &floats, &rust);
 }
 
 /// The disc's tables by lot (for this test and `draw_disc`'s); what they held is the
@@ -138,25 +188,34 @@ fn self_test() -> (usize, usize) {
     let regions = regions_at(va);
     let vars = tables();
     let saved = capture(&vars);
-    for n in 0..ENTRIES {
-        check_state(
-            &mut t,
-            &format!("entry {n}"),
-            call_original,
-            Regs {
-                ecx: n,
-                edi: va,
-                ..Regs::SENTINEL
-            },
-            &|| unsafe {
-                restore(&vars, &saved);
-                test_tables(n % 3);
-                std::ptr::write_bytes(va as *mut u8, 0xAA, 0x20);
-            },
-            &regions,
-            &rust,
-        );
-    }
+    let tolerant_places = float_places(&regions);
+    let tolerant = Floats {
+        memory: &tolerant_places,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, held| {
+        for n in 0..ENTRIES {
+            check_state_floats(
+                &mut t,
+                "hud::disc_vertex",
+                &format!("control word {word:#x}, entry {n}"),
+                call_original,
+                Regs {
+                    ecx: n,
+                    edi: va,
+                    ..Regs::SENTINEL
+                },
+                &|| unsafe {
+                    restore(&vars, &saved);
+                    test_tables(n % 3);
+                    std::ptr::write_bytes(va as *mut u8, 0xAA, 0x20);
+                },
+                &regions,
+                held,
+                &rust,
+            );
+        }
+    });
     restore(&vars, &saved);
     t.finish()
 }

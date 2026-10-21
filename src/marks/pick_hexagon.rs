@@ -7,6 +7,10 @@
 //!
 //! Caller: `marks::hexagons_spawn` (twice). The call is `spawn_hexagon`'s Rust version.
 //! Self-test: the original and the Rust version on the game's items, seeds by lot; put back.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `pick_hexagon_plain`, through
+//! `rc2k_core::marks::items::pick_hexagon`; compared exactly as before (the earlier version
+//! stays for the Rust callers in unconverted code).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
@@ -45,6 +49,22 @@ pub unsafe fn pick_hexagon(entry: &Regs) -> Regs {
     g
 }
 
+/// The converted version: the hook's.
+// Converted: `rc2k_core::marks::items::pick_hexagon`
+pub unsafe fn pick_hexagon_plain(entry: &Regs) -> Regs {
+    unsafe {
+        let p = rc2k_core::marks::items::pick_hexagon(game_read(SEED_RVA));
+        game_write(SEED_RVA, p.random);
+        spawn_hexagon::spawn_hexagon_plain(p.x, p.z, p.kind);
+        Regs {
+            eax: p.x,
+            ebx: p.z,
+            ecx: p.kind,
+            ..*entry
+        }
+    }
+}
+
 fn regions() -> Vec<crate::service::harness::Region> {
     let mut r = spawn_hexagon::regions();
     r.push(at(SEED_RVA));
@@ -52,7 +72,7 @@ fn regions() -> Vec<crate::service::harness::Region> {
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { pick_hexagon(r) }))
+    Ok(left_of(&unsafe { pick_hexagon_plain(r) }))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {

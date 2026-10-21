@@ -7,18 +7,18 @@
 //! Out: every register kept; no flags read
 //!
 //! Caller: `sub_43B635` (0x43B80E), every physics step.
-//! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables), 8 fillings (signs,
-//! zeros, NaN) under three precisions.
+//! Self-test: `physics/copy_hooks_test.rs` (`test_moves_floats`: a copy on test
+//! variables against the converted version), 8 fillings (signs, zeros, NaN), exact at
+//! double precision.
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, game_addr, game_read, hook_asm, rva};
 use crate::math::x87;
-use crate::math::x87_run::{
-    TEST_CONTROL_WORDS, abs_of, compare_full, square_times_over, with_control_word,
-};
-use crate::physics::copy_hooks_test::test_moves;
+use crate::math::x87_run::{abs_of, compare_full, square_times_over};
+use crate::physics::copy_hooks_test::test_moves_floats;
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::floats::{FLOAT, Floats, dispatch_state_floats};
+use rc2k_core::physics::motion::air_drag as air_drag_core;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -54,6 +54,25 @@ pub unsafe fn drag_at(v: &[u32]) {
     }
 }
 
+/// The converted version (`rc2k_core::physics::motion`, plain floats) on the variables
+/// at `v`.
+// Converted: `rc2k_core::physics::motion::air_drag`.
+pub unsafe fn drag_at_plain(v: &[u32]) {
+    unsafe {
+        let get = |k: usize| f32::from_bits((v[k] as *const u32).read_unaligned());
+        let k = |x: usize| f32::from_bits(game_read::<u32>(rva(x)));
+        let drag = air_drag_core(
+            [get(0), get(1), get(2)],
+            k(0x613FCC),
+            k(0x5C5E34),
+            k(0x5C5D90),
+        );
+        for (n, d) in drag.iter().enumerate() {
+            (v[3 + n] as *mut u32).write_unaligned(d.to_bits());
+        }
+    }
+}
+
 fn game() -> Vec<u32> {
     VARIABLES
         .iter()
@@ -61,19 +80,23 @@ fn game() -> Vec<u32> {
         .collect()
 }
 
-/// The Rust version.
+/// The Rust version (the exact one, for `physics::car_physics_step`).
 pub unsafe fn air_drag() {
     unsafe { drag_at(&game()) }
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { air_drag() };
+    unsafe { drag_at_plain(&game()) };
     Ok(Left::nothing())
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let v = game();
-    dispatch_state(&HOOK, r, call_original, &[(v[3], 12)], &rust);
+    let floats = Floats {
+        memory: &[((v[3], 12), FLOAT)],
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &[(v[3], 12)], &floats, &rust);
 }
 
 fn fill(seed: u32, out: &mut [u32]) {
@@ -90,26 +113,20 @@ fn fill(seed: u32, out: &mut [u32]) {
 }
 
 fn self_test() -> (usize, usize) {
-    let mut total = (0, 0);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            let (c, f) = test_moves(
-                &HOOK,
-                0x43F2DA,
-                0xBB,
-                &[0xD9, 0x05, 0x7C, 0xA1, 0x71, 0x00],
-                &VARIABLES,
-                15,
-                8,
-                &fill,
-                &|v, _| {
-                    unsafe { drag_at(v) };
-                    Left::nothing()
-                },
-            );
-            total.0 += c;
-            total.1 += f;
-        });
-    }
-    total
+    test_moves_floats(
+        &HOOK,
+        0x43F2DA,
+        0xBB,
+        &[0xD9, 0x05, 0x7C, 0xA1, 0x71, 0x00],
+        &VARIABLES,
+        15,
+        8,
+        &fill,
+        &|v, _| {
+            unsafe { drag_at_plain(v) };
+            Left::nothing()
+        },
+        &[(3, FLOAT), (4, FLOAT), (5, FLOAT)],
+        &[],
+    )
 }

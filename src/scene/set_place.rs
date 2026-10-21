@@ -8,6 +8,10 @@
 //! work variable `dword_62400C` is left holding z.
 //! 20 callers.
 //! Self-test: 24 places on the game's matrix, put back afterwards.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `set_place_plain`, through
+//! `rc2k_core::scene::matrices::set_place`; compared exactly as before (the earlier version
+//! stays for the Rust callers in unconverted code).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
@@ -32,7 +36,7 @@ hook_asm!(
 // ---- hook ----
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { matrix::set_place([r.eax, r.ebx, r.ecx]) };
+    unsafe { matrix::set_place_plain([r.eax, r.ebx, r.ecx]) };
     Ok(Left::nothing())
 }
 

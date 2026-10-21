@@ -8,15 +8,21 @@
 //!
 //! One caller, `sub_4C3EEE`. Self-test: the original and the Rust version on several
 //! views and second vectors; put back afterwards.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `view_heading_plain`, through
+//! `rc2k_core::marks::view::heading` (plain floats; the x87 version stays for the Rust
+//! callers in unconverted code). Shadow mode and the self-test compare within
+//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::rounded;
-use crate::scene::vector3::{STATUS_RVA, angle_between_vectors};
+use crate::scene::vector3::{STATUS_RVA, angle_between_vectors, angle_between_vectors_plain};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::floats::*;
+use crate::service::harness::{Region, at, capture, restore};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -54,6 +60,26 @@ pub unsafe fn view_heading(entry: &Regs) -> Regs {
     g
 }
 
+/// The converted version (plain floats): the hook's. The angle through the converted
+/// `scene::angle_between_vectors`.
+// Converted: `rc2k_core::marks::view::heading`
+pub unsafe fn view_heading_plain(entry: &Regs) -> Regs {
+    let mut g = *entry;
+    unsafe {
+        use rc2k_core::scene::places::loaded;
+        let x = loaded(game_read(VIEW_RVA + 8));
+        let z = loaded(game_read(VIEW_RVA + 0x28));
+        game_write(LEVEL_RVA, [x, 0, z]);
+        g.esi = game_addr(LEVEL_RVA) as u32;
+        g.edi = game_addr(OTHER_RVA) as u32;
+        let angle = rounded(angle_between_vectors_plain(g.esi, g.edi));
+        let level_x = f32::from_bits(game_read(LEVEL_RVA));
+        let heading = rc2k_core::marks::view::heading(f32::from_bits(angle), level_x);
+        game_write(HEADING_RVA, heading.to_bits());
+    }
+    g
+}
+
 pub fn regions() -> Vec<Region> {
     vec![
         (game_addr(LEVEL_RVA) as u32, 0x18),
@@ -62,12 +88,29 @@ pub fn regions() -> Vec<Region> {
     ]
 }
 
+/// The two vectors normalised (`FLOAT`); the heading as far as a drifted halving may send
+/// the search (its last steps' size); the last compare's status any.
+fn heading_places(regions: &[Region]) -> Vec<(Region, Tolerance)> {
+    let heading = Tolerance::Absolute(1.0 / 1024.0);
+    regions
+        .iter()
+        .zip([FLOAT, heading, ANY])
+        .map(|(&r, t)| (r, t))
+        .collect()
+}
+
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { view_heading(r) }))
+    Ok(left_of(&unsafe { view_heading_plain(r) }))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+    let regions = regions();
+    let places = heading_places(&regions);
+    let floats = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions, &floats, &rust);
 }
 
 fn self_test() -> (usize, usize) {
@@ -87,24 +130,33 @@ fn self_test() -> (usize, usize) {
         (-0.0, -2.5),
     ];
     let others: [[f32; 3]; 2] = [[0.0, 0.0, 1.0], [0.6, 0.0, -0.8]];
-    for (x, z) in views {
-        for other in others {
-            check_state(
-                &mut t,
-                &format!("view x {x}, z {z}, other {other:?}"),
-                call_original,
-                Regs::SENTINEL,
-                &|| unsafe {
-                    restore(&inputs, &saved);
-                    game_write(VIEW_RVA + 8, x.to_bits());
-                    game_write(VIEW_RVA + 0x28, z.to_bits());
-                    game_write(OTHER_RVA, other.map(f32::to_bits));
-                },
-                &regions,
-                &rust,
-            );
+    let tolerant_places = heading_places(&regions);
+    let tolerant = Floats {
+        memory: &tolerant_places,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, held| {
+        for (x, z) in views {
+            for other in others {
+                check_state_floats(
+                    &mut t,
+                    "marks::view_heading",
+                    &format!("control word {word:#x}, view x {x}, z {z}, other {other:?}"),
+                    call_original,
+                    Regs::SENTINEL,
+                    &|| unsafe {
+                        restore(&inputs, &saved);
+                        game_write(VIEW_RVA + 8, x.to_bits());
+                        game_write(VIEW_RVA + 0x28, z.to_bits());
+                        game_write(OTHER_RVA, other.map(f32::to_bits));
+                    },
+                    &regions,
+                    held,
+                    &rust,
+                );
+            }
         }
-    }
+    });
     restore(&inputs, &saved);
     t.finish()
 }

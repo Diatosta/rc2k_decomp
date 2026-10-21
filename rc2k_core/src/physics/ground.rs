@@ -1,6 +1,6 @@
 //! Small rules of the car on the ground (converted 2026-10-21 from
-//! `physics::note_surface_mode` 0x43F180, `start_skid_mark` 0x43F272 and
-//! `flip_cell_index` 0x43DB13).
+//! `physics::note_surface_mode` 0x43F180, `start_skid_mark` 0x43F272,
+//! `flip_cell_index` 0x43DB13 and `plane_height` 0x4425B6).
 
 /// `physics::note_surface_mode`: `dword_71A6C8` by the mode `dword_71A65C`: 1 for 2 or 3,
 /// else 0. What the mode is is not known.
@@ -71,9 +71,28 @@ pub fn flip_cell_index(way: u32, x: u32, y: u32) -> (u32, u32, u32) {
     (way, b, d.wrapping_add(d).wrapping_add(b))
 }
 
+/// `physics::plane_height`: the height of a course face's plane under a point, from its
+/// corners' heights `a`, `b`, `c` (whole numbers) and the point's shares `f`, `g`:
+/// (a - c) f + ((b - c) g + c), `fistp`ed (the sums in the original's order; what the x87
+/// keeps on its stack an `f64`, the same bits at the game's double precision).
+pub fn plane_height(a: i32, b: i32, c: i32, f: f32, g: f32) -> i32 {
+    let (a, b, c) = (a as f64, b as f64, c as f64);
+    super::x87::fistp64((a - c) * f as f64 + ((b - c) * g as f64 + c))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn plane() {
+        assert_eq!(plane_height(10, 20, 0, 0.5, 0.25), 10);
+        assert_eq!(
+            plane_height(i32::MAX, i32::MAX, i32::MIN, 2.0, 2.0),
+            i32::MIN
+        );
+        assert_eq!(plane_height(3, 0, 0, 0.5, 0.0), 2);
+    }
 
     #[test]
     fn surface() {

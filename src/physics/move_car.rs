@@ -6,14 +6,16 @@
 //! Out: eax y's move; the rest kept; no flags read
 //!
 //! Callers: `sub_43B635` (0x43B827, 0x43B8A0), every physics step.
-//! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables), 8 fillings.
+//! Self-test: `physics/copy_hooks_test.rs` (`test_moves_floats`: a copy on test
+//! variables against the converted version), 8 fillings, exact at double precision.
 
 use crate::errors::Refused;
 use crate::framework::{EAX, RawHook, Regs, game_addr, game_read, hook_asm, rva};
 use crate::math::x87_run::mul2_to_int;
-use crate::physics::copy_hooks_test::{lot, test_moves};
+use crate::physics::copy_hooks_test::{lot, test_moves_floats};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::floats::{Floats, ROUNDED, dispatch_state_floats};
+use rc2k_core::physics::motion::move_place;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -56,6 +58,23 @@ pub unsafe fn move_at(v: &[u32]) -> u32 {
     }
 }
 
+/// The converted version (`rc2k_core::physics::motion`, plain floats) on the variables
+/// at `v`: the last move.
+// Converted: `rc2k_core::physics::motion::move_place`.
+pub unsafe fn move_at_plain(v: &[u32]) -> u32 {
+    unsafe {
+        let k = |x: usize| f32::from_bits(game_read::<u32>(rva(x)));
+        let motion = [0, 1, 2].map(|n| f32::from_bits(get(v, n)));
+        let mut place = [get(v, 3), get(v, 4), get(v, 5)];
+        let last = move_place(motion, &mut place, k(0x5C5D98), k(0x61388C));
+        put(v, 6, last as u32);
+        for (n, p) in place.iter().enumerate() {
+            put(v, 3 + n, *p);
+        }
+        last as u32
+    }
+}
+
 fn game() -> Vec<u32> {
     VARIABLES
         .iter()
@@ -63,18 +82,30 @@ fn game() -> Vec<u32> {
         .collect()
 }
 
-/// The Rust version.
+/// The Rust version (the exact one, for `physics::car_physics_step` and
+/// `physics::apply_wheel_torques`).
 pub unsafe fn move_car() -> u32 {
     unsafe { move_at(&game()) }
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(Left::nothing().with(EAX, unsafe { move_car() }))
+    Ok(Left::nothing().with(EAX, unsafe { move_at_plain(&game()) }))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let v = game();
-    dispatch_state(&HOOK, r, call_original, &[(v[3], 12), (v[6], 4)], &rust);
+    let floats = Floats {
+        memory: &[((v[3], 12), ROUNDED), ((v[6], 4), ROUNDED)],
+        regs: &[(EAX, ROUNDED)],
+    };
+    dispatch_state_floats(
+        &HOOK,
+        r,
+        call_original,
+        &[(v[3], 12), (v[6], 4)],
+        &floats,
+        &rust,
+    );
 }
 
 fn fill(seed: u32, out: &mut [u32]) {
@@ -85,7 +116,7 @@ fn fill(seed: u32, out: &mut [u32]) {
 }
 
 fn self_test() -> (usize, usize) {
-    test_moves(
+    test_moves_floats(
         &HOOK,
         0x43CCB0,
         0x6A,
@@ -94,6 +125,8 @@ fn self_test() -> (usize, usize) {
         12,
         8,
         &fill,
-        &|v, _| Left::nothing().with(EAX, unsafe { move_at(v) }),
+        &|v, _| Left::nothing().with(EAX, unsafe { move_at_plain(v) }),
+        &[(3, ROUNDED), (4, ROUNDED), (5, ROUNDED), (6, ROUNDED)],
+        &[(EAX, ROUNDED)],
     )
 }

@@ -10,6 +10,10 @@
 //! Its other floats stay as they are.
 //! 19 callers.
 //! Self-test: 41 angles on the game's matrix, put back afterwards.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `set_turn_y_plain`, through
+//! `rc2k_core::scene::matrices::set_table_turn`; compared exactly as before (the earlier
+//! version stays for the Rust callers in unconverted code).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
@@ -40,7 +44,7 @@ fn regions() -> [Region; 2] {
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { matrix::set_turn_y(r.edx) })
+    Ok(unsafe { matrix::set_turn_y_plain(r.edx) })
 }
 
 extern "C" fn dispatch(r: &mut Regs) {

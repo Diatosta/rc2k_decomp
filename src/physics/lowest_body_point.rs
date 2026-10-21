@@ -10,14 +10,16 @@
 //!
 //! Callers: `physics::feel_ground`, `sub_43BDD1` (twice), `sub_45EDB5`, `sub_45EFF3`.
 //! Refuses (before anything) a count above 0x40 (the depths' room).
-//! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables), counts 0 .. 0x40.
+//! Self-test: `physics/copy_hooks_test.rs` (`test_moves_floats`: a copy on test
+//! variables against the converted version), counts 0 .. 0x40; the refusal.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{EAX, EBX, RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, rva};
 use crate::math::x87;
-use crate::physics::copy_hooks_test::{lot, test_moves};
+use crate::physics::copy_hooks_test::{lot, test_moves_floats};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::floats::{FLOAT, Floats, dispatch_state_floats};
+use rc2k_core::physics::motion::{lowest_point, lowest_share};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -74,6 +76,28 @@ pub unsafe fn lowest_at(v: &[u32], r: &mut Regs) -> Result<(), Refused> {
     }
 }
 
+/// The converted version (`rc2k_core::physics::motion`) on the variables at `v`; `r` as
+/// the original leaves it.
+// Converted: `rc2k_core::physics::motion::{lowest_point, lowest_share}`.
+pub unsafe fn lowest_at_plain(v: &[u32], r: &mut Regs) -> Result<(), Refused> {
+    unsafe {
+        let get = |k: usize| (v[k] as *const u32).read_unaligned();
+        let put = |k: usize, x: u32| (v[k] as *mut u32).write_unaligned(x);
+        let (mut lowest, mut number) = (get(1), get(2));
+        if let Some((eax, ebx)) =
+            lowest_point(get(0), |n| get(4 + n as usize), &mut lowest, &mut number)?
+        {
+            r.eax = eax;
+            r.ebx = ebx;
+            put(1, lowest);
+            put(2, number);
+        }
+        let scale = f32::from_bits(game_read(rva(0x5C5D98)));
+        put(3, lowest_share(lowest, scale).to_bits());
+        Ok(())
+    }
+}
+
 fn game() -> Vec<u32> {
     variables()
         .iter()
@@ -81,20 +105,25 @@ fn game() -> Vec<u32> {
         .collect()
 }
 
-/// The Rust version; `r` as the original leaves it.
+/// The Rust version (the exact one, for `physics::feel_ground`, `ground_contact`,
+/// `find_clear_place`, `crash_contact`); `r` as the original leaves it.
 pub unsafe fn lowest_body_point(r: &mut Regs) -> Result<(), Refused> {
     unsafe { lowest_at(&game(), r) }
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     let mut g = *r;
-    unsafe { lowest_body_point(&mut g) }?;
+    unsafe { lowest_at_plain(&game(), &mut g) }?;
     Ok(Left::nothing().with(EAX, g.eax).with(EBX, g.ebx))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let v = game();
-    dispatch_state(&HOOK, r, call_original, &[(v[1], 12)], &rust);
+    let floats = Floats {
+        memory: &[((v[3], 4), FLOAT)],
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &[(v[1], 12)], &floats, &rust);
 }
 
 fn fill(seed: u32, out: &mut [u32]) {
@@ -107,7 +136,7 @@ fn fill(seed: u32, out: &mut [u32]) {
 
 fn self_test() -> (usize, usize) {
     let vars = variables();
-    let mut result = test_moves(
+    let mut result = test_moves_floats(
         &HOOK,
         0x45D6DB,
         0x5C,
@@ -117,15 +146,17 @@ fn self_test() -> (usize, usize) {
         12,
         &fill,
         &|v, r| {
-            let _ = unsafe { lowest_at(v, r) };
+            let _ = unsafe { lowest_at_plain(v, r) };
             Left::nothing().with(EAX, r.eax).with(EBX, r.ebx)
         },
+        &[(3, FLOAT)],
+        &[],
     );
     if let Some(mut t) = SelfTest::begin(&HOOK) {
         let mut cells = vec![0u32; vars.len()];
         cells[0] = 0x41;
         let at: Vec<u32> = cells.iter().map(|c| c as *const u32 as u32).collect();
-        let refused = unsafe { lowest_at(&at, &mut Regs::default()) }.is_err();
+        let refused = unsafe { lowest_at_plain(&at, &mut Regs::default()) }.is_err();
         t.check(refused, || "a count of 0x41 not refused".into());
         let (c, f) = t.finish();
         result.0 += c;

@@ -27,14 +27,6 @@ const CRASH_ANGLES_RVA: usize = rva(0x71A998); // three dwords, angles << 16 (y,
 pub const CRASH_TURNS_RVA: usize = rva(0x63503C); // dword_63503C .. dword_635044
 pub const CRASH_MATRIX_RVA: usize = rva(0x71A08C); // dword_71A08C
 
-/// Which stages swap which texture kind for which.
-const SWAPS: [([u32; 3], u32, u32); 4] = [
-    ([0x20, 0x22, 0x24], 0x2F82, 0x2FD0),
-    ([0x34, 0x36, 0x38], 0x2F91, 0x2FE0),
-    ([0x3D, 0x3F, 0x41], 0x2F72, 0x2FD2),
-    ([0x3E, 0x40, 0x42], 0x2F71, 0x2FD1),
-];
-
 unsafe fn kind(n: u32) -> u32 {
     unsafe { game_read(KINDS_RVA + 4 * n as usize) }
 }
@@ -43,51 +35,44 @@ unsafe fn swapped(n: u32) -> u32 {
     unsafe { game_read(SWAPPED_RVA + 4 * n as usize) }
 }
 
-/// `race::swap_stage_texture` (0x439B03): for the stages of `SWAPS`, the first of the
-/// first 0xFF texture kinds that is the stage's old kind becomes its new one; then, unless
-/// the new kind is in the swapped list already, it goes >> 4 into the list's first free
-/// place of 0x40 (the test is made on the kind before the shift: section 16). Leaves eax
-/// and ebx the pair last tried (ebx shifted once it was), ecx where each search stopped.
+/// `race::swap_stage_texture` (0x439B03): for the stages of the core's `TEXTURE_SWAPS`,
+/// the first of the first 0xFF texture kinds that is the stage's old kind becomes its new
+/// one; then, unless the new kind is in the swapped list already, it goes >> 4 into the
+/// list's first free place of 0x40 (the test is made on the kind before the shift:
+/// section 16). Leaves eax and ebx the pair last tried (ebx shifted once it was), ecx
+/// where each search stopped.
 pub unsafe fn swap_stage_texture(entry: &Regs) -> Regs {
+    // Converted: `rc2k_core::race::stage::swap_texture`.
+    use rc2k_core::race::stage::{SWAP_KINDS, SWAPPED_PLACES, Swap, swap_texture};
     let mut g = *entry;
     unsafe {
         let stage: u32 = game_read(STAGE_RVA);
-        let mut found = false;
-        for (stages, old, new) in SWAPS {
-            g.eax = old;
-            g.ebx = new;
-            if stages.contains(&stage) {
-                found = true;
-                break;
-            }
-        }
-        if !found {
-            return g;
-        }
-        g.ecx = 0;
-        while g.ecx != 0xFF && kind(g.ecx) != g.eax {
-            g.ecx += 1;
-        }
-        if g.ecx == 0xFF {
-            return g;
-        }
-        game_write(KINDS_RVA + 4 * g.ecx as usize, g.ebx);
-        g.ecx = 0;
-        while g.ecx != 0x40 {
-            if swapped(g.ecx) == g.ebx {
+        let ((old, new), swap) = swap_texture(stage, |n| kind(n), |n| swapped(n));
+        g.eax = old;
+        g.ebx = new;
+        let swapped_kind = match swap {
+            Swap::NotThisStage => return g,
+            Swap::NotFound => {
+                g.ecx = SWAP_KINDS;
                 return g;
             }
-            g.ecx += 1;
-        }
-        g.ebx >>= 4;
-        g.ecx = 0;
-        while g.ecx != 0x40 {
-            if swapped(g.ecx) == 0 {
-                game_write(SWAPPED_RVA + 4 * g.ecx as usize, g.ebx);
-                return g;
+            Swap::Listed { kind, at } => {
+                g.ecx = at;
+                kind
             }
-            g.ecx += 1;
-        }
+            Swap::Added { kind, at } => {
+                g.ebx = new >> 4;
+                g.ecx = at;
+                game_write(SWAPPED_RVA + 4 * at as usize, g.ebx);
+                kind
+            }
+            Swap::Full { kind } => {
+                g.ebx = new >> 4;
+                g.ecx = SWAPPED_PLACES;
+                kind
+            }
+        };
+        game_write(KINDS_RVA + 4 * swapped_kind as usize, new);
     }
     g
 }

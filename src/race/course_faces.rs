@@ -50,16 +50,12 @@ pub unsafe fn face_depth_test_on(
 /// `race::face_corners` (0x452444): face esi's four points into `dword_63D9EC` ..
 /// `dword_63D9F8`, the fourth -1 when it is the third (a triangle). Leaves eax the fourth.
 pub unsafe fn face_corners(face: u32) -> u32 {
+    // Converted: `rc2k_core::race::faces::corners`.
     unsafe {
-        game_write(rva(0x63D9EC), get(face + 4));
-        game_write(rva(0x63D9F0), get(face + 8));
-        game_write(rva(0x63D9F4), get(face + 0xC));
-        let mut fourth = get(face + 0x10);
-        if fourth == get(face + 0xC) {
-            fourth = u32::MAX;
-        }
-        game_write(rva(0x63D9F8), fourth);
-        fourth
+        let points = [4, 8, 0xC, 0x10].map(|o| get(face + o));
+        let corners = rc2k_core::race::faces::corners(points);
+        game_write(rva(0x63D9EC), corners);
+        corners[3]
     }
 }
 
@@ -250,15 +246,12 @@ pub fn depth_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// `race::face_switches` (0x45322C): `dword_6240E0` / `dword_6240E4` 1 when the face's
 /// first / second texture is animated (`dword_63DA2C` / `dword_63DA38` not 0), else 0.
 pub unsafe fn face_switches() {
+    // Converted: `rc2k_core::race::faces::switches`.
     unsafe {
-        game_write(
-            rva(0x6240E0),
-            u32::from(game_read::<u32>(rva(0x63DA2C)) != 0),
-        );
-        game_write(
-            rva(0x6240E4),
-            u32::from(game_read::<u32>(rva(0x63DA38)) != 0),
-        );
+        let [first, second] =
+            rc2k_core::race::faces::switches([game_read(rva(0x63DA2C)), game_read(rva(0x63DA38))]);
+        game_write(rva(0x6240E0), first);
+        game_write(rva(0x6240E4), second);
     }
 }
 
@@ -426,47 +419,37 @@ pub const SECOND_SET: TextureSet = TextureSet {
 /// corner read even when it is -1: `notes/bugs.md`). Gives eax the size word, ebx the
 /// texture record.
 pub unsafe fn face_texture_coordinates(set: &TextureSet, entry: &Regs) -> Regs {
+    // Converted: `rc2k_core::race::faces::texture_coordinates`.
+    use rc2k_core::race::faces::{TextureInfo, texture_coordinates};
     unsafe {
         let mut r = *entry;
         let texture: u32 = game_read(rva(set.texture));
         let info = g(0x979F30).wrapping_add(texture << 6);
         r.ebx = info;
-        game_write(rva(set.size), get(info + 0x20) | 0x8000_0000);
-        let mapping = ((info + 0x2D) as *const i8).read() as i32;
-        game_write(rva(set.mapping), mapping as u32);
-        game_write(rva(set.plain), u32::from(mapping == 0));
+        let texture_info = TextureInfo {
+            size: get(info + 0x20),
+            mapping: ((info + 0x2D) as *const i8).read(),
+        };
         let order: u32 = game_read(rva(set.order));
-        let mut uv = [0u32; 8];
-        for k in 0..4 {
+        let pairs = [0usize, 1, 2, 3].map(|k| {
             let table = game_read::<u32>(rva(0x63DAD8) + (order << 4) as usize + 4 * k);
             let pair = table.wrapping_add(info);
-            uv[2 * k] = ((pair as *const u16).read_unaligned() as u32) << 8;
-            uv[2 * k + 1] = (((pair + 2) as *const u16).read_unaligned() as u32) << 8;
-        }
-        r.eax = get(info + 0x20);
-        if (0x190..0x320).contains(&r.eax) {
-            for v in &mut uv {
-                *v <<= 1;
-            }
-        }
-        if mapping > 0 {
-            let shift = (mapping as u32 & 3) + 2;
+            (
+                (pair as *const u16).read_unaligned(),
+                ((pair + 2) as *const u16).read_unaligned(),
+            )
+        });
+        let c = texture_coordinates(texture_info, pairs, |k| {
             let points: u32 = game_read(rva(0x5CCCC0));
-            for k in 0..4 {
-                let n: u32 = game_read(rva(0x63D9EC + 4 * k));
-                let p = n.wrapping_mul(12).wrapping_add(points);
-                uv[2 * k] = get(p) << shift;
-                uv[2 * k + 1] = get(p + 8) << shift;
-            }
-            let (du, dv) = (uv[0] & 0xFF00_0000, uv[1] & 0xFF00_0000);
-            for k in 0..4 {
-                uv[2 * k] = uv[2 * k].wrapping_sub(du);
-                uv[2 * k + 1] = uv[2 * k + 1].wrapping_sub(dv);
-            }
-        }
-        for (k, v) in uv.iter().enumerate() {
-            game_write(rva(set.uv) + 4 * k, *v);
-        }
+            let n: u32 = game_read(rva(0x63D9EC) + 4 * k);
+            let p = n.wrapping_mul(12).wrapping_add(points);
+            (get(p), get(p + 8))
+        });
+        game_write(rva(set.size), c.size);
+        game_write(rva(set.mapping), c.mapping);
+        game_write(rva(set.plain), c.plain);
+        r.eax = texture_info.size;
+        game_write(rva(set.uv), c.uv);
         r
     }
 }
@@ -476,27 +459,24 @@ pub unsafe fn face_texture_coordinates(set: &TextureSet, entry: &Regs) -> Regs {
 /// all four), the corners then naming the copies (the fourth only when there is one); the
 /// count is left. Refuses (before anything) no point records or points.
 pub unsafe fn face_corners_to_new_points() -> Result<(), Refused> {
+    // Converted: `rc2k_core::race::faces::new_points`.
     unsafe {
         crate::race::frame_draw::points_there()?;
         let count: u32 = game_read(rva(0x5CCD20));
         let records: u32 = game_read(rva(0x5C6FB8));
-        for k in 0..4u32 {
-            let e = records + ((count.wrapping_add(k) & 0xFFF) << 5);
-            (e as *mut u32).write_unaligned(u32::MAX);
+        let corners: [u32; 4] = game_read(rva(0x63D9EC));
+        let (marked, copies) = rc2k_core::race::faces::new_points(count, corners);
+        for n in marked {
+            ((records + (n << 5)) as *mut u32).write_unaligned(u32::MAX);
         }
-        for k in 0..4u32 {
-            let slot = rva(0x63D9EC) + 4 * k as usize;
-            let corner: u32 = game_read(slot);
-            if k == 3 && corner == u32::MAX {
-                break;
-            }
-            let points: u32 = game_read(rva(0x5CCCC0));
-            let to = count.wrapping_add(k).wrapping_mul(12).wrapping_add(points);
-            let from = corner.wrapping_mul(12).wrapping_add(points);
+        let points: u32 = game_read(rva(0x5CCCC0));
+        for (k, (from, to)) in copies.into_iter().enumerate() {
+            let to_at = to.wrapping_mul(12).wrapping_add(points);
+            let from_at = from.wrapping_mul(12).wrapping_add(points);
             for w in 0..3 {
-                ((to + 4 * w) as *mut u32).write_unaligned(get(from + 4 * w));
+                ((to_at + 4 * w) as *mut u32).write_unaligned(get(from_at + 4 * w));
             }
-            game_write(slot, count.wrapping_add(k));
+            game_write(rva(0x63D9EC) + 4 * k, to);
         }
         Ok(())
     }

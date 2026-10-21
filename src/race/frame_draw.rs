@@ -283,9 +283,10 @@ const METRES_IN_MILE_RVA: usize = rva(0x5C5CF0); // g_metresInMile
 /// One view's half of `race::panel_values`: block `b`'s values into the panel fields
 /// (+0x718 rounded, +0xAB0, +0x1D4, the distance, +0x88 x 10, +0xA0C, -(+0xA10),
 /// +0xA14, and for the first view also +0xA18, +0xA1C, +0xA20, +0xA24). Gives eax.
-unsafe fn panel_half(b: u32, first: bool) -> u32 {
+unsafe fn panel_half(b: u32, first: bool, plain: bool) -> u32 {
     use crate::math::x87::to_int;
     use crate::math::x87_load::int_over_two_doubled;
+    use rc2k_core::race::panel::{distance_shown, shown_whole, travelled};
     unsafe {
         let f = |a: u32| crate::framework::game_addr(rva(a as usize)) as u32;
         let (base, distance) = if first {
@@ -293,21 +294,26 @@ unsafe fn panel_half(b: u32, first: bool) -> u32 {
         } else {
             (0x6D143E, 0x6D146E)
         };
-        put(f(base), to_int(get(b + 0x718)) as u32);
+        let whole = if plain {
+            shown_whole(f32::from_bits(get(b + 0x718)))
+        } else {
+            to_int(get(b + 0x718))
+        };
+        put(f(base), whole as u32);
         put(f(base + 4), get(b + 0xAB0));
         put(f(base + 8), get(b + 0x1D4));
         let at = |n: u32| game_read::<u32>(DISTANCES_RVA + 4 * n as usize);
         let from: u32 = game_read(START_CHECKPOINT_RVA);
-        let d = at(get(b + 0x98)).saturating_sub(at(from)) >> 1;
+        let d = travelled(at(get(b + 0x98)), at(from));
         game_write(SCRATCH_RVA, d);
-        put(
-            f(distance),
-            int_over_two_doubled(
-                d as i32,
-                game_read(DISTANCE_UNIT_RVA),
-                game_read(METRES_IN_MILE_RVA),
-            ),
-        );
+        let (unit, miles): (u32, u32) =
+            (game_read(DISTANCE_UNIT_RVA), game_read(METRES_IN_MILE_RVA));
+        let shown = if plain {
+            distance_shown(d as i32, f32::from_bits(unit), f32::from_bits(miles)).to_bits()
+        } else {
+            int_over_two_doubled(d as i32, unit, miles)
+        };
+        put(f(distance), shown);
         let eax = get(b + 0x88).wrapping_mul(10);
         put(f(base + 0x10), eax);
         put(f(base + 0xC), get(b + 0xA0C));
@@ -328,11 +334,25 @@ unsafe fn panel_half(b: u32, first: bool) -> u32 {
 /// `race::panel_values` (0x45AB5A): both view blocks' values into the panel (see
 /// `panel_half`). Leaves esi the second block, ebx `dword_60102C`, eax its +0x88 x 10.
 pub unsafe fn panel_values() -> Left {
+    unsafe { panel_values_with(false) }
+}
+
+/// `panel_values` converted (the hook's; `set_up_panel`, not yet converted, keeps the
+/// exact version).
+// Converted: `rc2k_core::race::panel::{shown_whole, travelled, distance_shown}`.
+pub unsafe fn panel_values_plain() -> Left {
+    unsafe { panel_values_with(true) }
+}
+
+/// The distance shown of each view (the float places `panel_values_plain` writes).
+pub const PANEL_FLOATS: [usize; 2] = [rva(0x6D146A), rva(0x6D146E)];
+
+unsafe fn panel_values_with(plain: bool) -> Left {
     unsafe {
         let a: u32 = game_read(VIEW_BLOCKS[0]);
-        panel_half(a, true);
+        panel_half(a, true, plain);
         let b: u32 = game_read(VIEW_BLOCKS[1]);
-        let eax = panel_half(b, false);
+        let eax = panel_half(b, false, plain);
         Left::nothing()
             .with(ESI, b)
             .with(EBX, game_read(START_CHECKPOINT_RVA))
@@ -368,12 +388,15 @@ pub unsafe fn wake_part_sounds() -> Result<Left, Refused> {
                 if b == 0 {
                     return Err(BadInput("a null car block").into());
                 }
+                // Converted: `rc2k_core::race::lights::part_wake`.
+                use rc2k_core::race::lights::{PartWake, part_wake};
                 let count = get(b + 0x700 + 4 * slot);
-                if get(b + 0x48 + 4 * slot) != 0 || count < 10 {
+                let part = part_wake(get(b + 0x48 + 4 * slot), count);
+                if part == PartWake::Left {
                     continue;
                 }
                 plan.push(b + 0x48 + 4 * slot);
-                if count != 10 {
+                if part != PartWake::WokenNow {
                     continue;
                 }
                 if current > 7 {
@@ -1070,18 +1093,18 @@ pub unsafe fn gather_record_faces(
             let kind = (at as *const u8).read();
             // `mov al, [esi]`: the kind in eax's low byte.
             r.eax = (r.eax & !0xFF) | kind as u32;
-            if kind == 0xFF || kind < 0x10 {
+            // Converted: `rc2k_core::race::faces::{gathered, face_object}`.
+            use rc2k_core::race::faces::{Gathered, face_object, gathered};
+            let how = gathered(kind);
+            if how != Gathered::No {
                 let (eax, hidden) = face_hidden(at, r.eax)?;
                 r.eax = eax;
                 if !hidden {
-                    let (depth_table, kind_table) = if kind == 0xFF {
-                        r.eax = ((at + 1) as *const u8).read() as u32;
+                    let byte = |o: u32| ((at + o) as *const u8).read();
+                    r.eax = face_object(how, byte(1), || byte(0x21));
+                    let (depth_table, kind_table) = if how == Gathered::Lit {
                         (FACE_TABLES[1], FACE_TABLES[3])
                     } else {
-                        r.eax = ((at + 1) as *const u8).read() as u32;
-                        if r.eax == 0 {
-                            r.eax = ((at + 0x21) as *const u8).read() as u32;
-                        }
                         (FACE_TABLES[0], FACE_TABLES[2])
                     };
                     let left = if byte_at(depth_table, r.eax) != 0 {
@@ -1148,17 +1171,10 @@ pub unsafe fn face_hide_mask(
             return Ok(r);
         }
         r.esi = (r.ebx << 6).wrapping_add(game_read(rva(0x5CCCBC)));
-        let word = ((r.esi + 2) as *const u16).read_unaligned() as u32;
-        let flip = |bits: u32| {
-            if word & bits != 0 {
-                (word & bits) ^ bits
-            } else {
-                0
-            }
-        };
-        r.eax = flip(0xA);
-        r.ebx = flip(0x30);
-        r.eax |= r.ebx;
+        // Converted: `rc2k_core::race::faces::hide_mask` (ebx the second flip).
+        let word = ((r.esi + 2) as *const u16).read_unaligned();
+        r.ebx = rc2k_core::race::faces::hide_mask(word & 0x30);
+        r.eax = rc2k_core::race::faces::hide_mask(word);
         game_write(HIDE_MASK_RVA, r.eax);
         Ok(r)
     }
@@ -1304,18 +1320,16 @@ pub fn gather_regions(records: &[u32]) -> Vec<crate::service::harness::Region> {
 /// The records `gather_visible_faces` gathers, as it would.
 pub fn visible_records() -> Vec<u32> {
     unsafe {
+        // Converted: `rc2k_core::race::view::visible_records`.
         let records: u32 = game_read(COURSE_RECORDS_RVA);
-        let last = game_read::<u32>(COURSE_RECORD_COUNT_RVA).wrapping_sub(1);
         let grid = g(0x63E17C);
-        let mut todo: Vec<u32> = (0..0x400)
-            .map(|k| get(grid + 4 * k))
-            .filter(|&n| n < 0x0FFF_FFFF)
-            .map(|n| (n << 5).wrapping_add(records))
-            .collect();
-        if last != u32::MAX {
-            todo.push((last << 5).wrapping_add(records));
-        }
-        todo
+        rc2k_core::race::view::visible_records(
+            (0..0x400).map(|k| get(grid + 4 * k)),
+            game_read(COURSE_RECORD_COUNT_RVA),
+        )
+        .into_iter()
+        .map(|n| (n << 5).wrapping_add(records))
+        .collect()
     }
 }
 
@@ -1367,39 +1381,34 @@ pub unsafe fn car_light_modes(
         if cars == 0 {
             return Ok(r);
         }
+        // Converted: `rc2k_core::race::lights::{lights_drawn, light_word}`.
+        use rc2k_core::race::lights::{light_word, lights_drawn};
         let mode: u32 = game_read(MODE_RVA);
-        let set = |at: u32, keep: u32, bits: u32| put(at, (get(at) & keep) | bits);
         for n in 0..cars {
             r.ebx = n;
             r.esi = block(n);
-            let at = r.esi + 0x6FC;
+            let b = r.esi;
+            let at = b + 0x6FC;
             let me = n == shown;
-            let drawn = get(r.esi + 0x25C) != 0
-                && (mode == 2 || mode == 0 || me)
-                && !(me && get(r.esi + 0x69C) == 0 && get(r.esi + 0x684) == 0)
-                && !(me && game_read::<u32>(rva(0x63993C)) != 0);
+            let drawn = lights_drawn(
+                get(b + 0x25C) != 0,
+                mode,
+                me,
+                || get(b + 0x69C) == 0 && get(b + 0x684) == 0,
+                || game_read::<u32>(rva(0x63993C)) != 0,
+            );
             if !drawn {
                 put(at, 0);
                 continue;
             }
-            set(at, 0xFFFF_FF0F, 0x20);
-            set(at, 0xFFFF_FFF0, 1);
-            if me && game_read::<u32>(rva(0x606274)) != 0 {
-                set(at, 0xFFFF_FF0F, 0x10);
-                set(at, 0xFFFF_FFF0, 2);
-                let kind: u32 = game_read(rva(0x606270));
-                if kind != 1 {
-                    set(at, 0xFFFF_FFF0, 4);
-                    if kind != 2 && kind != 3 {
-                        set(at, 0xFFFF_FFF0, 1);
-                    }
-                }
-            }
-            set(at, 0xFFFF_F0FF, 0x100);
-            let high: u32 = game_read(rva(0x6238B4));
-            if high != 0 && (high != 1 || me) {
-                set(at, 0xFFFF_F0FF, 0x200);
-            }
+            let word = light_word(
+                get(at),
+                me,
+                || game_read::<u32>(rva(0x606274)) != 0,
+                || game_read(rva(0x606270)),
+                game_read(rva(0x6238B4)),
+            );
+            put(at, word);
         }
         r.ebx = cars;
         Ok(r)
@@ -1484,12 +1493,13 @@ pub unsafe fn gather_lamps(
             r.ecx = k;
             r.ebx = get(g(LIT_FACES) + 4 * k);
             r.esi = (r.ebx << 6).wrapping_add(game_read(rva(0x5CCCBC)));
+            // Converted: `rc2k_core::race::faces::takes_lamp`.
             r.eax = ((r.esi + 1) as *const u8).read() as u32;
-            if r.eax != 0x3B {
+            if r.eax != rc2k_core::race::faces::LAMP_OBJECT {
                 continue;
             }
             r.ebx = game_read(LAMP_COUNT_RVA);
-            if r.ebx == 0x10 {
+            if !rc2k_core::race::faces::takes_lamp(r.eax, r.ebx) {
                 continue;
             }
             let lamp = r.ebx;
@@ -1500,7 +1510,7 @@ pub unsafe fn gather_lamps(
             put(r.edi + 4, ((r.esi + 0x11) as *const u8).read() as u32);
             // +0x2C goes in first, then 0xFFFFFF over it; eax keeps +0x2C.
             r.eax = get(r.esi + 0x2C);
-            put(r.edi + 8, 0x00FF_FFFF);
+            put(r.edi + 8, rc2k_core::race::faces::LAMP_COLOUR);
             add_lamp_entry(lamp);
             game_write(LAMP_COUNT_RVA, lamp + 1);
         }
@@ -1750,20 +1760,19 @@ pub unsafe fn eax_environment(entry: &crate::framework::Regs) -> crate::framewor
         let mut r = *entry;
         game_write(EAX_ENVIRONMENT_RVA, 0u32);
         game_write(EAX_FACES_RVA, 0u32);
+        // Converted: `rc2k_core::race::view::{cells_from, record_faces}`.
+        use rc2k_core::race::view::{NO_RECORD, cells_from, record_faces};
         r.eax = hold_to_limit(game_read(GRID_REACH_RVA));
-        r.ecx = r.eax.wrapping_sub(1).wrapping_mul(0x21);
-        for (k, step) in [0u32, 1, 1, 0x1E, 1, 1, 0x1E, 1, 1].into_iter().enumerate() {
-            if k > 0 {
-                r.ecx = r.ecx.wrapping_add(step);
-            }
+        for cell in cells_from(r.eax.wrapping_sub(1), 3) {
+            r.ecx = cell;
             // `sub_45C84C`.
             r.ebx = get(g(0x63E17C).wrapping_add(r.ecx.wrapping_mul(4)));
-            if r.ebx >= 0x0FFF_FFFF {
+            if r.ebx >= NO_RECORD {
                 continue;
             }
             r.esi = (r.ebx << 5).wrapping_add(game_read(COURSE_RECORDS_RVA));
             r.ebx = get(r.esi + 8);
-            if r.ebx == u32::MAX || r.ebx > get(r.esi + 0xC) {
+            if record_faces(r.ebx, get(r.esi + 0xC)).is_none() {
                 continue;
             }
             loop {
@@ -2003,14 +2012,12 @@ pub unsafe fn view_light(
 /// `dword_60930C`, `dword_609358`, `dword_609308`, `dword_609320`, `dword_60AC80`. Leaves
 /// ebx the level, eax the last table's value.
 pub unsafe fn draw_distance_settings() -> Left {
+    // Converted: `rc2k_core::race::view::{draw_distance_level, grid_reach}`.
+    use rc2k_core::race::view::{draw_distance_level, grid_reach};
     unsafe {
-        let level = (game_read::<u32>(rva(0x60AC84)) as i32).clamp(0, 4) as u32;
+        let level = draw_distance_level(game_read(rva(0x60AC84)));
         let pick = |table: u32| get(g(table) + 4 * level);
-        let mut reach = pick(0x60AC88);
-        if (reach.wrapping_sub(1) as i32) < 0 {
-            reach = 1;
-        }
-        game_write(rva(0x60A87C), reach);
+        game_write(rva(0x60A87C), grid_reach(pick(0x60AC88)));
         let mut eax = 0;
         for (table, to) in [
             (0x60AC9C, 0x60930C),
@@ -2035,39 +2042,22 @@ const NOISE_SAMPLES_RVA: usize = rva(0x637620); // dword_637620 .. dword_637634
 /// the result shifted left 8. Leaves eax that, ebx and ecx the two fractions, edx the last
 /// product's high half.
 pub unsafe fn sample_noise(map: u32) -> Left {
+    // Converted: `rc2k_core::race::view::sample_noise`.
     unsafe {
         let car = g(0x719FD8);
         let (px, pz) = (get(car + 0x6A4), get(car + 0x6AC));
-        let (cx, cz) = (px >> 24, pz >> 24);
-        let at = |x: u32, z: u32| {
-            (((map + ((x & 0x3F) + ((z & 0x3F) << 6))) as *const u8).read()) as u32
-        };
-        let samples = [
-            at(cx, cz),
-            at(cx + 1, cz),
-            at(cx, cz + 1),
-            at(cx + 1, cz + 1),
-        ];
+        let s = rc2k_core::race::view::sample_noise(|n| ((map + n) as *const u8).read(), px, pz);
         let out = crate::framework::game_addr(NOISE_SAMPLES_RVA) as u32;
-        for (k, &s) in samples.iter().enumerate() {
-            put(out + 4 * k as u32, s);
+        for (k, &c) in s.corners.iter().enumerate() {
+            put(out + 4 * k as u32, c);
         }
-        let fx = (px >> 8) & 0xFFFF;
-        let fz = (pz >> 8) & 0xFFFF;
-        let blend = |a: u32, b: u32, f: u32| -> (u32, u32) {
-            let p = (b.wrapping_sub(a) as i32 as i64) * (f as i32 as i64);
-            (((p >> 16) as u32).wrapping_add(a), (p >> 32) as u32)
-        };
-        let (near, _) = blend(samples[0], samples[1], fx);
-        put(out + 0x10, near);
-        let (far, _) = blend(samples[2], samples[3], fx);
-        put(out + 0x14, far);
-        let (v, edx) = blend(near, far, fz);
+        put(out + 0x10, s.near);
+        put(out + 0x14, s.far);
         Left::nothing()
-            .with(EAX, v << 8)
-            .with(EBX, fx)
-            .with(ECX, fz)
-            .with(EDX, edx)
+            .with(EAX, s.value)
+            .with(EBX, s.fx)
+            .with(ECX, s.fz)
+            .with(EDX, s.high)
     }
 }
 
@@ -2088,42 +2078,36 @@ pub unsafe fn fog_table(entry: &crate::framework::Regs) -> Result<crate::framewo
         if length == 0 || length > 0x1000 {
             return Err(BadInput("a fog table length of 0 or past 0x1000").into());
         }
+        // Converted: `rc2k_core::race::view::fog_table`.
         let mut r = *entry;
         draw_distance_settings().apply(&mut r);
         r.esi = g(0xA2AAE4);
         sample_noise(r.esi).apply(&mut r);
-        let low: u32 = game_read(rva(0x609308));
-        let span = game_read::<u32>(rva(0x609320)).wrapping_sub(low);
-        let p = (r.eax as i32 as i64) * (span as i32 as i64);
-        r.eax = (p >> 8) as u32;
-        r.ebp = (low << 8).wrapping_add(r.eax);
-        game_write(rva(0x62DAF0), r.ebp);
-        let base = (game_read::<u32>(rva(0x6415DC)).wrapping_mul(game_read(rva(0x6415D8)))) >> 4;
-        let near = base.wrapping_mul(game_read(rva(0x609310))) >> 8;
-        game_write(rva(0x6365F0), near);
-        r.eax = base.wrapping_mul(game_read(rva(0x609360))) >> 8;
-        game_write(rva(0x6365F4), r.eax);
+        let k = |a: usize| game_read::<u32>(rva(a));
+        let fog = rc2k_core::race::view::fog_table(
+            r.eax,
+            &rc2k_core::race::view::FogSettings {
+                low: k(0x609308),
+                high: k(0x609320),
+                scale: [k(0x6415DC), k(0x6415D8)],
+                near: k(0x609310),
+                far: k(0x609360),
+                start: k(0x609358),
+                end: k(0x60930C),
+                length,
+            },
+        );
+        r.ebp = fog.step;
+        game_write(rva(0x62DAF0), fog.step);
+        game_write(rva(0x6365F0), fog.near);
+        game_write(rva(0x6365F4), fog.far);
         r.edx = length;
         game_write(FOG_LENGTH_RVA, length);
-        let start: u32 = game_read(rva(0x609358));
         let table = g(0x63661C);
-        r.ebx = 0;
-        for k in 0..length {
-            r.ebx = r.ebx.wrapping_add(r.ebp);
-            r.eax = clamp_byte(
-                ((r.ebx as i32 >> 16) as u32)
-                    .wrapping_add(start)
-                    .wrapping_add(near),
-            );
-            ((table + k) as *mut u8).write(r.eax as u8);
-        }
+        std::ptr::copy_nonoverlapping(fog.table.as_ptr(), table as *mut u8, fog.table.len());
+        r.ebx = fog.sum;
         r.edi = length;
-        let far = clamp_byte(
-            ((r.ebx as i32 >> 16) as u32)
-                .wrapping_add(start)
-                .wrapping_add(game_read(rva(0x60930C))),
-        );
-        r.eax = clamp_byte(far.wrapping_add(near));
+        r.eax = fog.next;
         game_write(rva(0x636610), r.eax);
         Ok(r)
     }
@@ -3104,17 +3088,16 @@ pub unsafe fn car_lights(
         if game_read::<u32>(HIDING_RVA) == 0 {
             return Ok(r);
         }
+        // Converted: `rc2k_core::race::lights::{check_car_lights, lights_on}` (the null
+        // block's refusal between its two, as before).
+        use rc2k_core::race::lights::{check_car_lights, lights_on};
         let cars: u32 = game_read(CARS_RVA);
-        if cars == 0 || cars > 8 {
-            return Err(BadInput("no race cars or more than eight").into());
-        }
+        check_car_lights(cars, 0, SORT_MAX)?;
         let block = |n: u32| game_read::<u32>(CAR_BLOCKS_RVA + 4 * n as usize);
         if (0..cars).any(|n| block(n) == 0) {
             return Err(BadInput("a null car block").into());
         }
-        if game_read::<u32>(DEPTH_COUNT_RVA) > SORT_MAX - 25 * cars {
-            return Err(BadInput("the depth list has no room for the cars' lights").into());
-        }
+        check_car_lights(cars, game_read(DEPTH_COUNT_RVA), SORT_MAX)?;
         for n in 0..cars {
             let inner = crate::framework::Regs {
                 ebx: n,
@@ -3122,7 +3105,7 @@ pub unsafe fn car_lights(
                 ..*entry
             };
             // Both only with the lights on: the `jz` skips to the `popa`.
-            if get(inner.esi + 0x6FC) & 0x20 != 0 {
+            if lights_on(get(inner.esi + 0x6FC)) {
                 add_car_depth_entry(inner.esi, n)?;
                 car_light_flares(&inner)?;
             }

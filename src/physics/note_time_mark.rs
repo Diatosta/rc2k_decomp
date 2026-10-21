@@ -8,13 +8,15 @@
 //! Out: eax the difference when it is stored, else kept; no flags read
 //!
 //! Caller: `sub_43B635` (0x43B9A4), every physics step.
-//! Self-test: `physics/copy_hooks_test.rs`, 12 cases (figures below, at, above, NaN).
+//! Self-test: `physics/copy_hooks_test.rs` (the converted version), 12 cases (figures
+//! below, at, above, NaN); a compare of floats only: exact at any precision.
 
 use crate::errors::Refused;
 use crate::framework::{EAX, RawHook, Regs, game_addr, game_read, hook_asm, rva};
 use crate::physics::copy_hooks_test::{lot, test_moves};
 use crate::screens::harness::Left;
 use crate::service::harness::dispatch_state;
+use rc2k_core::physics::motion::time_mark;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -33,20 +35,6 @@ hook_asm!(
 const VARIABLES: [usize; 4] = [0x71AEE0, 0x6140EC, 0x719FE0, 0x6140F0];
 const LIMIT_RVA: usize = rva(0x5C5D5C); // flt_5C5D5C, 60.0
 
-unsafe fn core(v: &[u32], r: &mut Regs) {
-    unsafe {
-        let get = |k: usize| (v[k] as *const u32).read_unaligned();
-        if crate::math::x87::compare_status(get(0), game_read(LIMIT_RVA)) & 0x100 != 0 {
-            return;
-        }
-        if get(1) != 0 {
-            return;
-        }
-        r.eax = get(2).wrapping_sub(get(3));
-        (v[1] as *mut u32).write_unaligned(r.eax);
-    }
-}
-
 fn game() -> Vec<u32> {
     VARIABLES
         .iter()
@@ -54,7 +42,28 @@ fn game() -> Vec<u32> {
         .collect()
 }
 
-/// The Rust version; `r` as the original leaves it.
+/// The converted version (`rc2k_core::physics::motion`) on the variables at `v`; `r` as
+/// the original leaves it.
+// Converted: `rc2k_core::physics::motion::time_mark`.
+unsafe fn core(v: &[u32], r: &mut Regs) {
+    unsafe {
+        let get = |k: usize| (v[k] as *const u32).read_unaligned();
+        let limit = f32::from_bits(game_read(LIMIT_RVA));
+        // The mark, count and start read only where the original reads them.
+        if let Some(mark) = time_mark(
+            f32::from_bits(get(0)),
+            limit,
+            || get(1),
+            || (get(2), get(3)),
+        ) {
+            r.eax = mark;
+            (v[1] as *mut u32).write_unaligned(mark);
+        }
+    }
+}
+
+/// The Rust version (a compare of floats only: the same at any precision); `r` as the
+/// original leaves it.
 pub unsafe fn note_time_mark(r: &mut Regs) {
     unsafe { core(&game(), r) }
 }
