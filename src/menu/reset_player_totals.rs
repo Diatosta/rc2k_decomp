@@ -44,9 +44,9 @@ fn prepare(case: u32) {
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn reset_player_totals(entry: &Regs) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::menu::event::PLAYER_TOTALS`.
     for p in counted_players()? {
-        put(p + 0x8C, 3_600_000);
-        put(p + 0x88, 3_600_000);
+        put_all(p, &rc2k_core::menu::event::PLAYER_TOTALS);
     }
     Ok(*entry)
 }

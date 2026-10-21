@@ -43,6 +43,9 @@
 //! - `menu::secret_car_list` (0x480D35): with cheat bit 1 (`g_cheats`), esi `off_75A412`;
 //!   the carry is the bit. Not `pusha`'d.
 //!
+//! Converted (2026-10-21): the entries' logic is `rc2k_core::menu::bests` and
+//! `rc2k_core::menu::standings`; this file reads and writes the game's memory for it.
+//!
 //! Refusals (before anything): a level past 5, a stage past 6, a missing record or table
 //! on the way, a current player past 3 or missing, a null name, a list without its end
 //! in 0x28 (0x30 for `off_75A12E`) entries, a shown car past the list.
@@ -50,9 +53,10 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
 use crate::menu::player::{PLAYERS_RVA, player_at};
+use crate::menu::standings::{bytes, table};
 use crate::screens::harness::{CallOriginal, Left};
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
-use rc2k_core::menu::standings;
+use rc2k_core::menu::{bests, standings};
 
 pub const LEVEL_RVA: usize = rva(0x7587EC); // dword_7587EC
 pub const STAGE_RVA: usize = rva(0x7587F0); // dword_7587F0
@@ -84,7 +88,7 @@ const CARS_LEN: u32 = 0x28;
 const SHOWN_LIST_LEN: u32 = 0x30;
 const TIME_LEN: u32 = 0x9C;
 const SCORE_LEN: u32 = 0x50;
-const NAME: u32 = 31;
+const STAGE_RECORD_LEN: u32 = 0xA4;
 
 fn g(a: usize) -> u32 {
     unsafe { game_read(a) }
@@ -97,9 +101,6 @@ fn get(a: u32) -> u32 {
 }
 fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
-}
-unsafe fn copy_bytes(from: u32, to: u32, n: u32) {
-    unsafe { std::ptr::copy(from as *const u8, to as *mut u8, n as usize) }
 }
 
 /// The stage's record (`off_73555A[level]` + stage x 0xA4).
@@ -152,23 +153,29 @@ pub fn keep_arcade_stage_best(record: u32) -> Result<(), Refused> {
         return Err(BadInput("an edi that points nowhere").into());
     }
     let (_, player) = current()?;
-    let best = get(player + 0x94);
-    if (get(record + 0x30) as i32) < best as i32 {
+    // Converted: `rc2k_core::menu::bests::{takes_record, take_record}`.
+    let figure = get(player + 0x94);
+    if bests::takes_record(figure, get(record + 0x30)) {
         let name = get(player + 0x18);
         if name == 0 {
             return Err(BadInput("a null name").into());
         }
-        put(record + 0x30, best);
-        put(record + 0x74, get(player + 4));
-        put(record + 0x78, get(player + 8));
-        unsafe { copy_bytes(name, record + 0x54, 0x20) };
+        let holder = bests::Holder {
+            figure,
+            nationality: get(player + 4),
+            car: get(player + 8),
+            name: bytes(name),
+        };
+        let mut r = unsafe { table(record, STAGE_RECORD_LEN, 1) };
+        bests::take_record(&mut r, 0, &bests::RECORD_HOLDER, &holder);
     }
     Ok(())
 }
 
 pub fn check_arcade_level_score() -> Result<(), Refused> {
     let tenth = level_scores()? + 0x2D0;
-    if g(SCORE_RVA) as i32 >= get(tenth + 0x14) as i32 {
+    // Converted: `rc2k_core::menu::bests::makes_score`.
+    if bests::makes_score(g(SCORE_RVA), get(tenth + 0x14)) {
         p(FLAG_RVA, 1);
     }
     Ok(())
@@ -179,7 +186,8 @@ pub fn check_arcade_stage_time() -> Result<(), Refused> {
     let (_, player) = current()?;
     let time = get(player + 0x88);
     p(TIME_SEEN_RVA, time);
-    if time as i32 <= get(tenth + 0x14) as i32 {
+    // Converted: `rc2k_core::menu::bests::makes_time`.
+    if bests::makes_time(time, get(tenth + 0x14)) {
         p(FLAG_RVA, 1);
     }
     Ok(())
@@ -217,60 +225,77 @@ unsafe fn kept_name<'a>() -> &'a mut [u8; standings::NAME_LEN] {
     unsafe { &mut *(game_addr(KEPT_NAME_RVA) as *mut [u8; standings::NAME_LEN]) }
 }
 
-/// What both entries share: +0x1C, +8, +0xC, +0x10, +4, +0x40, +0x20 and the name.
-unsafe fn enter_common(entry: u32, player: u32) {
-    put(entry + 0x1C, get(player + 0x90));
-    put(entry + 8, get(player + 4));
-    put(entry + 0xC, get(player + 0x18));
-    put(entry + 0x10, get(player + 8));
+/// The player's new entry (player 1): +0x1C, +8, +0xC, +0x10 and the name from its
+/// record.
+fn new_best(
+    player: u32,
+    key: u32,
+    seal: Option<bests::Seal>,
+    line: Option<[u8; bests::LINE_LEN]>,
+) -> bests::NewBest {
+    let name_at = get(player + 0x18);
+    bests::NewBest {
+        key,
+        player: 1,
+        nationality: get(player + 4),
+        name_at,
+        car: get(player + 8),
+        group: get(player + 0x90),
+        name: bytes(name_at),
+        entered: None,
+        seal,
+        line,
+    }
 }
 
 pub fn enter_arcade_stage_time() -> Result<(), Refused> {
     let record = stage_record()?;
-    let tenth = course_times()? + 0x57C;
+    let first = course_times()?;
     let (_, player) = current()?;
     if get(player + 0x18) == 0 {
         return Err(BadInput("a null name").into());
     }
     let course = get(record + 0x3C);
     p(SLOT_RVA, course);
-    put(tenth + 0x14, get(player + 0x88));
-    unsafe { enter_common(tenth, player) };
-    put(tenth + 0x50, g(CHEATS_RVA));
+    let cheats = g(CHEATS_RVA);
     let sealed = unsafe {
         crate::menu::sealed_player_time::sealed_player_time(&Regs {
             eax: course,
             ..Regs::SENTINEL
         })
     }?;
-    put(tenth + 0x54, sealed.eax);
-    put(tenth + 0x58, sealed.ebx);
-    put(tenth + 4, 1);
-    put(tenth + 0x40, 1);
-    put(tenth + 0x20, get(player + 0x18));
-    unsafe {
-        copy_bytes(player + 0x20C, tenth + 0x5C, 0x40);
-        copy_bytes(get(tenth + 0xC), tenth + 0x20, NAME);
-    }
-    sort_arcade_stage_times()
+    // Converted: `rc2k_core::menu::bests::enter_tenth`, then
+    // `rc2k_core::menu::standings::sort_arcade_times`.
+    let seal = bests::Seal {
+        cheats,
+        sealed: [sealed.eax, sealed.ebx],
+    };
+    let best = new_best(
+        player,
+        get(player + 0x88),
+        Some(seal),
+        Some(bytes(player + 0x20C)),
+    );
+    let mut ten = unsafe { ten_entries(first, TIME_LEN) };
+    bests::enter_tenth(&mut ten, &best);
+    standings::sort_arcade_times(&mut ten, unsafe { kept_name() });
+    Ok(())
 }
 
 pub fn enter_arcade_level_score() -> Result<(), Refused> {
-    let tenth = level_scores()? + 0x2D0;
+    let first = level_scores()?;
     let (n, player) = current()?;
     if get(player + 0x18) == 0 {
         return Err(BadInput("a null name").into());
     }
-    put(
-        tenth + 0x14,
-        g(if n == 1 { SCORE_1_RVA } else { SCORE_RVA }),
-    );
-    unsafe { enter_common(tenth, player) };
-    put(tenth + 4, 1);
-    put(tenth + 0x40, 1);
-    put(tenth + 0x20, get(player + 0x18));
-    unsafe { copy_bytes(get(tenth + 0xC), tenth + 0x20, NAME) };
-    sort_arcade_level_scores()
+    // Converted: `rc2k_core::menu::bests::enter_tenth`, then
+    // `rc2k_core::menu::standings::sort_arcade_scores`.
+    let score = g(if n == 1 { SCORE_1_RVA } else { SCORE_RVA });
+    let best = new_best(player, score, None, None);
+    let mut ten = unsafe { ten_entries(first, SCORE_LEN) };
+    bests::enter_tenth(&mut ten, &best);
+    standings::sort_arcade_scores(&mut ten, unsafe { kept_name() });
+    Ok(())
 }
 
 pub fn score_arcade_stage() -> Result<(), Refused> {
@@ -290,24 +315,24 @@ pub fn score_arcade_stage() -> Result<(), Refused> {
 }
 
 pub fn clear_arcade_score_marks() -> Result<(), Refused> {
+    // Converted: `rc2k_core::menu::bests::clear_marks`.
     let first = level_scores()?;
-    for k in 0..10 {
-        put(first + k * SCORE_LEN + 0x40, 0);
-    }
+    bests::clear_marks(&mut unsafe { ten_entries(first, SCORE_LEN) });
     Ok(())
 }
 
 pub fn clear_arcade_time_marks() -> Result<(), Refused> {
+    // Converted: `rc2k_core::menu::bests::clear_marks`.
     let first = course_times()?;
-    for k in 0..10 {
-        put(first + k * TIME_LEN + 0x40, 0);
-    }
+    bests::clear_marks(&mut unsafe { ten_entries(first, TIME_LEN) });
     Ok(())
 }
 
 pub fn take_arcade_stage_best() -> Result<(), Refused> {
+    // Converted: `rc2k_core::menu::bests::best_line`.
     let first = course_times()?;
-    unsafe { copy_bytes(first + 0x5C, game_addr(BEST_LINE_RVA) as u32, 0x40) };
+    let line = bests::best_line(&unsafe { ten_entries(first, TIME_LEN) });
+    unsafe { game_write(BEST_LINE_RVA, line) };
     Ok(())
 }
 
@@ -319,13 +344,13 @@ fn end_of(list: usize, len: u32) -> Result<u32, Refused> {
 }
 
 pub fn add_shown_car() -> Result<(), Refused> {
+    // Converted: `rc2k_core::menu::car_lists` (`entries`, `shown_car`).
+    use rc2k_core::menu::car_lists::{entries, shown_car};
+    let list = |at: usize, len: u32| entries(len as usize, |k| g(at + 4 * k));
     let shown = g(SHOWN_RVA);
-    if shown >= end_of(SHOWN_LIST_RVA, SHOWN_LIST_LEN)? {
-        return Err(BadInput("a shown car past the list").into());
-    }
-    let car = g(SHOWN_LIST_RVA + 4 * shown as usize);
-    let end = end_of(CARS_RVA, CARS_LEN)?;
-    p(CARS_RVA + 4 * end as usize, car);
+    let car = shown_car(&list(SHOWN_LIST_RVA, SHOWN_LIST_LEN)?, shown)?;
+    let end = list(CARS_RVA, CARS_LEN)?.len();
+    p(CARS_RVA + 4 * end, car);
     Ok(())
 }
 

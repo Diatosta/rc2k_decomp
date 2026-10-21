@@ -54,24 +54,20 @@ unsafe fn players_by_group(
     entry: &Regs,
     first: u32,
     size: u32,
-    slots: [u32; 4],
+    firsts: [usize; 4],
 ) -> Result<(), Refused> {
     let players = counted_players()?;
-    for (group, slot) in slots.into_iter().enumerate() {
-        let mut edi = first + slot;
-        for (n, &p) in players.iter().enumerate() {
-            if get(p + 0x90) == group as u32 {
-                unsafe {
-                    crate::menu::player_to_standing_b::player_to_standing_b(&Regs {
-                        edi,
-                        esi: p,
-                        ebx: n as u32,
-                        ..*entry
-                    })
-                }?;
-                edi -= size;
-            }
-        }
+    let groups: Vec<u32> = players.iter().map(|&p| get(p + 0x90)).collect();
+    // Converted: `rc2k_core::menu::standings::by_group`.
+    for (n, e) in rc2k_core::menu::standings::by_group(&groups, firsts) {
+        unsafe {
+            crate::menu::player_to_standing_b::player_to_standing_b(&Regs {
+                edi: first + size * e as u32,
+                esi: players[n],
+                ebx: n as u32,
+                ..*entry
+            })
+        }?;
     }
     Ok(())
 }
@@ -112,20 +108,15 @@ pub unsafe fn standings_b_from_all(entry: &Regs) -> Result<Regs, Refused> {
         texts.push(text);
     }
     unsafe { crate::menu::init_standings_b::init_standings_b(entry) }?;
-    for (n, (&d, text)) in drivers.iter().zip(texts).enumerate() {
-        let e = first + B_ENTRY * n as u32;
-        put(e + 4, 0);
-        put(e + 0x10, get(d + 8));
-        put(e + 8, get(d + 0x14));
-        put(e + 0xC, get(d + 0x18));
-        put(e, get(d));
-        put(e + 0x34, get(d + 0x10));
-        for k in 0..14 {
-            put(e + 0x38 + 4 * k, get(d + 0x5C + 4 * k));
-        }
-        unsafe { std::ptr::copy_nonoverlapping(text.as_ptr(), (e + 0x14) as *mut u8, text.len()) };
+    // Converted: `rc2k_core::menu::standings::fill_b_from_driver`.
+    let count = drivers.len() as u32;
+    let all = unsafe { table(drivers[0], DRIVER, count) };
+    let mut t = unsafe { table(first, B_ENTRY, count) };
+    for (n, text) in texts.into_iter().enumerate() {
+        rc2k_core::menu::standings::fill_b_from_driver(&mut t, n, &all, n, &text);
     }
-    unsafe { players_by_group(entry, first, B_ENTRY, [0x29B8, 0x37C8, 0x4F38, 0x53E8]) }?;
+    use rc2k_core::menu::standings::B_GROUP_FIRSTS;
+    unsafe { players_by_group(entry, first, B_ENTRY, B_GROUP_FIRSTS) }?;
     Ok(*entry)
 }
 

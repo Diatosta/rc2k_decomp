@@ -12,6 +12,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::{a, g, p};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use rc2k_core::drive::clocks::ReplayClock;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -27,11 +28,17 @@ hook_asm!(
 );
 
 /// The Rust version.
+// Converted: `rc2k_core::drive::clocks::ReplayClock::tick`.
 pub fn replay_clock_tick() {
-    p(0x5C2534, g(0x5C2534).wrapping_add(1));
-    if g(0x5C2534) >= 0x64 {
-        p(0x5C2534, 0);
-        p(0x5C2530, g(0x5C2530).wrapping_add(1));
+    let was = ReplayClock {
+        frame: g(0x5C2530),
+        hundredths: g(0x5C2534),
+    };
+    let mut c = was;
+    c.tick();
+    p(0x5C2534, c.hundredths);
+    if c.frame != was.frame {
+        p(0x5C2530, c.frame);
     }
 }
 

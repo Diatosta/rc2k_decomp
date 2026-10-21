@@ -35,9 +35,10 @@ hook_asm!(
 
 /// `master`: where the volume is kept; `set`: the master volume's setting.
 pub unsafe fn volume_command(volume: u32, master: u32, set: &mut dyn FnMut(u32)) {
-    if (volume as i32) < 0 {
+    // Converted: `rc2k_core::audio::levels::kept_master_volume`.
+    let Some(volume) = rc2k_core::audio::levels::kept_master_volume(volume) else {
         return;
-    }
+    };
     unsafe { write(master, volume) };
     set(volume);
 }

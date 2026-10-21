@@ -15,8 +15,8 @@ pub const RING_RVA: usize = rva(0x93A5C8); // g_marksRing
 pub const RING_FREE_RVA: usize = rva(0x93A5C0); // g_marksRingFree
 pub const RING_USED_RVA: usize = rva(0x93A5EC); // g_marksRingUsed
 pub const RING_LEN: u32 = 0x4C000;
-pub const RING_ENTRIES: u32 = 0x1000;
-pub const RING_ENTRY: u32 = 0x4C;
+pub const RING_ENTRIES: u32 = rc2k_core::marks::rings::ENTRIES;
+pub const RING_ENTRY: u32 = rc2k_core::marks::rings::RING_ENTRY;
 pub const LINKS_LIST_RVA: usize = rva(0x9206F0); // stru_9206F0
 pub const LINKS_RVA: usize = rva(0x920730); // g_marksLinks
 pub const LINKS_LEN: u32 = 0x71020;
@@ -79,14 +79,11 @@ pub unsafe fn allocate_ring(
         game_write(RING_FREE_RVA, block);
         game_write(RING_USED_RVA, 0u32);
         g.esi = block;
-        let at = |n: u32| block.wrapping_add((n & (RING_ENTRIES - 1)) * RING_ENTRY);
-        for n in 0..RING_ENTRIES {
-            g.eax = n * RING_ENTRY;
-            g.ebx = at(n.wrapping_sub(1));
-            g.ecx = at(n + 1);
-            let e = block.wrapping_add(g.eax) as *mut u32;
-            e.write_unaligned(g.ebx);
-            e.add(1).write_unaligned(g.ecx);
+        // Converted: `rc2k_core::marks::rings::ring_links`.
+        for (n, links) in rc2k_core::marks::rings::ring_links(block).enumerate() {
+            let e = block.wrapping_add(n as u32 * RING_ENTRY) as *mut [u32; 2];
+            e.write_unaligned(links);
+            [g.ebx, g.ecx] = links;
         }
         // The loop's counter, read back for its last test.
         g.eax = RING_ENTRIES;
@@ -108,13 +105,11 @@ pub unsafe fn allocate_links(
         game_write(LINKS_RVA, block);
         g.esi = block;
         ((block + 0x7100C) as *mut u32).write_unaligned(0);
-        for n in 0..0x1000u32 {
-            g.eax = n;
-            g.ebx = n.wrapping_sub(1) & 0xFFF;
-            g.ecx = (n + 1) & 0xFFF;
-            ((block + 8 + 4 * n) as *mut u32).write_unaligned(g.ebx);
-            ((block + 0x4008 + 4 * n) as *mut u32).write_unaligned(g.ecx);
-        }
+        // Converted: `rc2k_core::marks::rings::link_tables`.
+        let (before, after) = rc2k_core::marks::rings::link_tables();
+        ((block + 8) as *mut [u32; 0x1000]).write_unaligned(before);
+        ((block + 0x4008) as *mut [u32; 0x1000]).write_unaligned(after);
+        [g.ebx, g.ecx] = [before[0xFFF], after[0xFFF]];
         g.eax = 0x1000;
         part(1, &mut g)?;
     }

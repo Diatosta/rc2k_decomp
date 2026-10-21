@@ -30,12 +30,8 @@ hook_asm!(
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn reset_drivers(entry: &Regs) -> Result<Regs, Refused> {
-    let first = game_addr(DRIVERS_RVA) as u32;
-    for e in entries(first, DRIVER)? {
-        put(e + 0x24, 1);
-        put(e + 0xC, 0);
-        put(e + 0x10, 0);
-    }
+    // Converted: `rc2k_core::menu::event::DRIVER_RESET`, stored in each driver.
+    driver_table()?.store_all(&rc2k_core::menu::event::DRIVER_RESET);
     Ok(*entry)
 }
 

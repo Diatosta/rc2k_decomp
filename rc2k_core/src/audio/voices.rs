@@ -1,7 +1,10 @@
 //! The audio thread's sounds (converted 2026-10-21 from `audio::start_voice` 0x40A9D1,
 //! `audio::update_voices` 0x40AC77's own-buffers way, `audio::stop_all_voices` 0x40AFD9,
 //! `audio::clear_channels` 0x40ACA1, `audio::find_shared_voice` 0x40B027,
-//! `audio::new_voice` 0x40B04C, `audio::replay_looping` 0x40A839): sample records, voices
+//! `audio::new_voice` 0x40B04C, `audio::replay_looping` 0x40A839; 2026-10-21 also
+//! `audio::fill_voice` 0x40B06E, `audio::release_voice` 0x40B767's emptying and
+//! `audio::make_buffer` 0x40B5CF's flags): sample
+//! records, voices
 //! and mixer channels as the game lays them out, reached through a `Pool` by handle (the
 //! game's addresses), and the playing and stopping lists linked by `Voice::next`.
 //!
@@ -644,6 +647,142 @@ pub fn update_buffers<P: Pool, E: From<Invalid>>(
     Ok(())
 }
 
+/// What a voice takes from the sample file read for it (`g_sampleFile`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct FileSample {
+    pub data: u32,
+    pub length: u32,
+    pub format: u32,
+    pub frames: u32,
+    pub rate: u32,
+}
+
+/// `audio::fill_voice`: voice `at` made a voice of `record`: its sample from the file, or
+/// with `shared` from that voice (then added at the end of the record's chain unless it is
+/// on it); the rest from the record, flags 1 with DirectSound's buffers (`own_buffers`)
+/// else 2, the volume factor 0x40 or what the record's points at (`factor`, asked only
+/// then). Refused, before anything is written: a shared voice for a record without voices,
+/// a chain without its end.
+pub fn fill_voice<P: Pool>(
+    pool: &mut P,
+    at: u32,
+    record: &SampleRecord,
+    shared: u32,
+    file: &FileSample,
+    own_buffers: bool,
+    factor: impl Fn(u32) -> u32,
+) -> Result<(), Invalid> {
+    if shared != 0 {
+        // The record's chain, to find its end, before anything is written.
+        if record.first_voice == 0 {
+            return Err(Invalid("a shared voice for a record without voices"));
+        }
+        let mut last = record.first_voice;
+        let mut steps = 0;
+        while last != at && pool.voice(last).next_copy != 0 {
+            last = pool.voice(last).next_copy;
+            steps += 1;
+            if steps > VOICES {
+                return Err(Invalid("a record's voices without their end"));
+            }
+        }
+        let s = *pool.voice(shared);
+        let v = pool.voice(at);
+        v.data = s.data;
+        v.length = s.length;
+        v.format = s.format;
+        v.frames = s.frames;
+        v.own_frequency = s.own_frequency;
+        v.source = shared;
+        if last != at {
+            pool.voice(last).next_copy = at;
+        }
+        let v = pool.voice(at);
+        v.next_copy = 0;
+        v.data_key = 0;
+    } else {
+        let v = pool.voice(at);
+        v.data = file.data;
+        v.length = file.length;
+        v.format = file.format;
+        v.frames = file.frames;
+        v.own_frequency = file.rate;
+        v.source = 0;
+        v.next_copy = 0;
+        v.data_key = record.data_key;
+    }
+    let v = pool.voice(at);
+    v.flags = if own_buffers { 1 } else { 2 };
+    v.sound = record.number;
+    v.kind = record.voice_kind;
+    v.scale = record.scale;
+    v.priority = record.priority as i32;
+    v.volume = record.volume;
+    v.pan = record.pan as u8 as i8 as i32;
+    v.pan_sign = 0;
+    v.frequency = if record.frequency == OWN_FREQUENCY {
+        v.own_frequency
+    } else {
+        record.frequency
+    };
+    v.place = record.place;
+    v.min_distance = record.min_distance;
+    v.volume_factor = if record.volume_factor != 0 {
+        factor(record.volume_factor)
+    } else {
+        0x40
+    };
+    v.state = 0;
+    v.dirty |= 0xF;
+    v.channel = 0;
+    v.next = 0;
+    Ok(())
+}
+
+/// `g_soundMode`'s bits a voice's own buffer is made by: 3D, 3D in hardware.
+pub const MODE_HARDWARE_3D: u32 = 0x80_0000;
+
+/// `audio::make_buffer`'s buffer description flags for a voice: the frequency, pan and
+/// volume controls (0xE0), in software (8) unless 3D in hardware, static (2) for the
+/// voice's flags bit 0, 3D (0x10) in 3D.
+pub fn buffer_flags(mode: u32, voice_flags: u32) -> u32 {
+    let mut flags = 0xE0;
+    if !(mode & MODE_3D != 0 && mode & MODE_HARDWARE_3D != 0) {
+        flags |= 8;
+    }
+    if voice_flags & 1 != 0 {
+        flags |= 2;
+    }
+    if mode & MODE_3D != 0 {
+        flags |= 0x10;
+    }
+    flags
+}
+
+/// `audio::release_voice`'s end: a voice whose buffers are given back made empty. Its
+/// sound, buffers, volume, pan, frequency and place stay as they are; its own frequency is
+/// 44100, its scale and volume factor 0x40, its minimum distance 1.0.
+pub fn empty(v: &mut Voice) {
+    v.flags = 0;
+    v.data_key = 0;
+    v.source = 0;
+    v.next_copy = 0;
+    v.data = 0;
+    v.length = 0;
+    v.own_frequency = 44100;
+    v.format = 0;
+    v.frames = 0;
+    v.scale = 0x40;
+    v.priority = 0;
+    v.kind = 0;
+    v.state = 0;
+    v.dirty = 0;
+    v.channel = 0;
+    v.next = 0;
+    v.volume_factor = 0x40;
+    v.min_distance = 1.0f32.to_bits();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -737,5 +876,76 @@ mod tests {
         let mut count = 0x1FF;
         assert_eq!(new_voice(&mut count), Some(0x1FF));
         assert_eq!(new_voice(&mut count), None);
+    }
+
+    #[test]
+    fn filled_and_emptied() {
+        let mut t = Test {
+            voices: vec![Voice::default(); 4],
+            channels: vec![],
+            records: vec![],
+        };
+        let record = SampleRecord {
+            number: 7,
+            first_voice: v(0),
+            data_key: 0x55,
+            priority: 3,
+            voice_kind: 1,
+            scale: 0x30,
+            volume_factor: 0x900,
+            volume: 0x20,
+            pan: 0xF0,
+            frequency: OWN_FREQUENCY,
+            place: [1, 2, 3],
+            ..SampleRecord::default()
+        };
+        let file = FileSample {
+            data: 0x100,
+            length: 0x200,
+            format: 0x121,
+            frames: 0x80,
+            rate: 22050,
+        };
+        fill_voice(&mut t, v(0), &record, 0, &file, true, |_| 0x22).unwrap();
+        let first = *t.voice(v(0));
+        assert_eq!(
+            (
+                first.data,
+                first.data_key,
+                first.flags,
+                first.pan,
+                first.frequency
+            ),
+            (0x100, 0x55, 1, -0x10, 22050)
+        );
+        assert_eq!(
+            (first.volume_factor, first.dirty, first.place),
+            (0x22, 0xF, [1, 2, 3])
+        );
+        fill_voice(&mut t, v(1), &record, v(0), &file, false, |_| 0x22).unwrap();
+        assert_eq!(t.voice(v(0)).next_copy, v(1));
+        let second = *t.voice(v(1));
+        assert_eq!((second.source, second.data_key, second.flags), (v(0), 0, 2));
+        assert!(
+            fill_voice(
+                &mut t,
+                v(2),
+                &SampleRecord::default(),
+                v(0),
+                &file,
+                true,
+                |_| 0
+            )
+            .is_err()
+        );
+        assert_eq!(buffer_flags(0, 1), 0xEA);
+        assert_eq!(buffer_flags(MODE_3D, 0), 0xF8);
+        assert_eq!(buffer_flags(MODE_3D | MODE_HARDWARE_3D, 1), 0xF2);
+        let mut e = second;
+        empty(&mut e);
+        assert_eq!(
+            (e.sound, e.scale, e.own_frequency, e.min_distance),
+            (7, 0x40, 44100, 0x3F80_0000)
+        );
     }
 }

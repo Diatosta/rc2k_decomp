@@ -46,19 +46,15 @@ const TICKS_SCALE_RVA: usize = rva(0x93CC14); // flt_93CC14
 /// turned right 10 and turned right 20; `dword_8BC405` 0. Leaves eax, ebx, ecx the last
 /// three, esi 0.
 pub unsafe fn seed_noise(entry: &Regs) -> Regs {
+    // Converted: `rc2k_core::marks::noise::seed_noise`.
     let mut g = *entry;
     unsafe {
-        let mut seed: u32 = game_read(SEED_RVA);
-        for n in (0..NOISE_LEN as usize).rev() {
-            seed = seed.wrapping_mul(0x9D).wrapping_add(0x47);
-            g.eax = seed & 0x3FFFF;
-            g.ebx = seed.rotate_right(10) & 0x3FFFF;
-            g.ecx = seed.rotate_right(20) & 0x3FFFF;
-            for (table, value) in NOISE_RVAS.into_iter().zip([g.eax, g.ebx, g.ecx]) {
-                game_write(table + 4 * n, value);
-            }
+        let (tables, seed) = rc2k_core::marks::noise::seed_noise(game_read(SEED_RVA));
+        for (table, values) in NOISE_RVAS.into_iter().zip(tables) {
+            game_write(table, values);
         }
         game_write(SEED_RVA, seed);
+        [g.eax, g.ebx, g.ecx] = [tables[0][0], tables[1][0], tables[2][0]];
         g.esi = 0;
         game_write(NOISE_COUNT_RVA, 0u32);
     }

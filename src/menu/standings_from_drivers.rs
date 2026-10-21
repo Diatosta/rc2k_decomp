@@ -58,18 +58,12 @@ pub unsafe fn standings_from_drivers(entry: &Regs) -> Result<Regs, Refused> {
         texts.push((id, text));
     }
     unsafe { crate::menu::init_standings_a::init_standings_a(entry) }?;
-    for (n, (&d, (id, text))) in drivers.iter().zip(texts).enumerate() {
-        let e = first + A_ENTRY * n as u32;
-        put(e + 0x14, get(d + 0xC));
-        put(e + 4, 0);
-        put(e + 0x1C, get(d + 8));
-        put(e + 0x18, get(d + 0x10));
-        put(e + 8, get(d + 0x14));
-        put(e + 0x10, get(d + 0x18));
-        put(e, get(d));
-        put(e + 0x4C, get(d + 0x24));
-        put(e + 0xC, id);
-        unsafe { std::ptr::copy_nonoverlapping(text.as_ptr(), (e + 0x20) as *mut u8, text.len()) };
+    // Converted: `rc2k_core::menu::standings::fill_a_from_driver`.
+    let count = drivers.len() as u32;
+    let all = unsafe { table(drivers[0], DRIVER, count) };
+    let mut t = unsafe { table(first, A_ENTRY, count) };
+    for (n, (id, text)) in texts.into_iter().enumerate() {
+        rc2k_core::menu::standings::fill_a_from_driver(&mut t, n, &all, n, id, &text);
     }
     Ok(*entry)
 }

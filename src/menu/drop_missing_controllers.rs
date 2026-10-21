@@ -42,11 +42,14 @@ const CAR_CONTROLLER: u32 = 0x2C;
 
 pub unsafe fn drop_missing_controllers() -> Result<(), BadInput> {
     unsafe {
+        // Converted: `rc2k_core::menu::steps::kept_controller`.
         let most: u32 = game_read(CONTROLLERS_RVA);
         for car in cars()? {
             let controller = (car + CAR_CONTROLLER) as *mut u32;
-            if controller.read_unaligned() > most {
-                controller.write_unaligned(0);
+            let c = controller.read_unaligned();
+            let kept = rc2k_core::menu::steps::kept_controller(c, most);
+            if kept != c {
+                controller.write_unaligned(kept);
             }
         }
         Ok(())

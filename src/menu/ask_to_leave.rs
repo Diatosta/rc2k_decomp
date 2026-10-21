@@ -25,11 +25,12 @@ hook_asm!(
     original = ORIGINAL
 );
 
-const ASK_RVA: usize = rva(0x755569); // dword_755569
+use crate::menu::leaving::ASK_RVA;
 
 /// The Rust version (see the header).
 pub fn ask_to_leave() {
-    unsafe { game_write(ASK_RVA, 1u32) };
+    // Converted: `rc2k_core::menu::leaving::Leaving::ask_to_leave`.
+    crate::menu::leaving::with_leaving(|l| l.ask_to_leave());
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {

@@ -45,23 +45,11 @@ pub const BLINK_OFF_RVA: usize = rva(0x7556AC); // dword_7556AC: 1 = the highlig
 const BLINK_RVA: usize = rva(0x7559A4); // dword_7559A4
 const CURSOR_ON_RVA: usize = rva(0x7559A8); // dword_7559A8
 const IDLE_RVA: usize = rva(0x755551); // dword_755551
-const IDLE_AFTER_MS: i32 = 300_000;
 
 // ---- Rust version ----
 
-/// (highlight blink, cursor on, idle) for a clock value.
-pub fn blink_states(
-    clock: u32,
-    last_key: u32,
-    cursor_time: u32,
-    blink_off: u32,
-) -> (u32, u32, u32) {
-    let since_key = clock.wrapping_sub(last_key);
-    let blink = (blink_off != 1 && since_key & 0x100 == 0) as u32;
-    let cursor_on = (clock.wrapping_sub(cursor_time) & 0x200 == 0) as u32;
-    let idle = (since_key as i32 >= IDLE_AFTER_MS) as u32;
-    (blink, cursor_on, idle)
-}
+// Converted: `rc2k_core::menu::blink::blink_states`.
+pub use rc2k_core::menu::blink::blink_states;
 
 /// What the three variables should be for the clock the game holds now.
 unsafe fn states_now() -> (u32, u32, u32) {

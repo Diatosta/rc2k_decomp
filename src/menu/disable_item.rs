@@ -30,25 +30,32 @@ hook_asm!(
     original = ORIGINAL
 );
 
-pub const CHOOSABLE: u32 = 0xFFFF_FC1B;
-pub const NOT_CHOOSABLE: u32 = 0xFFFF_FC1C;
-pub const GREY_FONT: usize = 0x51EA04;
-pub const PLAIN_FONT: usize = 0x51E8E4;
+use rc2k_core::menu::items::{Font, choosable};
+
+const GREY_FONT: usize = 0x51EA04;
+const PLAIN_FONT: usize = 0x51E8E4;
 
 // ---- Rust version ----
 
+// Converted: `rc2k_core::menu::items::choosable`.
+
 /// The item's +0x48 and font set: what both twins do.
-pub fn set_item(number: u32, choosable: u32, font: usize) -> Result<(), Refused> {
+pub fn set_item(number: u32, on: bool) -> Result<(), Refused> {
     let item = item_at(number)?;
+    let (state, font) = choosable(on);
+    let font = match font {
+        Font::Plain => PLAIN_FONT,
+        Font::Grey => GREY_FONT,
+    };
     unsafe {
-        ((item + 0x48) as *mut u32).write_unaligned(choosable);
+        ((item + 0x48) as *mut u32).write_unaligned(state);
         ((item + 0x18) as *mut u32).write_unaligned(game_addr(crate::framework::rva(font)) as u32);
     }
     Ok(())
 }
 
 pub fn disable_item(number: u32) -> Result<(), Refused> {
-    set_item(number, NOT_CHOOSABLE, GREY_FONT)
+    set_item(number, false)
 }
 
 // ---- hook ----

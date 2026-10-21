@@ -17,6 +17,7 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::race::viewer::{CF, CHOICE, ZF, check_original, dispatch_regs, dword, get, put};
+use rc2k_core::menu::list_menu::{MOVES, Step, step};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -35,57 +36,37 @@ hook_asm!(
 
 /// The Rust version: the registers and flags it leaves.
 pub unsafe fn list_step(entry: &Regs) -> Regs {
+    // Converted: `rc2k_core::menu::list_menu::step`.
     let mut r = *entry;
     let key = r.eax as u8;
     let table = r.ebx;
     let count = unsafe { ((r.edi + 1) as *const u8).read() };
-    let entry_of = |ecx: u32, k: u32| unsafe {
-        (table.wrapping_add(ecx.wrapping_mul(4)).wrapping_add(k) as *const u8).read()
+    if MOVES.contains(&key) {
+        r.ecx = get(CHOICE);
+    }
+    let ecx = r.ecx;
+    let entry_of = |k: usize| unsafe {
+        (table
+            .wrapping_add(ecx.wrapping_mul(4))
+            .wrapping_add(k as u32) as *const u8)
+            .read()
     };
-    let with_cl = |ecx: u32, cl: u8| ecx & !0xFF | cl as u32;
-    let cl = match key {
-        0x66 | 0x6B | 0x68 | 0x69 => {
-            r.ecx = get(CHOICE);
-            if (key == 0x68 || key == 0x69) && table < 1 {
-                r.set_carry(true);
-                r.set_zero(false);
-                return r;
-            }
-            if table != 0 {
-                let k = [0x66, 0x6B, 0x68, 0x69]
-                    .iter()
-                    .position(|&x| x == key)
-                    .unwrap();
-                let cl = entry_of(r.ecx, k as u32);
-                if (cl as i8) < 0 {
-                    r.ecx = with_cl(r.ecx, cl);
-                    r.set_carry(false);
-                    r.set_zero(false);
-                    return r;
-                }
-                cl
-            } else if key == 0x66 {
-                let cl = (r.ecx as u8).wrapping_sub(1);
-                if (cl as i8) < 0 {
-                    count.wrapping_sub(1)
-                } else {
-                    cl
-                }
-            } else {
-                let cl = (r.ecx as u8).wrapping_add(1);
-                if cl < count { cl } else { 0 }
-            }
+    let with_cl = |cl: u8| ecx & !0xFF | cl as u32;
+    let (carry, zero) = match step(key, ecx as u8, count, table != 0, entry_of) {
+        Step::Moved(cl) => {
+            r.ecx = with_cl(cl);
+            put(CHOICE, r.ecx);
+            (false, true)
         }
-        _ => {
-            r.set_carry(key < 0x69);
-            r.set_zero(false);
-            return r;
+        Step::Blocked(cl) => {
+            r.ecx = with_cl(cl);
+            (false, false)
         }
+        Step::NoTable => (true, false),
+        Step::Other { below } => (below, false),
     };
-    r.ecx = with_cl(r.ecx, cl);
-    put(CHOICE, r.ecx);
-    r.set_carry(false);
-    r.set_zero(true);
+    r.set_carry(carry);
+    r.set_zero(zero);
     r
 }
 

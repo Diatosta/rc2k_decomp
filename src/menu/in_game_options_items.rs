@@ -3,47 +3,45 @@
 //! (IDA, 2026-10-15).
 
 use crate::framework::{game_addr, rva};
-use crate::menu::disable_item::{CHOOSABLE, NOT_CHOOSABLE};
 use crate::menu::item_at::{ITEM_LEN, MENU_HEAD_LEN};
+use rc2k_core::menu::items::{
+    HIDDEN, IN_GAME_OPTIONS, Look, hidden_in_game_options, shown_in_game_option,
+};
 
 pub const MENU_RVA: usize = rva(0x750724); // off_750724
-/// An item's +0x1C: nothing behind its text, and what these items have when shown.
-const NOTHING_BEHIND: u32 = 0xFFFF_FFA9;
-const SHOWN_BEHIND: u32 = 0xFFFF_FFA7;
-/// Items 3 .. 6 (counted from 0)'s strings when shown.
-const FIRST_STRING: u32 = 0x171;
 
-fn item(n: u32) -> u32 {
+pub fn item(n: u32) -> u32 {
     game_addr(MENU_RVA) as u32 + MENU_HEAD_LEN + n * ITEM_LEN
 }
 
-unsafe fn set(n: u32, string: u32, choosable: u32, behind: u32) {
+/// Item `n` given its look: +0x14, +0x48, +0x1C, in the original's order.
+pub unsafe fn set(n: u32, look: Look) {
     let at = item(n);
     unsafe {
-        ((at + 0x14) as *mut u32).write_unaligned(string);
-        ((at + 0x48) as *mut u32).write_unaligned(choosable);
-        ((at + 0x1C) as *mut u32).write_unaligned(behind);
+        ((at + 0x14) as *mut u32).write_unaligned(look.string);
+        ((at + 0x48) as *mut u32).write_unaligned(look.state);
+        ((at + 0x1C) as *mut u32).write_unaligned(look.behind);
     }
 }
+
+// Converted: `rc2k_core::menu::items` (`hidden_in_game_options`, `shown_in_game_option`).
 
 /// `menu::hide_in_game_options`: eax 1, 2, 3: items 3 + eax .. 6 hidden (no string, passed
 /// over, nothing behind); anything else nothing.
 pub fn hide_in_game_options(from: u32) {
-    if (1..=3).contains(&from) {
-        for n in 3 + from..=6 {
-            unsafe { set(n, 0, NOT_CHOOSABLE, NOTHING_BEHIND) };
-        }
+    for n in hidden_in_game_options(from) {
+        unsafe { set(n, HIDDEN) };
     }
 }
 
 /// `menu::show_in_game_options`: items 3 .. 6 with their strings 0x171 .. 0x174, choosable.
 pub fn show_in_game_options() {
-    for n in 3..=6 {
-        unsafe { set(n, FIRST_STRING + n - 3, CHOOSABLE, SHOWN_BEHIND) };
+    for n in IN_GAME_OPTIONS {
+        unsafe { set(n, shown_in_game_option(n)) };
     }
 }
 
 /// Items 3 .. 6, the bytes the two write.
 pub fn items_region() -> crate::service::harness::Region {
-    (item(3), 4 * ITEM_LEN as usize)
+    (item(IN_GAME_OPTIONS.start), 4 * ITEM_LEN as usize)
 }

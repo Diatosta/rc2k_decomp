@@ -16,6 +16,7 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use rc2k_core::menu::car_lists;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -50,14 +51,9 @@ pub fn region(list: List) -> Region {
 
 /// The list's entries before its -1.
 pub unsafe fn read_list(list: List) -> Result<Vec<u32>, BadInput> {
-    let entries: Vec<u32> = (0..list.1)
-        .map(|n| unsafe { game_read::<u32>(list.0 + n * 4) })
-        .take_while(|&entry| entry != u32::MAX)
-        .collect();
-    if entries.len() == list.1 {
-        return Err(BadInput("a list of cars without its end"));
-    }
-    Ok(entries)
+    Ok(car_lists::entries(list.1, |n| unsafe {
+        game_read::<u32>(list.0 + n * 4)
+    })?)
 }
 
 /// The entries and a -1 after them. The caller has made sure of the room.
@@ -66,28 +62,24 @@ pub unsafe fn write_list(list: List, entries: &[u32]) {
         for (n, &entry) in entries.iter().enumerate() {
             game_write(list.0 + n * 4, entry);
         }
-        game_write(list.0 + entries.len() * 4, u32::MAX);
+        game_write(list.0 + entries.len() * 4, car_lists::END);
     }
 }
 
 // ---- Rust version ----
 
 pub unsafe fn remove_secret_cars() -> Result<(), BadInput> {
+    // Converted: `rc2k_core::menu::car_lists` (`entries`, `without_secret`).
     unsafe {
         let secret = read_list(SECRET)?;
+        // Each list read and checked in turn, as the original goes.
         let mut kept = Vec::new();
         for list in [FIRST, SECOND] {
-            let cars: Vec<u32> = read_list(list)?
-                .into_iter()
-                .filter(|car| !secret.contains(car))
-                .collect();
-            if cars.is_empty() {
-                return Err(BadInput("a list of cars with none that is not secret"));
-            }
-            if cars.len() > SCRATCH.1 {
-                return Err(BadInput("more cars than the scratch list has room for"));
-            }
-            kept.push(cars);
+            kept.extend(car_lists::without_secret(
+                &[read_list(list)?],
+                &secret,
+                SCRATCH.1,
+            )?);
         }
         for (list, cars) in [FIRST, SECOND].into_iter().zip(&kept) {
             // The scratch list gets no end mark.

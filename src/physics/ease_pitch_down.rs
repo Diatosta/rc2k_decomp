@@ -10,9 +10,11 @@
 
 use crate::errors::Refused;
 use crate::framework::{EAX, RawHook, Regs, game_addr, hook_asm, rva};
+use crate::physics::cells::{get, put};
 use crate::physics::copy_hooks_test::{lot, test_moves};
 use crate::screens::harness::Left;
 use crate::service::harness::dispatch_state;
+use rc2k_core::physics::easing::ease_down;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -34,23 +36,17 @@ fn game() -> Vec<u32> {
         .collect()
 }
 
-unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
-}
-
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
-}
-
 /// The variables (IDA addresses).
 const VARIABLES: [usize; 3] = [0x71A690, 0x608C1C, 0x608C24];
 
-/// The core on the variables' addresses.
+/// The Rust version on the variables' addresses.
+// Converted: `rc2k_core::physics::easing::ease_down`.
 unsafe fn core(v: &[u32]) -> Left {
     unsafe {
-        let step = at(v[0]).wrapping_sub(at(v[1])) >> 1;
+        let mut value = get(v[0]);
+        let step = ease_down(&mut value, get(v[1]));
         put(v[2], step);
-        put(v[0], at(v[0]).wrapping_sub(step));
+        put(v[0], value);
         Left::nothing().with(EAX, step)
     }
 }

@@ -15,6 +15,7 @@ use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm,
 use crate::menu::remove_secret_cars::{FIRST, List, read_list, region, write_list};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use rc2k_core::menu::car_lists::place_if_missing;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -46,10 +47,10 @@ pub unsafe fn add_clio_car() -> Result<(), BadInput> {
     unsafe {
         let clio = game_addr(CLIO_RVA) as u32;
         let mut ends = Vec::new();
+        // Converted: `rc2k_core::menu::car_lists::place_if_missing`.
         for list in LISTS {
-            let cars = read_list(list)?;
-            if !cars.contains(&clio) {
-                ends.push(list.0 + cars.len() * 4);
+            if let Some(n) = place_if_missing(&read_list(list)?, clio) {
+                ends.push(list.0 + n * 4);
             }
         }
         for end in ends {

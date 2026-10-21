@@ -14,6 +14,7 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, hook_asm, rva};
 use crate::physics::flag_result::{FlagResult, dispatch_flags};
+use rc2k_core::physics::faces::has_edge;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -30,19 +31,13 @@ hook_asm!(
     original = ORIGINAL
 );
 
-/// The core: the face's corners p1 .. p4.
-pub fn has_edge(a: u32, b: u32, p: [u32; 4]) -> bool {
-    [(0, 2), (1, 0), (3, 1), (2, 3)]
-        .iter()
-        .any(|&(x, y)| a == p[x] && b == p[y])
-}
-
 unsafe fn corners(face: u32) -> [u32; 4] {
     let at = |o: u32| unsafe { ((face + o) as *const u32).read_unaligned() };
     [at(4), at(8), at(0xC), at(0x10)]
 }
 
 /// The Rust version.
+// Converted: `rc2k_core::physics::faces::has_edge`.
 pub unsafe fn face_has_edge(r: &Regs) -> FlagResult {
     let found = has_edge(r.eax, r.ebx, unsafe { corners(r.esi) });
     FlagResult {

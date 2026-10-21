@@ -30,31 +30,19 @@ hook_asm!(
 const EXTRA: [usize; 0] = [];
 const CASES: u32 = 4;
 
-/// The current record's event's ten record entries (0x9C each from +0x57C - 9 * 0x9C, its
-/// +0x14 the time): the tenth moved up past each entry whose time is not below its own
-/// (signed), each of +0xC, +0x14, +4, +8, +0x1C, +0x10, +0x18, +0x40, +0x4C .. +0x58 and the
-/// name's 0x1F bytes at +0x20 swapped (the name through `g_keptPlayerName`).
+/// An event's ten record entries (0x9C each from the event's start, the tenth at +0x57C),
+/// for the core.
+pub fn event_list<'a>(event: u32) -> rc2k_core::menu::standings::Entries<'a> {
+    unsafe { table(event, 0x9C, 10) }
+}
+
+/// The current record's event's ten record entries (+0x14 the time): the tenth moved up
+/// past each entry whose time is not below its own (signed), each of +0xC, +0x14, +4, +8,
+/// +0x1C, +0x10, +0x18, +0x40, +0x4C .. +0x58 and the name's 0x1F bytes at +0x20 swapped
+/// (the name through `g_keptPlayerName`).
 pub fn rank_entries(event: u32) {
-    let mut esi = event + 0x57C;
-    for _ in 0..9 {
-        let edi = esi - 0x9C;
-        if get(esi + 0x14) as i32 <= get(edi + 0x14) as i32 {
-            for f in [
-                0xC, 0x14, 4, 8, 0x1C, 0x10, 0x18, 0x40, 0x4C, 0x50, 0x54, 0x58,
-            ] {
-                let a = get(edi + f);
-                put(edi + f, get(esi + f));
-                put(esi + f, a);
-            }
-            let kept = crate::framework::game_addr(KEPT_NAME_RVA) as *mut u8;
-            unsafe {
-                std::ptr::copy((edi + 0x20) as *const u8, kept, 0x1F);
-                std::ptr::copy((esi + 0x20) as *const u8, (edi + 0x20) as *mut u8, 0x1F);
-                std::ptr::copy(kept as *const u8, (esi + 0x20) as *mut u8, 0x1F);
-            }
-        }
-        esi -= 0x9C;
-    }
+    // Converted: `rc2k_core::menu::bests::rank_record`.
+    rc2k_core::menu::bests::rank_record(&mut event_list(event), kept_name());
 }
 
 fn test_entry(_case: u32) -> Regs {

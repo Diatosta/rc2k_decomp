@@ -14,9 +14,10 @@
 //! Self-test: a copy of the original on a test dword, every gear from -1 to 30 with
 //! several bit patterns; the refusal.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
 use crate::physics::flag_result::{FlagResult, dispatch_flags};
+use rc2k_core::physics::gearbox::GearBits;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -33,18 +34,20 @@ hook_asm!(
 
 pub const GEAR_BITS_RVA: usize = rva(0x71A40C); // g_carGearBits
 
-/// The Rust core on the dword at `bits`.
+/// The gear bits in the dword at `bits`.
+pub unsafe fn bits_at(bits: u32) -> GearBits {
+    GearBits(unsafe { (bits as *const u32).read_unaligned() })
+}
+
+/// The Rust version on the dword at `bits`.
+// Converted: `rc2k_core::physics::gearbox::GearBits::test`.
 pub unsafe fn gear_bit_at(bits: u32, gear: u32) -> Result<FlagResult, Refused> {
-    let n = gear.wrapping_add(1);
-    if n > 31 {
-        return Err(BadInput("a bit past g_carGearBits' dword (ecx + 1 outside 0 ..= 31)").into());
-    }
-    let word = unsafe { (bits as *const u32).read_unaligned() };
+    let t = unsafe { bits_at(bits) }.test(gear)?;
     Ok(FlagResult {
-        eax: n,
+        eax: t.bit,
         ecx: None,
         ebx: None,
-        carry: word >> n & 1 != 0,
+        carry: t.barred,
         zero: None,
     })
 }

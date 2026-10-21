@@ -54,17 +54,10 @@ pub unsafe fn inspection_faults(entry: &Regs) -> Result<Regs, Refused> {
     if n >= 4 || player(n) == 0 {
         return Err(BadInput("a current player past 3 or missing").into());
     }
+    // Converted: `rc2k_core::menu::inspection::faults`.
     let p = player(n);
-    unsafe {
-        for k in 0..13 {
-            game_write(FLAGS_RVA + 4 * k, 0u32);
-        }
-        for (slot, &k) in INSPECTED.iter().enumerate() {
-            if past_limit(p, k) {
-                game_write(FLAGS_RVA + 4 * slot, 1u32);
-            }
-        }
-    }
+    let flags = rc2k_core::menu::inspection::faults(|k| past_limit(p, k as u32));
+    unsafe { game_write(FLAGS_RVA, flags) };
     Ok(*entry)
 }
 

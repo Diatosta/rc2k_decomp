@@ -30,9 +30,10 @@ hook_asm!(
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn clear_standings_a(entry: &Regs) -> Result<Regs, Refused> {
     let first: u32 = unsafe { crate::framework::game_read(TABLE_A_RVA) };
-    for e in entries(first, A_ENTRY)? {
-        put(e + 0x44, 0);
-    }
+    let all = entries(first, A_ENTRY)?;
+    // Converted: `rc2k_core::menu::standings::A_FIGURE`, stored in each entry.
+    use rc2k_core::menu::standings::A_FIGURE;
+    unsafe { table(first, A_ENTRY, all.len() as u32) }.store_all(&[(A_FIGURE, 0)]);
     Ok(*entry)
 }
 

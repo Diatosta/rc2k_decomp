@@ -9,9 +9,11 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, game_addr, hook_asm, rva};
+use crate::physics::cells::{get, put_changed};
 use crate::physics::copy_hooks_test::{lot, test_moves};
 use crate::screens::harness::Left;
 use crate::service::harness::dispatch_state;
+use rc2k_core::physics::start::CarStart;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -33,23 +35,21 @@ fn game() -> Vec<u32> {
         .collect()
 }
 
-unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
-}
-
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
-}
-
 /// The variables (IDA addresses).
 const VARIABLES: [usize; 2] = [0x71A078, 0x71A274];
 
-/// The core on the variables' addresses.
+/// The Rust version on the variables' addresses.
+// Converted: `rc2k_core::physics::start::CarStart::mark_started`.
 unsafe fn core(v: &[u32]) -> Left {
     unsafe {
-        if at(v[0]) == 0 && at(v[1]) != 0 {
-            put(v[0], 1);
-        }
+        let was = CarStart {
+            started: get(v[0]),
+            moving: get(v[1]),
+            ..CarStart::default()
+        };
+        let mut c = was;
+        c.mark_started();
+        put_changed(v[0], was.started, c.started);
         Left::nothing()
     }
 }

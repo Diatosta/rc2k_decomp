@@ -9,7 +9,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, game_addr, hook_asm, rva};
-use crate::physics::sound_bands::{SCRATCH, Twin, band, test_twin};
+use crate::physics::sound_bands::{SCRATCH, Twin, band_plain, test_twin};
 use crate::screens::harness::Left;
 use crate::service::harness::dispatch_state;
 use std::sync::atomic::AtomicUsize;
@@ -28,13 +28,14 @@ hook_asm!(
 
 pub const TWIN: Twin = (0x45D097, 0x71A19C, 0x6D1AE0, 10);
 
-/// The Rust version.
-pub unsafe fn sound_band_2() -> Left {
-    unsafe { band(TWIN) }
+/// The converted version (plain floats).
+// Converted: `rc2k_core::physics::sound_bands::sound_band`.
+pub unsafe fn sound_band_2_plain() -> Left {
+    unsafe { band_plain(TWIN) }
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { sound_band_2() })
+    Ok(unsafe { sound_band_2_plain() })
 }
 
 extern "C" fn dispatch(r: &mut Regs) {

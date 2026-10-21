@@ -47,16 +47,13 @@ const FIRST_SLOT_RVA: usize = KIND_SLOT_RVA + KIND * 4; // dword_5D2448
 // ---- Rust version ----
 
 pub unsafe fn assign_menu_textures() -> Result<(), BadInput> {
+    // Converted: `rc2k_core::scene::textures::menu_textures`.
     unsafe {
-        let own: [u32; 8] = game_read(OWN_RVA);
-        let (texture, slot): (u32, u32) = (game_read(FIRST_TEXTURE_RVA), game_read(FIRST_SLOT_RVA));
-        let wanted: Vec<(u32, u32)> = (0..8u32)
-            .filter(|&n| own[n as usize] != u32::MAX)
-            .map(|n| (slot.wrapping_add(n), own[n as usize].wrapping_add(texture)))
-            .collect();
-        if wanted.iter().any(|&(slot, _)| slot >= SLOTS) {
-            return Err(BadInput("the menu's texture slots lie past the table"));
-        }
+        let wanted = rc2k_core::scene::textures::menu_textures(
+            game_read(OWN_RVA),
+            game_read(FIRST_SLOT_RVA),
+            game_read(FIRST_TEXTURE_RVA),
+        )?;
         for (slot, texture) in wanted {
             game_write(WANTED_RVA + slot as usize * 4, texture);
         }

@@ -36,11 +36,8 @@ pub fn tick_count() -> u32 {
     unsafe {
         // The original asks Windows first in both cases.
         let now = GetTickCount();
-        if game_read::<u32>(OVERRIDE_ON_RVA) == 1 {
-            game_read(OVERRIDE_RVA)
-        } else {
-            now
-        }
+        // Converted: `rc2k_core::system::time::clock`.
+        rc2k_core::system::time::clock(now, game_read(OVERRIDE_ON_RVA), || game_read(OVERRIDE_RVA))
     }
 }
 

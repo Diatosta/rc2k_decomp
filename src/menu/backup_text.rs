@@ -6,7 +6,9 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::menu::text_entry::{LENGTH_RVA, TEXT_LEN, backup, backup_region, set_length};
+use crate::menu::text_entry::{
+    LENGTH_RVA, TEXT_LEN, backup, backup_region, field, set_length, with_entry,
+};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
 use std::sync::atomic::AtomicUsize;
@@ -25,8 +27,10 @@ hook_asm!(
 
 // ---- Rust version ----
 
-pub unsafe fn backup_text(field: *const u8) {
-    unsafe { std::ptr::copy(field, backup(), TEXT_LEN) };
+pub unsafe fn backup_text(at: *const u8) {
+    // Converted: `rc2k_core::menu::text_entry::Entry::back_up`.
+    let text = unsafe { field(at) };
+    with_entry(|e| e.back_up(&text));
 }
 
 // ---- hook ----

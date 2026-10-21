@@ -2,7 +2,8 @@
 //! pages' settings, `menu::next_nationality` 0x467AFD .. `menu::flip_codriver` 0x467BD6,
 //! `menu::next_car_number` 0x470D7F / `previous_car_number` 0x470DA1,
 //! `menu::raise_sensitivity` 0x470F05 / `lower_sensitivity` 0x470F2D and the nine visual
-//! preferences' toggles 0x467DE2 .. 0x467E92): the player's settings (name, nationality,
+//! preferences' toggles 0x467DE2 .. 0x467E92; `menu::take_shown_car` 0x47B29D and
+//! `menu::set_player_entry_kind` 0x4A1922): the player's settings (name, nationality,
 //! views, co-driver, keys, controller) and the state of the player's car (which car,
 //! damage, setup, wear). What is known of it; the rest are gaps.
 
@@ -159,6 +160,13 @@ impl Player {
         }
     }
 
+    /// `menu::take_shown_car`: the car of a car list's entry (its +0 the car's number, +8
+    /// whether it has no turbo) given to the player.
+    pub fn take_car(&mut self, number: u32, no_turbo: u32) {
+        self.car_number = number;
+        self.no_turbo = no_turbo;
+    }
+
     /// `menu::toggle_player_3c`: +0x3C's bit 0 turned over.
     pub fn toggle_3c(&mut self) {
         self.field_3c ^= 1;
@@ -190,6 +198,12 @@ impl Player {
         let v = self.setting(s);
         *v = stepped(s, *v, up);
     }
+}
+
+/// `menu::set_player_entry_kind`: the current player's +0xD0 for a score
+/// (`dword_75AC80`): 1 at 100 or more (signed), else 2.
+pub fn entry_kind(score: i32) -> u32 {
+    if score >= 100 { 1 } else { 2 }
 }
 
 /// Up by one, back to 0 after `last`.
@@ -309,6 +323,14 @@ pub fn redefine(keys: [u8; KEYS], place: usize, key: u8, reserved: &[u8]) -> Red
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn small() {
+        assert_eq!(
+            (entry_kind(100), entry_kind(99), entry_kind(-200)),
+            (1, 2, 2)
+        );
+    }
 
     #[test]
     fn redefining() {

@@ -36,10 +36,8 @@ pub unsafe fn clear_score_marks(entry: &Regs) -> Result<Regs, Refused> {
     if first == 0 {
         return Err(BadInput("no best-score table").into());
     }
-    for n in 0..ENTRIES {
-        put(first + n * 0x3C + 0x14, 0);
-        put(first + n * 0x3C + 4, 0);
-    }
+    // Converted: `rc2k_core::menu::standings::BEST_MARKS`, stored in each entry.
+    unsafe { table(first, 0x3C, ENTRIES) }.store_all(&rc2k_core::menu::standings::BEST_MARKS);
     Ok(*entry)
 }
 

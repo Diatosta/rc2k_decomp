@@ -15,7 +15,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{EAX, EBX, ECX, EDI, RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
 use crate::scene::textures::{
-    KIND_SLOT_RVA, KIND_TEXTURE_RVA, KINDS, SLOTS, WANTED_RVA, entry, table, test_table,
+    KIND_SLOT_RVA, KIND_TEXTURE_RVA, KINDS, SLOTS, WANTED_RVA, entry, slice, table, test_table,
     write_table,
 };
 use crate::screens::harness::Left;
@@ -42,19 +42,13 @@ hook_asm!(
 // ---- Rust version ----
 
 pub unsafe fn assign_kind_textures() -> Result<Left, BadInput> {
+    // Converted: `rc2k_core::scene::textures::assign_kind_textures`.
     unsafe {
-        let mut wanted = vec![u32::MAX; SLOTS as usize];
-        for kind in (0..KINDS).rev() {
-            let slot = entry(KIND_SLOT_RVA, kind);
-            if slot == u32::MAX {
-                continue;
-            }
-            if slot >= SLOTS {
-                return Err(BadInput("a kind's first slot past the slots' table"));
-            }
-            wanted[slot as usize] = entry(KIND_TEXTURE_RVA, kind);
-        }
-        write_table(WANTED_RVA, &wanted);
+        rc2k_core::scene::textures::assign_kind_textures(
+            slice(KIND_SLOT_RVA, KINDS),
+            slice(KIND_TEXTURE_RVA, KINDS),
+            slice(WANTED_RVA, SLOTS),
+        )?;
         Ok(Left::nothing()
             .with(EAX, entry(KIND_SLOT_RVA, 0))
             .with(EBX, entry(KIND_TEXTURE_RVA, 0))

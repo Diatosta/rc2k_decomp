@@ -53,20 +53,16 @@ pub unsafe fn copy_standings_summary(entry: &Regs) -> Result<Regs, Refused> {
     }
     let grouped = unsafe { game_read::<u32>(MODE_RVA) } == 2;
     let all = entries(first, A_ENTRY)?;
-    let picked: Vec<u32> = all
-        .into_iter()
-        .filter(|&e| (get(e + 0x1C) != 0) == grouped)
-        .take(COPIED as usize)
-        .collect();
-    if picked.len() < COPIED as usize {
+    // Converted: `rc2k_core::menu::standings::summary_rows`.
+    let t = unsafe { table(first, A_ENTRY, all.len() as u32) };
+    let Some(rows) = rc2k_core::menu::standings::summary_rows(&t, grouped) else {
         return Err(BadInput("standings table A runs out").into());
-    }
-    for (n, e) in picked.into_iter().enumerate() {
+    };
+    for (n, row) in rows.into_iter().enumerate() {
         let s = summary + 0x50 * n as u32;
-        put(s + 0xC, get(e + 0x14));
-        put(s + 4, get(e + 8));
-        put(s + 8, get(e + 0x10));
-        put(s, get(e + 0xC));
+        for (k, v) in row.into_iter().enumerate() {
+            put(s + 4 * k as u32, v);
+        }
     }
     Ok(*entry)
 }

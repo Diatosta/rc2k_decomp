@@ -45,22 +45,23 @@ const LEFT_RVA: usize = rva(0x758806); // dword_758806
 
 /// The Rust version: the registers it leaves.
 pub unsafe fn show_car_specs(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::menu::cars::specs_list`.
+    use rc2k_core::menu::cars::{SpecsList, specs_list};
     let mut r = *entry;
     let kind: u32 = unsafe { game_read(KIND_RVA) };
-    let list = match kind {
-        1..=3 => 0x75A042,
-        4 => 0x759CAE,
-        5 => 0x759D16,
-        _ => {
-            return Err(FatalError {
-                code: 0x8071_3214,
-                message: "No GameMode Defined",
-            }
-            .into());
+    let Some((list, choice)) = specs_list(kind) else {
+        return Err(FatalError {
+            code: 0x8071_3214,
+            message: "No GameMode Defined",
         }
+        .into());
     };
-    r.esi = game_addr(rva(list)) as u32;
-    if kind == 5 {
+    r.esi = game_addr(rva(match list {
+        SpecsList::Events => 0x75A042,
+        SpecsList::Kind4 => 0x759CAE,
+        SpecsList::Kind5 => 0x759D16,
+    })) as u32;
+    if !choice {
         part(1, &mut r)?;
         return Ok(r);
     }

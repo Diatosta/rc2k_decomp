@@ -55,8 +55,9 @@ pub unsafe fn set_player_entry_kind(entry: &Regs) -> Result<Regs, Refused> {
     if n >= 4 || player(n) == 0 {
         return Err(BadInput("a current player past 3 or missing").into());
     }
+    // Converted: `rc2k_core::menu::player::entry_kind`.
     let score: i32 = unsafe { game_read(SCORE_RVA) };
-    put(player(n) + 0xD0, if score >= 100 { 1 } else { 2 });
+    put(player(n) + 0xD0, rc2k_core::menu::player::entry_kind(score));
     Ok(*entry)
 }
 

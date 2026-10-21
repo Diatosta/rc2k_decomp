@@ -35,23 +35,20 @@ hook_asm!(
     original = ORIGINAL
 );
 
-const CAR_LEN: u32 = 0x28C;
+const CAR_LEN: u32 = rc2k_core::saves::cars::SAVED_CAR_LEN as u32;
 
 pub unsafe fn keep_player_settings(cars: u32) -> Result<(), Refused> {
     if cars == 0 || (0..PLAYERS).any(|n| player_at(n) == 0) {
         return Err(BadInput("a player missing, or no saved cars").into());
     }
     for n in 0..PLAYERS {
+        // Converted: `rc2k_core::saves::cars::keep_settings`.
         let (from, to) = (player_at(n), cars.wrapping_add(n * CAR_LEN));
-        unsafe {
-            for o in 0x1C..0x28u32 {
-                *(to.wrapping_add(o) as *mut u8) = *(from.wrapping_add(o) as *const u8);
-            }
-            for o in (0x2C..=0x78u32).step_by(4).chain([0x178]) {
-                let v = (from.wrapping_add(o) as *const u32).read_unaligned();
-                (to.wrapping_add(o) as *mut u32).write_unaligned(v);
-            }
-        }
+        let player = unsafe { crate::bridge::Raw::new(from as *const u8) };
+        crate::bridge::read_through(rc2k_core::saves::cars::keep_settings(
+            &player,
+            &mut |at, b| unsafe { *(to.wrapping_add(at as u32) as *mut u8) = b },
+        ));
     }
     Ok(())
 }

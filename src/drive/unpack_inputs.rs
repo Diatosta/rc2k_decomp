@@ -27,13 +27,8 @@ hook_asm!(
 );
 
 /// The Rust version: [eax, ecx, edx].
-pub fn unpack_inputs(x: u32) -> [u32; 3] {
-    [
-        (x >> 4) & 0x1FF,
-        ((x as i32) >> 22) as u32,
-        (x >> 13) & 0x1FF,
-    ]
-}
+// Converted: `rc2k_core::drive::inputs::unpack_inputs`.
+pub use rc2k_core::drive::inputs::unpack_inputs;
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     let [eax, ecx, edx] = unpack_inputs(r.eax);

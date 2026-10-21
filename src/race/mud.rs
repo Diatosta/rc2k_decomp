@@ -30,7 +30,8 @@ const BITS_RVA: usize = rva(0x4F49A8); // g_surface.bits_per_pixel
 /// `race::car_file_number` (0x41F4FD): eax held to 0 .. 0x21 (signed), its entry of
 /// `dword_5C5928`.
 pub fn car_file_number(car: u32) -> u32 {
-    let n = (car as i32).clamp(0, 0x21) as usize;
+    // Converted: `rc2k_core::race::cars::table_entry`.
+    let n = rc2k_core::race::cars::table_entry(car);
     unsafe { game_read(FILE_NUMBERS_RVA + 4 * n) }
 }
 

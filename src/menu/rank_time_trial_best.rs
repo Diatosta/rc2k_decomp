@@ -38,35 +38,17 @@ hook_asm!(
 
 pub const KEPT_NAME: usize = 0x755884; // g_keptPlayerName
 const NAME_LEN: u32 = 0x1F;
-const SWAPPED: [u32; 11] = [0xC, 0x14, 4, 8, 0x1C, 0x10, 0x18, 0x40, 0x50, 0x54, 0x58];
+
+/// The chosen stage's ten best times, for the core; refused as `event_flow::stage_times`.
+pub fn stage_list<'a>() -> Result<rc2k_core::menu::standings::Entries<'a>, Refused> {
+    let times = stage_times()?;
+    Ok(unsafe { crate::menu::standings::table(times, TIME_ENTRY, 10) })
+}
 
 pub fn rank_time_trial_best() -> Result<(), Refused> {
-    let times = stage_times()?;
-    let kept = crate::framework::game_addr(rva(KEPT_NAME)) as u32;
-    let mut lower = times + 9 * TIME_ENTRY;
-    for _ in 0..9 {
-        let upper = lower - TIME_ENTRY;
-        if dword(lower + 0x14) < dword(upper + 0x14) {
-            for o in SWAPPED.into_iter().chain((0x5C..=0x98).step_by(4)) {
-                let (a, b) = (dword(upper + o), dword(lower + o));
-                put(lower + o, a);
-                put(upper + o, b);
-            }
-            unsafe {
-                let byte = |p: u32| *(p as *const u8);
-                for k in 0..NAME_LEN {
-                    *((kept + k) as *mut u8) = byte(upper + 0x20 + k);
-                }
-                for k in 0..NAME_LEN {
-                    *((upper + 0x20 + k) as *mut u8) = byte(lower + 0x20 + k);
-                }
-                for k in 0..NAME_LEN {
-                    *((lower + 0x20 + k) as *mut u8) = byte(kept + k);
-                }
-            }
-        }
-        lower = upper;
-    }
+    // Converted: `rc2k_core::menu::bests::rank_time_trial`.
+    let mut list = stage_list()?;
+    rc2k_core::menu::bests::rank_time_trial(&mut list, crate::menu::standings::kept_name());
     Ok(())
 }
 

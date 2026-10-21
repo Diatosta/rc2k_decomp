@@ -9,10 +9,10 @@
 //! Refuses what the yes/no functions refuse.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest, game_write, hook_asm, rva};
 use crate::input::yes_no_for_key::yes_no_for_key;
 use crate::input::yes_no_key::{NO, YES, yes_no_regions, yes_no_unavailable};
-use crate::menu::go_back::go_back;
+use crate::menu::leaving::{question, with_question};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
 use std::sync::atomic::AtomicUsize;
@@ -31,9 +31,7 @@ hook_asm!(
 
 // ---- game data ----
 
-pub const ASKING_RVA: usize = rva(0x7554CC); // dword_7554CC: 1 on a yes/no screen
-const ANSWER_RVA: usize = rva(0x75524C); // dword_75524C: 1 = yes, 0 = no
-pub const LEAVING_RVA: usize = rva(0x758806); // dword_758806
+pub use crate::menu::leaving::{ANSWER_RVA, ANSWERED_RVA as LEAVING_RVA, ASKING_RVA};
 
 /// What the function may write.
 pub fn handle_yes_no_regions() -> Vec<Region> {
@@ -48,19 +46,16 @@ pub fn handle_yes_no_regions() -> Vec<Region> {
 // ---- Rust version ----
 
 pub unsafe fn handle_yes_no(eax: u32) -> Result<(), BadInput> {
-    unsafe {
-        if game_read::<u32>(ASKING_RVA) != 1 {
-            return Ok(());
-        }
-        let answer = match yes_no_for_key(eax)? {
-            YES => 1u32,
-            NO => 0,
-            _ => return Ok(()),
-        };
-        game_write(ANSWER_RVA, answer);
-        game_write(LEAVING_RVA, 1u32);
+    // Converted: `rc2k_core::menu::leaving::Question::answer_key`.
+    if !question().asks() {
+        return Ok(());
     }
-    go_back();
+    let said = match unsafe { yes_no_for_key(eax) }? {
+        YES => Some(true),
+        NO => Some(false),
+        _ => None,
+    };
+    with_question(|q, l| q.answer_key(l, said));
     Ok(())
 }
 

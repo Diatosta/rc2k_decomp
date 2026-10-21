@@ -34,22 +34,11 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// Returns the length and what is left in ebx and ecx.
+/// Returns the length and what is left in ebx and ecx. Converted:
+/// `rc2k_core::scene::distance::approximate`.
 pub fn approximate_distance(differences: [u32; 3]) -> [u32; 3] {
-    // `neg` of the one number that has no opposite leaves it as it is.
-    let [mut a, mut b, mut c] = differences.map(|d| ((d as i32) >> 8).wrapping_abs() as u32);
-    // The original's three compares, unsigned, each changing places unless "above".
-    if a <= b {
-        std::mem::swap(&mut a, &mut b);
-    }
-    if b <= c {
-        std::mem::swap(&mut b, &mut c);
-    }
-    if a <= b {
-        std::mem::swap(&mut a, &mut b);
-    }
-    let (b, c) = (b.wrapping_mul(0x60), c.wrapping_mul(0x4B));
-    [a.wrapping_mul(0xF2).wrapping_add(b).wrapping_add(c), b, c]
+    let d = rc2k_core::scene::distance::approximate(differences.map(|d| d as i32));
+    [d.length, d.middle, d.least]
 }
 
 // ---- hook ----

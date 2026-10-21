@@ -24,9 +24,10 @@
 
 use crate::audio::mixer::MIX_RATE_RVA;
 use crate::audio::voices::*;
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva, shadow};
 use crate::install::stand_ins::{set_handler, stand_in};
+use rc2k_core::audio::voices::Lists;
 use std::sync::Mutex;
 use std::sync::atomic::AtomicUsize;
 
@@ -46,9 +47,6 @@ hook_asm!(
     dispatch = dispatch,
     original = ORIGINAL
 );
-
-const MODE_SURROUND: u32 = 0x200_0000;
-const NEXT: u32 = std::mem::offset_of!(Voice, next) as u32;
 
 #[derive(Clone, Copy)]
 pub struct Vars {
@@ -72,80 +70,22 @@ impl Vars {
     }
 }
 
-unsafe fn list(head: u32) -> Result<Vec<u32>, Refused> {
-    let mut out = Vec::new();
-    let mut at = unsafe { read(head) };
-    while at != 0 {
-        out.push(at);
-        if out.len() > VOICES as usize {
-            return Err(BadInput("a list of voices without its end").into());
-        }
-        at = unsafe { voice(at).next };
-    }
-    Ok(out)
-}
-
-unsafe fn apply(at: u32, rate: u32, mode: u32) {
+unsafe fn lists(v: &Vars) -> Lists {
     unsafe {
-        let x = voice(at);
-        let c = channel(x.channel);
-        if x.dirty & DIRTY_FREQUENCY != 0 {
-            let f = x.frequency >> (x.format & 0xF);
-            c.step = f / rate;
-            c.step_fraction = ((((f % rate) as u64) << 32) / rate as u64) as u32;
+        Lists {
+            playing: read(v.playing),
+            stopping: read(v.stopping),
+            channels_used: read(v.used),
+            channel_count: 0,
         }
-        if x.dirty & (DIRTY_VOLUME | DIRTY_PAN) != 0 {
-            let volume = (x.volume as i32).wrapping_mul(x.volume_factor as i32);
-            let (l, r) = if x.pan >= 0 {
-                (0x40i32.wrapping_sub(x.pan), 0x40)
-            } else {
-                (0x40, 0x40i32.wrapping_add(x.pan))
-            };
-            c.left = l.wrapping_mul(volume) >> 6;
-            let mut right = r.wrapping_mul(volume) >> 6;
-            if mode & MODE_SURROUND != 0 && x.pan_sign < 0 {
-                right = right.wrapping_neg();
-            }
-            c.right = right;
-        }
-        if x.dirty & DIRTY_RESTART != 0 || x.state != 2 {
-            c.position = 0;
-            c.position_fraction = 0;
-            c.format = x.format;
-            c.data = x.data;
-            c.length = x.frames;
-            c.kind = x.kind;
-            x.state = 2;
-        }
-        x.dirty = 0;
     }
 }
 
-/// The playing list's voices that ended (not looping, channel no longer used) to the
-/// stopping list; `with_apply`: the dirty bits carried out first.
-unsafe fn playing_pass(v: &Vars, rate: u32, mode: u32, with_apply: bool) {
+unsafe fn store(v: &Vars, l: &Lists) {
     unsafe {
-        let mut link = v.playing;
-        loop {
-            let at = read(link);
-            if at == 0 {
-                return;
-            }
-            if with_apply && voice(at).dirty != 0 {
-                apply(at, rate, mode);
-            }
-            let x = voice(at);
-            if x.kind != 1 && channel(x.channel).used != 1 {
-                write(x.channel, 0);
-                x.channel = 0;
-                write(link, x.next);
-                x.next = read(v.stopping);
-                write(v.stopping, at);
-                write(v.used, read(v.used).wrapping_sub(1));
-                continue;
-            }
-            link = at + NEXT;
-        }
+        write(v.playing, l.playing);
+        write(v.stopping, l.stopping);
+        write(v.used, l.channels_used);
     }
 }
 
@@ -154,48 +94,20 @@ pub unsafe fn update_mixer_voices(
     v: &Vars,
     mix: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
+    // Converted: `rc2k_core::audio::mixer_voices`; the lists stored for the mix, which
+    // reads them, and read again after it.
+    use rc2k_core::audio::mixer_voices::{after_mix, before_mix};
     unsafe {
         let rate = read(v.rate);
         let mode = read(v.mode);
-        for at in list(v.playing)? {
-            let x = voice(at);
-            if x.channel == 0 {
-                return Err(BadInput("a playing voice without its channel").into());
-            }
-            if x.dirty & DIRTY_FREQUENCY != 0 && rate == 0 {
-                return Err(BadInput("no mixing rate (the original divides by 0)").into());
-            }
-            if x.dirty & (DIRTY_VOLUME | DIRTY_PAN) != 0
-                && x.kind != 1
-                && channel(x.channel).used != 1
-            {
-                return Err(BadInput(
-                    "a changed volume or pan on a voice that ended (the original writes through the pan)",
-                )
-                .into());
-            }
-        }
-        list(v.stopping)?;
-        playing_pass(v, rate, mode, true);
-        let mut link = v.stopping;
-        loop {
-            let at = read(link);
-            if at == 0 {
-                break;
-            }
-            let x = voice(at);
-            x.dirty |= 0xF;
-            x.state = 0;
-            if x.channel != 0 {
-                write(x.channel, 0);
-                x.channel = 0;
-            }
-            write(link, 0);
-            link = at + NEXT;
-        }
+        let mut pool = GamePool::new(&World::game());
+        let mut l = lists(v);
+        before_mix(&mut pool, &mut l, rate, mode)?;
+        store(v, &l);
         mix()?;
-        list(v.playing)?;
-        playing_pass(v, rate, mode, false);
+        let mut l = lists(v);
+        after_mix(&mut pool, &mut l, rate, mode)?;
+        store(v, &l);
     }
     Ok(())
 }

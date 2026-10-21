@@ -10,7 +10,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::menu::disable_item::{CHOOSABLE, PLAIN_FONT, check_item_setter, item_region, set_item};
+use crate::menu::disable_item::{check_item_setter, item_region, set_item};
 use crate::screens::harness::Left;
 use crate::service::harness::dispatch_state;
 use std::sync::atomic::AtomicUsize;
@@ -30,7 +30,8 @@ hook_asm!(
 // ---- Rust version ----
 
 pub fn enable_item(number: u32) -> Result<(), Refused> {
-    set_item(number, CHOOSABLE, PLAIN_FONT)
+    // Converted: `rc2k_core::menu::items::choosable`.
+    set_item(number, true)
 }
 
 // ---- hook ----

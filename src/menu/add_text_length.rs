@@ -10,10 +10,12 @@ use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::framework::ECX;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::menu::text_entry::length;
-use crate::menu::text_entry::{LENGTH_RVA, TEXT_LEN, backup, backup_region, set_length};
+use crate::menu::text_entry::{
+    LENGTH_RVA, TEXT_LEN, backup, backup_region, set_length, with_entry,
+};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use rc2k_core::menu::text_entry::text_length;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -31,10 +33,9 @@ hook_asm!(
 // ---- Rust version ----
 
 pub unsafe fn add_text_length(text: *const u8) -> Result<(), BadInput> {
-    let Some(len) = (0..0x1000).find(|&i| unsafe { text.add(i).read() } == 0) else {
-        return Err(BadInput("text without a NUL"));
-    };
-    set_length(length().wrapping_add(len as i32));
+    // Converted: `rc2k_core::menu::text_entry::{text_length, Entry::add_length}`.
+    let len = text_length(|i| unsafe { text.add(i).read() })?;
+    with_entry(|e| e.add_length(len));
     Ok(())
 }
 

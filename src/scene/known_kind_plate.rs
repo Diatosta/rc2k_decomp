@@ -35,7 +35,8 @@ const TABLE_RVA: usize = rva(0x5C5A38); // dword_5C5A38
 // ---- Rust version ----
 
 pub unsafe fn known_kind_plate(place: u32) -> u32 {
-    let place = (place as i32).clamp(0, 0x21) as usize;
+    // Converted: `rc2k_core::scene::kinds::known_place`.
+    let place = rc2k_core::scene::kinds::known_place(place);
     unsafe { game_read(TABLE_RVA + place * 4) }
 }
 

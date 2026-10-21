@@ -18,6 +18,7 @@ use crate::framework::{EAX, EBX, EDX, RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::{a, g, p};
 use crate::screens::harness::Left;
 use crate::service::harness::{capture, check_state, dispatch_state, restore};
+use rc2k_core::drive::countdown::{self, Beep};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -33,28 +34,26 @@ hook_asm!(
 );
 
 /// The Rust version: the block at `block`, the second into `to`.
+// Converted: `rc2k_core::drive::countdown::countdown_beep`.
 pub unsafe fn countdown_beep(block: u32, to: u32) -> Result<Left, Refused> {
     let rd = |o: u32| unsafe { ((block + o) as *const u32).read_unaligned() };
-    if rd(0x1C) != 0 || rd(0x25C) == 0 {
-        return Ok(Left::nothing());
-    }
-    let mut t = rd(0x14).wrapping_sub(g(0x6D1814));
-    if (t as i32) < 0 {
-        return Ok(Left::nothing().with(EAX, t));
-    }
-    if ((t.wrapping_sub(0x5DC)) as i32) >= 0 {
-        t = 0x5DC;
-    }
-    let (mut second, remainder) = (t / 100, t % 100);
-    if second >= 6 {
-        second = u32::MAX;
-    }
+    let beep =
+        countdown::countdown_beep(rd(0x1C), rd(0x25C), || rd(0x14).wrapping_sub(g(0x6D1814)));
+    let (second, remainder, cue) = match beep {
+        Beep::Idle => return Ok(Left::nothing()),
+        Beep::Before(t) => return Ok(Left::nothing().with(EAX, t)),
+        Beep::At {
+            second,
+            remainder,
+            cue,
+        } => (second, remainder, cue),
+    };
     unsafe { (to as *mut u32).write_unaligned(second) };
     let mut left = Left::nothing()
         .with(EAX, second)
         .with(EDX, remainder)
         .with(EBX, 100);
-    if remainder == 0 && second != u32::MAX {
+    if cue {
         let sound = g(0x6D1818 + 4 * second as usize);
         p(0x614114, sound);
         left = left

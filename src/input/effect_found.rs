@@ -45,36 +45,45 @@ pub static HOOK: RawHook = RawHook::new(
 
 /// The Rust version: eax.
 pub fn effect_found(info: u32, record: u32) -> u32 {
-    let kind = at(info, field!(DiEffectInfo, eff_type)) & 0xFF;
+    // Converted: `rc2k_core::input::force::take_listed`.
+    use rc2k_core::input::force::{Found, Listed, take_listed};
+    let guid = |at: u32| unsafe { (at as *const [u8; 16]).read_unaligned() };
+    let listed = Listed {
+        guid: guid(info + field!(DiEffectInfo, guid)),
+        eff_type: at(info, field!(DiEffectInfo, eff_type)),
+        static_params: at(info, field!(DiEffectInfo, static_params)),
+        dynamic_params: at(info, field!(DiEffectInfo, dynamic_params)),
+    };
     for n in 0..6 {
         let e = record.wrapping_add(EFFECTS_AT + n * EFFECT_LEN);
-        if kind != at(e, field!(ForceEffect, kind)) {
+        let mut f = Found {
+            found: at(e, field!(ForceEffect, found)),
+            listed: Listed {
+                guid: guid(e.wrapping_add(field!(ForceEffect, guid))),
+                eff_type: at(e, field!(ForceEffect, eff_type)),
+                static_params: at(e, field!(ForceEffect, static_params)),
+                dynamic_params: at(e, field!(ForceEffect, dynamic_params)),
+            },
+        };
+        if !take_listed(at(e, field!(ForceEffect, kind)), &mut f, &listed, || {
+            guid(at(e, field!(ForceEffect, wanted)))
+        }) {
             continue;
         }
-        let guid = e.wrapping_add(field!(ForceEffect, guid));
-        if at(e, field!(ForceEffect, found)) == 1
-            && crate::system::same_guid::same_guid(guid, at(e, field!(ForceEffect, wanted)))
-        {
-            continue;
-        }
-        put(e, field!(ForceEffect, found), 1);
-        put(
-            e,
-            field!(ForceEffect, eff_type),
-            at(info, field!(DiEffectInfo, eff_type)),
-        );
+        put(e, field!(ForceEffect, found), f.found);
+        put(e, field!(ForceEffect, eff_type), f.listed.eff_type);
         put(
             e,
             field!(ForceEffect, static_params),
-            at(info, field!(DiEffectInfo, static_params)),
+            f.listed.static_params,
         );
         put(
             e,
             field!(ForceEffect, dynamic_params),
-            at(info, field!(DiEffectInfo, dynamic_params)),
+            f.listed.dynamic_params,
         );
-        let from = info + field!(DiEffectInfo, guid);
-        unsafe { std::ptr::copy(from as *const u8, guid as *mut u8, 16) };
+        let to = e.wrapping_add(field!(ForceEffect, guid));
+        unsafe { (to as *mut [u8; 16]).write_unaligned(f.listed.guid) };
     }
     1
 }

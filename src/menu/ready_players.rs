@@ -12,7 +12,7 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_write, hook_asm, rva};
 use crate::menu::player::player_regions;
-use crate::menu::standings::{PLAYER_COUNT_RVA, counted_players, player, put};
+use crate::menu::standings::{PLAYER_COUNT_RVA, counted_players, player, put, put_all};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
 use std::sync::atomic::AtomicUsize;
@@ -30,10 +30,9 @@ hook_asm!(
 );
 
 pub fn ready_players() -> Result<(), Refused> {
+    // Converted: `rc2k_core::menu::event::PLAYER_READY`.
     for p in counted_players()? {
-        put(p + 0xD0, 1);
-        put(p + 0x88, 0);
-        put(p + 0x94, 0);
+        put_all(p, &rc2k_core::menu::event::PLAYER_READY);
     }
     Ok(())
 }

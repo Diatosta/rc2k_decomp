@@ -62,10 +62,7 @@ pub const GROUP_TEXTS: u32 = 0x61AE18; // dword_61AE18
 pub const TEXT: u32 = 0x61BE18; // byte_61BE18
 pub const TEXT_LEN: u32 = 0x4000;
 
-const B: u32 = 0x62;
-const C: u32 = 0x63;
-const D: u32 = 0x64;
-const JOIN: u8 = 0x29;
+use rc2k_core::race::pace::{B, C, D, JOIN};
 
 /// Where the course is: the faces (`g_courseFaces`), where they may be read, the count.
 #[derive(Clone, Copy)]
@@ -232,11 +229,8 @@ impl Machine {
 
     /// `sub_441A4B` (`race::next_pace_slot`): the slot on; past 7 back to 0, ebp on.
     pub fn next_slot(&mut self) {
-        self.slot = self.slot.wrapping_add(1);
-        if self.slot >= 8 {
-            self.slot = 0;
-            self.r.ebp = self.r.ebp.wrapping_add(1);
-        }
+        // Converted: `rc2k_core::race::pace::next_slot`.
+        (self.slot, self.r.ebp) = rc2k_core::race::pace::next_slot(self.slot, self.r.ebp);
     }
 
     /// The place ebp x 8 + the slot.
@@ -247,8 +241,9 @@ impl Machine {
     /// `sub_441C78` (`race::pace_distance_word`): the distance eax (16.16) / 10, at most
     /// 40, its word from `byte_614D38`; unless 0, at the text's edi, edi on.
     pub fn distance_word(&mut self) -> Result<(), Refused> {
-        // shr 16; div 10; mul 10; div 10: the tens.
-        let tens = ((self.r.eax >> 16) / 10).min(40);
+        // Converted: `rc2k_core::race::pace::distance_tens` (shr 16; div 10; mul 10;
+        // div 10: the tens).
+        let tens = rc2k_core::race::pace::distance_tens(self.r.eax);
         let word: u8 = unsafe { game_read(WORDS_RVA + tens as usize) };
         if word != 0 {
             self.put8(TEXT.wrapping_add(self.r.edi), word)?;
@@ -285,7 +280,7 @@ impl Machine {
             }
             let al = self.r.eax as u8;
             if al as u32 != B {
-                if (al == 0x2F || al == 0x3C || (0x34..=0x38).contains(&al))
+                if rc2k_core::race::pace::replaces_join(al)
                     && self.get8(TEXT.wrapping_sub(1).wrapping_add(self.r.edi))? == JOIN
                 {
                     self.r.edi = self.r.edi.wrapping_sub(1);
@@ -303,51 +298,23 @@ impl Machine {
 
     /// 0x441CFB: a corner's code into eax (ecx, edx, ebx, ebp changed).
     fn corner(&mut self) -> Result<(), Refused> {
+        // Converted: `rc2k_core::race::pace::{corner_start, corner}`.
+        use rc2k_core::race::pace::{corner, corner_start};
         let n = self.r.edx.wrapping_mul(4);
         let next_end = ENDS.wrapping_add(4).wrapping_add(n);
         let next_start = STARTS.wrapping_add(4).wrapping_add(n);
         let e = self.get(next_end)? >> 3;
         let s = self.get(next_start)? >> 3;
-        let mut ecx = self.distance(e)?.wrapping_sub(self.distance(s)?);
-        let mut ebp = 0u32;
-        if (ecx.wrapping_sub(0x78_0000) as i32) >= 0 {
-            ebp += 8;
-        }
-        if (ecx.wrapping_sub(0x3C_0000) as i32) < 0 {
-            ecx = 0x3C_0000;
-        }
-        let mut eax = self.angle(self.get(next_end)? >> 3)?;
-        let mut ebx = self.get(next_start)?.wrapping_sub(1);
-        if (ebx as i32) < 0 {
-            ebx = 0;
-        }
-        if (ebx.wrapping_sub(0x1869F) as i32) >= 0 {
-            ebx = 0x1869F;
-        }
-        ebx >>= 3;
-        eax = eax.wrapping_sub(self.angle(ebx)?);
-        if (eax as i32) >= 0 {
-            ebp += 0x10;
-        }
-        if (eax as i32) < 0 {
-            eax = eax.wrapping_neg();
-        }
-        let product = eax as u64 * 60;
-        // ecx is 0x3C0000 or more (unsigned): the quotient fits.
-        let quotient = product / ecx as u64;
+        let length = self.distance(e)?.wrapping_sub(self.distance(s)?);
+        let at_end = self.angle(self.get(next_end)? >> 3)?;
+        let ebx = corner_start(self.get(next_start)?);
+        let c = corner(length, at_end.wrapping_sub(self.angle(ebx)?));
         let r = &mut self.r;
-        r.edx = (product % ecx as u64) as u32;
-        r.ecx = ecx;
+        r.edx = c.remainder;
+        r.ecx = c.length;
         r.ebx = ebx;
-        r.ebp = ebp;
-        let q = quotient as u32;
-        r.eax = match q {
-            q if q > 0x3330 => 5,
-            q if q > 0x2664 => 4,
-            q if q > 0x1998 => 3,
-            q if q > 0xCCC => 2,
-            _ => 1,
-        } + ebp;
+        r.ebp = c.flags;
+        r.eax = c.code;
         Ok(())
     }
 
@@ -388,7 +355,7 @@ impl Machine {
                 (self.r.ebx, self.r.esi) = self.face(self.r.ebp)?;
                 self.code()?;
                 let e = self.r.eax;
-                if e != 0 && e != B && e < D {
+                if rc2k_core::race::pace::starts_note(e) {
                     self.r.eax = self.here();
                     self.put(STARTS.wrapping_add(self.r.edx.wrapping_mul(4)), self.r.eax)?;
                     self.next_slot();
@@ -406,7 +373,7 @@ impl Machine {
                 (self.r.ebx, self.r.esi) = self.face(self.r.ebp)?;
                 self.code()?;
                 let e = self.r.eax;
-                if e == B || e == D {
+                if rc2k_core::race::pace::ends_note(e) {
                     let n = self.r.edx.wrapping_mul(4);
                     self.put(KINDS.wrapping_add(n), e)?;
                     self.r.eax = self.here();

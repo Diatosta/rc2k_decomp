@@ -1,8 +1,38 @@
 //! The two lists of cars that can be chosen (converted 2026-10-21 from
 //! `saves::rebuild_car_lists` 0x47088C and `saves::list_car_numbers` 0x470825): kept in
-//! `var\ral.dat` as numbers, used as pointers to the cars' records.
+//! `var\ral.dat` as numbers, used as pointers to the cars' records; and what a loaded
+//! game's cars keep of the players' own settings (converted 2026-10-21 from
+//! `saves::keep_player_settings` 0x4719F5).
 
 use crate::Invalid;
+use crate::strings::bytes::Bytes;
+
+/// A saved game's car (a player's object as it is saved).
+pub const SAVED_CAR_LEN: usize = 0x28C;
+
+/// The players' own settings that a loaded game keeps (the controls and choices made
+/// since it was saved), as (offset, bytes): the keys' bytes +0x1C .. +0x27, the dwords
+/// +0x2C .. +0x78 and +0x178.
+pub const KEPT_SETTINGS: [(usize, usize); 3] = [(0x1C, 0xC), (0x2C, 0x50), (0x178, 4)];
+
+/// `saves::keep_player_settings` for one player: its kept settings (`player`'s bytes)
+/// written over the saved car's (`car`, by offset). Refused: a read past the player.
+pub fn keep_settings(
+    player: &(impl Bytes + ?Sized),
+    car: &mut impl FnMut(usize, u8),
+) -> Result<(), Invalid> {
+    for (start, len) in KEPT_SETTINGS {
+        for at in start..start + len {
+            car(
+                at,
+                player
+                    .byte(at)
+                    .ok_or(Invalid("a player's settings cut short"))?,
+            );
+        }
+    }
+    Ok(())
+}
 
 /// The car numbers' limit (the original reads wherever a bigger one leads).
 pub const MOST_CARS: u32 = 0x400;
@@ -61,5 +91,24 @@ mod tests {
             Ok(vec![2, u32::MAX])
         );
         assert!(numbers(&[0, u32::MAX], |p| p).is_err());
+    }
+
+    #[test]
+    fn kept_settings() {
+        let player: Vec<u8> = (0..SAVED_CAR_LEN).map(|n| n as u8).collect();
+        let mut car = vec![0xAAu8; SAVED_CAR_LEN];
+        keep_settings(&player, &mut |at, b| car[at] = b).unwrap();
+        assert_eq!(
+            (car[0x1B], car[0x1C], car[0x27], car[0x28]),
+            (0xAA, 0x1C, 0x27, 0xAA)
+        );
+        assert_eq!(
+            (car[0x2B], car[0x2C], car[0x7B], car[0x7C]),
+            (0xAA, 0x2C, 0x7B, 0xAA)
+        );
+        assert_eq!(
+            (car[0x177], car[0x178], car[0x17B], car[0x17C]),
+            (0xAA, 0x78, 0x7B, 0xAA)
+        );
     }
 }

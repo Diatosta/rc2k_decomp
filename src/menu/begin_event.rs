@@ -17,8 +17,10 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::menu::player::{PLAYERS, player_at, player_regions};
+use crate::menu::standings::put_all;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use rc2k_core::menu::event::KEEPS_SETUP;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -42,18 +44,12 @@ const NEW_EVENT_RVA: usize = rva(0x75592C); // dword_75592C
 const CLEARED_B_RVA: usize = rva(0x755978); // dword_755978
 const CURRENT_PLAYER_RVA: usize = crate::menu::take_shown_car::CURRENT_PLAYER_RVA;
 pub const MODE_RVA: usize = rva(0x7556D0); // dword_7556D0: the event's mode
-/// The mode that keeps the players' setups.
-const KEEPS_SETUP: u32 = 3;
 
 /// The drivers' count (with the first), or `None` without their end.
 pub fn drivers() -> Option<u32> {
     let first = game_addr(DRIVERS_RVA) as u32;
     (1..MOST_DRIVERS)
         .find(|&n| unsafe { ((first + n * DRIVER_LEN) as *const u32).read() } == u32::MAX)
-}
-
-unsafe fn put(at: u32, value: u32) {
-    unsafe { (at as *mut u32).write_unaligned(value) };
 }
 
 pub unsafe fn begin_event() -> Result<(), Refused> {
@@ -64,30 +60,21 @@ pub unsafe fn begin_event() -> Result<(), Refused> {
     unsafe {
         game_write(CLEARED_A_RVA, 0u32);
         game_write(STATE_RVA, 0u32);
+        // Converted: `rc2k_core::menu::event` (`DRIVER_BEGIN`, `PLAYER_BEGIN`,
+        // `KEEPS_SETUP`, `setup_defaults`).
+        use rc2k_core::menu::event::{DRIVER_BEGIN, PLAYER_BEGIN, setup_defaults};
         let first = game_addr(DRIVERS_RVA) as u32;
-        for n in 0..count {
-            let d = first + n * DRIVER_LEN;
-            put(d + 0x10, 0);
-            put(d + 0xC, 0);
-            put(d + 0x20, 0);
-            put(d + 0x24, 1);
-        }
+        crate::menu::standings::table(first, DRIVER_LEN, count).store_all(&DRIVER_BEGIN);
         game_write(NEW_EVENT_RVA, 1u32);
         game_write(CLEARED_B_RVA, 0u32);
         for n in 0..PLAYERS {
             game_write(CURRENT_PLAYER_RVA, n);
             let p = player_at(n);
-            put(p + 0x8C, 0);
-            put(p + 0x84, 0);
-            put(p + 0xD0, 1);
+            put_all(p, &PLAYER_BEGIN);
             crate::service::repair_parts::repair_car()?;
             if game_read::<u32>(MODE_RVA) != KEEPS_SETUP {
-                put(p + 0x120, 2);
-                put(p + 0x110, 0x32);
-                put(p + 0x10C, 3);
-                put(p + 0x114, 0x46);
-                put(p + 0x118, 0x1E);
-                put(p + 0x11C, ((p + 0x280) as *const u32).read_unaligned());
+                let sensitivity = ((p + 0x280) as *const u32).read_unaligned();
+                put_all(p, &setup_defaults(sensitivity));
             }
         }
     }

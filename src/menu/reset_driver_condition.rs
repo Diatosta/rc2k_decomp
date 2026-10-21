@@ -49,12 +49,8 @@ fn prepare(case: u32) {
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn reset_driver_condition(entry: &Regs) -> Result<Regs, Refused> {
-    let first = game_addr(DRIVERS_RVA) as u32;
-    for e in entries(first, DRIVER)? {
-        for k in 0..12 {
-            put(e + 0x2C + 4 * k, 100);
-        }
-    }
+    // Converted: `rc2k_core::menu::event::driver_condition`, stored in each driver.
+    driver_table()?.store_all(&rc2k_core::menu::event::driver_condition());
     Ok(*entry)
 }
 

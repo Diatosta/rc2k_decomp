@@ -29,17 +29,12 @@ hook_asm!(
 
 /// g_knownObjectKinds.
 const KINDS_RVA: usize = rva(0x5C5790);
-const KINDS: u32 = 0x22;
 
 // ---- Rust version ----
 
 pub fn find_object_kind(kind: u32) -> u32 {
-    (0..KINDS)
-        .find(|&n| {
-            let known: u32 = unsafe { game_read(KINDS_RVA + 4 * n as usize) };
-            kind == known || kind == known.wrapping_add(1)
-        })
-        .unwrap_or(KINDS)
+    // Converted: `rc2k_core::scene::kinds::find_known`.
+    rc2k_core::scene::kinds::find_known(|n| unsafe { game_read(KINDS_RVA + 4 * n) }, kind)
 }
 
 // ---- hook ----
@@ -58,7 +53,7 @@ fn self_test() -> (usize, usize) {
     let Some(mut t) = SelfTest::begin(&HOOK) else {
         return (0, 0);
     };
-    let mut kinds: Vec<u32> = (0..KINDS)
+    let mut kinds: Vec<u32> = (0..rc2k_core::scene::kinds::KNOWN_KINDS)
         .flat_map(|n| {
             let k: u32 = unsafe { game_read(KINDS_RVA + 4 * n as usize) };
             [k, k.wrapping_add(1), k.wrapping_add(2), k.wrapping_sub(1)]

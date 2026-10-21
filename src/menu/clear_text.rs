@@ -6,7 +6,9 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::menu::text_entry::{LENGTH_RVA, TEXT_LEN, backup, backup_region, set_length};
+use crate::menu::text_entry::{
+    LENGTH_RVA, TEXT_LEN, Text, backup, backup_region, put_field, set_length, with_entry,
+};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
 use std::sync::atomic::AtomicUsize;
@@ -25,9 +27,11 @@ hook_asm!(
 
 // ---- Rust version ----
 
-pub unsafe fn clear_text(field: *mut u8) {
-    unsafe { field.write_bytes(0, TEXT_LEN) };
-    set_length(0);
+pub unsafe fn clear_text(at: *mut u8) {
+    // Converted: `rc2k_core::menu::text_entry::Entry::clear` (the field is not read).
+    let mut text = Text::default();
+    with_entry(|e| e.clear(&mut text));
+    unsafe { put_field(at, &text) };
 }
 
 // ---- hook ----

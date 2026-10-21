@@ -34,37 +34,19 @@ const PLACES_RVA: usize = rva(0x5D3AE8); // dword_5D3AE8
 const FIRST_SLOTS_RVA: usize = rva(0x5D1AE8); // g_kindFirstSlots
 const SLOT_COUNT_RVA: usize = rva(0x5DC970); // g_textureSlotCount
 const TEXTURE_RVA: usize = rva(0x6240D4); // g_polygonTexture
-const NONE: u32 = 0xFFFF_FC43;
 
 /// The Rust version: what it leaves in eax.
 pub unsafe fn look_up_texture() -> u32 {
+    // Converted: `rc2k_core::scene::textures::look_up`.
     unsafe {
-        let mut eax: u32 = game_read(WORD_RVA);
-        let none = |eax: u32| {
-            game_write(TEXTURE_RVA, NONE);
-            eax
-        };
-        if eax == u32::MAX {
-            return none(eax);
-        }
-        if (eax as i32) < 0 {
-            eax &= 0x7FFF_FFFF;
-            if eax >= 0xFA0 {
-                return none(eax);
-            }
-            eax = game_read(PLACES_RVA + 4 * eax as usize);
-        } else {
-            if eax >= 0x400 {
-                return none(eax);
-            }
-            eax = game_read(FIRST_SLOTS_RVA + 4 * eax as usize);
-        }
-        let count: u32 = game_read(SLOT_COUNT_RVA);
-        if eax >= count || count == 0 {
-            return none(eax);
-        }
-        game_write(TEXTURE_RVA, eax);
-        eax
+        let found = rc2k_core::scene::textures::look_up(
+            game_read(WORD_RVA),
+            |p| game_read(PLACES_RVA + 4 * p),
+            |k| game_read(FIRST_SLOTS_RVA + 4 * k),
+            || game_read(SLOT_COUNT_RVA),
+        );
+        game_write(TEXTURE_RVA, found.texture);
+        found.eax
     }
 }
 

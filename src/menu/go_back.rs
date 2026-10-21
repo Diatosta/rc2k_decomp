@@ -28,9 +28,9 @@ hook_asm!(
 
 // ---- game data ----
 
-const A_RVA: usize = rva(0x75555D); // dword_75555D
-const B_RVA: usize = rva(0x755561); // dword_755561
-const C_RVA: usize = rva(0x755A0C); // dword_755A0C
+use crate::menu::leaving::{
+    FIELD_A0C_RVA as C_RVA, LEAVE_EVENT_RVA as A_RVA, LEAVE_SCREEN_RVA as B_RVA,
+};
 
 pub fn regions() -> [Region; 3] {
     [at(A_RVA), at(B_RVA), at(C_RVA)]
@@ -39,11 +39,8 @@ pub fn regions() -> [Region; 3] {
 // ---- Rust version ----
 
 pub fn go_back() {
-    unsafe {
-        game_write(A_RVA, 0u32);
-        game_write(B_RVA, 1u32);
-        game_write(C_RVA, u32::MAX);
-    }
+    // Converted: `rc2k_core::menu::leaving::Leaving::go_back`.
+    crate::menu::leaving::with_leaving(|l| l.go_back());
 }
 
 // ---- hook ----

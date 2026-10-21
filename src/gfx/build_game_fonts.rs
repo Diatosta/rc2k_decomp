@@ -127,13 +127,8 @@ pub unsafe fn build_game_fonts(
         let layout = layout.read_unaligned();
         for n in 0..256usize {
             let place = game_addr(PALETTE_RVA + n * 4) as *mut u32;
-            let [a, b, c, d] = place.read_unaligned().to_le_bytes();
-            let brighter = u32::from_le_bytes([
-                a.saturating_add(0x40),
-                b.saturating_add(0x20),
-                c.saturating_add(0x20),
-                d,
-            ]);
+            // Converted: `rc2k_core::gfx::pixels::brighter`.
+            let brighter = rc2k_core::gfx::pixels::brighter(place.read_unaligned());
             place.write_unaligned(brighter);
             to.add(n)
                 .write_unaligned(components_to_pixel(&layout, brighter));

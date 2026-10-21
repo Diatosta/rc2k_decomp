@@ -13,6 +13,7 @@ use crate::framework::{EAX, ECX, ESI, RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::a;
 use crate::screens::harness::Left;
 use crate::service::harness::{capture, check_state, dispatch_state, restore};
+use rc2k_core::drive::inputs::{KEY_COUNT, keys_or};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -30,10 +31,11 @@ hook_asm!(
 const KEYS: usize = 0x4F6CDC; // g_keysPressed
 
 /// The Rust version: (the bytes' or, esi).
+// Converted: `rc2k_core::drive::inputs::keys_or`.
 pub unsafe fn any_key_down() -> (u32, u32) {
     let at = a(KEYS);
-    let or = (0..0x80).fold(0u8, |o, k| o | unsafe { ((at + k) as *const u8).read() });
-    (or as u32, at)
+    let keys = unsafe { (at as *const [u8; KEY_COUNT]).read_unaligned() };
+    (keys_or(&keys) as u32, at)
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {

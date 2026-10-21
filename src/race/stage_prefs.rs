@@ -96,7 +96,8 @@ pub unsafe fn swap_stage_texture(entry: &Regs) -> Regs {
 /// `dword_60A56C` 0xFF.
 pub unsafe fn tweak_stage() {
     unsafe {
-        if [0x15u32, 0x3E, 0x36].contains(&game_read(STAGE_RVA)) {
+        // Converted: `rc2k_core::race::stage::stage_tweaked`.
+        if rc2k_core::race::stage::stage_tweaked(game_read(STAGE_RVA)) {
             game_write(TWEAKED_RVA, [0xFFu32; 3]);
         }
     }

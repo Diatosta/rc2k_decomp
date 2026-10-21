@@ -41,11 +41,15 @@ pub unsafe fn take_shown_car(list: u32) -> Result<(), Refused> {
         return Err(BadInput("a current player past the four").into());
     }
     let shown: u32 = unsafe { game_read(SHOWN_CAR_RVA) };
+    // Converted: `rc2k_core::menu::player::Player::take_car`.
     unsafe {
         let entry = ((list.wrapping_add(shown.wrapping_mul(4))) as *const u32).read_unaligned();
-        let p = &mut *(player_at(current) as *mut Player);
-        p.car_number = (entry as *const u32).read_unaligned();
-        p.no_turbo = ((entry + 8) as *const u32).read_unaligned();
+        let number = (entry as *const u32).read_unaligned();
+        let no_turbo = ((entry + 8) as *const u32).read_unaligned();
+        let at = player_at(current) as *mut Player;
+        let mut p = at.read_unaligned();
+        p.take_car(number, no_turbo);
+        at.write_unaligned(p);
     }
     Ok(())
 }

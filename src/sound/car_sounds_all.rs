@@ -75,9 +75,16 @@ pub fn car_sounds_all_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
         return Err(BadInput("a null sound object").into());
     }
     let all = turn_regions();
+    // Converted: `rc2k_core::sound::turn::Nearest` (the choice; eax, ebx, ecx and edx
+    // hold it as the original's do).
+    use rc2k_core::sound::turn::{NEAREST_MARK, NEXT_MARK, Nearest};
+    let hold = |c: &mut Regs, n: &Nearest| {
+        (c.eax, c.ebx, c.ecx, c.edx) = (n.first, n.second, n.first_distance, n.second_distance)
+    };
     guard(&all, || {
         let mut c = *r;
-        (c.eax, c.ebx, c.ecx, c.edx) = (u32::MAX, u32::MAX, 0x7F80_0000, 0x7F80_0000);
+        let mut nearest = Nearest::default();
+        hold(&mut c, &nearest);
         for n in 0..count {
             c.ebp = n;
             c.esi = object(n);
@@ -89,6 +96,13 @@ pub fn car_sounds_all_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
                 c.eax = n;
                 part(CAR_SOUNDS, &mut c)?;
                 c.eax = kept;
+                // The choice goes on from the registers as the call left them.
+                nearest = Nearest {
+                    first: c.eax,
+                    second: c.ebx,
+                    first_distance: c.ecx,
+                    second_distance: c.edx,
+                };
                 continue;
             }
             x87_run!(
@@ -103,22 +117,16 @@ pub fn car_sounds_all_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
                 "fstp dword ptr [{b} + 0x114F88]";
                 si = c.esi, b = base()
             );
-            let d = g(DISTANCE);
-            if c.ecx as i32 > d as i32 {
-                (c.edx, c.ebx, c.ecx, c.eax) = (c.ecx, c.eax, d, n);
-            } else if c.edx as i32 > d as i32 {
-                (c.edx, c.ebx) = (d, n);
-            }
+            nearest.consider(n, g(DISTANCE));
+            hold(&mut c, &nearest);
         }
         c.ebp = count;
-        if c.eax == g(NEXT) || c.ebx == g(NEAREST) {
-            (c.eax, c.ebx) = (c.ebx, c.eax);
-        }
+        (c.eax, c.ebx) = nearest.kept(g(NEAREST), g(NEXT));
         unsafe {
             game_write(rva(NEAREST), c.eax);
             game_write(rva(NEXT), c.ebx);
         }
-        for (which, mark) in [(NEAREST, 0xFFFF_FFFEu32), (NEXT, 0xFFFF_FFFF)] {
+        for (which, mark) in [(NEAREST, NEAREST_MARK), (NEXT, NEXT_MARK)] {
             c.eax = g(which);
             if (c.eax as i32) < 0 {
                 continue;

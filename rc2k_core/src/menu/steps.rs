@@ -2,7 +2,9 @@
 //! `menu::music_volume_down` 0x467F48 .. `menu_sounds_b_volume_up` 0x46810A,
 //! `menu::next_screen_mode` 0x46FFEF, the two texture steps 0x47012B / 0x47015B and the
 //! four colour steps 0x471AE4 .. 0x471B7A; the controller pages' steps, `menu::next_controller`
-//! 0x46A3BF .. `raise_dead_zone_b` 0x46B3EA; the event pages' row steps 0x4A3736 .. 0x4A37B5;
+//! 0x46A3BF .. `raise_dead_zone_b` 0x46B3EA, `lower_controller_sensitivity` 0x46B414 /
+//! `raise_controller_sensitivity` 0x46B44F and `menu::drop_missing_controllers` 0x4748B6;
+//! the event pages' row steps 0x4A3736 .. 0x4A37B5;
 //! the stage choice's `switch_stage_group`, `next_stage_sub` / `previous_stage_sub`,
 //! `next_stage_number` / `previous_stage_number`; the stage pages' `previous_stage_page`
 //! 0x46FAEE / `next_stage_page` 0x46FB27).
@@ -61,6 +63,23 @@ pub fn previous_controller(c: u32, count: u32) -> u32 {
 /// Whether controller `c` is a listed one (`c - 1` below the count, unsigned).
 pub fn listed(c: u32, count: u32) -> bool {
     c.wrapping_sub(1) < count
+}
+
+/// `menu::lower_controller_sensitivity`: with a controller and the sensitivity above 0
+/// (signed), one less; `None` when it stays.
+pub fn lower_sensitivity(controller: u32, s: u32) -> Option<u32> {
+    (controller != 0 && s as i32 > 0).then(|| s - 1)
+}
+
+/// `menu::raise_controller_sensitivity`: below 3 (signed), one more; `None` when it stays.
+pub fn raise_sensitivity(s: u32) -> Option<u32> {
+    ((s as i32) < 3).then(|| s.wrapping_add(1))
+}
+
+/// `menu::drop_missing_controllers`: a controller past the `count` listed (unsigned) is
+/// none.
+pub fn kept_controller(c: u32, count: u32) -> u32 {
+    if c > count { 0 } else { c }
 }
 
 /// What the two dead zones leave of 100, and whether a third may grow (above 10, signed).
@@ -198,6 +217,18 @@ pub fn gearing_switch_text(switch: u32) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn controllers() {
+        assert_eq!(lower_sensitivity(0, 2), None);
+        assert_eq!(lower_sensitivity(1, 0), None);
+        assert_eq!(lower_sensitivity(1, u32::MAX), None);
+        assert_eq!(lower_sensitivity(1, 3), Some(2));
+        assert_eq!(raise_sensitivity(3), None);
+        assert_eq!(raise_sensitivity(u32::MAX), Some(0));
+        assert_eq!(raise_sensitivity(2), Some(3));
+        assert_eq!((kept_controller(3, 2), kept_controller(2, 2)), (0, 2));
+    }
 
     #[test]
     fn controllers_and_rows() {

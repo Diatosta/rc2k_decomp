@@ -25,9 +25,6 @@ use crate::framework::{
     RawHook, Regs, SelfTest, call_game, game_addr, game_write, hook_asm, rva, shadow, standalone,
 };
 use crate::install::stand_ins::{act, set_handler, stand_in};
-use crate::system::find_entry_with_any_bit::find_entry_with_any_bit;
-use crate::system::find_entry_with_bits::find_entry_with_bits;
-use crate::system::next_entry::next_entry;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -46,10 +43,7 @@ hook_asm!(
 
 /// The call: 0 `sub_419853` (the carry: no Direct3D device fits).
 const DETECT_RVA: usize = rva(0x419853);
-/// The table's room, in entries.
-pub const MODES_ROOM: u32 = 0x20;
-const DRAWS_3D: u32 = 0x10_0000;
-const HAS_EXTRA: u32 = 0x20_0000;
+pub use rc2k_core::gfx::screen_modes::MODES_ROOM;
 
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
@@ -87,30 +81,18 @@ unsafe fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
 }
 
-unsafe fn or(at: u32, bits: u32) {
-    unsafe { (at as *mut u32).write_unaligned(get(at) | bits) };
-}
-
 /// The marking over the table (after the platform's call).
 pub unsafe fn mark_modes(kind: u32, v: &ModeVars) {
+    // Converted: `rc2k_core::gfx::screen_modes::mark_3d`.
     unsafe {
-        let (mut at, mut left) = (v.table, get(v.count));
-        loop {
-            let (found, e, l) = find_entry_with_bits(kind, at, left);
-            if !found {
-                return;
+        let before: Vec<_> = crate::system::find_entry::entries(v.table, get(v.count)).collect();
+        let mut table = before.clone();
+        rc2k_core::gfx::screen_modes::mark_3d(&mut table, kind, get(v.depth), get(v.extra));
+        for (n, e) in table.into_iter().enumerate() {
+            if e != before[n] {
+                ((v.table + 8 * n as u32) as *mut rc2k_core::system::tables::Entry)
+                    .write_unaligned(e);
             }
-            let (found, e, l) = find_entry_with_any_bit(get(v.depth), e, l);
-            if !found {
-                return;
-            }
-            or(e, DRAWS_3D);
-            let extra = get(v.extra);
-            if extra != 0 {
-                or(e, HAS_EXTRA);
-                or(e + 4, extra);
-            }
-            (_, at, left) = next_entry(e, l);
         }
     }
 }

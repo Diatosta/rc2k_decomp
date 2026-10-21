@@ -12,10 +12,11 @@
 //! Self-test: a copy of the original (its variables and table the test's) against the
 //! core: k below, inside and past the count.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{EAX, EBX, RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
 use crate::screens::harness::Left;
 use crate::service::harness::{capture, dispatch_state};
+use rc2k_core::physics::splits::kept_split_slot;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -55,21 +56,12 @@ unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
 
-/// The core.
+/// The Rust version on the variables at `p`.
+// Converted: `rc2k_core::physics::splits::kept_split_slot`.
 pub unsafe fn keep_split_time_at(p: &SplitPlaces) -> Result<Left, Refused> {
     unsafe {
         let time = at(p.time);
-        let mut k = at(p.checks).wrapping_sub(1);
-        if (k as i32) < 0 {
-            k = 0;
-        }
-        let count = at(p.count);
-        if (k.wrapping_sub(count) as i32) >= 0 {
-            k = count;
-        }
-        if k >= 0x40 {
-            return Err(BadInput("a split index past 0x40").into());
-        }
+        let k = kept_split_slot(at(p.checks), at(p.count))?;
         ((p.table + 4 * k) as *mut u32).write_unaligned(time);
         Ok(Left::nothing().with(EAX, time).with(EBX, k))
     }

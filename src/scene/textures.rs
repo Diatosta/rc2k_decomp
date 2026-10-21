@@ -24,6 +24,15 @@ pub fn table(rva: usize, entries: u32) -> Region {
     (game_addr(rva) as u32, entries as usize * 4)
 }
 
+/// One of the game's tables of dwords as a slice, for the core.
+///
+/// # Safety
+/// The table must be `entries` dwords at a 4-aligned RVA of the image, and nothing else
+/// may use it while the slice lives (the hooks run with the game paused or on its thread).
+pub unsafe fn slice(rva: usize, entries: u32) -> &'static mut [u32] {
+    unsafe { std::slice::from_raw_parts_mut(game_addr(rva) as *mut u32, entries as usize) }
+}
+
 pub unsafe fn entry(rva: usize, n: u32) -> u32 {
     unsafe { game_read(rva + n as usize * 4) }
 }

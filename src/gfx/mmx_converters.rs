@@ -36,36 +36,6 @@ use crate::framework::{EBX, ECX, EDI, EDX, ESI, Regs, SelfTest, game_read, rva};
 use crate::screens::harness::Left;
 use crate::service::harness::{check_state, dispatch_state};
 
-// ---- MMX's operations on a quadword ----
-
-fn words(x: u64) -> [u16; 4] {
-    [
-        x as u16,
-        (x >> 16) as u16,
-        (x >> 32) as u16,
-        (x >> 48) as u16,
-    ]
-}
-fn quad(w: [u16; 4]) -> u64 {
-    w[0] as u64 | (w[1] as u64) << 16 | (w[2] as u64) << 32 | (w[3] as u64) << 48
-}
-fn psrlw(x: u64, n: u32) -> u64 {
-    quad(words(x).map(|w| w >> n))
-}
-fn psllw(x: u64, n: u32) -> u64 {
-    quad(words(x).map(|w| w << n))
-}
-/// `packuswb a, b`: the eight signed words to unsigned bytes, saturated; a's four first.
-fn packuswb(a: u64, b: u64) -> u64 {
-    let sat = |w: u16| (w as i16).clamp(0, 255) as u64;
-    let (a, b) = (words(a), words(b));
-    let mut out = 0u64;
-    for (n, &w) in a.iter().chain(b.iter()).enumerate() {
-        out |= sat(w) << (8 * n);
-    }
-    out
-}
-
 /// A converter: the format it makes and where its constants are (IDA addresses).
 #[derive(Clone, Copy)]
 pub struct Converter {
@@ -78,18 +48,9 @@ fn constant(at: usize) -> u64 {
     unsafe { game_read(rva(at)) }
 }
 
-/// Four pixels (two quadwords at `from`) converted, by the format.
-fn step(c: &Converter, q0: u64, q1: u64) -> u64 {
-    let k = |n: usize| constant(c.constants + 8 * n);
-    let (m4, m5, m6, m7) = (k(0), k(1), k(2), k(3));
-    let low = packuswb(q0 & m4, q1 & m4);
-    let high = packuswb(psrlw(q0, 8) & m4, psrlw(q1, 8) & m4);
-    match c.format {
-        1 => (low & m5) | (psrlw(low, 3) & m7) | (psllw(high, 3) & m6),
-        2 => (psrlw(low, 1) & m5) | (psrlw(low, 3) & m7) | (psllw(high, 2) & m6),
-        3 => (psrlw(low, 1) & m5) | (high & k(4)) | (psrlw(low, 3) & m7) | (psllw(high, 2) & m6),
-        _ => (psrlw(low, 4) & m5) | (high & k(4)) | (psrlw(low, 4) & m7) | (high & m6),
-    }
+/// The converter's five masks.
+fn masks(c: &Converter) -> [u64; 5] {
+    std::array::from_fn(|n| constant(c.constants + 8 * n))
 }
 
 /// The Rust version: what it leaves (see the header).
@@ -101,22 +62,21 @@ pub fn convert_rows(entry: &Regs, c: Converter) -> Result<Left, Refused> {
         )
         .into());
     }
+    // Converted: `rc2k_core::gfx::converters` (`step`, `next_row`).
+    use rc2k_core::gfx::converters::{next_row, step};
+    let k = masks(&c);
     let (mut from, mut to) = (entry.esi, entry.edi);
     for _ in 0..entry.edx {
         for _ in 0..steps {
             unsafe {
                 let q0 = (from as *const u64).read_unaligned();
                 let q1 = ((from + 8) as *const u64).read_unaligned();
-                (to as *mut u64).write_unaligned(step(&c, q0, q1));
+                (to as *mut u64).write_unaligned(step(c.format, &k, q0, q1));
             }
             from = from.wrapping_add(0x10);
             to = to.wrapping_add(8);
         }
-        to = if c.format == 1 && !c.three_dnow {
-            to.wrapping_add(entry.ebp)
-        } else {
-            to.wrapping_sub(entry.ebp)
-        };
+        to = next_row(to, entry.ebp, c.format, c.three_dnow);
     }
     let left = Left::nothing().with(ECX, steps).with(EDX, 0).with(EDI, to);
     let left = if c.three_dnow {

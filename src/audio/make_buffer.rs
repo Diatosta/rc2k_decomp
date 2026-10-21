@@ -51,7 +51,7 @@ const IID_3D_RVA: usize = rva(0x506A58); // g_iidSound3dBuffer
 const CREATE_FAILED_RVA: usize = rva(0x4DA6E4); // "AUD: 1-DSBCreate failed"
 const QUERY_FAILED_RVA: usize = rva(0x4DA6FC); // "AUD: 1-DSBQuery3D failed"
 pub const MODE_OWN_BUFFERS: u32 = 0x1_0000;
-const MODE_HARDWARE_3D: u32 = 0x80_0000;
+use rc2k_core::audio::voices::MODE_HARDWARE_3D;
 const MODE_EAX: u32 = 0x100_0000;
 
 #[repr(C)]
@@ -130,16 +130,8 @@ pub unsafe fn make_buffer(at: u32, ebx: u32, vars: &Vars, part: Part) -> Result<
         if !made {
             regs.ebx = v.frequency;
             describe_wave_format(v.format, v.frequency)?;
-            let mut flags = 0xE0;
-            if !(mode & MODE_3D != 0 && mode & MODE_HARDWARE_3D != 0) {
-                flags |= 8;
-            }
-            if v.flags & 1 != 0 {
-                flags |= 2;
-            }
-            if mode & MODE_3D != 0 {
-                flags |= 0x10;
-            }
+            // Converted: `rc2k_core::audio::voices::buffer_flags`.
+            let flags = rc2k_core::audio::voices::buffer_flags(mode, v.flags);
             (vars.description as *mut BufferDescription).write_unaligned(BufferDescription {
                 size: 0x14,
                 flags,

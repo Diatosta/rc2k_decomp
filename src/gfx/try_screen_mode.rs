@@ -22,7 +22,6 @@ use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, 
 use crate::race::viewer::{
     Part, Saved, answer, dispatch_parts, dword, get, put, run_both, test_part,
 };
-use crate::system::find_entry_with_bits::find_entry_with_bits;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -63,16 +62,19 @@ pub fn try_screen_mode(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     // Ok(None): it works; Ok(Some(zero)): it does not, with the zero flag the failing step
     // left (`stc` keeps it).
     let failed = (|| -> Result<Option<bool>, Refused> {
-        let bits = entry.eax & 0xF0_FFFF;
-        if bits == 0 {
-            return Ok(Some(true));
-        }
+        // Converted: `rc2k_core::gfx::screen_modes::look_up`.
+        use rc2k_core::gfx::screen_modes::{Lookup, look_up};
         let count = get(MODE_COUNT);
-        let (found, at, _) = find_entry_with_bits(bits, game_addr(rva(MODE_TABLE)) as u32, count);
-        if !found {
+        let table = game_addr(rva(MODE_TABLE)) as u32;
+        let at = match look_up(
+            unsafe { crate::system::find_entry::entries(table, count) },
+            entry.eax,
+        ) {
+            Lookup::NoBits => return Ok(Some(true)),
             // `cmp ecx, 1` on a count of 0, else the `dec ecx` that reached 0.
-            return Ok(Some(count != 0));
-        }
+            Lookup::Missing => return Ok(Some(count != 0)),
+            Lookup::Found(n) => table.wrapping_add(8 * n as u32),
+        };
         r.eax = entry.eax;
         r.ebx = at;
         r.edx = entry.eax;

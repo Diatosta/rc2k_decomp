@@ -10,8 +10,9 @@
 //! Five callers (two in the engine's tables, three unread).
 //! Self-test: 200 states.
 
+use crate::bridge::Global;
 use crate::errors::Refused;
-use crate::framework::{EAX, RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::framework::{EAX, RawHook, Regs, SelfTest, game_write, hook_asm, rva};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
 use std::sync::atomic::AtomicUsize;
@@ -31,23 +32,21 @@ hook_asm!(
 // ---- game data ----
 
 pub const STATE_RVA: usize = rva(0x614C54); // dword_614C54
+const STATE: Global<u32> = Global::at(0x614C54);
 
 // ---- Rust version ----
 
-/// `scene::noise_step` (0x440F4E).
-pub fn noise_step(mut state: u32) -> u32 {
-    state ^= (state >> 22) & 1;
-    state ^= (state >> 2) & 1;
-    state ^= (state >> 1) & 1;
-    state.rotate_right(1) ^ 0x8765_4321
+/// `scene::noise_step` (0x440F4E). Converted: `rc2k_core::scene::noise::step`.
+pub fn noise_step(state: u32) -> u32 {
+    rc2k_core::scene::noise::step(state)
 }
 
+/// Converted: `rc2k_core::scene::noise::Noise::draw`.
 pub unsafe fn next_noise() -> u32 {
-    unsafe {
-        let state = noise_step(game_read(STATE_RVA));
-        game_write(STATE_RVA, state);
-        state
-    }
+    let mut n = rc2k_core::scene::noise::Noise { state: STATE.get() };
+    let number = n.draw();
+    STATE.set(n.state);
+    number
 }
 
 // ---- hook ----

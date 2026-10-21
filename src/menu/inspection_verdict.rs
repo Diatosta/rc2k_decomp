@@ -67,19 +67,17 @@ pub unsafe fn inspection_verdict(entry: &Regs) -> Result<Regs, Refused> {
     if n >= 4 || player(n) == 0 {
         return Err(BadInput("a current player past 3 or missing").into());
     }
+    // Converted: `rc2k_core::menu::inspection::verdict`.
     let p = player(n);
     unsafe {
-        game_write(SUM_RVA, 0u32);
-        for &k in &INSPECTED {
-            let k = k as usize;
-            if past_limit(p, k as u32) && game_read::<u32>(FLAGS_RVA + 4 * (k + 2)) == 0 {
-                let sum: u32 = game_read(SUM_RVA);
-                game_write(SUM_RVA, sum.wrapping_add(game_read(PENALTIES_RVA + 4 * k)));
-            }
-        }
-        let score = 100u32.wrapping_sub(game_read(SUM_RVA));
-        game_write(SCORE_RVA, score);
-        put(p + 0xD0, if score as i32 >= 100 { 1 } else { 2 });
+        let v = rc2k_core::menu::inspection::verdict(
+            |k| past_limit(p, k as u32),
+            |k| game_read::<u32>(FLAGS_RVA + 4 * (k + 2)) != 0,
+            |k| game_read(PENALTIES_RVA + 4 * k),
+        );
+        game_write(SUM_RVA, v.penalties);
+        game_write(SCORE_RVA, v.score);
+        put(p + 0xD0, v.kind);
     }
     Ok(*entry)
 }

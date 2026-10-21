@@ -29,6 +29,7 @@ hook_asm!(
 
 /// The Rust version: whether the record's object is hidden by its kind.
 pub unsafe fn kind_hidden_at(record: u32) -> bool {
+    // Converted: `rc2k_core::scene::kinds::kind_is_hidden` (through `kind_is_hidden`).
     let object = unsafe { ((record + 1) as *const u8).read() } as u32;
     // A byte: never past the table.
     unsafe { kind_is_hidden(object) }.is_ok_and(|(hidden, _)| hidden)

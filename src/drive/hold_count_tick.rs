@@ -27,9 +27,13 @@ hook_asm!(
 );
 
 /// The Rust version.
+// Converted: `rc2k_core::drive::countdown::hold_tick`.
 pub fn hold_count_tick() {
-    if g(0x6235EC) != 0 {
-        p(0x6235EC, g(0x6235EC) - 1);
+    let was = g(0x6235EC);
+    let mut hold = was;
+    rc2k_core::drive::countdown::hold_tick(&mut hold);
+    if hold != was {
+        p(0x6235EC, hold);
     }
 }
 

@@ -44,6 +44,7 @@ pub unsafe fn begin_replay_name(log: bool) -> Result<(), BadInput> {
             log_l1(game_addr(rva(0x4DE1F3)) as *const u8, false); // aGetrepsaveslot
             log_l1(name, true);
         }
+        // Converted: `rc2k_core::menu::text_entry::Entry::begin` (through `begin_logged`).
         begin_logged(name, log);
     }
     Ok(())

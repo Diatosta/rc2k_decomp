@@ -5,14 +5,18 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
+//! They are the in-game options menu's items 3 .. 6 (`menu/in_game_options_items.rs`):
+//! this hides all four, as `menu::hide_in_game_options` hides the last ones.
 //! Callers: `sub_487E2C`, the event drivers. Self-test: the original and the Rust version
 //! on the game's table; put back.
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
+use crate::menu::in_game_options_items::set;
 use crate::menu::standings::*;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use rc2k_core::menu::items::{HIDDEN, IN_GAME_OPTIONS};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -51,12 +55,10 @@ fn prepare(case: u32) {
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn reset_cars_750724(entry: &Regs) -> Result<Regs, Refused> {
-    let base = game_addr(TABLE_RVA) as u32 + 0x118;
-    for n in 0..4 {
-        let e = base + 0x5C * n;
-        put(e + 0x14, 0);
-        put(e + 0x48, 0xFFFF_FC1C);
-        put(e + 0x1C, 0xFFFF_FFA9);
+    // Converted: `rc2k_core::menu::items::HIDDEN` (the four items `hide_in_game_options`
+    // hides, all of them).
+    for n in IN_GAME_OPTIONS {
+        unsafe { set(n, HIDDEN) };
     }
     Ok(*entry)
 }

@@ -27,9 +27,8 @@ hook_asm!(
 );
 
 /// The Rust version.
-pub fn pack_inputs(eax: u32, ecx: u32, edx: u32) -> u32 {
-    (eax | ((ecx << 9 | edx) << 9)) << 4
-}
+// Converted: `rc2k_core::drive::inputs::pack_inputs`.
+pub use rc2k_core::drive::inputs::pack_inputs;
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing().with(EAX, pack_inputs(r.eax, r.ecx, r.edx)))

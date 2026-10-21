@@ -140,34 +140,32 @@ pub unsafe fn calc_cpu_times(entry: &Regs) -> Result<Regs, Refused> {
         crate::menu::scale_stage_times::scale_stage_times(&Regs { edi: rec, ..*entry })?;
         game_write(LENGTH_RVA[0], length);
         game_write(LENGTH_RVA[1], length.wrapping_mul(100) / 0x96A);
+        // Converted: `rc2k_core::menu::event::{Spread, cpu_gap, cpu_time}`.
+        use rc2k_core::menu::event::{Spread, cpu_gap, cpu_time};
         for c in 0..classes {
-            let mut ebp = 0u32;
+            let mut gaps = 0u32;
             for &d in &drivers {
                 if get(d + 8) != c {
                     continue;
                 }
                 let time: u32 = game_read(TIMES_RVA + 4 * c as usize);
                 let count: u32 = game_read(COUNTS_RVA + 4 * c as usize);
-                game_write(GAP_RVA, (time >> 1) / count);
-                game_write(SPREAD_RVA, crate::math::random_below::random_below(3000)?);
-                if game_read::<u32>(FIRST_RVA) == 1 {
-                    game_write(STEP_RVA, 0u32);
-                } else {
-                    let more = crate::math::random_below::random_below(1000)?;
-                    let spread: u32 = game_read(SPREAD_RVA);
-                    let step: u32 = game_read(STEP_RVA);
-                    game_write(SPREAD_RVA, spread.wrapping_add(more.wrapping_mul(step)));
-                    game_write(FIRST_RVA, 0u32);
-                    game_write(STEP_RVA, step.wrapping_add(1));
-                }
+                let gap = cpu_gap(time, count);
+                game_write(GAP_RVA, gap);
+                let mut spread = Spread {
+                    first: game_read(FIRST_RVA),
+                    step: game_read(STEP_RVA),
+                };
+                let own = spread.next(|limit| crate::math::random_below::random_below(limit))?;
+                game_write(SPREAD_RVA, own);
+                game_write(FIRST_RVA, spread.first);
+                game_write(STEP_RVA, spread.step);
                 if get(d + 0x24) == 1 {
-                    let own = game_read::<u32>(SPREAD_RVA)
-                        .wrapping_add(ebp)
-                        .wrapping_add(time);
+                    let own = cpu_time(own, gaps, time);
                     put(d + 0xC, own);
                     put(d + 0x10, get(d + 0x10).wrapping_add(own));
                 }
-                ebp = ebp.wrapping_add(game_read(GAP_RVA));
+                gaps = gaps.wrapping_add(gap);
             }
         }
         log_write(game_addr(TEXTS_RVA[1]) as *const u8, true, 1);

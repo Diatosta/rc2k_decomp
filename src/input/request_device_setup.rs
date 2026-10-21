@@ -65,17 +65,15 @@ pub unsafe fn request_device_setup(
     if record == 0 {
         return Err(BadInput("no first input device record"));
     }
-    put(record, field!(InputDevice, controller), controller);
-    put(record, field!(InputDevice, sensitivity), sensitivity);
-    put(
-        record,
-        field!(InputDevice, kind),
-        if sensitivity == 0 { 2 } else { sensitivity },
-    );
-    put(record, field!(InputDevice, axis_code), mode);
-    put(record, field!(InputDevice, strength), 0);
-    put(record, field!(InputDevice, dead_zone), edx);
-    put(record, field!(InputDevice, end_zone), ebp);
+    // Converted: `rc2k_core::input::joystick::device_setup`.
+    let s = rc2k_core::input::joystick::device_setup(controller, sensitivity, mode, edx, ebp);
+    put(record, field!(InputDevice, controller), s.controller);
+    put(record, field!(InputDevice, sensitivity), s.sensitivity);
+    put(record, field!(InputDevice, kind), s.kind);
+    put(record, field!(InputDevice, axis_code), s.axis_code);
+    put(record, field!(InputDevice, strength), s.strength);
+    put(record, field!(InputDevice, dead_zone), s.dead_zone);
+    put(record, field!(InputDevice, end_zone), s.end_zone);
     unsafe { game_write(COMMAND_RVA, 1u32) };
     Ok(())
 }

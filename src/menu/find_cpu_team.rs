@@ -34,11 +34,12 @@ hook_asm!(
 pub unsafe fn find_cpu_team(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     let first = crate::framework::game_addr(DRIVERS_RVA) as u32;
-    for e in entries(first, DRIVER)? {
-        if get(e) == g.eax {
-            g.esi = e;
-            return Ok(g);
-        }
+    let all = entries(first, DRIVER)?;
+    // Converted: `rc2k_core::menu::standings::find_team`.
+    let drivers = unsafe { table(first, DRIVER, all.len() as u32) };
+    if let Some(n) = rc2k_core::menu::standings::find_team(&drivers, g.eax) {
+        g.esi = all[n];
+        return Ok(g);
     }
     Err(crate::errors::FatalError {
         code: 0x8070A098,

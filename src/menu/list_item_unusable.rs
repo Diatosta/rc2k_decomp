@@ -31,8 +31,8 @@ pub unsafe fn list_item_unusable(list: u32) -> bool {
         .wrapping_mul(0x10)
         .wrapping_add(list)
         .wrapping_add(0x18);
-    let byte = unsafe { (at as *const u8).read() };
-    matches!(byte & 0xC0, 0x40 | 0x80) || byte & 0xF == 5
+    // Converted: `rc2k_core::menu::list_menu::unusable`.
+    rc2k_core::menu::list_menu::unusable(unsafe { (at as *const u8).read() })
 }
 
 fn rust(r: &Regs) -> Result<Regs, Refused> {

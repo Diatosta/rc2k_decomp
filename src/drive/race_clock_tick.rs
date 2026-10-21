@@ -19,6 +19,7 @@ use crate::physics::flow::{a, g, p};
 use crate::redirect::RedirectedCopy;
 use crate::screens::harness::Left;
 use crate::service::harness::{capture, restore};
+use rc2k_core::drive::clocks::RaceClock;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -36,21 +37,18 @@ hook_asm!(
     original = ORIGINAL
 );
 
-/// The core from the clock's reading `now` (already in `g_sceneClock`).
+/// The Rust version after the clock's reading `now` (already in `g_sceneClock`).
+// Converted: `rc2k_core::drive::clocks::RaceClock::tick`.
 pub fn tick_from(now: u32) -> Left {
-    p(0x61383C, now);
-    if (g(0x61383C).wrapping_sub(g(0x613840)).wrapping_sub(0x3E8) as i32) >= 0 {
-        p(0x613840, g(0x61383C).wrapping_sub(0x3E8));
-    }
-    let since = g(0x61383C).wrapping_sub(g(0x613840));
-    let tenths = since / 10;
-    p(0x613844, tenths);
-    let product = u64::from(tenths) * 10;
-    p(0x613840, g(0x613840).wrapping_add(product as u32));
-    Left::nothing()
-        .with(EAX, product as u32)
-        .with(EBX, 10)
-        .with(EDX, (product >> 32) as u32)
+    let mut c = RaceClock {
+        counted: g(0x613840),
+        ..RaceClock::default()
+    };
+    let (eax, edx) = c.tick(now);
+    p(0x61383C, c.now);
+    p(0x613844, c.tenths);
+    p(0x613840, c.counted);
+    Left::nothing().with(EAX, eax).with(EBX, 10).with(EDX, edx)
 }
 
 /// The Rust version.

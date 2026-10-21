@@ -12,28 +12,24 @@
 //! Self-test: a copy of each original (the current car, the table and the flag the
 //! test's) against the core, cars 0 .. 7 with entries -1 and not.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{EAX, RawHook, Regs, SelfTest, call_game, game_addr};
+use crate::physics::cells::{get, put};
 use crate::screens::harness::Left;
 use crate::service::harness::capture;
+use rc2k_core::physics::listed_cars::listed_entry;
 
 pub const CURRENT_CAR: usize = 0x71B3F8; // g_currentCar
 pub const TABLE: usize = 0x641680; // dword_641680
 
-unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
-}
-
-/// The core: the current car at `current`, the table at `table`, the flag at `flag`.
+/// The Rust version: the current car at `current`, the table at `table`, the flag at
+/// `flag`.
+// Converted: `rc2k_core::physics::listed_cars::listed_entry`.
 pub unsafe fn set_flag_at(current: u32, table: u32, flag: u32) -> Result<Left, Refused> {
     unsafe {
-        let car = at(current);
-        if car > 7 {
-            return Err(BadInput("a current car past 7").into());
-        }
-        let entry = at(table + 4 * car);
-        if entry != u32::MAX {
-            (flag as *mut u32).write_unaligned(1);
+        let (entry, listed) = listed_entry(get(current), |car| get(table + 4 * car))?;
+        if listed {
+            put(flag, 1);
         }
         Ok(Left::nothing().with(EAX, entry))
     }

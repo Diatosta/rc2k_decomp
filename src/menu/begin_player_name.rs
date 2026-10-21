@@ -13,10 +13,11 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::menu::clear_text::clear_text;
 use crate::menu::player::{PLAYERS, Player, player_at};
-use crate::menu::player_name::{keep_name, kept_region, name};
-use crate::menu::text_entry::{ENTERING_RVA, LENGTH_RVA, TEXT_LEN, set_length};
+use crate::menu::player_name::{kept, kept_region, name};
+use crate::menu::text_entry::{
+    ENTERING_RVA, LENGTH_RVA, TEXT_LEN, Text, field, put_field, with_entry,
+};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
 use crate::service::state::PLAYER_INDEX_RVA;
@@ -39,15 +40,18 @@ const ENTER_WITH_4_RVA: usize = rva(0x7554D4); // dword_7554D4
 // ---- Rust version ----
 
 pub unsafe fn begin_player_name() -> Result<(), Refused> {
+    // Converted: `rc2k_core::menu::text_entry::Entry::begin_player_name`.
+    let with_4 = unsafe { game_read::<u32>(ENTER_WITH_4_RVA) } == 1;
+    let at = if with_4 { None } else { Some(name()?) };
     unsafe {
-        if game_read::<u32>(ENTER_WITH_4_RVA) != 1 {
-            let name = name()?;
-            keep_name(name);
-            clear_text(name);
-            game_write(ENTERING_RVA, 1u32);
+        // The copy is written, not read.
+        let (mut text, mut copy) = (at.map_or(Text::default(), |at| field(at)), Text::default());
+        with_entry(|e| e.begin_player_name(with_4, &mut text, &mut copy));
+        if let Some(at) = at {
+            put_field(at, &text);
+            put_field(kept(), &copy);
         }
     }
-    set_length(0);
     Ok(())
 }
 

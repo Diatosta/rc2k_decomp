@@ -5,7 +5,8 @@
 //!
 //! See `screens/gearing_text.rs`: `dword_7554F0`, the current player's `gearing` (+0x30)
 //! and its text (string 0x21F + it into `byte_A8BF54`). Its item in the car choice's
-//! table (0x74B978). Refuses a current player past four. Self-test: the game's player and
+//! table (0x74B978). Converted: its Rust version, `screens::gearing_text::step_gearing`,
+//! goes through `rc2k_core::screens::captions::step_gearing`. Refuses a current player past four. Self-test: the game's player and
 //! strings, `dword_7554F0` from -1 to 3, put back afterwards.
 
 use crate::errors::Refused;

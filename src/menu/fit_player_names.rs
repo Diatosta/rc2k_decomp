@@ -22,6 +22,7 @@ use crate::text::font::Font;
 use crate::text::glyph_kerning::{STATE_LEN, state_ptr};
 use crate::text::measure_string_by_id::{MEASURING_FONT, measuring_unavailable};
 use crate::text::measure_text::measure_text_at;
+use rc2k_core::menu::text_entry;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -38,7 +39,6 @@ hook_asm!(
 
 // ---- game data ----
 
-const WIDEST: u32 = 0x15E;
 /// More characters than a name is looked through for its end.
 const LONGEST: usize = 0x1000;
 
@@ -47,22 +47,15 @@ const LONGEST: usize = 0x1000;
 /// `menu::fit_name` (0x411474). Returns the width of the name as it is left.
 pub unsafe fn fit_name(text: *mut u8, x: u32) -> Result<u32, Refused> {
     unsafe {
-        let Some(mut len) = (0..LONGEST).find(|&n| text.add(n).read() == 0) else {
+        let Some(len) = (0..LONGEST).find(|&n| text.add(n).read() == 0) else {
             return Err(BadInput("a name without its end").into());
         };
+        // Converted: `rc2k_core::menu::text_entry::fit_name`.
         let font: *mut Font = game_ptr(rva(MEASURING_FONT));
-        let mut x = x;
-        loop {
+        text_entry::fit_name(len, x, |len, x| -> Result<u32, Refused> {
             text.add(len).write(0);
-            x = measure_text_at(font, text, x as i32, &mut GameCanvas)?.width;
-            if x <= WIDEST {
-                return Ok(x);
-            }
-            if len == 0 {
-                return Err(BadInput("an empty name that measures too wide").into());
-            }
-            len -= 1;
-        }
+            Ok(measure_text_at(font, text, x as i32, &mut GameCanvas)?.width)
+        })
     }
 }
 

@@ -28,21 +28,15 @@ hook_asm!(
 // ---- game data ----
 
 pub const CURRENT_MENU_RVA: usize = rva(0x75558D); // dword_75558D
-pub const ITEM_LEN: u32 = 0x5C;
-pub const MENU_HEAD_LEN: u32 = 4;
+pub use rc2k_core::menu::items::{ITEM_LEN, MENU_HEAD_LEN};
 
 // ---- Rust version ----
 
 pub fn item_at(number: u32) -> Result<u32, BadInput> {
-    if number == 0 {
-        return Err(BadInput(
-            "item number 0: the original counts through all 32 bits",
-        ));
-    }
-    let menu: u32 = unsafe { game_read(CURRENT_MENU_RVA) };
-    Ok(menu
-        .wrapping_add(MENU_HEAD_LEN)
-        .wrapping_add((number - 1).wrapping_mul(ITEM_LEN)))
+    // Converted: `rc2k_core::menu::items::item_at`.
+    Ok(rc2k_core::menu::items::item_at(number, || unsafe {
+        game_read(CURRENT_MENU_RVA)
+    })?)
 }
 
 // ---- hook ----

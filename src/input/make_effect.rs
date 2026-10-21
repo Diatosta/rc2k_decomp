@@ -44,28 +44,30 @@ hook_asm!(
 
 /// The effect's `DIEFFECT` and parameters, as the original writes them (in its order).
 pub fn fill_parameters(e: u32) {
+    // Converted: `rc2k_core::input::force` (the figures, `type_specific`).
+    use rc2k_core::input::force as k;
     let w = |offset: u32, v: u32| put(e, offset, v);
-    w(field!(F, effect.size), 0x34);
-    w(field!(F, effect.flags), 0x12);
-    w(field!(F, effect.duration), u32::MAX);
+    w(field!(F, effect.size), k::EFFECT_SIZE);
+    w(field!(F, effect.flags), k::EFFECT_FLAGS);
+    w(field!(F, effect.duration), k::FOR_EVER);
     w(field!(F, effect.sample_period), 0);
-    w(field!(F, effect.gain), 10000);
-    w(field!(F, effect.trigger_button), u32::MAX);
+    w(field!(F, effect.gain), k::FULL_GAIN);
+    w(field!(F, effect.trigger_button), k::NO_BUTTON);
     w(field!(F, effect.trigger_repeat_interval), 0);
-    w(field!(F, effect.axes_count), 1);
+    w(field!(F, effect.axes_count), k::AXES_COUNT);
     w(field!(F, effect.axes), e.wrapping_add(field!(F, axes)));
-    w(field!(F, axes), 0);
-    w(field!(F, axes) + 4, 4);
+    w(field!(F, axes), k::AXES[0]);
+    w(field!(F, axes) + 4, k::AXES[1]);
     w(
         field!(F, effect.directions),
         e.wrapping_add(field!(F, directions)),
     );
-    w(field!(F, directions), 0);
+    w(field!(F, directions), k::DIRECTION);
     w(field!(F, effect.envelope), 0);
     w(field!(F, effect.type_specific_size), 0);
     w(field!(F, effect.type_specific), 0);
     // an envelope of its size, all 0, not linked
-    w(field!(F, envelope.size), 0x14);
+    w(field!(F, envelope.size), k::ENVELOPE_SIZE);
     for offset in [
         field!(F, envelope.attack_level),
         field!(F, envelope.attack_time),
@@ -74,13 +76,10 @@ pub fn fill_parameters(e: u32) {
     ] {
         w(offset, 0);
     }
-    let params: &[u32] = match at(e, field!(F, kind)) {
-        1 => &[10000],
-        2 => &[10000, 10000],
-        3 => &[10000, 0, 0, 50000],
-        4 => &[0, 10000, 10000, 10000, 10000, 0],
-        _ => return,
-    };
+    let params = k::type_specific(at(e, field!(F, kind)));
+    if params.is_empty() {
+        return;
+    }
     w(
         field!(F, effect.type_specific_size),
         4 * params.len() as u32,

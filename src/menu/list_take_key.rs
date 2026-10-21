@@ -47,16 +47,18 @@ pub fn list_take_key(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         let mut s = Regs { eax: 1, ..r };
         part(2, &mut s)?;
     } else {
-        let mut reset = true;
-        if key == gb(LAST_KEY) {
-            r.ebx = get(FRAME_CLOCK);
-            r.ecx = get(MOVE_CLOCK).wrapping_add(6);
-            reset = (r.ebx.wrapping_sub(r.ecx) as i32) >= 0;
+        // Converted: `rc2k_core::menu::list_menu::repeats`.
+        let again = key == gb(LAST_KEY);
+        let (mut frame, mut moved) = (0, 0);
+        if again {
+            (frame, moved) = (get(FRAME_CLOCK), get(MOVE_CLOCK));
+            r.ebx = frame;
+            r.ecx = moved.wrapping_add(6);
         }
-        if reset {
-            put(REPEATS, 0);
-        }
-        put(REPEATS, get(REPEATS).wrapping_add(1));
+        put(
+            REPEATS,
+            rc2k_core::menu::list_menu::repeats(get(REPEATS), again, frame, moved),
+        );
         pb(LAST_KEY, key);
     }
     r.set_carry(false);

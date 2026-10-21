@@ -16,9 +16,11 @@ use crate::errors::Refused;
 use crate::framework::{
     EAX, ECX, EDI, ESI, RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva,
 };
+use crate::physics::cells::{get, put, put_changed};
 use crate::physics::queue_notice::Contacts;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, dispatch_state};
+use rc2k_core::physics::notices::Notice;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -54,30 +56,26 @@ impl Shown {
     }
 }
 
-unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
-}
-
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
-}
-
-/// The Rust core on the variables at `s` and `q`.
+/// The Rust version on the variables at `s` and `q`.
+// Converted: `rc2k_core::physics::notices::Notice::take`.
 pub unsafe fn take_notice_at(s: &Shown, q: &Contacts) -> Left {
     unsafe {
-        if at(s.busy) != 0 || at(s.id) != 0 || at(q.count) == 0 {
+        let was = Notice {
+            id: get(s.id),
+            shown: get(s.busy),
+            time: get(s.time_b),
+            w708: get(s.time_a),
+            ..Notice::default()
+        };
+        let queue = q.load();
+        let (mut notice, mut now) = (was, queue);
+        let Some(id) = notice.take(&mut now) else {
             return Left::nothing();
-        }
-        let id = at(q.esis);
-        put(s.id, id);
-        put(s.time_a, 0x32);
-        put(s.time_b, 0x12C);
-        put(q.count, at(q.count).wrapping_sub(1));
-        for list in [q.esis, q.eaxs, q.ebxs] {
-            for k in 0..0x1F {
-                put(list + 4 * k, at(list + 4 * (k + 1)));
-            }
-        }
+        };
+        put_changed(s.id, was.id, notice.id);
+        put_changed(s.time_a, was.w708, notice.w708);
+        put_changed(s.time_b, was.time, notice.time);
+        q.store(&queue, &now);
         Left::nothing()
             .with(EAX, id)
             .with(ECX, 0)

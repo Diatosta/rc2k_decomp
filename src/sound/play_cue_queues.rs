@@ -47,10 +47,8 @@ pub fn play_cue_queues_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     if g(COUNT) == 0 {
         return Ok(());
     }
-    let mut cars = vec![g(FIRST)];
-    if g(ONE_PLAYER) != 1 {
-        cars.push(g(SECOND));
-    }
+    // Converted: `rc2k_core::sound::turn::cue_cars`.
+    let cars = rc2k_core::sound::turn::cue_cars(g(FIRST), || g(SECOND), g(ONE_PLAYER));
     let object = |n: u32| g(OBJECTS + 4 * n as usize);
     if cars.iter().any(|&n| n > 7 || object(n) == 0) {
         return Err(BadInput("a player's car past 7 or without a sound object").into());

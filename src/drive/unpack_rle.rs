@@ -12,10 +12,12 @@
 //! Self-test: the original and the Rust version on test runs (copies, repeats, both,
 //! empty) into a test buffer.
 
-use crate::errors::{BadInput, Refused};
+use crate::bridge::Raw;
+use crate::errors::Refused;
 use crate::framework::{ECX, RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::screens::harness::Left;
 use crate::service::harness::{check_state, dispatch_state};
+use rc2k_core::drive::rle;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -32,53 +34,18 @@ hook_asm!(
     original = ORIGINAL
 );
 
-const MOST: u32 = 0x10_0000;
-
 /// The bytes it would write (checked before writing).
-unsafe fn out_len(mut from: u32) -> Result<u32, Refused> {
-    let mut n = 0u32;
-    loop {
-        let c = unsafe { (from as *const i8).read() } as i32;
-        from += 1;
-        if c == 0 {
-            return Ok(n);
-        }
-        if c < 0 {
-            n += (-c) as u32;
-            from += (-c) as u32;
-        } else {
-            n += c as u32 + 1;
-            from += 1;
-        }
-        if n > MOST {
-            return Err(BadInput("a packed run past 0x100000 bytes").into());
-        }
-    }
+unsafe fn out_len(from: u32) -> Result<u32, Refused> {
+    Ok(rle::unpacked_len(&unsafe { Raw::new(from as *const u8) })?)
 }
 
 /// The Rust version: the bytes written.
-pub unsafe fn unpack_rle(mut from: u32, to: u32) -> Result<u32, Refused> {
-    unsafe { out_len(from) }?;
-    let mut at = to;
-    loop {
-        let c = unsafe { (from as *const i8).read() } as i32;
-        from += 1;
-        if c == 0 {
-            return Ok(at - to);
-        }
-        if c < 0 {
-            let n = (-c) as usize;
-            unsafe { std::ptr::copy(from as *const u8, at as *mut u8, n) };
-            from += n as u32;
-            at += n as u32;
-        } else {
-            let b = unsafe { (from as *const u8).read() };
-            from += 1;
-            let n = c as usize + 1;
-            unsafe { std::ptr::write_bytes(at as *mut u8, b, n) };
-            at += n as u32;
-        }
-    }
+// Converted: `rc2k_core::drive::rle::unpack_rle`.
+pub unsafe fn unpack_rle(from: u32, to: u32) -> Result<u32, Refused> {
+    let packed = unsafe { Raw::new(from as *const u8) };
+    Ok(rle::unpack_rle(&packed, |k, b| unsafe {
+        ((to + k) as *mut u8).write(b)
+    })?)
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

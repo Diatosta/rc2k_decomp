@@ -39,8 +39,9 @@ pub const MENU_MODE: usize = 0x4F4944; // g_menuScreenMode
 /// The Rust version: the registers and flags it leaves.
 pub fn keep_race_screen_mode(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     put(RACE_MODE, entry.eax);
+    // Converted: `rc2k_core::gfx::screen_modes::menu_mode_for`.
     let mut r = Regs {
-        eax: entry.eax & 0xFF00 | 0x32_0002,
+        eax: rc2k_core::gfx::screen_modes::menu_mode_for(entry.eax),
         ..*entry
     };
     part(0, &mut r)?;

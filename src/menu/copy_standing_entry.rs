@@ -85,16 +85,22 @@ pub unsafe fn copy_standing_entry(entry: &Regs) -> Result<Regs, Refused> {
     if e == 0 || p == 0 || get(p + 0x18) == 0 {
         return Err(BadInput("a null entry, record or name").into());
     }
-    put(e + 4, entry.ebx.wrapping_add(1));
-    put(e + 0x14, get(p + 0x88));
-    put(e + 0x1C, get(p + 0x90));
-    put(e + 0x18, get(p + 0x8C));
-    let name = get(p + 0x18);
-    put(e + 0xC, name);
-    unsafe { std::ptr::copy(name as *const u8, (e + 0x20) as *mut u8, 0x20) };
-    put(e + 8, get(p + 4));
-    put(e + 0x10, get(p + 8));
-    put(e + 0x4C, get(p + 0xD0));
+    // Converted: `rc2k_core::menu::standings::fill_a`.
+    use rc2k_core::menu::standings::{PlayerA, fill_a};
+    let name_at = get(p + 0x18);
+    let source = PlayerA {
+        index: entry.ebx,
+        time: get(p + 0x88),
+        group: get(p + 0x90),
+        total: get(p + 0x8C),
+        name_at,
+        name: bytes(name_at),
+        nationality: get(p + 4),
+        car: get(p + 8),
+        entered: get(p + 0xD0),
+    };
+    // The entry's bytes as far as it is written (to +0x50).
+    fill_a(&mut unsafe { table(e, 0x50, 1) }, 0, &source);
     Ok(*entry)
 }
 

@@ -28,25 +28,9 @@ hook_asm!(
     original = ORIGINAL
 );
 
-/// The core: (eax, ebx, edx) out.
-pub fn flip_cell_index(way: u32, ebx: u32, edx: u32) -> (u32, u32, u32) {
-    let way = way & 7;
-    let (mut b, mut d) = (ebx, edx);
-    if way >= 4 {
-        std::mem::swap(&mut b, &mut d);
-    }
-    match way {
-        1 | 7 => b ^= 1,
-        2 | 4 => d ^= 1,
-        3 | 5 => {
-            b ^= 1;
-            d ^= 1;
-        }
-        _ => {}
-    }
-    let d = d.wrapping_add(d).wrapping_add(b);
-    (way, b, d)
-}
+/// The Rust version: (eax, ebx, edx) out.
+// Converted: `rc2k_core::physics::ground::flip_cell_index`.
+pub use rc2k_core::physics::ground::flip_cell_index;
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     let (a, b, d) = flip_cell_index(r.eax, r.ebx, r.edx);

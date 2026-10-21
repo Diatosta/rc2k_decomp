@@ -63,8 +63,9 @@ pub unsafe fn beat_target_time(entry: &Regs) -> Result<Regs, Refused> {
     if n >= 4 || player(n) == 0 {
         return Err(BadInput("a current player past 3 or missing").into());
     }
-    let target = get(event + 0x57C + 0x14) as i32;
-    let beaten = (get(player(n) + 0x88) as i32) <= target;
+    // Converted: `rc2k_core::menu::bests::makes_time`.
+    let beaten =
+        rc2k_core::menu::bests::makes_time(get(player(n) + 0x88), get(event + 0x57C + 0x14));
     unsafe { game_write(FLAG_RVA, u32::from(beaten)) };
     Ok(*entry)
 }

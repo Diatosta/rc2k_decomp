@@ -16,6 +16,7 @@ use crate::framework::{EBX, RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::{a, g, p};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use rc2k_core::drive::places;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -34,32 +35,15 @@ const B: usize = 0x70F3EC; // g_carBlockStore
 const NEXT: usize = 0xFE0;
 
 /// The Rust version.
+// Converted: `rc2k_core::drive::places::two_car_order`.
 pub fn two_car_order(entry: &Regs) -> Left {
-    let mut ebx = entry.ebx;
-    let set = |x: u32, y: u32| {
+    let figure = |car: usize, o: u32| g(B + car * NEXT + o as usize);
+    let order = places::two_car_order(g(0x62389C), g(0x63DB94), figure, entry.ebx);
+    if let Some([x, y]) = order.places {
         p(B + 0xFA4, x);
         p(B + NEXT + 0xFA4, y);
-    };
-    if g(0x62389C) != 0 || g(0x63DB94) == 1 {
-        set(u32::MAX, u32::MAX);
-    } else if g(B + 0xA8) == 0 && g(B + NEXT + 0xA8) == 0 {
-        ebx = g(B + 0x94);
-        let d = ebx.wrapping_sub(g(B + NEXT + 0x94));
-        let behind = if (d as i32) < 0 {
-            true
-        } else if d != 0 {
-            false
-        } else {
-            ebx = g(B + 0x624);
-            (ebx.wrapping_sub(g(B + NEXT + 0x624)) as i32) < 0
-        };
-        if behind {
-            set(2, 1);
-        } else {
-            set(1, 2);
-        }
     }
-    Left::nothing().with(EBX, ebx)
+    Left::nothing().with(EBX, order.last)
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

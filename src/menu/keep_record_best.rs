@@ -72,15 +72,22 @@ pub unsafe fn keep_record_best(entry: &Regs) -> Result<Regs, Refused> {
         return Err(BadInput("a player without a name").into());
     }
     let record = current_record()?;
+    // Converted: `rc2k_core::menu::bests::{takes_record, take_record}`.
+    use rc2k_core::menu::bests;
+    let mut r = unsafe { table(record, 0xA4, 1) };
     for (n, &p) in players.iter().enumerate() {
         unsafe { game_write(CURRENT_RVA, n as u32) };
-        if get(record + 0x30) as i32 >= get(p + 0x94) as i32 {
+        let figure = get(p + 0x94);
+        if !bests::takes_record(figure, r.get(0, bests::RECORD_HOLDER.figure)) {
             break;
         }
-        put(record + 0x30, get(p + 0x94));
-        put(record + 0x74, get(p + 4));
-        put(record + 0x78, get(p + 8));
-        unsafe { std::ptr::copy(get(p + 0x18) as *const u8, (record + 0x54) as *mut u8, 0x20) };
+        let holder = bests::Holder {
+            figure,
+            nationality: get(p + 4),
+            car: get(p + 8),
+            name: bytes(get(p + 0x18)),
+        };
+        bests::take_record(&mut r, 0, &bests::RECORD_HOLDER, &holder);
     }
     Ok(*entry)
 }

@@ -20,6 +20,7 @@ use crate::framework::{EAX, RawHook, Regs, game_addr, hook_asm, rva};
 use crate::physics::copy_hooks_test::{lot, test_moves};
 use crate::screens::harness::Left;
 use crate::service::harness::dispatch_state;
+use rc2k_core::physics::gearbox::{GearCar, GearInputs};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -39,8 +40,6 @@ const VARIABLES: [usize; 15] = [
     0x71A244, 0x6138A4, 0x6138A0, 0x613894, 0x613898, 0x61389C, 0x71A1AC, 0x71A010, 0x6138A8,
     0x719FEC, 0x62389C, 0x613890, 0x71A07C, 0x71A078, 0x71A080,
 ];
-const HELD: u32 = 0x1F4;
-
 unsafe fn get(v: &[u32], k: usize) -> u32 {
     unsafe { (v[k] as *const u32).read_unaligned() }
 }
@@ -49,62 +48,45 @@ unsafe fn put(v: &[u32], k: usize, x: u32) {
     unsafe { (v[k] as *mut u32).write_unaligned(x) }
 }
 
-/// The Rust core on the variables at `v`; `r` as the original leaves it.
+/// The Rust version on the variables at `v`; `r` as the original leaves it. What the
+/// rules change is written back.
+// Converted: `rc2k_core::physics::gearbox::GearInputs::apply_rules`.
 pub unsafe fn rules_at(v: &[u32], r: &mut Regs) {
     unsafe {
-        let all_clear = |gear_too: bool| {
-            put(v, 1, 0);
-            put(v, 2, 0);
-            put(v, 3, 0);
-            put(v, 4, 0);
-            put(v, 5, HELD);
-            if gear_too {
-                put(v, 6, 0);
-            }
+        let car = GearCar {
+            state: get(v, 0),
+            box_mode: get(v, 7),
+            timer: get(v, 9),
+            race_mode: get(v, 10),
+            switches: [get(v, 12), get(v, 13), get(v, 14)],
         };
-        let state = get(v, 0);
-        if state != 0 && state != u32::MAX {
-            all_clear(true);
-            return;
+        let before = GearInputs {
+            w90: get(v, 11),
+            first: get(v, 3),
+            second: get(v, 4),
+            hold: get(v, 5),
+            wa0: get(v, 2),
+            wa4: get(v, 1),
+            joined: get(v, 8),
+        };
+        let gear_before = get(v, 6);
+        let (mut inputs, mut gear) = (before, gear_before);
+        if let Some(eax) = inputs.apply_rules(&mut gear, &car) {
+            r.eax = eax;
         }
-        if get(v, 7) == 2 {
-            let gear = get(v, 6);
-            if gear == 0 {
-                put(v, 8, 1);
-                let (a, b) = (get(v, 3), get(v, 4));
-                r.eax = a;
-                if (a.wrapping_sub(b) as i32) < 0 {
-                    put(v, 8, u32::MAX);
-                    r.eax = b;
-                }
-                put(v, 3, r.eax);
-                put(v, 4, 0);
-            } else if (gear as i32) < 0 {
-                let (a, b) = (get(v, 3), get(v, 4));
-                put(v, 3, b);
-                put(v, 4, a);
+        for (k, now, was) in [
+            (11, inputs.w90, before.w90),
+            (3, inputs.first, before.first),
+            (4, inputs.second, before.second),
+            (5, inputs.hold, before.hold),
+            (2, inputs.wa0, before.wa0),
+            (1, inputs.wa4, before.wa4),
+            (8, inputs.joined, before.joined),
+            (6, gear, gear_before),
+        ] {
+            if now != was {
+                put(v, k, now);
             }
-        }
-        if (get(v, 9).wrapping_sub(0x320) as i32) < 0 {
-            put(v, 5, HELD);
-            if get(v, 10) != 1 {
-                put(v, 4, 0);
-                put(v, 11, 0);
-                put(v, 2, 0);
-                put(v, 1, 0);
-            }
-        }
-        if get(v, 12) != 0 {
-            all_clear(true);
-        }
-        if get(v, 13) != 0 {
-            all_clear(true);
-        }
-        if get(v, 14) != 0 {
-            put(v, 3, 0);
-            put(v, 4, 0);
-            put(v, 5, HELD);
-            put(v, 6, 0);
         }
     }
 }

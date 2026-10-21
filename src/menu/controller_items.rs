@@ -117,10 +117,10 @@ unsafe fn set_sensitivity(p: u32, value: u32) -> Result<(), Refused> {
 
 /// `menu::lower_controller_sensitivity`.
 pub unsafe fn lower_controller_sensitivity() -> Result<(), Refused> {
+    // Converted: `rc2k_core::menu::steps::lower_sensitivity`.
     let p = player()?;
-    let s = f(p, 0x34);
-    if f(p, 0x2C) != 0 && s as i32 > 0 {
-        unsafe { set_sensitivity(p, s - 1) }?;
+    if let Some(s) = rc2k_core::menu::steps::lower_sensitivity(f(p, 0x2C), f(p, 0x34)) {
+        unsafe { set_sensitivity(p, s) }?;
     }
     Ok(())
 }
@@ -133,10 +133,10 @@ pub unsafe fn raise_controller_sensitivity(edi: u32) -> Result<(), Refused> {
     if f(edi, 0x2C) == 0 {
         return Ok(());
     }
+    // Converted: `rc2k_core::menu::steps::raise_sensitivity`.
     let p = player()?;
-    let s = f(p, 0x34);
-    if (s as i32) < 3 {
-        unsafe { set_sensitivity(p, s.wrapping_add(1)) }?;
+    if let Some(s) = rc2k_core::menu::steps::raise_sensitivity(f(p, 0x34)) {
+        unsafe { set_sensitivity(p, s) }?;
     }
     Ok(())
 }

@@ -32,7 +32,8 @@ const CHEAT_CARS_RVA: usize = rva(0x75A412); // off_75A412
 
 /// The Rust version: esi and the carry in `r`.
 pub fn cheat_car_list(r: &mut Regs) {
-    let on = unsafe { game_read::<u32>(CHEATS_RVA) } & 2 != 0;
+    // Converted: `rc2k_core::menu::car_lists::cheat_cars`.
+    let on = rc2k_core::menu::car_lists::cheat_cars(unsafe { game_read(CHEATS_RVA) });
     if on {
         r.esi = game_addr(CHEAT_CARS_RVA) as u32;
     }

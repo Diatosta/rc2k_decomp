@@ -52,7 +52,8 @@ pub unsafe fn best_overall_scores(entry: &Regs, part: Part) -> Result<Regs, Refu
             g.eax = get(p + 0xCC);
             g.ebx = 4 * 0x258 + 0x21C;
             g.esi = table + g.ebx;
-            if get(g.esi + 0x38) as i32 <= g.eax as i32 {
+            // Converted: `rc2k_core::menu::bests::makes_score`.
+            if rc2k_core::menu::bests::makes_score(g.eax, get(g.esi + 0x38)) {
                 enter_best(Some(4), 0xCC)?;
                 game_write(ENTERED_RVA, 1u32);
             }

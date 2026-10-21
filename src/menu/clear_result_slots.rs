@@ -40,18 +40,13 @@ pub unsafe fn clear_result_slots(entry: &Regs) -> Result<Regs, Refused> {
     if (0..4).any(|n| player(n) == 0) {
         return Err(BadInput("a missing player").into());
     }
-    let drivers = entries(game_addr(DRIVERS_RVA) as u32, DRIVER)?;
-    let slot = |k: u32| if k == 6 || k == 13 { 0 } else { 0xFFFF_FFFF };
+    let mut drivers = driver_table()?;
+    // Converted: `rc2k_core::menu::event::result_slots`.
+    use rc2k_core::menu::event::result_slots;
     for n in 0..4 {
-        for k in 0..14 {
-            put(player(n) + 0x98 + 4 * k, slot(k));
-        }
+        put_all(player(n), &result_slots(0x98));
     }
-    for e in drivers {
-        for k in 0..14 {
-            put(e + 0x5C + 4 * k, slot(k));
-        }
-    }
+    drivers.store_all(&result_slots(0x5C));
     Ok(*entry)
 }
 

@@ -41,53 +41,30 @@ pub const DIRECTION_RVA: usize = rva(0x75A660); // dword_75A660
 pub const ANGLE_RVA: usize = rva(0x75AA80); // dword_75AA80
 pub const FRONT_RVA: usize = rva(0x75AA7C); // dword_75AA7C
 pub const COUNT_RVA: usize = rva(0x75AA78); // dword_75AA78
-const LONGEST: u32 = 100;
 
 // ---- Rust version ----
 
-/// `sub_4904C7`: how far the angle moves.
-fn step(from: u32, passed: u32) -> Result<u32, BadInput> {
-    let moved = ((from >> 3) + 0x400_0000) as u64 * passed as u64 / 20;
-    u32::try_from(moved).map_err(|_| BadInput("a time so long that the division traps"))
-}
-
 pub unsafe fn step_carousel() -> Result<(), BadInput> {
+    // Converted: `rc2k_core::menu::navigation` (`passed`, `spin`), worked out before
+    // anything is written.
+    use rc2k_core::menu::navigation::{Turn, passed, spin};
     unsafe {
         let clock: u32 = game_read(CLOCK_RVA);
-        let passed = clock.wrapping_sub(game_read(LAST_RVA)).min(LONGEST);
-        let direction: i32 = game_read(DIRECTION_RVA);
-        let angle: u32 = game_read(ANGLE_RVA);
-        // (the angle, the direction, whether the next object comes to the front)
-        let turned = match direction {
-            0 => None,
-            ..0 => {
-                let (left, passed_zero) = angle.overflowing_sub(step(angle, passed)?);
-                Some(if passed_zero {
-                    (0, 0, false)
-                } else {
-                    (left, direction, false)
-                })
-            }
-            _ => {
-                let (left, passed_zero) =
-                    angle.overflowing_add(step(angle.wrapping_neg(), passed)?);
-                Some(if passed_zero {
-                    (0, 0, true)
-                } else {
-                    (left, direction, false)
-                })
-            }
+        let passed = passed(clock, game_read(LAST_RVA));
+        let t = Turn {
+            count: game_read(COUNT_RVA),
+            value: game_read(FRONT_RVA),
+            way: game_read(DIRECTION_RVA),
+            step: game_read(ANGLE_RVA),
         };
-        // Nothing has been written up to here.
+        let turned = spin(t, passed)?;
         game_write(LAST_RVA, clock);
         game_write(PASSED_RVA, passed);
-        if let Some((angle, direction, next)) = turned {
-            game_write(ANGLE_RVA, angle);
-            game_write(DIRECTION_RVA, direction);
-            if next {
-                let front = game_read::<u32>(FRONT_RVA).wrapping_add(1);
-                let wrapped = front == game_read::<u32>(COUNT_RVA);
-                game_write(FRONT_RVA, if wrapped { 0 } else { front });
+        if t.way != 0 {
+            game_write(ANGLE_RVA, turned.step);
+            game_write(DIRECTION_RVA, turned.way);
+            if turned.value != t.value {
+                game_write(FRONT_RVA, turned.value);
             }
         }
         Ok(())

@@ -19,7 +19,7 @@ pub const ANCHORS_RVA: usize = rva(0x6236B4); // g_mapAnchorCount
 const SHARE_SCALE: [usize; 3] = [rva(0x5C5E2C), rva(0x5C5DA4), rva(0x5C5D14)]; // 256, 0.25, 100
 pub const FACES_RVA: usize = rva(0x5CCCBC); // g_courseFaces
 /// The entries `g_checkpointFaces` and the lists after it have room for.
-pub const MOST_CHECKS: u32 = 0x1418;
+pub const MOST_CHECKS: u32 = rc2k_core::race::checkpoints::MOST_CHECKS;
 
 unsafe fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
@@ -44,11 +44,8 @@ fn count() -> Result<u32, Refused> {
 /// `race::set_line_face_kind` (0x44574A): `g_lineFaceKind` 0x3E with `g_stageDirection`
 /// 0, 0x3D with 1, else 0. Leaves ebx it.
 pub unsafe fn set_line_face_kind(entry: &Regs) -> Regs {
-    let kind = match unsafe { game_read::<u32>(DIRECTION_RVA) } {
-        0 => 0x3E,
-        1 => 0x3D,
-        _ => 0,
-    };
+    // Converted: `rc2k_core::race::checkpoints::line_face_kind`.
+    let kind = rc2k_core::race::checkpoints::line_face_kind(unsafe { game_read(DIRECTION_RVA) });
     unsafe { game_write(LINE_KIND_RVA, kind) };
     Regs {
         ebx: kind,
@@ -80,20 +77,26 @@ pub unsafe fn add_surface_share(entry: &Regs) -> Regs {
 /// `g_checkpointCount`. Leaves ecx it, ebx and esi its face's number and address. Refuses
 /// more checkpoints than the lists hold.
 pub unsafe fn next_map_anchor(entry: &Regs) -> Result<(Regs, bool), Refused> {
+    // Converted: `rc2k_core::race::checkpoints::next_map_anchor`; ebx and esi the last
+    // face asked about.
     let mut g = *entry;
     let n = count()?;
     unsafe {
-        loop {
-            if g.ecx >= n {
-                return Ok((g, true));
-            }
-            g.ebx = game_read(CHECK_FACES_RVA + 4 * g.ecx as usize);
-            g.esi = check_face(g.ecx);
-            if get(g.esi + 0x2C) != 0 {
+        let anchor = rc2k_core::race::checkpoints::next_map_anchor(g.ecx, n, |c| {
+            g.ebx = game_read(CHECK_FACES_RVA + 4 * c as usize);
+            g.esi = check_face(c);
+            get(g.esi + 0x2C) != 0
+        });
+        match anchor {
+            Some(c) => {
+                g.ecx = c;
                 game_write(ANCHORS_RVA, game_read::<u32>(ANCHORS_RVA).wrapping_add(1));
-                return Ok((g, false));
+                Ok((g, false))
             }
-            g.ecx += 1;
+            None => {
+                g.ecx = g.ecx.max(n);
+                Ok((g, true))
+            }
         }
     }
 }
@@ -103,20 +106,21 @@ pub unsafe fn next_map_anchor(entry: &Regs) -> Result<(Regs, bool), Refused> {
 /// count, ebx the checkpoint count, esi the last face. Refuses more checkpoints than the
 /// lists hold.
 pub unsafe fn count_checks(entry: &Regs) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::checkpoints::check_counts`.
     let mut g = *entry;
     let n = count()?;
     if n < 2 {
         return Ok(g);
     }
     unsafe {
-        g.ebp = 0;
-        for k in 0..n {
+        let counts = rc2k_core::race::checkpoints::check_counts(n, |k| {
             g.esi = check_face(k);
-            if !matches!(*((g.esi + 0x26) as *const u8), 0 | 1) {
-                g.ebp += 1;
-            }
-            game_write(CHECKS_RVA + 4 * k as usize, g.ebp);
+            *((g.esi + 0x26) as *const u8)
+        });
+        for (k, &c) in counts.iter().enumerate() {
+            game_write(CHECKS_RVA + 4 * k, c);
         }
+        g.ebp = counts[n as usize - 1];
         g.ebx = n;
     }
     Ok(g)
@@ -214,13 +218,12 @@ fn face_count() -> Result<u32, Refused> {
 /// (with a chain), ebx, ecx, edx, esi, ebp as the searches leave them. Refuses no faces or
 /// 0x100000 or more, and more of the kind than the list holds.
 pub unsafe fn sort_checkpoints(entry: &Regs) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::checkpoints::{line_face_kind, chain}`; the faces of the
+    // kind listed here as the original lists them.
+    use rc2k_core::race::checkpoints::{chain, line_face_kind};
     unsafe {
         let n = face_count()?;
-        let kind: u32 = match game_read::<u32>(DIRECTION_RVA) {
-            0 => 0x3E,
-            1 => 0x3D,
-            _ => 0,
-        };
+        let kind = line_face_kind(game_read(DIRECTION_RVA));
         let of_kind = |b: u32| {
             let f = face(b);
             *(f as *const u8) == 0xFF && *((f + 1) as *const u8) == kind as u8
@@ -229,79 +232,42 @@ pub unsafe fn sort_checkpoints(entry: &Regs) -> Result<Regs, Refused> {
             return Err(BadInput("more line faces than the checkpoint list holds").into());
         }
         let mut g = set_line_face_kind(entry);
-        g.ebp = 0;
+        let mut list = Vec::new();
         for b in 0..n {
             g.esi = face(b);
             if *(g.esi as *const u8) == 0xFF {
                 g.eax = game_read(LINE_KIND_RVA);
                 if *((g.esi + 1) as *const u8) == g.eax as u8 {
-                    write_n(CHECK_FACES_RVA, g.ebp, b);
-                    g.ebp += 1;
+                    write_n(CHECK_FACES_RVA, list.len() as u32, b);
+                    list.push(b);
                 }
             }
         }
+        g.ebp = list.len() as u32;
         g.ebx = n;
         let found = g.ebp;
-        game_write(FOUND_RVA, found);
         if found < 2 {
             game_write(FOUND_RVA, 0u32);
             game_write(CHECK_COUNT_RVA, 0u32);
             return Ok(g);
         }
-        game_write(CHECK_COUNT_RVA, 0u32);
-        let swap = |a: u32, b: u32| {
-            let (x, y) = (read_n(CHECK_FACES_RVA, a), read_n(CHECK_FACES_RVA, b));
-            write_n(CHECK_FACES_RVA, a, y);
-            write_n(CHECK_FACES_RVA, b, x);
-        };
-        g.edx = 0;
-        let mut start = false;
-        loop {
-            g.ebx = read_n(CHECK_FACES_RVA, g.edx);
-            g.esi = face(g.ebx);
-            if *((g.esi + 0x26) as *const u8) == 1 {
-                start = true;
-                break;
-            }
-            g.edx += 1;
-            if g.edx == found {
-                break;
-            }
+        let c = chain(
+            &mut list,
+            |f| *((face(f) + 0x26) as *const u8) == 1,
+            |f| get(face(f) + 0xC),
+        );
+        for (k, &f) in list.iter().enumerate() {
+            write_n(CHECK_FACES_RVA, k as u32, f);
         }
-        if start {
-            swap(g.edx, 0);
-            game_write(CHECK_COUNT_RVA, 1u32);
-            loop {
-                g.ecx = game_read(CHECK_COUNT_RVA);
-                if g.ecx == found {
-                    break;
-                }
-                g.ebx = read_n(CHECK_FACES_RVA, g.ecx - 1);
-                g.esi = face(g.ebx);
-                g.eax = get(g.esi + 0xC);
-                g.edx = 0;
-                let mut next = false;
-                loop {
-                    if g.eax == read_n(CHECK_FACES_RVA, g.edx) {
-                        next = true;
-                        break;
-                    }
-                    g.edx += 1;
-                    if g.edx == found {
-                        break;
-                    }
-                }
-                if !next {
-                    break;
-                }
-                g.ecx = game_read(CHECK_COUNT_RVA);
-                swap(g.ecx, g.edx);
-                game_write(CHECK_COUNT_RVA, g.ecx + 1);
-            }
+        g.edx = c.stopped;
+        g.ebx = c.last_face;
+        g.esi = face(c.last_face);
+        if c.length != 0 {
+            g.ecx = c.length;
         }
-        let chained: u32 = game_read(CHECK_COUNT_RVA);
-        game_write(FOUND_RVA, chained);
-        g.eax = chained.wrapping_sub(1);
+        game_write(CHECK_COUNT_RVA, c.length);
+        game_write(FOUND_RVA, c.length);
+        g.eax = c.length.wrapping_sub(1);
         game_write(LAST_CHECK_RVA, g.eax);
         Ok(g)
     }

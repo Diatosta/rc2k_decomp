@@ -11,9 +11,8 @@
 //! stops. Each function begins `cmp g_useA3d, 1; jz` an A3D twin: refused.
 
 use crate::audio::buffer_settings::a3d;
-use crate::audio::voices::VOLUMES_RVA;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::framework::rva;
 
 pub const SOUND_STREAM_RVA: usize = rva(0x506960); // g_soundStream
 pub const MUSIC_STREAM_RVA: usize = rva(0x506990); // g_musicStream
@@ -43,10 +42,11 @@ pub fn not_a3d(twin: &'static str) -> Result<(), Refused> {
 }
 
 pub fn volume_of(index: u32) -> Result<u32, Refused> {
-    if index > 0x40 {
-        return Err(BadInput("a stream volume past the volume table").into());
-    }
-    Ok(unsafe { game_read(VOLUMES_RVA + index as usize * 4) })
+    // Converted: `rc2k_core::audio::levels::stream_volume`.
+    Ok(rc2k_core::audio::levels::stream_volume(
+        index,
+        crate::audio::buffer_settings::volumes,
+    )?)
 }
 
 /// What `fill_stream_part` did: `None`, nothing (no place or no bytes); else the bytes read

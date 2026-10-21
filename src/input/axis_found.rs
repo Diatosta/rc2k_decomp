@@ -45,16 +45,15 @@ const AXES_RVA: usize = rva(0x4F7E38); // unk_4F7E38: the six axes' GUIDs, 16 by
 
 /// The Rust version: eax.
 pub fn axis_found(object: u32, entry: u32) -> u32 {
-    let mut bits = at(entry, field!(Controller, axis_bits));
-    for n in 0..6u32 {
-        let axis = game_addr(AXES_RVA) as u32 + 16 * n;
-        if crate::system::same_guid::same_guid(
-            object.wrapping_add(field!(DiDeviceObjectInstance, guid_type)),
-            axis,
-        ) {
-            bits |= 1 << n;
-        }
-    }
+    // Converted: `rc2k_core::input::joystick::axis_bits`.
+    let guid = |at: u32| unsafe { (at as *const [u8; 16]).read_unaligned() };
+    let object_type = guid(object.wrapping_add(field!(DiDeviceObjectInstance, guid_type)));
+    let axes = std::array::from_fn(|n| guid(game_addr(AXES_RVA) as u32 + 16 * n as u32));
+    let bits = rc2k_core::input::joystick::axis_bits(
+        at(entry, field!(Controller, axis_bits)),
+        &object_type,
+        &axes,
+    );
     put(entry, field!(Controller, axis_bits), bits);
     1
 }

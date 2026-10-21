@@ -68,26 +68,35 @@ pub unsafe fn enter_record_entry(entry: &Regs) -> Result<Regs, Refused> {
     let p = player(n);
     let slot = (event - unsafe { game_read::<u32>(EVENTS_RVA) }) / 0x618;
     unsafe { game_write(SLOT_RVA, slot) };
-    let e = event + 0x57C;
-    put(e + 0x14, get(p + 0x88));
-    put(e + 0x1C, get(p + 0x90));
-    put(e + 8, get(p + 4));
-    put(e + 0xC, get(p + 0x18));
-    put(e + 0x10, get(p + 8));
-    put(e + 0x4C, get(p + 0xD0));
-    put(e + 0x50, unsafe { game_read(CHEATS_RVA) });
+    let cheats = unsafe { game_read(CHEATS_RVA) };
     let sealed = unsafe {
         crate::menu::sealed_player_time::sealed_player_time(&Regs {
             eax: slot,
             ..*entry
         })
     }?;
-    put(e + 0x54, sealed.eax);
-    put(e + 0x58, sealed.ebx);
-    put(e + 4, n + 1);
-    put(e + 0x40, 1);
-    put(e + 0x20, get(p + 0x18));
-    unsafe { std::ptr::copy(get(e + 0xC) as *const u8, (e + 0x20) as *mut u8, 0x1F) };
+    // Converted: `rc2k_core::menu::bests::enter_tenth`, then `rank_entries`.
+    use rc2k_core::menu::bests;
+    let name_at = get(p + 0x18);
+    let best = bests::NewBest {
+        key: get(p + 0x88),
+        player: n + 1,
+        nationality: get(p + 4),
+        name_at,
+        car: get(p + 8),
+        group: get(p + 0x90),
+        name: bytes(name_at),
+        entered: Some(get(p + 0xD0)),
+        seal: Some(bests::Seal {
+            cheats,
+            sealed: [sealed.eax, sealed.ebx],
+        }),
+        line: None,
+    };
+    bests::enter_tenth(
+        &mut crate::menu::rank_record_entry::event_list(event),
+        &best,
+    );
     crate::menu::rank_record_entry::rank_entries(event);
     Ok(*entry)
 }

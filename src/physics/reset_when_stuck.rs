@@ -17,6 +17,7 @@ use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm,
 use crate::physics::reset_parts::{RESET_CAR, both, copy_of, dispatch_reset, regions};
 use crate::race::car_starts::{Case, Part, prepare};
 use crate::service::harness::{capture, restore};
+use rc2k_core::physics::start::stuck_tick;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -35,17 +36,19 @@ const MODE: usize = rva(0x71A234); // g_car + 0x25C
 const STUCK: usize = rva(0x71A1C0); // g_car + 0x1E8
 
 /// The Rust version, `reset_car` through `part` (place 15).
+// Converted: `rc2k_core::physics::start::stuck_tick`.
 pub unsafe fn reset_when_stuck(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
     unsafe {
         let mode: u32 = game_read(MODE);
-        if mode == 2 || mode == 0 {
-            game_write(STUCK, 0u32);
-            return Ok(r);
-        }
-        let n = game_read::<u32>(STUCK).wrapping_add(1);
-        game_write(STUCK, n);
-        if n >= 700 {
+        let mut stuck = if mode == 2 || mode == 0 {
+            0
+        } else {
+            game_read::<u32>(STUCK)
+        };
+        let reset = stuck_tick(mode, &mut stuck);
+        game_write(STUCK, stuck);
+        if reset {
             part(RESET_CAR, &mut r)?;
         }
     }

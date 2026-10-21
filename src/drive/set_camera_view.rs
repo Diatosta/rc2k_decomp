@@ -18,6 +18,7 @@ use crate::errors::Refused;
 use crate::framework::{EAX, RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
 use crate::screens::harness::Left;
 use crate::service::harness::{capture, dispatch_state};
+use rc2k_core::drive::camera_views::CameraView;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -41,18 +42,20 @@ unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
 }
 
-/// The Rust core: the block at `s`, the step count at `step`.
+/// The Rust version on the block at `s`, the step count at `step`.
+// Converted: `rc2k_core::drive::camera_views::CameraView::take_wanted`.
 pub unsafe fn set_view_at(s: u32, step: u32) -> Left {
     unsafe {
-        put(
-            s + 0x684,
-            (s.wrapping_add(0x688) as *const u32).read_unaligned(),
-        );
-        put(s + 0x694, 0);
-        put(s + 0x69C, 0);
-        put(s + 0x698, 0);
-        let n = (step as *const u32).read_unaligned();
-        put(s + 0x690, n);
+        let mut v = CameraView {
+            wanted: (s.wrapping_add(0x688) as *const u32).read_unaligned(),
+            ..CameraView::default()
+        };
+        let n = v.take_wanted((step as *const u32).read_unaligned());
+        put(s + 0x684, v.view);
+        put(s + 0x694, v.held);
+        put(s + 0x69C, v.w69c);
+        put(s + 0x698, v.w698);
+        put(s + 0x690, v.taken_at);
         Left::nothing().with(EAX, n)
     }
 }

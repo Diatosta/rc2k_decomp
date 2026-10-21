@@ -5,13 +5,18 @@
 //! structures from the game's memory and store them back.
 
 pub mod audio;
+pub mod drive;
 pub mod files;
 pub mod gfx;
+pub mod hud;
 pub mod input;
+pub mod marks;
 pub mod math;
 pub mod menu;
+pub mod physics;
 pub mod race;
 pub mod saves;
+pub mod scene;
 pub mod screens;
 pub mod service;
 pub mod sound;

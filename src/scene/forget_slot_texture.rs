@@ -8,8 +8,8 @@
 //! is 0x400 dwords). Self-test: the original and the Rust version on slots 0, 7 and 0x3FF,
 //! the refusal; put back afterwards.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva};
+use crate::errors::Refused;
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
 use crate::service::harness::{capture, check_state, dispatch_state, restore};
@@ -37,11 +37,11 @@ const SLOTS: u32 = 0x400;
 
 /// The Rust version (see the header).
 pub unsafe fn forget_slot_texture(slot: u32) -> Result<(), Refused> {
-    if slot >= SLOTS {
-        return Err(BadInput("a texture slot past 0x3FF").into());
-    }
-    unsafe { game_write(LOADED_RVA + 4 * slot as usize, u32::MAX) };
-    Ok(())
+    // Converted: `rc2k_core::scene::textures::forget_slot_texture`.
+    let loaded = unsafe { crate::scene::textures::slice(LOADED_RVA, SLOTS) };
+    Ok(rc2k_core::scene::textures::forget_slot_texture(
+        loaded, slot,
+    )?)
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

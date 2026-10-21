@@ -40,18 +40,17 @@ const KEPT_LEN: usize = 9;
 /// The nine bytes kept: weekday, day, month, year (two), hour, minute, second,
 /// hundredths.
 pub fn kept(t: &SYSTEMTIME) -> [u8; KEPT_LEN] {
-    let year = t.wYear.to_le_bytes();
-    [
-        t.wDayOfWeek as u8,
-        t.wDay as u8,
-        t.wMonth as u8,
-        year[0],
-        year[1],
-        t.wHour as u8,
-        t.wMinute as u8,
-        t.wSecond as u8,
-        (t.wMilliseconds as u32 / 10) as u8,
-    ]
+    // Converted: `rc2k_core::system::time::start_time`.
+    rc2k_core::system::time::start_time(&rc2k_core::system::time::LocalTime {
+        year: t.wYear,
+        month: t.wMonth,
+        weekday: t.wDayOfWeek,
+        day: t.wDay,
+        hour: t.wHour,
+        minute: t.wMinute,
+        second: t.wSecond,
+        milliseconds: t.wMilliseconds,
+    })
 }
 
 pub unsafe fn keep_start_time() {

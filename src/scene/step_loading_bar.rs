@@ -44,18 +44,16 @@ const SYSTEM_TEXTURES_RVA: usize = rva(0x5DC974); // dword_5DC974
 
 // ---- Rust version ----
 
-/// The progress, or None where it is left as it is.
+fn ends() -> rc2k_core::scene::loading::BarEnds {
+    let [low, high]: [u32; 2] = unsafe { game_read(ENDS_RVA) };
+    rc2k_core::scene::loading::BarEnds { low, high }
+}
+
+/// The progress, or None where it is left as it is. Converted:
+/// `rc2k_core::scene::loading::BarEnds::progress`.
 unsafe fn progress(done: u32) -> Option<u32> {
-    unsafe {
-        let textures: u32 = game_read(SYSTEM_TEXTURES_RVA);
-        if textures == 0 {
-            return None;
-        }
-        let [low, high]: [u32; 2] = game_read(ENDS_RVA);
-        // The product's low half, divided unsigned.
-        let span = done.wrapping_mul(high.wrapping_sub(low));
-        Some((span / textures).wrapping_add(low).wrapping_add(1))
-    }
+    let textures: u32 = unsafe { game_read(SYSTEM_TEXTURES_RVA) };
+    ends().progress(done, textures)
 }
 
 /// `show`: what stands for the function `dword_623704` names, entered with the
@@ -66,10 +64,7 @@ pub unsafe fn step_loading_bar(r: &Regs, show: &mut dyn FnMut(&mut Regs)) -> Res
             return Err(BadInput("no function to show the loading with"));
         }
         let mut inner = *r;
-        inner.ebp = {
-            let [low, high]: [u32; 2] = game_read(ENDS_RVA);
-            high.wrapping_sub(low)
-        };
+        inner.ebp = ends().span();
         if let Some(progress) = progress(r.eax) {
             game_write(PROGRESS_RVA, progress);
             inner.eax = progress.wrapping_sub(1);

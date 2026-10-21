@@ -14,7 +14,8 @@
 //! moves on once more if their keys are now equal; when they meet, the part before
 //! and the part after are sorted the same way.
 //! One caller, `sub_45045D`.
-//! Refuses a list longer than 0x1000 entries.
+//! Refuses a list longer than 0x1000 entries, and a sort that would go past the list
+//! (never met in the core's tests), before changing anything.
 //! Shadow mode: the Rust version, the list put back, the original; the lists compared.
 
 use crate::errors::BadInput;
@@ -22,7 +23,6 @@ use crate::framework::{
     RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
 use crate::scene::draw_object_faces::{LIST_RVA, LISTED_RVA};
-use crate::scene::polygon::dword;
 use crate::service::harness::{Region, at, capture, restore};
 use std::sync::atomic::AtomicUsize;
 
@@ -43,51 +43,18 @@ const MOST: u32 = 0x1000;
 
 // ---- Rust version ----
 
-/// `sub_4509BF`: the entries from the one at `low` to the one at `high`, both counted.
-unsafe fn sort(low: usize, high: usize) {
-    unsafe {
-        if low >= high {
-            return;
-        }
-        let (mut left, mut right) = (low, high);
-        let pivot = dword(low + (((high - low) >> 1) & !0xF) + 4);
-        loop {
-            if pivot < dword(left + 4) {
-                left += ENTRY_LEN;
-            }
-            while pivot > dword(right + 4) {
-                right = right.wrapping_sub(ENTRY_LEN);
-            }
-            if left == right {
-                break;
-            }
-            std::ptr::swap_nonoverlapping(left as *mut [u32; 4], right as *mut [u32; 4], 1);
-            if dword(left + 4) == dword(right + 4) {
-                left += ENTRY_LEN;
-            }
-        }
-        let before = left.wrapping_sub(ENTRY_LEN);
-        if low < before {
-            sort(low, before);
-        }
-        let after = left + ENTRY_LEN;
-        if after < high {
-            sort(after, high);
-        }
-    }
-}
-
+/// Converted: `rc2k_core::scene::face_order::sort_listed_faces`.
 pub unsafe fn sort_listed_faces() -> Result<(), BadInput> {
     unsafe {
         let listed: u32 = game_read(LISTED_RVA);
         if listed > MOST {
             return Err(BadInput("more faces listed than the list holds"));
         }
-        if listed >= 2 {
-            let list = game_addr(LIST_RVA);
-            sort(list, list + (listed as usize - 1) * ENTRY_LEN);
-        }
-        Ok(())
+        let list = std::slice::from_raw_parts_mut(
+            game_addr(LIST_RVA) as *mut rc2k_core::scene::face_order::ListedFace,
+            listed as usize,
+        );
+        Ok(rc2k_core::scene::face_order::sort_listed_faces(list)?)
     }
 }
 

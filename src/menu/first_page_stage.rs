@@ -8,7 +8,7 @@
 //!
 //! Callers: the event pages' code. Self-test: the original and the Rust version, counts
 //! by lot.
-use crate::errors::{FatalError, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
@@ -54,23 +54,14 @@ fn prepare(case: u32) {
 pub unsafe fn first_page_stage(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     let n: u32 = unsafe { game_read(COUNT_RVA) };
-    if (n as i32) <= 10 {
+    // Converted: `rc2k_core::menu::event::last_page` (its division cannot meet 0).
+    let Some(last) = rc2k_core::menu::event::last_page(n) else {
         unsafe { game_write(FIRST_RVA, 1u32) };
         return Ok(g);
-    }
-    if n == 0 {
-        return Err(FatalError {
-            code: 0x8070_1010,
-            message: "",
-        }
-        .into());
-    }
-    g.edx = n % 10;
-    g.eax = (n / 10) * 10 + 1;
+    };
+    g.edx = last.rest;
+    g.eax = last.first;
     g.ebp = 10;
-    if g.edx == 0 {
-        g.eax -= 10;
-    }
     unsafe { game_write(FIRST_RVA, g.eax) };
     Ok(g)
 }

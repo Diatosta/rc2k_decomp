@@ -57,7 +57,8 @@ pub unsafe fn best_class_scores(entry: &Regs, part: Part) -> Result<Regs, Refuse
                 if g.ebx == class {
                     g.ebx = class * 0x258 + 0x21C;
                     g.esi = table + g.ebx;
-                    if get(g.esi + 0x38) as i32 <= g.eax as i32 {
+                    // Converted: `rc2k_core::menu::bests::makes_score`.
+                    if rc2k_core::menu::bests::makes_score(g.eax, get(g.esi + 0x38)) {
                         enter_best(None, 0xB0)?;
                         game_write(ENTERED_RVA, 1u32);
                     }

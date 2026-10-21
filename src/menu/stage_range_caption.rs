@@ -33,11 +33,8 @@ const CAPTION_RVA: usize = rva(0xA8BE54); // g_captionText
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn stage_range_caption(entry: &Regs) -> Result<Regs, Refused> {
     let first: u32 = unsafe { game_read(FIRST_RVA) };
-    let mut text = crate::strings::append_u32::append_u32(first);
-    text.push(b'-');
-    text.extend(crate::strings::append_u32::append_u32(
-        first.wrapping_add(9),
-    ));
+    // Converted: `rc2k_core::menu::event::stage_range`.
+    let mut text = rc2k_core::menu::event::stage_range(first);
     text.push(0);
     unsafe {
         std::ptr::copy_nonoverlapping(text.as_ptr(), game_addr(CAPTION_RVA) as *mut u8, text.len())

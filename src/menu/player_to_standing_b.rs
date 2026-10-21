@@ -90,16 +90,20 @@ pub unsafe fn player_to_standing_b(entry: &Regs) -> Result<Regs, Refused> {
     if e == 0 || p == 0 || get(p + 0x18) == 0 {
         return Err(BadInput("a null entry, record or name").into());
     }
-    put(e + 4, entry.ebx.wrapping_add(1));
-    unsafe { std::ptr::copy(get(p + 0x18) as *const u8, (e + 0x14) as *mut u8, 0x20) };
-    put(e + 8, get(p + 4));
-    put(e + 0xC, get(p + 8));
-    put(e + 0x10, get(p + 0x90));
-    put(e + 0x34, get(p + 0x8C));
-    for k in 0..7 {
-        put(e + 0x38 + 4 * k, get(p + 0xB4 + 4 * k));
-        put(e + 0x54 + 4 * k, get(p + 0x98 + 4 * k));
-    }
+    // Converted: `rc2k_core::menu::standings::fill_b`.
+    use rc2k_core::menu::standings::{PlayerB, fill_b};
+    let source = PlayerB {
+        index: entry.ebx,
+        name: bytes(get(p + 0x18)),
+        nationality: get(p + 4),
+        car: get(p + 8),
+        group: get(p + 0x90),
+        total: get(p + 0x8C),
+        b4: std::array::from_fn(|k| get(p + 0xB4 + 4 * k as u32)),
+        slots: std::array::from_fn(|k| get(p + 0x98 + 4 * k as u32)),
+    };
+    // The entry's bytes as far as it is written (to +0x70).
+    fill_b(&mut unsafe { table(e, 0x70, 1) }, 0, &source);
     Ok(*entry)
 }
 

@@ -35,6 +35,7 @@ use crate::menu::text_entry::log_l1;
 use crate::redirect::RedirectedCopy;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, dispatch_replayed_state, restore};
+use rc2k_core::menu::car_lists;
 use std::sync::Mutex;
 use std::sync::atomic::AtomicUsize;
 
@@ -54,100 +55,61 @@ hook_asm!(
 
 const A8_RVA: usize = rva(0x75ACCC); // dword_75ACCC
 
-/// What a cheat does besides being logged.
-#[derive(Clone, Copy)]
-enum Does {
-    /// The bit stays set.
-    Stays,
-    /// The bit is cleared.
-    Cleared,
-    /// The bit is cleared and the car at this address added to the first list; `true`:
-    /// and then to the second.
-    Car(usize, bool),
-    /// The bit stays set and `dword_75ACCC` becomes 1.
-    Stores,
-}
-
-/// By bit: the log line's text and what the cheat does.
-const CHEATS: [(usize, Does); 19] = [
-    (0x4DE7A9, Does::Stays),                // "Cheat 1 (Unlock Arcade)"
-    (0x4DE7C1, Does::Stays),                // "Cheat 2 (Unlock Cars)"
-    (0x4DE7D7, Does::Car(0x757210, false)), // "Cheat 3 (Spud)"
-    (0x4DE7E6, Does::Car(0x757300, false)), // "Cheat 4 (Sheep)"
-    (0x4DE7F6, Does::Car(0x757288, false)), // "Cheat 5 (Cow)"
-    (0x4DE804, Does::Car(0x757030, false)), // "Cheat 6 (MF Sports)"
-    (0x4DE818, Does::Car(0x756838, true)),  // "Cheat 7 (Max Power)"
-    (0x4DE82C, Does::Car(0x757468, false)), // "Cheat 8 (Local Shop)"
-    (0x4DE841, Does::Car(0x757120, false)), // "Cheat 9 (Bolt's Pug)"
-    (0x4DE856, Does::Car(0x757198, false)), // "Cheat 10 (Skip)"
-    (0x4DE866, Does::Cleared),              // "Cheat 11"
-    (0x4DE86F, Does::Car(0x7570A8, false)), // "Cheat 12 (MF Hatchback)"
-    (0x4DE887, Does::Car(0x7573F0, false)), // "Cheat 13 (Sheep Wagon)"
-    (0x4DE89E, Does::Stays),                // "Cheat 14 (No Damage)"
-    (0x4DE8B3, Does::Stays),                // "Cheat 15 (Damage Timer)"
-    (0x4DE8CB, Does::Stays),                // "Cheat 16"
-    (0x4DE8D4, Does::Stays),                // "Cheat 17 (Arcade Timer)"
-    (0x4DE8EC, Does::Stores),               // "Cheat 18 (Enable A8 Game)"
-    (0x4DE906, Does::Stores),               // "Cheat 19 (Reverse Sim Tracks)"
+/// By bit (what each does: `rc2k_core::menu::car_lists::CHEATS`): the log line's text and
+/// the cheat's car, if any.
+const CHEATS: [(usize, usize); 19] = [
+    (0x4DE7A9, 0),        // "Cheat 1 (Unlock Arcade)"
+    (0x4DE7C1, 0),        // "Cheat 2 (Unlock Cars)"
+    (0x4DE7D7, 0x757210), // "Cheat 3 (Spud)"
+    (0x4DE7E6, 0x757300), // "Cheat 4 (Sheep)"
+    (0x4DE7F6, 0x757288), // "Cheat 5 (Cow)"
+    (0x4DE804, 0x757030), // "Cheat 6 (MF Sports)"
+    (0x4DE818, 0x756838), // "Cheat 7 (Max Power)"
+    (0x4DE82C, 0x757468), // "Cheat 8 (Local Shop)"
+    (0x4DE841, 0x757120), // "Cheat 9 (Bolt's Pug)"
+    (0x4DE856, 0x757198), // "Cheat 10 (Skip)"
+    (0x4DE866, 0),        // "Cheat 11"
+    (0x4DE86F, 0x7570A8), // "Cheat 12 (MF Hatchback)"
+    (0x4DE887, 0x7573F0), // "Cheat 13 (Sheep Wagon)"
+    (0x4DE89E, 0),        // "Cheat 14 (No Damage)"
+    (0x4DE8B3, 0),        // "Cheat 15 (Damage Timer)"
+    (0x4DE8CB, 0),        // "Cheat 16"
+    (0x4DE8D4, 0),        // "Cheat 17 (Arcade Timer)"
+    (0x4DE8EC, 0),        // "Cheat 18 (Enable A8 Game)"
+    (0x4DE906, 0),        // "Cheat 19 (Reverse Sim Tracks)"
 ];
 
 // ---- Rust version ----
 
-/// Adds the car to the list unless it is there; true if it was added.
-fn add_car(list: &mut Vec<u32>, room: List, car: u32) -> Result<bool, BadInput> {
-    if list.contains(&car) {
-        return Ok(false);
-    }
-    // The car and the -1 after it.
-    if list.len() + 2 > room.1 {
-        return Err(BadInput("a list of cars without room for one more"));
-    }
-    list.push(car);
-    Ok(true)
-}
-
 /// `log` gets the address of each line's text.
 pub unsafe fn apply_cheats(log: &mut dyn FnMut(*const u8)) -> Result<(), BadInput> {
+    // Converted: `rc2k_core::menu::car_lists::apply_cheats`.
     unsafe {
-        let mut cheats: u32 = game_read(CHEATS_RVA);
-        let mut first = read_list(FIRST)?;
-        let mut second = read_list(SECOND)?;
-        let (mut first_changed, mut second_changed, mut stores) = (false, false, false);
-        let mut lines = Vec::new();
-        for (bit, (text, does)) in CHEATS.into_iter().enumerate() {
-            if cheats & (1 << bit) == 0 {
-                continue;
-            }
-            lines.push(game_addr(rva(text)) as *const u8);
-            match does {
-                Does::Stays => {}
-                Does::Cleared => cheats &= !(1 << bit),
-                Does::Car(car, both) => {
-                    cheats &= !(1 << bit);
-                    let car = game_addr(rva(car)) as u32;
-                    if add_car(&mut first, FIRST, car)? {
-                        first_changed = true;
-                        if both && add_car(&mut second, SECOND, car)? {
-                            second_changed = true;
-                        }
-                    }
-                }
-                Does::Stores => stores = true,
-            }
-        }
+        let cheats: u32 = game_read(CHEATS_RVA);
+        let list = |l: List| -> Result<car_lists::List, BadInput> {
+            Ok(car_lists::List {
+                cars: read_list(l)?,
+                room: l.1,
+                changed: false,
+            })
+        };
+        let (mut first, mut second) = (list(FIRST)?, list(SECOND)?);
+        let a = car_lists::apply_cheats(cheats, &mut first, &mut second, |bit| {
+            game_addr(rva(CHEATS[bit].1)) as u32
+        })?;
         // Nothing has been written or logged up to here.
-        game_write(CHEATS_RVA, cheats);
-        if first_changed {
-            write_list(FIRST, &first);
+        game_write(CHEATS_RVA, a.cheats);
+        if first.changed {
+            write_list(FIRST, &first.cars);
         }
-        if second_changed {
-            write_list(SECOND, &second);
+        if second.changed {
+            write_list(SECOND, &second.cars);
         }
-        if stores {
+        if a.stores {
             game_write(A8_RVA, 1u32);
         }
-        for line in lines {
-            log(line);
+        for bit in a.logged {
+            log(game_addr(rva(CHEATS[bit].0)) as *const u8);
         }
         Ok(())
     }
@@ -210,10 +172,7 @@ fn self_test() -> (usize, usize) {
     };
     let regions = regions();
     let saved = capture(&regions);
-    let car = |n: usize| match CHEATS[n].1 {
-        Does::Car(car, _) => game_addr(rva(car)) as u32,
-        _ => 0,
-    };
+    let car = |n: usize| game_addr(rva(CHEATS[n].1)) as u32;
     let (a, b) = (0x1111_0000u32, 0x2222_0000u32);
     // (what, the first list, the second)
     let lists: [(&str, Vec<u32>, Vec<u32>); 5] = [

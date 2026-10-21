@@ -36,6 +36,7 @@ pub mod car_physics_step;
 pub mod car_sound_state;
 pub mod car_sounds;
 pub mod cell_face_contacts;
+pub mod cells;
 pub mod change_gear;
 pub mod checkpoint_offset;
 pub mod clamped_asin;

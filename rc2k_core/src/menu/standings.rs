@@ -6,7 +6,11 @@
 //! best scores 0x3C) whose dwords are read by offset, as far as they are worked out. And the
 //! tables' emptying and numbering (`menu::init_standings_a` 0x4730D8 / `_b` 0x4A4644,
 //! `number_standings_a` 0x4A2055 / `_b` 0x4A4A9D, `number_all_a` 0x4A2090 / `_b` 0x4A5A98,
-//! `clear_standings_a` 0x4A5A14 / `_b` 0x4A5A2F).
+//! `clear_standings_a` 0x4A5A14 / `_b` 0x4A5A2F). Their filling (converted 2026-10-21 from
+//! `menu::copy_standing_entry` 0x46613F, `player_to_standing_b` 0x46618A,
+//! `standings_from_drivers` 0x4A9605, `standings_a_from_all` 0x4A2B75,
+//! `standings_b_from_all` 0x4A44A0, `copy_standings_summary` 0x470466), and
+//! `menu::clear_score_marks` 0x4A919A and `find_cpu_team` 0x4A49FF.
 
 /// A name's bytes in an entry.
 pub const NAME_LEN: usize = 0x1F;
@@ -14,6 +18,9 @@ pub const NAME_LEN: usize = 0x1F;
 pub const SORTED: usize = 0xB4;
 /// "Any group" for the first-player searches.
 pub const ANY_GROUP: u32 = 0x63;
+
+/// A dword stored in a record: its byte offset and the value.
+pub type Store = (usize, u32);
 
 /// A table's entries, `size` bytes each.
 pub struct Entries<'a> {
@@ -46,9 +53,33 @@ impl Entries<'_> {
         self.bytes[o..o + NAME_LEN].try_into().unwrap()
     }
 
-    fn set_name(&mut self, n: usize, at: usize, name: &[u8; NAME_LEN]) {
+    pub fn set_name(&mut self, n: usize, at: usize, name: &[u8; NAME_LEN]) {
+        self.set_bytes(n, at, name);
+    }
+
+    /// Entry `n`'s `len` bytes at `at`.
+    pub fn bytes_at(&self, n: usize, at: usize, len: usize) -> &[u8] {
         let o = n * self.size + at;
-        self.bytes[o..o + NAME_LEN].copy_from_slice(name);
+        &self.bytes[o..o + len]
+    }
+
+    pub fn set_bytes(&mut self, n: usize, at: usize, bytes: &[u8]) {
+        let o = n * self.size + at;
+        self.bytes[o..o + bytes.len()].copy_from_slice(bytes);
+    }
+
+    /// Entry `n`'s stores made, in order.
+    pub fn store(&mut self, n: usize, stores: &[Store]) {
+        for &(at, v) in stores {
+            self.set(n, at, v);
+        }
+    }
+
+    /// Every entry's stores made, entry by entry.
+    pub fn store_all(&mut self, stores: &[Store]) {
+        for n in 0..self.len() {
+            self.store(n, stores);
+        }
     }
 
     /// Entries `a` and `b`'s dwords at `fields` and names at `name` swapped, the name
@@ -322,6 +353,181 @@ pub fn number(groups: &[u32], which: Numbering) -> Vec<Option<u32>> {
         .collect()
 }
 
+/// Table A's figure and table B's, each entry's emptied (0) by `menu::clear_standings_a` /
+/// `_b`.
+pub const A_FIGURE: usize = 0x44;
+pub const B_FIGURE: usize = 0x70;
+
+/// What `menu::clear_score_marks` stores in each of the 50 best scores: the mark (+0x14)
+/// and the player (+4) 0.
+pub const BEST_MARKS: [Store; 2] = [(0x14, 0), (4, 0)];
+
+/// `menu::find_cpu_team`: the first driver whose number (+0) is `number` (none: the game's
+/// fatal error 0x8070A098).
+pub fn find_team(drivers: &Entries, number: u32) -> Option<usize> {
+    (0..drivers.len()).find(|&n| drivers.get(n, 0) == number)
+}
+
+/// What `menu::copy_standing_entry` takes from a player's record for a table A entry.
+pub struct PlayerA {
+    /// The player's index (0 .. 3).
+    pub index: u32,
+    /// The stage time (+0x88), the group (+0x90), the total (+0x8C).
+    pub time: u32,
+    pub group: u32,
+    pub total: u32,
+    /// The name's pointer (+0x18) and its first 0x20 bytes.
+    pub name_at: u32,
+    pub name: [u8; 0x20],
+    /// The nationality (+4), the car's number (+8), the taking part (+0xD0).
+    pub nationality: u32,
+    pub car: u32,
+    pub entered: u32,
+}
+
+/// A table A entry filled from a player: +4 the index + 1, +0x14 the time, +0x1C the
+/// group, +0x18 the total, +0xC the name's pointer and +0x20 the name, +8 the nationality,
+/// +0x10 the car, +0x4C the taking part.
+pub fn fill_a(t: &mut Entries, n: usize, p: &PlayerA) {
+    t.store(
+        n,
+        &[
+            (4, p.index.wrapping_add(1)),
+            (0x14, p.time),
+            (0x1C, p.group),
+            (0x18, p.total),
+            (0xC, p.name_at),
+        ],
+    );
+    t.set_bytes(n, 0x20, &p.name);
+    t.store(n, &[(8, p.nationality), (0x10, p.car), (0x4C, p.entered)]);
+}
+
+/// What `menu::player_to_standing_b` takes from a player's record for a table B entry.
+pub struct PlayerB {
+    /// The player's index (0 .. 3).
+    pub index: u32,
+    /// The name's first 0x20 bytes (from the pointer at +0x18).
+    pub name: [u8; 0x20],
+    /// The nationality (+4), the car's number (+8), the group (+0x90), the total (+0x8C).
+    pub nationality: u32,
+    pub car: u32,
+    pub group: u32,
+    pub total: u32,
+    /// The seven dwords at +0xB4 and the seven at +0x98.
+    pub b4: [u32; 7],
+    pub slots: [u32; 7],
+}
+
+/// A table B entry filled from a player: +4 the index + 1, +0x14 the name, +8 / +0xC /
+/// +0x10 the nationality, car and group, +0x34 the total, +0x38 .. +0x50 its +0xB4 ..,
+/// +0x54 .. +0x6C its +0x98 ...
+pub fn fill_b(t: &mut Entries, n: usize, p: &PlayerB) {
+    t.set(n, 4, p.index.wrapping_add(1));
+    t.set_bytes(n, 0x14, &p.name);
+    t.store(
+        n,
+        &[
+            (8, p.nationality),
+            (0xC, p.car),
+            (0x10, p.group),
+            (0x34, p.total),
+        ],
+    );
+    for k in 0..7 {
+        t.set(n, 0x38 + 4 * k, p.b4[k]);
+        t.set(n, 0x54 + 4 * k, p.slots[k]);
+    }
+}
+
+/// Table A's entry `n` filled from driver `d` of `drivers` (`menu::standings_from_drivers`):
+/// +0x14 / +0x1C / +0x18 / +8 / +0x10 / +0 / +0x4C its +0xC / +8 / +0x10 / +0x14 / +0x18 /
+/// +0 / +0x24, +4 0, +0xC its name's string number and +0x20 the text (with its NUL).
+pub fn fill_a_from_driver(
+    t: &mut Entries,
+    n: usize,
+    drivers: &Entries,
+    d: usize,
+    name_id: u32,
+    text: &[u8],
+) {
+    let f = |at| drivers.get(d, at);
+    t.store(
+        n,
+        &[
+            (0x14, f(0xC)),
+            (4, 0),
+            (0x1C, f(8)),
+            (0x18, f(0x10)),
+            (8, f(0x14)),
+            (0x10, f(0x18)),
+            (0, f(0)),
+            (0x4C, f(0x24)),
+            (0xC, name_id),
+        ],
+    );
+    t.set_bytes(n, 0x20, text);
+}
+
+/// Table B's entry `n` filled from driver `d` (`menu::standings_b_from_all`): +4 0, +0x10 /
+/// +8 / +0xC / +0 / +0x34 its +8 / +0x14 / +0x18 / +0 / +0x10, +0x38 .. +0x6C its +0x5C ..
+/// +0x90, +0x14 the text of its name (with its NUL).
+pub fn fill_b_from_driver(t: &mut Entries, n: usize, drivers: &Entries, d: usize, text: &[u8]) {
+    let f = |at| drivers.get(d, at);
+    t.store(
+        n,
+        &[
+            (4, 0),
+            (0x10, f(8)),
+            (8, f(0x14)),
+            (0xC, f(0x18)),
+            (0, f(0)),
+            (0x34, f(0x10)),
+        ],
+    );
+    for k in 0..14 {
+        t.set(n, 0x38 + 4 * k, f(0x5C + 4 * k));
+    }
+    t.set_bytes(n, 0x14, text);
+}
+
+/// Where the players go in a table filled from all (`menu::standings_a_from_all`,
+/// `standings_b_from_all`): each group's (0 .. 3) players, in order, into the entries from
+/// the group's first (`firsts`) down. (player, entry) pairs, in the original's order.
+pub fn by_group(groups: &[u32], firsts: [usize; 4]) -> Vec<(usize, usize)> {
+    let mut out = Vec::new();
+    for (group, first) in firsts.into_iter().enumerate() {
+        let mut entry = first;
+        for (n, &g) in groups.iter().enumerate() {
+            if g == group as u32 {
+                out.push((n, entry));
+                entry = entry.wrapping_sub(1);
+            }
+        }
+    }
+    out
+}
+
+/// The entries filled from all: table A's from 89, 139, 169 and 179; table B's from 89,
+/// 119, 169 and 179.
+pub const A_GROUP_FIRSTS: [usize; 4] = [89, 139, 169, 179];
+pub const B_GROUP_FIRSTS: [usize; 4] = [89, 119, 169, 179];
+
+/// The summary's rows (`menu::copy_standings_summary`).
+pub const SUMMARY_ROWS: usize = 0x5A;
+
+/// The summary's rows (+0, +4, +8, +0xC of each: the entry's +0xC, +8, +0x10, +0x14) from
+/// table A's first `SUMMARY_ROWS` entries with a group (+0x1C not 0; `grouped`) or
+/// without. None when the table runs out first (the original walks on past its end).
+pub fn summary_rows(t: &Entries, grouped: bool) -> Option<Vec<[u32; 4]>> {
+    let rows: Vec<[u32; 4]> = (0..t.len())
+        .filter(|&n| (t.get(n, 0x1C) != 0) == grouped)
+        .take(SUMMARY_ROWS)
+        .map(|n| [t.get(n, 0xC), t.get(n, 8), t.get(n, 0x10), t.get(n, 0x14)])
+        .collect();
+    (rows.len() == SUMMARY_ROWS).then_some(rows)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -393,5 +599,94 @@ mod tests {
         assert_eq!(search(first, |n| list[n as usize].1 == 7, 9), Found::At(2));
         assert_eq!(search(first, |n| list[n as usize].1 == 8, 9), Found::End);
         assert_eq!(search(|_| 0, |_| false, 3), Found::NoEnd);
+    }
+
+    #[test]
+    fn fills() {
+        let mut bytes = vec![0u8; 3 * 0x9C];
+        let mut t = Entries {
+            bytes: &mut bytes,
+            size: 0x9C,
+        };
+        let p = PlayerA {
+            index: 2,
+            time: 10,
+            group: 1,
+            total: 20,
+            name_at: 0x1234,
+            name: [b'n'; 0x20],
+            nationality: 5,
+            car: 6,
+            entered: 1,
+        };
+        fill_a(&mut t, 1, &p);
+        assert_eq!((t.get(1, 4), t.get(1, 0x18), t.get(1, 0x4C)), (3, 20, 1));
+        assert_eq!(t.bytes_at(1, 0x20, 0x20), &[b'n'; 0x20]);
+        assert_eq!(t.get(1, 0x40), 0);
+        let mut drivers = vec![0u8; 2 * 0x94];
+        let mut d = Entries {
+            bytes: &mut drivers,
+            size: 0x94,
+        };
+        d.set(1, 0, 7);
+        d.set(1, 0x24, 9);
+        d.set(1, 0x5C + 4 * 13, 11);
+        assert_eq!(find_team(&d, 7), Some(1));
+        assert_eq!(find_team(&d, 8), None);
+        fill_a_from_driver(&mut t, 2, &d, 1, 0x55, b"ab\0");
+        assert_eq!((t.get(2, 0), t.get(2, 0x4C), t.get(2, 0xC)), (7, 9, 0x55));
+        assert_eq!(t.bytes_at(2, 0x20, 3), b"ab\0");
+        let mut bytes = vec![0u8; 0x78];
+        let mut b = Entries {
+            bytes: &mut bytes,
+            size: 0x78,
+        };
+        fill_b_from_driver(&mut b, 0, &d, 1, b"x\0");
+        assert_eq!((b.get(0, 0), b.get(0, 0x6C)), (7, 11));
+        let q = PlayerB {
+            index: 0,
+            name: [b'q'; 0x20],
+            nationality: 1,
+            car: 2,
+            group: 3,
+            total: 4,
+            b4: [5; 7],
+            slots: [6; 7],
+        };
+        fill_b(&mut b, 0, &q);
+        assert_eq!(
+            (b.get(0, 4), b.get(0, 0x34), b.get(0, 0x50), b.get(0, 0x6C)),
+            (1, 4, 5, 6)
+        );
+        assert_eq!(b.bytes_at(0, 0x14, 0x20), &[b'q'; 0x20]);
+    }
+
+    #[test]
+    fn groups_and_summary() {
+        assert_eq!(
+            by_group(&[1, 0, 1, 3], A_GROUP_FIRSTS),
+            [(1, 89), (0, 139), (2, 138), (3, 179)]
+        );
+        let mut bytes = vec![0u8; 200 * 0x9C];
+        let mut t = Entries {
+            bytes: &mut bytes,
+            size: 0x9C,
+        };
+        for n in 0..200 {
+            t.set(n, 0x1C, (n % 2) as u32);
+            t.set(n, 0x14, n as u32);
+        }
+        let rows = summary_rows(&t, true).unwrap();
+        assert_eq!((rows[0][3], rows[89][3]), (1, 179));
+        assert!(
+            summary_rows(
+                &Entries {
+                    bytes: &mut [0u8; 0x9C * 3],
+                    size: 0x9C
+                },
+                false
+            )
+            .is_none()
+        );
     }
 }

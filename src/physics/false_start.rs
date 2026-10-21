@@ -22,6 +22,8 @@ use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm,
 use crate::physics::reset_parts::{both, copy_of, dispatch_reset, regions};
 use crate::race::car_starts::{Case, Part, prepare};
 use crate::service::harness::{capture, restore};
+use rc2k_core::physics::notices::Notice;
+use rc2k_core::physics::start::CarStart;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -50,34 +52,47 @@ fn p(a: usize, v: u32) {
 }
 
 /// The Rust version, `start_car` through `part` (place 11).
+// Converted: `rc2k_core::physics::start::CarStart::false_start`.
 pub unsafe fn false_start(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
-    if g(HELD) == 0 && g(GEAR) != 0 {
-        p(HELD, 1);
+    let was = CarStart {
+        timer: g(TIMER),
+        held: g(HELD),
+        count: g(COUNT),
+        time: g(rva(0x71A060)),
+        ..CarStart::default()
+    };
+    let notice_was = Notice {
+        id: g(rva(0x71A6F4)),
+        w6f8: g(rva(0x71A6F8)),
+        last: g(rva(0x71A6FC)),
+        shown: g(rva(0x71A700)),
+        time: g(rva(0x71A704)),
+        w708: g(rva(0x71A708)),
+    };
+    let (mut car, mut notice) = (was, notice_was);
+    let done = car.false_start(g(GEAR), &mut notice);
+    if let Some(timer) = done.timer {
+        r.eax = timer;
     }
-    if g(HELD) != 0 && g(COUNT) == 0 {
-        r.eax = g(TIMER);
-        if (r.eax.wrapping_sub(0x320) as i32) < 0 {
-            p(COUNT, 500);
-            p(rva(0x71A6F4), 0xCC);
-            p(rva(0x71A708), 0);
-            p(rva(0x71A704), u32::MAX);
+    for (at, before, now) in [
+        (HELD, was.held, car.held),
+        (COUNT, was.count, car.count),
+        (rva(0x71A060), was.time, car.time),
+        (TIMER, was.timer, car.timer),
+        (rva(0x71A6F4), notice_was.id, notice.id),
+        (rva(0x71A6F8), notice_was.w6f8, notice.w6f8),
+        (rva(0x71A6FC), notice_was.last, notice.last),
+        (rva(0x71A700), notice_was.shown, notice.shown),
+        (rva(0x71A704), notice_was.time, notice.time),
+        (rva(0x71A708), notice_was.w708, notice.w708),
+    ] {
+        if now != before {
+            p(at, now);
         }
     }
-    if g(COUNT) != 0 {
-        p(COUNT, g(COUNT).wrapping_sub(1));
-        if g(COUNT) == 0 {
-            p(rva(0x71A060), g(rva(0x71A060)).wrapping_add(1000));
-            p(TIMER, 0);
-            p(HELD, 0);
-            p(rva(0x71A708), 0);
-            p(rva(0x71A704), 300);
-            p(rva(0x71A6FC), 0);
-            p(rva(0x71A6F4), 0xCA);
-            p(rva(0x71A6F8), 0);
-            p(rva(0x71A700), 0);
-            part(11, &mut r)?;
-        }
+    if done.put_back {
+        part(11, &mut r)?;
     }
     Ok(r)
 }

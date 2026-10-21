@@ -2,7 +2,7 @@
 //! players' states, the cars' counters, the view cars loaded into the work copy. Here
 //! its leaves.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::race::objects::CAR_BLOCKS_RVA;
 use crate::screens::harness::Left;
@@ -21,38 +21,35 @@ fn block(n: u32) -> u32 {
 /// carry). Every register kept. Refuses, before anything, a chosen car past 7 or more
 /// than 8 players (the original reads past the table).
 pub unsafe fn players_all_out() -> Result<bool, Refused> {
+    // Converted: `rc2k_core::race::cars::players_all_out`.
+    use rc2k_core::race::cars::{Players, players_all_out};
     unsafe {
         let out = |n: u32| ((block(n) + 0xB0) as *const u32).read_unaligned() != 0;
-        if game_read::<u32>(ONE_CHOSEN_RVA) == 1 {
-            let n: u32 = game_read(CHOSEN_CAR_RVA);
-            if n > 7 {
-                return Err(BadInput("a chosen car past the eight").into());
-            }
-            return Ok(out(n));
-        }
-        let players: u32 = game_read(PLAYERS_RVA);
-        if players > 8 {
-            return Err(BadInput("more than eight players").into());
-        }
-        if players == 0 {
-            return Ok(false);
-        }
-        Ok((0..players).all(out))
+        let players = if game_read::<u32>(ONE_CHOSEN_RVA) == 1 {
+            Players::Chosen(game_read(CHOSEN_CAR_RVA))
+        } else {
+            Players::First(game_read(PLAYERS_RVA))
+        };
+        Ok(players_all_out(players, out)?)
     }
 }
 
-/// `race::set_car_counter` (0x43A96C): block esi's +0x71C eax, +0x730 0, +0x72C 0x12C.
+/// `race::set_car_counter` (0x43A96C): block esi's message (+0x71C eax, +0x72C 0x12C,
+/// +0x730 0), written in the original's order (+0x71C, +0x730, +0x72C).
 pub unsafe fn set_car_counter(at: u32, value: u32) {
+    // Converted: `rc2k_core::race::cars::Message::new`.
+    let m = rc2k_core::race::cars::Message::new(value);
     unsafe {
-        ((at + 0x71C) as *mut u32).write_unaligned(value);
-        ((at + 0x730) as *mut u32).write_unaligned(0);
-        ((at + 0x72C) as *mut u32).write_unaligned(0x12C);
+        ((at + 0x71C) as *mut u32).write_unaligned(m.id);
+        ((at + 0x730) as *mut u32).write_unaligned(m.age);
+        ((at + 0x72C) as *mut u32).write_unaligned(m.time_left);
     }
 }
 
 /// `race::set_both_counters` (0x43A987): `set_car_counter` of the first two blocks (by
 /// their fixed addresses), each with eax.
 pub unsafe fn set_both_counters(value: u32) {
+    // Converted: through `set_car_counter` (`rc2k_core::race::cars::Message`).
     for b in [0x70F3EC, 0x7103CC] {
         unsafe { set_car_counter(game_addr(rva(b)) as u32, value) };
     }

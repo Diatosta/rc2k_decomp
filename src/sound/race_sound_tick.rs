@@ -50,7 +50,8 @@ fn g(x: usize) -> u32 {
 
 pub fn race_sound_tick_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     r.eax = g(CLOCK).wrapping_sub(g(LAST));
-    if r.eax < 0x14 {
+    // Converted: `rc2k_core::sound::turn::tick_due`.
+    if !rc2k_core::sound::turn::tick_due(g(CLOCK), g(LAST)) {
         return Ok(());
     }
     r.eax = g(CLOCK);

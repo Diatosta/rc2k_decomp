@@ -33,20 +33,26 @@ hook_asm!(
 );
 
 pub fn keep_stage_best() -> Result<(), Refused> {
+    use rc2k_core::menu::bests;
     let record = stage_record()?;
     let p = current_player()?;
+    // Converted: `rc2k_core::menu::bests::{takes_record, take_record}`.
     let figure = dword(p + 0x94);
-    if (dword(record + 0x2C) as i32) >= figure as i32 {
+    if !bests::takes_record(figure, dword(record + 0x2C)) {
         return Ok(());
     }
     let name = dword(p + 0x18);
     if name == 0 {
         return Err(BadInput("a player's name pointer of 0").into());
     }
-    put(record + 0x2C, figure);
-    put(record + 0x9C, dword(p + 4));
-    put(record + 0xA0, dword(p + 8));
-    unsafe { std::ptr::copy(name as *const u8, (record + 0x7C) as *mut u8, 0x20) };
+    let holder = bests::Holder {
+        figure,
+        nationality: dword(p + 4),
+        car: dword(p + 8),
+        name: crate::menu::standings::bytes(name),
+    };
+    let mut r = unsafe { crate::menu::standings::table(record, STAGE_RECORD, 1) };
+    bests::take_record(&mut r, 0, &bests::STAGE_HOLDER, &holder);
     Ok(())
 }
 

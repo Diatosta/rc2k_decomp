@@ -50,24 +50,20 @@ unsafe fn players_by_group(
     entry: &Regs,
     first: u32,
     size: u32,
-    slots: [u32; 4],
+    firsts: [usize; 4],
 ) -> Result<(), Refused> {
     let players = counted_players()?;
-    for (group, slot) in slots.into_iter().enumerate() {
-        let mut edi = first + slot;
-        for (n, &p) in players.iter().enumerate() {
-            if get(p + 0x90) == group as u32 {
-                unsafe {
-                    crate::menu::copy_standing_entry::copy_standing_entry(&Regs {
-                        edi,
-                        esi: p,
-                        ebx: n as u32,
-                        ..*entry
-                    })
-                }?;
-                edi -= size;
-            }
-        }
+    let groups: Vec<u32> = players.iter().map(|&p| get(p + 0x90)).collect();
+    // Converted: `rc2k_core::menu::standings::by_group`.
+    for (n, e) in rc2k_core::menu::standings::by_group(&groups, firsts) {
+        unsafe {
+            crate::menu::copy_standing_entry::copy_standing_entry(&Regs {
+                edi: first + size * e as u32,
+                esi: players[n],
+                ebx: n as u32,
+                ..*entry
+            })
+        }?;
     }
     Ok(())
 }
@@ -93,7 +89,8 @@ pub unsafe fn standings_a_from_all(entry: &Regs) -> Result<Regs, Refused> {
     }
     unsafe { crate::menu::standings_from_drivers::standings_from_drivers(entry) }?;
     let first: u32 = unsafe { game_read(TABLE_A_RVA) };
-    unsafe { players_by_group(entry, first, A_ENTRY, [0x363C, 0x54B4, 0x66FC, 0x6D14]) }?;
+    use rc2k_core::menu::standings::A_GROUP_FIRSTS;
+    unsafe { players_by_group(entry, first, A_ENTRY, A_GROUP_FIRSTS) }?;
     Ok(*entry)
 }
 

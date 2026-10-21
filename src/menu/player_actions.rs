@@ -45,8 +45,7 @@ const REPLAY_RANGE_RVA: usize = rva(0x755248); // dword_755248
 const CHOICE_RVA: usize = rva(0x75AB30); // dword_75AB30
 const CAPTION_RVA: usize = rva(0xA8BE54); // g_captionText
 const CAPTION_LEN: usize = 0x100;
-const LEAVE_A_RVA: usize = rva(0x755561); // dword_755561
-const LEAVE_B_RVA: usize = rva(0x755565); // dword_755565
+use crate::menu::leaving::{LEAVE_SCREEN_RVA as LEAVE_A_RVA, LEAVE_TOO_RVA as LEAVE_B_RVA};
 const SHOW_CAR_SPECS: usize = 0x46FD31; // menu::show_car_specs
 
 fn g(a: usize) -> u32 {
@@ -161,8 +160,8 @@ pub fn toggle_caption_choice() -> (u32, u32) {
 }
 
 pub fn leave_with_carry() {
-    p(LEAVE_A_RVA, 1);
-    p(LEAVE_B_RVA, 1);
+    // Converted: `rc2k_core::menu::leaving::Leaving::leave_with_carry`.
+    crate::menu::leaving::with_leaving(|l| l.leave_with_carry());
 }
 
 pub unsafe fn player_car_specs(n: u32, entry: &Regs, part: Part) -> Result<Regs, Refused> {

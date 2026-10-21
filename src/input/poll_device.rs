@@ -48,17 +48,6 @@ fn state(n: u32) -> u32 {
     unsafe { game_read(STATE_RVA + 4 * n as usize) }
 }
 
-/// The state dword a selector byte names (`& 7`), and whether its bit 0x10 is set.
-fn selected(record: u32, at_byte: u32) -> (u32, bool) {
-    let b = unsafe { ((record + at_byte) as *const u8).read() };
-    (state(u32::from(b & 7)), b & 0x10 != 0)
-}
-
-/// `cmp v, 0; jns; neg v`.
-fn positive(v: u32) -> u32 {
-    if (v as i32) < 0 { v.wrapping_neg() } else { v }
-}
-
 /// The Rust version (see the header): the registers it leaves (`popa`'s: the entry's).
 pub unsafe fn poll_device(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let record = entry.esi;
@@ -88,34 +77,17 @@ pub unsafe fn poll_device(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         }
         record += STATE_LEN as u32;
     }
-    let (x, mut y, mut z);
-    if at(record, field!(InputDevice, kind)) <= 2 {
-        let (v, n) = selected(record, 0x1D);
-        x = if n { v.wrapping_neg() } else { v };
-        let (v, n) = selected(record, 0x1C);
-        y = if n { v.wrapping_neg() } else { v };
-        z = 0;
-        if (y as i32) < 0 {
-            z = 0u32.wrapping_sub(y);
-            y = 0;
-        }
-    } else {
-        x = state(0);
-        let (v, n) = selected(record, 0x1A);
-        y = if n { v.wrapping_add(0x100) } else { v };
-        let (v, n) = selected(record, 0x1B);
-        z = if n { v.wrapping_add(0x100) } else { v };
-    }
-    let (y, z) = (positive(y), positive(z));
+    // Converted: `rc2k_core::input::joystick` (`poll_axes`, `poll_buttons`).
+    use rc2k_core::input::joystick::{poll_axes, poll_buttons};
+    let [x, y, z] = poll_axes(
+        at(record, field!(InputDevice, kind)),
+        |place| unsafe { ((record + place) as *const u8).read() },
+        state,
+    );
     put(record, field!(InputDevice, axes), x);
     put(record, field!(InputDevice, axes) + 4, y);
     put(record, field!(InputDevice, axes) + 8, z);
-    let mut buttons = 0u32;
-    for k in 0..32usize {
-        if unsafe { game_read::<u8>(STATE_RVA + 0x30 + k) } & 0x80 != 0 {
-            buttons |= 1 << k;
-        }
-    }
+    let buttons = poll_buttons(&unsafe { game_read(STATE_RVA + 0x30) });
     put(record, field!(InputDevice, buttons), buttons);
     Ok(*entry)
 }

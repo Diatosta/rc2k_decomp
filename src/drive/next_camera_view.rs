@@ -17,6 +17,7 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva};
 use crate::screens::harness::Left;
 use crate::service::harness::{capture, dispatch_state};
+use rc2k_core::drive::camera_views::next_view;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -38,23 +39,19 @@ unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
 
-/// The Rust core: block `s`, the players at `players`, the step count at `step`.
+/// The Rust version on block `s`, the players at `players`, the step count at `step`.
+// Converted: `rc2k_core::drive::camera_views::next_view`.
 pub unsafe fn next_view_at(s: u32, players: u32, step: u32) -> Left {
     unsafe {
         if at(s + 0x694) != 0 {
             return Left::nothing();
         }
-        let mut view = at(s + 0x684).wrapping_add(1);
-        if (2..=3).contains(&view) {
-            let car = at(s + 0x24);
-            let has = car < 0x22 && game_read::<u32>(HAS_VIEWS_RVA + 4 * car as usize) != 0;
-            if !has || at(players) == 2 {
-                view = 4;
-            }
-        }
-        if view >= 7 {
-            view = 0;
-        }
+        let view = next_view(
+            at(s + 0x684),
+            || at(s + 0x24),
+            |car| game_read::<u32>(HAS_VIEWS_RVA + 4 * car as usize) != 0,
+            || at(players),
+        );
         (s.wrapping_add(0x688) as *mut u32).write_unaligned(view);
         set_view_at(s, step)
     }

@@ -82,17 +82,16 @@ pub fn block_regions() -> Vec<Region> {
 /// `dword_63DB94` 2 (two players): the first player whose block's +0xB0 is not 0 (the
 /// first, else the second) is out: +0x25C 0, +0xFA8 1. Every register kept.
 pub unsafe fn drop_absent_player() {
+    // Converted: `rc2k_core::race::cars::absent_player`.
     unsafe {
-        let mode: u32 = game_read(MODE_RVA);
-        if mode == 2 || mode == 4 || game_read::<u32>(PLAYERS_RVA) != 2 {
-            return;
-        }
-        for n in 0..2 {
-            if game_read::<u32>(block(n) + 0xB0) != 0 {
-                game_write(block(n) + 0x25C, 0u32);
-                game_write(block(n) + 0xFA8, 1u32);
-                return;
-            }
+        let out = rc2k_core::race::cars::absent_player(
+            game_read(MODE_RVA),
+            || game_read(PLAYERS_RVA),
+            |n| game_read::<u32>(block(n as usize) + 0xB0) != 0,
+        );
+        if let Some(n) = out {
+            game_write(block(n as usize) + 0x25C, 0u32);
+            game_write(block(n as usize) + 0xFA8, 1u32);
         }
     }
 }
@@ -121,28 +120,24 @@ pub fn kind_regions() -> Vec<Region> {
         .collect()
 }
 
-/// A digit of the text at `ecx + k` (`movzx`, `sub` of the low byte: below '0' wraps
-/// within the byte), or None past 9.
-unsafe fn digit(at: u32) -> Option<u32> {
-    let byte: u8 = unsafe { game_read(TEXT_RVA + at as usize) };
-    let d = byte.wrapping_sub(b'0') as u32;
-    (d < 10).then_some(d)
+/// The cars' data text from its start, as the original reads it (past the buffer's end
+/// too).
+fn text() -> crate::bridge::Raw {
+    unsafe { crate::bridge::Raw::new(game_addr(TEXT_RVA) as *const u8) }
 }
 
 /// `race::parse_2_digits` (0x437A25): the two digits at text + ecx as a number; Err with
 /// any not a digit (the original then gives eax 0, carry set).
 pub unsafe fn parse_2_digits(at: u32) -> Option<u32> {
-    unsafe { Some(digit(at)? * 10 + digit(at.wrapping_add(1))?) }
+    // Converted: `rc2k_core::race::stage::parse_digits`.
+    rc2k_core::race::stage::parse_digits(&text(), at as usize, 2)
 }
 
 /// `race::parse_3_digits` (0x4379EB): the three digits at text + ecx (the second's test
 /// before the third's), as `parse_2_digits`.
 pub unsafe fn parse_3_digits(at: u32) -> Option<u32> {
-    unsafe {
-        let a = digit(at)?;
-        let b = digit(at.wrapping_add(1))?;
-        Some(a * 100 + b * 10 + digit(at.wrapping_add(2))?)
-    }
+    // Converted: `rc2k_core::race::stage::parse_digits`.
+    rc2k_core::race::stage::parse_digits(&text(), at as usize, 3)
 }
 
 /// `race::set_up_race_cars` (0x4364AD): `reset_car_blocks`, `drop_absent_player`,
@@ -235,7 +230,7 @@ pub const STAGE_RVA: usize = crate::race::stage_prefs::STAGE_RVA; // g_stageNumb
 pub const STAGE_TOTAL_RVA: usize = rva(0x601C4C); // g_stageCarTotal
 pub const READ_BYTES_RVA: usize = crate::race::course_data::READ_BYTES_RVA; // g_readBytes
 /// The most numbers `g_stageCarNumbers` holds (`dword_601830` follows it).
-pub const MOST_NUMBERS: usize = 0x100;
+pub const MOST_NUMBERS: usize = rc2k_core::race::stage::MOST_NUMBERS;
 /// dword_6043FC: the automatic set-ups, 0x10 bytes each (h, s, g5, g4 + 1).
 pub const SET_UPS_RVA: usize = rva(0x6043FC);
 pub const ALL_AUTO_RVA: usize = rva(0x52A910); // dword_52A910
@@ -277,58 +272,19 @@ fn word(n: usize) -> u32 {
 /// ebp the count, eax the last number parsed (0 for a failed one). Refuses more than
 /// 0x100 numbers (worked out before anything is written).
 pub unsafe fn read_stage_car_numbers(entry: &Regs) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::stage::stage_car_numbers`.
     let mut g = *entry;
     let len = TEXT_LEN as u32;
-    let mut numbers: Vec<u32> = Vec::new();
     unsafe {
-        let stage: u32 = game_read(STAGE_RVA);
-        let text = |i: u32| -> u8 { game_read(TEXT_RVA + i as usize) };
-        g.ebp = 0;
-        g.ecx = 0;
-        let found = 'look: loop {
-            loop {
-                let c = text(g.ecx);
-                if c == b'l' || c == b'L' {
-                    break;
-                }
-                g.ecx += 1;
-                if g.ecx >= len {
-                    break 'look false;
-                }
-            }
-            g.ecx += 1;
-            g.eax = parse_2_digits(g.ecx).unwrap_or(0);
-            if g.eax == stage {
-                break true;
-            }
-            g.ecx += 1;
-            if g.ecx >= len {
-                break false;
-            }
-        };
-        if found {
-            g.ecx += 3;
-            while g.ecx < len {
-                match parse_3_digits(g.ecx) {
-                    None => {
-                        g.eax = 0;
-                        break;
-                    }
-                    Some(n) => {
-                        if numbers.len() == MOST_NUMBERS {
-                            return Err(BadInput("more numbers than the table holds").into());
-                        }
-                        g.eax = n;
-                        numbers.push(n);
-                        g.ebp += 1;
-                        g.ecx += 4;
-                    }
-                }
-            }
+        let found = rc2k_core::race::stage::stage_car_numbers(&text(), len, game_read(STAGE_RVA))?;
+        g.ebp = found.numbers.len() as u32;
+        g.ecx = found.place;
+        if let Some(last) = found.last {
+            g.eax = last;
         }
         game_write(READ_BYTES_RVA, len);
         let mut total = 0u32;
-        for (k, &n) in numbers.iter().enumerate() {
+        for (k, &n) in found.numbers.iter().enumerate() {
             game_write(SPEEDS_RVA + 4 * k, n);
             total = total.wrapping_add(n);
         }
@@ -337,7 +293,6 @@ pub unsafe fn read_stage_car_numbers(entry: &Regs) -> Result<Regs, Refused> {
     Ok(g)
 }
 
-/// What `read_stage_car_numbers` writes.
 pub fn number_regions() -> Vec<Region> {
     vec![
         at(STAGE_TOTAL_RVA),

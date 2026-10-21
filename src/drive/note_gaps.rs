@@ -6,19 +6,17 @@ use crate::framework::{EDX, RawHook, Regs, SelfTest, call_game};
 use crate::screens::harness::Left;
 
 /// edx = (behind: lead - car, else car - lead) + 1; into `best` when below it.
+// Converted: `rc2k_core::drive::places::note_gap`.
 pub unsafe fn note_gap_at(car: u32, lead: u32, best: u32, behind: bool) -> Left {
     unsafe {
         let mine = ((car + 0x98) as *const u32).read_unaligned();
         let theirs = (lead as *const u32).read_unaligned();
-        let d = if behind {
-            theirs.wrapping_sub(mine)
-        } else {
-            mine.wrapping_sub(theirs)
-        };
-        let edx = d.wrapping_add(1);
         let b = best as *mut u32;
-        if edx < b.read_unaligned() {
-            b.write_unaligned(edx);
+        let was = b.read_unaligned();
+        let mut now = was;
+        let edx = rc2k_core::drive::places::note_gap(mine, theirs, behind, &mut now);
+        if now != was {
+            b.write_unaligned(now);
         }
         Left::nothing().with(EDX, edx)
     }

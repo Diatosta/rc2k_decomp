@@ -49,10 +49,9 @@ fn prepare(case: u32) {
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn clear_record_entries(entry: &Regs) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::menu::bests::clear_marks`.
     let event = current_event()?;
-    for n in 0..10 {
-        put(event + 0x9C * n + 0x40, 0);
-    }
+    rc2k_core::menu::bests::clear_marks(&mut crate::menu::rank_record_entry::event_list(event));
     Ok(*entry)
 }
 

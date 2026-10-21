@@ -27,7 +27,8 @@ hook_asm!(
 );
 
 pub fn mark_stage_choice() {
-    unsafe { game_write(MODE_RVA, 1u32) };
+    // Converted: `rc2k_core::menu::event::MapStage`.
+    unsafe { game_write(MODE_RVA, rc2k_core::menu::event::MapStage::Choice as u32) };
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {

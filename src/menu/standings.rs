@@ -91,12 +91,42 @@ pub fn first_player(
 ///
 /// # Safety
 /// `first` .. `first + len` must be game memory no one else uses meanwhile.
-unsafe fn table_bytes<'a>(first: u32, len: u32) -> &'a mut [u8] {
+pub unsafe fn table_bytes<'a>(first: u32, len: u32) -> &'a mut [u8] {
     unsafe { std::slice::from_raw_parts_mut(first as *mut u8, len as usize) }
 }
 
+/// `count` entries of `size` bytes from `first`, for the core.
+///
+/// # Safety
+/// As `table_bytes`.
+pub unsafe fn table<'a>(first: u32, size: u32, count: u32) -> Entries<'a> {
+    Entries {
+        bytes: unsafe { table_bytes(first, count * size) },
+        size: size as usize,
+    }
+}
+
+/// The drivers (`g_drivers`) as the core's table, as far as `entries` walks them.
+pub fn driver_table<'a>() -> Result<Entries<'a>, BadInput> {
+    let first = game_addr(DRIVERS_RVA) as u32;
+    let all = entries(first, DRIVER)?;
+    Ok(unsafe { table(first, DRIVER, all.len() as u32) })
+}
+
+/// A record's stores (the core's) made at `p`.
+pub fn put_all(p: u32, stores: &[standings::Store]) {
+    for &(at, v) in stores {
+        put(p + at as u32, v);
+    }
+}
+
+/// `N` bytes at `p`.
+pub fn bytes<const N: usize>(p: u32) -> [u8; N] {
+    unsafe { (p as *const [u8; N]).read_unaligned() }
+}
+
 /// `g_keptPlayerName`, the sorts' swap buffer.
-fn kept_name<'a>() -> &'a mut [u8; NAME_LEN] {
+pub fn kept_name<'a>() -> &'a mut [u8; NAME_LEN] {
     unsafe { &mut *(game_addr(KEPT_NAME_RVA) as *mut [u8; NAME_LEN]) }
 }
 

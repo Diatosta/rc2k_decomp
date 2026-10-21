@@ -60,25 +60,17 @@ const TOTALS_RVA: usize = rva(0x5DC968);
 
 /// The four totals and the last number looked at. Reads only.
 unsafe fn totals() -> Result<([u32; 4], u32), BadInput> {
-    unsafe {
-        let mut totals = [0u32; 4];
-        let mut eax = 0;
-        for n in 0..TEXTURES {
-            for (table, k, count) in [(SYSTEM_LEVELS_RVA, 1, 3), (VIDEO_LEVELS_RVA, 0, 2)] {
-                eax = game_read(table + n * 4);
-                if eax == u32::MAX {
-                    continue;
-                }
-                if eax >= LEVELS {
-                    return Err(BadInput("a texture's level past the sizes' table"));
-                }
-                totals[count] += 1;
-                eax = game_read(LEVEL_SIZES_RVA + eax as usize * 4);
-                totals[k] = totals[k].wrapping_add(eax);
-            }
-        }
-        Ok((totals, eax))
-    }
+    // Converted: `rc2k_core::scene::textures::count_needs`.
+    use crate::scene::textures::slice;
+    let n = TEXTURES as u32;
+    let (totals, eax) = unsafe {
+        rc2k_core::scene::textures::count_needs(
+            slice(SYSTEM_LEVELS_RVA, n),
+            slice(VIDEO_LEVELS_RVA, n),
+            |level| game_read(LEVEL_SIZES_RVA + level * 4),
+        )
+    }?;
+    Ok((totals.to_array(), eax))
 }
 
 /// `log`: what writes a piece of the line: a text, or a number.

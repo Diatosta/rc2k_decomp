@@ -43,7 +43,9 @@ pub unsafe fn set_master_volume(volume: u32, a3d: bool, primary: u32) {
         if buffer == 0 {
             return;
         }
-        let level: u32 = game_read(VOLUMES_RVA + volume.min(0x40) as usize * 4);
+        // Converted: `rc2k_core::audio::levels::master_volume`.
+        let level =
+            rc2k_core::audio::levels::master_volume(volume, crate::audio::buffer_settings::volumes);
         com::call1(buffer, SET_VOLUME, level);
     }
 }

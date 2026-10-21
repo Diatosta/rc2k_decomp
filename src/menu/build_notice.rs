@@ -40,28 +40,28 @@ const FIRST_LINE_RVA: usize = rva(0x52A263); // unk_52A263
 const SECOND_LINE_RVA: usize = rva(0x52A2B1); // byte_52A2B1
 /// The whole of the two lines.
 const LINES_LEN: usize = 0xA0;
-/// The text built: 2 + 4 + 14 + 4 + 0x26 + 2.
-const BUILT_LEN: usize = 0x40;
+use rc2k_core::menu::notice::{
+    BUILDS, BUILT_LEN, FIRST_FROM, FIRST_READ, SECOND_FROM, SECOND_READ, notice,
+};
 
 // ---- Rust version ----
 
 pub unsafe fn build_notice() {
+    // Converted: `rc2k_core::menu::notice::notice`.
     unsafe {
-        if game_read::<u8>(NOTICE_KIND_RVA) != 2 {
+        if game_read::<u8>(NOTICE_KIND_RVA) != BUILDS {
             return;
         }
-        let second = game_addr(SECOND_LINE_RVA) as *const u8;
-        let first = game_addr(FIRST_LINE_RVA) as *mut u8;
-        let mut built = Vec::with_capacity(BUILT_LEN);
-        let take = |from: *const u8, len: usize| std::slice::from_raw_parts(from, len).to_vec();
-        built.extend(take(second.add(10), 2));
-        built.extend(b"2000");
-        built.extend(take(second.add(11), 14));
-        built.extend(b" and");
-        built.extend(take(first.add(11), 0x26));
-        built.extend(b" \0");
-        std::ptr::copy(built.as_ptr(), text(), built.len());
-        std::ptr::copy(built.as_ptr(), first, built.len());
+        let built = notice(
+            &game_read::<[u8; FIRST_READ]>(FIRST_LINE_RVA + FIRST_FROM),
+            &game_read::<[u8; SECOND_READ]>(SECOND_LINE_RVA + SECOND_FROM),
+        );
+        std::ptr::copy(built.as_ptr(), text(), BUILT_LEN);
+        std::ptr::copy(
+            built.as_ptr(),
+            game_addr(FIRST_LINE_RVA) as *mut u8,
+            BUILT_LEN,
+        );
         game_write(SECOND_LINE_RVA, 0u8);
     }
 }

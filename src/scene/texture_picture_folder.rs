@@ -37,22 +37,20 @@ hook_asm!(
 
 /// dword_60AF04: the texture's number.
 const NUMBER_RVA: usize = rva(0x60AF04);
-/// (from this number on, folder, pattern), in the original's order.
-const PAIRS: [(u32, usize, usize); 6] = [
-    (0, 0x60AF0C, 0x60AF8F),
-    (900, 0x60AF1F, 0x60AFA2),
-    (902, 0x60AF0C, 0x60AF8F),
-    (1000, 0x60AF32, 0x60AFB5),
-    (2000, 0x60AF5F, 0x60AFE2),
-    (3000, 0x60AF77, 0x60AFFA),
-];
 
 // ---- Rust version ----
 
 /// (folder, pattern) as IDA addresses.
 pub fn texture_picture_folder(number: u32) -> (usize, usize) {
-    let (_, folder, pattern) = PAIRS.iter().rev().find(|p| number >= p.0).copied().unwrap();
-    (folder, pattern)
+    // Converted: `rc2k_core::scene::textures::picture_folder`.
+    use rc2k_core::scene::textures::PictureFolder;
+    match rc2k_core::scene::textures::picture_folder(number) {
+        PictureFolder::A => (0x60AF0C, 0x60AF8F),
+        PictureFolder::M => (0x60AF1F, 0x60AFA2),
+        PictureFolder::B => (0x60AF32, 0x60AFB5),
+        PictureFolder::Front => (0x60AF5F, 0x60AFE2),
+        PictureFolder::Extra => (0x60AF77, 0x60AFFA),
+    }
 }
 
 // ---- hook ----

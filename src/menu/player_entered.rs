@@ -47,9 +47,8 @@ pub unsafe fn player_entered(entry: &Regs) -> Result<Regs, Refused> {
         return Err(BadInput("a player past 3 or missing").into());
     }
     g.edi = player(g.ecx);
-    if get(g.edi + 0xD0) != 1 {
-        g.eax = 0;
-    }
+    // Converted: `rc2k_core::menu::event::if_entered`.
+    g.eax = rc2k_core::menu::event::if_entered(get(g.edi + 0xD0), g.eax);
     Ok(g)
 }
 

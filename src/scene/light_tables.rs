@@ -16,15 +16,6 @@ pub fn table(rva: usize) -> Region {
     (game_addr(rva) as u32, TABLE_LEN)
 }
 
-/// A part of a colour times n over 255, as the original's `imul` and `idiv` give it.
-fn scaled(part: u32, n: u32) -> u32 {
-    ((part as i32 as i64 * n as i64) / 255) as u32
-}
-
-fn packed(parts: [u32; 3]) -> u32 {
-    0xFF00_0000 | (parts[0] & 0xFF) << 16 | (parts[1] & 0xFF) << 8 | (parts[2] & 0xFF)
-}
-
 fn left(eax: u32, last: u32) -> Left {
     Left::nothing()
         .with(EAX, eax)
@@ -34,32 +25,30 @@ fn left(eax: u32, last: u32) -> Left {
         .with(EBP, 0xFF)
 }
 
+unsafe fn store(table: *mut [u32; 0x100], entries: &[u32; 0x100]) {
+    unsafe { table.write_unaligned(*entries) };
+}
+
 /// `scene::fill_light_ramp` (0x44F169): entry n = the first colour plus n over 255 of
-/// the way to the second, each of three parts a byte, 0xFF above them.
+/// the way to the second, each of three parts a byte, 0xFF above them. Converted:
+/// `rc2k_core::scene::light::ramp`.
 pub unsafe fn fill_light_ramp(colours: *const [u32; 6], table: *mut [u32; 0x100]) -> Left {
     unsafe {
         let c = colours.read_unaligned();
-        let mut last = 0;
-        for n in 0..0x100u32 {
-            last = packed(std::array::from_fn(|part| {
-                scaled(c[part + 3].wrapping_sub(c[part]), n).wrapping_add(c[part])
-            }));
-            (table as *mut u32).add(n as usize).write_unaligned(last);
-        }
-        left(c[5], last)
+        let entries = rc2k_core::scene::light::ramp([c[0], c[1], c[2]], [c[3], c[4], c[5]]);
+        store(table, &entries);
+        left(c[5], entries[0xFF])
     }
 }
 
 /// `scene::fill_light_scale` (0x44F1BC): entry n = the colour times n over 255.
+/// Converted: `rc2k_core::scene::light::scale`.
 pub unsafe fn fill_light_scale(colour: *const [u32; 3], table: *mut [u32; 0x100]) -> Left {
     unsafe {
         let c = colour.read_unaligned();
-        let mut last = 0;
-        for n in 0..0x100u32 {
-            last = packed(c.map(|part| scaled(part, n)));
-            (table as *mut u32).add(n as usize).write_unaligned(last);
-        }
-        left(c[2], last)
+        let entries = rc2k_core::scene::light::scale(c);
+        store(table, &entries);
+        left(c[2], entries[0xFF])
     }
 }
 

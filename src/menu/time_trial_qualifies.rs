@@ -48,7 +48,8 @@ pub fn time_trial_qualifies() -> Result<(), Refused> {
     set(QUALIFIES, 0);
     let time = dword(p + 0x88);
     set(TIME, time);
-    if time as i32 <= dword(tenth + 0x14) as i32 {
+    // Converted: `rc2k_core::menu::bests::makes_time`.
+    if rc2k_core::menu::bests::makes_time(time, dword(tenth + 0x14)) {
         set(QUALIFIES, 1);
         set(ANY_QUALIFIED, 1);
     }

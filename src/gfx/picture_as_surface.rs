@@ -25,7 +25,7 @@ use crate::gfx::pixel_format::SURFACE_FORMAT_RVA;
 use crate::gfx::set_clip::{clip_of, set_clip};
 use crate::gfx::surface::{CLIP_BOTTOM_RVA, CLIP_LEFT_RVA, CLIP_RIGHT_RVA, CLIP_TOP_RVA};
 use crate::redirect::RedirectedCopy;
-use crate::system::find_entry::find_entry;
+use crate::system::find_entry::entries;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -57,39 +57,23 @@ const PIXEL_KIND_COUNT: u32 = 2;
 /// The surface block for a picture with these flags, from its third dword on (the corner
 /// is not touched).
 pub unsafe fn surface_of(flags: u32, pixels: u32) -> Result<[u32; SURFACE_DWORDS - 2], Refused> {
+    // Converted: `rc2k_core::gfx::screen_modes::picture_surface`.
     unsafe {
-        let size = find_entry(flags & 0xFF, game_addr(SIZES_RVA) as u32, SIZE_COUNT)?.ok_or(
-            FatalError {
-                code: 0x80A1_9091,
-                message: "",
-            },
-        )?;
-        let width = ((size + 4) as *const u16).read_unaligned() as u32;
-        let height = ((size + 6) as *const u16).read_unaligned() as u32;
-        let kind = find_entry(
-            flags & 0xF00,
-            game_addr(PIXEL_KINDS_RVA) as u32,
-            PIXEL_KIND_COUNT,
-        )?
-        .ok_or(FatalError {
-            code: 0x80A1_9092,
-            message: "",
-        })?;
-        let bits = ((kind + 4) as *const u32).read_unaligned();
-        let row_bytes = (bits >> 3).wrapping_mul(width);
-        Ok([
-            width,
-            height,
-            bits,
-            bits >> 3,
-            row_bytes,
-            row_bytes >> 2,
+        rc2k_core::gfx::screen_modes::picture_surface(
+            flags,
+            entries(game_addr(SIZES_RVA) as u32, SIZE_COUNT),
+            entries(game_addr(PIXEL_KINDS_RVA) as u32, PIXEL_KIND_COUNT),
             game_addr(SURFACE_FORMAT_RVA) as u32,
-            row_bytes,
             pixels,
-            0,
-        ])
+        )
     }
+    .map_err(|e| {
+        FatalError {
+            code: e.code(),
+            message: "",
+        }
+        .into()
+    })
 }
 
 unsafe fn surface_now() -> [u32; SURFACE_DWORDS] {

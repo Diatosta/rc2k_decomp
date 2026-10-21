@@ -12,7 +12,7 @@
 //! Self-test: 40 cases by lot on the game's tables, put back afterwards.
 
 use crate::errors::Refused;
-use crate::framework::{ECX, EDX, RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::framework::{ECX, EDX, RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::scene::texture_needs::{
     SYSTEM_LEVELS_RVA, TAGS_RVA, TEXTURES, VIDEO_LEVELS_RVA, levels,
 };
@@ -42,21 +42,17 @@ hook_asm!(
 
 /// Whether any entry changed.
 pub unsafe fn raise_texture_needs(level: u32, tag: u32) -> bool {
-    let mut changed = false;
-    for n in 0..TEXTURES {
-        unsafe {
-            if game_read::<u32>(TAGS_RVA + n * 4) != tag {
-                continue;
-            }
-            for table in [SYSTEM_LEVELS_RVA, VIDEO_LEVELS_RVA] {
-                if level > game_read::<u32>(table + n * 4) {
-                    game_write(table + n * 4, level);
-                    changed = true;
-                }
-            }
+    // Converted: `rc2k_core::scene::textures::Needs::raise`.
+    use crate::scene::textures::slice;
+    let n = TEXTURES as u32;
+    unsafe {
+        rc2k_core::scene::textures::Needs {
+            tags: slice(TAGS_RVA, n),
+            system: slice(SYSTEM_LEVELS_RVA, n),
+            video: slice(VIDEO_LEVELS_RVA, n),
         }
+        .raise(level, tag)
     }
-    changed
 }
 
 // ---- hook ----

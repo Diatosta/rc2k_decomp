@@ -33,10 +33,9 @@ hook_asm!(
 );
 
 pub fn clear_time_trial_marks() -> Result<(), Refused> {
-    let times = stage_times()?;
-    for k in 0..10 {
-        put(times + k * TIME_ENTRY + 0x40, 0);
-    }
+    // Converted: `rc2k_core::menu::bests::clear_marks`.
+    let mut list = crate::menu::rank_time_trial_best::stage_list()?;
+    rc2k_core::menu::bests::clear_marks(&mut list);
     Ok(())
 }
 

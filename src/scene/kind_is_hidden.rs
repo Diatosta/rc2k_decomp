@@ -12,7 +12,7 @@
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back): both settings, objects 0 .. 0xFF with test kinds.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{
     EAX, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
 };
@@ -38,16 +38,16 @@ const KINDS_RVA: usize = rva(0x5CD27C); // g_objectKinds (0x100 dwords)
 
 /// The Rust version: the object's (hidden, eax left).
 pub unsafe fn kind_is_hidden(object: u32) -> Result<(bool, u32), Refused> {
-    unsafe {
-        if game_read::<u32>(SWITCH_RVA) == 0 && game_read::<u32>(MODE_RVA) != 2 {
-            return Ok((false, object));
-        }
-        if object > 0xFF {
-            return Err(BadInput("an object past g_objectKinds (0x100)").into());
-        }
-        let kind: u32 = game_read(KINDS_RVA + 4 * object as usize);
-        Ok((kind == 0x30 || kind == 0x4E, kind))
-    }
+    // Converted: `rc2k_core::scene::kinds::kind_is_hidden`.
+    let settings = rc2k_core::scene::kinds::HideSettings {
+        switch: unsafe { game_read(SWITCH_RVA) },
+        mode: unsafe { game_read(MODE_RVA) },
+    };
+    Ok(rc2k_core::scene::kinds::kind_is_hidden(
+        settings,
+        object,
+        |n| unsafe { game_read(KINDS_RVA + 4 * n) },
+    )?)
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

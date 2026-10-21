@@ -26,7 +26,7 @@ pub unsafe fn car_label(edi: u32, eax: u32, ecx: u32) {
 
 pub const MARK_COUNT_RVA: usize = rva(0x601830); // dword_601830: the dwords cleared to 0xC
 /// The two callers' buffers (`dword_6D160C`, `dword_6D170C`) are 0x40 dwords each.
-pub const MARK_BUFFER_DWORDS: u32 = 0x40;
+pub const MARK_BUFFER_DWORDS: u32 = rc2k_core::race::frame::COLOUR_BUFFER_DWORDS;
 
 /// `race::split_colours` (0x45B16A): `dword_601830` dwords at edi set to 0xC; then for each
 /// of the block esi's +0x90 values at +0x140 (none when +0x90 is 0 or negative), edi's
@@ -35,31 +35,26 @@ pub const MARK_BUFFER_DWORDS: u32 = 0x40;
 /// the last colour and edx the last value. Refuses (before anything) a count past the
 /// buffers' 0x40 dwords.
 pub unsafe fn split_colours(esi: u32, edi: u32, fill: u32) -> Result<Left, Refused> {
+    // Converted: `rc2k_core::race::frame::{check_split_colours, split_colours}`.
+    use rc2k_core::race::frame::{SPLIT_UNREACHED, check_split_colours, split_colours};
     unsafe {
         let n = get(esi + 0x90);
-        if fill > MARK_BUFFER_DWORDS || (n as i32 > 0 && n > MARK_BUFFER_DWORDS) {
-            return Err(BadInput("a count past the colour buffer's 0x40 dwords").into());
-        }
+        check_split_colours(fill, n)?;
         for k in 0..fill {
-            put(edi + 4 * k, 0xC);
+            put(edi + 4 * k, SPLIT_UNREACHED);
         }
         let left = Left::nothing().with(ECX, n);
         if n as i32 <= 0 {
             return Ok(left);
         }
-        let mut edx = 0x63u32;
-        let mut eax = 0;
-        for k in 0..n {
-            let value = get(esi + 0x140 + 4 * k);
-            eax = if (edx.wrapping_sub(value) as i32) < 0 {
-                4
-            } else {
-                8
-            };
-            put(edi + 4 * k, eax);
-            edx = value;
+        let splits: Vec<u32> = (0..n).map(|k| get(esi + 0x140 + 4 * k)).collect();
+        let colours = split_colours(&splits);
+        for (k, &c) in colours.iter().enumerate() {
+            put(edi + 4 * k as u32, c);
         }
-        Ok(left.with(EAX, eax).with(EDX, edx))
+        Ok(left
+            .with(EAX, colours[n as usize - 1])
+            .with(EDX, splits[n as usize - 1]))
     }
 }
 
@@ -71,13 +66,16 @@ const PLAYERS_RVA: usize = rva(0x63DB94); // dword_63DB94
 /// `dword_6D144A` -1; with more than one player also `dword_6D1426` and `dword_6D142E` -1,
 /// and `dword_6D141A` / `dword_6D144A` the two view blocks' +0xFA4. Leaves eax as it does.
 pub unsafe fn panel_players() -> Left {
+    // Converted: `rc2k_core::race::frame::panel_players`.
+    use rc2k_core::race::frame::{PanelPlayers, panel_players};
     unsafe {
-        if game_read::<u32>(REPLAYING_RVA) != 0 {
+        let step = panel_players(game_read(REPLAYING_RVA), || game_read(PLAYERS_RVA));
+        if step == PanelPlayers::Kept {
             return Left::nothing();
         }
         game_write(PANEL_FIELDS[0], u32::MAX);
         game_write(PANEL_FIELDS[1], u32::MAX);
-        if game_read::<u32>(PLAYERS_RVA) == 1 {
+        if step == PanelPlayers::One {
             return Left::nothing();
         }
         game_write(PANEL_FIELDS[2], u32::MAX);
@@ -98,20 +96,21 @@ pub const LAMPS_WANTED_RVA: usize = rva(0x63DB58); // dword_63DB58
 /// esi the last block. Refuses (before anything) more than eight cars (past
 /// `g_carBlocks`).
 pub unsafe fn lamps_wanted() -> Result<Left, Refused> {
+    // Converted: `rc2k_core::race::frame::{car_lit, lamps_wanted}`.
+    use rc2k_core::race::frame::{car_lit, lamps_wanted};
     unsafe {
         let cars: u32 = game_read(CARS_RVA);
         if cars > 8 {
             return Err(BadInput("more than eight race cars").into());
         }
-        let mut eax: u32 = game_read(LAMP_COUNT_RVA);
+        let mut any_lit = false;
         let mut left = Left::nothing().with(ECX, 0);
         for n in 0..cars {
             let b: u32 = game_read(CAR_BLOCKS_RVA + 4 * n as usize);
-            if get(b + 0x25C) != 0 && get(b + 0x84) != 0 {
-                eax |= 1;
-            }
+            any_lit |= car_lit(get(b + 0x25C), || get(b + 0x84));
             left = left.with(ECX, cars).with(ESI, b);
         }
+        let eax = lamps_wanted(game_read(LAMP_COUNT_RVA), any_lit);
         game_write(LAMPS_WANTED_RVA, eax);
         Ok(left.with(EAX, eax))
     }
@@ -235,24 +234,23 @@ pub const OBJECT_TABLES: [usize; 9] = [
 /// Leaves ebx 0x100, ecx 0x3FC0, eax the last kind value read.
 pub unsafe fn object_bytes_at(t: &[u32]) -> Left {
     unsafe {
+        // Converted: `rc2k_core::race::frame::object_bytes`.
         let kind = |n: u32| get(t[1].wrapping_add(n.wrapping_mul(4)));
         let mut eax = 0;
         for n in 0..0x100u32 {
             let record = t[0] + n * 0x40;
-            let put8 = |table: u32, v: u8| ((table + n) as *mut u8).write(v);
-            put8(t[5], 0);
-            if ((record + 0xE) as *const u8).read() & 1 != 0 {
-                put8(t[5], 1);
-            }
-            put8(t[6], 1);
+            let flags = ((record + 0xE) as *const u8).read();
             eax = kind(get(record));
-            put8(t[7], eax as u8);
-            put8(t[8], 0xFF);
-            if get(t[2] + 4 * n) != 0 {
+            let record_kind = eax;
+            let face_kind = (get(t[2] + 4 * n) != 0).then(|| {
                 let face = get(t[4].wrapping_add(get(t[3] + 4 * n).wrapping_mul(4)));
                 let word = ((face.wrapping_add(4)) as *const u16).read_unaligned();
                 eax = kind(word as u32);
-                put8(t[8], eax as u8);
+                eax
+            });
+            let bytes = rc2k_core::race::frame::object_bytes(flags, record_kind, face_kind);
+            for (out, b) in t[5..9].iter().zip(bytes) {
+                ((out + n) as *mut u8).write(b);
             }
         }
         Left::nothing()
@@ -442,17 +440,15 @@ pub unsafe fn panel_neighbours() -> Result<Left, Refused> {
         let ahead = block_of(table(CAR_BY_PLACE))?;
         put(g(0x6D141A), place);
         put(g(0x6D141E), get(a + 0x8C).wrapping_mul(10));
-        let mut back = get(behind + 0x24);
-        if place == game_read::<u32>(LAST_PLACE_RVA) {
-            back = u32::MAX;
-        }
+        // Converted: `rc2k_core::race::frame::neighbour_number` (and the labels'
+        // `rc2k_core::race::start::car_label`).
+        use rc2k_core::race::frame::neighbour_number;
+        let number = get(behind + 0x24);
+        let back = neighbour_number(place == game_read::<u32>(LAST_PLACE_RVA), number);
         put(g(0x6D1426), back);
         car_label(g(LABEL_BEHIND), table(0x605034), back);
         put(g(0x6D1422), get(a + 0x634));
-        let mut front = get(ahead + 0x24);
-        if place == 1 {
-            front = u32::MAX;
-        }
+        let front = neighbour_number(place == 1, get(ahead + 0x24));
         put(g(0x6D142E), front);
         car_label(g(LABEL_AHEAD), table(0x605030), front);
         let eax = get(a + 0x630).wrapping_neg();
@@ -513,6 +509,7 @@ pub unsafe fn panel_motion() -> Left {
 /// second block, ebp its count (if any), ecx the last count when a loop ran, eax the last
 /// value written.
 pub unsafe fn panel_marks() -> Left {
+    // Converted: `rc2k_core::race::frame::view_marks`.
     use crate::framework::EBP;
     unsafe {
         for a in [
@@ -523,17 +520,18 @@ pub unsafe fn panel_marks() -> Left {
         let mut left = Left::nothing();
         for (view, base, marks) in [(0, 0x6D14B2, 0x6D14A2), (1, 0x6D14C6, 0x6D14B6)] {
             let b: u32 = game_read(VIEW_BLOCKS[view]);
-            let mut eax = 0x190u32.wrapping_add(get(b + 0xFA0));
-            put(g(base), eax);
-            let mut n = get(b + 0xF98);
-            left = left.with(ESI, b).with(EBP, n);
-            if n != 0 {
-                n = n.min(4);
-                for k in 0..n {
-                    eax = get(b + 0xF78 + 4 * k).wrapping_add(1);
+            let offset = get(b + 0xFA0);
+            let count = get(b + 0xF98);
+            let m = rc2k_core::race::frame::view_marks(offset, count, |k| get(b + 0xF78 + 4 * k));
+            put(g(base), m.base);
+            let mut eax = m.base;
+            left = left.with(ESI, b).with(EBP, count);
+            if count != 0 {
+                for k in 0..m.shown {
+                    eax = m.marks[k as usize];
                     put(g(marks) + 4 * k, eax);
                 }
-                left = left.with(EBP, n).with(ECX, n);
+                left = left.with(EBP, m.shown).with(ECX, m.shown);
             }
             left = left.with(EAX, eax);
         }
@@ -646,9 +644,7 @@ pub unsafe fn check_split_colours() -> Result<(), Refused> {
         let fill: u32 = game_read(MARK_COUNT_RVA);
         for view in VIEW_BLOCKS {
             let n = get(game_read::<u32>(view) + 0x90);
-            if fill > MARK_BUFFER_DWORDS || (n as i32 > 0 && n > MARK_BUFFER_DWORDS) {
-                return Err(BadInput("a count past the colour buffer's 0x40 dwords").into());
-            }
+            rc2k_core::race::frame::check_split_colours(fill, n)?;
         }
         Ok(())
     }
@@ -725,7 +721,8 @@ const LIMIT_RVA: usize = rva(0x71C6D4); // dword_71C6D4
 
 /// `race::hold_to_limit` (0x4650A9): eax held to `dword_71C6D4` (unsigned).
 pub fn hold_to_limit(eax: u32) -> u32 {
-    eax.min(unsafe { game_read(LIMIT_RVA) })
+    // Converted: `rc2k_core::race::frame::hold_to_limit`.
+    rc2k_core::race::frame::hold_to_limit(eax, unsafe { game_read(LIMIT_RVA) })
 }
 
 pub const SORT_COUNT_RVA: usize = rva(0x63DC50); // dword_63DC50
@@ -742,14 +739,13 @@ pub unsafe fn add_sort_entry(eax: u32, ebx: u32) -> Result<Left, Refused> {
         if n >= SORT_MAX {
             return Err(BadInput("a sort entry past the 0x1000").into());
         }
+        // Converted: `rc2k_core::race::frame::sort_entry`.
+        let entry = rc2k_core::race::frame::sort_entry(eax, ebx);
         let at = g(0x9DB730) + 8 * n;
-        put(at, 0);
+        put(at, entry.first.unwrap_or(0));
         put(at + 4, ebx);
-        let key = ebx & 0x7FFF_FFFF;
-        let mut left = Left::carry(false).with(EDX, n).with(EBX, key);
-        if key < 0x100_0000 {
-            let v = (eax << 16) | (key & 0xFFFF);
-            put(at, v);
+        let mut left = Left::carry(false).with(EDX, n).with(EBX, entry.key);
+        if let Some(v) = entry.first {
             left = left.with(EAX, v);
         }
         game_write(SORT_COUNT_RVA, n.wrapping_add(1));
@@ -764,30 +760,22 @@ pub unsafe fn add_sort_entry(eax: u32, ebx: u32) -> Result<Left, Refused> {
 /// below 0x40000000 as signed), the high (from 0xC0000000), else the larger. Leaves eax
 /// that, ebx the checkpoint, esi the face. The tables are read unchecked, as the original.
 pub unsafe fn checkpoint_colours() -> Left {
+    // Converted: `rc2k_core::race::frame::checkpoint_colours`.
     unsafe {
         let n: u32 = game_read(rva(0x71A070));
         let face = get(g(0x9E3738).wrapping_add(n.wrapping_mul(4)));
         let esi = (face << 6).wrapping_add(game_read(rva(0x5CCCBC)));
-        let byte = ((esi + 0x10) as *const u8).read() as u32;
-        let nibble = |v: u32| if v == 0 { 0x10 } else { v };
-        let low = nibble(byte & 0xF);
-        let high = nibble(byte >> 4 & 0xF);
-        game_write(rva(0x614D08), low);
-        game_write(rva(0x614D0C), high);
-        let d =
-            get(g(0x9ED808).wrapping_add(n.wrapping_mul(4))).wrapping_sub(game_read(rva(0x71A998)));
-        game_write(rva(0x614D10), d);
-        let e = (d as i32).wrapping_abs() as u32;
-        let e = e.wrapping_add(e);
-        let eax = if (e.wrapping_sub(0x4000_0000) as i32) < 0 {
-            low
-        } else if (e.wrapping_sub(0xC000_0000) as i32) >= 0 {
-            high
-        } else {
-            low.max(high)
-        };
-        game_write(rva(0x63F17C), eax);
-        Left::nothing().with(EAX, eax).with(EBX, n).with(ESI, esi)
+        let byte = ((esi + 0x10) as *const u8).read();
+        let along = get(g(0x9ED808).wrapping_add(n.wrapping_mul(4)));
+        let c = rc2k_core::race::frame::checkpoint_colours(byte, along, game_read(rva(0x71A998)));
+        game_write(rva(0x614D08), c.near);
+        game_write(rva(0x614D0C), c.far);
+        game_write(rva(0x614D10), c.distance);
+        game_write(rva(0x63F17C), c.level);
+        Left::nothing()
+            .with(EAX, c.level)
+            .with(EBX, n)
+            .with(ESI, esi)
     }
 }
 
@@ -960,13 +948,13 @@ pub unsafe fn course_grid(
     entry: &crate::framework::Regs,
 ) -> Result<crate::framework::Regs, Refused> {
     unsafe {
+        // Converted: `rc2k_core::race::frame::{hold_to_limit, grid_corner, record_cell,
+        // grid_cell}`.
+        use rc2k_core::race::frame::{GRID_EMPTY, GRID_SIDE, grid_cell, grid_corner, record_cell};
         let mut r = *entry;
         let half = hold_to_limit(game_read(GRID_REACH_RVA));
         let span = half.wrapping_add(half);
-        let x = ((game_read::<u32>(VIEW_X_RVA) as i32) >> 21) as u32;
-        let z = ((game_read::<u32>(VIEW_Z_RVA) as i32) >> 21) as u32;
-        r.eax = x.wrapping_sub(half);
-        r.ecx = z.wrapping_sub(half);
+        (r.eax, r.ecx) = grid_corner(game_read(VIEW_X_RVA), game_read(VIEW_Z_RVA), half);
         let unchanged =
             r.eax == game_read::<u32>(GRID_X_RVA) && r.ecx == game_read::<u32>(GRID_Z_RVA);
         let count: u32 = game_read(COURSE_RECORD_COUNT_RVA);
@@ -982,32 +970,32 @@ pub unsafe fn course_grid(
         game_write(GRID_X_RVA, gx);
         game_write(GRID_Z_RVA, gz);
         let grid = g(0x63E17C);
-        for k in 0..0x400 {
-            put(grid + 4 * k, 0x0FFF_FFFF);
+        for k in 0..GRID_SIDE * GRID_SIDE {
+            put(grid + 4 * k, GRID_EMPTY);
         }
         r.edi = grid + 0x1000;
         let records: u32 = game_read(COURSE_RECORDS_RVA);
         for n in 0..count {
             r.esi = (n << 5).wrapping_add(records);
             r.eax = get(r.esi);
-            if r.eax == u32::MAX {
+            let Some((cx, cz)) = record_cell(r.eax) else {
                 continue;
-            }
-            let cx = r.eax & 0x7FF;
-            let cz = r.eax >> 11 & 0x7FF;
+            };
             game_write(RECORD_X_RVA, cx);
             game_write(RECORD_Z_RVA, cz);
+            // The registers as the original leaves them at each test.
+            let column = cx.wrapping_sub(gx) & 0x7FF;
+            let row = cz.wrapping_sub(gz) & 0x7FF;
             r.ecx = cz;
-            r.eax = cx.wrapping_sub(gx) & 0x7FF;
-            if r.eax > span {
+            r.eax = column;
+            if column > span {
                 continue;
             }
-            r.ecx = cz.wrapping_sub(gz) & 0x7FF;
-            if r.ecx > span {
-                continue;
+            r.ecx = row;
+            if let Some(cell) = grid_cell(cx, cz, (gx, gz), span) {
+                r.ecx = cell;
+                put(grid.wrapping_add(4 * cell), n);
             }
-            r.ecx = r.ecx.wrapping_mul(0x20).wrapping_add(r.eax);
-            put(grid.wrapping_add(4 * r.ecx), n);
         }
         r.ebx = count;
         Ok(r)

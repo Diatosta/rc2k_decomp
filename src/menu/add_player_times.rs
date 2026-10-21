@@ -50,13 +50,16 @@ fn prepare(case: u32) {
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn add_player_times(entry: &Regs) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::menu::event::added_time`.
     for p in counted_players()? {
-        if get(p + 0xD0) == 1 {
-            put(p + 0x8C, get(p + 0x8C).wrapping_add(get(p + 0x88)));
+        let entered = get(p + 0xD0);
+        // The times are read only for a player that took part, as the original.
+        let (time, total) = if entered == 1 {
+            (get(p + 0x88), get(p + 0x8C))
         } else {
-            put(p + 0x88, 3_600_000);
-            put(p + 0x8C, 3_600_000);
-        }
+            (0, 0)
+        };
+        put_all(p, &rc2k_core::menu::event::added_time(entered, time, total));
     }
     Ok(*entry)
 }

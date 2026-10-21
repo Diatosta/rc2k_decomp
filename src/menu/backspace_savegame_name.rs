@@ -10,7 +10,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_write, hook_asm, rva};
 use crate::menu::name_lists::{NAME_LEN, SAVEGAME_PAGE_RVA, savegame_name};
-use crate::menu::text_entry::{LENGTH_RVA, length, set_length};
+use crate::menu::text_entry::{LENGTH_RVA, entry, length, put_entry, set_length};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
 use crate::service::state::MENU_ITEM_RVA;
@@ -36,16 +36,16 @@ hook_asm!(
 // ---- Rust version ----
 
 pub unsafe fn backspace_savegame_name() -> Result<(), BadInput> {
-    let len = length();
-    if len == 0 {
+    // Converted: `rc2k_core::menu::text_entry::Entry::backspace`.
+    if length() == 0 {
         return Ok(());
     }
     let name = savegame_name()?;
-    if !(0..NAME_LEN as i32).contains(&len) {
-        return Err(BadInput("text length outside the name"));
+    let mut e = entry();
+    if let Some(at) = e.backspace(NAME_LEN)? {
+        put_entry(&e);
+        unsafe { name.add(at).write(0) };
     }
-    set_length(len - 1);
-    unsafe { name.add(len as usize - 1).write(0) };
     Ok(())
 }
 

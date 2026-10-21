@@ -38,7 +38,7 @@ hook_asm!(
 // ---- game data ----
 
 pub const CONVERTERS_RVA: usize = rva(0x4F5288); // dword_4F5288
-pub const CONVERTER_COUNT: usize = 7;
+pub const CONVERTER_COUNT: usize = rc2k_core::gfx::converters::CONVERTERS;
 const HAS_MMX_RVA: usize = rva(0x5183A8); // dword_5183A8
 const HAS_3DNOW_RVA: usize = rva(0x5183B8); // dword_5183B8
 
@@ -51,19 +51,17 @@ const AMD: [usize; 4] = [rva(0x4072FB), rva(0x407377), rva(0x4073F7), rva(0x4074
 /// The table for a processor with or without the two instruction sets, as addresses in the
 /// game; 0 = no converter.
 pub fn converters(has_mmx: u32, has_3dnow: u32) -> [u32; CONVERTER_COUNT] {
-    let mut table = [0usize; CONVERTER_COUNT];
-    table[4] = COMPONENTS_TO_4444_ROWS;
-    table[5] = COPY_PIXEL_ROWS;
-    table[6] = COPY_PIXEL_ROWS;
-    if has_mmx == 1 {
-        table[1..5].copy_from_slice(if has_3dnow == 1 { &AMD } else { &MMX });
-    }
-    table.map(|entry| {
-        if entry == 0 {
-            0
-        } else {
-            game_addr(entry) as u32
-        }
+    // Converted: `rc2k_core::gfx::converters::converters`.
+    use rc2k_core::gfx::converters::Converter;
+    rc2k_core::gfx::converters::converters(has_mmx, has_3dnow).map(|entry| {
+        let at = match entry {
+            Converter::None => return 0,
+            Converter::Components4444 => COMPONENTS_TO_4444_ROWS,
+            Converter::CopyRows => COPY_PIXEL_ROWS,
+            Converter::Mmx(n) => MMX[n as usize - 1],
+            Converter::ThreeDNow(n) => AMD[n as usize - 1],
+        };
+        game_addr(at) as u32
     })
 }
 

@@ -17,8 +17,9 @@
 //! Self-test: a copy of the original (the clock and the queue the test's) against the
 //! core: counts 0 .. 7 with times behind and not, +0xFA0 about +0xF9C.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{EAX, ECX, EDI, ESI, RawHook, Regs, SelfTest, call_game, hook_asm, rva};
+use crate::physics::cells::{get, put};
 use crate::physics::queue_car_event::QueuePlaces;
 use crate::screens::harness::Left;
 use crate::service::harness::{capture, dispatch_state};
@@ -42,47 +43,21 @@ hook_asm!(
     original = ORIGINAL
 );
 
-unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
-}
-
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
-}
-
-/// The core (esi and edi after a shift: the events' eighth slot and the one after).
+/// The Rust version on the variables at `p` (esi and edi after a shift: the events'
+/// eighth slot and the one after).
+// Converted: `rc2k_core::physics::car_events::CarEvents::expire`.
 pub unsafe fn expire_car_events_at(p: &QueuePlaces) -> Result<Left, Refused> {
     unsafe {
-        if at(p.count) > 7 {
-            return Err(BadInput("a car event count above 7").into());
-        }
-        let mut left = Left::nothing();
-        while at(p.count) != 0 {
-            let behind = at(p.clock).wrapping_sub(at(p.times)).wrapping_sub(3000);
-            if (behind as i32) < 0 {
-                break;
-            }
-            for k in 0..7 {
-                put(p.times + 4 * k, at(p.times + 4 * k + 4));
-            }
-            for k in 0..7 {
-                put(p.events + 4 * k, at(p.events + 4 * k + 4));
-            }
-            put(p.count, at(p.count).wrapping_sub(1));
-            put(p.f9c, at(p.f9c).wrapping_add(0x20));
-            put(p.fa0, at(p.fa0).wrapping_add(0x40));
-            left = left.with(ESI, p.events + 0x20).with(EDI, p.events + 0x1C);
-        }
-        let target = at(p.f9c);
-        let mut eax = at(p.fa0);
-        if eax != target && (eax.wrapping_sub(target) as i32) >= 0 {
-            eax = eax.wrapping_sub(4);
-            if (eax.wrapping_sub(target) as i32) < 0 {
-                eax = target;
-            }
-        }
-        put(p.fa0, eax);
-        Ok(left.with(EAX, eax).with(ECX, 4))
+        let was = p.load();
+        let mut q = was;
+        let e = q.expire(get(p.clock))?;
+        p.store(&was, &q);
+        let left = Left::nothing().with(EAX, e.shown).with(ECX, 4);
+        Ok(if e.shifted {
+            left.with(ESI, p.events + 0x20).with(EDI, p.events + 0x1C)
+        } else {
+            left
+        })
     }
 }
 

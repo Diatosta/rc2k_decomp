@@ -47,9 +47,9 @@ pub unsafe fn reset_player_times(entry: &Regs) -> Result<Regs, Refused> {
     if (0..4).any(|n| player(n) == 0) {
         return Err(BadInput("a missing player").into());
     }
+    // Converted: `rc2k_core::menu::event::PLAYER_TIMES`.
     for n in 0..4 {
-        put(player(n) + 0x88, 3_600_000);
-        put(player(n) + 0xD0, 6);
+        put_all(player(n), &rc2k_core::menu::event::PLAYER_TIMES);
     }
     unsafe { game_write(FLAG_RVA, 0u32) };
     Ok(*entry)

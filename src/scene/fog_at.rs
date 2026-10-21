@@ -9,7 +9,7 @@
 //! Refuses a table length of 0 or past the table's 0x1000 bytes (the original reads past
 //! it). Its first five bytes hold a short jump: private copy, manual patch. Self-test: the original and the Rust version, depths by lot and at the edges.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
@@ -32,21 +32,15 @@ hook_asm!(
 
 const TABLE_RVA: usize = rva(0x63661C); // g_fogTable: 0x1000 bytes
 const LENGTH_RVA: usize = rva(0x63761C); // g_fogTableLength
-const TABLE_LEN: i32 = 0x1000;
 
 /// The Rust version (see the header).
 pub unsafe fn fog_at(depth: u32) -> Result<u32, Refused> {
-    let len: i32 = unsafe { game_read(LENGTH_RVA) };
-    if len <= 0 || len > TABLE_LEN {
-        return Err(BadInput("a fog table length of 0 or past the table").into());
-    }
-    let d = if (depth as i32) < 0 { 0 } else { depth };
-    let mut i = d >> 13;
-    if (i as i32).wrapping_sub(len) >= 0 {
-        i = (len - 1) as u32;
-    }
-    let byte: u8 = unsafe { game_read(TABLE_RVA + i as usize) };
-    Ok((u32::from(byte) << 24) ^ 0xFF00_0000)
+    // Converted: `rc2k_core::scene::fog::fog_at`.
+    Ok(rc2k_core::scene::fog::fog_at(
+        depth,
+        unsafe { game_read(LENGTH_RVA) },
+        |n| unsafe { game_read(TABLE_RVA + n) },
+    )?)
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

@@ -28,7 +28,6 @@ use crate::framework::{RawHook, Regs, hook_asm, rva};
 use crate::math::turn_float_point_xz::turn_float_point_xz;
 use crate::math::x87::mul;
 use crate::physics::contact_force::{RECORD, contact_force};
-use crate::physics::face_has_edge::has_edge;
 use crate::physics::flow::{a, base, copy3, g, guard, p, x87_run};
 use crate::physics::scene_point_hits_car::SCENE_POINTS;
 use crate::physics::touch_face::FACES;
@@ -36,6 +35,7 @@ use crate::physics::wall_contacts::{WALL_RECORD, regions, test_walls};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
 use crate::service::harness::dispatch_state;
+use rc2k_core::physics::faces::has_edge;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);

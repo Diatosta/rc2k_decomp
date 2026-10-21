@@ -57,24 +57,8 @@ pub unsafe fn release_voice(at: u32, a3d: bool) {
                 v.buffer = 0;
             }
         }
-        v.flags = 0;
-        v.data_key = 0;
-        v.source = 0;
-        v.next_copy = 0;
-        v.data = 0;
-        v.length = 0;
-        v.own_frequency = 44100;
-        v.format = 0;
-        v.frames = 0;
-        v.scale = 0x40;
-        v.priority = 0;
-        v.kind = 0;
-        v.state = 0;
-        v.dirty = 0;
-        v.channel = 0;
-        v.next = 0;
-        v.volume_factor = 0x40;
-        v.min_distance = 1.0f32.to_bits();
+        // Converted: `rc2k_core::audio::voices::empty`.
+        rc2k_core::audio::voices::empty(v);
     }
 }
 

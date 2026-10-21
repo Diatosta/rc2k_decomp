@@ -93,13 +93,9 @@ fn small_section() -> Result<u32, Refused> {
 
 pub fn count_stage_pages() -> Result<(), Refused> {
     let record = stage_record()?;
-    let mut n = 0u32;
-    while get(record + RECORD * (n + 1)) == 0 {
-        n += 1;
-        if n > 256 {
-            return Err(BadInput("more than 256 stage pages").into());
-        }
-    }
+    // Converted: `rc2k_core::menu::event::stage_pages`.
+    let n = rc2k_core::menu::event::stage_pages(|k| get(record + RECORD * k))
+        .ok_or(BadInput("more than 256 stage pages"))?;
     p(PAGES_RVA, n);
     Ok(())
 }

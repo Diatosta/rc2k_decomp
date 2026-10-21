@@ -2,7 +2,8 @@
 //! 0x405BB6, `components_to_pixel` 0x405C8A, `pixel_to_components` 0x405CFA,
 //! `blend_palette` 0x405F0A, `fade_colour` 0x44A4C5, `palette_to_dwords` 0x405DDE,
 //! `least_colour` 0x4053BC, `alpha_from_kept` 0x405443, `key_texture_colours` 0x40540C,
-//! `grade_texture` 0x4055A2, `halve_texture` 0x40545F).
+//! `grade_texture` 0x4055A2, `halve_texture` 0x40545F; 2026-10-21 also the brighter
+//! palette of `gfx::build_game_fonts` 0x41B178).
 //!
 //! The game works in "components": a dword whose bytes 0, 1, 2 are a colour and byte 3
 //! the alpha. A `PixelFormat` says how a surface's or texture's pixel holds them.
@@ -412,9 +413,27 @@ pub fn row_table(first: u32, step: u32, rows: usize) -> Vec<u32> {
         .collect()
 }
 
+/// `gfx::build_game_fonts`' second palette: a palette entry made brighter, its first
+/// component + 0x40, the second and third + 0x20, each stopping at 0xFF; the alpha kept.
+pub fn brighter(entry: u32) -> u32 {
+    let [a, b, c, d] = entry.to_le_bytes();
+    u32::from_le_bytes([
+        a.saturating_add(0x40),
+        b.saturating_add(0x20),
+        c.saturating_add(0x20),
+        d,
+    ])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn brighter_entries() {
+        assert_eq!(brighter(0x8010_E0D0), 0x8030_FFFF);
+        assert_eq!(brighter(0), 0x0020_2040);
+    }
 
     const RGB565: PixelFormat = PixelFormat {
         layout: 0x9810_081D,

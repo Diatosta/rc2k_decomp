@@ -15,6 +15,7 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::race::viewer::{check_original, dispatch_regs};
 use crate::service::harness::Region;
+use rc2k_core::menu::list_menu::{has_choices, rounds, unmarked};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -31,22 +32,21 @@ hook_asm!(
 
 /// The Rust version.
 pub unsafe fn list_clear_marks(list: u32) {
+    // Converted: `rc2k_core::menu::list_menu` (`unmarked`, `has_choices`, `rounds`).
     unsafe {
+        // Its count is a byte, but the original counts it down as a dword: 0 goes round
+        // 2^32 times.
         let mut count = ((list + 1) as *const u8).read() as u32;
         let mut item = (list + 0x18) as *mut u8;
         loop {
-            let kind = item.read() & 0x3F;
+            let kind = unmarked(item.read());
             item.write(kind);
-            if kind & 0xF == 2 {
-                let mut n = item.add(1).read();
-                let mut choice = ((item.add(0xC) as *const u32).read_unaligned() + 1) as *mut u8;
-                loop {
-                    choice.write(choice.read() & 0x3F);
-                    choice = choice.add(2);
-                    n = n.wrapping_sub(1);
-                    if n == 0 {
-                        break;
-                    }
+            if has_choices(kind) {
+                let n = rounds(item.add(1).read());
+                let choices = ((item.add(0xC) as *const u32).read_unaligned() + 1) as *mut u8;
+                for c in 0..n as usize {
+                    let choice = choices.add(2 * c);
+                    choice.write(unmarked(choice.read()));
                 }
             }
             item = item.add(0x10);

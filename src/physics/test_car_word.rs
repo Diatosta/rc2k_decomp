@@ -30,15 +30,16 @@ hook_asm!(
 
 const WORD_RVA: usize = rva(0x719FE4); // dword_719FE4: g_car + 0xC
 
-/// The Rust core on the word itself.
+/// The Rust version on the word itself.
+// Converted: `rc2k_core::physics::car_word::test_car_word`.
 pub fn test_word(word: u32, cl: u8) -> FlagResult {
-    let eax = word.rotate_left(u32::from(cl & 31)) & 0xFFFF;
+    let t = rc2k_core::physics::car_word::test_car_word(word, cl);
     FlagResult {
-        eax,
+        eax: t.value,
         ecx: None,
         ebx: None,
-        carry: eax == 0,
-        zero: Some(eax == 1),
+        carry: t.carry,
+        zero: Some(t.zero),
     }
 }
 

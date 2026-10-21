@@ -29,7 +29,8 @@ hook_asm!(
 
 /// True when the size gets no mip levels.
 pub fn no_mips_for(size: u32) -> bool {
-    (0x80..0x100).contains(&size) || size >= 0x140
+    // Converted: `rc2k_core::scene::textures::no_mips_for`.
+    rc2k_core::scene::textures::no_mips_for(size)
 }
 
 // ---- hook ----

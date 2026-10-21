@@ -1,5 +1,6 @@
 //! Moving the highlight about a menu (converted 2026-10-21 from the four
-//! `menu::move_highlight_*`): each item names its neighbours by number; a link of 0x6F is
+//! `menu::move_highlight_*`, and the turning objects' turn from `menu::step_carousel`
+//! 0x46989B): each item names its neighbours by number; a link of 0x6F is
 //! none, 0xFFFFFC1A "ask the item" (its callback for that direction runs instead). The two
 //! vertical moves go on along the same link until an item that can be chosen (its +0x48
 //! 0xFFFFFC1B); the two horizontal ones take one step and may first turn a counter.
@@ -47,6 +48,49 @@ pub fn turn(t: Turn, right: bool) -> Turn {
     t
 }
 
+/// The longest time a turn moves by, in ms.
+pub const LONGEST: u32 = 100;
+
+/// The time since the last turn (`clock - last`), held to `LONGEST`.
+pub fn passed(clock: u32, last: u32) -> u32 {
+    clock.wrapping_sub(last).min(LONGEST)
+}
+
+/// `sub_4904C7`: how far the angle moves from `from` in `passed` ms. Refused: a time so
+/// long that the division traps (above 0x71C71C6; `passed` keeps it from coming).
+fn spin_step(from: u32, passed: u32) -> Result<u32, Invalid> {
+    let moved = ((from >> 3) + 0x400_0000) as u64 * passed as u64 / 20;
+    u32::try_from(moved).map_err(|_| Invalid("a time so long that the division traps"))
+}
+
+/// `menu::step_carousel`'s turn (`sub_49044F`): while the way is not 0 the angle (`step`)
+/// moves by `spin_step`, down for a negative way, up (from the angle negated) for a
+/// positive one. Past zero it is 0 and the way 0; after a turn upwards the next object is
+/// in front (`value`), the first again after the last (`count`).
+pub fn spin(t: Turn, passed: u32) -> Result<Turn, Invalid> {
+    let mut t = t;
+    match t.way as i32 {
+        0 => {}
+        ..0 => {
+            let (left, passed_zero) = t.step.overflowing_sub(spin_step(t.step, passed)?);
+            (t.step, t.way) = if passed_zero { (0, 0) } else { (left, t.way) };
+        }
+        _ => {
+            let (left, passed_zero) = t
+                .step
+                .overflowing_add(spin_step(t.step.wrapping_neg(), passed)?);
+            if passed_zero {
+                (t.step, t.way) = (0, 0);
+                let front = t.value.wrapping_add(1);
+                t.value = if front == t.count { 0 } else { front };
+            } else {
+                t.step = left;
+            }
+        }
+    }
+    Ok(t)
+}
+
 /// Where a link leads.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Link {
@@ -83,6 +127,36 @@ pub fn walk(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn spinning() {
+        assert_eq!((passed(500, 300), passed(310, 300)), (100, 10));
+        let t = Turn {
+            count: 3,
+            value: 2,
+            way: 1,
+            step: 0xFFFF_FF00,
+        };
+        // Up from just below zero: past it at once, the first object in front again.
+        assert_eq!(
+            spin(t, 100),
+            Ok(Turn {
+                count: 3,
+                value: 0,
+                way: 0,
+                step: 0
+            })
+        );
+        let t = Turn {
+            way: u32::MAX,
+            step: 0x8000_0000,
+            ..t
+        };
+        let s = spin(t, 1).unwrap();
+        assert_eq!((s.step, s.way, s.value), (0x7F00_0000, u32::MAX, 2));
+        assert_eq!(spin(Turn { way: 0, ..t }, 100), Ok(Turn { way: 0, ..t }));
+        assert!(spin_step(0, 0x71C_71C7 + 100).is_err());
+    }
 
     #[test]
     fn navigation() {

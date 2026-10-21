@@ -40,25 +40,20 @@ pub unsafe fn reset_single_event(entry: &Regs) -> Result<Regs, Refused> {
     if (0..4).any(|n| player(n) == 0) {
         return Err(BadInput("a missing player").into());
     }
-    let drivers = entries(game_addr(DRIVERS_RVA) as u32, DRIVER)?;
+    let mut drivers = driver_table()?;
     unsafe {
         game_write(rva(0x755254), 0u32);
         game_write(rva(0x755950), 0u32);
     }
-    for e in drivers {
-        put(e + 0x10, 0);
-        put(e + 0xC, 0);
-        put(e + 0x20, 0);
-        put(e + 0x24, 1);
-    }
+    // Converted: `rc2k_core::menu::event::{DRIVER_BEGIN, PLAYER_BEGIN}`.
+    use rc2k_core::menu::event::{DRIVER_BEGIN, PLAYER_BEGIN};
+    drivers.store_all(&DRIVER_BEGIN);
     unsafe {
         game_write(rva(0x75592C), 1u32);
         game_write(rva(0x755978), 0u32);
     }
     for n in (0..4).rev() {
-        put(player(n) + 0x8C, 0);
-        put(player(n) + 0x84, 0);
-        put(player(n) + 0xD0, 1);
+        put_all(player(n), &PLAYER_BEGIN);
     }
     Ok(*entry)
 }

@@ -27,6 +27,7 @@ use crate::memory::allocate::allocate;
 use crate::memory::free_list::free_list;
 use crate::memory::{MOST_HELD_RVA, MemoryList};
 use crate::redirect::RedirectedCopy;
+use rc2k_core::saves::tables::{MARKED, TABLES};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -55,12 +56,6 @@ pub const VARS_LEN: usize = 0x50;
 const LIST_RVA: usize = rva(0x7475D0); // stru_7475D0
 const RECORD_TABLE_RVA: usize = rva(0x735576); // g_recordTable
 const RECORD_LEN: usize = 0xA4;
-const ENTRY_LEN: u32 = 0x618;
-const TABLES: usize = 9;
-/// The tables that end with -1.
-const MARKED: [usize; 2] = [5, 6];
-/// More records than any table has.
-const MOST_RECORDS: usize = 0x1000;
 
 /// Where table `n`'s address is among the variables; its size follows.
 pub fn pair(vars: *mut u32, n: usize) -> *mut u32 {
@@ -72,26 +67,16 @@ pub fn pair(vars: *mut u32, n: usize) -> *mut u32 {
 /// `saves::count_stages` (0x47C95D): the records with tag 0, up to the table's -1 (the
 /// first record is not looked at for the end).
 pub unsafe fn count_stages(table: *const u8) -> Result<u32, BadInput> {
-    let mut stages = 0;
-    for n in 0..MOST_RECORDS {
-        unsafe {
-            if (table.add(n * RECORD_LEN) as *const u32).read_unaligned() == 0 {
-                stages += 1;
-            }
-            if (table.add((n + 1) * RECORD_LEN) as *const u32).read_unaligned() == u32::MAX {
-                return Ok(stages);
-            }
-        }
-    }
-    Err(BadInput("a record table without its end"))
+    // Converted: `rc2k_core::saves::tables::count_stages`.
+    Ok(rc2k_core::saves::tables::count_stages(|n| unsafe {
+        (table.add(n as usize * RECORD_LEN) as *const u32).read_unaligned()
+    })?)
 }
 
-/// The nine sizes for a table with that many stages.
+/// The nine sizes for a table with that many stages. Converted:
+/// `rc2k_core::saves::tables::sizes`.
 pub fn sizes(stages: u32) -> [u32; TABLES] {
-    let entries = stages.wrapping_mul(ENTRY_LEN);
-    [
-        0x1C20, 0xBB8, entries, 0x15E0, 0xDB60, 0x4C2C4, 0x3A984, 0xDB60, entries,
-    ]
+    rc2k_core::saves::tables::sizes(stages)
 }
 
 pub unsafe fn allocate_best_times(

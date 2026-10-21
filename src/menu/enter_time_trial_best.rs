@@ -45,6 +45,7 @@ const STAGE_SLOT: usize = 0x7559EC; // dword_7559EC
 const HHMM: usize = 0x7559F0; // hhmm
 
 pub unsafe fn enter_time_trial_best(entry: &Regs) -> Result<(), Refused> {
+    use rc2k_core::menu::bests;
     let record = stage_record()?;
     let tenth = stage_times()? + crate::menu::time_trial_qualifies::TENTH;
     let p = current_player()?;
@@ -54,14 +55,7 @@ pub unsafe fn enter_time_trial_best(entry: &Regs) -> Result<(), Refused> {
     }
     let slot = dword(record + 0x3C);
     set(STAGE_SLOT, slot);
-    put(tenth + 0x14, dword(p + 0x88));
-    put(tenth + 0x1C, dword(p + 0x90));
-    put(tenth + 8, dword(p + 4));
-    put(tenth + 0xC, name);
-    put(tenth + 0x10, dword(p + 8));
-    put(tenth + 4, 1);
-    put(tenth + 0x40, 1);
-    put(tenth + 0x50, get(CHEATS));
+    let cheats = get(CHEATS);
     let sealed = unsafe {
         crate::menu::sealed_player_time::sealed_player_time(&Regs {
             eax: slot,
@@ -71,16 +65,24 @@ pub unsafe fn enter_time_trial_best(entry: &Regs) -> Result<(), Refused> {
             ..*entry
         })?
     };
-    put(tenth + 0x54, sealed.eax);
-    put(tenth + 0x58, sealed.ebx);
-    put(tenth + 0x20, name);
-    unsafe {
-        std::ptr::copy((p + 0x20C) as *const u8, (tenth + 0x5C) as *mut u8, 0x40);
-        let name = dword(tenth + 0xC);
-        for k in 0..0x1F {
-            *((tenth + 0x20 + k) as *mut u8) = *((name + k) as *const u8);
-        }
-    }
+    // Converted: `rc2k_core::menu::bests::enter_tenth`, then `rank_time_trial_best`.
+    use crate::menu::standings::bytes;
+    let best = bests::NewBest {
+        key: dword(p + 0x88),
+        player: 1,
+        nationality: dword(p + 4),
+        name_at: name,
+        car: dword(p + 8),
+        group: dword(p + 0x90),
+        name: bytes(name),
+        entered: None,
+        seal: Some(bests::Seal {
+            cheats,
+            sealed: [sealed.eax, sealed.ebx],
+        }),
+        line: Some(bytes(p + 0x20C)),
+    };
+    bests::enter_tenth(&mut crate::menu::rank_time_trial_best::stage_list()?, &best);
     crate::menu::rank_time_trial_best::rank_time_trial_best()
 }
 

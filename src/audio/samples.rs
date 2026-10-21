@@ -10,7 +10,7 @@
 //! bits how many times the data was halved (the frequency is shifted right by them).
 
 use crate::audio::voices::*;
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, rva};
 
 pub const SAMPLE_FILE_RVA: usize = rva(0x506938); // g_sampleFile
@@ -129,72 +129,25 @@ pub unsafe fn fill_voice(
     file: &SampleFile,
     sound_mode: u32,
 ) -> Result<(), Refused> {
-    unsafe {
-        let record = *(record_at as *const SampleRecord);
-        if shared != 0 {
-            // The record's chain, to find its end, before anything is written.
-            if record.first_voice == 0 {
-                return Err(BadInput("a shared voice for a record without voices").into());
-            }
-            let mut last = record.first_voice;
-            let mut steps = 0;
-            while last != at && voice(last).next_copy != 0 {
-                last = voice(last).next_copy;
-                steps += 1;
-                if steps > VOICES {
-                    return Err(BadInput("a record's voices without their end").into());
-                }
-            }
-            let s = *voice(shared);
-            let v = voice(at);
-            v.data = s.data;
-            v.length = s.length;
-            v.format = s.format;
-            v.frames = s.frames;
-            v.own_frequency = s.own_frequency;
-            v.source = shared;
-            if last != at {
-                voice(last).next_copy = at;
-            }
-            v.next_copy = 0;
-            v.data_key = 0;
-        } else {
-            let v = voice(at);
-            v.data = file.data;
-            v.length = file.length;
-            v.format = file.format;
-            v.frames = file.frames;
-            v.own_frequency = file.rate;
-            v.source = 0;
-            v.next_copy = 0;
-            v.data_key = record.data_key;
-        }
-        let v = voice(at);
-        v.flags = if sound_mode & 0x1_0000 != 0 { 1 } else { 2 };
-        v.sound = record.number;
-        v.kind = record.voice_kind;
-        v.scale = record.scale;
-        v.priority = record.priority as i32;
-        v.volume = record.volume;
-        v.pan = record.pan as u8 as i8 as i32;
-        v.pan_sign = 0;
-        v.frequency = if record.frequency == OWN_FREQUENCY {
-            v.own_frequency
-        } else {
-            record.frequency
-        };
-        v.place = record.place;
-        v.min_distance = record.min_distance;
-        v.volume_factor = if record.volume_factor != 0 {
-            dword(record.volume_factor)
-        } else {
-            0x40
-        };
-        v.state = 0;
-        v.dirty |= 0xF;
-        v.channel = 0;
-        v.next = 0;
-    }
+    // Converted: `rc2k_core::audio::voices::fill_voice`.
+    let record = unsafe { *(record_at as *const SampleRecord) };
+    let from_file = rc2k_core::audio::voices::FileSample {
+        data: file.data,
+        length: file.length,
+        format: file.format,
+        frames: file.frames,
+        rate: file.rate,
+    };
+    let mut pool = unsafe { crate::audio::voices::GamePool::new(&World::game()) };
+    rc2k_core::audio::voices::fill_voice(
+        &mut pool,
+        at,
+        &record,
+        shared,
+        &from_file,
+        sound_mode & 0x1_0000 != 0,
+        |factor| unsafe { dword(factor) },
+    )?;
     Ok(())
 }
 

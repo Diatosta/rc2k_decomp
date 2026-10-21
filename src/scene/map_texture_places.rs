@@ -14,7 +14,7 @@
 use crate::errors::Refused;
 use crate::framework::{EAX, ECX, EDI, RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
 use crate::scene::textures::{
-    PLACE_SLOT_RVA, PLACES, SLOTS, TEXTURE_PLACE_RVA, WANTED_RVA, entry, table, test_table,
+    PLACE_SLOT_RVA, PLACES, SLOTS, TEXTURE_PLACE_RVA, WANTED_RVA, slice, table, test_table,
     write_table,
 };
 use crate::screens::harness::Left;
@@ -36,20 +36,13 @@ hook_asm!(
 // ---- Rust version ----
 
 pub unsafe fn map_texture_places() -> Left {
+    // Converted: `rc2k_core::scene::textures::map_places`.
     unsafe {
-        let mut slots = vec![u32::MAX; PLACES as usize];
-        let mut eax = u32::MAX;
-        for slot in (0..SLOTS).rev() {
-            eax = entry(WANTED_RVA, slot);
-            if eax >= 0x400 {
-                continue;
-            }
-            eax = entry(TEXTURE_PLACE_RVA, eax);
-            if eax < PLACES {
-                slots[eax as usize] = slot;
-            }
-        }
-        write_table(PLACE_SLOT_RVA, &slots);
+        let eax = rc2k_core::scene::textures::map_places(
+            slice(WANTED_RVA, SLOTS),
+            slice(TEXTURE_PLACE_RVA, SLOTS),
+            slice(PLACE_SLOT_RVA, PLACES),
+        );
         Left::nothing()
             .with(EAX, eax)
             .with(ECX, u32::MAX)

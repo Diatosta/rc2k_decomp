@@ -79,16 +79,6 @@ unsafe fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
 }
 
-/// a + (b - a) * t / 65536 as `imul` / `shrd 16` / `add` make it; and edx (the product's
-/// high half).
-fn lerp(a: u32, b: u32, t: u32) -> (u32, u32) {
-    let product = b.wrapping_sub(a) as i32 as i64 * t as i32 as i64;
-    (
-        ((product >> 16) as u32).wrapping_add(a),
-        (product >> 32) as u32,
-    )
-}
-
 /// `race::place_car_on_line` (0x44666F): checkpoint `dword_6365E4` (held below
 /// `g_checkpointCount`) and the next (held so too); their faces' first points and their
 /// headings (`dword_9ED808`) blended by `dword_6365EC` / 65536 into `dword_5CCDA0` /
@@ -97,19 +87,11 @@ fn lerp(a: u32, b: u32, t: u32) -> (u32, u32) {
 /// product's high half, ebx and esi the second point's number and address, ebp the
 /// first's. Refuses no checkpoints (the original reads entry -1) or more than the lists.
 pub unsafe fn place_car_on_line(entry: &Regs) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::checkpoints::{line_neighbours, lerp}`.
+    use rc2k_core::race::checkpoints::{lerp, line_neighbours};
     let count = count()?;
-    if count == 0 {
-        return Err(BadInput("no checkpoints to place the car between").into());
-    }
     unsafe {
-        let mut c: u32 = game_read(LINE_PLACE_RVA);
-        if c >= count {
-            c = count - 1;
-        }
-        let mut n = c.wrapping_add(1);
-        if n >= count {
-            n = count - 1;
-        }
+        let (c, n) = line_neighbours(game_read(LINE_PLACE_RVA), count)?;
         let t: u32 = game_read(LINE_FRACTION_RVA);
         let (face, _, _, a) = check_point(c);
         game_write(PLACE_FACE_RVA, face);
@@ -202,20 +184,16 @@ pub unsafe fn nearest_checkpoint_in(entry: &Regs) -> Result<Regs, Refused> {
     if steps > MOST_CHECKS {
         return Err(BadInput("more measures than checkpoints").into());
     }
-    let mut g = Regs {
-        ebp: 0,
-        edi: u32::MAX,
-        ..*entry
-    };
+    // Converted: `rc2k_core::race::checkpoints::Nearest`.
+    let mut nearest = rc2k_core::race::checkpoints::Nearest::default();
+    let mut g = *entry;
     loop {
         g = unsafe { distance_to_checkpoint(&g) }?;
-        let d: u32 = unsafe { game_read(SCRATCH_RVA) };
-        if d <= g.edi {
-            g.edi = d;
-            g.ebp = g.ecx;
-        }
+        nearest.consider(g.ecx, unsafe { game_read(SCRATCH_RVA) });
         g.ecx = g.ecx.wrapping_add(1);
         if g.ecx >= g.edx {
+            g.ebp = nearest.checkpoint;
+            g.edi = nearest.distance;
             return Ok(g);
         }
     }

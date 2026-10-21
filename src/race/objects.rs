@@ -37,7 +37,8 @@ const CAR_SLOT_STEP: u32 = 0x14;
 /// `race::car_kind_10` (0x41F4A1) and `race::car_kind_11` (0x41F485): a car's entry of
 /// one of the two tables (the car held to 0 .. 0x21).
 pub fn car_table(table: usize, car: u32) -> u32 {
-    let n = (car as i32).clamp(0, 0x21) as usize;
+    // Converted: `rc2k_core::race::cars::table_entry`.
+    let n = rc2k_core::race::cars::table_entry(car);
     unsafe { game_read(table + 4 * n) }
 }
 

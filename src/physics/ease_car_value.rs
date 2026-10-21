@@ -12,8 +12,10 @@
 
 use crate::errors::Refused;
 use crate::framework::{EAX, RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
+use crate::physics::cells::{get, put_changed};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, dispatch_state};
+use rc2k_core::physics::easing::ease_value;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -31,32 +33,16 @@ hook_asm!(
 /// The variables (IDA addresses): the block, the jump switch, the target, the value.
 const VARIABLES: [usize; 4] = [0x6235E8, 0x71AF88, 0x71AF90, 0x71AF94];
 
-unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
-}
-
-/// The Rust core on the variables at `v`; `r` as the original leaves it.
+/// The Rust version on the variables at `v`; `r` as the original leaves it.
+// Converted: `rc2k_core::physics::easing::ease_value`.
 pub unsafe fn ease_at(v: &[u32; 4], r: &mut Regs) {
     unsafe {
-        if at(v[0]) != 0 {
-            return;
+        let was = get(v[3]);
+        let mut value = was;
+        if let Some(eax) = ease_value(get(v[0]), get(v[1]), get(v[2]), &mut value) {
+            r.eax = eax;
         }
-        r.eax = at(v[2]) << 8;
-        let value = v[3] as *mut u32;
-        if at(v[1]) != 0 {
-            value.write_unaligned(r.eax);
-            return;
-        }
-        let now = value.read_unaligned();
-        if r.eax == now {
-            return;
-        }
-        let step = if (r.eax.wrapping_sub(now) as i32) >= 0 {
-            4u32
-        } else {
-            4u32.wrapping_neg()
-        };
-        value.write_unaligned(now.wrapping_add(step));
+        put_changed(v[3], was, value);
     }
 }
 

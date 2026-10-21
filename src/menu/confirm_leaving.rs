@@ -35,33 +35,22 @@ hook_asm!(
 
 // ---- game data ----
 
-const ANSWER_RVA: usize = rva(0x75524C); // g_yesNoAnswer
-const GO_ON_RVA: usize = rva(0x75555D); // dword_75555D
-const LEAVE_RVA: usize = rva(0x755561); // dword_755561
-const SET_UP_AGAIN_RVA: usize = rva(0x758806); // dword_758806
+use crate::menu::leaving::{
+    ANSWER_RVA, ANSWERED_RVA as SET_UP_AGAIN_RVA, LEAVE_EVENT_RVA as GO_ON_RVA,
+    LEAVE_SCREEN_RVA as LEAVE_RVA, with_question,
+};
 const QUESTION_RVA: usize = rva(0x47FA94); // menu::leave_question_loop
 
 // ---- Rust version ----
 
 /// `ask` stands for the question's screen.
 pub unsafe fn confirm_leaving(r: &mut Regs, ask: &mut dyn FnMut(&mut Regs)) {
-    unsafe {
-        game_write(ANSWER_RVA, 0u32);
-        ask(r);
-        if game_read::<u32>(SET_UP_AGAIN_RVA) == 1 {
-            game_write(GO_ON_RVA, 0u32);
-            game_write(LEAVE_RVA, 0u32);
-            game_write(SET_UP_AGAIN_RVA, 0u32);
-            game_write(ANSWER_RVA, 0u32);
-        }
-        let answer: u32 = game_read(ANSWER_RVA);
-        if answer == 1 {
-            game_write(GO_ON_RVA, 1u32);
-            game_write(LEAVE_RVA, 1u32);
-        }
-        r.set_carry(answer < 1);
-        r.set_zero(answer == 1);
-    }
+    // Converted: `rc2k_core::menu::leaving::Question` (`begin`, `confirm`).
+    with_question(|q, _| q.begin());
+    ask(r);
+    let answer = with_question(|q, l| q.confirm(l));
+    r.set_carry(answer < 1);
+    r.set_zero(answer == 1);
 }
 
 // ---- hook ----

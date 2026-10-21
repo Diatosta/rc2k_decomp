@@ -26,10 +26,6 @@ pub const MOST_FACES: u32 = 0x10_0000;
 /// The records the course memory's first part (0xF00000 bytes) can hold.
 pub const MOST_RECORDS: u32 = 0x7_8000;
 
-unsafe fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
-}
-
 unsafe fn put(at: u32, value: u32) {
     unsafe { (at as *mut u32).write_unaligned(value) };
 }
@@ -37,13 +33,14 @@ unsafe fn put(at: u32, value: u32) {
 /// `race::set_cdat_number` (0x4456DD): al's two digits (`div 10`, + '0') into both cdat
 /// paths. Leaves eax the tens' digit, edx the units', ebx 10.
 pub unsafe fn set_cdat_number(entry: &Regs) -> Regs {
+    // Converted: `rc2k_core::race::stage::two_digits`.
     let mut g = *entry;
-    let n = g.eax & 0xFF;
-    g.eax = n / 10 + 0x30;
-    g.edx = n % 10 + 0x30;
+    let digits = rc2k_core::race::stage::two_digits(g.eax as u8);
+    g.eax = digits[0] as u32;
+    g.edx = digits[1] as u32;
     g.ebx = 10;
     for at in CDAT_DIGITS {
-        unsafe { game_write(at, [g.eax as u8, g.edx as u8]) };
+        unsafe { game_write(at, digits) };
     }
     g
 }
@@ -106,6 +103,8 @@ pub unsafe fn reset_face_lights(entry: &Regs) -> Result<Regs, Refused> {
 /// placed, ebp the last kind's high part. Refuses more records than the course memory's
 /// first part holds.
 pub unsafe fn group_records_by_kind(entry: &Regs) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::stage::group_by_kind`; the records read whole (every
+    // one is swapped into place, so the original reads them all).
     let mut g = *entry;
     unsafe {
         let count: u32 = game_read(RECORD_COUNT_RVA);
@@ -113,44 +112,28 @@ pub unsafe fn group_records_by_kind(entry: &Regs) -> Result<Regs, Refused> {
             return Err(BadInput("more records than the course memory holds").into());
         }
         let records: u32 = game_read(RECORDS_RVA);
+        let at = records as *mut [u32; 8];
+        let mut list: Vec<[u32; 8]> = (0..count as usize)
+            .map(|n| at.add(n).read_unaligned())
+            .collect();
+        let grouped = rc2k_core::race::stage::group_by_kind(&mut list, |r| r[0]);
+        for (n, r) in list.iter().enumerate() {
+            at.add(n).write_unaligned(*r);
+        }
         let first = game_addr(KIND_TABLES_RVA) as u32;
         let last = first + 4 * KINDS;
-        std::ptr::write_bytes(first as *mut u8, 0xFF, KIND_TABLES_LEN);
-        g.esi = records;
-        g.edi = records;
-        g.edx = 0;
         for kind in 0..KINDS {
-            g.ebx = g.edx;
-            put(first + 4 * kind, g.edx);
-            if g.ebx != count {
-                loop {
-                    g.esi = records.wrapping_add(g.ebx << 5);
-                    let d = get(g.esi);
-                    g.ebp = ((d >> 11) & 0xF) << 4;
-                    g.eax = (d & 0xF) + g.ebp;
-                    if g.eax == kind {
-                        for _ in 0..8 {
-                            g.eax = get(g.esi);
-                            let other = get(g.edi);
-                            put(g.edi, g.eax);
-                            put(g.esi, other);
-                            g.esi += 4;
-                            g.edi += 4;
-                        }
-                        g.edx += 1;
-                    }
-                    g.ebx += 1;
-                    if g.ebx == count {
-                        break;
-                    }
-                }
-            }
-            g.eax = g.edx.wrapping_sub(1);
-            put(last + 4 * kind, g.eax);
-            if (g.eax.wrapping_sub(get(first + 4 * kind)) as i32) < 0 {
-                put(first + 4 * kind, u32::MAX);
-                put(last + 4 * kind, u32::MAX);
-            }
+            put(first + 4 * kind, grouped.first[kind as usize]);
+            put(last + 4 * kind, grouped.last[kind as usize]);
+        }
+        g.edx = grouped.placed;
+        g.eax = grouped.placed.wrapping_sub(1);
+        g.ebx = count;
+        g.edi = records.wrapping_add(grouped.placed << 5);
+        g.esi = records;
+        if let Some(l) = grouped.looked {
+            g.esi = records.wrapping_add(l.index << 5) + if l.swapped { 0x20 } else { 0 };
+            g.ebp = ((l.word >> 11) & 0xF) << 4;
         }
         g.ecx = KINDS;
     }

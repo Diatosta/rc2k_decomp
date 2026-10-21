@@ -31,14 +31,12 @@ const FIELDS: [u32; 6] = [0x24, 0x2C, 0x20, 0x54, 0x58, 0x50];
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn tenths(entry: &Regs) -> Regs {
+    // Converted: `rc2k_core::hud::tenths::tenths`.
     let mut g = *entry;
-    for (n, f) in FIELDS.into_iter().enumerate() {
-        let v = unsafe { ((g.ebp + f) as *const i32).read_unaligned() };
-        // `idiv` by 10 (no quotient can overflow)
-        let (q, r) = (v.wrapping_div(10), v.wrapping_rem(10));
-        unsafe { game_write(OUT_RVA + 4 * n, q as u32) };
-        [g.eax, g.edx, g.ebx] = [q as u32, r as u32, 10];
-    }
+    let times = FIELDS.map(|f| unsafe { ((g.ebp + f) as *const i32).read_unaligned() });
+    let (tenths, remainder) = rc2k_core::hud::tenths::tenths(times);
+    unsafe { game_write(OUT_RVA, tenths) };
+    [g.eax, g.edx, g.ebx] = [tenths[5] as u32, remainder as u32, 10];
     g
 }
 
