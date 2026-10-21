@@ -157,7 +157,6 @@ pub const DRAW_TIME: u32 = 0x402395; // text::draw_time_text
 pub const DRAW_TEXT: u32 = 0x4023D5; // text::draw_text
 pub const ALLOCATE: u32 = 0x4028A7; // memory::allocate
 pub const MAYBE_LEXICON: u32 = 0x403555; // strings::maybe_compile_lexicon
-pub const COMPILE_LEXICON: u32 = 0x40356E; // strings::compile_lexicon
 pub const SET_MENU_MODE: u32 = 0x404823; // gfx::set_menu_screen_mode
 pub const SET_RACE_MODE: u32 = 0x404830; // race::set_race_screen_mode
 pub const SHOW_FRAME: u32 = 0x4057D1; // gfx::show_frame

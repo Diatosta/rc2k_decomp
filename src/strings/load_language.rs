@@ -40,38 +40,14 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::file_exists::file_exists;
 use crate::files::read_first_match::read_first_match;
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::input::key_to_char::{LAYOUT_A_RVA, LAYOUT_RVA};
-use crate::menu::frame_test;
-use crate::redirect::RedirectedCopy;
-use crate::service::harness::{Region, at, capture, restore};
 use crate::settings::find_key::LOWER_RVA;
 use crate::strings::append_string_by_id::push_string;
-use crate::strings::compile_lexicon::{compile_lexicon, compiled};
 use crate::strings::text_from_ids::text;
 use rc2k_core::strings::case::CaseTable;
 use rc2k_core::strings::language::Locale;
-use std::sync::atomic::AtomicUsize;
 use windows_sys::Win32::Globalization::GetSystemDefaultLCID;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("strings::load_language", rva(0x40331F), thunk, &ORIGINAL)
-    .private_copy(0x143)
-    .relocate_calls(&[
-        0x01, 0x3B, 0x40, 0x50, 0x89, 0x9A, 0xED, 0xF2, 0xF7, 0xFC, 0x121, 0x130,
-    ])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -99,7 +75,6 @@ const NEC_MARK_RVA: usize = rva(0x51BAE4); // dword_51BAE4
 const TABLES_UNITS_RVA: usize = rva(0x51B980); // dword_51B980 (`bundleheapsize`)
 const REGISTRATION_RVA: usize = rva(0x51B9E4); // dword_51B9E4
 const REGISTRATION_PROGRAM_RVA: usize = rva(0x51B9EC); // ";4ereg\eregip.exe"
-const COMPILE_LEXICON: usize = rva(0x40356E);
 
 // ---- Rust version ----
 
@@ -234,178 +209,4 @@ pub unsafe fn load_language(
         }
         Ok(())
     }
-}
-
-// ---- hook ----
-
-/// What the function writes, but for the lexicon; `text` is the text buffer's start.
-fn small_regions() -> Vec<Region> {
-    let mut regions = vec![
-        at(STRING_TABLE_RVA),
-        (game_addr(LOCALE_RVA) as u32, LOCALE_LEN),
-        (game_addr(KEYBOARD_RVA) as u32, KEYBOARD_LEN),
-        (game_addr(LOWER_RVA) as u32, 0x100),
-        (game_addr(PLAIN_LETTERS_RVA) as u32, 0x100),
-        at(UNITS_RVA),
-        at(NEC_MARK_RVA),
-        at(TABLES_UNITS_RVA),
-        at(REGISTRATION_RVA),
-        (text() as u32, 0x100),
-    ];
-    regions.extend(CAR_UNITS.map(at));
-    regions
-}
-
-/// With the lexicon's whole place, and the allocator's three figures.
-fn all_regions() -> Vec<Region> {
-    let mut regions = small_regions();
-    regions.push((game_addr(LEXICON_RVA) as u32, LEXICON_ROOM));
-    regions.push((game_addr(crate::memory::MOST_HELD_RVA) as u32, 12));
-    regions
-}
-
-/// Where two captures of `regions` first differ: (the region's address, the byte in it).
-fn first_difference(regions: &[Region], a: &[u8], b: &[u8]) -> Option<(u32, usize)> {
-    let mut byte = a.iter().zip(b).position(|(a, b)| a != b)?;
-    for &(address, len) in regions {
-        if byte < len {
-            return Some((address, byte));
-        }
-        byte -= len;
-    }
-    None
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    let mut compile = || unsafe { compile_lexicon() };
-    if !shadow() {
-        if let Err(e) = unsafe { load_language(&mut compile) } {
-            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-        }
-        return;
-    }
-    let regions = all_regions();
-    let before = capture(&regions);
-    let mine = unsafe { load_language(&mut compile) };
-    let left = capture(&regions);
-    restore(&regions, &before);
-    match mine {
-        Ok(()) => {
-            let mut o = *r;
-            unsafe { call_original(&mut o) };
-            let theirs = capture(&regions);
-            if theirs != left || !o.preserved_except(r, 0) {
-                HOOK.mismatch(|| {
-                    format!(
-                        "first difference (region, byte): {:x?}",
-                        first_difference(&regions, &theirs, &left)
-                    )
-                });
-            }
-        }
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-// ---- self-test ----
-
-const LEN: usize = 0x143;
-const ENTRY_BYTES: [u8; 8] = [0x60, 0xE8, 0x49, 0x02, 0x00, 0x00, 0xC7, 0x05];
-const CALLS: [usize; 9] = [0x01, 0x3B, 0x89, 0xED, 0xF2, 0xF7, 0xFC, 0x121, 0x130];
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // A lexicon as the compiler leaves it, before the corrections.
-    let fresh = match unsafe { compiled() } {
-        Ok(compiled) => compiled.table,
-        Err(_) => return t.skip("the language file does not compile"),
-    };
-    let copy = unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x40331F)),
-            LEN,
-            &ENTRY_BYTES,
-            &CALLS,
-            &|callee| (callee == COMPILE_LEXICON).then(|| frame_test::stand_in(0)),
-        )
-    };
-    let copy = match copy {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    let lexicon: Region = (game_addr(LEXICON_RVA) as u32, fresh.len());
-    let small = small_regions();
-    let mut regions = small.clone();
-    regions.push(lexicon);
-    let saved = capture(&regions);
-    let last = crate::files::stream::LastPath::save();
-    let search = capture(&[(game_addr(rva(0x4E05A4)) as u32, 0x144)]);
-
-    let before = Regs::SENTINEL;
-    let run = |rust: bool| unsafe {
-        restore(
-            &small,
-            &vec![0xAA; small.iter().map(|region| region.1).sum()],
-        );
-        // The text buffer is never left without an end.
-        text().add(0xFF).write(0);
-        std::ptr::copy(
-            fresh.as_ptr(),
-            game_addr(LEXICON_RVA) as *mut u8,
-            fresh.len(),
-        );
-        game_write(STRING_TABLE_RVA, game_addr(LEXICON_RVA) as u32);
-        frame_test::begin(u32::MAX, 0);
-        let done = if rust {
-            use crate::menu::screen_loop::Env;
-            let mut entry = before;
-            load_language(&mut || {
-                frame_test::Noting {
-                    places: &[(COMPILE_LEXICON, 0)],
-                }
-                .call(COMPILE_LEXICON, &mut entry);
-                Ok(())
-            })
-            .is_ok()
-        } else {
-            let mut ro = before;
-            call_game(&mut ro, copy.addr());
-            ro.preserved_except(&before, 0)
-        };
-        (done, frame_test::notes(), capture(&regions))
-    };
-    let (theirs, mine) = (run(false), run(true));
-    t.check(theirs == mine && theirs.0 && theirs.1.len() == 1, || {
-        format!(
-            "a fresh lexicon: original done={} compiles={}; rust done={} compiles={}; first difference (region, byte) {:x?}",
-            theirs.0,
-            theirs.1.len(),
-            mine.0,
-            mine.1.len(),
-            first_difference(&regions, &theirs.2, &mine.2)
-        )
-    });
-    // And what the game has had since its start is that too: the lexicon with its
-    // corrections, the locale, the two case tables.
-    let stable = [
-        lexicon,
-        (game_addr(LOCALE_RVA) as u32, LOCALE_LEN),
-        (game_addr(LOWER_RVA) as u32, 0x100),
-        (game_addr(PLAIN_LETTERS_RVA) as u32, 0x100),
-    ];
-    let now = capture(&stable);
-    restore(&regions, &saved);
-    restore(&[(game_addr(rva(0x4E05A4)) as u32, 0x144)], &search);
-    last.restore();
-    let had = capture(&stable);
-    t.check(now == had, || {
-        format!(
-            "the game's own tables against a fresh load: first difference (region, byte) {:x?}",
-            first_difference(&stable, &had, &now)
-        )
-    });
-    t.finish()
 }

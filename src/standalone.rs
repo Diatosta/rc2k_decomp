@@ -26,6 +26,7 @@
 //! Stand-ins, each to be replaced by a piece of the platform: see `stand_in` and
 //! `on_exception`.
 
+use crate::errors::Refused;
 use crate::framework::{
     CALL_REDIRECT, GameHook, LOG_PATH, Regs, STANDALONE, call_game, game_addr, game_read,
     game_write, log, rva,
@@ -583,10 +584,20 @@ unsafe fn start() {
         if game_read::<u32>(rva(0x5183EC)) != 1 {
             finish("fatal error 0x900010FF, FPU is required", 1);
         }
-        for address in [
-            0x410684, 0x416653, 0x416477, 0x416292, 0x413908, 0x4110C9, 0x40331F, 0x411239,
-            0x4103BE,
-        ] {
+        for address in [0x410684, 0x416653, 0x416477, 0x416292, 0x413908, 0x4110C9] {
+            call(address, &mut r);
+        }
+        // `strings::load_language` (0x40331F): Rust, its hook gone (it keeps every register).
+        log("standalone: start calls strings::load_language");
+        let compile = &mut || crate::strings::compile_lexicon::compile_lexicon();
+        match crate::strings::load_language::load_language(compile) {
+            Ok(()) => {}
+            Err(Refused::Fatal(error)) => crate::fatal::raise::raise(error, &r),
+            Err(Refused::BadInput(why)) => {
+                finish(&format!("strings::load_language refused: {}", why.0), 1)
+            }
+        }
+        for address in [0x411239, 0x4103BE] {
             call(address, &mut r);
         }
         if r.carry() {
