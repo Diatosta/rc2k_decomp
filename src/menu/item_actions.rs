@@ -67,8 +67,11 @@ pub unsafe fn show_intro(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 }
 
 pub fn previous_save_page() {
-    let page = g(SAVE_PAGE_RVA).wrapping_sub(1);
-    p(SAVE_PAGE_RVA, if (page as i32) < 0 { 9 } else { page });
+    // Converted: `rc2k_core::menu::steps::savegame_page`.
+    p(
+        SAVE_PAGE_RVA,
+        rc2k_core::menu::steps::savegame_page(g(SAVE_PAGE_RVA), false),
+    );
 }
 
 /// The steering (page 3) or brake (page 4) box.

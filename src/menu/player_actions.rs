@@ -35,6 +35,8 @@ use crate::framework::{
 use crate::menu::parts::{Part, copy, dispatch_parted, run_both, test_part};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use rc2k_core::menu::player::Player;
+use rc2k_core::menu::steps;
 
 const CURRENT_PLAYER_RVA: usize = rva(0x75598C); // g_currentPlayer
 const KEYS_RVA: usize = rva(0x7555B1); // unk_7555B1: 0x2C bytes
@@ -53,9 +55,6 @@ fn g(a: usize) -> u32 {
 fn p(a: usize, v: u32) {
     unsafe { game_write(a, v) }
 }
-fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
-}
 fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
 }
@@ -70,81 +69,89 @@ fn player() -> Result<u32, Refused> {
 
 // ---- the Rust versions ----
 
+// Converted: `rc2k_core::menu::player` (the player's fields) and `rc2k_core::menu::steps`
+// (`scores_page`, `replay_range`, `flip`).
+
+/// The current player's record changed by `f` (read, changed, written back whole).
+fn with_player<R>(f: impl FnOnce(&mut Player) -> R) -> Result<(u32, R), Refused> {
+    let at = player()?;
+    unsafe {
+        let mut p = (at as *const Player).read_unaligned();
+        let r = f(&mut p);
+        (at as *mut Player).write_unaligned(p);
+        Ok((at, r))
+    }
+}
+
 pub fn keep_player_keys() -> Result<(), Refused> {
-    let to = player()? + 0x50;
-    unsafe { std::ptr::copy(game_addr(KEYS_RVA) as *const u8, to as *mut u8, 0x2C) };
+    let controls = unsafe { game_read(KEYS_RVA) };
+    with_player(|p| p.controls_50 = controls)?;
     Ok(())
 }
 
 /// edi the player, eax the value left.
 pub fn lower_player_40() -> Result<(u32, u32), Refused> {
-    let pl = player()?;
-    let mut v = get(pl + 0x40);
-    if (v as i32) > 0 {
-        v -= 1;
-    }
-    put(pl + 0x40, v);
-    Ok((pl, v))
+    with_player(Player::lower_40)
 }
 
 pub fn lower_player_44() -> Result<(), Refused> {
-    let pl = player()?;
-    let v = get(pl + 0x44);
-    put(pl + 0x44, if v != 0 { v.wrapping_sub(1) } else { v });
+    with_player(Player::lower_44)?;
     Ok(())
 }
 
 pub fn raise_player_48() -> Result<(), Refused> {
-    let pl = player()?;
-    if get(pl + 0x48) != 100 {
-        put(pl + 0x48, get(pl + 0x48).wrapping_add(10));
-    }
+    with_player(|p| p.step_48(true))?;
     Ok(())
 }
 
 pub fn lower_player_48() -> Result<(), Refused> {
-    let pl = player()?;
-    if get(pl + 0x48) != 0 {
-        put(pl + 0x48, get(pl + 0x48).wrapping_sub(10));
-    }
+    with_player(|p| p.step_48(false))?;
     Ok(())
 }
 
 pub fn toggle_player_3c() -> Result<(), Refused> {
-    let pl = player()?;
-    put(pl + 0x3C, get(pl + 0x3C) ^ 1);
+    with_player(Player::toggle_3c)?;
     Ok(())
 }
 
 pub fn next_scores_page() {
-    let v = g(SCORES_PAGE_RVA).wrapping_add(1);
-    p(SCORES_PAGE_RVA, if (v as i32) < 11 { v } else { 0 });
+    p(
+        SCORES_PAGE_RVA,
+        steps::scores_page(g(SCORES_PAGE_RVA), true),
+    );
 }
 
 pub fn previous_scores_page() {
-    let v = g(SCORES_PAGE_RVA).wrapping_sub(1);
-    p(SCORES_PAGE_RVA, if (v as i32) < 0 { 10 } else { v });
+    p(
+        SCORES_PAGE_RVA,
+        steps::scores_page(g(SCORES_PAGE_RVA), false),
+    );
 }
 
 pub fn previous_replay_range() {
-    let v = g(REPLAY_RANGE_RVA).wrapping_sub(1);
-    p(REPLAY_RANGE_RVA, if (v as i32) < 0 { 4 } else { v });
+    p(
+        REPLAY_RANGE_RVA,
+        steps::replay_range(g(REPLAY_RANGE_RVA), false),
+    );
     unsafe { crate::screens::best_scores::replay_range_caption() };
 }
 
 pub fn next_replay_range() {
-    let v = g(REPLAY_RANGE_RVA).wrapping_add(1);
-    p(REPLAY_RANGE_RVA, if (v as i32) > 4 { 0 } else { v });
+    p(
+        REPLAY_RANGE_RVA,
+        steps::replay_range(g(REPLAY_RANGE_RVA), true),
+    );
     unsafe { crate::screens::best_scores::replay_range_caption() };
 }
 
 /// eax as `append_string_by_id` leaves it, ebx past the NUL.
 pub fn toggle_caption_choice() -> (u32, u32) {
-    let choice = g(CHOICE_RVA) ^ 1;
+    let choice = steps::flip(g(CHOICE_RVA));
     p(CHOICE_RVA, choice);
     let mut cursor = game_addr(CAPTION_RVA) as u32;
+    let caption = rc2k_core::screens::page_values::stage_options_caption(choice);
     let eax = unsafe {
-        crate::strings::append_string_by_id::append_string_by_id(0x4FC + choice, &mut |at, n| {
+        crate::strings::append_string_by_id::append_string_by_id(caption, &mut |at, n| {
             std::ptr::copy(at, cursor as *mut u8, n);
             cursor += n as u32;
         })

@@ -36,25 +36,23 @@ hook_asm!(
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn first_player_unplaced(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    g.ecx = 0;
-    for e in entries(g.edi, B_ENTRY)? {
-        g.edi = e;
-        if get(e + 0x10) == 0 {
-            continue;
-        }
-        if get(e + 4) != 0 {
-            g.edx = get(e + 0x70);
-            g.ecx = get(e + 4);
-            return Ok(g);
-        }
-        g.ecx += 1;
-    }
-    Err(crate::errors::FatalError {
-        code: 0x8070A0AE,
-        message: "Unable to locate player (find1stplayerinochamp)",
-    }
-    .into())
+    // Converted: `rc2k_core::menu::standings::first_player` (any group), ecx the player.
+    let found = crate::menu::standings::first_player(
+        &Regs {
+            ebx: rc2k_core::menu::standings::ANY_GROUP,
+            ..*entry
+        },
+        B_ENTRY,
+        0x10,
+        0x70,
+        0x8070A0AE,
+        "Unable to locate player (find1stplayerinochamp)",
+    )?;
+    Ok(Regs {
+        ecx: get(found.edi + 4),
+        ebx: entry.ebx,
+        ..found
+    })
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

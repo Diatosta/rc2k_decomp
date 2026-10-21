@@ -64,23 +64,20 @@ fn search(e: u32, wanted: impl Fn(u32) -> bool, none: FatalError) -> Result<u32,
     search_by(e, ENTRY_LEN, wanted, none)
 }
 
-/// `search` in entries of `len` bytes.
+/// `search` in entries of `len` bytes (converted: `rc2k_core::menu::standings::search`).
 fn search_by(
-    mut e: u32,
+    e: u32,
     len: u32,
     wanted: impl Fn(u32) -> bool,
     none: FatalError,
 ) -> Result<u32, Refused> {
-    for _ in 0..LIMIT {
-        if wanted(e) {
-            return Ok(e);
-        }
-        e = e.wrapping_add(len);
-        if get(e) == u32::MAX {
-            return Err(none.into());
-        }
+    use rc2k_core::menu::standings::{Found, search};
+    let at = |n: u32| e.wrapping_add(n.wrapping_mul(len));
+    match search(|n| get(at(n)), |n| wanted(at(n)), LIMIT) {
+        Found::At(n) => Ok(at(n)),
+        Found::End => Err(none.into()),
+        Found::NoEnd => Err(BadInput("a ranked list without its end in 0x400 entries").into()),
     }
-    Err(BadInput("a ranked list without its end in 0x400 entries").into())
 }
 
 /// `find_ranked_entry`'s Rust version: the entry of `class` at `position`.

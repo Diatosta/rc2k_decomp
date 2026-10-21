@@ -40,17 +40,22 @@ fn get(a: u32) -> u32 {
 
 /// The entry the original stops at.
 pub fn class_entry(list: u32, class: u32) -> Result<u32, BadInput> {
-    let mut e = list;
-    for _ in 0..LIMIT {
-        if get(e + 0x1C) == class {
-            return Ok(e);
-        }
-        e += ENTRY_LEN;
-        if get(e) == u32::MAX {
-            return Ok(e);
-        }
+    // Converted: `rc2k_core::menu::standings::search` (the end mark's entry when none).
+    use rc2k_core::menu::standings::{Found, search};
+    let at = |n: u32| list.wrapping_add(n.wrapping_mul(ENTRY_LEN));
+    let mut last = 0;
+    match search(
+        |n| {
+            last = n;
+            get(at(n))
+        },
+        |n| get(at(n) + 0x1C) == class,
+        LIMIT,
+    ) {
+        Found::At(n) => Ok(at(n)),
+        Found::End => Ok(at(last)),
+        Found::NoEnd => Err(BadInput("a list without its end in 0x400 entries")),
     }
-    Err(BadInput("a list without its end in 0x400 entries"))
 }
 
 /// The Rust version (see the header).

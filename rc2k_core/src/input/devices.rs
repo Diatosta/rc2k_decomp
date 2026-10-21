@@ -405,6 +405,27 @@ pub fn command_steps(
 /// another's history is empty gives 0x400 (left empty) / 0x800 (right) / 0x100 (y) /
 /// 0x200 (z) with the button; none empty, the button alone; else 0. The histories after,
 /// and what was found.
+/// The controller page's learning of a control (`dword_7551F4` .. `dword_7551FC`): on,
+/// when it began (the 3 s start), which control (1 .. 11).
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Learning {
+    pub on: u32,
+    pub started: u32,
+    pub control: u32,
+}
+
+impl Learning {
+    /// `menu::learn_binding_n`: control `control` learns from `now`.
+    pub fn start(control: u32, now: u32) -> Self {
+        Learning {
+            on: 1,
+            started: now,
+            control,
+        }
+    }
+}
+
 pub fn classify(buttons: u32, x: u32, y: u32, z: u32, history: [u32; 4]) -> ([u32; 4], u32) {
     let mut button = 0u32;
     if buttons != 0 {

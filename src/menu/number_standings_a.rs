@@ -52,24 +52,28 @@ pub unsafe fn number_standings_a(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     let first: u32 = unsafe { game_read(TABLE_A_RVA) };
     let all = entries(first, A_ENTRY)?;
-    for &e in &all {
+    // Converted: `rc2k_core::menu::standings::{Numbering, number}`.
+    use rc2k_core::menu::standings::{Numbering, number};
+    let which = Numbering::Group(g.ebx);
+    let groups: Vec<u32> = all.iter().map(|&e| get(e + 0x1C)).collect();
+    for (&e, &group) in all.iter().zip(&groups) {
         let p = get(e + 4);
-        if get(e + 0x1C) == g.ebx && p != 0 && (p > 4 || player(p - 1) == 0) {
+        if which.counts(group) && p != 0 && (p > 4 || player(p - 1) == 0) {
             return Err(BadInput("a standings player past 4 or missing").into());
         }
     }
     g.ecx = 0;
-    for &e in &all {
-        if get(e + 0x1C) != g.ebx {
+    for (&e, n) in all.iter().zip(number(&groups, which)) {
+        let Some(n) = n else {
             continue;
-        }
-        g.ecx += 1;
+        };
+        g.ecx = n;
         if get(e + 4) != 0 {
             g.eax = get(e + 4) - 1;
             g.esi = player(g.eax);
-            put(g.esi + 0x14C, g.ecx);
+            put(g.esi + 0x14C, n);
         }
-        put(e + 0x44, g.ecx);
+        put(e + 0x44, n);
     }
     g.edi = first + A_ENTRY * all.len() as u32;
     Ok(g)

@@ -3,7 +3,10 @@
 //! three first-player searches, and the arcade's `menu::sort_arcade_stage_times` 0x48A0CE,
 //! `sort_arcade_level_scores` 0x48A2AE, `score_arcade_stage` 0x48A383, `remove_shown_car`
 //! 0x486BF5): entries of a fixed size (table A 0x9C, table B 0x78, the
-//! best scores 0x3C) whose dwords are read by offset, as far as they are worked out.
+//! best scores 0x3C) whose dwords are read by offset, as far as they are worked out. And the
+//! tables' emptying and numbering (`menu::init_standings_a` 0x4730D8 / `_b` 0x4A4644,
+//! `number_standings_a` 0x4A2055 / `_b` 0x4A4A9D, `number_all_a` 0x4A2090 / `_b` 0x4A5A98,
+//! `clear_standings_a` 0x4A5A14 / `_b` 0x4A5A2F).
 
 /// A name's bytes in an entry.
 pub const NAME_LEN: usize = 0x1F;
@@ -246,6 +249,79 @@ pub fn first_player(t: &Entries, group: u32, group_at: usize, figure_at: usize) 
     None
 }
 
+/// What a search of a list ended with -1 found.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Found {
+    /// The entry's number.
+    At(u32),
+    /// The end mark met first.
+    End,
+    /// `limit` entries without the end mark.
+    NoEnd,
+}
+
+/// The searches of the results pages (`menu::find_ranked_entry` 0x4A2547,
+/// `find_ranked_position` 0x4A2584, `find_champ_position` 0x4A5A85,
+/// `first_overall_time` 0x4A327A): from entry 0 on, the first `wanted`; entry 0 is looked at
+/// before any end test, the others only if their first dword (`first(n)`) is not -1.
+pub fn search(
+    mut first: impl FnMut(u32) -> u32,
+    mut wanted: impl FnMut(u32) -> bool,
+    limit: u32,
+) -> Found {
+    for n in 0..limit {
+        if wanted(n) {
+            return Found::At(n);
+        }
+        if first(n + 1) == u32::MAX {
+            return Found::End;
+        }
+    }
+    Found::NoEnd
+}
+
+/// The entries the tables have room for.
+pub const ROOM: u32 = 200;
+/// A time beyond any (an emptied table A entry's two times).
+pub const NO_TIME: u32 = 0x36_F272;
+/// Table A's emptied entry: its first eight dwords.
+pub const EMPTY_A: [u32; 8] = [u32::MAX, u32::MAX, 0, 0, 0, NO_TIME, NO_TIME, 0];
+/// Table B's emptied entry: its first five dwords.
+pub const EMPTY_B: [u32; 5] = [u32::MAX; 5];
+
+/// Which entries a numbering counts.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Numbering {
+    /// Those of this group.
+    Group(u32),
+    /// All, or with `grouped` only those with a group (not 0).
+    All { grouped: bool },
+}
+
+impl Numbering {
+    pub fn counts(self, group: u32) -> bool {
+        match self {
+            Numbering::Group(g) => group == g,
+            Numbering::All { grouped } => !grouped || group != 0,
+        }
+    }
+}
+
+/// The numbers 1, 2, .. the counted entries get in order (by their groups); `None` for the
+/// others.
+pub fn number(groups: &[u32], which: Numbering) -> Vec<Option<u32>> {
+    let mut n = 0;
+    groups
+        .iter()
+        .map(|&g| {
+            which.counts(g).then(|| {
+                n += 1;
+                n
+            })
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -289,5 +365,33 @@ mod tests {
         remove_at(&mut l, 1, 3);
         assert_eq!(l, [1, 3, u32::MAX, u32::MAX, 9]);
         assert_eq!(arcade_points(6, 2), 5000);
+    }
+
+    #[test]
+    fn numbering() {
+        let groups = [1, 0, 2, 1, 0];
+        assert_eq!(
+            number(&groups, Numbering::Group(1)),
+            [Some(1), None, None, Some(2), None]
+        );
+        assert_eq!(
+            number(&groups, Numbering::All { grouped: true }),
+            [Some(1), None, Some(2), Some(3), None]
+        );
+        assert_eq!(
+            number(&groups, Numbering::All { grouped: false })[4],
+            Some(5)
+        );
+        assert_eq!(number(&groups, Numbering::Group(7)), [None; 5]);
+    }
+
+    #[test]
+    fn searches() {
+        let list = [(0, 5), (0, 6), (0, 7), (u32::MAX, 8)];
+        let first = |n: u32| list[n as usize].0;
+        assert_eq!(search(first, |n| list[n as usize].1 == 5, 9), Found::At(0));
+        assert_eq!(search(first, |n| list[n as usize].1 == 7, 9), Found::At(2));
+        assert_eq!(search(first, |n| list[n as usize].1 == 8, 9), Found::End);
+        assert_eq!(search(|_| 0, |_| false, 3), Found::NoEnd);
     }
 }

@@ -20,10 +20,15 @@ const CONTROL_RVA: usize = rva(0x7551FC); // dword_7551FC: the control learning
 
 /// The Rust version: control `control` learns from now.
 pub fn learn_binding(control: u32) {
+    // Converted: `rc2k_core::input::devices::Learning`.
+    let l = rc2k_core::input::devices::Learning::start(
+        control,
+        crate::system::tick_count::tick_count(),
+    );
     unsafe {
-        game_write(LEARNING_RVA, 1u32);
-        game_write(STARTED_RVA, crate::system::tick_count::tick_count());
-        game_write(CONTROL_RVA, control);
+        game_write(LEARNING_RVA, l.on);
+        game_write(STARTED_RVA, l.started);
+        game_write(CONTROL_RVA, l.control);
     }
 }
 

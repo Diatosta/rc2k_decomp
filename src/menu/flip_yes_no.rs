@@ -32,7 +32,8 @@ const ANSWER_RVA: usize = rva(0x75524C); // g_yesNoAnswer
 
 pub fn flip_yes_no() -> u32 {
     unsafe {
-        let answer = game_read::<u32>(ANSWER_RVA) ^ 1;
+        // Converted: `rc2k_core::menu::steps::flip`.
+        let answer = rc2k_core::menu::steps::flip(game_read::<u32>(ANSWER_RVA));
         game_write(ANSWER_RVA, answer);
         answer
     }

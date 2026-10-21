@@ -47,19 +47,12 @@ pub unsafe fn init_standings_a(entry: &Regs) -> Result<Regs, Refused> {
     if first == 0 {
         return Err(BadInput("no standings table").into());
     }
-    for n in 0..200 {
+    // Converted: `rc2k_core::menu::standings::EMPTY_A`.
+    use rc2k_core::menu::standings::{EMPTY_A, ROOM};
+    for n in 0..ROOM {
         let e = first + A_ENTRY * n;
-        for (o, v) in [
-            (0u32, 0xFFFF_FFFFu32),
-            (4, 0xFFFF_FFFF),
-            (8, 0),
-            (0xC, 0),
-            (0x10, 0),
-            (0x14, 0x36_F272),
-            (0x18, 0x36_F272),
-            (0x1C, 0),
-        ] {
-            put(e + o, v);
+        for (k, v) in EMPTY_A.into_iter().enumerate() {
+            put(e + 4 * k as u32, v);
         }
     }
     Ok(*entry)

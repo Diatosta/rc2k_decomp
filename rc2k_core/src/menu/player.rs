@@ -32,7 +32,20 @@ pub struct Player {
     /// The gearing chosen on the car choice, 0 .. 2 (its name string 0x21F + it;
     /// `menu::next_gearing`, `menu::previous_gearing`).
     pub gearing: u32,
-    pub gap_34: [u8; 80],
+    pub gap_34: [u8; 8],
+    /// Bit 0 turned over by `menu::toggle_player_3c`.
+    pub field_3c: u32,
+    /// Lowered by `menu::lower_player_40` while above 0 (signed).
+    pub field_40: u32,
+    /// Lowered by `menu::lower_player_44` unless 0.
+    pub field_44: u32,
+    /// 0 .. 100 in tens (`menu::raise_player_48`, `lower_player_48`).
+    pub field_48: u32,
+    pub gap_4c: u32,
+    /// The 0x2C bytes the controller pages copy out (`screens::pick_player_n`) and back
+    /// (`menu::keep_player_keys`).
+    pub controls_50: [u8; 0x2C],
+    pub gap_7c: [u8; 8],
     /// Zeroed for each player by `menu::begin_event`.
     pub field_84: u32,
     pub gap_88: u32,
@@ -121,6 +134,36 @@ pub enum Setting {
 }
 
 impl Player {
+    /// `menu::lower_player_40`: +0x40 one less while above 0 (signed); the value left.
+    pub fn lower_40(&mut self) -> u32 {
+        if (self.field_40 as i32) > 0 {
+            self.field_40 -= 1;
+        }
+        self.field_40
+    }
+
+    /// `menu::lower_player_44`: +0x44 one less unless 0.
+    pub fn lower_44(&mut self) {
+        if self.field_44 != 0 {
+            self.field_44 = self.field_44.wrapping_sub(1);
+        }
+    }
+
+    /// `menu::raise_player_48` / `lower_player_48`: +0x48 ten more unless 100, ten less
+    /// unless 0.
+    pub fn step_48(&mut self, up: bool) {
+        if up && self.field_48 != 100 {
+            self.field_48 = self.field_48.wrapping_add(10);
+        } else if !up && self.field_48 != 0 {
+            self.field_48 = self.field_48.wrapping_sub(10);
+        }
+    }
+
+    /// `menu::toggle_player_3c`: +0x3C's bit 0 turned over.
+    pub fn toggle_3c(&mut self) {
+        self.field_3c ^= 1;
+    }
+
     /// The setting's dword.
     pub fn setting(&mut self, s: Setting) -> &mut u32 {
         match s {
@@ -230,6 +273,20 @@ pub enum Redefined {
     Done { keys: [u8; KEYS], placed: bool },
 }
 
+/// The redefine keys page's state (`g_redefiningKey`, `g_redefinedKeyPlace`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Redefining {
+    pub on: u32,
+    pub place: u32,
+}
+
+impl Redefining {
+    /// `menu::choose_key_n`: the key at `place` is to be redefined.
+    pub fn start(place: u32) -> Self {
+        Redefining { on: 1, place }
+    }
+}
+
 /// A frame of redefining the key at `place` of the work copy `keys`.
 pub fn redefine(keys: [u8; KEYS], place: usize, key: u8, reserved: &[u8]) -> Redefined {
     if key == 0 {
@@ -292,5 +349,26 @@ mod tests {
             (100, 0)
         );
         assert_eq!(stepped(Setting::PaceNotes, 1, true), 0);
+    }
+
+    #[test]
+    fn small_fields() {
+        let mut p: Player = unsafe { std::mem::zeroed() };
+        assert_eq!(p.lower_40(), 0);
+        p.field_40 = 2;
+        assert_eq!(p.lower_40(), 1);
+        p.field_40 = u32::MAX;
+        assert_eq!(p.lower_40(), u32::MAX);
+        p.lower_44();
+        assert_eq!(p.field_44, 0);
+        p.step_48(false);
+        assert_eq!(p.field_48, 0);
+        p.field_48 = 100;
+        p.step_48(true);
+        assert_eq!(p.field_48, 100);
+        p.step_48(false);
+        assert_eq!(p.field_48, 90);
+        p.toggle_3c();
+        assert_eq!(p.field_3c, 1);
     }
 }

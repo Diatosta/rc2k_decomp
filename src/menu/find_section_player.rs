@@ -47,15 +47,16 @@ pub unsafe fn find_section_player(entry: &Regs) -> Result<Regs, Refused> {
     if (0..4).any(|n| player(n) == 0) {
         return Err(BadInput("a missing player").into());
     }
+    // Converted: `rc2k_core::menu::points::section_player`.
     g.eax = unsafe { game_read(SECTION_RVA) };
-    for n in 0..4 {
-        g.ecx = n;
-        g.edi = player(n);
-        if get(g.edi.wrapping_add(g.eax.wrapping_mul(4)).wrapping_add(0xB4)) == 0x14 {
-            return Ok(g);
-        }
-    }
-    g.ecx = 0xFFFF_FFFF;
+    let done: [u32; 4] = std::array::from_fn(|n| {
+        get(player(n as u32)
+            .wrapping_add(g.eax.wrapping_mul(4))
+            .wrapping_add(0xB4))
+    });
+    let found = rc2k_core::menu::points::section_player(done);
+    g.edi = player(found.unwrap_or(3));
+    g.ecx = found.unwrap_or(u32::MAX);
     Ok(g)
 }
 

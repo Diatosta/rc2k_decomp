@@ -40,7 +40,6 @@ const SEND_COMMAND_8: usize = 0x409BB4; // sound::send_command_8
 const PLAY_MENU_SOUND: usize = 0x40F059; // sound::play_menu_sound
 const SCREEN_MODE_CHOICES: usize = 0x4045D6; // gfx::screen_mode_choices
 const APPLY_AUDIO: usize = 0x470766; // menu::apply_audio_choices
-const VOLUME_MOST: i32 = 0x40;
 
 /// After a volume step.
 #[derive(Clone, Copy)]
@@ -155,48 +154,38 @@ impl Item {
 
 /// The Rust version: the registers it leaves.
 pub fn option_item(entry: &Regs, item: Item, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::menu::steps` (`flip`, `quality`, `volume`, `counter`,
+    // `previous_mode`).
+    use rc2k_core::menu::steps;
     let mut r = *entry;
     let v = item.var;
     match item.kind {
-        Kind::Switch => set(v, get(v) ^ 1),
+        Kind::Switch => set(v, steps::flip(get(v) as u32) as i32),
         Kind::SwitchCopy { other, flip } => {
-            set(v, get(v) ^ 1);
+            set(v, steps::flip(get(v) as u32) as i32);
             r.eax = get(v) as u32;
             if flip {
-                set(other, get(other) ^ 1);
+                set(other, steps::flip(get(other) as u32) as i32);
             } else {
                 set(other, r.eax as i32);
             }
         }
         Kind::SwitchModes { other } => {
-            set(v, get(v) ^ 1);
-            set(other, get(other) ^ 1);
+            set(v, steps::flip(get(v) as u32) as i32);
+            set(other, steps::flip(get(other) as u32) as i32);
             r.eax = 0;
             part(0, &mut r)?;
         }
         Kind::SwitchAudio => {
-            set(v, get(v) ^ 1);
+            set(v, steps::flip(get(v) as u32) as i32);
             part(0, &mut r)?;
         }
         Kind::Quality { up } => {
-            let q = get(v);
-            set(
-                v,
-                match (up, q) {
-                    (true, 3) => 0,
-                    (true, q) => q.wrapping_add(1),
-                    (false, 0) => 3,
-                    (false, q) => q.wrapping_sub(1),
-                },
-            );
+            set(v, steps::quality(get(v) as u32, up) as i32);
             part(0, &mut r)?;
         }
         Kind::Volume { up, then } => {
-            let value = if up {
-                get(v).wrapping_add(1).min(VOLUME_MOST)
-            } else {
-                get(v).wrapping_sub(1).max(0)
-            };
+            let value = steps::volume(get(v), up);
             set(v, value);
             match then {
                 Then::Send => {
@@ -214,20 +203,10 @@ pub fn option_item(entry: &Regs, item: Item, part: Part) -> Result<Regs, Refused
             }
         }
         Kind::Counter { up, low, high } => {
-            let n = if up {
-                let n = get(v).wrapping_add(1);
-                if n > high { low } else { n }
-            } else {
-                let n = get(v).wrapping_sub(1);
-                if n < low { high } else { n }
-            };
-            set(v, n);
+            set(v, steps::counter(get(v), up, low, high));
         }
         Kind::PreviousMode { other } => {
-            let mut n = get(v).wrapping_sub(1);
-            if n < 0 {
-                n = get(other).wrapping_sub(1);
-            }
+            let n = steps::previous_mode(get(v), get(other));
             r.eax = n as u32;
             set(v, n);
         }

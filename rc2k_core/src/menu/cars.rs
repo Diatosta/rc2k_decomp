@@ -30,6 +30,8 @@ pub enum Call {
 pub enum Button {
     NextCar,
     NextPage,
+    /// `menu::previous_car_page` (0x469BAE): from 0 and below (signed) to 3.
+    PreviousPage,
     PreviousSlideshowCar,
     NextSlideshowCar,
     PreviousPicture,
@@ -54,6 +56,10 @@ pub fn press(b: Button, s: &mut Shown) -> &'static [Call] {
             } else {
                 s.page.wrapping_add(1)
             };
+            &[Call::Background]
+        }
+        Button::PreviousPage => {
+            s.page = if (s.page as i32) > 0 { s.page - 1 } else { 3 };
             &[Call::Background]
         }
         Button::PreviousSlideshowCar | Button::NextSlideshowCar => {
@@ -142,5 +148,17 @@ mod tests {
         press(Button::PreviousPicture, &mut s);
         assert_eq!((s.page, s.picture), (0, 99));
         assert_eq!((find_car(&[4, 7, 9], 9), find_car(&[4], 9)), (2, 0));
+    }
+
+    #[test]
+    fn previous_page() {
+        let mut s = Shown::default();
+        assert_eq!(press(Button::PreviousPage, &mut s), &[Call::Background]);
+        assert_eq!(s.page, 3);
+        press(Button::PreviousPage, &mut s);
+        assert_eq!(s.page, 2);
+        s.page = u32::MAX;
+        press(Button::PreviousPage, &mut s);
+        assert_eq!(s.page, 3);
     }
 }

@@ -37,9 +37,7 @@ pub const PICKED_LEN: usize = 0x2C;
 impl Player {
     /// `pick_player_n`'s copy.
     pub fn picked(&self) -> (u32, [u8; PICKED_LEN]) {
-        let mut bytes = [0; PICKED_LEN];
-        bytes.copy_from_slice(&self.gap_34[0x50 - 0x34..0x50 - 0x34 + PICKED_LEN]);
-        (self.gap_2c, bytes)
+        (self.gap_2c, self.controls_50)
     }
 }
 

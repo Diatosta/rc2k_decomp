@@ -31,8 +31,12 @@ hook_asm!(
 
 pub fn next_savegame_page() {
     unsafe {
-        let next = game_read::<i32>(SAVEGAME_PAGE_RVA).wrapping_add(1);
-        game_write(SAVEGAME_PAGE_RVA, if next > 9 { 0 } else { next });
+        // Converted: `rc2k_core::menu::steps::savegame_page`.
+        let page = game_read::<u32>(SAVEGAME_PAGE_RVA);
+        game_write(
+            SAVEGAME_PAGE_RVA,
+            rc2k_core::menu::steps::savegame_page(page, true),
+        );
     }
 }
 

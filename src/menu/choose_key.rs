@@ -10,9 +10,11 @@ use crate::screens::harness::{CallOriginal, Left};
 use crate::service::harness::{at, capture, check_state, dispatch_state, restore};
 
 pub fn choose_key(place: u32) {
+    // Converted: `rc2k_core::menu::player::Redefining`.
+    let r = rc2k_core::menu::player::Redefining::start(place);
     unsafe {
-        game_write(REDEFINING_RVA, 1u32);
-        game_write(PLACE_RVA, place);
+        game_write(REDEFINING_RVA, r.on);
+        game_write(PLACE_RVA, r.place);
     }
 }
 

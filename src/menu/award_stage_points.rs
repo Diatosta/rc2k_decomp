@@ -101,9 +101,12 @@ pub unsafe fn award_stage_points(entry: &Regs) -> Result<Regs, Refused> {
         for &e in &all {
             owners.push(owner(entry, e)?);
         }
+        // Converted: `rc2k_core::menu::points` (`Points`, `kept`, `total`).
+        use rc2k_core::menu::points::{Points, kept, total};
         let at = 4 * section;
         for class in 0..classes {
-            game_write(POINTS_RVA, 0x14u32);
+            let mut points = Points::default();
+            game_write(POINTS_RVA, points.0);
             for (&e, o) in all.iter().zip(&owners) {
                 game_write(CLASS_RVA, class);
                 if get(e + 0x10) != class {
@@ -115,28 +118,18 @@ pub unsafe fn award_stage_points(entry: &Regs) -> Result<Regs, Refused> {
                     1,
                 );
                 crate::logfile::log_int::log_int(get(e + 0x74) as i32, true, 1);
-                let points: u32 = game_read(POINTS_RVA);
-                put(e + 0x54 + at, points);
-                if (points as i32) > 0 {
-                    game_write(POINTS_RVA, points - 1);
-                }
+                let given = points.take();
+                game_write(POINTS_RVA, points.0);
                 let (keeps, field) = match *o {
                     Owner::Driver(d) => (get(d + 0x24) == 1, d + 0x78 + at),
                     Owner::Player(p) => (get(p + 0xD0) == 1, p + 0x98 + at),
                 };
-                if keeps {
-                    put(field, get(e + 0x54 + at));
-                } else {
-                    put(e + 0x54 + at, 0);
-                    put(field, 0);
-                }
+                put(e + 0x54 + at, kept(given, keeps));
+                put(field, kept(given, keeps));
             }
         }
         for (&e, o) in all.iter().zip(&owners) {
-            let total = (0..6)
-                .map(|k| get(e + 0x54 + 4 * k) as i32)
-                .filter(|&v| v >= 0)
-                .fold(0u32, |s, v| s.wrapping_add(v as u32));
+            let total = total(std::array::from_fn(|k| get(e + 0x54 + 4 * k as u32)));
             put(e + 0x6C, total);
             match *o {
                 Owner::Driver(d) => put(d + 0x90, total),

@@ -124,6 +124,77 @@ pub fn stage_page(page: u32, pages: u32, up: bool) -> u32 {
     }
 }
 
+/// A switch flipped (`xor 1`: only bit 0 changes).
+pub fn flip(value: u32) -> u32 {
+    value ^ 1
+}
+
+/// The advanced audio page's quality on (0 after 3) or back (3 before 0); other values
+/// just move by one.
+pub fn quality(q: u32, up: bool) -> u32 {
+    match (up, q) {
+        (true, 3) => 0,
+        (true, q) => q.wrapping_add(1),
+        (false, 0) => 3,
+        (false, q) => q.wrapping_sub(1),
+    }
+}
+
+/// A counter between `low` and `high` one on or back, past an end the other end (signed).
+pub fn counter(value: i32, up: bool, low: i32, high: i32) -> i32 {
+    if up {
+        let n = value.wrapping_add(1);
+        if n > high { low } else { n }
+    } else {
+        let n = value.wrapping_sub(1);
+        if n < low { high } else { n }
+    }
+}
+
+/// The screen mode chosen one back, before 0 (signed) the last (`count` - 1).
+pub fn previous_mode(mode: i32, count: i32) -> i32 {
+    let n = mode.wrapping_sub(1);
+    if n < 0 { count.wrapping_sub(1) } else { n }
+}
+
+/// The best scores' page on (11 back to 0) or back (below 0 to 10), signed.
+pub fn scores_page(page: u32, up: bool) -> u32 {
+    if up {
+        let v = page.wrapping_add(1);
+        if (v as i32) < 11 { v } else { 0 }
+    } else {
+        let v = page.wrapping_sub(1);
+        if (v as i32) < 0 { 10 } else { v }
+    }
+}
+
+/// The replays' range on (past 4 to 0) or back (below 0 to 4), signed.
+pub fn replay_range(range: u32, up: bool) -> u32 {
+    if up {
+        let v = range.wrapping_add(1);
+        if (v as i32) > 4 { 0 } else { v }
+    } else {
+        let v = range.wrapping_sub(1);
+        if (v as i32) < 0 { 4 } else { v }
+    }
+}
+
+/// The saved games' list page on (above 9 to 0) or back (below 0 to 9), signed.
+pub fn savegame_page(page: u32, up: bool) -> u32 {
+    if up {
+        let v = page.wrapping_add(1);
+        if (v as i32) > 9 { 0 } else { v }
+    } else {
+        let v = page.wrapping_sub(1);
+        if (v as i32) < 0 { 9 } else { v }
+    }
+}
+
+/// `menu::flip_gearing`'s text: string 0x221 when the switch is then 0, else 0x21F.
+pub fn gearing_switch_text(switch: u32) -> u32 {
+    if switch == 0 { 0x221 } else { 0x21F }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -194,6 +265,74 @@ mod tests {
         assert_eq!(
             (colour(6, true), colour(0, false), colour(9, true)),
             (0, 6, 0)
+        );
+    }
+
+    #[test]
+    fn option_items() {
+        assert_eq!((flip(0), flip(1), flip(2)), (1, 0, 3));
+        assert_eq!(
+            (
+                quality(3, true),
+                quality(0, false),
+                quality(1, true),
+                quality(7, false)
+            ),
+            (0, 3, 2, 6)
+        );
+        assert_eq!(
+            (
+                counter(5, true, 0, 5),
+                counter(0, false, 0, 5),
+                counter(3, true, 1, 6)
+            ),
+            (0, 5, 4)
+        );
+        assert_eq!(counter(-4, false, 1, 6), 6);
+        assert_eq!(
+            (
+                previous_mode(0, 7),
+                previous_mode(3, 7),
+                previous_mode(-2, 7)
+            ),
+            (6, 2, 6)
+        );
+    }
+
+    #[test]
+    fn pages_and_ranges() {
+        assert_eq!(
+            (
+                scores_page(10, true),
+                scores_page(0, false),
+                scores_page(3, true)
+            ),
+            (0, 10, 4)
+        );
+        assert_eq!(scores_page(0x8000_0000, false), 0x7FFF_FFFF);
+        assert_eq!(
+            (
+                replay_range(4, true),
+                replay_range(0, false),
+                replay_range(2, false)
+            ),
+            (0, 4, 1)
+        );
+    }
+
+    #[test]
+    fn savegame_pages() {
+        assert_eq!(
+            (
+                savegame_page(9, true),
+                savegame_page(0, false),
+                savegame_page(4, true)
+            ),
+            (0, 9, 5)
+        );
+        assert_eq!(
+            (gearing_switch_text(0), gearing_switch_text(1)),
+            (0x221, 0x21F)
         );
     }
 }

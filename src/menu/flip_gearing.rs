@@ -33,10 +33,12 @@ hook_asm!(
 /// The Rust version (see the header).
 pub unsafe fn flip_gearing() {
     unsafe {
-        let kept = game_read::<u32>(KEPT_RVA) ^ 1;
+        // Converted: `rc2k_core::menu::steps` (`flip`, `gearing_switch_text`).
+        use rc2k_core::menu::steps::{flip, gearing_switch_text};
+        let kept = flip(game_read::<u32>(KEPT_RVA));
         game_write(KEPT_RVA, kept);
         let mut text = Vec::new();
-        push_string(&mut text, if kept == 0 { 0x221 } else { 0x21F });
+        push_string(&mut text, gearing_switch_text(kept));
         text.push(0);
         std::ptr::copy_nonoverlapping(text.as_ptr(), game_addr(TEXT_RVA) as *mut u8, text.len());
     }

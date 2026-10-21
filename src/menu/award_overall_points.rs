@@ -88,24 +88,22 @@ pub unsafe fn award_overall_points(entry: &Regs) -> Result<Regs, Refused> {
         for &e in &all {
             owners.push(owner(entry, e)?);
         }
+        // Converted: `rc2k_core::menu::points` (`Points`, `total`).
+        use rc2k_core::menu::points::{Points, total};
         let at = 4 * section;
-        game_write(POINTS_RVA, 0x14u32);
+        let mut points = Points::default();
+        game_write(POINTS_RVA, points.0);
         for (&e, &(o, _, cpu)) in all.iter().zip(&owners) {
             if get(e + 0x10) == 0 {
                 continue;
             }
-            let points: u32 = game_read(POINTS_RVA);
-            put(e + 0x38 + at, points);
-            if (points as i32) > 0 {
-                game_write(POINTS_RVA, points - 1);
-            }
-            put(o + if cpu { 0x5C } else { 0xB4 } + at, get(e + 0x38 + at));
+            let given = points.take();
+            game_write(POINTS_RVA, points.0);
+            put(e + 0x38 + at, given);
+            put(o + if cpu { 0x5C } else { 0xB4 } + at, given);
         }
         for (&e, &(o, number, cpu)) in all.iter().zip(&owners) {
-            let total = (0..6)
-                .map(|k| get(e + 0x38 + 4 * k) as i32)
-                .filter(|&v| v >= 0)
-                .fold(0u32, |s, v| s.wrapping_add(v as u32));
+            let total = total(std::array::from_fn(|k| get(e + 0x38 + 4 * k as u32)));
             put(e + 0x50, total);
             put(o + if cpu { 0x74 } else { 0xCC }, total);
             g.eax = number;

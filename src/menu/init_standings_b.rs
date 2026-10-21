@@ -47,9 +47,11 @@ pub unsafe fn init_standings_b(entry: &Regs) -> Result<Regs, Refused> {
     if first == 0 {
         return Err(BadInput("no standings table").into());
     }
-    for n in 0..200 {
-        for k in 0..5 {
-            put(first + B_ENTRY * n + 4 * k, 0xFFFF_FFFF);
+    // Converted: `rc2k_core::menu::standings::EMPTY_B`.
+    use rc2k_core::menu::standings::{EMPTY_B, ROOM};
+    for n in 0..ROOM {
+        for (k, v) in EMPTY_B.into_iter().enumerate() {
+            put(first + B_ENTRY * n + 4 * k as u32, v);
         }
     }
     Ok(*entry)
