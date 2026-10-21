@@ -83,20 +83,13 @@ pub unsafe fn mix(v: &Vars, part: Part) -> Result<bool, Refused> {
         if r != 0 {
             return Ok(failed(r));
         }
-        let mut bytes = read(v.play).wrapping_sub(old);
-        if (bytes as i32) < 0 {
-            bytes = bytes.wrapping_add(read(v.size));
-        }
-        if bytes == 0 {
-            return Ok(true);
-        }
+        // Converted: `rc2k_core::audio::streams::cursor_moved` and `round`.
+        use rc2k_core::audio::streams::{cursor_moved, round};
         let size = read(v.size);
-        if bytes > read(v.most) {
-            bytes = read(v.most);
-            let mut at = read(v.play).wrapping_add(bytes);
-            if at >= size {
-                at = at.wrapping_sub(size);
-            }
+        let Some((bytes, write_at)) = cursor_moved(old, read(v.play), size, read(v.most)) else {
+            return Ok(true);
+        };
+        if let Some(at) = write_at {
             write(v.write, at);
         }
         let mut r = Regs {
@@ -112,11 +105,7 @@ pub unsafe fn mix(v: &Vars, part: Part) -> Result<bool, Refused> {
         if r != 0 {
             return Ok(failed(r));
         }
-        let mut at = bytes.wrapping_add(read(v.write));
-        if at >= size {
-            at = at.wrapping_sub(size);
-        }
-        write(v.write, at);
+        write(v.write, round(bytes.wrapping_add(read(v.write)), size));
         part(1, &mut Regs::default())?;
         let [p1, n1, p2, n2] = (p as *const [u32; 4]).read_unaligned();
         let unlock: unsafe extern "system" fn(u32, u32, u32, u32, u32) -> i32 =

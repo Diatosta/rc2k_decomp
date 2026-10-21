@@ -28,17 +28,18 @@ hook_asm!(
 
 /// `count`: where the count is kept; `voices`: the pool.
 pub unsafe fn new_voice(count: u32, voices: u32) -> Result<u32, Refused> {
+    // Converted: `rc2k_core::audio::voices::new_voice`.
     unsafe {
-        let n = read(count);
-        if n >= VOICES {
+        let mut n = read(count);
+        let Some(place) = rc2k_core::audio::voices::new_voice(&mut n) else {
             return Err(FatalError {
-                code: 0x80A2_8501,
+                code: rc2k_core::audio::voices::POOL_USED_UP,
                 message: "",
             }
             .into());
-        }
-        write(count, n + 1);
-        Ok(voices + n * std::mem::size_of::<Voice>() as u32)
+        };
+        write(count, n);
+        Ok(voices + place * std::mem::size_of::<Voice>() as u32)
     }
 }
 

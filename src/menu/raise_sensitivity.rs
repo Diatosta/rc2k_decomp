@@ -34,9 +34,9 @@ fn field(player: &mut Player) -> &mut u32 {
 // ---- Rust version ----
 
 pub fn raise_sensitivity() -> Result<(), Refused> {
+    // Converted: `rc2k_core::menu::player::stepped`.
     change(field, |value| {
-        let next = value.wrapping_add(1);
-        if next as i32 > 100 { 100 } else { next }
+        rc2k_core::menu::player::stepped(rc2k_core::menu::player::Setting::Sensitivity, value, true)
     })
 }
 

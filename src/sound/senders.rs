@@ -202,11 +202,30 @@ pub fn variable(at: usize) -> u32 {
 /// What `sound::play_music` sends for a tune, a second tune and a volume, from the
 /// registers its caller has.
 pub fn music(entry: &Regs, tune: u32, second: u32, volume: u32) -> Regs {
+    music_regs(
+        entry,
+        rc2k_core::sound::senders::Music::play(tune, second, volume),
+    )
+}
+
+/// The registers command 0xB is sent with (converted: `rc2k_core::sound::senders::Music`).
+pub fn music_regs(entry: &Regs, m: rc2k_core::sound::senders::Music) -> Regs {
     Regs {
-        eax: tune,
-        ebx: second,
-        ecx: volume,
-        edx: 2,
+        eax: m.tune,
+        ebx: m.then,
+        ecx: m.volume,
+        edx: m.action,
         ..*entry
     }
+}
+
+/// `sound::play_tune_n`'s registers (converted: `rc2k_core::sound::senders::tune_command`).
+pub fn tune_regs(entry: &Regs, n: u32) -> Option<Regs> {
+    let m = rc2k_core::sound::senders::tune_command(
+        n,
+        variable(0x5180FC),
+        variable(0x518100),
+        variable(0x5180F4) == 1,
+    )?;
+    Some(music_regs(entry, m))
 }

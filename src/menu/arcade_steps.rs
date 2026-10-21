@@ -52,6 +52,7 @@ use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write
 use crate::menu::player::{PLAYERS_RVA, player_at};
 use crate::screens::harness::{CallOriginal, Left};
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use rc2k_core::menu::standings;
 
 pub const LEVEL_RVA: usize = rva(0x7587EC); // dword_7587EC
 pub const STAGE_RVA: usize = rva(0x7587F0); // dword_7587F0
@@ -184,64 +185,36 @@ pub fn check_arcade_stage_time() -> Result<(), Refused> {
     Ok(())
 }
 
-/// The 31 bytes of the names at +0x20 of `upper` and `lower` exchanged through
-/// `g_keptPlayerName`.
-unsafe fn exchange_names(upper: u32, lower: u32) {
-    unsafe {
-        let kept = game_addr(KEPT_NAME_RVA) as u32;
-        copy_bytes(upper + 0x20, kept, NAME);
-        copy_bytes(lower + 0x20, upper + 0x20, NAME);
-        copy_bytes(kept, lower + 0x20, NAME);
-    }
-}
-
-/// Nine steps from the tenth entry at `tenth` up, `len` apart; `exchange` says from the
-/// lower and upper +0x14 whether the pair is exchanged; `fields` the dwords exchanged.
-unsafe fn sort_up(tenth: u32, len: u32, exchange: fn(i32, i32) -> bool, fields: &[u32]) {
-    let mut lower = tenth;
-    for _ in 0..9 {
-        let upper = lower - len;
-        if exchange(get(lower + 0x14) as i32, get(upper + 0x14) as i32) {
-            for &f in fields {
-                let a = get(upper + f);
-                put(upper + f, get(lower + f));
-                put(lower + f, a);
-            }
-            unsafe { exchange_names(upper, lower) };
-        }
-        lower = upper;
-    }
-}
-
-const TIME_FIELDS: [u32; 31] = [
-    0xC, 0x14, 4, 8, 0x1C, 0x10, 0x18, 0x40, 0x50, 0x54, 0x58, 0x5C, 0x60, 0x64, 0x68, 0x6C, 0x70,
-    0x74, 0x78, 0x7C, 0x80, 0x84, 0x88, 0x8C, 0x90, 0x94, 0x98, 0, 0, 0, 0,
-];
-
 pub fn sort_arcade_stage_times() -> Result<(), Refused> {
-    let tenth = course_times()? + 0x57C;
-    unsafe {
-        sort_up(
-            tenth,
-            TIME_LEN,
-            |lower, upper| lower <= upper,
-            &TIME_FIELDS[..27],
-        )
-    };
+    // Converted: `rc2k_core::menu::standings::sort_arcade_times`.
+    let first = course_times()?;
+    let mut ten = unsafe { ten_entries(first, TIME_LEN) };
+    standings::sort_arcade_times(&mut ten, unsafe { kept_name() });
     Ok(())
 }
 
 pub fn sort_arcade_level_scores() -> Result<(), Refused> {
-    let tenth = level_scores()? + 0x2D0;
-    unsafe {
-        sort_up(
-            tenth,
-            SCORE_LEN,
-            |lower, upper| lower >= upper,
-            &TIME_FIELDS[..8],
-        )
-    };
+    // Converted: `rc2k_core::menu::standings::sort_arcade_scores`.
+    let first = level_scores()?;
+    let mut ten = unsafe { ten_entries(first, SCORE_LEN) };
+    standings::sort_arcade_scores(&mut ten, unsafe { kept_name() });
     Ok(())
+}
+
+/// The ten entries from `first`, `len` bytes each.
+///
+/// # Safety
+/// They must be game memory no one else uses meanwhile.
+unsafe fn ten_entries<'a>(first: u32, len: u32) -> standings::Entries<'a> {
+    standings::Entries {
+        bytes: unsafe { std::slice::from_raw_parts_mut(first as *mut u8, 10 * len as usize) },
+        size: len as usize,
+    }
+}
+
+/// `g_keptPlayerName`, the sorts' swap buffer.
+unsafe fn kept_name<'a>() -> &'a mut [u8; standings::NAME_LEN] {
+    unsafe { &mut *(game_addr(KEPT_NAME_RVA) as *mut [u8; standings::NAME_LEN]) }
 }
 
 /// What both entries share: +0x1C, +8, +0xC, +0x10, +4, +0x40, +0x20 and the name.
@@ -307,10 +280,8 @@ pub fn score_arcade_stage() -> Result<(), Refused> {
     };
     p(BEFORE_RVA, g(SCORE_RVA));
     p(EXTRA_RVA, get(first + 0x94));
-    let points = g(PLACES_RVA)
-        .wrapping_sub(g(POSITION_RVA))
-        .wrapping_add(1)
-        .wrapping_mul(1000);
+    // Converted: `rc2k_core::menu::standings::arcade_points`.
+    let points = standings::arcade_points(g(PLACES_RVA), g(POSITION_RVA));
     p(POINTS_RVA, points);
     let sum = points.wrapping_add(g(BONUS_RVA)).wrapping_add(g(EXTRA_RVA));
     p(SUM_RVA, sum);
@@ -371,12 +342,10 @@ pub fn remove_shown_car(then: &mut dyn FnMut() -> Result<(), Refused>) -> Result
         4 * SHOWN_LIST_LEN as usize,
     )];
     let saved = capture(&list);
-    for k in shown..end {
-        p(
-            SHOWN_LIST_RVA + 4 * k as usize,
-            g(SHOWN_LIST_RVA + 4 * (k + 1) as usize),
-        );
-    }
+    // Converted: `rc2k_core::menu::standings::remove_at`.
+    let mut cars: [u32; SHOWN_LIST_LEN as usize] = unsafe { game_read(SHOWN_LIST_RVA) };
+    standings::remove_at(&mut cars, shown as usize, end as usize);
+    unsafe { game_write(SHOWN_LIST_RVA, cars) };
     // A refusal of the numbers' (a list without its end, a null car) leaves nothing written.
     then().inspect_err(|_| restore(&list, &saved))
 }

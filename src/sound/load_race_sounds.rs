@@ -152,16 +152,14 @@ pub unsafe fn load_race_sounds(
             };
             Some((kind(first)?, second))
         };
-        let voice = dword(first + 0x298);
-        let (male, female) = (game_addr(MALE_RVA), game_addr(FEMALE_RVA));
-        let (mut ebx, mut edx) = if voice == 0 {
-            (male, female)
-        } else {
-            (female, male)
+        // Converted: `rc2k_core::sound::race::voices` and `sets`.
+        use rc2k_core::sound::race::{Set, Voice, sets, voices};
+        let list = |v: Voice| match v {
+            Voice::Male => game_addr(MALE_RVA),
+            Voice::Female => game_addr(FEMALE_RVA),
         };
-        if voice == dword(second + 0x298) {
-            edx = ebx;
-        }
+        let (a, b) = voices(dword(first + 0x298), dword(second + 0x298));
+        let (mut ebx, mut edx) = (list(a), list(b));
         let (of_first, of_second) = (lengths(ebx)?, lengths(edx)?);
         // Nothing has been written or sent up to here.
         let (mut esi, mut ecx) = (0, 0);
@@ -184,23 +182,22 @@ pub unsafe fn load_race_sounds(
                 ..*entry
             })
         };
-        let set = |at: usize| game_addr(rva(at)) as u32;
-        let Some((first_kind, second_kind)) = kinds else {
-            send(game_addr(REPLAY_SET_RVA) as u32);
-            return Ok(());
-        };
-        send(dword(game_addr(KINDS_RVA) + first_kind * 8));
-        for at in FIRST_SETS {
-            send(set(at));
-        }
-        if let Some(second_kind) = second_kind {
-            send(dword(game_addr(KINDS_RVA) + 4 + second_kind * 8));
-            for at in SECOND_SETS {
-                send(set(at));
-            }
-        }
-        if count != other_count {
-            send(game_addr(LAST_SET_RVA) as u32);
+        let (first_kind, second_kind) = kinds.unwrap_or((0, None));
+        for set in sets(
+            kinds.is_none(),
+            first_kind as u32,
+            second_kind.unwrap_or(0) as u32,
+            count,
+            other_count,
+        ) {
+            send(match set {
+                Set::Replay => game_addr(REPLAY_SET_RVA) as u32,
+                Set::FirstKind(k) => dword(game_addr(KINDS_RVA) + k as usize * 8),
+                Set::First(n) => game_addr(rva(FIRST_SETS[n])) as u32,
+                Set::SecondKind(k) => dword(game_addr(KINDS_RVA) + 4 + k as usize * 8),
+                Set::Second(n) => game_addr(rva(SECOND_SETS[n])) as u32,
+                Set::Last => game_addr(LAST_SET_RVA) as u32,
+            });
         }
         Ok(())
     }

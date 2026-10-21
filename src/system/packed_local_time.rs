@@ -36,11 +36,8 @@ fn system_time() -> *mut SYSTEMTIME {
 // ---- Rust version ----
 
 pub fn pack(t: &SYSTEMTIME) -> u32 {
-    let mut stamp = t.wYear as u32;
-    for (bits, field) in [(4, t.wMonth), (5, t.wDay), (5, t.wHour), (6, t.wMinute)] {
-        stamp = (stamp << bits) | field as u32;
-    }
-    stamp
+    // Converted: `rc2k_core::system::time::pack`.
+    rc2k_core::system::time::pack(t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute)
 }
 
 pub unsafe fn packed_local_time() -> u32 {

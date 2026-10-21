@@ -84,7 +84,6 @@ const KEY_BACKSPACE: u8 = 0x0E;
 
 const CURSOR_STRING: u32 = 4;
 const MEASURING_FONT: usize = 0x51E824; // dword_51E824
-const WIDEST_NAME: i32 = 0xEC;
 
 // ---- Rust version ----
 
@@ -119,14 +118,16 @@ pub unsafe fn edit_setup_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
 
     unsafe {
         let key = take_key();
-        match key {
-            0 => {}
-            KEY_ESCAPE => {
+        // Converted: `rc2k_core::menu::text_entry` (`key`, `appends`, `too_wide`).
+        use rc2k_core::menu::text_entry::{self as entry, Key};
+        match entry::key(key) {
+            Key::None => {}
+            Key::Escape => {
                 restore_text(name);
                 game_write(ENTERING_RVA, 0u32);
                 return Ok(());
             }
-            KEY_ENTER => {
+            Key::Enter => {
                 if game_read::<i32>(LENGTH_RVA) == 0 {
                     restore_text(name);
                     add_text_length(name)?;
@@ -138,17 +139,17 @@ pub unsafe fn edit_setup_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
                 game_write(ENTERING_RVA, 0u32);
                 return Ok(());
             }
-            KEY_CLEAR => clear_text(name),
-            KEY_BACKSPACE => backspace_setup_name()?,
-            _ => {
+            Key::Clear => clear_text(name),
+            Key::Backspace => backspace_setup_name()?,
+            Key::Other(key) => {
                 let c = key_to_char(key as u32)? as u8;
                 let len: i32 = game_read(LENGTH_RVA);
-                if c != 0 && len <= game_read::<i32>(MAX_LENGTH_RVA) {
+                if entry::appends(c, len, game_read(MAX_LENGTH_RVA)) {
                     name.offset(len as isize).write(c);
                     set_length(len.wrapping_add(1));
                     // x is whatever ecx held: the length before this character.
                     let measured = measure_text_at(font_at(MEASURING_FONT), name, len, canvas)?;
-                    if measured.width as i32 >= WIDEST_NAME {
+                    if entry::too_wide(measured.width as i32) {
                         backspace_setup_name()?;
                     }
                 }

@@ -170,17 +170,8 @@ pub unsafe fn load_welcome_picture(entry: &Regs, part: Part) -> Result<Regs, Ref
 /// `menu::previous_stage_page` (`up` false) / `next_stage_page`: the registers it leaves.
 pub unsafe fn step_stage_page(entry: &Regs, up: bool, part: Part) -> Result<Regs, Refused> {
     let (page, pages) = (g(PAGE_RVA), g(PAGES_RVA));
-    let page = if up {
-        if (page as i32) < pages as i32 {
-            page.wrapping_add(1)
-        } else {
-            0
-        }
-    } else if page == 0 {
-        pages
-    } else {
-        page - 1
-    };
+    // Converted: `rc2k_core::menu::steps::stage_page`.
+    let page = rc2k_core::menu::steps::stage_page(page, pages, up);
     p(PAGE_RVA, page);
     let index = g(FIRST_RVA).wrapping_add(page);
     p(INDEX_RVA, index);

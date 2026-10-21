@@ -10,7 +10,7 @@
 //! Self-test: `menu::car_buttons::check_button`.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
+use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::menu::car_buttons::*;
 use std::sync::atomic::AtomicUsize;
 
@@ -29,14 +29,8 @@ hook_asm!(
 // ---- Rust version ----
 
 pub unsafe fn next_car(call: &mut dyn FnMut(Call) -> Result<(), Refused>) -> Result<(), Refused> {
-    unsafe {
-        let car: u32 = game_read(CAR_RVA);
-        let last: u32 = game_read(LAST_CAR_RVA);
-        game_write(CAR_RVA, if car == last { 0 } else { car.wrapping_add(1) });
-        game_write(LEAVE_RVA, 0u32);
-        call(Call::Background)?;
-        call(Call::Stream)
-    }
+    // Converted: `rc2k_core::menu::cars::press`.
+    unsafe { crate::menu::car_buttons::press(crate::menu::car_buttons::Which::NextCar, call) }
 }
 
 // ---- hook ----

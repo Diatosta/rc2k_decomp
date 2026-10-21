@@ -404,6 +404,14 @@ pub fn pack_row(
     Ok(kept)
 }
 
+/// The row table (`gfx::fill_row_table` 0x40586A, converted 2026-10-21): `rows` addresses,
+/// `step` apart from `first` (wrapping).
+pub fn row_table(first: u32, step: u32, rows: usize) -> Vec<u32> {
+    (0..rows as u32)
+        .map(|n| first.wrapping_add(n.wrapping_mul(step)))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

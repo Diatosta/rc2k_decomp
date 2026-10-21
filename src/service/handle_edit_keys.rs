@@ -47,14 +47,16 @@ pub unsafe fn handle_edit_keys() -> Result<(), Refused> {
         return Ok(());
     }
     unsafe {
-        match game_read::<u32>(EDIT_PAGE_RVA) {
-            1 => edit_gear_ratio(false),
-            2 => edit_tyre(false),
-            3 => edit_steering_sensitivity(),
-            4 => edit_brake_balance(),
-            5 => edit_ride_height(false),
-            6 => edit_suspension_stiffness(false),
-            _ => Err(FatalError {
+        // Converted: `rc2k_core::service::setups::EditPage`.
+        use rc2k_core::service::setups::EditPage;
+        match EditPage::from_number(game_read::<u32>(EDIT_PAGE_RVA)) {
+            Some(EditPage::GearRatio) => edit_gear_ratio(false),
+            Some(EditPage::Tyre) => edit_tyre(false),
+            Some(EditPage::SteeringSensitivity) => edit_steering_sensitivity(),
+            Some(EditPage::BrakeBalance) => edit_brake_balance(),
+            Some(EditPage::RideHeight) => edit_ride_height(false),
+            Some(EditPage::SuspensionStiffness) => edit_suspension_stiffness(false),
+            None => Err(FatalError {
                 code: 0x8070_9A9A,
                 message: "Incorrect Locked Box",
             }

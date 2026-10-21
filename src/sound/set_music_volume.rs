@@ -28,7 +28,8 @@ hook_asm!(
 
 /// The registers the command is sent with, or None if the volume is the one in use.
 pub fn set_music_volume(entry: &Regs) -> Option<Regs> {
-    (entry.eax != variable(0x506994)).then_some(Regs {
+    // Converted: `rc2k_core::sound::senders::new_music_volume`.
+    rc2k_core::sound::senders::new_music_volume(entry.eax, variable(0x506994)).then_some(Regs {
         eax: 0,
         ebx: 0,
         ecx: entry.eax,

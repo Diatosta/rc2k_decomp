@@ -45,16 +45,23 @@ pub unsafe fn append_key_name(key: u32) -> Result<(Vec<u8>, u32), Refused> {
         if names == 0 {
             return Err(BadInput("a keyboard layout without its key names").into());
         }
-        let id = ((names + key * 2) as *const u16).read_unaligned() as u32;
+        // Converted: `rc2k_core::input::keyboard::key_name`.
+        let name = rc2k_core::input::keyboard::key_name(key, |k| {
+            ((names + k * 2) as *const u16).read_unaligned()
+        });
         let mut out = Vec::new();
-        if id != 0 {
-            let eax =
-                append_string_by_id(id, &mut |p, n| out.extend_from_slice(from_raw_parts(p, n)));
-            Ok((out, eax))
-        } else {
-            out.extend_from_slice(b"0x");
-            out.extend(hex_append(key, 2)?);
-            Ok((out, key))
+        match name {
+            rc2k_core::input::keyboard::KeyName::String(id) => {
+                let eax = append_string_by_id(id, &mut |p, n| {
+                    out.extend_from_slice(from_raw_parts(p, n))
+                });
+                Ok((out, eax))
+            }
+            rc2k_core::input::keyboard::KeyName::Hex(key) => {
+                out.extend_from_slice(b"0x");
+                out.extend(hex_append(key, 2)?);
+                Ok((out, key))
+            }
         }
     }
 }

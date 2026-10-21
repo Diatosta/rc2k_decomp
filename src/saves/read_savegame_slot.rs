@@ -13,14 +13,11 @@
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::{buffer as path_buffer, numbered_path_in_game};
 use crate::files::read_file::{LAST_FILE_PATH_RVA, read_file};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_ptr, game_read, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_ptr, hook_asm, rva};
 use crate::menu::name_lists::NAME_LEN;
-use crate::saves::write_savegame_slot::{
-    FILE_LEN, FILE_RVA, MAGIC, SLOTS, TEMPLATE_RVA, VERSION, slot_name,
-};
+use crate::saves::write_savegame_slot::{FILE_LEN, FILE_RVA, SLOTS, TEMPLATE_RVA, slot_name};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
-use std::ptr::copy_nonoverlapping;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -46,14 +43,16 @@ pub unsafe fn read_savegame_slot(slot: u32) -> Result<bool, Refused> {
         let path = numbered_path_in_game(game_ptr(TEMPLATE_RVA), slot)?;
         let file: *mut u8 = game_ptr(FILE_RVA);
         let read = read_file(path, file, FILE_LEN as u32, 0)?;
-        if !read.ok
-            || game_read::<u32>(FILE_RVA) != MAGIC
-            || game_read::<u32>(FILE_RVA + 8) != VERSION
-        {
-            return Ok(false);
+        // Converted: `rc2k_core::saves::kept::slot_name`.
+        use rc2k_core::saves::kept;
+        let block = std::slice::from_raw_parts(game_ptr::<u8>(FILE_RVA), 0x30);
+        match kept::slot_name(block, kept::SAVEGAME, kept::SAVEGAME_VERSION) {
+            Some(name) if read.ok => {
+                std::ptr::copy(name.as_ptr(), slot_name(slot), NAME_LEN);
+                Ok(true)
+            }
+            _ => Ok(false),
         }
-        copy_nonoverlapping(file.add(0x10), slot_name(slot), NAME_LEN);
-        Ok(true)
     }
 }
 

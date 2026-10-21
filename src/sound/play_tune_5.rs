@@ -27,7 +27,7 @@ hook_asm!(
 
 /// The registers the music's command is sent with.
 pub fn play_tune_5(entry: &Regs) -> Option<Regs> {
-    Some(music(entry, 5, 0, variable(0x5180FC)))
+    tune_regs(entry, 5)
 }
 
 pub const SENDER: Sender = Sender {

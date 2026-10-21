@@ -34,7 +34,10 @@ fn field(player: &mut Player) -> &mut u32 {
 // ---- Rust version ----
 
 pub fn next_second_view() -> Result<(), Refused> {
-    change(field, |value| wrap_up(value, 4))
+    // Converted: `rc2k_core::menu::player::stepped`.
+    change(field, |value| {
+        rc2k_core::menu::player::stepped(rc2k_core::menu::player::Setting::SecondView, value, true)
+    })
 }
 
 // ---- hook ----

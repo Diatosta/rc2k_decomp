@@ -29,29 +29,7 @@ pub const GET_POSITION: u32 = 0x10;
 pub const LOCK: u32 = 0x2C;
 pub const UNLOCK: u32 = 0x4C;
 
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct AudioStream {
-    pub playing: u32,
-    /// An index into `g_volumeTable`.
-    pub volume: u32,
-    pub buffer: u32,
-    /// 1: `file` is open.
-    pub open: u32,
-    pub file: u32,
-    pub play_cursor: u32,
-    /// Where the next bytes go in the buffer.
-    pub write_at: u32,
-    pub format: u32,
-    /// The buffer's size (0x10000 in both players).
-    pub bytes: u32,
-    /// The most a turn writes, and how far the write place starts ahead (0x8000).
-    pub step: u32,
-    /// The silence still allowed after the file's end.
-    pub tail: i32,
-}
-
-const _: () = assert!(std::mem::size_of::<AudioStream>() == 0x2C);
+pub use rc2k_core::audio::streams::AudioStream;
 
 pub unsafe fn stream<'a>(at: u32) -> &'a mut AudioStream {
     unsafe { &mut *(at as *mut AudioStream) }
@@ -82,17 +60,11 @@ pub unsafe fn fill_stream_part(s: &mut AudioStream, at: u32, bytes: u32) -> Fill
     if at == 0 || bytes == 0 {
         return None;
     }
+    // Converted: `rc2k_core::audio::streams::AudioStream::after_read`.
     let (read, _) = unsafe { crate::files::handle::read(s.file, at as *mut u8, bytes) };
-    if read == bytes {
+    let Some(quiet) = s.after_read(bytes, read) else {
         return Some((read, false));
-    }
-    if read == 0 {
-        s.tail = s.tail.wrapping_sub(bytes as i32);
-        if s.tail < 0 {
-            s.playing = 0;
-        }
-    }
-    let quiet = if s.format & 0x10 != 0 { 0x80 } else { 0 };
+    };
     unsafe { std::ptr::write_bytes((at + read) as *mut u8, quiet, (bytes - read) as usize) };
     Some((read, true))
 }
@@ -103,7 +75,7 @@ pub fn fill_left(r: &mut crate::framework::Regs, at: u32, bytes: u32, s: &AudioS
         None => {}
         Some((read, false)) => r.eax = read,
         Some((_, true)) => {
-            r.eax = if s.format & 0x10 != 0 { 0x8080_8080 } else { 0 };
+            r.eax = u32::from_ne_bytes([s.silence(); 4]);
             r.ecx = 0;
             r.edi = at + bytes;
         }
@@ -240,27 +212,19 @@ pub unsafe fn feed_stream(s: &mut AudioStream, parts: u32) -> Result<bool, Refus
             return failed(s);
         }
         let b = s.buffer;
-        let old = s.play_cursor;
+        // Converted: `rc2k_core::audio::streams::AudioStream::moved` and `advance`.
         let position: unsafe extern "system" fn(u32, u32, u32) -> i32 =
             std::mem::transmute(crate::audio::com::method(b, GET_POSITION));
-        if position(b, &mut s.play_cursor as *mut u32 as u32, 0) != 0 {
+        let mut cursor = s.play_cursor;
+        let failed_position = position(b, &mut cursor as *mut u32 as u32, 0) != 0;
+        if failed_position {
+            // The original's call wrote nothing it did not have.
+            s.play_cursor = cursor;
             return failed(s);
         }
-        let mut moved = s.play_cursor.wrapping_sub(old);
-        if (moved as i32) < 0 {
-            moved = moved.wrapping_add(s.bytes);
-        }
-        if moved == 0 {
+        let Some(moved) = s.moved(cursor) else {
             return Ok(true);
-        }
-        if moved > s.step {
-            moved = s.step;
-            let mut at = s.play_cursor.wrapping_add(moved);
-            if at >= s.bytes {
-                at = at.wrapping_sub(s.bytes);
-            }
-            s.write_at = at;
-        }
+        };
         let lock: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32) -> i32 =
             std::mem::transmute(crate::audio::com::method(b, LOCK));
         if lock(
@@ -276,11 +240,7 @@ pub unsafe fn feed_stream(s: &mut AudioStream, parts: u32) -> Result<bool, Refus
         {
             return failed(s);
         }
-        let mut at = moved.wrapping_add(s.write_at);
-        if at >= s.bytes {
-            at = at.wrapping_sub(s.bytes);
-        }
-        s.write_at = at;
+        s.advance(moved);
         fill_stream_part(s, read(parts), read(parts + 4));
         fill_stream_part(s, read(parts + 8), read(parts + 12));
         let [p1, n1, p2, n2] = (parts as *const [u32; 4]).read_unaligned();

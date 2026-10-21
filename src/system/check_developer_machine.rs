@@ -56,14 +56,12 @@ pub unsafe fn check_developer_machine(name: &mut dyn FnMut(*mut u8)) -> u16 {
     unsafe {
         game_write(DEVELOPER_RVA, 0u32);
         name(text());
-        let mut last = 0;
-        for (n, pair) in [*b"an", *b"dr", *b"ew"].into_iter().enumerate() {
-            last = (text().add(n * 2) as *const u16).read_unaligned() | 0x2020;
-            if last != u16::from_le_bytes(pair) {
-                return last;
-            }
+        // Converted: `rc2k_core::system::machine::developer`.
+        let (yes, last) =
+            rc2k_core::system::machine::developer((text() as *const [u8; 6]).read_unaligned());
+        if yes {
+            game_write(DEVELOPER_RVA, 1u32);
         }
-        game_write(DEVELOPER_RVA, 1u32);
         last
     }
 }

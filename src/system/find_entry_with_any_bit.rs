@@ -41,15 +41,14 @@ hook_asm!(
 
 /// (found, ebx, ecx).
 pub fn find_entry_with_any_bit(bits: u32, table: u32, count: u32) -> (bool, u32, u32) {
-    let (mut at, mut left) = (table, count);
-    while left != 0 {
-        if unsafe { (at as *const u32).read_unaligned() } & bits != 0 {
-            return (true, at, left);
-        }
-        at = at.wrapping_add(8);
-        left -= 1;
-    }
-    (false, at, left)
+    // Converted: `rc2k_core::system::tables::with_any_bit`.
+    use rc2k_core::system::tables::{left, with_any_bit};
+    let found = with_any_bit(
+        unsafe { crate::system::find_entry::entries(table, count) },
+        bits,
+    );
+    let (at, n) = left(table, count, found);
+    (found.is_some(), at, n)
 }
 
 // ---- hook ----

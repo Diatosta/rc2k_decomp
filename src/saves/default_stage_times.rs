@@ -8,7 +8,7 @@
 //! `dword_7556E0` get that and 0x8B more each, and a driver (`saves/default_times.rs`).
 //! One caller, `menu::set_up_front_end`, when `var\hst.dat` was not loaded.
 //! Refuses a missing table and a record that picks entries past the table's 36 stages.
-//! A refusal can come with part of the table written.
+//! Converted: `rc2k_core::saves::defaults::stage_times` (a refusal now leaves nothing written).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
@@ -16,6 +16,7 @@ use crate::math::next_random::STATE_RVA;
 use crate::saves::default_times::*;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, restore};
+use rc2k_core::saves::defaults::stage_times;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -40,40 +41,38 @@ hook_asm!(
 const TABLE_RVA: usize = rva(0x7556E0); // dword_7556E0
 const RECORD_TABLES_RVA: usize = rva(0x73555A); // off_73555A
 const TABLES: usize = 6;
-const STAGES: u32 = 6;
 /// The stages the table has room for.
 const ROOM: u32 = 36;
 
 // ---- Rust version ----
 
 pub unsafe fn default_stage_times(ebp: u32, log: Log) -> Result<(), Refused> {
+    // Converted: `rc2k_core::saves::defaults::stage_times`.
     unsafe {
         let table: u32 = game_read(TABLE_RVA);
         if table == 0 {
             return Err(BadInput("no table for the times").into());
         }
+        let mut tables = Vec::new();
         for n in 0..TABLES {
             let records: u32 = game_read(RECORD_TABLES_RVA + n * 4);
             if records == 0 || records == u32::MAX {
                 return Err(BadInput("a record table is missing").into());
             }
-            for stage in 1..=STAGES {
-                let record = records + stage * RECORD_LEN;
-                let time = ((record + 0x18) as *const u32)
-                    .read_unaligned()
-                    .wrapping_add(0x5DC0);
-                game_write(WORK_A_RVA, time);
-                let picked = ((record + 0x3C) as *const u32).read_unaligned();
-                if picked >= ROOM {
-                    return Err(BadInput("a stage past the table").into());
-                }
-                ten_entries(table + picked * STAGE_LEN, time, 0x8B, ebp, log)?;
-            }
+            tables.push(std::array::from_fn(|stage| {
+                read_record(records + (stage as u32 + 1) * RECORD_LEN)
+            }));
         }
+        let filled = stage_times(
+            &mut GameSource { log },
+            &tables,
+            Some(ebp),
+            with_checkpoints(),
+        )?;
+        apply(&filled, &[(table, (ROOM * STAGE_LEN) as usize)]);
         Ok(())
     }
 }
-
 // ---- hook ----
 
 fn tables() -> Result<Vec<Region>, BadInput> {

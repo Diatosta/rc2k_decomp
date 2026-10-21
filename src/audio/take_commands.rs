@@ -17,10 +17,11 @@
 //! action).
 //! `set_mode` is called by the game's address (not ported). Refuses a read place past the
 //! queue. The loop goes back into the patched bytes (0x40A8A5): a private copy.
-//! Shadow mode runs the original alone. Self-test: a redirected copy whose queue and
+//! Shadow mode runs the Rust version too (the original's count-down is not atomic: see
+//! `dispatch`). Self-test: a redirected copy whose queue and
 //! variables are the test's and whose calls go to stand-ins noting every register, 40 cases.
 
-use crate::audio::buffer_play::{Leaves, dispatch_leaf};
+use crate::audio::buffer_play::Leaves;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
@@ -78,7 +79,10 @@ impl Vars {
 /// A command's call, by its place in `CALLEES`, with the registers the original has there.
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
+/// Converted: `rc2k_core::audio::commands::decode` and `next_place`; the registers carry
+/// over from one command to the next as the original's do.
 pub fn take_commands(entry: &Regs, v: &Vars, part: Part) -> Result<(), Refused> {
+    use rc2k_core::audio::commands::{Command, decode, next_place};
     let mut r = *entry;
     unsafe {
         loop {
@@ -91,63 +95,59 @@ pub fn take_commands(entry: &Regs, v: &Vars, part: Part) -> Result<(), Refused> 
             }
             let at = v.records + place * 0x20;
             r.esi = at;
-            let number = read(at);
-            r.eax = number;
-            let arg = read(at + 4);
-            match number {
-                1 => {
-                    r.eax = arg as u16 as i16 as i32 as u32;
+            let record = (at as *const [u32; 8]).read_unaligned();
+            r.eax = record[0];
+            let command = decode(&record);
+            match command {
+                Command::Start(sound) => {
+                    r.eax = sound as u32;
                     part(0, &mut r)?;
                 }
-                2 => {
-                    r.eax = arg;
-                    write(v.eax_room, arg);
+                Command::Room(room) => {
+                    r.eax = room;
+                    write(v.eax_room, room);
                 }
-                3 => {
-                    r.eax = arg;
-                    write(v.list, arg);
+                Command::Load(list) => {
+                    r.eax = list;
+                    write(v.list, list);
                     part(1, &mut r)?;
                 }
-                4 => {
+                Command::Free => {
                     part(2, &mut r)?;
                     write(v.list, 0);
                 }
-                5 => {
-                    r.eax = arg;
+                Command::Mode(mode) => {
+                    r.eax = mode;
                     part(3, &mut r)?;
                 }
-                6 => part(4, &mut r)?,
-                7 => part(5, &mut r)?,
-                8 => {
-                    r.eax = arg;
+                Command::Six => part(4, &mut r)?,
+                Command::StopAll => part(5, &mut r)?,
+                Command::Volume(volume) => {
+                    r.eax = volume;
                     part(6, &mut r)?;
                 }
-                9 => {
-                    r.eax = arg;
-                    r.ecx = read(at + 0xC);
-                    r.edx = read(at + 0x10);
+                Command::Stream {
+                    path,
+                    volume,
+                    action,
+                } => {
+                    (r.eax, r.ecx, r.edx) = (path, volume, action);
                     part(7, &mut r)?;
                 }
-                0xB => {
-                    r.eax = arg;
-                    r.ebx = read(at + 8);
-                    r.ecx = read(at + 0xC);
-                    r.edx = read(at + 0x10);
+                Command::Music {
+                    tune,
+                    next,
+                    volume,
+                    action,
+                } => {
+                    (r.eax, r.ebx, r.ecx, r.edx) = (tune, next, volume, action);
                     part(8, &mut r)?;
                 }
-                _ => {}
+                Command::EndOfTurn | Command::Other(_) => {}
             }
             (*(v.count as *const AtomicU32)).fetch_sub(1, Ordering::SeqCst);
-            let next = place + 1;
-            write(
-                v.read,
-                if next >= crate::sound::queue::RECORDS {
-                    0
-                } else {
-                    next
-                },
-            );
-            if number == 0xA {
+            write(v.read, next_place(place));
+            if command == Command::EndOfTurn {
                 return Ok(());
             }
         }
@@ -222,7 +222,13 @@ unsafe fn rust(r: &Regs) -> Result<Leaves, Refused> {
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_leaf(&HOOK, r, call_original, rust);
+    // The Rust version in shadow mode too: the original's `dec` of the count is not atomic,
+    // and the game thread's `inc` races it on a machine of more than one core (a command
+    // lost or an old one taken again: the stuck sounds, 2026-10-21; notes/bugs.md).
+    HOOK.count_call();
+    if let Err(e) = unsafe { rust(r) } {
+        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
+    }
 }
 
 // ---- self-test ----

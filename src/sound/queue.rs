@@ -56,25 +56,23 @@ pub fn sent(r: &Regs) -> [u32; 7] {
 /// queued; a full queue takes nothing. The count is shared with the audio thread, which
 /// counts it down: it is added to atomically here (the original's `inc` is not).
 pub unsafe fn send_command(queue: &Queue, command: u32, registers: [u32; 7]) {
+    // Converted: `rc2k_core::audio::commands::put` and `record`.
+    use rc2k_core::audio::commands::{Put, put, record};
     unsafe {
-        if queue.no_audio.read_unaligned() != 0 {
-            queue.count.write_unaligned(0);
-            return;
+        match put(
+            queue.no_audio.read_unaligned() != 0,
+            queue.count.read_unaligned(),
+            queue.write.read_unaligned(),
+        ) {
+            Put::NoAudio => queue.count.write_unaligned(0),
+            Put::Full => {}
+            Put::At { slot, next } => {
+                let at = queue.records.byte_add(slot as usize * RECORD_LEN);
+                (at as *mut [u32; 8]).write_unaligned(record(command, registers));
+                (*(queue.count as *const AtomicU32)).fetch_add(1, Ordering::SeqCst);
+                queue.write.write_unaligned(next);
+            }
         }
-        if queue.count.read_unaligned() == RECORDS {
-            return;
-        }
-        let at = queue.write.read_unaligned();
-        let record = queue.records.byte_add(at as usize * RECORD_LEN);
-        record.write_unaligned(command);
-        for (n, value) in registers.into_iter().enumerate() {
-            record.add(1 + n).write_unaligned(value);
-        }
-        (*(queue.count as *const AtomicU32)).fetch_add(1, Ordering::SeqCst);
-        let next = at.wrapping_add(1);
-        queue
-            .write
-            .write_unaligned(if next >= RECORDS { 0 } else { next });
     }
 }
 

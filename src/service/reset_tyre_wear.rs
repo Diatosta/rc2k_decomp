@@ -35,16 +35,8 @@ pub const TYRE_DAMAGE_OFFSET: u32 = 0x108;
 // ---- Rust version ----
 
 pub unsafe fn reset_tyre_wear() -> Result<(), BadInput> {
-    let player = current_player().ok_or(BadInput(
-        "no current player object: the original writes through null",
-    ))?;
-    unsafe {
-        for i in 0..WEAR_DWORDS {
-            ((player + WEAR_OFFSET + 4 * i) as *mut u32).write_unaligned(0);
-        }
-        ((player + TYRE_DAMAGE_OFFSET) as *mut u32).write_unaligned(0);
-    }
-    Ok(())
+    // Converted: `rc2k_core::service::car` (`Player::reset_tyre_wear`).
+    crate::service::repair_parts::with_player(|p| p.reset_tyre_wear())
 }
 
 // ---- hook ----

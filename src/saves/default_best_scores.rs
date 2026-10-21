@@ -13,14 +13,16 @@
 //! One caller, `menu::set_up_front_end`, when `var\hst.dat` was not loaded.
 //! Refuses a missing table, a group without drivers (the original divides by 0), a
 //! driver past the 180, and a name that does not fit.
+//! Converted: `rc2k_core::saves::defaults::best_scores`.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
 use crate::math::next_random::STATE_RVA;
-use crate::math::random_below::random_below;
-use crate::saves::drivers::{Driver, put, put_bytes, table_at};
+use crate::saves::default_times::{GameSource, to_nowhere};
+use crate::saves::drivers::table_at;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use rc2k_core::saves::defaults::{SCORE_TABLE_LEN, best_scores, write_best_scores};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -43,69 +45,38 @@ hook_asm!(
 // ---- game data ----
 
 const TABLE_RVA: usize = rva(0x7556D4); // dword_7556D4
-const GROUPS: u32 = 5;
-const GROUP_LEN: u32 = 0x258;
-const ENTRIES: u32 = 10;
-const ENTRY_LEN: u32 = 0x3C;
 const COUNTS_RVA: usize = rva(0x75AB00); // dword_75AB00[group]
 const FIRSTS_RVA: usize = rva(0x75AB10); // dword_75AB10[group]
 
 // ---- Rust version ----
 
-/// What an entry gets, worked out before anything is written but the random numbers.
-struct Entry {
-    at: u32,
-    score: u32,
-    fields: [u32; 3],
-    name: Vec<u8>,
-}
-
 pub unsafe fn default_best_scores() -> Result<(), Refused> {
+    // Converted: `rc2k_core::saves::defaults::best_scores`.
     unsafe {
         let table: u32 = game_read(TABLE_RVA);
         if table == 0 {
             return Err(BadInput("no table of best scores").into());
         }
-        for group in 0..GROUPS as usize {
-            if group != 4 && game_read::<u32>(COUNTS_RVA + group * 4) == 0 {
-                return Err(BadInput("a group without drivers").into());
-            }
-        }
-        let mut entries = Vec::new();
-        for group in 0..GROUPS {
-            for n in 0..ENTRIES {
-                let mut number = random_below(0xB3)?;
-                if group != 4 {
-                    number = random_below(game_read(COUNTS_RVA + group as usize * 4))?
-                        .wrapping_add(game_read(FIRSTS_RVA + group as usize * 4));
-                }
-                let driver = Driver::number(number)?;
-                entries.push(Entry {
-                    at: table + group * GROUP_LEN + n * ENTRY_LEN,
-                    score: 0x32 - n,
-                    fields: [driver.dword(8), driver.dword(0x14), driver.dword(0x18)],
-                    name: driver.name()?.1,
-                });
-            }
-        }
-        for entry in entries {
-            put(entry.at, 0x38, entry.score);
-            put(entry.at, 0x10, entry.fields[0]);
-            put(entry.at, 8, entry.fields[1]);
-            put(entry.at, 0xC, entry.fields[2]);
-            put_bytes(entry.at, 0x18, &entry.name);
-        }
+        let counts = std::array::from_fn(|g| game_read(COUNTS_RVA + g * 4));
+        let firsts = std::array::from_fn(|g| game_read(FIRSTS_RVA + g * 4));
+        let entries = best_scores(
+            &mut GameSource {
+                log: &mut to_nowhere,
+            },
+            counts,
+            firsts,
+        )?;
+        write_best_scores(
+            std::slice::from_raw_parts_mut(table as *mut u8, SCORE_TABLE_LEN),
+            &entries,
+        );
         Ok(())
     }
 }
-
 // ---- hook ----
 
 fn regions() -> Vec<Region> {
-    vec![
-        (table_at(TABLE_RVA), (GROUPS * GROUP_LEN) as usize),
-        at(STATE_RVA),
-    ]
+    vec![(table_at(TABLE_RVA), SCORE_TABLE_LEN), at(STATE_RVA)]
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {

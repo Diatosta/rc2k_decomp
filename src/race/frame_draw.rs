@@ -19,21 +19,9 @@ unsafe fn put(a: u32, v: u32) {
 /// (eax / 10 and eax % 10, each + '0' as a byte), or seven spaces when ecx is -1. Every
 /// register kept.
 pub unsafe fn car_label(edi: u32, eax: u32, ecx: u32) {
-    let p = edi as *mut u8;
-    let label: [u8; 7] = if ecx == u32::MAX {
-        [b' '; 7]
-    } else {
-        [
-            b' ',
-            b'C',
-            b'A',
-            b'R',
-            b' ',
-            ((eax / 10) as u8).wrapping_add(b'0'),
-            ((eax % 10) as u8).wrapping_add(b'0'),
-        ]
-    };
-    unsafe { std::ptr::copy_nonoverlapping(label.as_ptr(), p, 7) };
+    // Converted: `rc2k_core::race::start::car_label`.
+    let label = rc2k_core::race::start::car_label(eax, ecx == u32::MAX);
+    unsafe { std::ptr::copy_nonoverlapping(label.as_ptr(), edi as *mut u8, 7) };
 }
 
 pub const MARK_COUNT_RVA: usize = rva(0x601830); // dword_601830: the dwords cleared to 0xC
@@ -571,40 +559,31 @@ pub unsafe fn countdown_lights(entry: &crate::framework::Regs) -> crate::framewo
         if get(b + 0x1C) != 0 {
             return r;
         }
+        // Converted: `rc2k_core::race::start::lights`; the registers as the original's
+        // divisions leave them.
+        use rc2k_core::race::start::{lights, steps};
         r.eax = get(b + 0x14).wrapping_sub(game_read(LIGHTS_START_RVA));
-        if (r.eax as i32) < 0 {
+        let Some(l) = lights(r.eax) else {
             return r;
-        }
-        let t = r.eax.min(0x5DC);
-        let (q, rem) = (t / 100, t % 100);
+        };
+        let (_, rem) = steps(r.eax);
         r.ebx = 100;
         r.edx = rem;
-        game_write(LIGHTS_SHOWN_RVA, q.min(5));
-        let shown = if q < 6 { q } else { u32::MAX };
-        put(lit, shown);
-        r.eax = if rem == 0 && shown != u32::MAX {
+        game_write(LIGHTS_SHOWN_RVA, l.shown);
+        put(lit, l.lit);
+        if l.whole {
             put(r.ebp, 1);
-            0
-        } else {
-            rem * 2
-        };
-        let rest = 0x100 - r.eax;
-        if game_read::<u32>(LIGHTS_SHOWN_RVA) == 5 {
-            let v = (rest as i32).clamp(0, 0x100);
-            put(size, rest);
-            let product = v as i64 * 0x80;
-            let q2 = (product / 0x30) as i32;
-            let r2 = (product % 0x30) as i32;
-            put(fade, q2 as u32);
-            r.ecx = (v.wrapping_sub(q2) >> 1) as u32;
-            put(shift, r.ecx);
-            r.eax = q2 as u32;
-            r.edx = r2 as u32;
+        }
+        r.eax = if l.whole { 0 } else { rem * 2 };
+        put(size, l.size);
+        put(fade, l.fade);
+        put(shift, l.shift);
+        if l.shown == 5 {
+            let v = (l.size as i32).clamp(0, 0x100) as i64 * 0x80;
+            r.ecx = l.shift;
+            r.eax = l.fade;
+            r.edx = (v % 0x30) as u32;
             r.ebx = 0x30;
-        } else {
-            put(fade, rest);
-            put(size, rest);
-            put(shift, 0);
         }
         r
     }

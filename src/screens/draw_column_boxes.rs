@@ -51,57 +51,25 @@ pub static INPUTS: Inputs = Inputs {
 const ROW: usize = 0x7559EC; // dword_7559EC
 const MARKER_X: usize = 0x755A18; // g_markerX
 const MARKER_Y: usize = 0x755A1C; // g_markerY
-const YELLOW: u32 = 0xFF_FF00;
-
-/// The black border: (dx, dy, w, h) from the row's place.
-const BORDER: [(i32, i32, u32, u32); 4] = [
-    (0, 0, 0x14C, 1),
-    (0, 0, 1, 0x1A),
-    (0x14C, 0, 1, 0x1B),
-    (0, 0x1A, 0x14C, 1),
-];
-/// The chosen row's outer border.
-const OUTER: [(i32, i32, u32, u32); 4] = [
-    (-1, -1, 0x14E, 1),
-    (-1, -1, 1, 0x1C),
-    (0x14D, -1, 1, 0x1D),
-    (-1, 0x1B, 0x14E, 1),
-];
 
 /// The Rust version: every register kept.
 pub unsafe fn draw_column_boxes(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::screens::panels::row_box`; the row and marker variables
+    // are left as the original leaves them.
+    use rc2k_core::screens::panels::{BOXES_Y, COLUMNS, ROW_STEP, ROWS, row_box};
     let mut part = part;
     let mut g = *entry;
     set(ROW, 1);
-    for (x, last) in [(0x43u32, 0x11u32), (0x192, 0x21)] {
+    for x in COLUMNS {
         set(MARKER_X, x);
-        set(MARKER_Y, 0x45);
-        loop {
-            let (mx, my) = (rd(MARKER_X), rd(MARKER_Y));
-            let at = |d: i32, m: u32| m.wrapping_add(d as u32);
-            quad(&mut g, mx, my, 0x14D, 0x1B, 0x4FCF, rd(0x75AA90), &mut part)?;
-            for (dx, dy, w, h) in BORDER {
-                quad(&mut g, at(dx, mx), at(dy, my), w, h, 0, 0xFF, &mut part)?;
+        set(MARKER_Y, BOXES_Y);
+        for _ in 0..ROWS {
+            let chosen = rd(0x755525) == rd(ROW) && rd(0x7559A4) == 1;
+            for a in row_box(rd(MARKER_X), rd(MARKER_Y), rd(0x75AA90), chosen) {
+                quad(&mut g, a.x, a.y, a.w, a.h, a.colour, a.see, &mut part)?;
             }
-            if rd(0x755525) == rd(ROW) && rd(0x7559A4) == 1 {
-                for (dx, dy, w, h) in BORDER.into_iter().chain(OUTER) {
-                    quad(
-                        &mut g,
-                        at(dx, mx),
-                        at(dy, my),
-                        w,
-                        h,
-                        YELLOW,
-                        0xFF,
-                        &mut part,
-                    )?;
-                }
-            }
-            set(MARKER_Y, rd(MARKER_Y).wrapping_add(0x1D));
+            set(MARKER_Y, rd(MARKER_Y).wrapping_add(ROW_STEP));
             set(ROW, rd(ROW).wrapping_add(1));
-            if rd(ROW) == last {
-                break;
-            }
         }
     }
     Ok(*entry)

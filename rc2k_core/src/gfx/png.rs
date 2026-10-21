@@ -45,6 +45,21 @@ fn be(file: &[u8], at: usize) -> u32 {
 /// The chunks of a file, walked to IEND. `Ok(None)` if the file does not begin as a PNG
 /// (the original's 2). Refused: a file shorter than the signature, a chunk past the end,
 /// a header out of place, a bit depth other than 8, more than one data chunk or one
+/// The bytes of a file's head `gfx::read_png` (0x41CB50; converted 2026-10-21) looks at.
+pub const HEAD_LEN: usize = 0x80;
+
+/// Whether a file's head is a PNG the game takes: the signature, an IHDR chunk of 13 bytes,
+/// at most 800 x 600, not interlaced.
+pub fn head_taken(head: &[u8; HEAD_LEN]) -> bool {
+    let be = |at: usize| u32::from_be_bytes(head[at..at + 4].try_into().unwrap());
+    head[..8] == SIGNATURE
+        && be(8) == 13
+        && &head[12..16] == b"IHDR"
+        && be(0x10) <= 800
+        && be(0x14) <= 600
+        && head[0x1C] == 0
+}
+
 /// before the header, a palette past the end.
 pub fn chunks(file: &[u8]) -> Result<Option<Chunks>, Invalid> {
     if file.len() < 8 {

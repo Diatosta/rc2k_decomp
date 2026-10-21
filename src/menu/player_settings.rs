@@ -30,23 +30,7 @@ pub fn change(field: fn(&mut Player) -> &mut u32, step: fn(u32) -> u32) -> Resul
     Ok(())
 }
 
-/// Up by one, back to 0 after `last`.
-pub fn wrap_up(value: u32, last: u32) -> u32 {
-    if value == last {
-        0
-    } else {
-        value.wrapping_add(1)
-    }
-}
-
-/// Down by one, to `last` from 0.
-pub fn wrap_down(value: u32, last: u32) -> u32 {
-    if value == 0 {
-        last
-    } else {
-        value.wrapping_sub(1)
-    }
-}
+pub use rc2k_core::menu::player::{wrap_down, wrap_up};
 
 /// A setting's self-test: each player, the setting at the given values; `left` is what the
 /// registers hold afterwards beyond what is preserved.

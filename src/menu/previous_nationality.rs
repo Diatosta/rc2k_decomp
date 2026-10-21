@@ -39,7 +39,14 @@ fn field(player: &mut Player) -> &mut u32 {
 // ---- Rust version ----
 
 pub fn previous_nationality() -> Result<(), Refused> {
-    change(field, |value| wrap_down(value, 0x27))
+    // Converted: `rc2k_core::menu::player::stepped`.
+    change(field, |value| {
+        rc2k_core::menu::player::stepped(
+            rc2k_core::menu::player::Setting::Nationality,
+            value,
+            false,
+        )
+    })
 }
 
 // ---- hook ----

@@ -9,9 +9,21 @@ fn k(a: usize) -> u32 {
     unsafe { game_read(rva(a)) }
 }
 
-/// Bit `n` of `g_cheats` (`bt`).
-fn cheat(n: u32) -> bool {
-    k(0x75870C) & (1 << n) != 0
+/// What a note leaves, with the box put up through `part` (converted:
+/// `rc2k_core::screens::locked`).
+fn leave(
+    note: rc2k_core::screens::locked::Note,
+    r: &mut Regs,
+    part: crate::race::frame::Part,
+) -> Result<Left, Refused> {
+    let Some(eax) = note.eax else {
+        return Ok(Left::nothing());
+    };
+    r.eax = eax;
+    if note.show {
+        part(1, r)?;
+    }
+    Ok(Left::nothing().with(EAX, r.eax))
 }
 
 /// `screens::note_locked_item_3` (0x4AAAB8): unless cheat 0x11 is on, with item 3 chosen
@@ -21,14 +33,8 @@ pub unsafe fn note_locked_item_3(
     r: &mut Regs,
     part: crate::race::frame::Part,
 ) -> Result<Left, Refused> {
-    if cheat(0x11) {
-        return Ok(Left::nothing());
-    }
-    r.eax = k(0x755525);
-    if r.eax == 3 && k(0x75ACCC) != 1 {
-        part(1, r)?;
-    }
-    Ok(Left::nothing().with(EAX, r.eax))
+    let note = rc2k_core::screens::locked::item_3(k(0x75870C), k(0x755525), k(0x75ACCC));
+    leave(note, r, part)
 }
 
 /// `screens::note_locked_stage` (0x48ADCE): unless cheat 0 is on, with an item chosen other
@@ -38,21 +44,10 @@ pub unsafe fn note_locked_stage(
     r: &mut Regs,
     part: crate::race::frame::Part,
 ) -> Result<Left, Refused> {
-    unsafe {
-        if cheat(0) {
-            return Ok(Left::nothing());
-        }
-        r.eax = k(0x755525);
-        if r.eax == 7 || r.eax == 1 {
-            return Ok(Left::nothing().with(EAX, r.eax));
-        }
-        r.eax = r.eax.wrapping_sub(2);
-        let open = ((game_addr(rva(0x758800)) as u32).wrapping_add(r.eax) as *const u8).read();
-        if open != 1 {
-            part(1, r)?;
-        }
-        Ok(Left::nothing().with(EAX, r.eax))
-    }
+    let note = rc2k_core::screens::locked::stage(k(0x75870C), k(0x755525), |index| unsafe {
+        ((game_addr(rva(0x758800)) as u32).wrapping_add(index) as *const u8).read()
+    });
+    leave(note, r, part)
 }
 
 /// Their part in the game: the message box (x the caller's ecx).

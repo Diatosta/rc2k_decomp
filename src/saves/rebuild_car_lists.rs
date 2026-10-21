@@ -40,28 +40,21 @@ const LISTS: [(usize, usize, usize); 2] = [
 // ---- Rust version ----
 
 pub unsafe fn rebuild_car_lists() -> Result<(), BadInput> {
+    // Converted: `rc2k_core::saves::cars::pointers`, both lists worked out before either
+    // is written.
     unsafe {
         let mut found = Vec::new();
         for (numbers, _, len) in LISTS {
-            let ids: Vec<u32> = (0..len)
+            let list: Vec<u32> = (0..len)
                 .map(|n| game_read::<u32>(numbers + n * 4))
-                .take_while(|&id| id != u32::MAX)
                 .collect();
-            if ids.len() == len {
-                return Err(BadInput("a list of car numbers without its end"));
-            }
-            if ids.iter().any(|&id| id >= 0x400) {
-                return Err(BadInput("a car number far past the table"));
-            }
-            found.push(ids);
+            found.push(rc2k_core::saves::cars::pointers(&list, |id| {
+                game_read::<u32>(TABLE_RVA + id as usize * 4)
+            })?);
         }
-        for (ids, (_, pointers, len)) in found.into_iter().zip(LISTS) {
-            for n in 0..len {
-                let entry = match ids.get(n) {
-                    Some(&id) => game_read::<u32>(TABLE_RVA + id as usize * 4),
-                    None => u32::MAX,
-                };
-                game_write(pointers + n * 4, entry);
+        for ((_, pointers, _), list) in LISTS.into_iter().zip(found) {
+            for (n, v) in list.into_iter().enumerate() {
+                game_write(pointers + n * 4, v);
             }
         }
         Ok(())

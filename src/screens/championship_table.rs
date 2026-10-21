@@ -24,22 +24,17 @@ const NOT_FOUND: FatalError = FatalError {
 /// `screens::find_history_entry` (0x4A256C): from entry edi on, the first of class ebx and
 /// position eax (the entry edi points at itself is looked at before the end test); none
 /// before an entry of -1 is fatal error 0x8070A7FA.
-pub unsafe fn find_history_entry(
-    mut entry: u32,
-    class: u32,
-    position: u32,
-) -> Result<u32, Refused> {
-    unsafe {
-        loop {
-            if get(entry + 0x10) == class && get(entry + 0x70) == position {
-                return Ok(entry);
-            }
-            entry = entry.wrapping_add(0x78);
-            if get(entry) == u32::MAX {
-                return Err(NOT_FOUND.into());
-            }
-        }
-    }
+pub unsafe fn find_history_entry(entry: u32, class: u32, position: u32) -> Result<u32, Refused> {
+    // Converted: `rc2k_core::screens::championship_table::find_history`.
+    use rc2k_core::screens::championship_table::{HISTORY_ENTRY_LEN, find_history};
+    let at = |n: u32| entry.wrapping_add(n.wrapping_mul(HISTORY_ENTRY_LEN));
+    let found = find_history(
+        |n| unsafe { get(at(n)) },
+        |n| unsafe { (get(at(n) + 0x10), get(at(n) + 0x70)) },
+        class,
+        position,
+    );
+    found.map(at).ok_or(NOT_FOUND.into())
 }
 
 /// `screens::draw_championship_table` (0x4A4E1E): the heads (strings 0x484, 0x485, 0x4F9 at

@@ -13,7 +13,7 @@ use crate::screens::harness::Left;
 use crate::service::harness::{
     FLAG_PATTERNS, RepairTest, check_state, dispatch_state, repair_regions, set_flags,
 };
-use crate::service::state::{ITEM_COUNT, repair_flag, set_repair_flag};
+use crate::service::state::{flags, store_flags};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -36,13 +36,10 @@ hook_asm!(
 // ---- Rust version ----
 
 pub unsafe fn clear_repair_flags() -> Result<(), BadInput> {
-    // Find the end first, so that nothing is written if the table is not as expected.
-    let Some(end) = (1..=ITEM_COUNT).find(|&item| repair_flag(item) == u32::MAX) else {
-        return Err(BadInput("the repair flag table has lost its end mark"));
-    };
-    for item in 0..end {
-        set_repair_flag(item, 0);
-    }
+    // Converted: `rc2k_core::service::repairs::clear`.
+    let mut t = flags();
+    rc2k_core::service::repairs::clear(&mut t)?;
+    store_flags(&t);
     Ok(())
 }
 

@@ -14,7 +14,7 @@ use crate::screens::harness::Left;
 use crate::service::harness::{
     FLAG_PATTERNS, RepairTest, check_state, dispatch_state, repair_regions, set_flags,
 };
-use crate::service::state::{ITEM_COUNT, repair_mark_addr};
+use crate::service::state::{marks, store_marks};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -37,17 +37,10 @@ hook_asm!(
 // ---- Rust version ----
 
 pub unsafe fn clear_repair_marks() -> Result<(), BadInput> {
-    let mark = |item: u32| repair_mark_addr(item) as *mut u32;
-    unsafe {
-        // Find the end first, so that nothing is written if the table is not as expected.
-        let Some(end) = (1..=ITEM_COUNT).find(|&item| mark(item).read_unaligned() == u32::MAX)
-        else {
-            return Err(BadInput("the second flag table has lost its end mark"));
-        };
-        for item in 0..end {
-            mark(item).write_unaligned(0);
-        }
-    }
+    // Converted: `rc2k_core::service::repairs::clear`.
+    let mut t = marks();
+    rc2k_core::service::repairs::clear(&mut t)?;
+    store_marks(&t);
     Ok(())
 }
 

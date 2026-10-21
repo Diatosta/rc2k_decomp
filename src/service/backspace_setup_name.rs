@@ -50,10 +50,11 @@ pub fn entry() -> Result<(*mut u8, usize), BadInput> {
 }
 
 pub unsafe fn backspace_setup_name() -> Result<(), BadInput> {
+    // Converted: `rc2k_core::service::setups::backspace`.
     let (name, len) = entry()?;
     if len != 0 {
-        set_length(len as i32 - 1);
-        unsafe { name.add(len - 1).write(0) };
+        let name = unsafe { std::slice::from_raw_parts_mut(name, NAME_LEN) };
+        set_length(rc2k_core::service::setups::backspace(name, len) as i32);
     }
     Ok(())
 }

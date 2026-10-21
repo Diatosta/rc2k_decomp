@@ -12,7 +12,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::{buffer as path_buffer, numbered_path_in_game};
 use crate::files::read_file::{LAST_FILE_PATH_RVA, read_file};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_ptr, game_read, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_ptr, hook_asm, rva};
 use crate::menu::name_lists::{NAME_LEN, REPLAY_NAMES_RVA};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
@@ -35,8 +35,6 @@ hook_asm!(
 const TEMPLATE_RVA: usize = rva(0x52974B); // "savedata\replay\replay00"
 const HEAD_RVA: usize = rva(0x528504); // dword_528504
 const HEAD_LEN: usize = 0x430;
-const MAGIC: u32 = 0x4C50_4552; // "REPL"
-const VERSION: u32 = 0x50400;
 const SLOTS: u32 = 100;
 
 fn slot_name(slot: u32) -> *mut u8 {
@@ -54,14 +52,16 @@ pub unsafe fn read_replay_slot(slot: u32) -> Result<bool, Refused> {
         let path = numbered_path_in_game(game_ptr(TEMPLATE_RVA), slot)?;
         let head: *mut u8 = game_ptr(HEAD_RVA);
         let read = read_file(path, head, HEAD_LEN as u32, 0)?;
-        if !read.ok
-            || game_read::<u32>(HEAD_RVA) != MAGIC
-            || game_read::<u32>(HEAD_RVA + 8) != VERSION
-        {
-            return Ok(false);
+        // Converted: `rc2k_core::saves::kept::slot_name`.
+        use rc2k_core::saves::kept;
+        let block = std::slice::from_raw_parts(game_ptr::<u8>(HEAD_RVA), 0x30);
+        match kept::slot_name(block, kept::REPLAY, kept::REPLAY_VERSION) {
+            Some(name) if read.ok => {
+                std::ptr::copy(name.as_ptr(), slot_name(slot), NAME_LEN);
+                Ok(true)
+            }
+            _ => Ok(false),
         }
-        std::ptr::copy(head.add(0x10), slot_name(slot), NAME_LEN);
-        Ok(true)
     }
 }
 

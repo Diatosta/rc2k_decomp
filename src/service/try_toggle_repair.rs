@@ -20,9 +20,9 @@ use crate::service::harness::{
     FLAG_PATTERNS, RepairTest, check_state, dispatch_state, repair_regions, set_flags,
 };
 use crate::service::state::{
-    FREE_SERVICE_TIME, MENU_ITEM_RVA, REPAIR_TOTAL_RVA, STATUS_RVA, TIME_BUDGET_RVA,
-    chosen_repairs_time, flagged_item, repair_flag, set_repair_flag,
+    MENU_ITEM_RVA, REPAIR_TOTAL_RVA, STATUS_RVA, TIME_BUDGET_RVA, flagged_item,
 };
+use crate::service::state::{flags, store_flags, time_of};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -45,27 +45,16 @@ hook_asm!(
 // ---- Rust version ----
 
 pub unsafe fn try_toggle_repair() -> Result<(), Refused> {
+    // Converted: `rc2k_core::service::repairs::try_toggle`.
     let item = flagged_item()?;
-    let before = repair_flag(item);
-    set_repair_flag(item, before ^ 1);
-    let total = match chosen_repairs_time() {
-        Ok(total) => total,
-        Err(refused) => {
-            set_repair_flag(item, before);
-            return Err(refused.into());
-        }
-    };
+    let mut t = flags();
+    let budget = unsafe { game_read::<i32>(TIME_BUDGET_RVA) };
+    let (total, status) =
+        rc2k_core::service::repairs::try_toggle(&mut t, item as usize, budget, time_of)
+            .map_err(|e| crate::errors::BadInput(e.0))?;
+    store_flags(&t);
     unsafe {
         game_write(REPAIR_TOTAL_RVA, total);
-        let left = game_read::<i32>(TIME_BUDGET_RVA).wrapping_sub(total);
-        let (flag, status) = if left >= FREE_SERVICE_TIME {
-            (before, 3u32)
-        } else if left <= 0 {
-            (0, 2)
-        } else {
-            (before, 1)
-        };
-        set_repair_flag(item, flag);
         game_write(STATUS_RVA, status);
     }
     Ok(())

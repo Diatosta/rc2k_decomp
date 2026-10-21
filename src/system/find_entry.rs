@@ -33,13 +33,26 @@ pub const ENTRY_LEN: u32 = 8;
 // ---- Rust version ----
 
 /// The entry's address, if the key is in the table.
-pub unsafe fn find_entry(key: u32, table: u32, entries: u32) -> Result<Option<u32>, BadInput> {
-    if entries != 0 && table == 0 {
+pub unsafe fn find_entry(key: u32, table: u32, count: u32) -> Result<Option<u32>, BadInput> {
+    // Converted: `rc2k_core::system::tables::by_key`.
+    if count != 0 && table == 0 {
         return Err(BadInput("no table to look in"));
     }
-    Ok((0..entries)
-        .map(|n| table.wrapping_add(n.wrapping_mul(ENTRY_LEN)))
-        .find(|&entry| unsafe { (entry as *const u32).read_unaligned() } == key))
+    let found = rc2k_core::system::tables::by_key(unsafe { entries(table, count) }, key);
+    Ok(found.map(|n| table.wrapping_add(n as u32 * ENTRY_LEN)))
+}
+
+/// The `count` entries from `table`, read as they are asked for.
+///
+/// # Safety
+/// Each entry asked for must be readable.
+pub unsafe fn entries(
+    table: u32,
+    count: u32,
+) -> impl Iterator<Item = rc2k_core::system::tables::Entry> {
+    (0..count).map(move |n| unsafe {
+        ((table.wrapping_add(8 * n)) as *const rc2k_core::system::tables::Entry).read_unaligned()
+    })
 }
 
 // ---- hook ----

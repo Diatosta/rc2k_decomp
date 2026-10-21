@@ -38,13 +38,8 @@ hook_asm!(
 /// `entry` holds the registers at entry; `send` queues a command with the registers it
 /// is given, `wait` waits with them.
 pub fn stop_music(entry: &Regs, send: &mut dyn FnMut(u32, &Regs), wait: &mut dyn FnMut(&Regs)) {
-    let zeroed = Regs {
-        eax: 0,
-        ebx: 0,
-        ecx: 0,
-        edx: 0,
-        ..*entry
-    };
+    // Converted: `rc2k_core::sound::senders::Music::STOP`.
+    let zeroed = crate::sound::senders::music_regs(entry, rc2k_core::sound::senders::Music::STOP);
     send(COMMAND_B, &zeroed);
     wait(&zeroed);
 }

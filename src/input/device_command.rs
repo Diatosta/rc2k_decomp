@@ -20,7 +20,7 @@
 //! Shadow mode runs the original alone (it acquires devices). Self-test: a copy whose
 //! calls go to stand-ins, against the Rust version: each command, each player setting.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{
     RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
@@ -59,50 +59,48 @@ fn device(n: usize) -> u32 {
 
 /// The Rust version (see the header): the registers it leaves (`popa`'s: the entry's).
 pub unsafe fn device_command(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::input::devices::command_steps`; the registers are carried
+    // through the steps as the original has them.
+    use rc2k_core::input::devices::{CommandStep::*, command_steps};
     let mut r = *entry;
     unsafe {
-        match r.eax as u8 {
-            1 => {
-                let n = (r.eax >> 8) & 0xFF;
-                if n > 1 {
-                    return Err(BadInput("a device past 1").into());
-                }
-                r.esi = device(n as usize);
-                part(0, &mut r)?;
-                part(1, &mut r)?;
-            }
-            2 => {
-                game_write(EFFECTS_ON_RVA, 0u32);
-                part(2, &mut r)?;
-                part(3, &mut r)?;
-                for n in 0..2 {
+        let steps = command_steps(
+            r.eax as u8,
+            (r.eax >> 8) as u8,
+            game_read(TWO_DEVICES_RVA),
+            game_read(ONE_PLAYER_RVA),
+        )?;
+        for step in steps {
+            match step {
+                EffectsOn(on) => game_write(EFFECTS_ON_RVA, on as u32),
+                Release(n) => {
                     r.esi = device(n);
                     part(0, &mut r)?;
-                    put(r.esi, 0x414, 0);
                 }
-            }
-            3 => {
-                r.esi = device(0);
-                r.edi = game_addr(CONTROLS_RVA[0]) as u32;
-                part(4, &mut r)?;
-                put(r.esi, 0x414, 1);
-                if game_read::<u32>(TWO_DEVICES_RVA) != 0 || game_read::<u32>(ONE_PLAYER_RVA) != 1 {
+                Acquire(n) => {
+                    r.esi = device(n);
+                    part(1, &mut r)?;
+                }
+                EndEffects => part(2, &mut r)?,
+                Tick => part(3, &mut r)?,
+                SetUp(n) => {
+                    r.esi = device(n);
+                    r.edi = game_addr(CONTROLS_RVA[n]) as u32;
+                    part(4, &mut r)?;
+                }
+                Reading(n, on) => put(device(n), 0x414, on as u32),
+                SecondApart => {
                     r.eax = game_read(CONTROLS_RVA[0]);
                     if r.eax == game_read::<u32>(CONTROLS_RVA[1]) {
                         game_write(CONTROLS_RVA[1], 0u32);
                     }
-                    r.esi = device(1);
-                    r.edi = game_addr(CONTROLS_RVA[1]) as u32;
-                    part(4, &mut r)?;
-                    put(r.esi, 0x414, 1);
                 }
-                r.eax = 1000;
-                part(5, &mut r)?;
-                part(6, &mut r)?;
-                part(3, &mut r)?;
-                game_write(EFFECTS_ON_RVA, 1u32);
+                Sleep(ms) => {
+                    r.eax = ms;
+                    part(5, &mut r)?;
+                }
+                BeginEffects => part(6, &mut r)?,
             }
-            _ => {}
         }
     }
     Ok(*entry)

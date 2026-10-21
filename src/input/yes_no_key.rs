@@ -45,7 +45,7 @@ hook_asm!(
 pub const KEY_GIVEN_RVA: usize = rva(0x4F7FD8); // dword_4F7FD8: 1 = the key comes in eax
 const LOWER_CASE_RVA: usize = rva(0x4F0BC8); // byte_4F0BC8: 256 characters
 /// (string id, answer)
-const ANSWERS: [(u32, u32); 3] = [(0xC3, 1), (0xC4, u32::MAX), (0xC5, 2)];
+use rc2k_core::input::keyboard::ANSWERS;
 pub const YES: u32 = 1;
 pub const NO: u32 = u32::MAX;
 
@@ -78,19 +78,22 @@ pub unsafe fn answer_for_key(eax: u32) -> Result<u32, BadInput> {
             game_write(LAYOUT_RVA, layout);
         }
         let lower = *game_ptr::<u8>(LOWER_CASE_RVA).add(character? as u8 as usize);
-        for (id, answer) in ANSWERS {
+        // Converted: `rc2k_core::input::keyboard::answer`; each string built at the text
+        // buffer's start without a NUL, as the original does (their lengths checked first).
+        let strings = ANSWERS.map(|(id, _)| {
             let mut string = Vec::new();
             push_string(&mut string, id);
-            if string.len() > TEXT_LEN {
-                return Err(BadInput("a string longer than the text buffer"));
-            }
-            std::ptr::copy_nonoverlapping(string.as_ptr(), text(), string.len());
-            if lower == *text() {
-                return Ok(answer);
-            }
+            string
+        });
+        if strings.iter().any(|s| s.len() > TEXT_LEN) {
+            return Err(BadInput("a string longer than the text buffer"));
         }
+        Ok(rc2k_core::input::keyboard::answer(lower, |id| {
+            let n = ANSWERS.iter().position(|&(i, _)| i == id).unwrap_or(0);
+            std::ptr::copy_nonoverlapping(strings[n].as_ptr(), text(), strings[n].len());
+            *text()
+        }))
     }
-    Ok(0)
 }
 
 pub unsafe fn yes_no_key(given: u32) -> Result<u32, BadInput> {

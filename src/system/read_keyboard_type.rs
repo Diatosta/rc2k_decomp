@@ -37,13 +37,13 @@ hook_asm!(
 // ---- game data ----
 
 const KEYBOARD_TYPE_RVA: usize = rva(0x518404); // g_keyboardType
-const JAPANESE: u32 = 2;
 
 // ---- Rust version ----
 
 /// The value the variable is given for a subtype, if any.
 pub fn keyboard_type(subtype: u32) -> Option<u32> {
-    (0xD01..=0xD06).contains(&subtype).then_some(JAPANESE)
+    // Converted: `rc2k_core::system::machine::keyboard_type`.
+    rc2k_core::system::machine::keyboard_type(subtype)
 }
 
 pub unsafe fn read_keyboard_type() {

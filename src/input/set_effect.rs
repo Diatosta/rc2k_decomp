@@ -15,7 +15,7 @@
 //! test's, against the Rust version: effects 0 .. 5, the four kinds and others, the
 //! switches both ways, numbers past 12 bits.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, hook_asm, rva};
 use crate::input::devices::{at, put, test_record};
 use crate::input::effects::{EFFECT_LEN, EFFECTS, HAS_EFFECTS, Part, REQUEST, dispatch_effects};
@@ -35,18 +35,16 @@ hook_asm!(
 );
 
 /// The Rust version: `race_on` is `dword_518090`.
+/// Converted: `rc2k_core::input::effects::wanted` and `request`.
 pub fn set_effect(r: &Regs, race_on: u32) -> Result<(), Refused> {
-    if at(r.esi, HAS_EFFECTS) != 1 {
-        return Ok(());
+    use rc2k_core::input::effects::{request, wanted};
+    if wanted(at(r.esi, HAS_EFFECTS) == 1, race_on == 1, r.eax, r.ebx)? {
+        put(
+            r.esi,
+            EFFECTS + EFFECT_LEN * r.eax + REQUEST,
+            request(r.ebx, r.ecx, r.edx),
+        );
     }
-    if race_on != 1 && r.ebx == 3 {
-        return Ok(());
-    }
-    if r.eax >= 6 {
-        return Err(BadInput("an effect past the record's six").into());
-    }
-    let request = r.ebx | (r.ecx & 0xFFF) << 8 | (r.edx & 0xFFF) << 20;
-    put(r.esi, EFFECTS + EFFECT_LEN * r.eax + REQUEST, request);
     Ok(())
 }
 

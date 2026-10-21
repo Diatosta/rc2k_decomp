@@ -23,7 +23,7 @@ use crate::service::pages::{
     BRAKE_BALANCE, GEAR_RATIO, RIDE_HEIGHT, STEERING_SENSITIVITY, SUSPENSION_STIFFNESS, TYRE,
 };
 use crate::service::read_setup_slot::{
-    MAGIC, NAME_LEN, SETUP_FILE_LEN, SETUP_FILE_RVA, SLOT_COUNT, TEMPLATE_RVA, VERSION, slot_name,
+    NAME_LEN, SETUP_FILE_LEN, SETUP_FILE_RVA, SLOT_COUNT, TEMPLATE_RVA, slot_name,
 };
 use crate::service::state::current_player;
 use crate::system::packed_local_time::packed_local_time;
@@ -54,22 +54,21 @@ pub unsafe fn write_setup_slot(slot: u32) -> Result<bool, Refused> {
     };
     unsafe {
         let file: *mut u8 = game_ptr(SETUP_FILE_RVA);
+        // Converted: `rc2k_core::saves::kept::setup_file`.
         let in_car = |offset: u32| (player.wrapping_add(offset) as *const u32).read_unaligned();
-        game_write(SETUP_FILE_RVA, MAGIC);
-        game_write(SETUP_FILE_RVA + 4, 0u32);
-        game_write(SETUP_FILE_RVA + 8, VERSION);
-        game_write(SETUP_FILE_RVA + 0xC, packed_local_time());
-        copy_nonoverlapping(slot_name(slot), file.add(0x10), NAME_LEN);
-        for (offset, value) in [
-            (0x30, game_read::<u32>(TYRE.change.chosen_rva)),
-            (0x34, in_car(BRAKE_BALANCE.car_offset)),
-            (0x38, game_read(RIDE_HEIGHT.change.chosen_rva)),
-            (0x3C, game_read(SUSPENSION_STIFFNESS.change.chosen_rva)),
-            (0x40, in_car(STEERING_SENSITIVITY.car_offset)),
-            (0x44, game_read(GEAR_RATIO.change.chosen_rva)),
-        ] {
-            game_write(SETUP_FILE_RVA + offset, value);
-        }
+        let bytes = rc2k_core::saves::kept::setup_file(
+            packed_local_time(),
+            &(slot_name(slot) as *const [u8; NAME_LEN]).read_unaligned(),
+            [
+                game_read(TYRE.change.chosen_rva),
+                in_car(BRAKE_BALANCE.car_offset),
+                game_read(RIDE_HEIGHT.change.chosen_rva),
+                game_read(SUSPENSION_STIFFNESS.change.chosen_rva),
+                in_car(STEERING_SENSITIVITY.car_offset),
+                game_read(GEAR_RATIO.change.chosen_rva),
+            ],
+        );
+        copy_nonoverlapping(bytes.as_ptr(), file, bytes.len());
         let path = numbered_path_in_game(game_ptr(TEMPLATE_RVA), slot)?;
         Ok(write_file(path, file, SETUP_FILE_LEN as u32)?.ok)
     }

@@ -25,13 +25,33 @@ pub const PAGE_RVA: usize = rva(0x755998); // dword_755998
 pub const LEAVE_RVA: usize = rva(0x755561); // dword_755561
 pub const LAST_CAR_RVA: usize = rva(0x75649C); // dword_75649C
 
-/// What a button calls.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Call {
-    Background,
-    Stream,
-    /// `menu::load_slideshow_picture` with eax = the way (1 on, -1 back).
-    Picture(u32),
+pub use rc2k_core::menu::cars::{Button as Which, Call};
+
+/// A button through `rc2k_core::menu::cars::press`: the variables loaded, changed and
+/// stored, then its calls made.
+pub unsafe fn press(
+    b: Which,
+    call: &mut dyn FnMut(Call) -> Result<(), Refused>,
+) -> Result<(), Refused> {
+    use rc2k_core::menu::cars::Shown;
+    unsafe {
+        let mut s = Shown {
+            car: game_read(CAR_RVA),
+            last_car: game_read(LAST_CAR_RVA),
+            picture: game_read(PICTURE_RVA),
+            page: game_read(PAGE_RVA),
+            leave: game_read(LEAVE_RVA),
+        };
+        let calls = rc2k_core::menu::cars::press(b, &mut s);
+        game_write(CAR_RVA, s.car);
+        game_write(PICTURE_RVA, s.picture);
+        game_write(PAGE_RVA, s.page);
+        game_write(LEAVE_RVA, s.leave);
+        for &c in calls {
+            call(c)?;
+        }
+    }
+    Ok(())
 }
 
 const CALLEES: [usize; 3] = [rva(0x468482), rva(0x469AA1), rva(0x4684F5)];

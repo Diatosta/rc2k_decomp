@@ -17,7 +17,7 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_file::read_file;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
 use crate::install::stand_ins::{WENT_FATAL, act, fatal_landing, set_handler, stand_in};
 use crate::redirect::RedirectedCopy;
 use crate::saves::rebuild_car_lists::rebuild_car_lists;
@@ -42,9 +42,6 @@ hook_asm!(
 
 const PATH_RVA: usize = rva(0x5295D8); // "var\ral.dat"
 pub const LOADED_RVA: usize = rva(0x75557D); // g_optionsLoaded
-const MAGIC: u32 = 0x4943_3552; // "R5CI"
-const VERSION: u32 = 0x50004;
-const END_MARK: u32 = 0x2323_2323; // "####"
 const HEAD_LEN: usize = 0x10;
 /// The file's pieces after its head, in order: (where each goes, its length).
 #[rustfmt::skip]
@@ -146,18 +143,19 @@ pub unsafe fn load_options(path: *const u8, places: &mut Places) -> Result<bool,
         places.loaded.write_unaligned(0);
         let file = game_addr(TEXT_RVA) as *mut u8;
         let read = read_file(path, file, TEXT_ROOM + 1, 0)?;
-        if !read.ok
-            || game_read::<u32>(TEXT_RVA) != MAGIC
-            || game_read::<u32>(TEXT_RVA + 8) != VERSION
-        {
+        // Converted: `rc2k_core::saves::kept` (`head_ok`, `pieces`), over the scratch block
+        // the file was read into (what it held past the file decides, as in the original).
+        use rc2k_core::saves::kept;
+        let block = std::slice::from_raw_parts(file, TEXT_ROOM as usize + 1);
+        if !read.ok || !kept::head_ok(block, kept::OPTIONS) {
             return Ok(false);
         }
-        let mut from = file.add(HEAD_LEN);
-        for (n, (_, len)) in OPTIONS.into_iter().enumerate() {
-            std::ptr::copy(from, (places.piece)(n), len);
-            from = from.add(len);
+        let sizes = OPTIONS.map(|(_, len)| len);
+        let (pieces, ended) = kept::pieces(block, &sizes)?;
+        for (n, piece) in pieces.into_iter().enumerate() {
+            std::ptr::copy(piece.as_ptr(), (places.piece)(n), piece.len());
         }
-        if (from as *const u32).read_unaligned() != END_MARK {
+        if !ended {
             return Err(FatalError {
                 code: 0x80AC_FF01,
                 message: "ral.dat out of date",

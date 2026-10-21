@@ -34,9 +34,9 @@ fn field(player: &mut Player) -> &mut u32 {
 // ---- Rust version ----
 
 pub fn previous_car_number() -> Result<(), Refused> {
+    // Converted: `rc2k_core::menu::player::stepped`.
     change(field, |value| {
-        let next = value.wrapping_sub(1);
-        if next as i32 <= 0 { 90 } else { next }
+        rc2k_core::menu::player::stepped(rc2k_core::menu::player::Setting::RaceNumber, value, false)
     })
 }
 

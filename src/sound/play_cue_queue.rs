@@ -59,9 +59,10 @@ const QUEUE: u32 = 0x298;
 
 // ---- Rust version ----
 
-/// Converted: `rc2k_core::sound::cars::cue_turn`; the registers the original leaves.
+/// Converted: `rc2k_core::sound::cars::cue_turn`; the drops through `sound::drop_cue` with
+/// the registers the original has there, the queue in the game's memory meanwhile.
 pub fn play_cue_queue_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
-    use rc2k_core::sound::cars::{CueQueue, CueTurn, Dropped, OWN, cue_turn};
+    use rc2k_core::sound::cars::{CueQueue, CueTurn, OWN, cue_turn};
     let o = c.ebx;
     if o == 0 {
         return Err(BadInput("a null sound object").into());
@@ -70,40 +71,41 @@ pub fn play_cue_queue_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
     let q = (o + QUEUE) as *mut [u32; 0x84];
     let mut queue = CueQueue::from_words(&unsafe { q.read_unaligned() });
     let clock: u32 = unsafe { game_read(rva(CLOCK)) };
-    let turn = cue_turn::<Refused>(&mut queue, in_use, clock, |sound| {
-        Ok(sample_duration(sound, OWN)?)
-    });
-    let turn = turn?;
-    if turn == CueTurn::NotInUse {
+    if !in_use {
         return Ok(());
     }
     c.edi = q as u32;
-    match turn {
-        CueTurn::NotInUse | CueTurn::Empty => return Ok(()),
-        CueTurn::NotDue => {
-            c.eax = clock;
-            return Ok(());
-        }
-        _ => {}
-    }
-    unsafe { q.write_unaligned(queue.to_words()) };
-    match turn {
-        CueTurn::RanOut { place, dropped } => {
-            c.ebx = place;
-            c.eax = 0;
-            if let Dropped::None { count } | Dropped::Last { count } = dropped {
-                c.ecx = count;
-            } else {
-                c.ecx = 0;
+    guard(&[(o, OBJECT_LEN)], || {
+        let turn = cue_turn::<Refused>(
+            &mut queue,
+            in_use,
+            clock,
+            |sound| Ok(sample_duration(sound, OWN)?),
+            |queue, place| {
+                unsafe { q.write_unaligned(queue.to_words()) };
+                (c.eax, c.ebx) = (0, place);
+                part(DROP, c)?;
+                *queue = CueQueue::from_words(&unsafe { q.read_unaligned() });
+                Ok(())
+            },
+        )?;
+        match turn {
+            CueTurn::NotInUse | CueTurn::Empty => return Ok(()),
+            CueTurn::NotDue => {
+                c.eax = clock;
+                return Ok(());
             }
-            Ok(())
+            _ => {}
         }
-        CueTurn::Play { sound } => {
-            (c.eax, c.ebx, c.edx, c.ecx, c.edi, c.ebp) = (sound, OWN, OWN, 0, 0, 0);
-            guard(&[(o, OBJECT_LEN)], || part(PLAY, c))
+        unsafe { q.write_unaligned(queue.to_words()) };
+        match turn {
+            CueTurn::Play { sound } => {
+                (c.eax, c.ebx, c.edx, c.ecx, c.edi, c.ebp) = (sound, OWN, OWN, 0, 0, 0);
+                part(PLAY, c)
+            }
+            _ => Ok(()),
         }
-        _ => Ok(()),
-    }
+    })
 }
 
 // ---- hook ----

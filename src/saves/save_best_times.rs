@@ -40,8 +40,6 @@ hook_asm!(
 // ---- game data ----
 
 const PATH_RVA: usize = rva(0x5295E4); // "var\hst.dat"
-const MAGIC: u32 = 0x5348_3552; // "R5HS"
-const VERSION: u32 = 0x50004;
 const HEAD_LEN: u32 = 0x10;
 /// The tables of `allocate_best_times` the file holds, in the file's order.
 const WRITTEN: [usize; 6] = [1, 2, 3, 4, 7, 8];
@@ -63,10 +61,10 @@ pub unsafe fn save_best_times(places: &Places) -> Result<bool, Refused> {
         if places.switches != [1, 1] {
             return Ok(false);
         }
-        game_write(TEXT_RVA, MAGIC);
-        game_write(TEXT_RVA + 4, 0u32);
-        game_write(TEXT_RVA + 8, VERSION);
-        game_write(TEXT_RVA + 0xC, packed_local_time());
+        // Converted: `rc2k_core::saves::kept::head`.
+        let head =
+            rc2k_core::saves::kept::head(rc2k_core::saves::kept::BEST_TIMES, packed_local_time());
+        game_write(TEXT_RVA, head);
         let Some(file) = open_by_mode(places.path, 1)? else {
             return Ok(false);
         };

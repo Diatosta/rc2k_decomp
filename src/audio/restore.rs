@@ -136,18 +136,16 @@ pub unsafe fn restore_buffer(at: u32, lost: u32) -> Result<Restored, Refused> {
 /// `audio::replay_looping`: each playing voice (the list at `playing`, linked at +0x48)
 /// whose +0x3C is 2 and that has a buffer (+8) played again (`play_buffer`, place 4).
 pub unsafe fn replay_looping(playing: u32, part: Part) -> Result<(), Refused> {
+    // Converted: `rc2k_core::audio::voices::sounding_to_replay` (the list is walked before
+    // any is played, so a list without its end plays none).
     unsafe {
-        let mut v = read(playing);
-        let mut steps = 0;
-        while v != 0 {
-            if read(v + 0x3C) == 2 && read(v + 8) != 0 {
-                part(4, 0, v)?;
-            }
-            v = read(v + 0x48);
-            steps += 1;
-            if steps > crate::audio::voices::VOICES {
-                return Err(BadInput("a playing list without its end").into());
-            }
+        let lists = rc2k_core::audio::voices::Lists {
+            playing: read(playing),
+            ..Default::default()
+        };
+        let mut pool = crate::audio::voices::GamePool::new(&crate::audio::voices::World::game());
+        for v in rc2k_core::audio::voices::sounding_to_replay(&mut pool, &lists)? {
+            part(4, 0, v)?;
         }
     }
     Ok(())

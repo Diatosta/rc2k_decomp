@@ -108,8 +108,8 @@ pub enum CueTurn {
     Empty,
     /// The next sound not due yet.
     NotDue,
-    /// The cues ran out: the place looked at last and the last drop.
-    RanOut { place: u32, dropped: Dropped },
+    /// The cues ran out: the place looked at last.
+    RanOut { place: u32 },
     /// This sound to play (the caller sends it at the sample's own volume).
     Play { sound: u32 },
 }
@@ -117,13 +117,15 @@ pub enum CueTurn {
 /// A turn of a car's cue queue at `clock`: once the next sound is due (or none begun) the
 /// place moves on; a cue played out is dropped and the next begun, and the place's sound
 /// is due again after its length (`duration`, at the sample's own rate) and 25 ms (sounds
-/// 0x13F and 0x140 0x1000000 later: never). Refused (before anything): more than 16 cues
-/// or a cue of more than six sounds; what `duration` refuses.
+/// 0x13F and 0x140 0x1000000 later: never). `drop(q, place)` takes the first cue out
+/// (`drop_cue` at 0; the place it was at given). Refused (before anything): more than 16
+/// cues or a cue of more than six sounds; what `duration` and `drop` refuse.
 pub fn cue_turn<E: From<Invalid>>(
     q: &mut CueQueue,
     in_use: bool,
     clock: u32,
     duration: impl FnOnce(u32) -> Result<u32, E>,
+    mut drop: impl FnMut(&mut CueQueue, u32) -> Result<(), E>,
 ) -> Result<CueTurn, E> {
     if !in_use {
         return Ok(CueTurn::NotInUse);
@@ -146,11 +148,11 @@ pub fn cue_turn<E: From<Invalid>>(
     q.place = q.place.wrapping_add(1);
     while q.place >= q.cues[0].count {
         let place = q.place;
-        let dropped = drop_cue(q, 0)?;
+        drop(q, place)?;
         q.place = 0;
         if q.count == 0 {
             q.place = u32::MAX;
-            return Ok(CueTurn::RanOut { place, dropped });
+            return Ok(CueTurn::RanOut { place });
         }
     }
     let sound = q.cues[0].sounds[q.place as usize];
@@ -304,31 +306,29 @@ mod tests {
         q.cues[1] = cue(&[0x13F]);
         assert_eq!(CueQueue::from_words(&q.to_words()), q);
         let d = |_| Ok::<u32, Invalid>(100);
+        let x = |q: &mut CueQueue, _| drop_cue(q, 0).map(|_| ());
         assert_eq!(
-            cue_turn(&mut q, true, 1000, d),
+            cue_turn(&mut q, true, 1000, d, x),
             Ok(CueTurn::Play { sound: 10 })
         );
         assert_eq!((q.place, q.due), (0, 1125));
-        assert_eq!(cue_turn(&mut q, true, 1124, d), Ok(CueTurn::NotDue));
+        assert_eq!(cue_turn(&mut q, true, 1124, d, x), Ok(CueTurn::NotDue));
         assert_eq!(
-            cue_turn(&mut q, true, 1125, d),
+            cue_turn(&mut q, true, 1125, d, x),
             Ok(CueTurn::Play { sound: 11 })
         );
         assert_eq!(
-            cue_turn(&mut q, true, 1300, d),
+            cue_turn(&mut q, true, 1300, d, x),
             Ok(CueTurn::Play { sound: 0x13F })
         );
         assert_eq!((q.count, q.due), (1, 1425 + 0x100_0000));
         q.due = 0;
         assert_eq!(
-            cue_turn(&mut q, true, 2000, d),
-            Ok(CueTurn::RanOut {
-                place: 1,
-                dropped: Dropped::Last { count: 0 }
-            })
+            cue_turn(&mut q, true, 2000, d, x),
+            Ok(CueTurn::RanOut { place: 1 })
         );
         assert_eq!(q.place, u32::MAX);
-        assert_eq!(cue_turn(&mut q, false, 0, d), Ok(CueTurn::NotInUse));
+        assert_eq!(cue_turn(&mut q, false, 0, d, x), Ok(CueTurn::NotInUse));
         let mut q = CueQueue {
             count: 3,
             ..CueQueue::default()

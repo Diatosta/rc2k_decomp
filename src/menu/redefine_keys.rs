@@ -24,13 +24,12 @@ use crate::service::harness::{Region, at, capture, check_state_with, restore};
 use crate::service::state::PLAYER_INDEX_RVA;
 use std::sync::atomic::Ordering;
 
-pub const KEYS: usize = 12;
+pub use rc2k_core::menu::player::{KEY_ESCAPE, KEYS, Redefined};
 pub const KEYS_RVA: usize = rva(0x755595); // g_redefinedKeys
 pub const REDEFINING_RVA: usize = rva(0x7556AC); // g_redefiningKey
 pub const PLACE_RVA: usize = rva(0x7556B0); // g_redefinedKeyPlace
 pub const RESERVED_RVA: usize = rva(0x755621); // g_reservedKeys
 pub const NO_PLACE: u32 = 999;
-const KEY_ESCAPE: u8 = 1;
 /// The reserved list's length is not known; the game's has 18 keys.
 const RESERVED_ROOM: usize = 0x100;
 
@@ -45,16 +44,7 @@ fn reserved() -> Option<Vec<u8>> {
         .map(|end| list[..end].to_vec())
 }
 
-/// The work copy with `key` put at `place`; false (nothing changed) if the key is reserved.
-pub fn place_key(keys: &mut [u8; KEYS], place: usize, key: u8, reserved: &[u8]) -> bool {
-    if let Some(had) = keys.iter().position(|&k| k == key) {
-        keys[had] = keys[place];
-    } else if reserved.contains(&key) {
-        return false;
-    }
-    keys[place] = key;
-    true
-}
+pub use rc2k_core::menu::player::place_key;
 
 /// One frame of redefining a key of `player` (0: refused).
 pub unsafe fn redefine_key(player: u32) -> Result<(), Refused> {
@@ -73,20 +63,18 @@ pub unsafe fn redefine_key(player: u32) -> Result<(), Refused> {
         let Some(reserved) = reserved() else {
             return Err(BadInput("a reserved list without its end").into());
         };
-        let key = take_key();
-        if key == 0 {
-            return Ok(());
-        }
+        // Converted: `rc2k_core::menu::player::redefine`.
         let work = game_addr(KEYS_RVA) as *mut [u8; KEYS];
-        if key != KEY_ESCAPE {
-            let mut keys = work.read();
-            if !place_key(&mut keys, place as usize, key & 0x7F, &reserved) {
-                return Ok(());
-            }
-            work.write(keys);
+        let Redefined::Done { keys, placed } =
+            rc2k_core::menu::player::redefine(work.read(), place as usize, take_key(), &reserved)
+        else {
+            return Ok(());
+        };
+        work.write(keys);
+        if placed {
             game_write(PLACE_RVA, NO_PLACE);
         }
-        ((player + KEYS_OFFSET) as *mut [u8; KEYS]).write_unaligned(work.read());
+        ((player + KEYS_OFFSET) as *mut [u8; KEYS]).write_unaligned(keys);
         game_write(REDEFINING_RVA, 0u32);
     }
     Ok(())

@@ -39,7 +39,8 @@ pub unsafe fn stop_sound(entry: &Regs) -> Result<Option<Regs>, BadInput> {
         return Err(BadInput("no request"));
     }
     let sound = unsafe { request.read_unaligned() };
-    Ok((sound & 0x8000 == 0).then_some(Regs {
+    // Converted: `rc2k_core::sound::senders::stopped`.
+    Ok(rc2k_core::sound::senders::stopped(sound).map(|sound| Regs {
         eax: sound,
         ebx: 0,
         ..*entry

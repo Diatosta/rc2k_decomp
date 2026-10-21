@@ -78,34 +78,35 @@ pub fn repair_mark_addr(item: u32) -> u32 {
     (game_addr(REPAIR_MARKS_RVA) as u32).wrapping_add(item.wrapping_mul(4))
 }
 
-/// The time of every item whose flag is not 0, as the original adds it up: it looks at entry
-/// 0 without checking it for the end mark, and reads each time through a pointer. Refuses
-/// what makes the original read through null (items 0, 1, 0x10 and 0x11 have no time) or run
-/// past the table.
+/// The flag table, with its end mark.
+pub fn flags() -> rc2k_core::service::repairs::Table {
+    unsafe { game_read(REPAIR_FLAGS_RVA) }
+}
+
+pub fn store_flags(t: &rc2k_core::service::repairs::Table) {
+    unsafe { game_write(REPAIR_FLAGS_RVA, *t) }
+}
+
+/// The mark table, with its end mark.
+pub fn marks() -> rc2k_core::service::repairs::Table {
+    unsafe { game_read(REPAIR_MARKS_RVA) }
+}
+
+pub fn store_marks(t: &rc2k_core::service::repairs::Table) {
+    unsafe { game_write(REPAIR_MARKS_RVA, *t) }
+}
+
+/// An item's repair time, through its pointer (None: null).
+pub fn time_of(item: usize) -> Option<i32> {
+    let at =
+        unsafe { ((game_addr(REPAIR_TIME_PTRS_RVA) as *const u32).add(item)).read_unaligned() };
+    (at != 0).then(|| unsafe { (at as *const i32).read_unaligned() })
+}
+
+/// The time of every item whose flag is not 0, as the original adds it up. Converted:
+/// `rc2k_core::service::repairs::chosen_time`.
 pub fn chosen_repairs_time() -> Result<i32, BadInput> {
-    let mut sum = 0i32;
-    let mut item = 0u32;
-    loop {
-        if repair_flag(item) != 0 {
-            let time = unsafe {
-                ((game_addr(REPAIR_TIME_PTRS_RVA) as *const u32).add(item as usize))
-                    .read_unaligned()
-            };
-            if time == 0 {
-                return Err(BadInput(
-                    "a chosen item has no repair time: the original reads through null",
-                ));
-            }
-            sum = sum.wrapping_add(unsafe { (time as *const i32).read_unaligned() });
-        }
-        item += 1;
-        if item > ITEM_COUNT {
-            return Err(BadInput("the repair flag table has lost its end mark"));
-        }
-        if repair_flag(item) == u32::MAX {
-            return Ok(sum);
-        }
-    }
+    Ok(rc2k_core::service::repairs::chosen_time(&flags(), time_of)?)
 }
 
 pub fn leave_edit_mode() {
@@ -122,6 +123,5 @@ pub fn has_repair_time(item: u32) -> bool {
 
 /// True if the second flag table has its end mark where it belongs.
 pub fn marks_ended() -> bool {
-    (1..=ITEM_COUNT)
-        .any(|item| unsafe { (repair_mark_addr(item) as *const u32).read_unaligned() } == u32::MAX)
+    rc2k_core::service::repairs::end_of(&marks()).is_some()
 }

@@ -29,12 +29,12 @@ hook_asm!(
 // ---- Rust version ----
 
 pub unsafe fn clear_channels(channels: u32) {
-    for n in 0..CHANNELS_CLEARED {
-        let c = unsafe { channel(channels + n * std::mem::size_of::<MixerChannel>() as u32) };
-        c.used = 0;
-        c.voice = 0;
-        c.gap_44 = [0; 5];
-    }
+    // Converted: `rc2k_core::audio::voices::clear_channels`.
+    let w = World {
+        channels,
+        ..World::game()
+    };
+    rc2k_core::audio::voices::clear_channels(&mut unsafe { GamePool::new(&w) });
 }
 
 // ---- hook ----

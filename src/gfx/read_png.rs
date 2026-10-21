@@ -37,8 +37,7 @@ use crate::gfx::picture::{
     FLAGS_RVA, HEIGHT_RVA, PICTURE_DWORDS, ROW_BYTES_RVA, WIDTH_RVA, picture,
 };
 use crate::gfx::png::{
-    INFO_RVA, MISSING_PATH, PngInfo, SIGNATURE, TEST_PATH, remove_test_file, test_png,
-    write_test_file,
+    INFO_RVA, MISSING_PATH, PngInfo, TEST_PATH, remove_test_file, test_png, write_test_file,
 };
 use crate::gfx::rgb_pixels_to_dwords::rgb_pixels_to_dwords;
 use crate::memory::MemoryList;
@@ -63,8 +62,6 @@ hook_asm!(
 
 const FILE_MEMORY_RVA: usize = rva(0x5BEC38); // dword_5BEC38: the list the file's memory is on
 const HEAD_LEN: u32 = 0x80;
-const MAX_WIDTH: u32 = 800;
-const MAX_HEIGHT: u32 = 600;
 
 // ---- Rust version ----
 
@@ -77,14 +74,10 @@ unsafe fn head_is_taken(path: *const u8) -> Result<bool, Refused> {
         if !read.ok || read.bytes_read.is_none_or(|n| n < HEAD_LEN) {
             return Ok(false);
         }
-        let head = std::slice::from_raw_parts(head, HEAD_LEN as usize);
-        let be = |at: usize| u32::from_be_bytes(head[at..at + 4].try_into().unwrap());
-        Ok(head[..8] == SIGNATURE
-            && be(8) == 13
-            && &head[12..16] == b"IHDR"
-            && be(0x10) <= MAX_WIDTH
-            && be(0x14) <= MAX_HEIGHT
-            && head[0x1C] == 0)
+        // Converted: `rc2k_core::gfx::png::head_taken`.
+        Ok(rc2k_core::gfx::png::head_taken(
+            &(head as *const [u8; 0x80]).read_unaligned(),
+        ))
     }
 }
 

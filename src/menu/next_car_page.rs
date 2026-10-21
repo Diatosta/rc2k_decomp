@@ -9,7 +9,7 @@
 //! Self-test: `menu::car_buttons::check_button`.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
+use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::menu::car_buttons::*;
 use std::sync::atomic::AtomicUsize;
 
@@ -30,11 +30,8 @@ hook_asm!(
 pub unsafe fn next_car_page(
     call: &mut dyn FnMut(Call) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    unsafe {
-        let page: u32 = game_read(PAGE_RVA);
-        game_write(PAGE_RVA, if page == 3 { 0 } else { page.wrapping_add(1) });
-        call(Call::Background)
-    }
+    // Converted: `rc2k_core::menu::cars::press`.
+    unsafe { crate::menu::car_buttons::press(crate::menu::car_buttons::Which::NextPage, call) }
 }
 
 // ---- hook ----

@@ -111,28 +111,14 @@ pub fn set_mode(entry: &Regs, v: &ModeVars, part: Part) -> Result<bool, Refused>
         }
         c.edx = mode;
         write(v.mode, mode);
-        let mut channels: i32 = if mode & 0x40_0000 != 0 { 0x10 } else { 8 };
-        let (all, other) = if mode & 0x10_0000 == 0 {
-            (0x24, 0x28)
-        } else {
-            (0x3C, 0x40)
-        };
-        c.ebx = read(v.caps + all);
-        let mut held = mode & 0x1_0000 != 0;
-        if !held {
-            c.ebx = read(v.caps + other);
-            held = mode & 0x2_0000 != 0;
-        }
-        let most = c.ebx as i32;
-        if held && most != 0 {
-            if channels > most {
-                channels = most;
-            }
-            if channels < 6 {
-                channels = 6;
-            }
-        }
-        c.eax = channels as u32;
+        // Converted: `rc2k_core::audio::modes::channels`.
+        let (channels, looked) = rc2k_core::audio::modes::channels(
+            mode,
+            [read(v.caps + 0x24), read(v.caps + 0x28)],
+            [read(v.caps + 0x3C), read(v.caps + 0x40)],
+        );
+        c.ebx = looked;
+        c.eax = channels;
         write(v.channel_count, c.eax);
         let ok = !call(6, &c)? && !call(7, &c)?;
         if ok {

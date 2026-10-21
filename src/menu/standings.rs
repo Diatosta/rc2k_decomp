@@ -7,6 +7,7 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::{Regs, game_addr, game_read, rva};
+use rc2k_core::menu::standings::{self, Entries, NAME_LEN};
 
 pub const TABLE_A_RVA: usize = rva(0x7556EC); // dword_7556EC
 pub const TABLE_B_RVA: usize = rva(0x7556F0); // dword_7556F0
@@ -18,7 +19,7 @@ pub const PLAYERS_RVA: usize = rva(0x75647C); // g_players
 /// No table of the game's is longer; a walk past it (no end entry) is refused.
 pub const MOST_ENTRIES: u32 = 0x400;
 /// "Any group" for the first-player searches.
-pub const ANY_GROUP: u32 = 0x63;
+pub const ANY_GROUP: u32 = standings::ANY_GROUP;
 
 pub fn get(p: u32) -> u32 {
     unsafe { (p as *const u32).read_unaligned() }
@@ -63,26 +64,40 @@ pub fn first_player(
     code: u32,
     message: &'static str,
 ) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    g.ecx = 0;
-    for e in entries(g.edi, size)? {
-        g.edi = e;
-        let group = get(e + group_at);
-        let matches = if g.ebx == ANY_GROUP {
-            group != 0
-        } else {
-            group == g.ebx
-        };
-        if !matches {
-            continue;
-        }
-        if get(e + 4) >= 1 {
-            g.edx = get(e + figure_at);
-            return Ok(g);
-        }
-        g.ecx += 1;
+    // Converted: `rc2k_core::menu::standings::first_player`, over the entries walked.
+    let walked = entries(entry.edi, size)?;
+    let bytes = unsafe { table_bytes(entry.edi, walked.len() as u32 * size) };
+    let t = Entries {
+        bytes,
+        size: size as usize,
+    };
+    match rc2k_core::menu::standings::first_player(
+        &t,
+        entry.ebx,
+        group_at as usize,
+        figure_at as usize,
+    ) {
+        Some(f) => Ok(Regs {
+            ecx: f.computers,
+            edx: f.figure,
+            edi: walked[f.entry],
+            ..*entry
+        }),
+        None => Err(FatalError { code, message }.into()),
     }
-    Err(FatalError { code, message }.into())
+}
+
+/// A table's bytes, `len` from `first`.
+///
+/// # Safety
+/// `first` .. `first + len` must be game memory no one else uses meanwhile.
+unsafe fn table_bytes<'a>(first: u32, len: u32) -> &'a mut [u8] {
+    unsafe { std::slice::from_raw_parts_mut(first as *mut u8, len as usize) }
+}
+
+/// `g_keptPlayerName`, the sorts' swap buffer.
+fn kept_name<'a>() -> &'a mut [u8; NAME_LEN] {
+    unsafe { &mut *(game_addr(KEPT_NAME_RVA) as *mut [u8; NAME_LEN]) }
 }
 
 /// Test entries: `n` of `size` bytes from `p` (figures by lot, groups 1 .. 3 at `group_at`,
@@ -255,23 +270,7 @@ pub const KEPT_NAME_RVA: usize = rva(0x755884); // g_keptPlayerName: 0x1F bytes
 pub const BEST_SCORES_RVA: usize = rva(0x7556D4); // dword_7556D4: five groups of ten, 0x3C each
 const SORT_I_RVA: usize = rva(0x7559B4); // dword_7559B4
 const SORT_J_RVA: usize = rva(0x7559B8); // dword_7559B8
-const SORTED: u32 = 0xB4;
-
-/// Two entries' dwords at `fields` and names (0x1F bytes at `name`) swapped, the name
-/// through `g_keptPlayerName` (which keeps the first one's) as the original.
-fn swap_entries(a: u32, b: u32, fields: &[u32], name: u32) {
-    for &o in fields {
-        let v = get(a + o);
-        put(a + o, get(b + o));
-        put(b + o, v);
-    }
-    unsafe {
-        let kept = game_addr(KEPT_NAME_RVA) as *mut u8;
-        std::ptr::copy((a + name) as *const u8, kept, 0x1F);
-        std::ptr::copy((b + name) as *const u8, (a + name) as *mut u8, 0x1F);
-        std::ptr::copy(kept, (b + name) as *mut u8, 0x1F);
-    }
-}
+const SORTED: u32 = standings::SORTED as u32;
 
 /// Standings table A's first 0xB4 entries sorted by the signed dword at `key` (the
 /// original's exchange sort: an entry later or equal moves up; `dword_7559B4` /
@@ -281,14 +280,19 @@ pub fn sort_table_a(key: u32) -> Result<(), BadInput> {
     if first == 0 {
         return Err(BadInput("no standings table"));
     }
-    for i in 0..SORTED - 1 {
-        for j in i + 1..SORTED {
-            let (a, b) = (first + A_ENTRY * j, first + A_ENTRY * i);
-            if get(a + key) as i32 <= get(b + key) as i32 {
-                swap_entries(a, b, &[0xC, 0x14, 4, 0, 8, 0x1C, 0x10, 0x18, 0x4C], 0x20);
-            }
-        }
-    }
+    // Converted: `rc2k_core::menu::standings::exchange_sort`.
+    let mut t = Entries {
+        bytes: unsafe { table_bytes(first, SORTED * A_ENTRY) },
+        size: A_ENTRY as usize,
+    };
+    standings::exchange_sort(
+        &mut t,
+        key as usize,
+        false,
+        &standings::A_FIELDS,
+        standings::A_NAME,
+        kept_name(),
+    );
     unsafe {
         crate::framework::game_write(SORT_I_RVA, SORTED - 1);
         crate::framework::game_write(SORT_J_RVA, SORTED);
@@ -316,14 +320,12 @@ pub fn rank_in_group(group: u32) -> Result<(), BadInput> {
     if table == 0 || group >= 5 {
         return Err(BadInput("no best-score table, or a group past 4"));
     }
-    let mut lower = table + group * 0x258 + 0x21C;
-    for _ in 0..9 {
-        let upper = lower - 0x3C;
-        if get(lower + 0x38) as i32 >= get(upper + 0x38) as i32 {
-            swap_entries(upper, lower, &[0x38, 0x14, 4, 8, 0x10, 0xC], 0x18);
-        }
-        lower = upper;
-    }
+    // Converted: `rc2k_core::menu::standings::rank_in_group`.
+    let mut ten = Entries {
+        bytes: unsafe { table_bytes(table + group * 0x258, 0x258) },
+        size: 0x3C,
+    };
+    standings::rank_in_group(&mut ten, kept_name());
     Ok(())
 }
 
@@ -349,17 +351,23 @@ pub fn enter_best(group: Option<u32>, score_at: u32) -> Result<(), BadInput> {
     if table == 0 || group >= 5 || get(p + 0x18) == 0 {
         return Err(BadInput("no best-score table, a group past 4 or no name"));
     }
-    let e = table + group * 0x258 + 0x21C;
-    put(e + 0x38, get(p + score_at));
-    put(e + 4, n + 1);
-    put(e + 0x14, 1);
-    put(e + 8, get(p + 4));
-    put(e + 0xC, get(p + 8));
-    put(e + 0x10, get(p + 0x90));
-    put(e, get(p + 0x18));
-    put(e + 0x18, get(p + 0x18));
-    unsafe { std::ptr::copy(get(e) as *const u8, (e + 0x18) as *mut u8, 0x1F) };
-    rank_in_group(group)
+    // Converted: `rc2k_core::menu::standings::enter_best`.
+    let name_at = get(p + 0x18);
+    let best = standings::Best {
+        player: n + 1,
+        score: get(p + score_at),
+        car: get(p + 4),
+        field_8: get(p + 8),
+        group: get(p + 0x90),
+        name_at,
+        name: unsafe { (name_at as *const [u8; NAME_LEN]).read_unaligned() },
+    };
+    let mut ten = Entries {
+        bytes: unsafe { table_bytes(table + group * 0x258, 0x258) },
+        size: 0x3C,
+    };
+    standings::enter_best(&mut ten, &best, kept_name());
+    Ok(())
 }
 
 /// Whether a group has one of players 1 .. 3 (the original's test: player 4 is not
@@ -377,17 +385,19 @@ pub fn sort_table_b(key: u32, down: bool) -> Result<(), BadInput> {
     if first == 0 {
         return Err(BadInput("no standings table"));
     }
-    let mut fields = vec![0x34, 4, 0, 8, 0x10, 0xC];
-    fields.extend((0x38..=0x6C).step_by(4));
-    for i in 0..SORTED - 1 {
-        for j in i + 1..SORTED {
-            let (a, b) = (first + B_ENTRY * j, first + B_ENTRY * i);
-            let (x, y) = (get(a + key) as i32, get(b + key) as i32);
-            if if down { x >= y } else { x <= y } {
-                swap_entries(a, b, &fields, 0x14);
-            }
-        }
-    }
+    // Converted: `rc2k_core::menu::standings::exchange_sort`.
+    let mut t = Entries {
+        bytes: unsafe { table_bytes(first, SORTED * B_ENTRY) },
+        size: B_ENTRY as usize,
+    };
+    standings::exchange_sort(
+        &mut t,
+        key as usize,
+        down,
+        &standings::b_fields(),
+        standings::B_NAME,
+        kept_name(),
+    );
     unsafe {
         crate::framework::game_write(SORT_I_RVA, SORTED - 1);
         crate::framework::game_write(SORT_J_RVA, SORTED);

@@ -44,19 +44,6 @@ const VOLUME_A_RVA: usize = rva(0x755694); // dword_755694
 const VOLUME_B_RVA: usize = rva(0x7554E8); // dword_7554E8
 const VOLUME_C_RVA: usize = rva(0x755690); // dword_755690
 
-/// In the order they are looked at: the bit, the sound, the volume's variable.
-const SOUNDS: [(u32, u32, usize); 9] = [
-    (0x80, 0xE4, VOLUME_A_RVA),
-    (0x10, 0x163, VOLUME_B_RVA),
-    (0x20, 0x197, VOLUME_B_RVA),
-    (0x40, 0x1CB, VOLUME_B_RVA),
-    (0x100, 0x1CC, VOLUME_C_RVA),
-    (0x08, 0x1CA, VOLUME_C_RVA),
-    (0x02, 0x1C8, VOLUME_C_RVA),
-    (0x04, 0x1C9, VOLUME_C_RVA),
-    (0x01, 0x1C7, VOLUME_C_RVA),
-];
-
 // ---- Rust version ----
 
 /// `now` is asked for the clock; `play` gets the registers `sound::play_sound` is
@@ -67,17 +54,22 @@ pub unsafe fn play_menu_sound(
     play: &mut dyn FnMut(&Regs),
 ) {
     unsafe {
-        let which = entry.eax;
-        if which == 0 {
+        // Converted: `rc2k_core::sound::senders::menu_sound`.
+        use rc2k_core::sound::senders::{MenuVolume, menu_sound};
+        if entry.eax == 0 {
             return;
         }
-        let now = now();
-        if (now.wrapping_sub(game_read::<u32>(NEXT_TIME_RVA)) as i32) < 0 {
+        let Some((next, pick)) = menu_sound(entry.eax, now(), game_read(NEXT_TIME_RVA)) else {
             return;
-        }
-        game_write(NEXT_TIME_RVA, now.wrapping_add(0x7D));
-        let Some(&(_, sound, volume)) = SOUNDS.iter().find(|&&(bit, ..)| which & bit != 0) else {
+        };
+        game_write(NEXT_TIME_RVA, next);
+        let Some((sound, volume)) = pick else {
             return;
+        };
+        let volume = match volume {
+            MenuVolume::A => VOLUME_A_RVA,
+            MenuVolume::B => VOLUME_B_RVA,
+            MenuVolume::C => VOLUME_C_RVA,
         };
         play(&Regs {
             eax: sound,

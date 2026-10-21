@@ -61,19 +61,14 @@ pub unsafe fn input_tick(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         part(2, &mut r)?;
     }
     if unsafe { game_read::<u32>(TWO_DEVICES_RVA) } != 0 {
+        // Converted: `rc2k_core::input::devices::merge_readings`.
         let [first, second] = records;
-        for offset in [0x4DC, 0x4E0, 0x4E4] {
-            put(
-                first,
-                offset,
-                at(first, offset).wrapping_add(at(second, offset)),
-            );
+        let mut a = [0x4DC, 0x4E0, 0x4E4, field!(InputDevice, bits)].map(|o| at(first, o));
+        let b = [0x4DC, 0x4E0, 0x4E4, field!(InputDevice, bits)].map(|o| at(second, o));
+        rc2k_core::input::devices::merge_readings(&mut a, &b);
+        for (o, v) in [0x4DC, 0x4E0, 0x4E4, 0x4E8].into_iter().zip(a) {
+            put(first, o, v);
         }
-        put(
-            first,
-            0x4E8,
-            (at(second, field!(InputDevice, bits)) & 0x70FF) | at(first, field!(InputDevice, bits)),
-        );
     }
     Ok(*entry)
 }

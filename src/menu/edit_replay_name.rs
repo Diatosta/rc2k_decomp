@@ -85,7 +85,6 @@ const KEY_CLEAR: u8 = 0x6E;
 const KEY_BACKSPACE: u8 = 0x0E;
 const CURSOR_STRING: u32 = 4;
 const MEASURING_FONT: usize = 0x51E824; // dword_51E824
-const WIDEST_NAME: i32 = 0xEC;
 
 // ---- Rust version ----
 
@@ -107,15 +106,17 @@ pub unsafe fn edit_replay_name(canvas: &mut dyn Canvas) -> Result<bool, Refused>
 
     unsafe {
         let key = take_key();
-        match key {
-            0 => {}
-            KEY_ESCAPE => {
+        // Converted: `rc2k_core::menu::text_entry` (`key`, `appends`, `too_wide`).
+        use rc2k_core::menu::text_entry::{self as entry, Key};
+        match entry::key(key) {
+            Key::None => {}
+            Key::Escape => {
                 restore_text(name);
                 game_write(ENTERING_RVA, 0u32);
                 game_write(CANCELLED_RVA, 1u32);
                 return Ok(true);
             }
-            KEY_ENTER => {
+            Key::Enter => {
                 if length() == 0 {
                     restore_text(name);
                     add_text_length(name)?;
@@ -125,16 +126,16 @@ pub unsafe fn edit_replay_name(canvas: &mut dyn Canvas) -> Result<bool, Refused>
                 return Ok(false);
             }
             // The saved game's name, not the replay's: the original's slip.
-            KEY_CLEAR => clear_text(other_name),
-            KEY_BACKSPACE => backspace_savegame_name()?,
-            _ => {
+            Key::Clear => clear_text(other_name),
+            Key::Backspace => backspace_savegame_name()?,
+            Key::Other(key) => {
                 let c = key_to_char(key as u32)? as u8;
                 let len = length();
-                if c != 0 && len <= game_read::<i32>(MAX_LENGTH_RVA) {
+                if entry::appends(c, len, game_read(MAX_LENGTH_RVA)) {
                     name.offset(len as isize).write(c);
                     set_length(len.wrapping_add(1));
                     let measured = measure_text_at(font_at(MEASURING_FONT), name, len, canvas)?;
-                    if measured.width as i32 >= WIDEST_NAME {
+                    if entry::too_wide(measured.width as i32) {
                         backspace_savegame_name()?;
                     }
                 }

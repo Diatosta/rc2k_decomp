@@ -159,6 +159,35 @@ pub fn key_to_char(
     Ok(Typed { eax, pending })
 }
 
+/// A key's name on the keyboard pages (`input::append_key_name` 0x407F39): the layout's
+/// string for the key's low seven bits, or none (0): "0x" and two hexadecimal digits.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum KeyName {
+    String(u32),
+    Hex(u32),
+}
+
+pub fn key_name(key: u32, names: impl Fn(u32) -> u16) -> KeyName {
+    let key = key & 0x7F;
+    match names(key) {
+        0 => KeyName::Hex(key),
+        id => KeyName::String(id as u32),
+    }
+}
+
+/// The answers to a yes/no question: strings 0xC3 (yes, 1), 0xC4 (no, -1), 0xC5 (2).
+pub const ANSWERS: [(u32, u32); 3] = [(0xC3, 1), (0xC4, u32::MAX), (0xC5, 2)];
+
+/// The answer a key's character (made lower case) gives (`input::yes_no_key` 0x407D71):
+/// the first of the three whose string's first byte it is (`first(id)`; an empty string
+/// is compared through what was there before), else 0.
+pub fn answer(lower: u8, mut first: impl FnMut(u32) -> u8) -> u32 {
+    ANSWERS
+        .into_iter()
+        .find(|&(id, _)| first(id) == lower)
+        .map_or(0, |(_, a)| a)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -212,5 +241,20 @@ mod tests {
         assert_eq!(typed(5, false, true, 0).eax, 0); // no AltGr table
         assert_eq!(switch(2, true, false, false, true), Some(Switch::Second));
         assert_eq!(switch(1, true, false, true, false), None);
+    }
+
+    #[test]
+    fn names_and_answers() {
+        assert_eq!(
+            key_name(0x81, |k| if k == 1 { 0x55 } else { 0 }),
+            KeyName::String(0x55)
+        );
+        assert_eq!(key_name(0x02, |_| 0), KeyName::Hex(2));
+        let firsts = |id| match id {
+            0xC3 => b's',
+            0xC4 => b'n',
+            _ => b'x',
+        };
+        assert_eq!((answer(b'n', firsts), answer(b'q', firsts)), (u32::MAX, 0));
     }
 }

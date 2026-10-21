@@ -12,14 +12,18 @@
 //! `guess_checkpoint_times`: the sixteen dwords at `dword_71C7C0` = 0; for a stage up to
 //! 0x24, with `dword_71C730[stage]` checkpoints, checkpoint n's time is the time *
 //! (n + 1) / the count.
+//! Converted: `rc2k_core::saves::defaults` (everything worked out before anything is
+//! written; `GameSource` and `apply` here).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, game_addr, game_read, game_write, rva};
 use crate::math::next_random::STATE_RVA;
 use crate::math::random_below::random_below;
-use crate::saves::drivers::{Driver, put, put_bytes};
+use crate::saves::drivers::Driver;
 use crate::screens::harness::{CallOriginal, Left};
 use crate::service::harness::{Region, at, dispatch_replayed_state};
+use rc2k_core::Invalid;
+use rc2k_core::saves::defaults::{Filled, Record};
 
 pub const WITH_CHECKPOINTS_RVA: usize = rva(0x755A0C); // dword_755A0C
 const CHECKPOINTS_RVA: usize = rva(0x71C7C0); // dword_71C7C0[16]
@@ -27,7 +31,6 @@ const CHECKPOINT_COUNTS_RVA: usize = rva(0x71C730); // dword_71C730[stage]
 const MOST_CHECKPOINTS: u32 = 16;
 pub const WORK_A_RVA: usize = rva(0x7559AC); // seconds
 pub const WORK_B_RVA: usize = rva(0x7559B0); // dword_7559B0
-pub const ENTRY_LEN: u32 = 0x9C;
 /// Ten entries.
 pub const STAGE_LEN: u32 = 0x618;
 pub const RECORD_LEN: u32 = 0xA4;
@@ -58,106 +61,87 @@ pub fn to_the_log(piece: Piece) {
 
 pub fn to_nowhere(_: Piece) {}
 
-/// `physics::guess_checkpoint_times` (0x4650F6).
-pub unsafe fn guess_checkpoint_times(stage: u32, time: u32) -> Result<(), BadInput> {
-    unsafe {
-        let count = if stage > 0x24 {
-            0
-        } else {
-            let count: u32 = game_read(CHECKPOINT_COUNTS_RVA + stage as usize * 4);
-            if count == 0 || count > MOST_CHECKPOINTS {
-                return Err(BadInput(
-                    "a stage with no checkpoints, or more than sixteen",
-                ));
-            }
-            count
-        };
-        for n in 0..MOST_CHECKPOINTS {
-            let guessed = if n < count {
-                ((n as u64 + 1) * time as u64 / count as u64) as u32
-            } else {
-                0
-            };
-            game_write(CHECKPOINTS_RVA + n as usize * 4, guessed);
-        }
-        Ok(())
-    }
+/// The game's side of the core's functions (`rc2k_core::saves::defaults`): its random
+/// numbers, its drivers, its checkpoint counts and its log (or none).
+pub struct GameSource<'a> {
+    pub log: Log<'a>,
 }
 
-/// `saves::default_time_entry` (0x47CB74): `time` is eax and `stage` is ebp there.
-pub unsafe fn default_time_entry(
-    entry: u32,
-    time: u32,
-    stage: u32,
-    log: Log,
-) -> Result<(), Refused> {
-    unsafe {
-        let text = |at: usize, newline: bool| Piece::Text(game_addr(rva(at)) as u32, newline);
-        let with_checkpoints = game_read::<u32>(WITH_CHECKPOINTS_RVA) == 1;
-        if with_checkpoints {
-            log(text(0x4DE6C5, true)); // a line of dashes
-            log(text(0x4DE6FB, true)); // "guesscheckpointtimes:start"
-            log(text(0x4DE716, false)); // "passing:(time:ebx)"
-            log(Piece::Number(time, false));
-            log(text(0x4DE729, false)); // "(stage:eax)"
-            log(Piece::Number(stage, true));
-            guess_checkpoint_times(stage, time)?;
-            log(text(0x4DE735, false)); // "testcheckdata"
-            for n in 0..MOST_CHECKPOINTS as usize {
-                log(Piece::Number(
-                    game_read(CHECKPOINTS_RVA + n * 4),
-                    n % 8 == 7,
-                ));
-            }
-            log(text(0x4DE743, true)); // "guesscheckpointtimes:done"
-            log(text(0x4DE75D, true)); // a line of dashes
-        }
-        let driver = Driver::number(random_below(0xAA)?)?;
-        let (id, name) = driver.name()?;
-        put(entry, 0x1C, driver.dword(8));
-        put(entry, 8, driver.dword(0x14));
-        put(entry, 0x50, 0xB);
-        if with_checkpoints {
-            for n in 0..MOST_CHECKPOINTS {
-                put(
-                    entry,
-                    0x5C + n * 4,
-                    game_read(CHECKPOINTS_RVA + n as usize * 4),
-                );
-            }
-        }
-        put(entry, 0x10, driver.dword(0x18));
-        put(entry, 0xC, id);
-        put_bytes(entry, 0x20, &name);
-        Ok(())
+impl rc2k_core::saves::defaults::Source for GameSource<'_> {
+    fn below(&mut self, limit: u32) -> Result<u32, Invalid> {
+        unsafe { random_below(limit) }.map_err(|e| Invalid(e.0))
     }
-}
 
-/// Ten entries from `entry` on, each with its time at +0x14, the times `step` apart.
-pub unsafe fn ten_entries(
-    entry: u32,
-    time: u32,
-    step: u32,
-    stage: u32,
-    log: Log,
-) -> Result<(), Refused> {
-    for n in 0..10 {
-        let (entry, time) = (entry + n * ENTRY_LEN, time.wrapping_add(n * step));
+    fn driver(&mut self, number: u32) -> Result<rc2k_core::saves::defaults::Driver, Invalid> {
         unsafe {
-            put(entry, 0x14, time);
-            default_time_entry(entry, time, stage, log)?;
+            let driver = Driver::number(number).map_err(|e| Invalid(e.0))?;
+            let (name_id, name) = driver.name().map_err(|e| Invalid(e.0))?;
+            Ok(rc2k_core::saves::defaults::Driver {
+                fields: [driver.dword(8), driver.dword(0x14), driver.dword(0x18)],
+                name_id,
+                name,
+            })
         }
     }
-    Ok(())
+
+    fn checkpoint_count(&mut self, stage: u32) -> u32 {
+        unsafe { game_read(CHECKPOINT_COUNTS_RVA + stage as usize * 4) }
+    }
+
+    fn log(&mut self, piece: rc2k_core::saves::defaults::Piece) {
+        use rc2k_core::saves::defaults::{Piece as P, Text};
+        let text = |t| {
+            let at = match t {
+                Text::Dashes => 0x4DE6C5,
+                Text::Start => 0x4DE6FB,
+                Text::Passing => 0x4DE716,
+                Text::Stage => 0x4DE729,
+                Text::CheckData => 0x4DE735,
+                Text::Done => 0x4DE743,
+                Text::DashesAfter => 0x4DE75D,
+            };
+            game_addr(rva(at)) as u32
+        };
+        (self.log)(match piece {
+            P::Text(t, newline) => Piece::Text(text(t), newline),
+            P::Number(n, newline) => Piece::Number(n, newline),
+        })
+    }
 }
 
-/// The record of the championship's table that is its `stage`th with tag 0.
-pub unsafe fn stage_record(table: u32, stage: u32, records: usize) -> Result<u32, BadInput> {
-    (0..records as u32)
-        .map(|n| table + n * RECORD_LEN)
-        .filter(|&record| unsafe { (record as *const u32).read_unaligned() } == 0)
-        .nth(stage as usize)
-        .ok_or(BadInput("fewer stages than counted"))
+/// The record at `at` (0xA4 bytes, unaligned).
+pub unsafe fn read_record(at: u32) -> Record {
+    let d = |o: u32| unsafe { ((at + o) as *const u32).read_unaligned() };
+    Record {
+        tag: d(0),
+        track: d(4),
+        length: d(0x18),
+        time: d(0x24),
+        picked: d(0x3C),
+    }
+}
+
+/// Writes what a function of the time tables worked out: its blocks into `tables` (the
+/// function's own, then the rallies'; address and length), and the work variables.
+pub unsafe fn apply(filled: &Filled, tables: &[(u32, usize)]) {
+    unsafe {
+        for block in &filled.blocks {
+            let (at, len) = tables[block.table];
+            block.write(std::slice::from_raw_parts_mut(at as *mut u8, len));
+        }
+        game_write(WORK_A_RVA, filled.seconds);
+        if let Some(sum) = filled.sum {
+            game_write(WORK_B_RVA, sum);
+        }
+        if let Some(c) = filled.checkpoints {
+            game_write(CHECKPOINTS_RVA, c);
+        }
+    }
+}
+
+/// Whether the game's switch for the checkpoint times is on.
+pub fn with_checkpoints() -> bool {
+    unsafe { game_read::<u32>(WITH_CHECKPOINTS_RVA) == 1 }
 }
 
 /// How many records a table has before its -1 (the first is not looked at for the end).

@@ -22,9 +22,9 @@ use crate::service::harness::{
     restore, set_flags,
 };
 use crate::service::state::{
-    EDIT_MODE_RVA, FREE_SERVICE_TIME, MENU_ITEM_RVA, REPAIR_TOTAL_RVA, STATUS_RVA, TIME_BUDGET_RVA,
-    chosen_repairs_time, flagged_item, marks_ended, repair_flag, repair_mark_addr, set_repair_flag,
+    EDIT_MODE_RVA, MENU_ITEM_RVA, REPAIR_TOTAL_RVA, STATUS_RVA, TIME_BUDGET_RVA, flagged_item,
 };
+use crate::service::state::{flags, marks, store_flags, store_marks, time_of};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -52,43 +52,19 @@ fn regions() -> Vec<Region> {
 
 /// The Rust version (see the header).
 pub unsafe fn toggle_repair_choice() -> Result<(), Refused> {
+    // Converted: `rc2k_core::service::repairs::toggle_choice` (nothing written when it
+    // refuses).
     let item = flagged_item()?;
-    if !marks_ended() {
-        return Err(BadInput("the repair mark table has lost its end mark").into());
-    }
-    let saved = capture(&regions());
-    let result = unsafe { toggle(item) };
-    if result.is_err() {
-        restore(&regions(), &saved);
-    }
-    result
-}
-
-unsafe fn toggle(item: u32) -> Result<(), Refused> {
+    let (mut f, mut m) = (flags(), marks());
+    let budget = unsafe { game_read::<i32>(TIME_BUDGET_RVA) };
+    let (total, status) =
+        rc2k_core::service::repairs::toggle_choice(&mut f, &mut m, item as usize, budget, time_of)
+            .map_err(|e| BadInput(e.0))?;
+    store_flags(&f);
+    store_marks(&m);
     unsafe {
-        game_write(STATUS_RVA, 0u32);
+        game_write(STATUS_RVA, status);
         game_write(EDIT_MODE_RVA, 0u32);
-        set_repair_flag(item, repair_flag(item) ^ 1);
-        let total = chosen_repairs_time()?;
-        game_write(REPAIR_TOTAL_RVA, total);
-        let left = game_read::<i32>(TIME_BUDGET_RVA).wrapping_sub(total);
-        if left >= FREE_SERVICE_TIME {
-            // From entry 0, each written before the next is looked at for the end mark.
-            let mut n = 0;
-            loop {
-                (repair_mark_addr(n) as *mut u32).write_unaligned(0);
-                n += 1;
-                if (repair_mark_addr(n) as *const u32).read_unaligned() == u32::MAX {
-                    break;
-                }
-            }
-        } else if left >= 0 {
-            (repair_mark_addr(item) as *mut u32).write_unaligned(1);
-        } else {
-            set_repair_flag(item, repair_flag(item) ^ 1);
-            game_write(STATUS_RVA, 1u32);
-        }
-        let total = chosen_repairs_time()?;
         game_write(REPAIR_TOTAL_RVA, total);
     }
     Ok(())

@@ -113,9 +113,10 @@ pub unsafe fn read_sample_in_game(path: *const u8) -> Result<bool, Refused> {
 
 /// The voice of `count` from `voices` whose `data_key` is the record's (0: none).
 pub unsafe fn find_shared_voice(record: &SampleRecord, voices: u32, count: u32) -> u32 {
-    (0..count)
-        .map(|n| voices + n * std::mem::size_of::<Voice>() as u32)
-        .find(|&at| unsafe { voice(at).data_key } == record.data_key)
+    // Converted: `rc2k_core::audio::voices::find_shared`.
+    let mut pool = unsafe { crate::audio::voices::GamePool::new(&World::game()) };
+    let size = std::mem::size_of::<Voice>() as u32;
+    rc2k_core::audio::voices::find_shared(&mut pool, count, |n| voices + n * size, record.data_key)
         .unwrap_or(0)
 }
 

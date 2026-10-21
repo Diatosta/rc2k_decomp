@@ -13,9 +13,7 @@
 
 use crate::errors::Refused;
 use crate::files::write_file::write_file;
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva, shadow};
 use crate::redirect::RedirectedCopy;
 use crate::saves::load_options::OPTIONS;
 use crate::service::harness::{capture, restore};
@@ -38,9 +36,6 @@ hook_asm!(
 // ---- game data ----
 
 const PATH_RVA: usize = rva(0x5295D8); // "var\ral.dat"
-const MAGIC: u32 = 0x4943_3552; // "R5CI"
-const VERSION: u32 = 0x50004;
-const END_MARK: u32 = 0x2323_2323; // "####"
 const HEAD_LEN: usize = 0x10;
 /// Where the time is in the head.
 const TIME: std::ops::Range<usize> = 0xC..0x10;
@@ -56,16 +51,16 @@ pub fn file_len() -> usize {
 pub unsafe fn save_options(path: *const u8) -> Result<bool, Refused> {
     unsafe {
         let file = game_addr(TEXT_RVA) as *mut u8;
-        game_write(TEXT_RVA, MAGIC);
-        game_write(TEXT_RVA + 4, 0u32);
-        game_write(TEXT_RVA + 8, VERSION);
-        game_write(TEXT_RVA + 0xC, packed_local_time());
-        let mut cursor = file.add(HEAD_LEN);
-        for (place, len) in OPTIONS {
-            std::ptr::copy(game_addr(rva(place as usize)) as *const u8, cursor, len);
-            cursor = cursor.add(len);
-        }
-        (cursor as *mut u32).write_unaligned(END_MARK);
+        // Converted: `rc2k_core::saves::kept::options_file`, put together in the scratch
+        // block as the original does.
+        let pieces: Vec<&[u8]> = OPTIONS
+            .iter()
+            .map(|&(place, len)| {
+                std::slice::from_raw_parts(game_addr(rva(place as usize)) as *const u8, len)
+            })
+            .collect();
+        let bytes = rc2k_core::saves::kept::options_file(packed_local_time(), &pieces);
+        std::ptr::copy_nonoverlapping(bytes.as_ptr(), file, bytes.len());
         Ok(write_file(path, file, file_len() as u32)?.ok)
     }
 }

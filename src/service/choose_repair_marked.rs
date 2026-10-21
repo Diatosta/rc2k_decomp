@@ -13,7 +13,7 @@ use crate::screens::harness::Left;
 use crate::service::harness::{
     FLAG_PATTERNS, RepairTest, check_state, dispatch_state, repair_regions, set_flags,
 };
-use crate::service::state::{MENU_ITEM_RVA, flagged_item, repair_mark_addr, set_repair_flag};
+use crate::service::state::{MENU_ITEM_RVA, flagged_item};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -36,11 +36,13 @@ hook_asm!(
 // ---- Rust version ----
 
 pub unsafe fn choose_repair_marked() -> Result<(), BadInput> {
+    // Converted: `rc2k_core::service::repairs::choose`.
+    use crate::service::state::{flags, marks, store_flags, store_marks};
     let item = flagged_item()?;
-    set_repair_flag(item, 1);
-    unsafe {
-        (repair_mark_addr(item) as *mut u32).write_unaligned(1);
-    }
+    let (mut f, mut m) = (flags(), marks());
+    rc2k_core::service::repairs::choose(&mut f, &mut m, item as usize, true);
+    store_flags(&f);
+    store_marks(&m);
     Ok(())
 }
 

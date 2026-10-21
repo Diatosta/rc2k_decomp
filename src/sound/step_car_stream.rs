@@ -54,17 +54,25 @@ pub unsafe fn step_car_stream(
     start: &mut dyn FnMut(&mut Regs),
 ) {
     unsafe {
-        if game_read::<u32>(KIND_RVA) != 2 || game_read::<u32>(ON_RVA) != 1 || playing() {
-            return;
-        }
-        let place = game_read::<u32>(PLACE_RVA).wrapping_add(1);
-        game_write(PLACE_RVA, place);
+        // Converted: `rc2k_core::sound::race::stream_step`.
+        use rc2k_core::sound::race::{StreamStep, stream_step};
         let list: u32 = game_read(STREAM_RVA);
-        let part = ((list.wrapping_add(place.wrapping_mul(4))) as *const u32).read_unaligned();
-        if part == u32::MAX {
-            game_write(ON_RVA, 0u32);
-            return;
-        }
+        let (place, part) = match stream_step(
+            game_read(KIND_RVA),
+            game_read(ON_RVA),
+            playing,
+            game_read(PLACE_RVA),
+            |place| ((list.wrapping_add(place.wrapping_mul(4))) as *const u32).read_unaligned(),
+        ) {
+            StreamStep::Nothing => return,
+            StreamStep::Ended { place } => {
+                game_write(PLACE_RVA, place);
+                game_write(ON_RVA, 0u32);
+                return;
+            }
+            StreamStep::Start { place, part } => (place, part),
+        };
+        game_write(PLACE_RVA, place);
         let mut inner = Regs {
             eax: part,
             ebx: place,

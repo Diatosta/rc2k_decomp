@@ -22,7 +22,7 @@
 //! not written). Self-test: the original on options of the test's, with the real log
 //!, 53 cases.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, rva, shadow};
 use crate::service::harness::{capture, restore};
 use std::sync::atomic::AtomicUsize;
@@ -49,52 +49,19 @@ const HAS_EAX_RVA: usize = rva(0x506C70); // g_hasEax
 const HW_3D_BUFFERS_RVA: usize = rva(0x506ACC); // g_soundCaps' free hardware 3D buffers
 const VOICE_MANAGER_ON_RVA: usize = rva(0x506C54); // g_voiceManagerOn
 const NEW_MODES_TEXT: usize = rva(0x4DA6BE); // "AUD: New modes"
-const QUALITIES: u32 = 4;
 
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct AudioOptions {
-    pub kept: u32,
-    /// The screen's choices: quality, channels, DS3D, EAX, A3D, Dolby.
-    pub choice: [u32; 6],
-    /// The same, as last applied.
-    pub applied: [u32; 6],
-    pub has_3d: u32,
-    pub has_a3d2: u32,
-    pub has_eax: u32,
-}
+pub use rc2k_core::audio::modes::{AudioOptions, Facts};
 
-const _: () = assert!(std::mem::size_of::<AudioOptions>() == 0x40);
-
-const QUALITY: usize = 0;
-const CHANNELS: usize = 1;
-const DS3D: usize = 2;
-const EAX: usize = 3;
-const A3D: usize = 4;
-const DOLBY: usize = 5;
-
-/// What it reads of the machine.
-#[derive(Clone, Copy)]
-pub struct Facts {
-    pub qualities: [u32; 4],
-    pub has_3d: u32,
-    pub has_a3d2: u32,
-    pub has_eax: u32,
-    pub hw_3d_buffers: u32,
-    pub voice_manager_on: u32,
-}
-
-impl Facts {
-    pub fn game() -> Self {
-        unsafe {
-            Self {
-                qualities: game_read(QUALITY_MODES_RVA),
-                has_3d: (game_addr(HAS_3D_RVA) as *const u32).read_unaligned(),
-                has_a3d2: game_read(HAS_A3D2_RVA),
-                has_eax: game_read(HAS_EAX_RVA),
-                hw_3d_buffers: game_read(HW_3D_BUFFERS_RVA),
-                voice_manager_on: game_read(VOICE_MANAGER_ON_RVA),
-            }
+/// The machine's facts as the game holds them.
+pub fn game_facts() -> Facts {
+    unsafe {
+        Facts {
+            qualities: game_read(QUALITY_MODES_RVA),
+            has_3d: (game_addr(HAS_3D_RVA) as *const u32).read_unaligned(),
+            has_a3d2: game_read(HAS_A3D2_RVA),
+            has_eax: game_read(HAS_EAX_RVA),
+            hw_3d_buffers: game_read(HW_3D_BUFFERS_RVA),
+            voice_manager_on: game_read(VOICE_MANAGER_ON_RVA),
         }
     }
 }
@@ -103,6 +70,7 @@ impl Facts {
 /// `sound_device::Part`'s places.
 pub type Log<'a> = &'a mut dyn FnMut(u32, u32);
 
+/// Converted: `rc2k_core::audio::modes::choose_modes`.
 pub fn choose_modes(
     o: &mut AudioOptions,
     race: &mut u32,
@@ -110,95 +78,18 @@ pub fn choose_modes(
     f: &Facts,
     log: Log,
 ) -> Result<(), Refused> {
-    if o.kept != 1 {
-        o.kept = 1;
-        let mode = *race;
-        o.applied[QUALITY] = (0..3u32)
-            .find(|&n| (mode ^ f.qualities[n as usize]) & 0xFF == 0)
-            .unwrap_or(3);
-        let mut set = |n: usize, on: bool| {
-            if on {
-                o.applied[n] = 1;
-            }
-        };
-        set(CHANNELS, mode & 0x40_0000 != 0);
-        set(DS3D, mode & 0x10_1000 == 0x10_1000);
-        set(EAX, mode & 0x100_0000 != 0);
-        set(A3D, mode & 0x2000 != 0);
-        set(DOLBY, mode & 0x200_0000 != 0);
-        o.has_3d = f.has_3d;
-        o.has_a3d2 = f.has_a3d2;
-        o.has_eax = f.has_eax;
-        o.choice = o.applied;
-        return Ok(());
-    }
-    if o.choice[QUALITY] >= QUALITIES {
-        return Err(BadInput("a sound quality past the table").into());
-    }
-    let (c, a) = (o.choice, &mut o.applied);
-    a[QUALITY] = c[QUALITY];
-    a[CHANNELS] = c[CHANNELS];
-    if c[DS3D] != a[DS3D] {
-        a[DS3D] = c[DS3D];
-        if c[DS3D] != 0 {
-            a[A3D] = 0;
-            a[DOLBY] = 0;
-        } else {
-            a[EAX] = 0;
-        }
-    } else if c[EAX] != a[EAX] && {
-        a[EAX] = c[EAX];
-        c[EAX] != 0
-    } {
-        a[DS3D] = 1;
-        a[A3D] = 0;
-        a[DOLBY] = 0;
-    } else if c[A3D] != a[A3D] && {
-        a[A3D] = c[A3D];
-        c[A3D] != 0
-    } {
-        a[DS3D] = 0;
-        a[EAX] = 0;
-        a[DOLBY] = 0;
-    } else if c[DOLBY] != a[DOLBY] {
-        a[DOLBY] = c[DOLBY];
-        if c[DOLBY] != 0 {
-            a[DS3D] = 0;
-            a[EAX] = 0;
-            a[A3D] = 0;
-        }
-    }
-    let mut mode = f.qualities[a[QUALITY] as usize];
-    if a[CHANNELS] != 0 {
-        mode |= 0x40_0000;
-    }
-    if a[DS3D] != 0 {
-        mode |= 0x10_1000;
-        if f.hw_3d_buffers != 0 && f.voice_manager_on == 1 {
-            mode |= 0x80_0000;
-        }
-    }
-    if a[A3D] != 0 {
-        mode |= 0x10_2000;
-    }
-    if a[EAX] != 0 {
-        mode |= 0x100_0000;
-    }
-    if a[DOLBY] != 0 {
-        mode |= 0x204_0000;
-    }
-    if mode & 0xF_0000 == 0 {
-        mode |= 0x1_0000;
-    }
-    if mode & 0xF000 == 0 {
-        mode |= 0x1000;
-    }
-    *race = mode;
-    *menu = 0x1_1221;
-    log(0, game_addr(NEW_MODES_TEXT) as u32);
-    log(2, *menu);
-    log(3, *race);
-    Ok(())
+    use rc2k_core::audio::modes::Logged;
+    Ok(rc2k_core::audio::modes::choose_modes(
+        o,
+        race,
+        menu,
+        f,
+        |l| match l {
+            Logged::NewModes => log(0, game_addr(NEW_MODES_TEXT) as u32),
+            Logged::Menu(m) => log(2, m),
+            Logged::Race(m) => log(3, m),
+        },
+    )?)
 }
 
 fn regions() -> [(u32, usize); 2] {
@@ -214,7 +105,7 @@ pub fn in_game(log: Log) -> Result<(), Refused> {
         let o = &mut *(game_addr(OPTIONS_RVA) as *mut AudioOptions);
         let menu = &mut *(game_addr(MENU_MODE_RVA) as *mut u32);
         let race = &mut *(game_addr(RACE_MODE_RVA) as *mut u32);
-        choose_modes(o, race, menu, &Facts::game(), log)
+        choose_modes(o, race, menu, &game_facts(), log)
     }
 }
 
@@ -254,7 +145,7 @@ fn self_test() -> (usize, usize) {
     };
     let regions = regions();
     let saved = capture(&regions);
-    let f = Facts::game();
+    let f = game_facts();
     let mut cases = Vec::new();
     for race in [0x11221u32, 0x2441220, 0x1511220, 0x112222, 0x10220] {
         cases.push((AudioOptions::default(), race));

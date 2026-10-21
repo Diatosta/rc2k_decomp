@@ -277,9 +277,192 @@ pub fn read_device(
     }))
 }
 
+/// Which axis moved past 0x80 from rest (`input::axis_moved` 0x40939F): of the six
+/// (`now` less `rest`, signed) the first the controller has (`axes`, a bit an axis), its
+/// number, + 0x10 when it went up. None: the last difference worked out (the original
+/// leaves it in eax).
+pub fn axis_moved(now: &[u32; 6], rest: &[u32; 6], axes: u32) -> Result<u32, u32> {
+    let mut last = 0;
+    for n in 0..6 {
+        let d = now[n].wrapping_sub(rest[n]) as i32;
+        last = d as u32;
+        if axes & (1 << n) == 0 {
+            continue;
+        }
+        if d < -0x80 {
+            return Ok(n as u32);
+        }
+        if d > 0x80 {
+            return Ok(n as u32 | 0x10);
+        }
+    }
+    Err(last)
+}
+
+/// One player on two devices (`input::input_tick` 0x408A56): the second's three readings
+/// added to the first's, and of its bits those of 0x70FF.
+pub fn merge_readings(first: &mut [u32; 4], second: &[u32; 4]) {
+    for n in 0..3 {
+        first[n] = first[n].wrapping_add(second[n]);
+    }
+    first[3] |= second[3] & 0x70FF;
+}
+
+/// The twelve bindings of a device's record (converted 2026-10-21 from
+/// `input::set_up_device` 0x408BCD): each (the player's controls' key byte, the controls'
+/// word, the record's place).
+pub const DEVICE_BINDINGS: [(usize, usize, usize); 12] = [
+    (0x54, 0x2C, 0x41C),
+    (0x55, 0x30, 0x42C),
+    (0x56, 0x24, 0x43C),
+    (0x57, 0x28, 0x44C),
+    (0x59, 0x34, 0x45C),
+    (0x5A, 0x38, 0x46C),
+    (0x58, 0x3C, 0x47C),
+    (0x5B, 0x4C, 0x48C),
+    (0x5C, 0x48, 0x49C),
+    (0x5D, 0x40, 0x4AC),
+    (0x5E, 0x44, 0x4BC),
+    (0x5F, 0x50, 0x4CC),
+];
+
+/// The device's kind from the controls' (0: 2).
+pub fn device_kind(kind: u32) -> u32 {
+    if kind == 0 { 2 } else { kind }
+}
+
+/// A binding's four dwords in the record: its key, and the place, sign and button of its
+/// word (`binding_place`, `first` the record's +0x24 being 1).
+pub fn binding(key: u8, word: u32, first: bool) -> [u32; 4] {
+    let p = binding_place(word, first);
+    [key as u32, p.axis, p.sign, p.button]
+}
+
+/// A step of the input thread's command (converted 2026-10-21 from `input::device_command`
+/// 0x408AE5).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CommandStep {
+    /// `dword_518090`, the effects' switch.
+    EffectsOn(bool),
+    Release(usize),
+    Acquire(usize),
+    EndEffects,
+    Tick,
+    /// Device `device` set up from player `device`'s controls.
+    SetUp(usize),
+    /// The device's +0x414 (read).
+    Reading(usize, bool),
+    /// Player 2's controller made none when it is player 1's.
+    SecondApart,
+    Sleep(u32),
+    BeginEffects,
+}
+
+/// The steps of command `command` (al; `device` ah for 1): 1 the device given back and
+/// acquired again; 2 (the race's end) the effects off and ended, a tick, both devices
+/// given back and not read; 3 (the race's start) device 0 set up and read, device 1 too
+/// unless one player on one device (`two_devices` 0 and `one_player` 1), a second's
+/// sleep, the effects begun, a tick, the effects on. Refused: a device past 1 for 1.
+pub fn command_steps(
+    command: u8,
+    device: u8,
+    two_devices: u32,
+    one_player: u32,
+) -> Result<Vec<CommandStep>, Invalid> {
+    use CommandStep::*;
+    Ok(match command {
+        1 => {
+            if device > 1 {
+                return Err(Invalid("a device past 1"));
+            }
+            vec![Release(device as usize), Acquire(device as usize)]
+        }
+        2 => vec![
+            EffectsOn(false),
+            EndEffects,
+            Tick,
+            Release(0),
+            Reading(0, false),
+            Release(1),
+            Reading(1, false),
+        ],
+        3 => {
+            let mut v = vec![SetUp(0), Reading(0, true)];
+            if two_devices != 0 || one_player != 1 {
+                v.extend([SecondApart, SetUp(1), Reading(1, true)]);
+            }
+            v.extend([Sleep(1000), BeginEffects, Tick, EffectsOn(true)]);
+            v
+        }
+        _ => vec![],
+    })
+}
+
+/// A control learnt from the controller's four values (converted 2026-10-21 from
+/// `screens::classify_controller` 0x46B27A): the button (its number + 1, when exactly one is
+/// down), and each of left (x below 0), right (x above 0), y and z shifted into its
+/// history (a 1 for "under 0x80"); a direction held over 0x1D of the last 32 polls while
+/// another's history is empty gives 0x400 (left empty) / 0x800 (right) / 0x100 (y) /
+/// 0x200 (z) with the button; none empty, the button alone; else 0. The histories after,
+/// and what was found.
+pub fn classify(buttons: u32, x: u32, y: u32, z: u32, history: [u32; 4]) -> ([u32; 4], u32) {
+    let mut button = 0u32;
+    if buttons != 0 {
+        let mut b = buttons;
+        loop {
+            button += 1;
+            let out = b & 1;
+            b >>= 1;
+            if out != 0 {
+                break;
+            }
+        }
+        if b != 0 {
+            button = 0;
+        }
+    }
+    let left = if (x as i32) < 0 { x.wrapping_neg() } else { 0 };
+    let right = if (x as i32) < 0 { 0 } else { x };
+    let mut h = history;
+    for (v, value) in h.iter_mut().zip([left, right, y, z]) {
+        *v = (*v << 1) | u32::from(value < 0x80);
+    }
+    let [l, r, yy, zz] = h.map(u32::count_ones);
+    let min = |a: u32, b: u32, c: u32| a.min(b).min(c);
+    let bit = if l == 0 {
+        (min(zz, r, yy) >= 0x1D).then_some(0x400)
+    } else if r == 0 {
+        (min(zz, l, yy) >= 0x1D).then_some(0x800)
+    } else if yy == 0 {
+        (min(zz, l, r) >= 0x1D).then_some(0x100)
+    } else if zz == 0 {
+        (min(l, r, yy) >= 0x1D).then_some(0x200)
+    } else {
+        Some(0)
+    };
+    (h, bit.map_or(0, |b| button | b))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn classifying() {
+        assert_eq!(classify(4, 0x100, 0x100, 0x100, [0; 4]).1, 0);
+        assert_eq!(classify(4, 0x100, 0x100, 0x100, [u32::MAX; 4]).1, 3);
+        assert_eq!(classify(6, 0x100, 0x100, 0x100, [u32::MAX; 4]).1, 0);
+        let (h, f) = classify(0, 0x100, 0, 0, [0, 0, u32::MAX, u32::MAX]);
+        assert_eq!((h[0], f), (1, 0));
+    }
+
+    #[test]
+    fn commands() {
+        assert!(command_steps(1, 2, 0, 0).is_err());
+        assert_eq!(command_steps(3, 0, 0, 1).unwrap().len(), 6);
+        assert_eq!(command_steps(3, 0, 1, 1).unwrap().len(), 9);
+        assert!(command_steps(9, 0, 0, 0).unwrap().is_empty());
+    }
 
     fn put(record: &mut Record, at: usize, v: u32) {
         record[at..at + 4].copy_from_slice(&v.to_le_bytes());
@@ -317,5 +500,19 @@ mod tests {
             }
         );
         assert_eq!(binding_place(0x403, false).ecx, None);
+    }
+
+    #[test]
+    fn axes_and_merges() {
+        let rest = [0x100; 6];
+        let mut now = rest;
+        now[2] = 0x10;
+        assert_eq!(axis_moved(&now, &rest, 0b100), Ok(2));
+        assert_eq!(axis_moved(&now, &rest, 0b011), Err(0));
+        now[1] = 0x200;
+        assert_eq!(axis_moved(&now, &rest, 0b111), Ok(0x11));
+        let mut a = [1, 2, 3, 0x8000];
+        merge_readings(&mut a, &[1, 1, 1, 0xFFFF]);
+        assert_eq!(a, [2, 3, 4, 0xF0FF]);
     }
 }

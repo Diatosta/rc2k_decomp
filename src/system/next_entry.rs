@@ -33,12 +33,8 @@ hook_asm!(
 
 /// (carry, ebx, ecx).
 pub fn next_entry(entry: u32, left: u32) -> (bool, u32, u32) {
-    if left == 0 {
-        return (true, entry, left);
-    }
-    let (next, wrapped) = entry.overflowing_add(8);
-    let left = left - 1;
-    (left == 0 || wrapped, next, left)
+    // Converted: `rc2k_core::system::tables::next`.
+    rc2k_core::system::tables::next(entry, left)
 }
 
 // ---- hook ----

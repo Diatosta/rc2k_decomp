@@ -10,13 +10,11 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::framework::{game_read, game_write};
 use crate::screens::harness::Left;
-use crate::service::clear_repair_marks::clear_repair_marks;
 use crate::service::harness::{
     FLAG_PATTERNS, RepairTest, check_state, dispatch_state, repair_regions, set_flags,
 };
-use crate::service::state::{
-    FREE_SERVICE_TIME, REPAIR_TOTAL_RVA, TIME_BUDGET_RVA, chosen_repairs_time,
-};
+use crate::service::state::{REPAIR_TOTAL_RVA, TIME_BUDGET_RVA};
+use crate::service::state::{flags, marks, store_marks, time_of};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -39,14 +37,13 @@ hook_asm!(
 // ---- Rust version ----
 
 pub unsafe fn update_repair_total() -> Result<(), Refused> {
-    let total = chosen_repairs_time()?;
-    unsafe {
-        let budget: i32 = game_read(TIME_BUDGET_RVA);
-        if budget.wrapping_sub(total) >= FREE_SERVICE_TIME {
-            clear_repair_marks()?;
-        }
-        game_write(REPAIR_TOTAL_RVA, total);
-    }
+    // Converted: `rc2k_core::service::repairs::update_total`.
+    let mut m = marks();
+    let budget = unsafe { game_read::<i32>(TIME_BUDGET_RVA) };
+    let total = rc2k_core::service::repairs::update_total(&flags(), &mut m, budget, time_of)
+        .map_err(|e| crate::errors::BadInput(e.0))?;
+    store_marks(&m);
+    unsafe { game_write(REPAIR_TOTAL_RVA, total) };
     Ok(())
 }
 

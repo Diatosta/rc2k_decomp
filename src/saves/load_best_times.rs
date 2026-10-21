@@ -95,7 +95,9 @@ pub unsafe fn load_best_times(places: &mut Places) -> Result<bool, Refused> {
         if !read_or_close(file, game_addr(TEXT_RVA) as *mut u8, HEAD_LEN) {
             return Ok(false);
         }
-        if game_read::<u32>(TEXT_RVA) != MAGIC || game_read::<u32>(TEXT_RVA + 8) != VERSION {
+        // Converted: `rc2k_core::saves::kept::head_ok`.
+        let head = std::slice::from_raw_parts(game_addr(TEXT_RVA) as *const u8, HEAD_LEN as usize);
+        if !rc2k_core::saves::kept::head_ok(head, rc2k_core::saves::kept::BEST_TIMES) {
             // The file stays open, as in the original.
             return Ok(false);
         }

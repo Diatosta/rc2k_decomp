@@ -31,7 +31,6 @@ use crate::framework::{
 };
 use crate::redirect::RedirectedCopy;
 use crate::service::harness::{Region, at, capture, restore};
-use crate::system::next_argument::next_argument;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 use windows_sys::Win32::System::Environment::GetCommandLineA;
 use windows_sys::Win32::UI::WindowsAndMessaging::MessageBoxA;
@@ -111,60 +110,41 @@ pub unsafe fn show_version_and_leave(regs: &Regs) -> ! {
 }
 
 pub unsafe fn read_command_line(line: *const u8) -> Result<Asked, BadInput> {
+    // Converted: `rc2k_core::system::command_line::read`, the whole line read before
+    // anything is written (a refused `-i` word now leaves nothing written).
     unsafe {
-        let (program, len, mut from) = next_argument(line);
-        game_write(PROGRAM_RVA, program as u32);
-        game_write(PROGRAM_LEN_RVA, len);
-        let word = |from: &mut *const u8| {
-            let (start, len, next) = next_argument(*from);
-            *from = next;
-            (start, len)
-        };
-        loop {
-            let (start, len) = word(&mut from);
-            if len == 0 && start == from {
-                return Ok(Asked::Nothing);
-            }
-            if len < 2 {
-                continue;
-            }
-            match &(start as *const [u8; 2]).read() {
-                b"-v" => return Ok(Asked::Version),
-                b"-u" => game_write(SWITCH_U_RVA, 1u32),
-                b"-p" => game_write(INSTALLING_RVA, 1u32),
-                b"-a" => game_write(NO_AUDIO_RVA, 1u32),
-                b"-i" => {
-                    game_write(SWITCH_I_RVA, 1u32);
-                    game_write(SWITCH_I_TOO_RVA, 1u32);
-                    for place in [I_FIRST_RVA, I_SECOND_RVA] {
-                        let (start, len) = word(&mut from);
-                        if len as usize >= I_WORD_ROOM {
-                            return Err(BadInput("a word after -i longer than its place"));
-                        }
-                        std::ptr::copy(start, game_addr(place) as *mut u8, len as usize);
-                    }
-                    for place in [I_THIRD_RVA, I_FOURTH_RVA] {
-                        let (start, len) = word(&mut from);
-                        let digit = match len {
-                            0 => 0,
-                            _ => (start.read() as u32).wrapping_sub(b'0' as u32),
-                        };
-                        game_write(place, digit);
-                    }
-                }
-                b"-c" => {
-                    let (start, len) = word(&mut from);
-                    if len != 0 {
-                        match start.read() {
-                            b'1' => game_write(IGNORE_SECONDARY_RVA, 1u32),
-                            b'2' => game_write(IGNORE_PRIMARY_RVA, 1u32),
-                            _ => {}
-                        }
-                    }
-                }
-                _ => {}
+        let sw = rc2k_core::system::command_line::read(&crate::bridge::Raw::new(line))?;
+        game_write(PROGRAM_RVA, line.wrapping_add(sw.program.0) as u32);
+        game_write(PROGRAM_LEN_RVA, sw.program.1 as u32);
+        for (on, place) in [
+            (sw.u, SWITCH_U_RVA),
+            (sw.installing, INSTALLING_RVA),
+            (sw.no_audio, NO_AUDIO_RVA),
+        ] {
+            if on {
+                game_write(place, 1u32);
             }
         }
+        for i in &sw.install {
+            game_write(SWITCH_I_RVA, 1u32);
+            game_write(SWITCH_I_TOO_RVA, 1u32);
+            for (place, (start, len)) in [I_FIRST_RVA, I_SECOND_RVA].into_iter().zip(i.words) {
+                std::ptr::copy(line.wrapping_add(start), game_addr(place) as *mut u8, len);
+            }
+            game_write(I_THIRD_RVA, i.digits[0]);
+            game_write(I_FOURTH_RVA, i.digits[1]);
+        }
+        if sw.ignore_secondary {
+            game_write(IGNORE_SECONDARY_RVA, 1u32);
+        }
+        if sw.ignore_primary {
+            game_write(IGNORE_PRIMARY_RVA, 1u32);
+        }
+        Ok(if sw.version {
+            Asked::Version
+        } else {
+            Asked::Nothing
+        })
     }
 }
 

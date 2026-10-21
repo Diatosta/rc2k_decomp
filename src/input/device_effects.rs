@@ -74,10 +74,12 @@ pub unsafe fn device_effects(entry: &Regs, part: Part) -> Result<Regs, Refused> 
         if change == 0 {
             continue;
         }
+        // Converted: `rc2k_core::input::effects::change`.
+        let (what, a, b) = rc2k_core::input::effects::change(change);
         let mut r = Regs {
-            eax: change & 0xFF,
-            ecx: ((change << 12) as i32 >> 20) as u32,
-            edx: (change as i32 >> 20) as u32,
+            eax: what,
+            ecx: a as u32,
+            edx: b as u32,
             esi: record,
             edi: effect,
             ..*entry

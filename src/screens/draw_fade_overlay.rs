@@ -41,17 +41,10 @@ pub static INPUTS: Inputs = Inputs {
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn draw_fade_overlay(entry: &Regs, mut part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::screens::panels::fade_overlay`.
     let mut g = *entry;
-    quad(
-        &mut g,
-        0,
-        0,
-        0x320,
-        0x258,
-        0x11166A,
-        rd(SEE_THROUGH),
-        &mut part,
-    )?;
+    let a = rc2k_core::screens::panels::fade_overlay(rd(SEE_THROUGH));
+    quad(&mut g, a.x, a.y, a.w, a.h, a.colour, a.see, &mut part)?;
     Ok(*entry)
 }
 

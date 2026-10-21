@@ -46,11 +46,13 @@ pub unsafe fn fill_row_table(first: u32, step: u32, rows: u32) -> Result<(), Bad
     if rows == 0 || rows > ROW_TABLE_ROOM {
         return Err(BadInput("a row count the row table has no room for"));
     }
+    // Converted: `rc2k_core::gfx::pixels::row_table`.
     let table = game_addr(ROW_TABLE_RVA) as *mut u32;
-    let mut address = first;
-    for row in 0..rows as usize {
+    for (row, address) in rc2k_core::gfx::pixels::row_table(first, step, rows as usize)
+        .into_iter()
+        .enumerate()
+    {
         unsafe { table.add(row).write_unaligned(address) };
-        address = address.wrapping_add(step);
     }
     Ok(())
 }

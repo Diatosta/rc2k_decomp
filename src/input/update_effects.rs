@@ -19,7 +19,7 @@
 //! Self-test: a copy whose fifteen references to the variables go to the test's and whose
 //! calls go to the noting stand-in, against the Rust version: every way through.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
 use crate::input::devices::at;
 use crate::input::effects::{CAR, HAS_EFFECTS, Part, compare, dispatch_effects};
@@ -77,48 +77,32 @@ fn rd(at: u32) -> u32 {
 }
 
 /// The Rust version on the variables in `v`.
+/// Converted: `rc2k_core::input::effects::loads` (the way worked out before any call:
+/// nothing a call changes decides it).
 pub fn update_effects_with(r: &mut Regs, v: &Vars, part: Part) -> Result<(), Refused> {
+    use rc2k_core::input::effects::{Players, loads};
     if rd(v.cars + 0xC) == 0 {
         return Ok(());
     }
-    // Each load of the registers (car, device, view) and whether its device has effects,
-    // in order; worked out before any call is made.
-    // A load's car and device checked before its device is read (the original reads the
-    // car's sound object and the device's +0x28 with no check: a null device or a car past
-    // the eight would fault; 2026-10-19 the test's probe read a null device here).
-    let checked = |load: (u32, u32, u32)| -> Result<((u32, u32, u32), bool), Refused> {
-        if load.0 >= 8 {
-            return Err(BadInput("a car number past the eight sound objects").into());
-        }
-        if load.1 == 0 {
-            return Err(BadInput("a null device on the way taken").into());
-        }
-        Ok((load, at(load.1, HAS_EFFECTS) == 1))
+    let p = Players {
+        cars: [rd(v.cars), rd(v.cars + 4)],
+        one_player: rd(v.cars + 8) == 1,
+        devices: [rd(v.devices), rd(v.devices + 4)],
+        views: [rd(v.views), rd(v.views + 4)],
+        one_players_devices: rd(v.two_devices) != 0,
     };
-    let first = checked((rd(v.cars), rd(v.devices), rd(v.views)))?;
-    let mut loads = vec![first];
-    if first.1 && rd(v.two_devices) != 0 {
-        loads.push(checked((rd(v.cars), rd(v.devices + 4), rd(v.views)))?);
-    } else if rd(v.cars + 8) != 1 {
-        loads.push(checked((
-            rd(v.cars + 4),
-            rd(v.devices + 4),
-            rd(v.views + 4),
-        ))?);
-    }
-    for ((car, device, view), call) in loads {
-        r.eax = car;
-        r.esi = device;
-        r.ebx = view;
-        r.edi = rd(v.objects + 4 * car);
-        if call {
+    for load in loads(&p, |device| at(device, HAS_EFFECTS) == 1)? {
+        r.eax = load.car;
+        r.esi = load.device;
+        r.ebx = load.view;
+        r.edi = rd(v.objects + 4 * load.car);
+        if load.update {
             part(CAR, r)?;
         }
     }
     Ok(())
 }
 
-/// The Rust version.
 pub fn update_effects(r: &mut Regs, part: Part) -> Result<(), Refused> {
     update_effects_with(r, &Vars::game(), part)
 }

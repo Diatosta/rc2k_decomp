@@ -9,9 +9,14 @@ pub mod files;
 pub mod gfx;
 pub mod input;
 pub mod math;
+pub mod menu;
+pub mod race;
+pub mod saves;
 pub mod screens;
+pub mod service;
 pub mod sound;
 pub mod strings;
+pub mod system;
 pub mod text;
 
 /// An input the core does not take: one the original goes wrong on (a read past a table, a

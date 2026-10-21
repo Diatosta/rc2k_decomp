@@ -10,7 +10,7 @@
 //! Compared in shadow mode. Self-test: a redirected copy on lists of the test's, 40 cases.
 
 use crate::audio::voices::*;
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
 use crate::screens::harness::Left;
 use crate::service::harness::dispatch_state;
@@ -32,24 +32,17 @@ hook_asm!(
 
 /// `playing`, `stopping`, `used`: where the two lists' heads and the count are.
 pub unsafe fn stop_all_voices(playing: u32, stopping: u32, used: u32) -> Result<(), Refused> {
+    // Converted: `rc2k_core::audio::voices::stop_all`.
+    let w = World {
+        playing,
+        stopping,
+        channels_used: used,
+        ..World::game()
+    };
     unsafe {
-        let first = read(playing);
-        if first == 0 {
-            return Ok(());
-        }
-        let mut last = first;
-        let mut steps = 0;
-        while voice(last).next != 0 {
-            last = voice(last).next;
-            steps += 1;
-            if steps > VOICES {
-                return Err(BadInput("a playing list without its end").into());
-            }
-        }
-        write(playing, 0);
-        voice(last).next = read(stopping);
-        write(stopping, first);
-        write(used, 0);
+        let mut l = lists(&w);
+        rc2k_core::audio::voices::stop_all(&mut GamePool::new(&w), &mut l)?;
+        store_lists(&w, &l);
     }
     Ok(())
 }

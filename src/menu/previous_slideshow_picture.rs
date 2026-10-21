@@ -10,7 +10,7 @@
 //! Self-test: `menu::car_buttons::check_button`.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
+use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::menu::car_buttons::*;
 use std::sync::atomic::AtomicUsize;
 
@@ -36,10 +36,9 @@ hook_asm!(
 pub unsafe fn previous_slideshow_picture(
     call: &mut dyn FnMut(Call) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
+    // Converted: `rc2k_core::menu::cars::press`.
     unsafe {
-        let picture = game_read::<u32>(PICTURE_RVA).wrapping_sub(1);
-        game_write(PICTURE_RVA, if (picture as i32) < 0 { 99 } else { picture });
-        call(Call::Picture(u32::MAX))
+        crate::menu::car_buttons::press(crate::menu::car_buttons::Which::PreviousPicture, call)
     }
 }
 

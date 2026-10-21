@@ -41,9 +41,13 @@ fn regions(e: Edit) -> [Region; 3] {
 pub unsafe fn begin_edit(e: Edit) -> Result<(), Refused> {
     let item = flagged_item()?;
     unsafe {
-        let total = game_read::<i32>(REPAIR_TOTAL_RVA).wrapping_add(game_read(e.time_rva));
-        let left = game_read::<i32>(TIME_BUDGET_RVA).wrapping_sub(total);
-        if repair_flag(item) == 1 || left >= 0 {
+        // Converted: `rc2k_core::service::repairs::may_edit`.
+        if rc2k_core::service::repairs::may_edit(
+            repair_flag(item),
+            game_read(REPAIR_TOTAL_RVA),
+            game_read(e.time_rva),
+            game_read(TIME_BUDGET_RVA),
+        ) {
             game_write(e.start_rva, game_read::<u32>(e.chosen_rva));
             game_write(EDIT_MODE_RVA, game_read::<u32>(EDIT_MODE_RVA) ^ 1);
             game_write(EDIT_PAGE_RVA, e.page);

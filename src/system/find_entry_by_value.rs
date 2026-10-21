@@ -37,15 +37,14 @@ hook_asm!(
 
 /// (found, ebx, ecx).
 pub fn find_entry_by_value(value: u32, table: u32, count: u32) -> (bool, u32, u32) {
-    let (mut at, mut left) = (table, count);
-    while left != 0 {
-        if unsafe { ((at + 4) as *const u32).read_unaligned() } == value {
-            return (true, at, left);
-        }
-        at += 8;
-        left -= 1;
-    }
-    (false, at, left)
+    // Converted: `rc2k_core::system::tables::by_value`.
+    use rc2k_core::system::tables::{by_value, left};
+    let found = by_value(
+        unsafe { crate::system::find_entry::entries(table, count) },
+        value,
+    );
+    let (at, n) = left(table, count, found);
+    (found.is_some(), at, n)
 }
 
 // ---- hook ----

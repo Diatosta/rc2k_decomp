@@ -11,8 +11,9 @@
 //! Then the records are gone through once more as in `default_championship_times`, but
 //! only `dword_7559B0` is added up and cleared: nothing is done with it.
 //! One caller, `menu::set_up_front_end`, when `var\hst.dat` was not loaded.
-//! Refuses a missing table and a record table without stages or without its end. A
-//! refusal can come with part of the table written.
+//! Refuses a missing table and a record table without stages or without its end.
+//! Converted: `rc2k_core::saves::defaults::championship_times` (a refusal now leaves
+//! nothing written).
 //! Self-test: without the checkpoints against the original; with them against a copy
 //! whose log calls go to the test (and a copy of `default_time_entry` under it).
 
@@ -23,6 +24,7 @@ use crate::saves::allocate_best_times::count_stages;
 use crate::saves::default_times::*;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, restore};
+use rc2k_core::saves::defaults::{Championship, RALLIES, championship_times};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -51,6 +53,7 @@ const TABLE_RVA: usize = rva(0x7556E8); // dword_7556E8
 
 /// `ebp` is not used: the stage comes from the record.
 pub unsafe fn default_checkpoint_times(_ebp: u32, log: Log) -> Result<(), Refused> {
+    // Converted: `rc2k_core::saves::defaults::championship_times`.
     unsafe {
         let records_at = game_addr(RECORD_TABLE_RVA) as u32;
         let stages = count_stages(records_at as *const u8)?;
@@ -59,32 +62,21 @@ pub unsafe fn default_checkpoint_times(_ebp: u32, log: Log) -> Result<(), Refuse
         if stages == 0 || table == 0 {
             return Err(BadInput("no stages, or no table for their times").into());
         }
-        game_write(WORK_A_RVA, stages);
-        for stage in 0..stages {
-            let record = stage_record(records_at, stage, count)?;
-            let time = ((record + 0x18) as *const u32)
-                .read_unaligned()
-                .wrapping_add(0x5DC0);
-            let track = ((record + 4) as *const u32).read_unaligned();
-            ten_entries(table + stage * STAGE_LEN, time, 0x9F, track, log)?;
-        }
-        game_write(WORK_B_RVA, 0u32);
-        for n in 0..count as u32 {
-            let record = records_at + n * RECORD_LEN;
-            match (record as *const u32).read_unaligned() {
-                0 => {
-                    let length = ((record + 0x18) as *const u32).read_unaligned();
-                    let sum = game_read::<u32>(WORK_B_RVA).wrapping_add(length.wrapping_add(0xB6));
-                    game_write(WORK_B_RVA, sum);
-                }
-                3 | 4 => game_write(WORK_B_RVA, 0u32),
-                _ => {}
-            }
-        }
+        let records: Vec<_> = (0..count as u32)
+            .map(|n| read_record(records_at + n * RECORD_LEN))
+            .collect();
+        let tables = [(table, (stages * STAGE_LEN) as usize)];
+        let filled = championship_times(
+            &mut GameSource { log },
+            &records,
+            Championship::Checkpoints,
+            [false; RALLIES],
+            crate::saves::default_times::with_checkpoints(),
+        )?;
+        apply(&filled, &tables);
         Ok(())
     }
 }
-
 // ---- hook ----
 
 fn tables() -> Result<Vec<Region>, BadInput> {

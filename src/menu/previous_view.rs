@@ -34,7 +34,10 @@ fn field(player: &mut Player) -> &mut u32 {
 // ---- Rust version ----
 
 pub fn previous_view() -> Result<(), Refused> {
-    change(field, |value| wrap_down(value, 6))
+    // Converted: `rc2k_core::menu::player::stepped`.
+    change(field, |value| {
+        rc2k_core::menu::player::stepped(rc2k_core::menu::player::Setting::View, value, false)
+    })
 }
 
 // ---- hook ----

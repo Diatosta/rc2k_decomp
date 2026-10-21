@@ -3,7 +3,7 @@
 //! In:  nothing
 //! Out: every register preserved
 //!
-//! See `service/repair_parts.rs` (`SUSPENSION`). One caller, `service::repair_car`. Refuses a
+//! See `service/repair_parts.rs` (`Part::Suspension`; converted: `rc2k_core::service::car`). One caller, `service::repair_car`. Refuses a
 //! missing player. Self-test: the current car, its dwords given test values, put back
 //! afterwards.
 
@@ -11,7 +11,7 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::screens::harness::Left;
 use crate::service::harness::dispatch_state;
-use crate::service::repair_parts::{SUSPENSION, check_repair, regions, repair_part};
+use crate::service::repair_parts::{Part, check_repair, regions, repair_part, runs_of};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -32,7 +32,7 @@ hook_asm!(
 );
 
 pub unsafe fn repair_suspension() -> Result<(), Refused> {
-    Ok(unsafe { repair_part(SUSPENSION) }?)
+    Ok(unsafe { repair_part(Part::Suspension) }?)
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
@@ -48,7 +48,7 @@ fn self_test() -> (usize, usize) {
     let Some(mut t) = SelfTest::begin(&HOOK) else {
         return (0, 0);
     };
-    let runs = [(SUSPENSION.run, SUSPENSION.dwords), (SUSPENSION.damage, 1)];
+    let runs = runs_of(Part::Suspension);
     if !check_repair(&mut t, call_original, &rust, &runs) {
         return t.skip("there is no current player object");
     }

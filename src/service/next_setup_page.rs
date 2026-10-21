@@ -29,8 +29,11 @@ hook_asm!(
 
 pub fn next_setup_page() {
     unsafe {
-        let next = game_read::<i32>(SLOT_PAGE_RVA).wrapping_add(1);
-        game_write(SLOT_PAGE_RVA, if next < 3 { next } else { 0 });
+        // Converted: `rc2k_core::service::setups::next_page`.
+        game_write(
+            SLOT_PAGE_RVA,
+            rc2k_core::service::setups::next_page(game_read(SLOT_PAGE_RVA)),
+        );
     }
 }
 

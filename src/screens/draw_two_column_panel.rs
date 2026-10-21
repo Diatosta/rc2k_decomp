@@ -38,16 +38,11 @@ pub static INPUTS: Inputs = Inputs {
 
 /// The Rust version: every register kept. Parts: 1 the quads, 2 the rules, 3 the boxes.
 pub unsafe fn draw_two_column_panel(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::screens::panels::two_column_panel`.
     let mut part = part;
     let mut g = *entry;
-    for (x, y, w, h) in [
-        (0u32, 0u32, 0x320u32, 0x45u32),
-        (0, 0x45, 0x43, 0x258),
-        (0x2DE, 0x45, 0x42, 0x213),
-        (0x43, 0x215, 0x29B, 0x43),
-        (0x18F, 0x45, 3, 0x1D0),
-    ] {
-        quad(&mut g, x, y, w, h, 0x11166A, rd(0x75AA94), &mut part)?;
+    for a in rc2k_core::screens::panels::two_column_panel(rd(0x75AA94)) {
+        quad(&mut g, a.x, a.y, a.w, a.h, a.colour, a.see, &mut part)?;
     }
     part(2, &mut g)?;
     part(3, &mut g)?;

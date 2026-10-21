@@ -11,14 +11,16 @@
 //! What the table is has not been worked out; "class times" is a guess.
 //! One caller, `menu::set_up_front_end`, when `var\hst.dat` was not loaded.
 //! Refuses a missing table and a name that does not fit.
+//! Converted: `rc2k_core::saves::defaults::class_times`.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
 use crate::math::next_random::STATE_RVA;
-use crate::math::random_below::random_below;
-use crate::saves::drivers::{Driver, put, put_bytes, table_at};
+use crate::saves::default_times::{GameSource, to_nowhere};
+use crate::saves::drivers::table_at;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use rc2k_core::saves::defaults::{CLASS_TABLE_LEN, class_times, write_class_times};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -41,66 +43,30 @@ hook_asm!(
 // ---- game data ----
 
 const TABLE_RVA: usize = rva(0x7556DC); // dword_7556DC
-const GROUPS: u32 = 7;
-const GROUP_LEN: u32 = 0x320;
-const ENTRIES: u32 = 10;
-const ENTRY_LEN: u32 = 0x50;
 
 // ---- Rust version ----
 
-/// A random driver into the entry at `entry`: +0x1C, +8, +0x10, the name's id at +0xC and
-/// the name at +0x20 (`sub_47CB2D`). Returns what is to be written, so that the caller
-/// can refuse before writing.
-pub unsafe fn random_driver() -> Result<([u32; 4], Vec<u8>), Refused> {
-    unsafe {
-        let driver = Driver::number(random_below(0xAA)?)?;
-        let (id, name) = driver.name()?;
-        Ok((
-            [driver.dword(8), driver.dword(0x14), driver.dword(0x18), id],
-            name,
-        ))
-    }
-}
-
-/// Writes what `random_driver` gave.
-pub unsafe fn put_driver(entry: u32, driver: &([u32; 4], Vec<u8>)) {
-    unsafe {
-        put(entry, 0x1C, driver.0[0]);
-        put(entry, 8, driver.0[1]);
-        put(entry, 0x10, driver.0[2]);
-        put(entry, 0xC, driver.0[3]);
-        put_bytes(entry, 0x20, &driver.1);
-    }
-}
-
 pub unsafe fn default_class_times() -> Result<(), Refused> {
+    // Converted: `rc2k_core::saves::defaults::class_times`.
     unsafe {
         let table: u32 = game_read(TABLE_RVA);
         if table == 0 {
             return Err(BadInput("no table").into());
         }
-        let mut entries = Vec::new();
-        for group in 0..GROUPS {
-            for n in 0..ENTRIES {
-                let entry = table + group * GROUP_LEN + n * ENTRY_LEN;
-                entries.push((entry, 100_000 - n * 0xAB3, random_driver()?));
-            }
-        }
-        for (entry, value, driver) in entries {
-            put(entry, 0x14, value);
-            put_driver(entry, &driver);
-        }
+        let entries = class_times(&mut GameSource {
+            log: &mut to_nowhere,
+        })?;
+        write_class_times(
+            std::slice::from_raw_parts_mut(table as *mut u8, CLASS_TABLE_LEN),
+            &entries,
+        );
         Ok(())
     }
 }
-
 // ---- hook ----
 
 fn regions() -> Vec<Region> {
-    vec![
-        (table_at(TABLE_RVA), (GROUPS * GROUP_LEN) as usize),
-        at(STATE_RVA),
-    ]
+    vec![(table_at(TABLE_RVA), CLASS_TABLE_LEN), at(STATE_RVA)]
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {

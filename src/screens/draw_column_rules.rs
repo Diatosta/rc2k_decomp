@@ -37,18 +37,19 @@ pub static INPUTS: Inputs = Inputs {
 
 /// The Rust version: the registers it leaves.
 pub unsafe fn draw_column_rules(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::screens::panels::column_rules`; ecx counts a column's rows
+    // down and edx is the row's y (`push ecx; push edx` .. `pop edx; pop ecx` round each
+    // quad), then -1 and the y past the last.
+    use rc2k_core::screens::panels::{ROW_STEP, ROWS, column_rules};
     let mut part = part;
     let mut g = *entry;
-    for x in [0x43u32, 0x192] {
-        let mut y = 0x5Fu32;
-        for n in (0..0x10u32).rev() {
-            // `push ecx; push edx` .. `pop edx; pop ecx` round the quad.
-            (g.ecx, g.edx) = (n, y);
-            quad(&mut g, x, y, 0x14C, 3, 0x11166A, rd(0x75AA94), &mut part)?;
-            y += 0x1D;
+    for column in column_rules(rd(0x75AA94)).chunks(ROWS as usize) {
+        for (n, a) in column.iter().enumerate() {
+            (g.ecx, g.edx) = (ROWS - 1 - n as u32, a.y);
+            quad(&mut g, a.x, a.y, a.w, a.h, a.colour, a.see, &mut part)?;
         }
         g.ecx = u32::MAX;
-        g.edx = y;
+        g.edx = column[column.len() - 1].y + ROW_STEP;
     }
     Ok(g)
 }

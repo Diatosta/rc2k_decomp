@@ -14,7 +14,7 @@ use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::{buffer as path_buffer, numbered_path_in_game};
 use crate::files::read_file::LAST_FILE_PATH_RVA;
 use crate::files::write_file::write_file;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_ptr, game_write, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_ptr, hook_asm, rva};
 use crate::menu::name_lists::{NAME_LEN, SAVEGAME_NAMES_RVA};
 use crate::saves::gather_savegame::gather_savegame;
 use crate::screens::harness::Left;
@@ -65,11 +65,15 @@ pub unsafe fn write_savegame_slot(slot: u32) -> Result<bool, Refused> {
         let file: *mut u8 = game_ptr(FILE_RVA);
         // First, because it is what can be refused: nothing else is written before it.
         gather_savegame(file.add(0x30))?;
-        game_write(FILE_RVA, MAGIC);
-        game_write(FILE_RVA + 4, 0u32);
-        game_write(FILE_RVA + 8, VERSION);
-        game_write(FILE_RVA + 0xC, packed_local_time());
-        copy_nonoverlapping(slot_name(slot), file.add(0x10), NAME_LEN);
+        // Converted: `rc2k_core::saves::kept::slot_head`.
+        use rc2k_core::saves::kept;
+        let head = kept::slot_head(
+            kept::SAVEGAME,
+            kept::SAVEGAME_VERSION,
+            packed_local_time(),
+            &(slot_name(slot) as *const [u8; NAME_LEN]).read_unaligned(),
+        );
+        copy_nonoverlapping(head.as_ptr(), file, head.len());
         let path = numbered_path_in_game(game_ptr(TEMPLATE_RVA), slot)?;
         Ok(write_file(path, file, FILE_LEN as u32)?.ok)
     }

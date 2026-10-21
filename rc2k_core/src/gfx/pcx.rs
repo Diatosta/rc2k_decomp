@@ -52,6 +52,22 @@ fn word(header: &[u8; HEADER_LEN], at: usize) -> u16 {
     u16::from_le_bytes([header[at], header[at + 1]])
 }
 
+/// How a PCX file is decoded, by its header's planes (+0x41; `gfx::read_pcx` 0x411A45,
+/// converted 2026-10-21): 1 a palette's, 3 three planes, else not at all.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Kind {
+    Palette,
+    Planes,
+}
+
+pub fn kind(header: &[u8; HEADER_LEN]) -> Option<Kind> {
+    match header[0x41] {
+        1 => Some(Kind::Palette),
+        3 => Some(Kind::Planes),
+        _ => None,
+    }
+}
+
 /// The layout a header makes (`lay_out_pcx`).
 pub fn lay_out(header: &[u8; HEADER_LEN], target: &Target) -> Layout {
     let planes = header[0x41] as u32;

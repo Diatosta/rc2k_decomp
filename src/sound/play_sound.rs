@@ -36,29 +36,20 @@ hook_asm!(
 const HELD_BACK_RVA: usize = rva(0x506C84); // dword_506C84
 const MODE_RVA: usize = rva(0x4F82BC); // dword_4F82BC
 const PLAY_1: u32 = 1;
-const MODE_3D: u32 = 0x10_0000;
-const NO_PLACE: u32 = 0xFF80_0000;
 
 // ---- Rust version ----
 
 /// The registers command 1 is sent with, or None if nothing is sent.
 pub fn play_sound(entry: &Regs, held_back: u32, mode: u32) -> Option<Regs> {
-    if held_back == 1 {
-        return None;
-    }
-    Some(if mode & MODE_3D == 0 {
-        Regs {
-            esi: NO_PLACE,
-            edi: NO_PLACE,
-            ebp: NO_PLACE,
-            ..*entry
-        }
-    } else {
-        Regs {
-            esi: entry.ecx,
-            ecx: 0,
-            ..*entry
-        }
+    // Converted: `rc2k_core::sound::senders::sound_place`.
+    let [esi, ecx, edi, ebp] =
+        rc2k_core::sound::senders::sound_place(held_back, mode, [entry.ecx, entry.edi, entry.ebp])?;
+    Some(Regs {
+        esi,
+        ecx,
+        edi,
+        ebp,
+        ..*entry
     })
 }
 

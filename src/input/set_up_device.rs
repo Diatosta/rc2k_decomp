@@ -19,7 +19,6 @@
 use crate::errors::Refused;
 use crate::field;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
-use crate::input::binding_place::binding_place;
 use crate::input::devices::{RECORD_LEN, at, put, test_record};
 use crate::input::types::InputDevice;
 use crate::race::mud::{copy, run_both_from};
@@ -76,11 +75,10 @@ pub unsafe fn set_up_device(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         ] {
             put(record, to, at(controls, from));
         }
-        let mut kind = at(controls, 8);
+        // Converted: `rc2k_core::input::devices::device_kind`.
+        let kind = at(controls, 8);
         put(record, field!(InputDevice, sensitivity), kind);
-        if kind == 0 {
-            kind = 2;
-        }
+        let kind = rc2k_core::input::devices::device_kind(kind);
         put(record, field!(InputDevice, kind), kind);
         let mut r = Regs {
             eax: kind,
@@ -88,17 +86,17 @@ pub unsafe fn set_up_device(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         };
         part(0, &mut r)?;
     }
-    for (key, word, to) in BINDINGS {
-        let key = u32::from(unsafe { ((controls + key) as *const u8).read() });
-        put(record, to, key);
-        let place = binding_place(&Regs {
-            eax: at(controls, word),
-            esi: record,
-            ..*entry
-        });
-        put(record, to + 4, place.eax);
-        put(record, to + 8, place.edx);
-        put(record, to + 0xC, place.ebx);
+    // Converted: `rc2k_core::input::devices::binding` over `DEVICE_BINDINGS`.
+    for (key, word, to) in rc2k_core::input::devices::DEVICE_BINDINGS {
+        let key = unsafe { ((controls + key as u32) as *const u8).read() };
+        let b = rc2k_core::input::devices::binding(
+            key,
+            at(controls, word as u32),
+            at(record, 0x24) == 1,
+        );
+        for (n, v) in b.into_iter().enumerate() {
+            put(record, to as u32 + 4 * n as u32, v);
+        }
     }
     Ok(*entry)
 }

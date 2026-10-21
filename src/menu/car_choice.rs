@@ -41,19 +41,20 @@ pub unsafe fn find_player_car() -> Result<(), Refused> {
         if list == 0 || entry(0) == u32::MAX {
             return Err(BadInput("no carousel entries").into());
         }
+        // Converted: `rc2k_core::menu::cars::find_car`, over the entries' cars.
+        let mut cars = Vec::new();
         let mut n = 0;
-        let found = loop {
-            if (entry(n) as *const u32).read_unaligned() == car {
-                break n;
-            }
+        loop {
+            cars.push((entry(n) as *const u32).read_unaligned());
             if entry(n + 1) == u32::MAX {
-                break 0;
+                break;
             }
             n += 1;
             if n >= MOST_ENTRIES {
                 return Err(BadInput("carousel entries without their end").into());
             }
-        };
+        }
+        let found = rc2k_core::menu::cars::find_car(&cars, car);
         game_write(FRONT_RVA, found);
         game_write(SHOWN_CAR_RVA, found);
     }
@@ -64,58 +65,37 @@ pub unsafe fn find_player_car() -> Result<(), Refused> {
 /// is not counted: with the direction 1 the front moves on (round the count); then the
 /// direction 1, the angle 0, the shown car on (after the last entry to 0), and
 /// `dword_755561` 0.
-pub unsafe fn next_choice_car() {
+/// The carousel turned (`menu::next_choice_car` / `previous_choice_car`). Converted:
+/// `rc2k_core::menu::cars::turn_carousel`.
+unsafe fn turn(on: bool) {
+    use rc2k_core::menu::cars::{Carousel, turn_carousel};
+    use rc2k_core::menu::navigation::Turn;
     unsafe {
-        let count: i32 = game_read(COUNT_RVA);
-        if count != 1 && game_read::<i32>(DIRECTION_RVA) == 1 {
-            let front = game_read::<i32>(FRONT_RVA).wrapping_add(1);
-            game_write(FRONT_RVA, if front < count { front } else { 0 });
-        }
-        game_write(DIRECTION_RVA, 1u32);
-        game_write(ANGLE_RVA, 0u32);
-        let shown: u32 = game_read(SHOWN_CAR_RVA);
-        let last: u32 = game_read(LAST_ENTRY_RVA);
-        game_write(
-            SHOWN_CAR_RVA,
-            if shown == last {
-                0
-            } else {
-                shown.wrapping_add(1)
+        let c = turn_carousel(
+            Carousel {
+                turn: Turn {
+                    count: game_read(COUNT_RVA),
+                    value: game_read(FRONT_RVA),
+                    way: game_read(DIRECTION_RVA),
+                    step: game_read(ANGLE_RVA),
+                },
+                shown: game_read(SHOWN_CAR_RVA),
+                last: game_read(LAST_ENTRY_RVA),
             },
+            on,
         );
+        game_write(FRONT_RVA, c.turn.value);
+        game_write(DIRECTION_RVA, c.turn.way);
+        game_write(ANGLE_RVA, c.turn.step);
+        game_write(SHOWN_CAR_RVA, c.shown);
         game_write(CHOSEN_RVA, 0u32);
     }
 }
 
-/// `menu::previous_choice_car`: unless the carousel has one car or the direction is 1, the front
-/// moves back (below 0 to the count's last); then the direction and the angle -1, the
-/// shown car back (from 0 to the last entry), and `dword_755561` 0.
+pub unsafe fn next_choice_car() {
+    unsafe { turn(true) }
+}
+
 pub unsafe fn previous_choice_car() {
-    unsafe {
-        let count: i32 = game_read(COUNT_RVA);
-        if count != 1 && game_read::<i32>(DIRECTION_RVA) != 1 {
-            let front = game_read::<i32>(FRONT_RVA).wrapping_sub(1);
-            game_write(
-                FRONT_RVA,
-                if front < 0 {
-                    count.wrapping_sub(1)
-                } else {
-                    front
-                },
-            );
-        }
-        game_write(DIRECTION_RVA, u32::MAX);
-        game_write(ANGLE_RVA, u32::MAX);
-        let shown: u32 = game_read(SHOWN_CAR_RVA);
-        let last: u32 = game_read(LAST_ENTRY_RVA);
-        game_write(
-            SHOWN_CAR_RVA,
-            if shown == 0 {
-                last
-            } else {
-                shown.wrapping_sub(1)
-            },
-        );
-        game_write(CHOSEN_RVA, 0u32);
-    }
+    unsafe { turn(false) }
 }

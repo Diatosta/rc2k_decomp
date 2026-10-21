@@ -71,13 +71,15 @@ pub unsafe fn load_setup_values() -> Result<(), BadInput> {
                 "no current player object: the original reads through null",
             ));
         };
-        let field = |at: u32| (player.wrapping_add(at) as *const u32).read_unaligned();
-        for (from, first, second) in [
-            (0x10C, 0x75ACA0, 0x75AC9C),
-            (0x120, 0x75AC94, 0x75AC90),
-            (0x118, 0x75ACB8, 0x75ACB4),
-        ] {
-            let value = field(from);
+        // Converted: `rc2k_core::service::setups` (`Player::setup_edit_values`).
+        let values = (player as *const rc2k_core::menu::player::Player)
+            .read_unaligned()
+            .setup_edit_values();
+        for (value, (first, second)) in values.into_iter().zip([
+            (0x75ACA0, 0x75AC9C),
+            (0x75AC94, 0x75AC90),
+            (0x75ACB8, 0x75ACB4),
+        ]) {
             game_write(rva(first), value);
             game_write(rva(second), value);
         }

@@ -5,17 +5,17 @@
 //! Out: every register preserved
 //! See `sound/queue.rs`. Ten callers, all of them a few bytes long: one a command
 //! (`push n; call; pop`), which the ported senders do not go through.
-//! Shadow mode runs the original alone (a command must not be queued twice), through a
-//! caller of its own that puts the command on the stack.
+//! Shadow mode runs the Rust version too (the original's count-up is not atomic: see
+//! `dispatch`).
 //! Self-test: a redirected copy whose queue is the test's, called through a copy of one
 //! of those callers.
 
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva, shadow};
+use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
 use crate::redirect::RedirectedCopy;
 use crate::sound::queue::{
     COUNT_RVA, NO_AUDIO_RVA, Queue, RECORD_LEN, RECORDS, RECORDS_RVA, WRITE_RVA, send_command, sent,
 };
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
@@ -34,47 +34,13 @@ hook_asm!(
 // The generated `call_original` is not used: see `call_with_command`.
 const _: unsafe extern "C" fn(*mut Regs) = call_original;
 
-/// Calls the original with the registers of `regs` and the command on the stack, as its
-/// callers do. `call_original` cannot: it puts nothing on the stack, and the original
-/// would take whatever lies there for the command (which it did until 2026-10-12: with
-/// shadow on no command reached the audio thread as itself, and the game was silent).
-/// The original keeps every register, so none is stored back.
-#[unsafe(naked)]
-unsafe extern "C" fn call_with_command(_regs: *const Regs, _command: u32, _original: usize) {
-    core::arch::naked_asm!(
-        "push ebx",
-        "push esi",
-        "push edi",
-        "push ebp",
-        "mov eax, [esp + 20]",       // regs
-        "push dword ptr [esp + 28]", // the original's address
-        "push dword ptr [esp + 28]", // the command
-        "mov edi, [eax]",
-        "mov esi, [eax + 4]",
-        "mov ebp, [eax + 8]",
-        "mov ebx, [eax + 16]",
-        "mov edx, [eax + 20]",
-        "mov ecx, [eax + 24]",
-        "mov eax, [eax + 28]",
-        "call dword ptr [esp + 4]",
-        "add esp, 8",
-        "pop ebp",
-        "pop edi",
-        "pop esi",
-        "pop ebx",
-        "ret",
-    )
-}
-
 extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
     // Above the flags the thunk pushed: the return address, then the command.
     let command = unsafe { ((r.esp as usize + 8) as *const u32).read_unaligned() };
-    if shadow() {
-        let original = ORIGINAL.load(Ordering::SeqCst);
-        unsafe { call_with_command(r, command, original) };
-        return;
-    }
+    // The Rust version in shadow mode too: the original's `inc` of the count is not atomic,
+    // and the audio thread's `dec` races it on a machine of more than one core (a command
+    // lost or an old one taken again: the stuck sounds, 2026-10-21; notes/bugs.md).
     unsafe { send_command(&Queue::game(), command, sent(r)) };
 }
 

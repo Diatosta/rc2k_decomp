@@ -23,54 +23,13 @@ const FOUND: usize = 0x7559EC; // dword_7559EC
 /// (`dword_7551E4` ..: a 1 for "under 0x80"); a direction held over 0x1D of the last 32 polls
 /// while the others were not (its history empty) gives 0x400 / 0x800 / 0x100 / 0x200 with the
 /// button, else 0; into `dword_7559EC`. Every register kept.
-pub unsafe fn classify_controller(eax: u32, mut ebx: u32, mut ecx: u32, edx: u32) {
-    let mut found = 0u32;
-    if ebx != 0 {
-        loop {
-            found += 1;
-            let out = ebx & 1;
-            ebx >>= 1;
-            if out != 0 {
-                break;
-            }
-        }
-        if ebx != 0 {
-            found = 0;
-        }
+pub unsafe fn classify_controller(eax: u32, ebx: u32, ecx: u32, edx: u32) {
+    // Converted: `rc2k_core::input::devices::classify`.
+    let (history, found) = rc2k_core::input::devices::classify(ebx, ecx, edx, eax, HISTORY.map(k));
+    for (var, v) in HISTORY.into_iter().zip(history) {
+        w(var, v);
     }
-    let mut left = ecx;
-    if (left as i32) > 0 {
-        left = 0;
-    }
-    if (left as i32) < 0 {
-        left = left.wrapping_neg();
-    }
-    if (ecx as i32) < 0 {
-        ecx = 0;
-    }
-    for (var, v) in HISTORY.into_iter().zip([left, ecx, edx, eax]) {
-        w(var, (k(var) << 1) | u32::from(v < 0x80));
-    }
-    let [l, r, y, z] = HISTORY.map(|v| k(v).count_ones());
-    let min = |a: u32, b: u32, c: u32| a.min(b).min(c);
-    let bit = if l == 0 {
-        (min(z, r, y) >= 0x1D).then_some(0x400)
-    } else if r == 0 {
-        (min(z, l, y) >= 0x1D).then_some(0x800)
-    } else if y == 0 {
-        (min(z, l, r) >= 0x1D).then_some(0x100)
-    } else if z == 0 {
-        (min(l, r, y) >= 0x1D).then_some(0x200)
-    } else {
-        Some(0)
-    };
-    w(
-        FOUND,
-        match bit {
-            Some(b) => found | b,
-            None => 0,
-        },
-    );
+    w(FOUND, found);
 }
 
 /// `screens::learn_axis` (0x46B131): see the header. With 3 s gone the learning stops

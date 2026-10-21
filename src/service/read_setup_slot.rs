@@ -13,7 +13,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::{buffer as path_buffer, numbered_path_in_game};
 use crate::files::read_file::{LAST_FILE_PATH_RVA, read_file};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_ptr, game_read, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_ptr, hook_asm, rva};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
 use std::ptr::copy_nonoverlapping;
@@ -58,14 +58,17 @@ pub unsafe fn read_setup_slot(slot: u32) -> Result<bool, Refused> {
         let path = numbered_path_in_game(game_ptr(TEMPLATE_RVA), slot)?;
         let file: *mut u8 = game_ptr(SETUP_FILE_RVA);
         let read = read_file(path, file, SETUP_FILE_LEN as u32, 0)?;
-        if !read.ok
-            || game_read::<u32>(SETUP_FILE_RVA) != MAGIC
-            || game_read::<u32>(SETUP_FILE_RVA + 8) != VERSION
-        {
-            return Ok(false);
+        // Converted: `rc2k_core::saves::kept::setup_name`.
+        let name = rc2k_core::saves::kept::setup_name(
+            &(file as *const [u8; SETUP_FILE_LEN]).read_unaligned(),
+        );
+        match name {
+            Some(name) if read.ok => {
+                copy_nonoverlapping(name.as_ptr(), slot_name(slot), NAME_LEN);
+                Ok(true)
+            }
+            _ => Ok(false),
         }
-        copy_nonoverlapping(file.add(0x10), slot_name(slot), NAME_LEN);
-        Ok(true)
     }
 }
 

@@ -37,18 +37,12 @@ pub static INPUTS: Inputs = Inputs {
 
 /// The Rust version: every register kept.
 pub unsafe fn draw_bottom_panel(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::screens::panels::bottom_panel`.
     let mut part = part;
-    let see = rd(0x75AA94);
-    for (x, y, w, h, colour) in [
-        (0u32, 0u32, 0x320u32, 0x1E3u32, 0x11166Au32),
-        (0, 0x1E3, 0xED, 0x75, 0x11166A),
-        (0xED, 0x1F6, 0x233, 0x62, 0x11166A),
-        (0x233, 0x1E3, 0xED, 0x13, 0x11166A),
-        (0x128, 0x1E2, 0xD2, 0x15, 0x1F1F1F),
-    ] {
+    for a in rc2k_core::screens::panels::bottom_panel(rd(0x75AA94)) {
         // Each inside `pusha` .. `popa`.
         let mut g = *entry;
-        quad(&mut g, x, y, w, h, colour, see, &mut part)?;
+        quad(&mut g, a.x, a.y, a.w, a.h, a.colour, a.see, &mut part)?;
     }
     Ok(*entry)
 }

@@ -26,17 +26,7 @@ hook_asm!(
 
 /// The registers the music's command is sent with: the tune's, or those that stop it.
 pub fn play_tune_8(entry: &Regs) -> Option<Regs> {
-    Some(if variable(0x5180F4) == 1 {
-        music(entry, 8, 0xA, variable(0x518100))
-    } else {
-        Regs {
-            eax: 0,
-            ebx: 0,
-            ecx: 0,
-            edx: 0,
-            ..*entry
-        }
-    })
+    tune_regs(entry, 8)
 }
 
 pub const SENDER: Sender = Sender {

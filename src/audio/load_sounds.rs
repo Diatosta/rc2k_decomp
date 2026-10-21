@@ -40,7 +40,6 @@ hook_asm!(
 pub const QUITTING_RVA: usize = rva(0x51837C); // g_quitting
 const SKIP: u32 = 0xFFFF_FFFE;
 const END: u32 = 0xFFFF_FFFF;
-const LIST_ROOM: u32 = 0x1000;
 
 /// Its variables: the records, the voices in use, the mode, the quit switch.
 #[derive(Clone, Copy)]
@@ -67,6 +66,81 @@ impl Vars {
 /// `fill_buffer`), on the registers as the original has them; true: the carry they leave.
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<bool, Refused>;
 
+/// The core's loader: each step through `part` with the registers the original has
+/// there (ebx the record, ecx the voices left, edx past the entry; esi the voice; eax the
+/// shared voice or the mode).
+struct GameLoader<'a, 'b> {
+    list: u32,
+    v: &'a Vars,
+    part: &'a mut Part<'b>,
+}
+
+impl GameLoader<'_, '_> {
+    fn base(&self, at: rc2k_core::audio::load::At) -> Regs {
+        Regs {
+            ebx: self.v.samples + at.sound * 0x40,
+            ecx: at.left,
+            edx: self.list + (at.entry as u32 + 1) * 4,
+            ..Regs::default()
+        }
+    }
+}
+
+impl rc2k_core::audio::load::Loader for GameLoader<'_, '_> {
+    type Error = Refused;
+    fn record(&mut self, sound: u32) -> &mut SampleRecord {
+        unsafe { &mut *((self.v.samples + sound * 0x40) as *mut SampleRecord) }
+    }
+    fn full(&mut self) -> bool {
+        unsafe { read(self.v.voice_count) == VOICES }
+    }
+    fn shared(&mut self, at: rc2k_core::audio::load::At) -> Result<u32, Refused> {
+        let mut r = self.base(at);
+        (self.part)(0, &mut r)?;
+        Ok(r.eax)
+    }
+    fn read(&mut self, at: rc2k_core::audio::load::At) -> Result<bool, Refused> {
+        let mut r = self.base(at);
+        Ok(!(self.part)(1, &mut r)?)
+    }
+    fn new_voice(&mut self, at: rc2k_core::audio::load::At, shared: u32) -> Result<u32, Refused> {
+        let mut r = Regs {
+            eax: shared,
+            ..self.base(at)
+        };
+        (self.part)(2, &mut r)?;
+        Ok(r.esi)
+    }
+    fn make_ready(
+        &mut self,
+        at: rc2k_core::audio::load::At,
+        voice: u32,
+        shared: u32,
+    ) -> Result<(), Refused> {
+        let base = self.base(at);
+        let with = |eax| Regs {
+            eax,
+            esi: voice,
+            ..base
+        };
+        (self.part)(3, &mut with(shared))?;
+        let mut r = with(unsafe { read(self.v.mode) });
+        (self.part)(4, &mut r)?;
+        let mode = r.eax;
+        for p in 5..=8 {
+            (self.part)(p, &mut with(mode))?;
+        }
+        Ok(())
+    }
+    fn mark_loaded(&mut self, voice: u32) {
+        unsafe { crate::audio::voices::voice(voice).flags |= LOADED };
+    }
+    fn quitting(&mut self) -> bool {
+        unsafe { read(self.v.quitting) == 1 }
+    }
+}
+
+/// Converted: `rc2k_core::audio::load` (`entries`, `load`).
 pub unsafe fn load_sounds(list: u32, v: &Vars, part: Part) -> Result<(), Refused> {
     if list == 0 {
         return Ok(());
@@ -74,91 +148,16 @@ pub unsafe fn load_sounds(list: u32, v: &Vars, part: Part) -> Result<(), Refused
     if crate::audio::buffer_settings::a3d() {
         return Err(BadInput("A3D").into());
     }
-    unsafe {
-        // The whole list first.
-        let mut n = 0;
-        loop {
-            let entry = read(list + n * 4);
-            if entry == END {
-                break;
-            }
-            if entry != SKIP && entry >= SAMPLES {
-                return Err(BadInput("a sound of 0x1CD or more in the list").into());
-            }
-            n += 1;
-            if n == LIST_ROOM {
-                return Err(BadInput("a list without its end").into());
-            }
-        }
-        let mut at = list;
-        loop {
-            let entry = read(at);
-            at += 4;
-            if entry == END {
-                return Ok(());
-            }
-            let record_at = v.samples + entry.wrapping_mul(0x40);
-            if entry != SKIP {
-                let record = &mut *(record_at as *mut SampleRecord);
-                if record.data_key != 0 && record.copies > 0 {
-                    let mut count = record.copies as u32;
-                    let base = Regs {
-                        ebx: record_at,
-                        edx: at,
-                        ..Regs::default()
-                    };
-                    loop {
-                        if read(v.voice_count) == VOICES {
-                            break;
-                        }
-                        let mut r = Regs { ecx: count, ..base };
-                        part(0, &mut r)?;
-                        let shared = r.eax;
-                        if shared == 0 {
-                            let mut r = Regs { ecx: count, ..base };
-                            if part(1, &mut r)? {
-                                break;
-                            }
-                        }
-                        let mut r = Regs {
-                            eax: shared,
-                            ecx: count,
-                            ..base
-                        };
-                        part(2, &mut r)?;
-                        let voice_at = r.esi;
-                        if record.first_voice == 0 {
-                            record.first_voice = voice_at;
-                        }
-                        let with = |eax| Regs {
-                            eax,
-                            ecx: count,
-                            esi: voice_at,
-                            ..base
-                        };
-                        part(3, &mut with(shared))?;
-                        let mut r = with(read(v.mode));
-                        part(4, &mut r)?;
-                        let mode = r.eax;
-                        for p in 5..=8 {
-                            part(p, &mut with(mode))?;
-                        }
-                        voice(voice_at).flags |= LOADED;
-                        count -= 1;
-                        if count == 0 {
-                            break;
-                        }
-                    }
-                }
-            }
-            if read(v.quitting) == 1 {
-                return Ok(());
-            }
-        }
-    }
+    let entries = rc2k_core::audio::load::entries(|n| unsafe { read(list + n as u32 * 4) })?;
+    let mut part = part;
+    let mut l = GameLoader {
+        list,
+        v,
+        part: &mut part,
+    };
+    rc2k_core::audio::load::load(&mut l, &entries)
 }
 
-/// The game's callees: the Rust versions.
 pub fn game_part(which: u32, r: &mut Regs) -> Result<bool, Refused> {
     use crate::audio::*;
     unsafe {

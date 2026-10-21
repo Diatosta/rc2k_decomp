@@ -13,8 +13,7 @@ use crate::errors::BadInput;
 use crate::files::read_file::read_file;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, rva, shadow};
 use crate::gfx::pcx::{
-    HEADER_LEN, HEADER_PLANES, HEADER_RVA, MISSING_PATH, TEST_PATH, remove_test_file,
-    write_test_file,
+    HEADER_LEN, HEADER_RVA, MISSING_PATH, TEST_PATH, remove_test_file, write_test_file,
 };
 use crate::gfx::pcx_reader::ReaderTest;
 use crate::gfx::read_pcx_8bit::read_pcx_8bit;
@@ -44,10 +43,12 @@ pub unsafe fn read_pcx(path: *const u8) -> Result<bool, BadInput> {
         if !read_file(path, header, HEADER_LEN as u32, 0)?.ok {
             return Ok(false);
         }
-        match game_read::<u8>(HEADER_RVA + HEADER_PLANES) {
-            1 => read_pcx_8bit(path),
-            3 => read_pcx_24bit(path),
-            _ => Ok(false),
+        // Converted: `rc2k_core::gfx::pcx::kind`.
+        use rc2k_core::gfx::pcx::{Kind, kind};
+        match kind(&game_read(HEADER_RVA)) {
+            Some(Kind::Palette) => read_pcx_8bit(path),
+            Some(Kind::Planes) => read_pcx_24bit(path),
+            None => Ok(false),
         }
     }
 }
