@@ -143,7 +143,6 @@ pub mod types;
 pub mod unlock_received;
 
 pub static HOOKS: &[&dyn GameHook] = &[
-    &receive_thread::HOOK,
     &send_message::HOOK,
     &send_race_message::HOOK,
     &send_inputs::HOOK,
@@ -158,7 +157,6 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &free_messages::HOOK,
     &destroy_connection::HOOK,
     &stop::HOOK,
-    &shut_down::HOOK,
     &connection_entry::HOOK,
     &session_entry::HOOK,
     &allocate_lists::HOOK,

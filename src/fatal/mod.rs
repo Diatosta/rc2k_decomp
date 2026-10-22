@@ -6,4 +6,4 @@ pub mod raise;
 pub mod report;
 pub mod show_report_at_exit;
 
-pub static HOOKS: &[&dyn GameHook] = &[&report::HOOK, &show_report_at_exit::HOOK];
+pub static HOOKS: &[&dyn GameHook] = &[&report::HOOK];

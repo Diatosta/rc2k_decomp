@@ -50,10 +50,8 @@ pub unsafe fn start_slot_thread(slot: *mut u8) -> Result<(), FatalError> {
         let handle = CreateThread(
             std::ptr::null(),
             0,
-            std::mem::transmute::<usize, Option<unsafe extern "system" fn(*mut c_void) -> u32>>(
-                routine,
-            ),
-            std::ptr::null(),
+            Some(run_routine),
+            routine as *const c_void,
             0,
             slot.add(THREAD_ID).cast(),
         );
@@ -66,6 +64,50 @@ pub unsafe fn start_slot_thread(slot: *mut u8) -> Result<(), FatalError> {
         (slot.add(HANDLE) as *mut u32).write_unaligned(handle as u32);
     }
     Ok(())
+}
+
+/// A slot's thread: its routine (the game's address, as the slot holds it) run by its Rust
+/// version (`crate::routes`), not through its hook; in shadow mode, or with no Rust version,
+/// the routine itself, called as `CreateThread` calls it. Not through `calls::call`: that passes the hooks' gate, and a thread would
+/// count as inside a hook for its whole life (the threads' thunks are ungated).
+unsafe extern "system" fn run_routine(routine: *mut c_void) -> u32 {
+    let routine = routine as usize;
+    let mut r = Regs::default();
+    let at = routine.wrapping_sub(crate::framework::game_addr(0));
+    let ran = if shadow() {
+        None
+    } else {
+        crate::routes::by_rva(at, &mut r)
+    };
+    match ran {
+        Some(Ok(())) => {}
+        Some(Err(crate::errors::Refused::Fatal(error))) => {
+            log(&format!(
+                "threading::start_slot_thread: the routine {routine:#x} raises fatal error {:#x} {:?}",
+                error.code, error.message
+            ));
+            unsafe { crate::fatal::raise::raise(error, &r) };
+        }
+        Some(Err(crate::errors::Refused::BadInput(why))) => {
+            log(&format!(
+                "threading::start_slot_thread: the routine {routine:#x} refused ({}); the game's runs",
+                why.0
+            ));
+            unsafe { as_thread(routine) };
+        }
+        None => unsafe { as_thread(routine) },
+    }
+    0
+}
+
+/// Runs `routine` as `CreateThread` would have: a `stdcall` function of one parameter
+/// (none here). The game's four routines end in `ExitThread` and never come back.
+unsafe fn as_thread(routine: usize) {
+    unsafe {
+        let routine =
+            std::mem::transmute::<usize, unsafe extern "system" fn(*mut c_void) -> u32>(routine);
+        routine(std::ptr::null_mut());
+    }
 }
 
 // ---- hook ----

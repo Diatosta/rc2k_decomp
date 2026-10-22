@@ -15,11 +15,8 @@ pub mod wait_for_threads;
 pub static HOOKS: &[&dyn GameHook] = &[
     &find_thread_slot::HOOK,
     &start_slot_thread::HOOK,
-    &request_quit::HOOK,
-    &start_threads::HOOK,
     &create_event::HOOK,
     &create_mutex::HOOK,
     &wait_for_object::HOOK,
     &wait_for_threads::HOOK,
-    &shutdown_thread::HOOK,
 ];

@@ -8,132 +8,25 @@
 //!
 //! See `race/frame_draw.rs`. It begins with a call: private copy (0x24, its seven calls
 //! relocated), manual patch. Refuses (before anything) what `panel_neighbours` or
-//! `both_split_colours` would. Shadow mode: by state (the panel 0x6D13FE .. 0x6D14CA, the
-//! scratch dword, the labels, the lights and their flags, the colour buffers; the eight
-//! floats of `panel_values_plain` and `panel_motion_plain`, which it calls, within
-//! `FLOAT`). Self-test, at the test precisions: on the game's state with the outputs filled
-//! with 0xAA, the mode as it is and 0; all put back (skipped without view blocks or when
-//! the game's state would be refused).
+//! `both_split_colours` would.
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::race::frame::VIEW_BLOCKS;
+use crate::framework::Regs;
 use crate::race::frame_draw::*;
 use crate::screens::harness::Left;
-use crate::service::floats::{
-    Floats, Tolerance, at_test_precisions, check_state_floats, dispatch_state_floats, floats_entry,
-};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
+use crate::service::floats::floats_entry;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("race::set_up_panel", rva(0x45AB36), thunk, &ORIGINAL)
-    .private_copy(0x24)
-    .relocate_calls(&[0x00, 0x05, 0x0A, 0x0F, 0x14, 0x19, 0x1E])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const MODE: usize = rva(0x62389C); // dword_62389C
-
-fn regions() -> Vec<Region> {
-    let g = |a: usize, len: usize| (game_addr(rva(a)) as u32, len);
-    let mut v = panel_regions();
-    v.extend(light_regions());
-    v.extend([
-        g(0x6D1838, 7),
-        g(0x6D1844, 7),
-        g(0x6D1830, 8),
-        g(0x6D160C, 0x200),
-    ]);
-    v
-}
+// dword_62389C
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     // Converted: its float callees' `_plain` versions.
     Ok(all_regs(&unsafe { set_up_panel(r)? }))
 }
 
-/// The floats its callees write, within `FLOAT`.
-fn float_places() -> Vec<(Region, Tolerance)> {
-    let mut v: Vec<(Region, Tolerance)> = PANEL_FLOATS
-        .iter()
-        .map(|&a| (at(a), crate::service::floats::FLOAT))
-        .collect();
-    v.extend(motion_float_places());
-    v
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let places = float_places();
-    let floats = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let views: Vec<u32> = VIEW_BLOCKS
-        .iter()
-        .map(|&a| unsafe { game_read::<u32>(a) })
-        .collect();
-    if views.contains(&0) {
-        return t.skip("no view blocks (no race loaded)");
-    }
-    let regions = regions();
-    let mut kept = regions.clone();
-    kept.push(at(MODE));
-    let saved = capture(&kept);
-    let mode: u32 = unsafe { game_read(MODE) };
-    let places = float_places();
-    let tolerant = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, floats| {
-        for m in [mode, 0] {
-            unsafe { game_write(MODE, m) };
-            let refused = unsafe { set_up_panel(&Regs::SENTINEL) }.is_err();
-            restore(&kept, &saved);
-            if refused {
-                t.check(true, String::new);
-                continue;
-            }
-            check_state_floats(
-                &mut t,
-                "race::set_up_panel",
-                &format!("control word {word:#x}, mode {m}"),
-                call_original,
-                Regs::SENTINEL,
-                &|| unsafe {
-                    for &(r, len) in &regions {
-                        std::ptr::write_bytes(r as *mut u8, 0xAA, len);
-                    }
-                    game_write(MODE, m);
-                },
-                &regions,
-                floats,
-                &rust,
-            );
-        }
-    });
-    restore(&kept, &saved);
-    t.finish()
 }

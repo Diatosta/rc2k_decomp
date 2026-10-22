@@ -8,20 +8,10 @@
 //! vertices (3) and the flags 0x1C. One caller, `hud::flush_batch`.
 //! Platform: the original always runs. In the standalone program the rasteriser draws
 //! each triangle (`platform_3d::draw_indexed_list`) and the result is 0. No self-test.
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{RawHook, Regs, hook_asm, rva, standalone};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("d3d::draw_hud_batch", rva(0x45A869), thunk, &ORIGINAL);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, rva, standalone};
 
 #[cfg(feature = "standalone")]
 const VERTICES_RVA: usize = rva(0x764F2C); // off_764F2C: g_hudVertices
@@ -31,27 +21,6 @@ const INDICES_RVA: usize = rva(0x764F30); // off_764F30: g_hudIndices
 const VERTEX_COUNT_RVA: usize = rva(0x764F24); // g_hudVertexCount
 #[cfg(feature = "standalone")]
 const INDEX_COUNT_RVA: usize = rva(0x764F28); // g_hudIndexCount
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if standalone() {
-        #[cfg(feature = "standalone")]
-        unsafe {
-            use crate::framework::game_read;
-            // The two pointers are the game's: in the standalone's image they were moved
-            // with it.
-            crate::platform_3d::draw_indexed_list(
-                game_read(VERTICES_RVA),
-                game_read(VERTEX_COUNT_RVA),
-                game_read(INDICES_RVA),
-                game_read(INDEX_COUNT_RVA),
-            )
-        };
-        r.eax = 0;
-        return;
-    }
-    unsafe { call_original(r) };
-}
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {

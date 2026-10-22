@@ -182,6 +182,4 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &reopen_sound::HOOK,
     &choose_modes::HOOK,
     &start::HOOK,
-    &set_mode::HOOK,
-    &thread::HOOK,
 ];

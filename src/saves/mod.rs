@@ -44,6 +44,5 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &default_stage_times_alt::HOOK,
     &save_options::HOOK,
     &save_best_times::HOOK,
-    &free_best_times::HOOK,
     &keep_player_settings::HOOK,
 ];

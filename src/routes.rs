@@ -34,6 +34,7 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x4078DA => Some(crate::input::input_thread::entry(r)), // input::input_thread
         0x407F95 => Some(crate::input::take_key::entry(r)), // input::take_key
         0x408869 => Some(crate::input::poll_device::entry(r)), // input::poll_device
+        0x40939F => Some(crate::input::axis_moved::entry(r)), // input::axis_moved
         0x409B76 => Some(crate::sound::let_sounds_play::entry(r)), // sound::let_sounds_play
         0x409C1E => Some(crate::sound::wait_for_commands::entry(r)), // sound::wait_for_commands
         0x409CCE => Some(crate::audio::thread::entry(r)), // audio::thread
@@ -67,6 +68,7 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x412DA3 => Some(crate::install::runs_from_source::entry(r)), // install::runs_from_source
         0x412FA2 => Some(crate::install::run_after_exit::entry(r)), // install::run_after_exit
         0x413908 => Some(crate::install::read_languages::entry(r)), // install::read_languages
+        0x415383 => Some(crate::system::main_loop::entry(r)), // system::main_loop
         0x415563 => Some(crate::gfx::build_fonts::entry(r)), // gfx::build_fonts
         0x4161CD => Some(crate::menu::play_films::entry(r)), // menu::play_films
         0x416292 => Some(crate::system::check_developer_machine::entry(r)), // system::check_developer_machine
@@ -162,6 +164,7 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x46F7FD => Some(crate::scene::prepare_menu_scene::entry(r)), // scene::prepare_menu_scene
         0x46FA90 => Some(crate::menu::confirm_leaving::entry(r)), // menu::confirm_leaving
         0x47059E => Some(crate::menu::link_player_names::entry(r)), // menu::link_player_names
+        0x4708FD => Some(crate::menu::find_player_car::entry(r)), // menu::find_player_car
         0x470D08 => Some(crate::menu::next_record_kind::entry(r)), // menu::next_record_kind
         0x4746B7 => Some(crate::menu::draw_menu::entry(r)), // menu::draw_menu
         0x47486C => Some(crate::menu::run_front_end::entry(r)), // menu::run_front_end
@@ -169,6 +172,7 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x4748D9 => Some(crate::menu::main_menu_loop::entry(r)), // menu::main_menu_loop
         0x474D4B => Some(crate::menu::frame_callback::entry(r)), // menu::frame_callback
         0x474E04 => Some(crate::scene::set_up_front_end_scene::entry(r)), // scene::set_up_front_end_scene
+        0x47AC0C => Some(crate::menu::select_car_loop::entry(r)), // menu::select_car_loop
         0x47C420 => Some(crate::menu::draw_frame::entry(r)), // menu::draw_frame
         0x47C4A1 => Some(crate::gfx::build_menu_sprites::entry(r)), // gfx::build_menu_sprites
         0x47C627 => Some(crate::saves::free_best_times::entry(r)), // saves::free_best_times
@@ -176,6 +180,10 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x47CEA8 => Some(crate::menu::show_loading_picture::entry(r)), // menu::show_loading_picture
         0x47EFFF => Some(crate::menu::load_background::entry(r)), // menu::load_background
         0x47FA94 => Some(crate::menu::leave_question_loop::entry(r)), // menu::leave_question_loop
+        0x482099 => Some(crate::menu::select_stage_loop::entry(r)), // menu::select_stage_loop
+        0x4843EC => Some(crate::race::single_rally_race::entry(r)), // race::single_rally_race
+        0x485F5E => Some(crate::menu::review_options_485f5e_loop::entry(r)), // menu::review_options_485f5e_loop
+        0x486C21 => Some(crate::menu::mark_stage_choice::entry(r)), // menu::mark_stage_choice
         0x4904DD => Some(crate::scene::set_up_carousel::entry(r)), // scene::set_up_carousel
         _ => None,
     }

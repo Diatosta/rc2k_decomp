@@ -6,23 +6,11 @@
 //! edx = 0, then `sound::wait_for_commands`. What command 9 plays is not read; "stream"
 //! and "stop" are guesses from command 0xB's shape. Nine callers (the event loops, four
 //! screen loops).
-//! Shadow mode runs the original alone.
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{RawHook, Regs, hook_asm, rva};
+use crate::framework::Regs;
 use crate::sound::senders::*;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("sound::stop_stream", rva(0x40F757), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- Rust version ----
 
@@ -47,20 +35,8 @@ const SENDER: Sender = Sender {
     reads: &[],
 };
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_sender(&HOOK, r, call_original, &SENDER);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     send_entry(r, &SENDER)
-}
-
-// ---- self-test: a redirected copy whose command and wait note the registers ----
-
-fn self_test() -> (usize, usize) {
-    check_sender(&HOOK, &SENDER)
 }

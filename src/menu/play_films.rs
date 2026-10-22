@@ -22,35 +22,13 @@
 //! Every call goes through the game's address (hooks where ported), the registers handed
 //! from one to the next as they come back; but `nullsub_6` is not called, and
 //! `scene::set_up_lit_engine` (`sub_415515`) and `race::credits_race` (`sub_463666`) are
-//! their Rust versions (2026-10-19). Ungated thunk: a film runs for a long time. Shadow mode runs
-//! the original alone. Each real call writes a line to hook.log saying which version
-//! runs. Manual patch with a private copy (0xC5 bytes, 23 calls relocated): a call
-//! starts at the fourth byte.
-//! Self-test: a redirected copy whose sixteen callees follow a script and whose two
-//! settings are the test's.
+//! their Rust versions (2026-10-19). Each real call writes a line to hook.log saying which
+//! version runs.
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, log, rva, shadow};
-use crate::install::stand_ins::{act, set_handler, stand_in};
-use crate::redirect::RedirectedCopy;
+use crate::framework::{Regs, game_addr, log, rva};
 use rc2k_core::menu::films::{self, Film, Flags, Step};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("menu::play_films", rva(0x4161CD), thunk, &ORIGINAL)
-    .private_copy(LEN)
-    .relocate_calls(&CALLS)
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
 
 // ---- game data ----
 
@@ -61,14 +39,6 @@ const MF_LOGO_RVA: usize = rva(0x52980B); // ";3files\fmv\mflogo.mpg"
 const INTRO_RVA: usize = rva(0x5297F5); // ";3files\fmv\intro.mpg"
 const ZERO_FLAG: u32 = 0x40;
 
-/// The callees, in the order of the test's stand-ins.
-const CALLEES: [usize; 16] = [
-    0x40F826, 0x4059F4, 0x407F95, // input::take_key
-    0x4032DB, // files::swap_missing_extension
-    0x41AE39, // the player
-    0x415515, 0x4433A7, 0x44346B, 0x44347E, 0x443396, 0x402EBE, // files::file_exists
-    0x463666, 0x409B76, 0x442AF6, 0x474E04, 0x40F780,
-];
 const TAKE_KEY: usize = 0x407F95;
 const SWAP_MISSING_EXTENSION: usize = 0x4032DB;
 const PLAYER: usize = 0x41AE39;
@@ -163,57 +133,6 @@ pub unsafe fn play_films(r: &mut Regs, settings: [*const u32; 2], call: CallAt) 
     films::play_films(&mut Game { r, settings, call }, mode != 0);
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        log(&format!(
-            "menu::play_films: the original runs (mode {})",
-            r.eax
-        ));
-        unsafe { call_original(r) };
-        return;
-    }
-    log(&format!(
-        "menu::play_films: the Rust version runs (mode {})",
-        r.eax
-    ));
-    // Between `pusha` and `popa`: the caller's registers stay as they are.
-    let mut running = *r;
-    let settings = [NO_FMV_RVA, SCREEN_BITS_RVA].map(|at| game_addr(at) as *const u32);
-    unsafe {
-        play_films(&mut running, settings, &mut |at, regs| match at {
-            // `nullsub_6`.
-            0x44347E => {}
-            0x415515 => in_game_unless(at, regs, |r| {
-                crate::scene::set_up_lit_engine::set_up_lit_engine_in(
-                    r,
-                    &mut crate::scene::set_up_lit_engine::lit_part,
-                )
-            }),
-            DEMONSTRATION => in_game_unless(at, regs, |r| {
-                crate::race::credits_race::credits_race_in(
-                    r,
-                    &mut crate::race::credits_race::credits_part,
-                )
-            }),
-            SWAP_MISSING_EXTENSION => in_game_unless(at, regs, |r| {
-                crate::files::swap_missing_extension::swap_missing_extension(r.eax as *mut u8)?;
-                Ok(())
-            }),
-            FILE_EXISTS => in_game_unless(at, regs, |r| {
-                let there = crate::files::file_exists::file_exists(r.eax as *const u8)?;
-                r.set_carry(!there);
-                r.set_zero(there);
-                Ok(())
-            }),
-            _ => crate::calls::call(rva(at), regs),
-        });
-    }
-    log("menu::play_films: the Rust version has come back");
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     log(&format!(
@@ -268,194 +187,4 @@ fn in_game_unless(
         *regs = entry;
         crate::calls::call(rva(at), regs);
     }
-}
-
-// ---- self-test ----
-
-const LEN: usize = 0xC5;
-const ENTRY_BYTES: [u8; 8] = [0x60, 0x8B, 0xE8, 0xE8, 0x51, 0x96, 0xFF, 0xFF];
-const CALLS: [usize; 23] = [
-    0x3, 0x8, 0xD, 0x32, 0x39, 0x46, 0x4B, 0x50, 0x59, 0x5E, 0x63, 0x68, 0x7C, 0x85, 0x8D, 0x93,
-    0x98, 0xA1, 0xA6, 0xAF, 0xB4, 0xB9, 0xBE,
-];
-/// How often the code names `g_noFmv` and `g_screenBits`.
-const NAMED: [usize; 2] = [2, 1];
-
-/// What a case's stand-ins do, and what was called.
-struct Script {
-    /// The intro's file is there.
-    intro_exists: bool,
-    /// The player comes back from the intro with the zero flag clear on this showing of
-    /// it, from 1 (0: never).
-    intro_ends_on: u32,
-    /// A key is there on this poll after the first, from 1.
-    key_on: u32,
-    intros: u32,
-    polls: u32,
-    /// Each call: its place, eax and ebx where they are given, and ebp.
-    calls: Vec<[u32; 4]>,
-}
-
-static SCRIPT: Mutex<Script> = Mutex::new(Script {
-    intro_exists: false,
-    intro_ends_on: 0,
-    key_on: 0,
-    intros: 0,
-    polls: 0,
-    calls: Vec::new(),
-});
-
-fn handler(place: u32, r: &mut Regs) {
-    let mut script = SCRIPT.lock().unwrap();
-    let given = match place {
-        3 | 10 => [r.eax, 0],
-        4 => [r.eax, r.ebx],
-        _ => [0, 0],
-    };
-    script.calls.push([place, given[0], given[1], r.ebp]);
-    match place {
-        // The key: the first poll's is thrown away; then none until the script's.
-        2 => {
-            let key = script.polls != 0 && script.polls == script.key_on;
-            script.polls += 1;
-            r.set_zero(!key);
-        }
-        // The player: only the intro's zero flag is looked at.
-        4 if r.eax == game_addr(INTRO_RVA) as u32 => {
-            script.intros += 1;
-            r.set_zero(script.intros != script.intro_ends_on);
-        }
-        4 => r.set_zero(false),
-        10 => r.set_carry(!script.intro_exists),
-        // The demonstration leaves ebp changed.
-        11 => r.ebp = 0xBAD0_BAD0,
-        _ => {}
-    }
-}
-
-fn through_the_test(at: usize, r: &mut Regs) {
-    let place = CALLEES.iter().position(|&known| known == at).unwrap() as u32;
-    act(place, r);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x4161CD)),
-            LEN,
-            &ENTRY_BYTES,
-            &CALLS,
-            &|callee| {
-                CALLEES
-                    .iter()
-                    .position(|&known| rva(known) == callee)
-                    .map(|place| stand_in(place as u32))
-            },
-        )
-    };
-    let copy = match copy {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    // The copy's two settings become the test's.
-    let mut settings = [0u32; 2];
-    unsafe {
-        let code = std::slice::from_raw_parts(copy.addr() as *const u8, LEN);
-        let real = [NO_FMV_RVA, SCREEN_BITS_RVA].map(|at| game_addr(at) as u32);
-        let mut patches = Vec::new();
-        let mut seen = [0usize; 2];
-        let mut at = 0;
-        while at + 4 <= LEN {
-            let named = u32::from_le_bytes(code[at..at + 4].try_into().unwrap());
-            match real.iter().position(|&address| address == named) {
-                Some(n) => {
-                    seen[n] += 1;
-                    patches.push((at, settings.as_mut_ptr().add(n) as u32));
-                    at += 4;
-                }
-                None => at += 1,
-            }
-        }
-        if seen != NAMED {
-            return t.skip("the original is not what the test was made from");
-        }
-        for (at, new) in patches {
-            copy.patch_u32(at, new);
-        }
-    }
-    let places: [*const u32; 2] = std::array::from_fn(|n| settings.as_ptr().wrapping_add(n));
-
-    // (what, mode, nofmv, screen bits, the intro is there, the intro ends on, a key on)
-    let cases: [(&str, u32, u32, u32, bool, u32, u32); 10] = [
-        ("the start, 32 bits, the intro ends", 0, 0, 32, true, 1, 0),
-        ("the start, 16 bits, the intro ends", 0, 0, 16, true, 1, 0),
-        ("the start, no films", 0, 1, 16, true, 1, 1),
-        ("the start, no intro file, a key", 0, 0, 32, false, 0, 2),
-        (
-            "the start, the intro three times, then a key",
-            0,
-            0,
-            32,
-            true,
-            0,
-            3,
-        ),
-        (
-            "the start, the intro ends the third time",
-            0,
-            0,
-            16,
-            true,
-            3,
-            9,
-        ),
-        ("idle, the intro ends", 1, 0, 32, true, 1, 0),
-        ("idle, no films, a key", 1, 1, 16, true, 0, 1),
-        ("idle, no films, a key later", 7, 2, 32, false, 0, 4),
-        ("idle, 16 bits, no intro file", 1, 0, 16, false, 0, 2),
-    ];
-    for (what, mode, no_fmv, bits, intro_exists, intro_ends_on, key_on) in cases {
-        let before = Regs {
-            eax: mode,
-            ..Regs::SENTINEL
-        };
-        let mut run = |rust: bool| unsafe {
-            std::ptr::write_volatile(&raw mut settings, [no_fmv, bits]);
-            *SCRIPT.lock().unwrap() = Script {
-                intro_exists,
-                intro_ends_on,
-                key_on,
-                intros: 0,
-                polls: 0,
-                calls: Vec::new(),
-            };
-            set_handler(handler);
-            let preserved = if rust {
-                let mut running = before;
-                play_films(&mut running, places, &mut through_the_test);
-                true
-            } else {
-                let mut ro = before;
-                call_game(&mut ro, copy.addr());
-                ro.preserved_except(&before, 0)
-            };
-            (preserved, SCRIPT.lock().unwrap().calls.clone())
-        };
-        let (theirs, mine) = (run(false), run(true));
-        t.check(theirs == mine && theirs.0, || {
-            format!(
-                "{what}: original preserved={} with {} calls; rust {} calls; first different call {:?} (original {:x?}, rust {:x?})",
-                theirs.0,
-                theirs.1.len(),
-                mine.1.len(),
-                theirs.1.iter().zip(&mine.1).position(|(a, b)| a != b),
-                theirs.1.iter().zip(&mine.1).find(|(a, b)| a != b).map(|(a, _)| a),
-                theirs.1.iter().zip(&mine.1).find(|(a, b)| a != b).map(|(_, b)| b),
-            )
-        });
-    }
-    t.finish()
 }

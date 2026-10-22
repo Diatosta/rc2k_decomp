@@ -12,7 +12,7 @@
 //! (`input::di_harness`) with the joystick and the wheel attached: listed from none, from
 //! 15 (one room left) and turned off.
 
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva, shadow};
+use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::input::di_harness::{
     CONTROLLER_COUNT_RVA, CONTROLLER_LEN, CONTROLLERS, CONTROLLERS_RVA, DIRECT_INPUT_RVA, a,
     compare, g, method, p, regs_text, shared_regions, slot,
@@ -32,14 +32,14 @@ hook_asm!(
 );
 
 const OFF_RVA: usize = rva(0x4F68DC); // dword_4F68DC: joysticks turned off
-const JOYSTICK_FOUND: usize = 0x408238; // input::joystick_found
 
 /// The Rust version.
 pub fn list_joysticks() {
     if g(OFF_RVA) != 0 {
         return;
     }
-    let found = game_addr(rva(JOYSTICK_FOUND)) as u32;
+    let found = crate::input::joystick_found::callback as unsafe extern "system" fn(u32, u32) -> u32
+        as usize as u32;
     method(g(DIRECT_INPUT_RVA), slot::ENUM_DEVICES, &[4, found, 0, 1]);
 }
 

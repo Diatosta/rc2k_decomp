@@ -87,11 +87,8 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &stream_playing::HOOK,
     &play_music::HOOK,
     &set_music_volume::HOOK,
-    &stop_stream::HOOK,
     &start_stream::HOOK,
     &play_tune_2::HOOK,
-    &play_tune_3::HOOK,
-    &play_tune_4::HOOK,
     &play_tune_9::HOOK,
     &play_tune_5::HOOK,
     &play_tune_6::HOOK,
@@ -144,6 +141,5 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &send_music_command::HOOK,
     &send_command_7::HOOK,
     &commands_pending::HOOK,
-    &open_cd_audio::HOOK,
     &stop_cd_track::HOOK,
 ];

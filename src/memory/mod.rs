@@ -16,7 +16,6 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &move_bytes::HOOK,
     &take_from_list::HOOK,
     &virtual_alloc::HOOK,
-    &free_own_heap::HOOK,
 ];
 
 /// A list of blocks: what `allocate` adds to and `free_list` gives back in one go. Every

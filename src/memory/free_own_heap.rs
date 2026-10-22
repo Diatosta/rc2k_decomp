@@ -7,27 +7,14 @@
 //! Out: every register kept (`pusha` .. `popa`)
 //!
 //! One caller, `start`'s way out. Its call through `part` (in the game `VirtualFree` with
-//! `MEM_RELEASE`, as `virtual_free`). Shadow mode runs the original alone (memory is given
-//! back). Self-test: a copy whose three variables are the test's and whose call goes to a
-//! noting stand-in, against the Rust version, with the heap on and off.
+//! `MEM_RELEASE`, as `virtual_free`).
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
-use crate::system::api_stand_ins::{Api, copy_with};
-use crate::system::exit_parts::{Part, VIRTUAL_FREE, compare_exit, dispatch_exit, exit_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("memory::free_own_heap", rva(0x4029DB), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_addr, rva};
+use crate::system::api_stand_ins::Api;
+use crate::system::exit_parts::{Part, VIRTUAL_FREE, exit_entry};
 
 const OWN_HEAP: usize = 0x4E0584; // g_ownHeap (altmemenable)
 const HEAP: usize = 0x4E058C; // dword_4E058C: the heap's memory
@@ -63,50 +50,8 @@ fn in_game(r: &mut Regs, part: Part, _api: Api) -> Result<(), Refused> {
     free_own_heap_with(r, a(OWN_HEAP), a(HEAP), a(HEAP_MORE), part)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_exit(&HOOK, r, call_original, in_game);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     exit_entry(r, in_game)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut mem = [0u32; 4];
-    let base = mem.as_mut_ptr() as u32;
-    let (on, heap, more) = (base, base + 4, base + 8);
-    // pusha; cmp g_ownHeap, 1
-    let entry = [0x60, 0x83, 0x3D, 0x84, 0x05, 0x4E, 0x00, 0x01];
-    let copy = match copy_with(
-        0x4029DB,
-        0x2A,
-        &entry,
-        &[0xF],
-        &[VIRTUAL_FREE],
-        &[],
-        &[(OWN_HEAP, 4, on), (HEAP, 4, heap), (HEAP_MORE, 4, more)],
-        4,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    for switch in [0u32, 1, 2] {
-        compare_exit(
-            &mut t,
-            &format!("switch {switch}"),
-            &copy,
-            Regs::SENTINEL,
-            &|| unsafe { (base as *mut [u32; 4]).write_volatile([switch, 0x0123_0000, 9, 0x77]) },
-            &[(base, 0x10)],
-            &|r, part, _| free_own_heap_with(r, on, heap, more, part),
-            false,
-        );
-    }
-    let _ = &mut mem;
-    t.finish()
 }

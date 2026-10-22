@@ -17,44 +17,18 @@
 //! `sub_4703C2`, `sub_41CDC2`, `sub_412DE0`, `sub_443104`.
 //! A refusal from one of the steps leaves the work half done; none can come with the
 //! game's own files.
-//! Shadow mode runs the original alone (the memory is taken once) and checks every one of
-//! the 125 stores and the palette's pixels against what the Rust version would store;
-//! the tables themselves are compared in `gfx::build_glyphs`' hook. Self-test: the part
-//! with the calls as a redirected copy that ends before the stores and keeps the
-//! palettes' place in a test variable, its sixteen calls noted; and the fonts as they
-//! are, against `HUNG`.
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::gfx::build_glyphs::{BUILDER_FLAGS_RVA, FORMAT_RVA, TABLE_RVA};
-use crate::gfx::components_to_pixel::components_to_pixel;
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::gfx::build_glyphs::{BUILDER_FLAGS_RVA, TABLE_RVA};
 use crate::gfx::glyph_builder::RUN_LENGTHS;
 use crate::gfx::glyph_tables::{
-    ALLOCATE, BEGIN_TABLE, BEGIN_TABLES, BUILD_GLYPHS, END_TABLES, Game, Noted, PALETTE_TO_PIXELS,
-    PLACES, Parts, REWIND_LIST, TABLES_LIST_RVA, TABLES_UNITS_RVA, TAKE_FROM_LIST, UNIT_FACTOR_RVA,
-    stand_in_for,
+    ALLOCATE, BEGIN_TABLE, BEGIN_TABLES, BUILD_GLYPHS, END_TABLES, Game, PALETTE_TO_PIXELS, Parts,
+    REWIND_LIST, TABLES_LIST_RVA, TABLES_UNITS_RVA, TAKE_FROM_LIST, UNIT_FACTOR_RVA,
 };
 use crate::gfx::pcx::PALETTE_RVA;
-use crate::gfx::pixel_format::PixelFormat;
-use crate::menu::frame_test;
-use crate::redirect::RedirectedCopy;
-use crate::service::harness::{Region, at, capture, restore};
-use crate::text::font::MODE_MEASURE;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("gfx::build_fonts", rva(0x415563), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -284,163 +258,9 @@ pub unsafe fn build_fonts(entry: &Regs, parts: &mut dyn Parts) -> Result<(), Ref
     }
 }
 
-// ---- hook ----
-
-/// What of the fonts as they are is not as the Rust version leaves them, or None.
-/// `in_use`: the fonts have been drawn with since, so the palette of a font that measures
-/// is not looked at (`text::draw_text` counts lines in it).
-unsafe fn fonts_wrong(in_use: bool) -> Option<String> {
-    unsafe {
-        for (place, variable, plus) in HUNG {
-            if in_use
-                && variable == PALETTES_RVA
-                && game_read::<u8>(rva(place as usize - 0x14 + 2)) == MODE_MEASURE
-            {
-                continue;
-            }
-            let (theirs, mine): (u32, u32) =
-                (game_read(rva(place as usize)), hung_value(variable, plus));
-            if theirs != mine {
-                return Some(format!("{place:#x} holds {theirs:#x}, not {mine:#x}"));
-            }
-        }
-        let palettes = game_read::<u32>(PALETTES_RVA) as *const u32;
-        let format = game_read::<u32>(FORMAT_RVA) as *const PixelFormat;
-        if palettes.is_null() || format.is_null() {
-            return Some("no palettes or no pixel layout".into());
-        }
-        let format = format.read_unaligned();
-        for entry in 0..256 {
-            let components: u32 = game_read(PALETTE_COPY_RVA + entry * 4);
-            let (theirs, mine) = (
-                palettes.add(entry).read_unaligned(),
-                components_to_pixel(&format, components),
-            );
-            if theirs != mine {
-                return Some(format!(
-                    "palette entry {entry} is {theirs:#x}, not {mine:#x}"
-                ));
-            }
-        }
-        None
-    }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if !shadow() {
-        let entry = *r;
-        if let Err(e) = unsafe { build_fonts(&entry, &mut Game) } {
-            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-        }
-        return;
-    }
-    let mut o = *r;
-    unsafe { call_original(&mut o) };
-    let wrong = unsafe { fonts_wrong(false) };
-    if wrong.is_some() || !o.preserved_except(r, 0) {
-        HOOK.mismatch(|| format!("the original's fonts: {wrong:?}"));
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let entry = *r;
     unsafe { build_fonts(&entry, &mut Game) }?;
     Ok(())
-}
-
-// ---- self-test ----
-
-/// The original up to its stores, and room for the `popa` and `retn` put after it.
-const CALLS_LEN: usize = 0xF8;
-const ENTRY_BYTES: [u8; 8] = [0x60, 0x83, 0x3D, 0xB0, 0xDE, 0x51, 0x00, 0x00];
-const CALLS: [usize; 16] = [
-    0x25, 0x30, 0x35, 0x49, 0x53, 0x5E, 0x73, 0x8B, 0x96, 0xA5, 0xB0, 0xBF, 0xCA, 0xD9, 0xE4, 0xF3,
-];
-/// Where the copy names `dword_51DEB0`.
-const PALETTES_OPERANDS: [usize; 3] = [0x03, 0x4F, 0x6F];
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if unsafe { game_read::<u32>(PALETTES_RVA) } == 0 {
-        return t.skip("the fonts are not built");
-    }
-    // The fonts the game draws with, whichever version built them.
-    let wrong = unsafe { fonts_wrong(true) };
-    t.check(wrong.is_none(), || {
-        format!("the fonts as they are: {wrong:?}")
-    });
-
-    let mut palettes = 0u32;
-    let copy = unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x415563)),
-            CALLS_LEN + 4,
-            &ENTRY_BYTES,
-            &CALLS,
-            &stand_in_for,
-        )
-    };
-    let copy = match copy {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    let named = game_addr(PALETTES_RVA) as u32;
-    for operand in PALETTES_OPERANDS {
-        let there = unsafe { ((copy.addr() + operand) as *const u32).read_unaligned() };
-        if there != named {
-            return t.skip("the original is not what the test was made from");
-        }
-        unsafe { copy.patch_u32(operand, &mut palettes as *mut u32 as u32) };
-    }
-    // popa; retn
-    unsafe { copy.patch_u32(CALLS_LEN, 0x9090_C361) };
-
-    let variables: Vec<Region> = vec![
-        at(BUILDER_FLAGS_RVA),
-        at(FONT27_RVA),
-        at(FONT23_RVA),
-        at(FONT21_RVA),
-        at(FONT13_RVA),
-        (game_addr(PALETTE_COPY_RVA) as u32, PALETTE_BYTES),
-    ];
-    let saved = capture(&variables);
-    for flags in [0u32, 0x33] {
-        let before = Regs::SENTINEL;
-        let mut run = |rust: bool| unsafe {
-            restore(&variables, &vec![0xAA; saved.len()]);
-            game_write(BUILDER_FLAGS_RVA, flags);
-            palettes = 0;
-            frame_test::begin(u32::MAX, 0);
-            let done = if rust {
-                tables(&before, &mut Noted(&PLACES), &mut palettes).is_ok()
-            } else {
-                let mut ro = before;
-                call_game(&mut ro, copy.addr());
-                ro.preserved_except(&before, 0)
-            };
-            (done, frame_test::notes(), palettes, capture(&variables))
-        };
-        let (theirs, mine) = (run(false), run(true));
-        t.check(theirs == mine && theirs.0 && theirs.1.len() == 16, || {
-            let call = theirs.1.iter().zip(&mine.1).position(|(a, b)| a != b);
-            format!(
-                "flags={flags:#x}: original done={} calls={} palettes={:#x}; rust done={} calls={} palettes={:#x}; first different call {call:?} ({:x?} / {:x?}); same variables={}",
-                theirs.0,
-                theirs.1.len(),
-                theirs.2,
-                mine.0,
-                mine.1.len(),
-                mine.2,
-                call.map(|n| theirs.1[n]),
-                call.map(|n| mine.1[n]),
-                theirs.3 == mine.3
-            )
-        });
-    }
-    restore(&variables, &saved);
-    t.finish()
 }

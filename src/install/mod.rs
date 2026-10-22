@@ -99,7 +99,6 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &read_sku::HOOK,
     &normalise_path::HOOK,
     &read_registry::HOOK,
-    &runs_from_source::HOOK,
     &ask_registration::HOOK,
     &backdrop_frame::HOOK,
     &blit_glyph_list::HOOK,

@@ -22,31 +22,14 @@
 //! the standalone program DirectInput is made in Rust (`input::di_objects`, on SDL's
 //! joysticks, `platform_input.rs`) and released; the keyboard and the mouse are SDL's
 //! events (they fill `g_keysDown`): nothing is made, read or released for them. Each tick passes a gate (`hook_enter` / `hook_leave`), so a
-//! self-test's pause holds the thread between ticks. Ungated thunk (it runs for the
-//! game's whole life). Refuses what its steps refuse (the original then runs: its flag is
-//! set, so it goes to its end). Shadow mode runs the original alone (the thread is the
-//! game's).
-//! Self-test: none (it runs until the game ends); its steps carry theirs.
+//! self-test's pause holds the thread between ticks. Refuses what its steps refuse (the
+//! original then runs: its flag is set, so it goes to its end).
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow, standalone,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva, standalone};
 use crate::input::devices::RECORDS;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("input::input_thread", rva(0x4078DA), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
 
 const SLOT_RVA: usize = rva(0x5184F4); // slot: the input thread's
 const START_TEXT_RVA: usize = rva(0x4DA4B2); // "INPUTTDB:START"
@@ -202,28 +185,8 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { input_thread(&mut game_part) } {
-        Ok(()) => unsafe { windows_sys::Win32::System::Threading::ExitThread(0) },
-        // The original from the start: it finds its flag set and goes to its end.
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
     unsafe { input_thread(&mut game_part) }?;
     unsafe { windows_sys::Win32::System::Threading::ExitThread(0) }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    t.skip("it is the input thread: it runs until the game ends; its steps carry their tests")
 }

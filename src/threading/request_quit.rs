@@ -9,26 +9,13 @@
 //! It cannot be run twice or undone, so shadow mode runs the original alone. The self-test
 //! runs a copy of the original whose switch is a test variable and whose call to
 //! `start_slot_thread` goes to a stand-in.
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::FatalError;
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_ptr, hook_asm, log, rva, shadow,
-};
-use crate::redirect::RedirectedCopy;
+use crate::framework::{Regs, game_addr, game_ptr, log, rva};
 use crate::threading::start_slot_thread::start_slot_thread;
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("threading::request_quit", rva(0x410BF9), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use std::sync::atomic::{AtomicU32, Ordering};
 
 // ---- game data ----
 
@@ -64,29 +51,6 @@ pub unsafe fn request_quit() -> Result<(), FatalError> {
     result
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    // It happens once, while the game is closing, when `stats` can no longer be asked: say
-    // in the log which version ran.
-    let was: u32 = unsafe { crate::framework::game_read(QUIT_RVA) };
-    if shadow() {
-        log(&format!(
-            "threading::request_quit: the original runs (switch was {was})"
-        ));
-        unsafe { call_original(r) };
-        return;
-    }
-    let result = unsafe { request_quit() };
-    log(&format!(
-        "threading::request_quit: the Rust version ran (switch was {was}): {result:?}"
-    ));
-    if let Err(e) = result {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
     // It happens once, while the game is closing, when `stats` can no longer be asked: say
@@ -102,77 +66,4 @@ pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
     Ok(())
 }
 
-// ---- self-test: a copy that sets a test variable and starts nothing ----
-
-const FUNCTION_LEN: usize = 0x1E;
-const ENTRY_BYTES: [u8; 6] = [0x60, 0xB8, 0x01, 0x00, 0x00, 0x00]; // pusha; mov eax, 1
-/// The address operand of `xchg eax, dword_51837C`.
-const SWITCH_OPERAND: usize = 8;
-const START_CALL: usize = 0x17;
-
-static TEST_SWITCH: AtomicU32 = AtomicU32::new(0);
-static STARTS: AtomicU32 = AtomicU32::new(0);
-static STARTED_SLOT: AtomicU32 = AtomicU32::new(0);
-
-/// Stands in for `start_slot_thread`: notes the slot in esi.
-#[unsafe(naked)]
-unsafe extern "C" fn fake_start() {
-    core::arch::naked_asm!(
-        "mov [{slot}], esi",
-        "inc dword ptr [{starts}]",
-        "ret",
-        slot = sym STARTED_SLOT,
-        starts = sym STARTS,
-    )
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let redirect =
-        |target: usize| (target == rva(0x410C9C)).then_some(fake_start as *const () as usize);
-    let copy = match unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x410BF9)),
-            FUNCTION_LEN,
-            &ENTRY_BYTES,
-            &[START_CALL],
-            &redirect,
-        )
-    } {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    unsafe { copy.patch_u32(SWITCH_OPERAND, &TEST_SWITCH as *const AtomicU32 as u32) };
-
-    let observed = || [&TEST_SWITCH, &STARTS, &STARTED_SLOT].map(|v| v.load(Ordering::SeqCst));
-    for switch in [0u32, 1, 2, 0xFFFF_FFFF] {
-        let prepare = || {
-            TEST_SWITCH.store(switch, Ordering::SeqCst);
-            STARTS.store(0, Ordering::SeqCst);
-            STARTED_SLOT.store(0x5EED, Ordering::SeqCst);
-        };
-        prepare();
-        let before = Regs::SENTINEL;
-        let mut ro = before;
-        unsafe { call_game(&mut ro, copy.addr()) };
-        let theirs = observed();
-
-        prepare();
-        let mine = request_quit_with(&TEST_SWITCH, &mut |slot| {
-            STARTED_SLOT.store(slot, Ordering::SeqCst);
-            STARTS.fetch_add(1, Ordering::SeqCst);
-            Ok(())
-        });
-        let ours = observed();
-
-        let preserved = ro.preserved_except(&before, 0);
-        t.check(mine.is_ok() && theirs == ours && preserved, || {
-            format!(
-                "switch={switch:#x}: original switch/starts/slot {theirs:x?} preserved={preserved}; rust {mine:?} {ours:x?}"
-            )
-        });
-    }
-    t.finish()
-}
+// pusha; mov eax, 1

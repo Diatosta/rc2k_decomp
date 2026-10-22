@@ -22,7 +22,7 @@
 //! the force-feedback switch both ways.
 
 use crate::field;
-use crate::framework::{RawHook, SelfTest, game_addr, rva};
+use crate::framework::{RawHook, SelfTest, rva};
 use crate::input::devices::{at, put};
 use crate::input::di_harness::{
     CAPS_LEN, CAPS_RVA, CONTROLLER_COUNT_RVA, CONTROLLER_LEN, CONTROLLERS, CONTROLLERS_RVA,
@@ -55,7 +55,6 @@ pub static HOOK: RawHook = RawHook::new(
 )
 .self_test(self_test);
 
-const AXIS_FOUND: usize = 0x4083F4; // input::axis_found
 pub const NO_FORCE_RVA: usize = rva(0x4F68F4); // dword_4F68F4: force feedback turned off
 pub const KEEP_CASE_RVA: usize = rva(0x4E0144); // dword_4E0144
 
@@ -101,7 +100,8 @@ fn look_over(instance: u32, entry: u32) -> bool {
     if !ok(method(device2, slot::GET_CAPABILITIES, &[a(CAPS_RVA)])) {
         return false;
     }
-    let found = game_addr(rva(AXIS_FOUND)) as u32;
+    let found = crate::input::axis_found::callback as unsafe extern "system" fn(u32, u32) -> u32
+        as usize as u32;
     method(device2, slot::ENUM_OBJECTS, &[found, entry, 0]);
     put(
         entry,
@@ -150,6 +150,11 @@ fn look_over(instance: u32, entry: u32) -> bool {
 }
 
 /// The Rust version: eax.
+/// `joystick_found` as DirectInput calls it: what Rust callers hand `EnumDevices` (no hook).
+pub unsafe extern "system" fn callback(instance: u32, context: u32) -> u32 {
+    joystick_found(instance, context)
+}
+
 pub fn joystick_found(instance: u32, _context: u32) -> u32 {
     let count = g(CONTROLLER_COUNT_RVA);
     if count >= CONTROLLERS {

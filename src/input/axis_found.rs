@@ -44,6 +44,11 @@ pub static HOOK: RawHook = RawHook::new(
 const AXES_RVA: usize = rva(0x4F7E38); // unk_4F7E38: the six axes' GUIDs, 16 bytes each
 
 /// The Rust version: eax.
+/// `axis_found` as DirectInput calls it: what Rust callers hand `EnumObjects` (no hook).
+pub unsafe extern "system" fn callback(object: u32, entry: u32) -> u32 {
+    axis_found(object, entry)
+}
+
 pub fn axis_found(object: u32, entry: u32) -> u32 {
     // Converted: `rc2k_core::input::joystick::axis_bits`.
     let guid = |at: u32| unsafe { (at as *const [u8; 16]).read_unaligned() };
