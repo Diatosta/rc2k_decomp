@@ -40,7 +40,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
+    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
 use crate::race::mud::copy;
 use crate::service::harness::{Region, at, capture, restore};
@@ -359,7 +359,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                     &mut crate::race::draw_mirror_view::game_part,
                 )?
             }
-            _ => call_game(r, game_addr(rva(CALLEES[place as usize]))),
+            _ => crate::calls::call(rva(CALLEES[place as usize]), r),
         }
     }
     Ok(())

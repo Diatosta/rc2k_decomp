@@ -24,8 +24,7 @@
 //!   quit switch, and the keys the menus know become the game's pending key.
 
 use crate::framework::{
-    GameHook, RawHook, Regs, call_game, game_addr, game_ptr, game_read, game_write, hook_asm, log,
-    rva,
+    GameHook, RawHook, Regs, game_addr, game_ptr, game_read, game_write, hook_asm, log, rva,
 };
 use crate::gfx::describe_format::describe_format;
 use crate::gfx::set_clip::set_clip;
@@ -837,7 +836,7 @@ extern "C" fn run_frame(r: &mut Regs) {
         return;
     }
     let frame = r.eax as usize;
-    unsafe { call_game(r, frame) };
+    crate::menu::table_calls::call_any(frame as u32, r);
     if !r.carry() {
         r.set_zero(r.eax == 0);
     }

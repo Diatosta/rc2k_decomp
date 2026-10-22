@@ -46,3 +46,22 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
     unsafe { call_original(r) };
 }
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let swallowed = note(|| Call::State {
+        state: r.ebx,
+        value: r.eax,
+    });
+    if swallowed {
+        return Ok(());
+    }
+    if standalone() {
+        if r.ebx < STATES {
+            unsafe { game_write(KEPT_RVA + r.ebx as usize * 4, r.eax) };
+        }
+        return Ok(());
+    }
+    unsafe { crate::framework::call_game(r, crate::framework::game_addr(rva(0x41AB5B))) };
+    Ok(())
+}

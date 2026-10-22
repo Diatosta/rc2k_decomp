@@ -15,9 +15,11 @@
 //! menu.
 //! Refuses, before anything is written: no player, a slot past 99, a flag table without
 //! its end mark.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::menu::go_back;
 use crate::screens::harness::Left;
 use crate::service::clear_repair_flags::clear_repair_flags;
@@ -26,33 +28,15 @@ use crate::service::edit_gear_ratio::edit_gear_ratio;
 use crate::service::edit_ride_height::edit_ride_height;
 use crate::service::edit_suspension_stiffness::edit_suspension_stiffness;
 use crate::service::edit_tyre::edit_tyre;
-use crate::service::harness::{
-    Region, RepairTest, at, capture, check_state, dispatch_state, repair_regions, restore,
-};
+use crate::service::harness::state_entry;
 use crate::service::pages::{
     BRAKE_BALANCE, ChangePage, GEAR_RATIO, RIDE_HEIGHT, STEERING_SENSITIVITY, SUSPENSION_STIFFNESS,
     TYRE,
 };
-use crate::service::read_setup_slot::{
-    SETUP_FILE_RVA, SLOT_COUNT, read_setup_slot, regions as slot_regions,
-};
+use crate::service::read_setup_slot::{SETUP_FILE_RVA, SLOT_COUNT, read_setup_slot};
 use crate::service::state::{
-    EDIT_MODE_RVA, ITEM_COUNT, MENU_ITEM_RVA, TIME_BUDGET_RVA, current_player, marks_ended,
-    menu_item, repair_flag,
+    ITEM_COUNT, MENU_ITEM_RVA, current_player, marks_ended, menu_item, repair_flag,
 };
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("service::load_setup_slot", rva(0x46EECC), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -130,79 +114,17 @@ pub unsafe fn load_setup_slot() -> Result<(), Refused> {
     Ok(())
 }
 
-// ---- hook ----
-
-fn regions() -> Vec<Region> {
-    let mut regions = slot_regions(highlighted_slot());
-    regions.extend(repair_regions());
-    regions.extend(go_back::regions());
-    regions.push(at(MENU_ITEM_RVA));
-    regions.push(at(EDIT_MODE_RVA));
-    for page in [GEAR_RATIO, TYRE, RIDE_HEIGHT, SUSPENSION_STIFFNESS] {
-        regions.push(at(page.change.chosen_rva));
-    }
-    if let Some(player) = current_player() {
-        regions.push((player + BRAKE_BALANCE.car_offset, 4));
-        regions.push((player + STEERING_SENSITIVITY.car_offset, 4));
-    }
-    regions
-}
-
 fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { load_setup_slot() }?;
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
-// ---- self-test: the first 30 slots, with whatever setup files the owner has saved ----
 //
 // Slots without a file only show that nothing happens. Each slot is tried with a service time
 // that lets every change in, one that lets them in only by overrunning, and none.
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if current_player().is_none() {
-        return t.skip("there is no current player object");
-    }
-    let test = RepairTest::begin();
-    RepairTest::set_known_times();
-    let inputs = [at(SLOT_PAGE_RVA)];
-    let saved_inputs = capture(&inputs);
-
-    // Items 1 .. 31 on page 0 are slots 0 .. 29 (items 0x10 and 0x11 are both slot 15).
-    for item in 1u32..=31 {
-        unsafe {
-            game_write(SLOT_PAGE_RVA, 0u32);
-            game_write(MENU_ITEM_RVA, item);
-        }
-        let regions = regions();
-        let saved = capture(&regions);
-        for budget in [100_000i32, 2000, 0] {
-            check_state(
-                &mut t,
-                &format!("item={item} budget={budget}"),
-                call_original,
-                Regs::SENTINEL,
-                &|| {
-                    restore(&regions, &saved);
-                    unsafe {
-                        game_write(MENU_ITEM_RVA, item);
-                        game_write(TIME_BUDGET_RVA, budget);
-                    }
-                },
-                &regions,
-                &rust,
-            );
-        }
-        restore(&regions, &saved);
-    }
-
-    restore(&inputs, &saved_inputs);
-    test.end();
-    t.finish()
-}

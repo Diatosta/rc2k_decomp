@@ -13,7 +13,7 @@
 //! Self-test: a copy whose call goes to a stand-in, against the Rust version.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::sound::turn_parts::{Part, both, copy_of, dispatch_turn, run_copy};
 use std::sync::atomic::AtomicUsize;
 
@@ -42,7 +42,7 @@ fn set_up_in_game(r: &mut Regs) -> Result<(), Refused> {
             r,
             &mut |_| crate::scene::build_texture_catalogue::build_texture_catalogue_in_game(),
             &mut |r| {
-                call_game(r, game_addr(rva(0x4051ED)));
+                crate::calls::call(rva(0x4051ED), r);
                 !r.carry()
             },
         )?;

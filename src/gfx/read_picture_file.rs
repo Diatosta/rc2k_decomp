@@ -176,6 +176,27 @@ extern "C" fn dispatch(r: &mut Regs) {
     r.eflags = o.eflags;
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let path = r.eax as *mut u8;
+    if !copy_is_sound() {
+        // The original cannot be run: the Rust version alone, whatever the mode.
+        if !crate::framework::standalone() && !SAID_UNSOUND.swap(true, Ordering::SeqCst) {
+            log(
+                "gfx::read_picture_file: its copy of the original is not usable (hooked after read_pcx?); the Rust version runs alone",
+            );
+        }
+        let worked = unsafe { read_picture_file(path) }.unwrap_or(false);
+        r.set_carry(!worked);
+        return Ok(());
+    }
+    {
+        let worked = unsafe { read_picture_file(path) }?;
+        r.set_carry(!worked)
+    }
+    Ok(())
+}
+
 // ---- self-test: a PNG and a PCX file of the test's own, asked for by several paths, with
 // the setting at each of its values ----
 

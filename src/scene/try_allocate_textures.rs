@@ -144,7 +144,7 @@ pub unsafe fn try_allocate_textures_in_game() -> Result<bool, BadInput> {
                         esi: ask.texture,
                         ..Regs::default()
                     };
-                    call_game(&mut r, game_addr(ALLOCATE_RVA));
+                    crate::calls::call(ALLOCATE_RVA, &mut r);
                     if r.carry() {
                         return None;
                     }

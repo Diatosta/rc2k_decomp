@@ -22,7 +22,7 @@ use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
 use crate::system::api_stand_ins::{Api, copy_with, note, set_gives};
 use crate::system::exit_parts::{
     EXIT_THREAD, HEX8_2_NL, LOG_2, LOG_2_NL, POST_MESSAGE, Part, WAIT_FOR_THREADS, compare_exit,
-    dispatch_exit,
+    dispatch_exit, exit_entry,
 };
 use std::sync::atomic::AtomicUsize;
 
@@ -98,6 +98,12 @@ fn in_game(r: &mut Regs, part: Part, api: Api) -> Result<(), Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_exit(&HOOK, r, call_original, in_game);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    exit_entry(r, in_game)
 }
 
 // ---- self-test ----

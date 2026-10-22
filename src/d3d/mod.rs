@@ -45,6 +45,4 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &draw_vertex_strip::HOOK,
     &draw_marks_hexagons::HOOK,
     &texture_surface_info::HOOK,
-    &lock_texture::HOOK,
-    &unlock_texture::HOOK,
 ];

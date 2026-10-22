@@ -14,28 +14,12 @@
 //!
 //! Caller: the stage's loading (through `dword_623704`). The window is its Rust version;
 //! the rest through `part` (1 begin, 2 the bar, 3 end, 4 lock, 5 unlock, 6 show, 7 the
-//! restore), in the game their Rust versions (the restore the platform's call). Shadow
-//! mode runs the original alone (it draws). Self-test: a copy whose calls go to stand-ins
-//! setting carry by the case, against the Rust version, every way out.
+//! restore), in the game their Rust versions (the restore the platform's call).
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::loading_bar_frame", rva(0x4467C7), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_read, game_write, rva};
 
 const ON_RVA: usize = rva(0x71C3E0); // dword_71C3E0
 const MARK_RVA: usize = rva(0x6365CC); // dword_6365CC
@@ -113,145 +97,26 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::scene::*;
     unsafe {
         match place {
-            1 => begin_scene::begin_scene(r, &mut |r| call_game(r, game_addr(rva(0x41ABC7)))),
+            1 => begin_scene::begin_scene(r, &mut |r| crate::calls::call(rva(0x41ABC7), r)),
             2 => {
                 *r = crate::race::loading_bar_quad::loading_bar_quad(
                     r,
                     &mut crate::race::loading_bar_quad::game_part,
                 )?
             }
-            3 => end_scene::end_scene(r, &mut |r| call_game(r, game_addr(rva(0x41AB8A)))),
+            3 => end_scene::end_scene(r, &mut |r| crate::calls::call(rva(0x41AB8A), r)),
             4 => *r = lock_frame::lock_frame(r, &mut lock_frame::game_part)?,
             5 => *r = unlock_frame::unlock_frame(r, &mut unlock_frame::game_part)?,
             6 => *r = present_frame::present_frame(r, &mut present_frame::game_part)?,
-            _ => call_game(r, game_addr(RESTORE_RVA)),
+            _ => crate::calls::call(RESTORE_RVA, r),
         }
     }
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { loading_bar_frame(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-/// The places whose stand-ins set carry in this case (a bit each); the restore's sets
-/// `dword_518380` to bit 8.
-static CARRY: AtomicU32 = AtomicU32::new(0);
-
-fn note(place: u32, r: &mut Regs) {
-    crate::race::level_init::note(place, r);
-    let c = CARRY.load(Ordering::SeqCst);
-    r.set_carry(c & (1 << place) != 0);
-    if place == 7 {
-        unsafe { game_write(LOST_RVA, (c >> 8) & 1) };
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::level_init::take_called;
-    use crate::race::mud::copy;
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // cmp dword_71C3E0, 0
-    let entry: &[u8] = &[0x83, 0x3D, 0xE0, 0xC3, 0x71, 0x00, 0x00];
-    let copy = match copy(
-        0x4467C7,
-        0x9A,
-        entry,
-        &[0x32, 0x49, 0x54, 0x59, 0x5E, 0x65, 0x6A, 0x6F, 0x87],
-        &[
-            (0x44E8A1, 1),
-            (0x446861, 2),
-            (0x44E952, 3),
-            (0x44E837, 4),
-            (0x44E851, 5),
-            (0x44E895, 6),
-            (0x405B10, 7),
-        ],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    crate::install::stand_ins::set_handler(note);
-    let mut regions: Vec<Region> = [MARK_RVA, FRAMED_RVA, LOST_RVA].map(at).to_vec();
-    regions.extend(crate::scene::choose_view_window::regions());
-    let mut vars = regions.clone();
-    vars.extend([ON_RVA, QUITTING_RVA, ACTIVE_RVA].map(at));
-    vars.extend(crate::scene::set_view_window::inputs());
-    let saved = capture(&vars);
-    // (on, quitting, active, lost, carry bits)
-    let cases: [(u32, u32, u32, u32, u32); 9] = [
-        (0, 0, 1, 0, 0),
-        (1, 1, 1, 0, 0),
-        (1, 0, 1, 0, 0),
-        (1, 0, 0, 0, 0),
-        (1, 0, 1, 1, 0x100),
-        (1, 0, 1, 0, 1 << 1),
-        (1, 0, 1, 0, 1 << 4),
-        (1, 0, 1, 0, (1 << 6) | 0x100),
-        (1, 0, 0, 1, 0),
-    ];
-    let regs = |r: &Regs| {
-        (
-            [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp],
-            r.carry(),
-            r.eflags & 0x40 != 0,
-        )
-    };
-    for (n, (on, quitting, active, lost, carry)) in cases.into_iter().enumerate() {
-        // Drawn: the zero flag is the one `scene::set_view_window`'s `mul` leaves
-        // (undefined on x86; no caller reads it): only the carry is compared there.
-        let drawn = on == 1 && quitting == 0 && active == 1 && lost == 0 && carry == 0;
-        let regs = |r: &Regs| {
-            let (all, c, z) = regs(r);
-            (all, c, z && !drawn)
-        };
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            game_write(ON_RVA, on);
-            game_write(QUITTING_RVA, quitting);
-            game_write(ACTIVE_RVA, active);
-            game_write(LOST_RVA, lost);
-            game_write(FRAMED_RVA, 1u32);
-            CARRY.store(carry, Ordering::SeqCst);
-        };
-        prepare();
-        take_called();
-        let mut ro = Regs::SENTINEL;
-        unsafe { call_game(&mut ro, copy.addr()) };
-        let theirs = (Some(regs(&ro)), take_called(), capture(&regions));
-        prepare();
-        let mine = unsafe {
-            loading_bar_frame(&Regs::SENTINEL, &mut |p, r| {
-                note(p, r);
-                Ok(())
-            })
-        };
-        let mine = (
-            mine.as_ref().ok().map(regs),
-            take_called(),
-            capture(&regions),
-        );
-        t.check(theirs == mine, || {
-            format!(
-                "case {n}: original {:x?} {:x?}; rust {:x?} {:x?}; same state {}",
-                theirs.0,
-                theirs.1,
-                mine.0,
-                mine.1,
-                theirs.2 == mine.2
-            )
-        });
-    }
-    restore(&vars, &saved);
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { loading_bar_frame(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }

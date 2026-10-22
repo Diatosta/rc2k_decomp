@@ -266,6 +266,17 @@ pub fn dispatch_rows(
     r.eflags = o.eflags;
 }
 
+/// `dispatch_rows` outside shadow mode, without its hook (typed tables, 2026-10-22: the entry the menus' and draw lists' enums run, with no hook).
+pub fn rows_entry(name: &str, r: &mut Regs, rows: &Rows) -> Result<(), Refused> {
+    if blanked(name) {
+        return Ok(());
+    }
+    let too_wide = unsafe { draw_records_rows(r.edi, rows, &mut GameCanvas) }?;
+    r.set_carry(too_wide);
+    r.set_zero(!too_wide);
+    Ok(())
+}
+
 // ---- self-test ----
 //
 // Uses the game's own fonts, strings and selected record, so it only runs when those are

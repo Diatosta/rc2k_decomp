@@ -22,5 +22,4 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &log_hex2::HOOK,
     &log_hex4::HOOK,
     &date_text::HOOK,
-    &start_log::HOOK,
 ];

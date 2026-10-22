@@ -28,8 +28,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{
-    CALL_REDIRECT, GameHook, LOG_PATH, Regs, STANDALONE, call_game, game_addr, game_read,
-    game_write, log, rva,
+    CALL_REDIRECT, GameHook, LOG_PATH, Regs, STANDALONE, game_addr, game_read, game_write, log, rva,
 };
 use crate::registry::ALL;
 use std::path::Path;
@@ -339,6 +338,7 @@ fn finish(why: &str, code: u32) -> ! {
     for (address, calls, from) in unported {
         log(&format!("  {address:#x}  {calls} calls, first from {from}"));
     }
+    menu_watch::report();
     // No game code runs here, so a hook's thunk is entered only by a call by address
     // from Rust (`call_game`): these are what keeps each hook (conversion phase 4).
     let mut reached: Vec<(&str, usize)> = ALL
@@ -546,7 +546,7 @@ unsafe fn call(address: usize, r: &mut Regs) {
         "standalone: start calls {}",
         place(game_addr(rva(address)))
     ));
-    unsafe { call_game(r, game_addr(rva(address))) };
+    crate::calls::call(rva(address), r);
 }
 
 /// `start`'s call of a function whose hook is gone (conversion phase 4): its Rust version
@@ -699,6 +699,7 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
         }
     };
     let image = IMAGE.get_or_init(|| image);
+    menu_watch::snapshot(image.base);
     unsafe {
         if let Err(why) = install_and_lock(image) {
             finish(&why, 2);
@@ -712,4 +713,54 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
         start();
     }
     finish("start came to its end", 0)
+}
+
+/// The menus' and draw lists' memory as the image starts and as it ends (typed tables,
+/// 2026-10-22): which of their fields the game changes in play.
+mod menu_watch {
+    use super::log;
+    use std::sync::OnceLock;
+
+    /// RAL.EXE's menus (0x7482B8 ..) and its screens' draw lists (0x758B70 ..).
+    const RANGES: [(usize, usize); 2] = [(0x7482B8, 0x755130), (0x758B70, 0x7594B0)];
+    const IMAGE_BASE: usize = 0x400000;
+
+    static START: OnceLock<(usize, Vec<Vec<u8>>)> = OnceLock::new();
+
+    fn bytes(base: usize, (from, to): (usize, usize)) -> Vec<u8> {
+        let at = base + from - IMAGE_BASE;
+        // The image is ours, mapped read-write for its whole size.
+        unsafe { std::slice::from_raw_parts(at as *const u8, to - from) }.to_vec()
+    }
+
+    pub fn snapshot(base: usize) {
+        let _ = START.set((base, RANGES.iter().map(|&r| bytes(base, r)).collect()));
+    }
+
+    pub fn report() {
+        let Some((base, start)) = START.get() else {
+            return;
+        };
+        let mut changed = Vec::new();
+        for (&range, before) in RANGES.iter().zip(start) {
+            let now = bytes(*base, range);
+            for (n, (a, b)) in before.chunks(4).zip(now.chunks(4)).enumerate() {
+                if a != b {
+                    changed.push(format!(
+                        "  {:#x}: {:02x?} -> {:02x?}",
+                        range.0 + 4 * n,
+                        a,
+                        b
+                    ));
+                }
+            }
+        }
+        log(&format!(
+            "standalone: {} dwords of the menus and draw lists changed in play:",
+            changed.len()
+        ));
+        for line in changed {
+            log(&line);
+        }
+    }
 }

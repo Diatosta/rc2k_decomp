@@ -14,39 +14,18 @@
 //! learnt (`dword_7551F4` 1, `dword_7551FC` the row from 1) is left out. In the draw lists of
 //! the four controller pages (0x758D9A ..). Refuses (before anything) no current player and
 //! a direction past the two 9-entry tables (dh above 8: the original reads past them).
-//! Compared in shadow mode (`dispatch_draw`). Self-test: the players' own bindings and test
-//! ones of each shape and kind, the learnt row off / first / fifth / last, nothing drawn.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::menu::player::{PLAYERS, player_at};
-use crate::screens::draw_menu_item_text::text_unavailable;
+use crate::framework::{Regs, game_read, rva};
+use crate::menu::player::player_at;
 use crate::screens::game_screen::ControlsScreen;
-use crate::screens::harness::{Left, check_draw, dispatch_draw};
-use crate::service::harness::{Region, at, capture, restore};
+use crate::screens::harness::{Left, draw_entry};
 use crate::service::state::PLAYER_INDEX_RVA;
 use crate::text::draw_text::Canvas;
-use std::sync::atomic::AtomicUsize;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_control_bindings",
-    rva(0x46A829),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const TEXT_RVA: usize = rva(0xA8BC54); // byte_A8BC54
-const TEXT_LEN: usize = 0x100;
+// byte_A8BC54
 const LEARNING_RVA: usize = rva(0x7551F4); // dword_7551F4
 const ROW_RVA: usize = rva(0x7551FC); // dword_7551FC
 const PAD_NAMES_RVA: usize = rva(0x755200); // word_755200
@@ -116,96 +95,8 @@ fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     Ok(Left::carry(unsafe { draw_control_bindings(canvas) }?))
 }
 
-fn state() -> Vec<u8> {
-    capture(&[
-        (game_addr(TEXT_RVA) as u32, TEXT_LEN),
-        (
-            crate::strings::text_from_ids::text() as u32,
-            crate::strings::text_from_ids::TEXT_LEN,
-        ),
-    ])
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_draw(&HOOK, r, call_original, &rust, &state);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = text_unavailable() {
-        return t.skip(why);
-    }
-    let mut regions: Vec<Region> = vec![
-        at(PLAYER_INDEX_RVA),
-        at(LEARNING_RVA),
-        at(ROW_RVA),
-        (game_addr(TEXT_RVA) as u32, TEXT_LEN),
-    ];
-    for index in 0..PLAYERS {
-        let p = player_at(index);
-        if p != 0 {
-            regions.push((p + 0x34, 0x44));
-        }
-    }
-    let saved = capture(&regions);
-    // (kind, axis bytes +0x3A / +0x3B, the ten bindings)
-    let shapes: [(u32, u16, [u32; 10]); 3] = [
-        (
-            0,
-            0,
-            [0, 1, 0x100, 0x203, 0x400, 0x80C, 0x0101, 0x8FF, 0, 0x210],
-        ),
-        (
-            2,
-            0x0102,
-            [0x100, 0x200, 0x400, 0x800, 5, 0, 0x104, 0x220, 0x101, 0],
-        ),
-        (
-            3,
-            0x1314,
-            [0x101, 0x202, 0, 0x400, 3, 0x800, 0x100, 0, 0x201, 7],
-        ),
-    ];
-    for index in 0..PLAYERS {
-        let p = player_at(index);
-        if p == 0 {
-            continue;
-        }
-        for shape in [None, Some(0usize), Some(1), Some(2)] {
-            for (learning, row) in [(0u32, 0u32), (1, 1), (1, 5), (1, 10)] {
-                let set = || unsafe {
-                    game_write(PLAYER_INDEX_RVA, index);
-                    game_write(LEARNING_RVA, learning);
-                    game_write(ROW_RVA, row);
-                    if let Some(s) = shape {
-                        let (kind, axes, bindings) = shapes[s];
-                        ((p + 0x34) as *mut u32).write_unaligned(kind);
-                        ((p + 0x3A) as *mut u16).write_unaligned(axes);
-                        for (n, b) in bindings.iter().enumerate() {
-                            ((p + 0x50 + 4 * n as u32) as *mut u32).write_unaligned(*b);
-                        }
-                    }
-                };
-                set();
-                if unsafe { (0..10).any(|n| binding_text(p, n).is_err()) } {
-                    restore(&regions, &saved);
-                    continue;
-                }
-                check_draw(
-                    &mut t,
-                    &format!("player {index}, shape {shape:?}, learning {learning} row {row}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &set,
-                    &rust,
-                    &state,
-                );
-                restore(&regions, &saved);
-            }
-        }
-    }
-    restore(&regions, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_control_bindings", r, &rust)
 }

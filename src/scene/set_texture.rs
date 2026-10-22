@@ -8,9 +8,7 @@
 //! device). Self-test: a copy whose call goes to a stand-in noting the registers, against
 //! the Rust version on the same stand-in, the switch 0 and 1.
 
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
 use crate::service::harness::{at, capture, restore};
 use std::sync::atomic::AtomicUsize;
 
@@ -38,7 +36,7 @@ pub unsafe fn set_texture(r: &mut Regs, part: &mut dyn FnMut(&mut Regs)) {
 
 /// In the game: the layer through its hook.
 pub fn game_part(r: &mut Regs) {
-    unsafe { call_game(r, game_addr(LAYER_RVA)) };
+    crate::calls::call(LAYER_RVA, r);
 }
 
 /// `set_texture` with the game's layer, for Rust callers.

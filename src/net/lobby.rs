@@ -334,6 +334,16 @@ pub fn dispatch_lobby(
     }
 }
 
+/// `dispatch_lobby` without its hook (typed tables).
+pub fn lobby_entry(
+    r: &mut Regs,
+    rust: fn(&Regs, Part) -> Result<Regs, Refused>,
+) -> Result<(), Refused> {
+    let left = rust(r, &mut game_part)?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
+}
+
 /// The address of a function or label of the game.
 pub fn game(x: u32) -> u32 {
     game_addr(rva(x as usize)) as u32
@@ -341,7 +351,7 @@ pub fn game(x: u32) -> u32 {
 
 /// A call into the game through its address (the hook's Rust version where there is one).
 pub fn in_game(place: u32, r: &mut Regs) {
-    unsafe { call_game(r, game_addr(rva(place as usize))) }
+    crate::calls::call(rva(place as usize), r)
 }
 
 pub fn not_known(_: u32) -> Refused {

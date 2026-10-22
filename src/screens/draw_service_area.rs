@@ -25,50 +25,32 @@
 //! Screen: confirmed by the owner on 2026-10-10 with `blank on screens::draw_service_area`:
 //! the service area of a championship. All text and icons disappeared; the boxes that hold
 //! them stayed, so those are drawn by something else (not ported).
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::gfx::blit_bar::{Bar, blit_bar};
 use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::blit_marker_pair::sprite_table;
 use crate::screens::draw_inspection_status::draw_inspection_status;
 use crate::screens::draw_repair_times::draw_repair_times;
 use crate::screens::draw_service_time::draw_service_time;
-use crate::screens::harness::{Left, check_draw, dispatch_draw, drawing_unavailable, push_dwords};
+use crate::screens::harness::{Left, draw_entry};
 use crate::screens::setup_markers::draw_marker;
 use crate::screens::{
     draw_brake_balance_marker, draw_ride_height_installed_marker, draw_ride_height_marker,
     draw_steering_sensitivity_marker, draw_suspension_stiffness_installed_marker,
-    draw_suspension_stiffness_marker, font_at, font_is_loaded, line_buffer, set_line,
+    draw_suspension_stiffness_marker, font_at,
 };
 use crate::service::state::{PLAYER_INDEX_RVA, current_player};
 use crate::strings::append_string_by_id::push_string;
-use crate::strings::string_table::{blob, is_table_id};
 use crate::strings::text_from_ids::{TEXT_LEN, text};
 use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::{Canvas, draw_text_at};
 use rc2k_core::screens::service::{
     AREA_STEPS, AREA_TITLE, AREA_TITLE_AT, AreaFont, AreaStep, DAMAGE_BAR, TYRE_AT, area_title,
 };
-use std::slice::from_raw_parts;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_service_area",
-    rva(0x4A5FA2),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -182,107 +164,12 @@ pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused
     }
 }
 
-// ---- hook ----
-
-const STATE_RVAS: [usize; 12] = [
-    CLEARED_RVA,
-    WORK_RVA,
-    rva(0x7559AC), // seconds
-    rva(0x75ACC0), // the service time penalty
-    rva(0x75AC80), // the car condition
-    rva(0x755224), // the bar globals
-    rva(0x755228),
-    rva(0x75522C),
-    rva(0x755230),
-    rva(0x755234),
-    rva(0x755238),
-    rva(0x75AC8C), // an input, here to show it is left alone
-];
-
-fn state() -> Vec<u8> {
-    let mut s = unsafe { from_raw_parts(text(), TEXT_LEN) }.to_vec();
-    s.extend_from_slice(unsafe { from_raw_parts(line_buffer(), 0x80) });
-    push_dwords(&mut s, &STATE_RVAS);
-    s
-}
-
 fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     Ok(Left::carry(unsafe { draw_service_area(canvas) }?))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_draw(&HOOK, r, call_original, &rust, &state);
-}
-
-// ---- self-test: one case, the service area as it is, with the game's own data ----
-
-/// The fonts the function and what it calls use.
-const FONTS: [usize; 10] = [
-    0x51E8A4, 0x51E6A4, 0x51E3E4, 0x51E3C4, 0x51E404, 0x51E6E4, 0x51E584, 0x51E5A4, 0x51E524,
-    0x51E544,
-];
-
-/// Why the current state cannot be drawn by the original without risk, or None.
-unsafe fn unusable() -> Option<&'static str> {
-    unsafe {
-        if blob().is_null() || !FONTS.iter().all(|&f| font_is_loaded(f)) {
-            return Some("the string table or the fonts are not loaded");
-        }
-        if sprite_table() == 0 {
-            return Some("the sprite table is not loaded");
-        }
-        let Some(player) = current_player() else {
-            return Some("there is no current player object");
-        };
-        let setting = game_read::<u32>(SETTING_RVA);
-        if setting > 0x40 || !is_table_id(setting + SETTING_FIRST_STRING) {
-            return Some("dword_75AC9C does not select a string");
-        }
-        // A bar whose width * percent is 0 with a non-zero percent is a fatal error, so only
-        // values that look like percentages are let through.
-        let sane = |p: i32| (-1000..=1000).contains(&p);
-        let field = |at: u32| (player.wrapping_add(at) as *const i32).read_unaligned();
-        let bars = (0xD4..=0x108).step_by(4).chain([0x110, 0x11C]);
-        let edits = [0x75ACA8, 0x75ACAC, 0x75ACB4, 0x75ACB8];
-        if !bars.into_iter().all(|at| sane(field(at)))
-            || !edits.iter().all(|&at| sane(game_read(rva(at))))
-        {
-            return Some("the player's values are not percentages");
-        }
-        None
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = drawing_unavailable().or_else(|| unsafe { unusable() }) {
-        return t.skip(why);
-    }
-    let saved_text = unsafe { from_raw_parts(text(), TEXT_LEN) }.to_vec();
-    let saved_line = unsafe { from_raw_parts(line_buffer(), 0x80) }.to_vec();
-    let saved: Vec<u32> = STATE_RVAS
-        .iter()
-        .map(|&at| unsafe { game_read(at) })
-        .collect();
-
-    let restore = || unsafe {
-        std::ptr::copy_nonoverlapping(saved_text.as_ptr(), text(), TEXT_LEN);
-        set_line(&saved_line);
-        for (&at, &v) in STATE_RVAS.iter().zip(&saved) {
-            game_write(at, v);
-        }
-    };
-    check_draw(
-        &mut t,
-        "the service area as it is",
-        call_original,
-        Regs::SENTINEL,
-        &restore,
-        &rust,
-        &state,
-    );
-    restore();
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_service_area", r, &rust)
 }

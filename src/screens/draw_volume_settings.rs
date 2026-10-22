@@ -8,36 +8,16 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! In a menu loop's draw list (0x758C8E). A volume whose v * 100 wraps to 0 is the
-//! original's fatal 0x80701010 (`loc_4D9612`), raised from Rust where the original does. The
-//! sprites' palettes are ebx as the original leaves it. Compared in shadow mode
-//! (`dispatch_draw`; `seconds` and the bar's globals as state). Self-test: the volumes as
-//! they are, 0, 1, 0x20, 0x40, and the name's switch, nothing drawn.
+//! In a menu loop's draw list (0x758C8E). A volume whose v * 100 wraps to 0 is the original's
+//! fatal 0x80701010 (`loc_4D9612`), raised from Rust where the original does. The sprites'
+//! palettes are ebx as the original leaves it. Hook removed 2026-10-22 (typed tables): the
+//! menus and draw lists run its `entry` (`menu::table_calls`); the registers above are the
+//! original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::harness::{Left, check_draw, dispatch_draw};
-use crate::service::harness::{Region, capture, restore};
+use crate::framework::{Regs, game_read, rva};
+use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::Canvas;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_volume_settings",
-    rva(0x476A92),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const VOLUMES_RVA: usize = rva(0x755684); // g_masterVolumeShown, then dword_755688 .. dword_7556A0
 const NAME_SWITCH_RVA: usize = rva(0x5180F4); // dword_5180F4
@@ -60,59 +40,8 @@ fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-fn state() -> Vec<u8> {
-    let g = |a: usize, len: usize| (game_addr(rva(a)) as u32, len);
-    capture(&[
-        g(0x7559AC, 4),
-        g(0x755224, 0x18),
-        (crate::strings::text_from_ids::text() as u32, 0x100),
-    ])
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_draw(&HOOK, r, call_original, &rust, &state);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = text_unavailable() {
-        return t.skip(why);
-    }
-    let regions: Vec<Region> = vec![
-        (game_addr(VOLUMES_RVA) as u32, 0x20),
-        (game_addr(NAME_SWITCH_RVA) as u32, 4),
-        (game_addr(rva(0x7559AC)) as u32, 4),
-        (game_addr(rva(0x755224)) as u32, 0x18),
-    ];
-    let saved = capture(&regions);
-    let switch: u32 = unsafe { game_read(NAME_SWITCH_RVA) };
-    let sets: [Option<[u32; 8]>; 3] = [
-        None,
-        Some([0, 1, 0x20, 0x40, 0x3F, 2, 0x10, 0x30]),
-        Some([0x40; 8]),
-    ];
-    for (s, set) in sets.iter().enumerate() {
-        for name in [switch, 0, 1] {
-            check_draw(
-                &mut t,
-                &format!("volumes {s}, name switch {name}"),
-                call_original,
-                Regs::SENTINEL,
-                &|| unsafe {
-                    game_write(NAME_SWITCH_RVA, name);
-                    if let Some(v) = set {
-                        for (n, x) in v.iter().enumerate() {
-                            game_write(VOLUMES_RVA + 4 * n, *x);
-                        }
-                    }
-                },
-                &rust,
-                &state,
-            );
-        }
-    }
-    restore(&regions, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_volume_settings", r, &rust)
 }

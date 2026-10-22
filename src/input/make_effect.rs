@@ -23,7 +23,7 @@
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, hook_asm, rva, shadow};
+use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use crate::input::devices::{at, put};
 use crate::input::di_harness::{EFFECT_LEN, compare, method, regs_text, slot};
 use crate::input::types::{ForceEffect as F, InputDevice};
@@ -122,7 +122,7 @@ pub fn make_effect(entry: &Regs, part: Part) -> Result<(), Refused> {
 
 /// In the game: the effect's function through the game.
 pub fn game_part(function: usize, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { call_game(r, function) };
+    crate::menu::table_calls::call_any(function as u32, r);
     Ok(())
 }
 

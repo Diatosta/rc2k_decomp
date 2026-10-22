@@ -18,41 +18,17 @@
 //! Refuses an item of 0 or above 32, a caption of 0x100 bytes or more, and a caption
 //! narrower than 20 (the original then draws 2^32 middle pieces).
 //! Screen: not confirmed; the name is a reading of the code.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::gfx::blit_marker_pair::{MARKER_X_RVA, MARKER_Y_RVA, sprite_table};
+use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::menu::update_blink::LAST_KEY_TIME_RVA;
 use crate::menu::update_frame_clock::CLOCK_RVA;
-use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::harness::{Left, check_draw, dispatch_draw_rewound};
-use crate::screens::{font_at, font_is_loaded};
-use crate::service::harness::{Region, at, capture, restore};
+use crate::screens::harness::{Left, draw_entry};
 use crate::service::state::MENU_ITEM_RVA;
-use crate::strings::text_from_ids::{TEXT_LEN, text};
-use crate::text::blend_font::blend_regions;
 use crate::text::draw_string_by_id::string_text;
 use crate::text::draw_text::Canvas;
-use crate::text::font::Font;
-use crate::text::measure_string_by_id::measuring_unavailable;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_highlighted_caption",
-    rva(0x4695C6),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -63,18 +39,6 @@ const LISTS: [usize; 7] = [
 ];
 const CAPTION_RVA: usize = rva(0xA8BE54); // byte_A8BE54
 const CAPTION_LEN: usize = 0x100;
-const CAPTION_STRING: u32 = 0x1004;
-/// seconds, dword_7559B0, dword_7559B4, glyph, dword_7559C4.
-const WIDTH_RVA: usize = rva(0x7559AC);
-const X_RVA: usize = rva(0x7559B0);
-const Y_RVA: usize = rva(0x7559B4);
-const LEFT_RVA: usize = rva(0x7559C0);
-const RIGHT_RVA: usize = rva(0x7559C4);
-/// dword_755A20 .. dword_755A2C: where the two ends were drawn.
-const ENDS_RVA: usize = rva(0x755A20);
-const MEASURING_FONT: usize = 0x51E824;
-const FONT_A: usize = 0x51E964;
-const FONT_B: usize = 0x51E844;
 const ITEMS: u32 = 32;
 
 // ---- Rust version ----
@@ -116,31 +80,6 @@ pub unsafe fn draw_highlighted_caption(
     }
 }
 
-// ---- hook ----
-
-fn regions() -> Vec<Region> {
-    [
-        &[
-            at(WIDTH_RVA),
-            at(X_RVA),
-            at(Y_RVA),
-            at(LEFT_RVA),
-            at(RIGHT_RVA),
-            (game_addr(ENDS_RVA) as u32, 16),
-            at(MARKER_X_RVA),
-            at(MARKER_Y_RVA),
-            (game_addr(CAPTION_RVA) as u32, CAPTION_LEN),
-            (text() as u32, TEXT_LEN),
-        ][..],
-        &blend_regions(),
-    ]
-    .concat()
-}
-
-fn state() -> Vec<u8> {
-    capture(&regions())
-}
-
 fn rust(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     Ok(match unsafe { draw_highlighted_caption(r.ecx, canvas) }? {
         Some(carry) => Left::carry(carry),
@@ -148,68 +87,8 @@ fn rust(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_draw_rewound(&HOOK, r, call_original, &rust, &state, &blend_regions());
-}
-
-// ---- self-test: each menu's list with the game's strings and fonts ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = text_unavailable().or_else(measuring_unavailable) {
-        return t.skip(why);
-    }
-    if ![MEASURING_FONT, FONT_A, FONT_B]
-        .into_iter()
-        .all(font_is_loaded)
-        || sprite_table() == 0
-        || unsafe { string_text(CAPTION_STRING) }.is_err()
-    {
-        return t.skip("the fonts, the sprites or the caption's string are not there");
-    }
-    let regions = regions();
-    // The measuring leaves the widest line in the measuring font's box width, which the
-    // menus' buttons are measured with: left changed, the stage selection's selectors were
-    // drawn white (2026-10-18, found with `selftest screens:: leftovers`).
-    let inputs = [
-        at(MENU_RVA),
-        at(MENU_ITEM_RVA),
-        (font_at(MEASURING_FONT) as u32, size_of::<Font>()),
-    ];
-    let saved = (capture(&regions), capture(&inputs));
-    for (menu, item) in [
-        (0u32, 1u32),
-        (0, 3),
-        (0, 5),
-        (1, 1),
-        (1, 6),
-        (2, 2),
-        (3, 1),
-        (4, 2),
-        (5, 4),
-        (6, 1),
-        (6, 4),
-        (7, 1),
-        (0xFFFF_FFFF, 1),
-    ] {
-        check_draw(
-            &mut t,
-            &format!("menu {menu:#x}, item {item}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&regions, &saved.0);
-                restore(&inputs, &saved.1);
-                game_write(MENU_RVA, menu);
-                game_write(MENU_ITEM_RVA, item);
-            },
-            &rust,
-            &state,
-        );
-    }
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_highlighted_caption", r, &rust)
 }

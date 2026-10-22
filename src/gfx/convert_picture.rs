@@ -203,6 +203,14 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_pixels(&HOOK, r, call_original, &regions(), &rust);
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    if picture().is_null() {
+        return Err(BadInput("no picture buffer").into());
+    }
+    crate::gfx::harness::pixels_entry(r, &rust)
+}
+
 // ---- self-test: a copy of the original that reads the screen's bits and the converter table
 // from test variables, on a small picture in the game's own buffer ----
 

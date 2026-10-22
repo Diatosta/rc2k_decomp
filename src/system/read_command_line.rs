@@ -103,7 +103,7 @@ pub unsafe fn show_version_and_leave(regs: &Regs) -> ! {
             0x2040,
         );
         let mut regs = *regs;
-        call_game(&mut regs, game_addr(EXIT_PATH_RVA));
+        crate::calls::call(EXIT_PATH_RVA, &mut regs);
         // The exit path ends in `ExitProcess`.
         std::process::abort()
     }
@@ -203,6 +203,23 @@ extern "C" fn dispatch(r: &mut Regs) {
             )
         });
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let line = unsafe { GetCommandLineA() };
+    let regions = regions();
+    let before = capture(&regions);
+    let mine = unsafe { read_command_line(line) };
+    match mine {
+        Ok(Asked::Nothing) => {}
+        Ok(Asked::Version) => unsafe { show_version_and_leave(r) },
+        Err(e) => {
+            restore(&regions, &before);
+            return Err(e.into());
+        }
+    }
+    Ok(())
 }
 
 // ---- self-test: a copy of the original that gets its line from the test ----

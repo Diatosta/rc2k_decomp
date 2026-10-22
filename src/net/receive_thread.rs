@@ -24,8 +24,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{
-    RawHook, Regs, SelfTest, ZERO_FLAG, call_game, game_addr, hook_asm, hook_enter, hook_leave,
-    rva, shadow,
+    RawHook, Regs, SelfTest, ZERO_FLAG, game_addr, hook_asm, hook_enter, hook_leave, rva, shadow,
 };
 use crate::install::stand_ins::{act, set_handler, stand_in};
 use std::sync::Mutex;
@@ -195,10 +194,10 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         3 => {
             hook_enter();
             let _gate = Gate;
-            unsafe { call_game(r, r.eax as usize) };
+            crate::menu::table_calls::call_any(r.eax, r);
         }
         4 => unsafe { windows_sys::Win32::System::Threading::ExitThread(0) },
-        _ => unsafe { call_game(r, game_addr(rva(CALLEES[0]))) },
+        _ => crate::calls::call(rva(CALLEES[0]), r),
     }
     Ok(())
 }
@@ -215,6 +214,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     if let Err(e) = unsafe { receive_thread(&entry, &ReceiveVars::game(), &mut game_part) } {
         unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let entry = *r;
+    unsafe { receive_thread(&entry, &ReceiveVars::game(), &mut game_part) }?;
+    Ok(())
 }
 
 // ---- self-test ----

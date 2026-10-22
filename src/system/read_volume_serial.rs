@@ -116,6 +116,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     *r = Regs { esp: r.esp, ..o };
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let mine = unsafe { read_volume_serial(r) };
+    *r = Regs { esp: r.esp, ..mine };
+    Ok(())
+}
+
 // ---- self-test ----
 
 fn self_test() -> (usize, usize) {

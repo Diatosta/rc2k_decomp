@@ -10,32 +10,12 @@
 //! `dword_7554E8`; 0x100, 8, 2, 4, 1 sounds 0x1CC, 0x1CA, 0x1C8, 0x1C9, 0x1C7 at
 //! `dword_755690`. Then `sound::play_sound` with edx = 0xFFFFFF91 and ecx, edi, ebp = 0.
 //! 25 callers (1 is the highlight's click, 2 Enter's sound: `menu::handle_keys`).
-//! Shadow mode runs the original alone.
-//! Self-test: a redirected copy whose clock and `play_sound` are the test's.
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::install::stand_ins::{set_handler, stand_in};
-use crate::redirect::RedirectedCopy;
-use crate::service::harness::{at, capture, restore};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::sound::play_sound::play_sound_in_game;
-use crate::sound::queue::sent;
 use crate::system::tick_count::tick_count;
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("sound::play_menu_sound", rva(0x40F059), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -88,116 +68,8 @@ pub fn play_menu_sound_in_game(entry: &Regs) {
     unsafe { play_menu_sound(entry, &mut tick_count, &mut |with| play_sound_in_game(with)) };
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     play_menu_sound_in_game(r);
-}
-
-// ---- self-test ----
-
-const LEN: usize = 0xC3;
-const ENTRY_BYTES: [u8; 8] = [0x60, 0x85, 0xC0, 0x0F, 0x84, 0xB8, 0x00, 0x00];
-/// `system::tick_count` and `sound::play_sound`.
-const CALLS: [usize; 2] = [0x0B, 0xBC];
-const CLOCK_RVA: usize = rva(0x411024);
-
-/// The clock the test gives, and what `play_sound` was called with.
-static CLOCK: AtomicU32 = AtomicU32::new(0);
-static PLAYED: Mutex<Vec<[u32; 7]>> = Mutex::new(Vec::new());
-
-fn handler(place: u32, r: &mut Regs) {
-    if place == 0 {
-        r.eax = CLOCK.load(Ordering::SeqCst);
-    } else {
-        PLAYED.lock().unwrap().push(sent(r));
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x40F059)),
-            LEN,
-            &ENTRY_BYTES,
-            &CALLS,
-            &|callee| Some(stand_in((callee != CLOCK_RVA) as u32)),
-        )
-    };
-    let copy = match copy {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    let regions = [at(NEXT_TIME_RVA)];
-    let inputs = [at(VOLUME_A_RVA), at(VOLUME_B_RVA), at(VOLUME_C_RVA)];
-    let saved = (capture(&regions), capture(&inputs));
-    unsafe {
-        game_write(VOLUME_A_RVA, 0x0A0Au32);
-        game_write(VOLUME_B_RVA, 0x0B0Bu32);
-        game_write(VOLUME_C_RVA, 0x0C0Cu32);
-    }
-    let mut which: Vec<u32> = (0..10).map(|bit| 1 << bit).collect();
-    which.extend([
-        0,
-        0x1FF,
-        0x7F,
-        0x10F,
-        0x0E,
-        0x200,
-        0xFFFF_FE00,
-        0xFFFF_FFFF,
-        0x106,
-    ]);
-    // (the time kept, the clock)
-    let times = [
-        (0u32, 0u32),
-        (1000, 999),
-        (1000, 1000),
-        (1000, 5000),
-        (0xFFFF_FFF0, 0x10),
-        (0x10, 0xFFFF_FFF0),
-        (0x7FFF_FFFF, 0),
-    ];
-    for &eax in &which {
-        for &(kept, clock) in &times {
-            let before = Regs {
-                eax,
-                ..Regs::SENTINEL
-            };
-            let run = |rust: bool| unsafe {
-                game_write(NEXT_TIME_RVA, kept);
-                CLOCK.store(clock, Ordering::SeqCst);
-                PLAYED.lock().unwrap().clear();
-                set_handler(handler);
-                let preserved = if rust {
-                    play_menu_sound(&before, &mut || CLOCK.load(Ordering::SeqCst), &mut |with| {
-                        PLAYED.lock().unwrap().push(sent(with))
-                    });
-                    true
-                } else {
-                    let mut ro = before;
-                    call_game(&mut ro, copy.addr());
-                    ro.preserved_except(&before, 0)
-                };
-                (preserved, capture(&regions), PLAYED.lock().unwrap().clone())
-            };
-            let (theirs, mine) = (run(false), run(true));
-            t.check(theirs == mine && theirs.0, || {
-                format!(
-                    "eax {eax:#x}, time kept {kept:#x}, clock {clock:#x}: original {theirs:x?}; rust {mine:x?}"
-                )
-            });
-        }
-    }
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
+    Ok(())
 }

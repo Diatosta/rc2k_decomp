@@ -27,7 +27,7 @@
 //! lot, each kind, read or not.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva, shadow};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva, shadow};
 use crate::input::devices::{KEYS_DOWN_RVA, RECORD_LEN, put, test_record};
 use crate::input::devices::{joy_state, key_table, record_bytes};
 use crate::race::mud::{copy, run_both_from, test_part};
@@ -75,7 +75,7 @@ pub unsafe fn read_device(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 
 /// In the game: the poll through the game (DirectInput).
 pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { call_game(r, game_addr(POLL_RVA)) };
+    crate::calls::call(POLL_RVA, r);
     Ok(())
 }
 

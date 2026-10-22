@@ -36,39 +36,31 @@
 //! In the results screens' draw lists (0x758E12 .., 0x758E2A ..). The rows are found before
 //! anything is drawn: a position not there is the look-ups' fatal error, raised then.
 //! Refuses (before anything) no ranked list, a section the record table has not, a name or a
-//! line past the line buffer, and what the look-ups refuse. 0x4A2111 and 0x4A2F46 call in
-//! their first bytes: manual patches with private copies (every call relocated). Compared
-//! in shadow mode (`dispatch_draw`). Self-test: a list of the test's (two classes, players,
-//! a retired and an unfinished row), from rows 1 and 2, `dword_75AB20` 0 and 1, nothing
-//! drawn (skipped without the fonts or the record table's section).
+//! line past the line buffer, and what the look-ups refuse.
+//! Hooks removed 2026-10-22 (typed tables) but for `class_rally`
+//! (`screens::draw_class_rally_results`), which a screen calls by address: the draw lists run
+//! their `entry` (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, rva};
 use crate::menu::ranked_lookups::{find_ranked_entry, find_ranked_position, first_overall_time};
-use crate::screens::LINE_BUFFER_RVA;
 use crate::screens::best_scores::{record_at, section_there};
-use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::harness::{Left, check_draw, dispatch_draw};
-use crate::service::harness::{Region, at, capture, restore};
+use crate::screens::harness::Left;
 use crate::strings::append_time::show_hours;
 use crate::text::draw_text::Canvas;
-use std::sync::atomic::AtomicUsize;
 
 const LIST_RVA: usize = rva(0x7556EC); // g_rankedTimes
 const CLASS_RVA: usize = rva(0x7558F4); // dword_7558F4
 const FIRST_ROW_RVA: usize = rva(0x7556B8); // g_champFirstRow
-const ROW_RVA: usize = rva(0x755579); // g_champRow
-const ROW_END_RVA: usize = rva(0x7556BC); // g_champRowEnd
-const FIRST_TIME_RVA: usize = rva(0x7559BC); // g_firstPlayerTime
-const GAP_RVA: usize = rva(0x7559C0); // hundredths
-const OVERALL_FIRST_RVA: usize = rva(0x7559D4); // dword_7559D4
+// g_champRow
+// g_champRowEnd
+// g_firstPlayerTime
+// hundredths
+// dword_7559D4
 const ALT_TITLE_RVA: usize = rva(0x75AB20); // dword_75AB20
 const EVENT_MODE_RVA: usize = rva(0x7556D0); // g_eventMode
 const SECTION_RVA: usize = rva(0x75595C); // section
 const SECTION_NAMES_RVA: usize = rva(0x75A28A); // dword_75A28A
-const LINE_LEN: usize = 0x100;
-const NOT_TIMED: u32 = 0x36EE8A;
-
 fn g(a: usize) -> u32 {
     unsafe { game_read(a) }
 }
@@ -213,161 +205,46 @@ pub unsafe fn draw_results_page(page: &Page, canvas: &mut dyn Canvas) -> Result<
     Ok(())
 }
 
-fn written() -> Vec<Region> {
-    vec![
-        (game_addr(LINE_BUFFER_RVA) as u32, LINE_LEN),
-        at(FIRST_TIME_RVA),
-        at(GAP_RVA),
-        at(OVERALL_FIRST_RVA),
-        at(ROW_RVA),
-        at(ROW_END_RVA),
-    ]
-}
-
-fn state() -> Vec<u8> {
-    capture(&written())
-}
-
-/// A list of the test's: 24 entries, classes 2 and 3 in turn, positions 1 .. 12 in each,
-/// some players, a retired row and one not timed, the names as text; its end mark.
-fn results_list() -> Vec<u32> {
-    let words = crate::menu::ranked_lookups::ENTRY_LEN as usize / 4;
-    let mut list = vec![0u32; 25 * words];
-    for n in 0..24usize {
-        let w = &mut list[n * words..(n + 1) * words];
-        w[0] = n as u32;
-        w[1] = if n % 7 == 3 { 1 } else { 0 };
-        w[2] = n as u32 % 9;
-        w[4] = [0x18u32, 0x19, 3, 0x20][n % 4];
-        w[0x14 / 4] = 5000 + 311 * n as u32;
-        w[0x18 / 4] = 9000 + 577 * n as u32;
-        w[0x1C / 4] = [2, 3][n % 2];
-        let name = format!("Driver {n}");
-        for (k, b) in name.bytes().enumerate() {
-            let at = 0x20 + k;
-            w[at / 4] |= (b as u32) << (8 * (at % 4));
-        }
-        w[0x44 / 4] = n as u32 / 2 + 1;
-        w[0x4C / 4] = if n == 9 || n == 12 { 0 } else { 1 };
-        if n == 12 {
-            w[0x14 / 4] = NOT_TIMED;
-            w[0x18 / 4] = NOT_TIMED;
-        }
-    }
-    list[24 * words] = u32::MAX;
-    list
-}
-
-fn test(
-    hook: &RawHook,
-    call_original: crate::screens::harness::CallOriginal,
-    rust: &dyn Fn(&Regs, &mut dyn Canvas) -> Result<Left, Refused>,
-) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    if let Some(why) = text_unavailable() {
-        return t.skip(why);
-    }
-    if !section_there() {
-        return t.skip("the record table has not the section (no stage chosen yet)");
-    }
-    let inputs: Vec<Region> = vec![
-        at(LIST_RVA),
-        at(CLASS_RVA),
-        at(FIRST_ROW_RVA),
-        at(ALT_TITLE_RVA),
-    ];
-    let saved = (capture(&inputs), state());
-    let list = results_list();
-    let base = list.as_ptr() as u32;
-    for (class, first, alt) in [(2u32, 1u32, 0u32), (3, 2, 1), (2, 2, 0)] {
-        check_draw(
-            &mut t,
-            &format!("class {class}, from row {first}, the other title {alt}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                game_write(LIST_RVA, base);
-                game_write(CLASS_RVA, class);
-                game_write(FIRST_ROW_RVA, first);
-                game_write(ALT_TITLE_RVA, alt);
-            },
-            rust,
-            &state,
-        );
-    }
-    restore(&inputs, &saved.0);
-    restore(&written(), &saved.1);
-    drop(list);
-    t.finish()
-}
-
-/// A hook for one page.
-macro_rules! results_page {
-    ($module:ident, $name:literal, $address:expr, $page:expr $(, copy = $len:expr, $relocate:expr)?) => {
+/// `results_page` without the hook: the pages the typed tables run (hooks removed
+/// 2026-10-22).
+macro_rules! results_page_entry {
+    ($module:ident, $name:literal, $address:expr, $page:expr) => {
         pub mod $module {
             use super::*;
-            static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-            pub static HOOK: RawHook = RawHook::new($name, rva($address), thunk, &ORIGINAL)
-                $(.private_copy($len).relocate_calls(&$relocate).manual_patch())?
-                .self_test(self_test);
-            hook_asm!(thunk, call_original, dispatch = dispatch, original = ORIGINAL);
             fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
                 unsafe { draw_results_page(&$page, canvas) }?;
                 Ok(Left::nothing())
             }
-            extern "C" fn dispatch(r: &mut Regs) {
-                dispatch_draw(&HOOK, r, call_original, &rust, &state);
-            }
-            fn self_test() -> (usize, usize) {
-                test(&HOOK, call_original, &rust)
+            /// The Rust version where the typed tables run it (`menu::table_calls`; hook removed
+            /// 2026-10-22).
+            pub fn entry(r: &mut Regs) -> Result<(), Refused> {
+                crate::screens::harness::draw_entry($name, r, &rust)
             }
         }
     };
 }
 
-results_page!(
+results_page_entry!(
     class_rally,
     "screens::draw_class_rally_results",
     0x4A3376,
     CLASS_RALLY
 );
-results_page!(
+results_page_entry!(
     overall_rally,
     "screens::draw_overall_rally_results",
     0x4A37E2,
     OVERALL_RALLY
 );
-results_page!(
+results_page_entry!(
     class_stage,
     "screens::draw_class_stage_results",
     0x4A2111,
-    CLASS_STAGE,
-    copy = 0x32F,
-    [
-        0x1, 0x1B, 0x35, 0x4F, 0x64, 0x9E, 0xB6, 0xBB, 0xD3, 0xE8, 0x10E, 0x12A, 0x13D, 0x142,
-        0x15A, 0x189, 0x199, 0x19E, 0x1B6, 0x1C9, 0x1CE, 0x1E6, 0x1FB, 0x221, 0x23D, 0x250, 0x255,
-        0x26D, 0x298, 0x2A8, 0x2AD, 0x2C5, 0x2E2, 0x30B
-    ]
+    CLASS_STAGE
 );
-results_page!(
+results_page_entry!(
     overall_stage,
     "screens::draw_overall_stage_results",
     0x4A2F46,
-    OVERALL_STAGE,
-    copy = 0x334,
-    [
-        0x1, 0x1B, 0x35, 0x4F, 0x64, 0xA3, 0xBB, 0xC0, 0xD8, 0xED, 0x113, 0x12F, 0x142, 0x147,
-        0x15F, 0x18E, 0x19E, 0x1A3, 0x1BB, 0x1CE, 0x1D3, 0x1EB, 0x200, 0x226, 0x242, 0x255, 0x25A,
-        0x272, 0x29D, 0x2AD, 0x2B2, 0x2CA, 0x2E7, 0x310
-    ]
+    OVERALL_STAGE
 );
-
-/// The four, for the registry.
-pub static HOOKS: [&dyn crate::framework::GameHook; 4] = [
-    &class_rally::HOOK,
-    &overall_rally::HOOK,
-    &class_stage::HOOK,
-    &overall_stage::HOOK,
-];

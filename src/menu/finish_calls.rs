@@ -5,7 +5,7 @@
 //! platform otherwise).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, call_game, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use rc2k_core::menu::finish::{self, Racer, Step, Var};
 
 /// The functions by place (the test's stand-ins are these places).
@@ -62,7 +62,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     if place == 6 {
         return Ok(());
     }
-    unsafe { call_game(r, game_addr(rva(CALLED[place as usize]))) };
+    crate::calls::call(rva(CALLED[place as usize]), r);
     Ok(())
 }
 

@@ -4,7 +4,6 @@
 //! In:  nothing
 //! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
-//! written by hand from the disassembly, because this loop has a shape of its own:
 //! - background `mainscr.png`, loaded first thing at set-up, and its carry is not looked at;
 //! - `dword_758806` is cleared and the highlight put in place only after the first frame
 //!   (`late_highlight`), and `dword_7585D8` = 1 is stored before every frame;
@@ -23,29 +22,13 @@
 //! `menu::go_back`.
 //! Screen: the main menu. With `nofmv=0` the intro film played after five minutes without a
 //! key while the Rust version ran it, and with `nofmv=1` nothing happened (the owner's runs
-//! with `shadow = false` and hook.log, 2026-10-12).
-//! Caller: `sub_47486C`. Ungated thunk; shadow mode runs the original alone; each real call
-//! writes a line to hook.log. Self-test: `screen_loop::check_screen`.
+//! with `shadow = false` and hook.log, 2026-10-12). Caller: `sub_47486C`.
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::menu::screen_loop::{
-    Env, Flow, List, Original, Screen, Step, UPDATE_BLINK, check_screen, dispatch_screen,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::menu::screen_loop::{Env, Flow, List, Screen, Step, UPDATE_BLINK, screen_entry};
 use crate::menu::update_frame_clock::CLOCK_RVA;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::main_menu_loop", rva(0x4748D9), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
 
 // ---- game data ----
 
@@ -215,30 +198,7 @@ pub const SCREEN: Screen = Screen {
     ],
 };
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_screen(&HOOK, r, call_original, &SCREEN);
-}
-
-// ---- self-test ----
-
-const THE_ORIGINAL: Original = Original {
-    function: rva(0x4748D9),
-    len: 0x439,
-    entry_bytes: &[0x60, 0xC7, 0x05, 0x5D, 0x55, 0x75, 0x00, 0x00],
-    calls: &[
-        0x51, 0x56, 0x5B, 0x60, 0x65, 0xA6, 0xBB, 0xDE, 0xED, 0x11A, 0x159, 0x176, 0x17B, 0x1D9,
-        0x220, 0x242, 0x251, 0x2B7, 0x315, 0x379, 0x3A9, 0x3C5, 0x400, 0x405, 0x40A, 0x40F, 0x414,
-    ],
-};
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Err(why) = check_screen(&mut t, &SCREEN, &THE_ORIGINAL) {
-        return t.skip(why);
-    }
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::main_menu_loop", r, &SCREEN)
 }

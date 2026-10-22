@@ -24,7 +24,7 @@
 //! the begin, end or showing failing.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::{a, g, p};
 use crate::race::viewer::{
     AT_END, BLOCK, BLOCKS, FRAME, MARK_IN, MARK_OUT, MENU, Part, SNAPSHOT, STOPPED, Saved, answer,
@@ -189,7 +189,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                     crate::drive::tyre_quad::tyre_quad(r, &mut crate::drive::tyre_parts::game_part)?
             }
             11 => *r = draw_viewer_panel::draw_viewer_panel(r, &mut draw_viewer_panel::game_part)?,
-            _ => call_game(r, game_addr(rva(CALLEES[place as usize]))),
+            _ => crate::calls::call(rva(CALLEES[place as usize]), r),
         }
     }
     Ok(())

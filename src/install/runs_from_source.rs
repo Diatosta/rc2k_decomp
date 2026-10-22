@@ -118,6 +118,22 @@ extern "C" fn dispatch(r: &mut Regs) {
     r.eflags = o.eflags;
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let regions = regions();
+    let before = capture(&regions);
+    let mine = match unsafe { source_against_directory(&mut Game) } {
+        Ok(mine) => flags(mine),
+        Err(e) => {
+            restore(&regions, &before);
+            return Err(Refused::from(e));
+        }
+    };
+    r.set_zero(mine.0);
+    r.set_carry(mine.1);
+    Ok(())
+}
+
 // ---- self-test: a copy of the original that asks the test for the registry ----
 
 const LEN: usize = 0x3D;

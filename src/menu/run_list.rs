@@ -13,7 +13,7 @@
 //! to the second byte, inside what the patch overwrites.
 
 use crate::errors::BadInput;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, hook_asm, rva, shadow};
+use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -39,7 +39,7 @@ const LIST_LIMIT: u32 = 256;
 pub type Call<'a> = &'a mut dyn FnMut(u32, &mut Regs);
 
 pub fn in_game(function: u32, regs: &mut Regs) {
-    unsafe { call_game(regs, function as usize) };
+    crate::menu::table_calls::call_any(function, regs);
 }
 
 unsafe fn entry(at: u32) -> u32 {
@@ -67,7 +67,9 @@ pub unsafe fn run_list(list: u32, entry_regs: &Regs, call: Call) -> Result<(), B
 extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
     let entry_regs = *r;
-    if shadow() || unsafe { run_list(r.esi, &entry_regs, &mut in_game) }.is_err() {
+    if shadow()
+        || unsafe { run_list(r.esi, &entry_regs, &mut crate::menu::table_calls::call) }.is_err()
+    {
         unsafe { call_original(r) };
     }
 }

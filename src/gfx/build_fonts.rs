@@ -343,6 +343,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let entry = *r;
+    unsafe { build_fonts(&entry, &mut Game) }?;
+    Ok(())
+}
+
 // ---- self-test ----
 
 /// The original up to its stores, and room for the `popa` and `retn` put after it.

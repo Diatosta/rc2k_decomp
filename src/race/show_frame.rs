@@ -19,7 +19,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
+    RawHook, Regs, SelfTest, call_game, game_read, game_write, hook_asm, rva, shadow,
 };
 use crate::race::mud::copy;
 use crate::service::harness::{at, capture, restore};
@@ -115,7 +115,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             Ok(())
         }
         _ => {
-            unsafe { call_game(r, game_addr(rva(CALLEES[place as usize]))) };
+            crate::calls::call(rva(CALLEES[place as usize]), r);
             Ok(())
         }
     }

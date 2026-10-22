@@ -125,6 +125,15 @@ pub fn dispatch_volume(hook: &RawHook, r: &mut Regs, call_original: CallOriginal
     );
 }
 
+/// `dispatch_volume` without its hook (typed tables).
+pub fn volume_entry(r: &mut Regs, v: Volume) -> Result<(), Refused> {
+    crate::menu::parts::parted_entry(
+        r,
+        &|r, part| unsafe { volume_step(r, v, part) },
+        volume_part(v.then),
+    )
+}
+
 /// Self-test: a copy whose call goes to a stand-in, against the Rust version, values around
 /// both ends.
 pub fn test_volume(hook: &RawHook, v: Volume) -> (usize, usize) {
@@ -241,6 +250,11 @@ pub fn dispatch_plain(
     rust: crate::service::harness::Rust,
 ) {
     dispatch_state(hook, r, call_original, &plain_regions(), rust);
+}
+
+/// `dispatch_plain` without its hook (typed tables).
+pub fn plain_entry(r: &mut Regs, rust: crate::service::harness::Rust) -> Result<(), Refused> {
+    crate::service::harness::state_entry(r, rust)
 }
 
 /// The plain steps' self-test: each variable at values around its ends (the colour

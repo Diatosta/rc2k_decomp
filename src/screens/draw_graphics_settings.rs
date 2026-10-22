@@ -7,38 +7,16 @@
 //! In:  nothing
 //! Out: as the last `draw_string_by_id` leaves them (carry, eax 0, ebx, ecx, edx)
 //!
-//! In a menu loop's draw list (0x758CB2). Refuses what `menu::enable_item` refuses (no
-//! current menu), before anything. Compared in shadow mode (`dispatch_draw`; the item and
-//! `dword_7559EC` as state). Self-test: the page's work values and the switches varied,
-//! nothing drawn (skipped without the fonts or a menu).
+//! In a menu loop's draw list (0x758CB2). Refuses what `menu::enable_item` refuses (no current
+//! menu), before anything. Hook removed 2026-10-22 (typed tables): the menus and draw lists run
+//! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::menu::disable_item::{disable_item, item_region};
+use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::menu::disable_item::disable_item;
 use crate::menu::enable_item::enable_item;
-use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::harness::{Left, check_draw, dispatch_draw};
-use crate::service::harness::{Region, at, capture, restore};
-use crate::strings::text_from_ids::{TEXT_LEN, text};
+use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::Canvas;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_graphics_settings",
-    rva(0x46FDF0),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 fn k(a: u32) -> u32 {
     unsafe { game_read(rva(a as usize)) }
@@ -82,51 +60,8 @@ fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     unsafe { draw_graphics_settings(canvas) }
 }
 
-fn state() -> Vec<u8> {
-    let mut regions: Vec<Region> = vec![(text() as u32, TEXT_LEN), at(rva(0x7559EC))];
-    regions.extend(item_region(2));
-    capture(&regions)
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_draw(&HOOK, r, call_original, &rust, &state);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = text_unavailable() {
-        return t.skip(why);
-    }
-    // Only looked up: enabling it here, before the capture, left the current menu changed
-    // (the stage selection's items, 2026-10-18).
-    if crate::menu::item_at::item_at(2).is_err() {
-        return t.skip("no current menu");
-    }
-    let mut kept: Vec<Region> = vec![
-        (game_addr(rva(0x4F50C4)) as u32, 0x18),
-        (game_addr(rva(0x755650)) as u32, 0x1C),
-        at(rva(0x7559EC)),
-    ];
-    kept.extend(item_region(2));
-    let saved = capture(&kept);
-    for (seed, switches) in [(0u32, [1u32, 1]), (1, [0, 2]), (2, [2, 0])] {
-        check_draw(
-            &mut t,
-            &format!("seed {seed} switches {switches:?}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&kept, &saved);
-                game_write(rva(0x4F50C4), [seed & 1, seed % 3, seed & 1, seed & 1]);
-                game_write(rva(0x4F50D4), switches);
-                game_write(rva(0x755650), seed & 1);
-            },
-            &rust,
-            &state,
-        );
-    }
-    restore(&kept, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_graphics_settings", r, &rust)
 }

@@ -30,8 +30,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-    standalone,
+    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow, standalone,
 };
 use crate::input::devices::RECORDS;
 use std::sync::atomic::AtomicUsize;
@@ -196,7 +195,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         }
         return Ok(());
     }
-    unsafe { call_game(r, game_addr(rva(CALLEES[place as usize]))) };
+    crate::calls::call(rva(CALLEES[place as usize]), r);
     if place == 1 {
         r.eax = (g(DIRECT_INPUT_RVA) != 0) as u32;
     }
@@ -214,6 +213,12 @@ extern "C" fn dispatch(r: &mut Regs) {
         // The original from the start: it finds its flag set and goes to its end.
         Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { input_thread(&mut game_part) }?;
+    unsafe { windows_sys::Win32::System::Threading::ExitThread(0) }
 }
 
 fn self_test() -> (usize, usize) {

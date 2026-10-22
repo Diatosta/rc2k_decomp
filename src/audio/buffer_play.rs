@@ -121,6 +121,22 @@ pub fn dispatch_leaf(
     }
 }
 
+/// `dispatch_leaf` outside shadow mode, without its hook (a refusal is the caller's).
+pub fn leaf_entry(
+    r: &mut Regs,
+    rust: unsafe fn(&Regs) -> Result<Leaves, Refused>,
+) -> Result<(), Refused> {
+    let left = unsafe { rust(r) }?;
+    r.eax = left.eax;
+    if let Some(c) = left.carry {
+        r.set_carry(c);
+    }
+    if let Some(z) = left.zero {
+        r.set_zero(z);
+    }
+    Ok(())
+}
+
 /// The self-test of a leaf on a voice: the original and the Rust version on voices of the
 /// test's whose buffer is the test DirectSound's, under each of `results`; the calls
 /// noted, eax and the flags compared. `g_soundBufferLost` is put back afterwards.

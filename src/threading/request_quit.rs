@@ -87,6 +87,21 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+    // It happens once, while the game is closing, when `stats` can no longer be asked: say
+    // in the log which version ran.
+    let was: u32 = unsafe { crate::framework::game_read(QUIT_RVA) };
+    let result = unsafe { request_quit() };
+    log(&format!(
+        "threading::request_quit: the Rust version ran (switch was {was}): {result:?}"
+    ));
+    if let Err(e) = result {
+        return Err(e.into());
+    }
+    Ok(())
+}
+
 // ---- self-test: a copy that sets a test variable and starts nothing ----
 
 const FUNCTION_LEN: usize = 0x1E;

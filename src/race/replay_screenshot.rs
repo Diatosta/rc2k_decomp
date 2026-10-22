@@ -19,7 +19,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
+    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
 use crate::race::mud::{copy, run_both};
 use crate::service::harness::{Region, at, capture, restore};
@@ -96,7 +96,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             2 => crate::gfx::write_screen_pcx::write_screen_pcx_in_game(r)?,
             p => {
                 let at = [0, 0x4058AD, 0x411E0C, 0x405949][p as usize];
-                call_game(r, game_addr(rva(at)));
+                crate::calls::call(rva(at), r);
             }
         }
     }

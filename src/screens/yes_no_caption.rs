@@ -9,29 +9,14 @@
 //! button. In the question screen's draw list (0x758C9E). IDA has not made it a
 //! function.
 //! Refuses a caption longer than its place.
-//! Self-test: four answers.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{
-    EAX, EBX, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{EAX, EBX, Regs, game_addr, game_read, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::harness::state_entry;
 use crate::strings::append_string_by_id::append_string_by_id;
-use crate::strings::string_table::blob;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("screens::yes_no_caption", rva(0x46FA5A), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -58,47 +43,13 @@ pub unsafe fn yes_no_caption() -> Result<(u32, u32), Refused> {
     }
 }
 
-// ---- hook ----
-
-fn regions() -> [Region; 1] {
-    [(game_addr(CAPTION_RVA) as u32, CAPTION_LEN)]
-}
-
 fn rust(_: &Regs) -> Result<Left, Refused> {
     let (eax, ebx) = unsafe { yes_no_caption() }?;
     Ok(Left::nothing().with(EAX, eax).with(EBX, ebx))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if blob().is_null() {
-        return t.skip("string table not loaded");
-    }
-    let inputs = [at(ANSWER_RVA)];
-    let saved = (capture(&regions()), capture(&inputs));
-    for answer in [0u32, 1, 2, 3] {
-        check_state(
-            &mut t,
-            &format!("answer={answer}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                game_write(ANSWER_RVA, answer);
-                restore(&regions(), &[0xAAu8; CAPTION_LEN]);
-            },
-            &regions(),
-            &rust,
-        );
-    }
-    restore(&regions(), &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

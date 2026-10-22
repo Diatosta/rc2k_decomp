@@ -18,9 +18,7 @@
 //! not; the calls and their registers compared.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
 use crate::race::mud::{copy, run_both, test_part};
 use crate::service::harness::{at, capture, restore};
 use std::sync::atomic::AtomicUsize;
@@ -118,7 +116,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         ),
         6 => unsafe { crate::race::flush_draw_batch::flush_draw_batch_in_game(r) },
         _ => {
-            unsafe { call_game(r, game_addr(rva(CALLEES[place as usize]))) };
+            crate::calls::call(rva(CALLEES[place as usize]), r);
             Ok(())
         }
     }

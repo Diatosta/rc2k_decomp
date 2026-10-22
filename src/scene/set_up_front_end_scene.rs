@@ -41,11 +41,7 @@
 //! by then.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_write, hook_asm, rva, shadow,
-};
-use crate::install::stand_ins::{act, set_handler, stand_in};
-use crate::redirect::RedirectedCopy;
+use crate::framework::{Regs, game_addr, game_write, rva};
 use crate::scene::allocate_point_records::allocate_point_records_in_game;
 use crate::scene::clear_fog::clear_fog;
 use crate::scene::clear_slot_kinds::clear_slot_kinds;
@@ -59,26 +55,6 @@ use crate::scene::reset_texture_tables::reset_texture_tables;
 use crate::scene::set_up_object_memory::set_up_object_memory_in_game;
 use crate::scene::texture_needs::{SYSTEM_LEVELS_RVA, TAGS_RVA, VIDEO_LEVELS_RVA};
 use crate::scene::view_matrix::set_view_matrices;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "scene::set_up_front_end_scene",
-    rva(0x474E04),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -91,8 +67,6 @@ const OTHER_WAY_RVA: usize = rva(0x621480); // dword_621480
 const SET_UP_RVA: usize = rva(0x6238AC); // dword_6238AC
 const SLOT_KINDS_RVA: usize = rva(0x5CCE7C); // g_slotKinds
 const KIND_PICTURES_RVA: usize = rva(0x5D7968); // g_kindPictures
-const TEXTURES: usize = 0x400;
-
 /// The textures needed: how many, the first, the levels' table, the tag.
 const NEEDS: [(usize, usize, usize, u32); 6] = [
     (0x2A, 0x258, SYSTEM_LEVELS_RVA, 0x63),
@@ -151,26 +125,6 @@ pub enum Call {
     SetViewMatrices,
     ReloadSlotTextures,
 }
-
-/// The callees' addresses as the function's calls have them, by `Call`.
-const CALLEES: [usize; 16] = [
-    rva(0x47CEA8),
-    rva(0x44338A),
-    rva(0x443390),
-    rva(0x4433C9),
-    rva(0x4433D4),
-    rva(0x44FC19),
-    rva(0x44F0AB),
-    rva(0x41F469),
-    rva(0x4433DA),
-    rva(0x443472),
-    rva(0x41F44D),
-    rva(0x443478),
-    rva(0x4433A1),
-    rva(0x4433AD),
-    rva(0x438FBF),
-    rva(0x425669),
-];
 
 // ---- Rust version ----
 
@@ -263,9 +217,9 @@ pub unsafe fn set_up_front_end_scene_in_game(r: &mut Regs) -> Result<(), Refused
     unsafe {
         set_up_front_end_scene(r, &mut |call, r| {
             match call {
-                Call::ShowLoadingPicture => call_game(r, game_addr(rva(0x47CEA8))),
+                Call::ShowLoadingPicture => crate::calls::call(rva(0x47CEA8), r),
                 Call::ResetTextureTables => reset_texture_tables().apply(r),
-                Call::SetUpTextures => call_game(r, game_addr(rva(0x44E7A5))),
+                Call::SetUpTextures => crate::calls::call(rva(0x44E7A5), r),
                 Call::SetUpObjectMemory => set_up_object_memory_in_game(r)?,
                 Call::ClearSlotKinds => clear_slot_kinds().apply(r),
                 Call::ClearFog => clear_fog().apply(r),
@@ -277,7 +231,7 @@ pub unsafe fn set_up_front_end_scene_in_game(r: &mut Regs) -> Result<(), Refused
                 }
                 Call::ResetTexturePlaces => reset_texture_places().apply(r),
                 Call::KnownKindPicture => r.eax = known_kind_picture(r.eax),
-                Call::ReloadSystemTextures => call_game(r, game_addr(rva(0x4254B4))),
+                Call::ReloadSystemTextures => crate::calls::call(rva(0x4254B4), r),
                 Call::AllocatePointRecords => allocate_point_records_in_game()?.apply(r),
                 Call::FillSceneLightTables => fill_scene_light_tables().apply(r),
                 Call::SetViewMatrices => set_view_matrices().apply(r),
@@ -288,166 +242,12 @@ pub unsafe fn set_up_front_end_scene_in_game(r: &mut Regs) -> Result<(), Refused
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let entry = *r;
     if let Err(e) = unsafe { set_up_front_end_scene_in_game(r) } {
         *r = entry;
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) }
+        return Err(e);
     }
-}
-
-// ---- self-test ----
-
-const LEN: usize = 0xE07;
-const ENTRY_BYTES: [u8; 11] = [0x60, 0xC7, 0x05, 0x34, 0x36, 0x62, 0x00, 0, 0, 0, 0];
-/// The 50 calls; the one at 0x412 is to a function that only returns, left as it is.
-const CALLS: [usize; 50] = [
-    0x15, 0x1A, 0x16F, 0x174, 0x179, 0x21E, 0x22D, 0x3FB, 0x40D, 0x412, 0x417, 0x535, 0x55E, 0x588,
-    0x5B2, 0x5DC, 0x61E, 0x660, 0x6A2, 0x6E4, 0x726, 0x768, 0x7AA, 0x7EC, 0x82E, 0x870, 0x8B2,
-    0x8F4, 0x936, 0x978, 0x9BA, 0x9FC, 0xA3E, 0xA80, 0xAC2, 0xB04, 0xB46, 0xB88, 0xBCA, 0xC0C,
-    0xC4E, 0xC90, 0xCD2, 0xD14, 0xD5B, 0xD60, 0xDA1, 0xDA6, 0xDAB, 0xDF6,
-];
-/// 49 calls in the listing; the one of `scene::known_kind` is made 0x22 times.
-const CALLS_NOTED: usize = 82;
-
-/// Everything the function itself writes.
-fn regions() -> [Region; 13] {
-    let table = |rva: usize, dwords: usize| (game_addr(rva) as u32, dwords * 4);
-    [
-        table(BAR_FROM_RVA, 2),
-        at(BAR_FUNCTION_RVA),
-        table(TAGS_RVA, TEXTURES),
-        table(SYSTEM_LEVELS_RVA, TEXTURES),
-        table(VIDEO_LEVELS_RVA, TEXTURES),
-        table(DARK_COLOUR_RVA, 9),
-        table(rva(0x609300), 5),
-        at(rva(0x609320)),
-        at(rva(0x609358)),
-        at(OTHER_WAY_RVA),
-        at(SET_UP_RVA),
-        table(SLOT_KINDS_RVA, 0x100),
-        table(KIND_PICTURES_RVA, TEXTURES),
-    ]
-}
-
-/// Each call: its callee, the registers it was entered with, and a sum over everything
-/// written by then.
-static CALLED: Mutex<Vec<[u32; 9]>> = Mutex::new(Vec::new());
-
-fn handler(place: u32, r: &mut Regs) {
-    let sum = capture(&regions())
-        .iter()
-        .fold(0x811C_9DC5u32, |sum, &byte| {
-            (sum ^ byte as u32).wrapping_mul(0x0100_0193)
-        });
-    CALLED
-        .lock()
-        .unwrap()
-        .push([place, r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp, sum]);
-    if place == Call::KnownKind as u32 || place == Call::KnownKindPicture as u32 {
-        // These two answer in eax and keep the rest: the function counts and writes
-        // through edi around them.
-        r.eax = r.eax.wrapping_mul(0x31).wrapping_add(0x700 + place);
-        return;
-    }
-    let turn =
-        |value: u32, by: u32| value.rotate_left(by) ^ (0x9E37_79B9u32.wrapping_mul(place + 1));
-    r.eax = turn(r.eax, 3);
-    r.ebx = turn(r.ebx, 5);
-    r.ecx = turn(r.ecx, 7);
-    r.edx = turn(r.edx, 11);
-    r.esi = turn(r.esi, 13);
-    r.edi = turn(r.edi, 17);
-    r.ebp = turn(r.ebp, 19);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x474E04)),
-            LEN,
-            &ENTRY_BYTES,
-            &CALLS,
-            &|callee| {
-                CALLEES
-                    .iter()
-                    .position(|&known| known == callee)
-                    .map(|place| stand_in(place as u32))
-            },
-        )
-    };
-    let copy = match copy {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    let regions = regions();
-    let switch = [at(rva(0x5CDADC))];
-    let saved = (capture(&regions), capture(&switch));
-    for (case, (fill, twice, eax)) in [
-        (0xAAu8, 0u32, 0u32),
-        (0x55, 1, 0x1234_5678),
-        (0x00, 0, 0xFFFF_FFFF),
-        (0xFF, 0x100, 0x8000_0001),
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let run = |rust: bool| unsafe {
-            restore(&regions, &vec![fill; saved.0.len()]);
-            game_write(rva(0x5CDADC), twice);
-            CALLED.lock().unwrap().clear();
-            set_handler(handler);
-            let mut r = Regs {
-                eax,
-                ..Regs::SENTINEL
-            };
-            if rust {
-                let done = set_up_front_end_scene(&mut r, &mut |call, r| {
-                    act(call as u32, r);
-                    Ok(())
-                });
-                if done.is_err() {
-                    r = Regs::default();
-                }
-            } else {
-                call_game(&mut r, copy.addr());
-            }
-            (
-                [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp],
-                CALLED.lock().unwrap().clone(),
-                capture(&regions),
-            )
-        };
-        let (theirs, mine) = (run(false), run(true));
-        let differs = theirs
-            .1
-            .iter()
-            .zip(&mine.1)
-            .position(|(theirs, mine)| theirs != mine);
-        t.check(theirs == mine && theirs.1.len() == CALLS_NOTED, || {
-            format!(
-                "case {case}: registers original {:x?}, rust {:x?}; calls {} and {}, the first that differs {differs:?}: {:x?} / {:x?}; memory same {}",
-                theirs.0,
-                mine.0,
-                theirs.1.len(),
-                mine.1.len(),
-                differs.map(|n| theirs.1[n]),
-                differs.map(|n| mine.1[n]),
-                theirs.2 == mine.2,
-            )
-        });
-    }
-    restore(&regions, &saved.0);
-    restore(&switch, &saved.1);
-    t.finish()
+    Ok(())
 }

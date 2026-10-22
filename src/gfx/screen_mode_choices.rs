@@ -37,9 +37,7 @@
 //! or not, the race's mode in the list or not.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    CARRY_FLAG, RawHook, Regs, SelfTest, ZERO_FLAG, call_game, game_addr, hook_asm, rva,
-};
+use crate::framework::{CARRY_FLAG, RawHook, Regs, SelfTest, ZERO_FLAG, game_addr, hook_asm, rva};
 use crate::race::viewer::{
     Part, Saved, answer, dispatch_parts, dword, get, put, region, run_both, test_part,
 };
@@ -256,7 +254,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     match place {
         0 => *r = trial::try_screen_mode(r, &mut trial::game_part)?,
         1 => *r = keep::keep_race_screen_mode(r, &mut keep::game_part)?,
-        _ => unsafe { call_game(r, game_addr(rva(CALLEES[2]))) },
+        _ => crate::calls::call(rva(CALLEES[2]), r),
     }
     Ok(())
 }

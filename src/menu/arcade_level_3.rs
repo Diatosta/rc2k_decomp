@@ -3,29 +3,14 @@
 //!
 //! In:  nothing
 //! Out: eax -1 for a closed level; else as the event leaves them
-//! Ungated thunk; shadow mode runs the original alone. Self-test: `arcade_levels::test_level`.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::menu::arcade_levels::{dispatch_level, test_level};
-use std::sync::atomic::AtomicUsize;
+use crate::framework::Regs;
+use crate::menu::arcade_levels::level_entry;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::arcade_level_3", rva(0x487D57), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_level(&HOOK, r, call_original, 3);
-}
-
-fn self_test() -> (usize, usize) {
-    test_level(&HOOK, 0x487D57, 3)
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    level_entry(r, 3)
 }

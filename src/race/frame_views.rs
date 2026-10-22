@@ -280,7 +280,7 @@ impl rc2k_core::race::view_steps::Surfaces for GameSurfaces<'_> {
 /// `copy_mirror_picture`'s parts in the game: the platform's lock and unlock.
 pub fn surface_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     let at = if place == 1 { 0x41AA4B } else { 0x41AB02 };
-    unsafe { crate::framework::call_game(r, crate::framework::game_addr(rva(at))) };
+    crate::calls::call(rva(at), r);
     Ok(())
 }
 
@@ -370,7 +370,7 @@ pub fn view_textures_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         if place == 1 {
             copy_mirror_picture(r, &mut surface_part)
         } else {
-            crate::framework::call_game(r, crate::framework::game_addr(rva(0x44E828)));
+            crate::calls::call(rva(0x44E828), r);
             Ok(())
         }
     }
@@ -498,7 +498,7 @@ pub fn own_car_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         match place {
             1 => clear_view_depth(r, &mut |_, r| {
-                crate::framework::call_game(r, game_addr(rva(0x44E9EE)));
+                crate::calls::call(rva(0x44E9EE), r);
                 Ok(())
             }),
             2 => {
@@ -623,6 +623,6 @@ pub fn view_marks_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// `clear_view_depth`'s part in the game: the platform's `Clear` (`sub_44E9EE`).
 pub fn own_car_clear_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { crate::framework::call_game(r, game_addr(rva(0x44E9EE))) };
+    crate::calls::call(rva(0x44E9EE), r);
     Ok(())
 }

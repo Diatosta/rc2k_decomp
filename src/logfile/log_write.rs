@@ -21,7 +21,7 @@ use crate::logfile::write_line::{
     LINE_BUF_RVA, LOG_INDENT_RVA, LOG_LEVEL_RVA, LOG_LINE_START_RVA, acquire, file_bytes, file_len,
     format_line, lock, write_line_regs,
 };
-use rc2k_core::files::log::{Entry, entry};
+use rc2k_core::files::log::{Entry, entry as log_entry};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -50,7 +50,7 @@ const SKIPPED_EAX_RVA: usize = rva(0x4013D9);
 pub unsafe fn log_write_regs(r: &mut Regs) {
     unsafe {
         // Converted: `rc2k_core::files::log::entry`.
-        match entry(game_read::<i32>(LOG_ENABLED_RVA), || {
+        match log_entry(game_read::<i32>(LOG_ENABLED_RVA), || {
             game_read::<u32>(LOG_LEVEL_RVA)
         }) {
             Entry::Off => return,
@@ -85,6 +85,12 @@ extern "C" fn dispatch(r: &mut Regs) {
         return;
     }
     unsafe { log_write_regs(r) };
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { log_write_regs(r) };
+    Ok(())
 }
 
 // ---- self-test: appends lines to the real var\logfile.txt ----

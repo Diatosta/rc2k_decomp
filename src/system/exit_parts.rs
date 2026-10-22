@@ -143,3 +143,11 @@ pub fn dispatch_exit(
         Err(e) => unsafe { crate::fatal::raise::refused(hook, e, r, call_original) },
     }
 }
+
+/// `dispatch_exit` outside shadow mode, without its hook (a refusal is the caller's).
+pub fn exit_entry(r: &mut Regs, rust: Rust) -> Result<(), Refused> {
+    let mut g = *r;
+    rust(&mut g, &mut game_part, &mut game_api)?;
+    *r = Regs { esp: r.esp, ..g };
+    Ok(())
+}

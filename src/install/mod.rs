@@ -95,16 +95,11 @@ pub mod write_record;
 pub mod write_registry;
 
 pub static HOOKS: &[&dyn GameHook] = &[
-    &read_record::HOOK,
     &choose_language::HOOK,
-    &read_languages::HOOK,
     &read_sku::HOOK,
     &normalise_path::HOOK,
     &read_registry::HOOK,
     &runs_from_source::HOOK,
-    &check_at_start::HOOK,
-    &check_clio_disc::HOOK,
-    &run_after_exit::HOOK,
     &ask_registration::HOOK,
     &backdrop_frame::HOOK,
     &blit_glyph_list::HOOK,

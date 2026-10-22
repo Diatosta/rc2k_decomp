@@ -59,6 +59,11 @@ pub fn dispatch_rows(
     });
 }
 
+/// `dispatch_rows` without its hook (typed tables).
+pub fn rows_entry(r: &mut Regs, of_90: bool, on: bool) -> Result<(), Refused> {
+    crate::service::harness::state_entry(r, &|r| step_rows(r, of_90, on))
+}
+
 pub fn test_rows(
     hook: &RawHook,
     call_original: CallOriginal,

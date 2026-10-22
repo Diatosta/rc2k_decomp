@@ -30,7 +30,7 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, call_game, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::service::pages::{GEAR_RATIO, RIDE_HEIGHT, SUSPENSION_STIFFNESS, TYRE};
 use crate::service::reset_tyre_wear::reset_tyre_wear;
 use crate::service::state::{current_player, repair_flag, set_repair_flag};
@@ -70,7 +70,7 @@ impl Driver for GameDriver {
             eax: game_addr(DRAW_CALLBACK_RVA) as u32,
             ..Regs::default()
         };
-        unsafe { call_game(&mut regs, game_addr(FRAME_FUNCTION_RVA)) };
+        crate::calls::call(FRAME_FUNCTION_RVA, &mut regs);
     }
     fn sleep(&mut self, milliseconds: u32) {
         sleep(milliseconds);
@@ -159,7 +159,7 @@ pub unsafe fn apply_repairs(driver: &mut dyn Driver) -> Result<(), Refused> {
 pub unsafe fn apply_repairs_in_game(r: &mut Regs) {
     unsafe {
         if current_player().is_none() || apply_repairs(&mut GameDriver).is_err() {
-            crate::framework::call_game(r, game_addr(rva(0x46C14D)));
+            crate::calls::call(rva(0x46C14D), r);
         }
     }
 }

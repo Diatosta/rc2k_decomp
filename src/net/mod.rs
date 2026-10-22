@@ -23,7 +23,7 @@
 //! sent, the mutex taken).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{GameHook, RawHook, Regs, call_game, game_addr, rva, shadow};
+use crate::framework::{GameHook, RawHook, Regs, game_addr, rva, shadow};
 
 pub mod add_address_element;
 pub mod add_chat_line;
@@ -143,7 +143,6 @@ pub mod types;
 pub mod unlock_received;
 
 pub static HOOKS: &[&dyn GameHook] = &[
-    &set_up::HOOK,
     &receive_thread::HOOK,
     &send_message::HOOK,
     &send_race_message::HOOK,
@@ -385,7 +384,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             }
             SLEEP_1MS => Sleep(1),
             // The window's messages: the game's (the platform's in the standalone).
-            PUMP => call_game(r, game_addr(rva(PUMP as usize))),
+            PUMP => crate::calls::call(rva(PUMP as usize), r),
             // DirectPlay's methods from Rust (`net::dplay`).
             SEND => dplay_send::dplay_send(r, &mut game_part)?,
             DESTROY_PLAYER => destroy_player::destroy_player(r, &mut game_part)?,
@@ -417,6 +416,17 @@ pub fn dispatch_net(
         Ok(()) => *r = Regs { esp: r.esp, ..g },
         Err(e) => unsafe { crate::fatal::raise::refused(hook, e, r, call_original) },
     }
+}
+
+/// `dispatch_net` outside shadow mode, without its hook (a refusal is the caller's).
+pub fn net_entry(
+    r: &mut Regs,
+    rust: fn(&mut Regs, Part) -> Result<(), Refused>,
+) -> Result<(), Refused> {
+    let mut g = *r;
+    rust(&mut g, &mut game_part)?;
+    *r = Regs { esp: r.esp, ..g };
+    Ok(())
 }
 
 /// Logs as the send functions do: "send x", the player, the step (`log_int_l1_nl`),

@@ -16,7 +16,7 @@
 //! version: off, on with the surface locked or not, the lock failing.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::race::viewer::{
     Part, Saved, answer, dispatch_parts, dword, get, put, run_both, test_part,
 };
@@ -83,9 +83,9 @@ pub fn take_screenshot(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// version.
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     match place {
-        1 => unsafe { call_game(r, game_addr(rva(LOCK))) },
+        1 => crate::calls::call(rva(LOCK), r),
         2 => unsafe { crate::gfx::write_screen_pcx::write_screen_pcx_in_game(r) }?,
-        _ => unsafe { call_game(r, game_addr(rva(UNLOCK))) },
+        _ => crate::calls::call(rva(UNLOCK), r),
     }
     Ok(())
 }

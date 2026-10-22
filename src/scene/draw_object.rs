@@ -107,9 +107,9 @@ pub unsafe fn draw_object(
 unsafe fn place_object_points_any(r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         if game_read::<u32>(USE_3DNOW_RVA) != 0 {
-            call_game(r, game_addr(PLACE_3DNOW_RVA));
+            crate::calls::call(PLACE_3DNOW_RVA, r);
         } else if game_read::<u32>(USE_SSE_RVA) != 0 {
-            call_game(r, game_addr(PLACE_SSE_RVA));
+            crate::calls::call(PLACE_SSE_RVA, r);
         } else {
             place_object_points(r)?.apply(r);
         }

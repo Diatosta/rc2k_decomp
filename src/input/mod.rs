@@ -101,7 +101,6 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &hat_reading::HOOK,
     &hat_direction::HOOK,
     &read_device::HOOK,
-    &poll_device::HOOK,
     &device_effects::HOOK,
     &release_device::HOOK,
     &set_up_device::HOOK,

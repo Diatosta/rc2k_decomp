@@ -11,41 +11,19 @@
 //! the labels, at 0x747F98 (section 16); the heading "<string 0x482> n/6: name" built in
 //! `byte_A8BD54` (`stage_panel::build_second_heading`). In two entry lists. Refuses a choice
 //! without its tables (the original reads through null), and what the heading refuses.
-//! Self-test: the game's tables and strings, the choice's three settings over their
-//! ranges, the menu, the labels and the heading compared, put back afterwards.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, rva};
 use crate::menu::item_at::{ITEM_LEN, MENU_HEAD_LEN};
-use crate::menu::stage_choice::{GROUP_RVA, NUMBER_RVA, SUB_RVA};
 use crate::screens::draw_stage_records::selection;
 use crate::screens::draw_time_trial_stage_info::GROUP_TITLES_RVA;
 use crate::screens::harness::Left;
-use crate::screens::stage_panel::{SECOND_HEADING_RVA, build_second_heading, dword, table_dword};
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
-use crate::strings::string_table::blob;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::set_stage_choice_titles",
-    rva(0x469393),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::screens::stage_panel::{build_second_heading, dword, table_dword};
+use crate::service::harness::state_entry;
 
 const MENU_RVA: usize = rva(0x748620); // off_748620: the stage choice's menu
-const HEADING_LEN: usize = 0x100;
-
 /// Where item 0's string goes, and where the original puts "item 1"'s.
 unsafe fn places() -> (u32, u32) {
     let menu = game_addr(MENU_RVA) as u32;
@@ -73,63 +51,13 @@ pub unsafe fn set_stage_choice_titles() -> Result<(), Refused> {
     Ok(())
 }
 
-fn regions() -> Vec<Region> {
-    let (item_0, item_1) = unsafe { places() };
-    vec![
-        (item_0, 4),
-        (item_1, 4),
-        (game_addr(SECOND_HEADING_RVA) as u32, HEADING_LEN),
-    ]
-}
-
 fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { set_stage_choice_titles() }?;
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if blob().is_null() {
-        return t.skip("string table not loaded");
-    }
-    if unsafe { selection() }.is_none() {
-        return t.skip("no stage tables for the choice");
-    }
-    let regions = regions();
-    let mut all = regions.clone();
-    all.extend([at(GROUP_RVA), at(SUB_RVA), at(NUMBER_RVA)]);
-    let saved = capture(&all);
-    for group in 0..2u32 {
-        for sub in [0u32, 3, 5] {
-            for number in [1u32, 6] {
-                check_state(
-                    &mut t,
-                    &format!("group {group}, rally {sub}, stage {number}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &|| unsafe {
-                        restore(&all, &saved);
-                        std::ptr::write_bytes(
-                            game_addr(SECOND_HEADING_RVA) as *mut u8,
-                            0xAA,
-                            HEADING_LEN,
-                        );
-                        game_write(GROUP_RVA, group);
-                        game_write(SUB_RVA, sub);
-                        game_write(NUMBER_RVA, number);
-                    },
-                    &regions,
-                    &rust,
-                );
-            }
-        }
-    }
-    restore(&all, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

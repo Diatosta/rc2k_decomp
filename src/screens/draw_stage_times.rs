@@ -3,72 +3,23 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! In a menu loop's draw list (0x758D2A). Refuses (before anything) no stage records or no times table. Compared in shadow mode
-//! (`dispatch_draw`). Self-test: the page's own stage and the stage's records 0 .. 2, nothing drawn (skipped
-//! without the fonts or the records).
+//! In a menu loop's draw list (0x758D2A). Refuses (before anything) no stage records or no
+//! times table. Hook removed 2026-10-22 (typed tables): the menus and draw lists run its
+//! `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva};
+use crate::framework::Regs;
 use crate::screens::best_scores::*;
-use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::harness::{Left, check_draw, dispatch_draw};
-use crate::service::harness::{Region, at, capture, restore};
+use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::Canvas;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("screens::draw_stage_times", rva(0x48D0F2), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     unsafe { draw_stage_times(&STAGE_TIMES, canvas) }?;
     Ok(Left::nothing())
 }
 
-fn state() -> Vec<u8> {
-    capture(&[
-        (crate::screens::line_buffer() as u32, 0x100),
-        (game_addr(rva(0x7559AC)) as u32, 0xC),
-        (crate::strings::text_from_ids::text() as u32, 0x100),
-    ])
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_draw(&HOOK, r, call_original, &rust, &state);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = text_unavailable() {
-        return t.skip(why);
-    }
-    let regions: Vec<Region> = vec![at(rva(0x7558CC))];
-    let saved = capture(&regions);
-    for record in [0u32, 1, 2] {
-        unsafe { game_write(rva(0x7558CC), record) };
-        if !unsafe { times_page_ready(&STAGE_TIMES) } {
-            continue;
-        }
-        check_draw(
-            &mut t,
-            &format!("record {record}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe { game_write(rva(0x7558CC), record) },
-            &rust,
-            &state,
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_stage_times", r, &rust)
 }

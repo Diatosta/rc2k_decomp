@@ -12,26 +12,12 @@
 //!
 //! Caller: `sub_4547AE` (0x454786). The window is its Rust version; the rest through
 //! `part` (1 / 4 the depth buffer off / on, 2 the states, 3 the HUD, 5 the render state,
-//! 6 the strips, 7 the filters), in the game their Rust versions. Shadow mode runs the
-//! original alone (it draws). Self-test: a copy whose calls go to stand-ins (the window's
-//! to its hook), against the Rust version, modes and blocks by lot.
+//! 6 the strips, 7 the filters), in the game their Rust versions.
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("hud::overlay_pass", rva(0x45A893), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_read, game_write, rva};
 
 const PLAYERS_RVA: usize = rva(0x6238A4); // dword_6238A4
 const PLAYERS_COPY_RVA: usize = rva(0x6D14F2); // dword_6D14F2
@@ -95,80 +81,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { overlay_pass(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // mov eax, dword_6238A4
-    let entry: &[u8] = &[0xA1, 0xA4, 0x38, 0x62, 0x00];
-    let copy = match copy(
-        0x45A893,
-        0xB0,
-        entry,
-        &[0xA, 0xF, 0x5D, 0x6E, 0x73, 0x82, 0x9B, 0xA0, 0xA5, 0xAA],
-        &[
-            (0x44E3F1, 1),
-            (0x45A943, 2),
-            (0x4B1CD0, 3),
-            (0x44E41F, 4),
-            (0x44EB72, 5),
-            (0x45B7B1, 6),
-            (0x44E8FB, 7),
-        ],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut regions: Vec<Region> = [
-        PLAYERS_COPY_RVA,
-        FLAGS_RVA[0],
-        FLAGS_RVA[1],
-        CLEARED_RVA[0],
-        CLEARED_RVA[1],
-        ON_RVA[0],
-        ON_RVA[1],
-    ]
-    .map(at)
-    .to_vec();
-    regions.extend(crate::scene::choose_view_window::regions());
-    regions.push(at(crate::scene::choose_view_window::MODE_RVA));
-    let mut vars = regions.clone();
-    vars.extend([PLAYERS_RVA, MODE_RVA, BLOCK_RVA[0], BLOCK_RVA[1]].map(at));
-    vars.extend(crate::scene::set_view_window::inputs());
-    let saved = capture(&vars);
-    for case in 0..5u32 {
-        run_both(
-            &mut t,
-            &format!("case {case}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                restore(&vars, &saved);
-                game_write(PLAYERS_RVA, case & 1);
-                game_write(MODE_RVA, if case >= 2 { 2u32 } else { case });
-                game_write(BLOCK_RVA[0], u32::from(case == 2 || case == 4));
-                game_write(BLOCK_RVA[1], u32::from(case >= 3));
-                game_write(FLAGS_RVA[0], 0xFFu32);
-                game_write(FLAGS_RVA[1], 0x7Eu32);
-                game_write(CLEARED_RVA[0], 5u32);
-                game_write(CLEARED_RVA[1], 6u32);
-            },
-            &|r| unsafe { overlay_pass(r, &mut test_part) },
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { overlay_pass(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }

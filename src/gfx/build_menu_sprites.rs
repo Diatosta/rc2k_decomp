@@ -91,6 +91,14 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let sprite_table = game_addr(SPRITE_TABLE_RVA) as *mut u32;
+    let entry = *r;
+    unsafe { build_menu_sprites(&entry, &mut Game, sprite_table) }?;
+    Ok(())
+}
+
 // ---- self-test ----
 
 const LEN: usize = 0x37;

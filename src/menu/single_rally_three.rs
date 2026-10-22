@@ -13,23 +13,16 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! Reached through the start menu's table. A call at +1: a private copy (0x2CA bytes, its
-//! 33 calls relocated) and a jump written by hand. Ungated (a whole event). Refuses a
-//! missing player before anything, and what the callees refuse when they are reached.
-//! Shadow mode runs the original alone. Self-test: `rounds::test_rounds`.
+//! Reached through the start menu's table. Refuses a missing player before anything, and what
+//! the callees refuse when they are reached.
+//! Hook removed 2026-10-22 (typed tables): the start menus run its `entry`
+//! (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::menu::event_flow::*;
 use crate::menu::flow_game::Game;
-use crate::menu::rounds::*;
 use rc2k_core::menu::rounds;
-
-const CALLS: &[usize] = &[
-    0x1, 0x6, 0xB, 0x10, 0x6C, 0x7E, 0xB2, 0xC4, 0xF8, 0x10A, 0x119, 0x128, 0x137, 0x146, 0x155,
-    0x16A, 0x193, 0x1A2, 0x1B0, 0x1B5, 0x1CF, 0x1DE, 0x1EC, 0x1F1, 0x20B, 0x21A, 0x228, 0x22D,
-    0x241, 0x258, 0x26B, 0x270, 0x2C3,
-];
 
 flow_hook!(
     "menu::single_rally_three",
@@ -44,30 +37,4 @@ pub unsafe fn single_rally_three(entry: &Regs, call: Call) -> Result<Regs, Refus
     // Converted: `rc2k_core::menu::rounds::single_rally_three`.
     rounds::single_rally_three(&mut Game::new(entry, call))?;
     Ok(*entry)
-}
-
-fn test(t: crate::framework::SelfTest) -> (usize, usize) {
-    let flow = Flow {
-        address: 0x4828B0,
-        len: 0x2CA,
-        // pusha; call menu::begin_event
-        entry: &[0x60, 0xE8, 0xF4, 0x02, 0xFF, 0xFF],
-        calls: CALLS,
-        fatal_jumps: &[],
-        writes: &WRITES,
-    };
-    let mut rounds = crate::menu::single_rally_two::round_scripts(3, RESULTS_482E9B);
-    rounds.push((
-        "two rounds, the second's overall results' yes".into(),
-        vec![
-            (
-                RACE,
-                (0..6).map(|k| Answer::write(RACE_RESULT, k)).collect(),
-            ),
-            (SCREEN_483163, vec![Answer::yes()]),
-        ],
-    ));
-    test_rounds(t, &flow, 3, rounds, &|r, c| unsafe {
-        single_rally_three(r, c)
-    })
 }

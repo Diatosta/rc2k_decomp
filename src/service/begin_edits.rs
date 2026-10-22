@@ -63,6 +63,14 @@ pub fn dispatch_edit(hook: &RawHook, r: &mut Regs, call_original: CallOriginal, 
     });
 }
 
+/// `dispatch_edit` without its hook (typed tables).
+pub fn edit_entry(r: &mut Regs, e: Edit) -> Result<(), Refused> {
+    crate::service::harness::state_entry(r, &|_| {
+        unsafe { begin_edit(e) }?;
+        Ok(Left::nothing())
+    })
+}
+
 pub fn test_edit(hook: &RawHook, call_original: CallOriginal, e: Edit) -> (usize, usize) {
     let Some(mut t) = SelfTest::begin(hook) else {
         return (0, 0);

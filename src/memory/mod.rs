@@ -16,7 +16,6 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &move_bytes::HOOK,
     &take_from_list::HOOK,
     &virtual_alloc::HOOK,
-    &open_own_heap::HOOK,
     &free_own_heap::HOOK,
 ];
 

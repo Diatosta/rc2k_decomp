@@ -422,6 +422,13 @@ pub fn dispatch_state_floats(
     r.esp = esp;
 }
 
+/// `dispatch_state_floats` outside shadow mode, without its hook (a refusal is the
+/// caller's).
+pub fn floats_entry(r: &mut Regs, rust: Rust) -> Result<(), Refused> {
+    rust(r)?.apply(r);
+    Ok(())
+}
+
 /// `service::harness::check_state` with float places: a drift passes, and is noted.
 #[allow(clippy::too_many_arguments)]
 pub fn check_state_floats(

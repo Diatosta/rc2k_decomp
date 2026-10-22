@@ -7,6 +7,7 @@
 
 pub mod audio;
 pub mod bridge;
+pub mod calls;
 pub mod d3d;
 pub mod drive;
 pub mod errors;
@@ -41,6 +42,7 @@ pub mod rasteriser;
 pub mod records;
 pub mod redirect;
 mod registry;
+mod routes;
 pub mod saves;
 pub mod scene;
 pub mod screens;

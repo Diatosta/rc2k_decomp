@@ -38,9 +38,18 @@ pub unsafe fn run_draw_list(entry_regs: &Regs, call: Call) -> Result<(), BadInpu
 extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
     let entry_regs = *r;
-    if shadow() || unsafe { run_draw_list(&entry_regs, &mut in_game) }.is_err() {
+    if shadow()
+        || unsafe { run_draw_list(&entry_regs, &mut crate::menu::table_calls::call) }.is_err()
+    {
         unsafe { call_original(r) };
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let entry_regs = *r;
+    unsafe { run_draw_list(&entry_regs, &mut crate::menu::table_calls::call) }?;
+    Ok(())
 }
 
 // ---- self-test: the list pointer is aimed at lists of stand-ins, then put back ----

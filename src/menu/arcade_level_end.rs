@@ -15,9 +15,7 @@
 //! again.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::menu::parts::{Part, copy, dispatch_parted, run_both, test_part};
 use crate::service::harness::{Region, at, capture, restore};
 use std::sync::atomic::AtomicUsize;
@@ -95,7 +93,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         6 => remove_shown_car(&mut || unsafe {
             crate::saves::list_car_numbers::list_car_numbers().map_err(Refused::from)
         })?,
-        _ => unsafe { call_game(r, game_addr(rva(CALLEES[place as usize]))) },
+        _ => crate::calls::call(rva(CALLEES[place as usize]), r),
     }
     Ok(())
 }

@@ -130,7 +130,7 @@ pub struct Game<'a>(pub &'a Regs);
 impl Game<'_> {
     fn call(&self, address: usize, eax: u32) -> u32 {
         let mut r = Regs { eax, ..*self.0 };
-        unsafe { call_game(&mut r, game_addr(rva(address))) };
+        crate::calls::call(rva(address), &mut r);
         r.eax
     }
 }

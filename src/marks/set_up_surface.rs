@@ -228,17 +228,16 @@ pub unsafe fn set_up_surface(entry: &Regs, part: Part) -> Result<Regs, Refused> 
 
 /// In the game (see `set_up_surface`).
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::framework::call_game;
     unsafe {
         match place {
             0 => crate::race::level_init::game_part(0, r)?,
-            1 => call_game(r, game_addr(rva(0x41AA4B))),
+            1 => crate::calls::call(rva(0x41AA4B), r),
             2 => {
                 let read = crate::gfx::read_picture_file::read_picture_file(r.eax as *mut u8)?;
                 r.set_carry(!read);
             }
             3 => r.eax = crate::gfx::put_surface_pixel::put_surface_pixel(r)?.eax,
-            4 => call_game(r, game_addr(rva(0x41AB02))),
+            4 => crate::calls::call(rva(0x41AB02), r),
             5 => crate::scene::forget_slot_texture::forget_slot_texture(r.eax)?,
             6 => crate::memory::free_list::free_list(r.ebx as *mut crate::memory::MemoryList)?,
             // `nullsub_33`.

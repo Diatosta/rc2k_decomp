@@ -10,35 +10,14 @@
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
 //! In a menu loop's draw list (0x758ECE). Refuses (before anything) a row's player without
-//! its record or name, or without its points. Compared in shadow mode (`dispatch_draw`).
-//! Self-test: player counts 2, 3 and 4 and two orders, nothing drawn (skipped without the
-//! fonts or four players).
+//! its record or name, or without its points.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::harness::{Left, check_draw, dispatch_draw};
-use crate::screens::line_buffer;
-use crate::service::harness::{Region, at, capture, restore};
+use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::Canvas;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_players_standings",
-    rva(0x483FDE),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 fn k(a: usize) -> u32 {
     unsafe { game_read(rva(a)) }
@@ -92,66 +71,8 @@ fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-fn state() -> Vec<u8> {
-    capture(&[
-        (line_buffer() as u32, 0x20),
-        at(rva(0x7559B8)),
-        (crate::strings::text_from_ids::text() as u32, 0x100),
-    ])
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_draw(&HOOK, r, call_original, &rust, &state);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = text_unavailable() {
-        return t.skip(why);
-    }
-    if (0..4).any(|n| crate::menu::player::player_at(n) == 0) {
-        return t.skip("fewer than four player records");
-    }
-    let regions: Vec<Region> = vec![at(rva(0x755984)), (game_addr(rva(0x758720)) as u32, 0x10)];
-    let saved = capture(&regions);
-    for (count, order) in [
-        (2u32, [0u32, 4, 8, 12]),
-        (3, [8, 0, 4, 12]),
-        (4, [12, 8, 4, 0]),
-    ] {
-        unsafe {
-            game_write(rva(0x755984), count);
-            game_write(rva(0x758720), order);
-        }
-        if unsafe { draw_players_standings_refuses() } {
-            continue;
-        }
-        check_draw(
-            &mut t,
-            &format!("count {count} order {order:?}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                game_write(rva(0x755984), count);
-                game_write(rva(0x758720), order);
-            },
-            &rust,
-            &state,
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
-}
-
-/// Whether the rows' players, names or points are missing (for the test).
-unsafe fn draw_players_standings_refuses() -> bool {
-    let rows = if k(0x755984) == 3 { 3 } else { 4 };
-    (0..rows).any(|row| {
-        let p = table(0x75647C, row);
-        p == 0
-            || unsafe { ((p + 0x18) as *const u32).read_unaligned() } == 0
-            || table(0x7589A6, row) == 0
-    })
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_players_standings", r, &rust)
 }

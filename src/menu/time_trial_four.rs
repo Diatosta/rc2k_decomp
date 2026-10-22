@@ -11,24 +11,16 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! Reached through the time trial's start menu. The first five bytes hold no jump target
-//! or call. Ungated (a whole event). Refuses a missing player before anything, and what
-//! the callees refuse when they are reached. Shadow mode runs the original alone.
-//! Self-test: `rounds::test_rounds`.
+//! Reached through the time trial's start menu. Refuses a missing player before anything, and
+//! what the callees refuse when they are reached.
+//! Hook removed 2026-10-22 (typed tables): the start menus run its `entry`
+//! (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::menu::event_flow::*;
 use crate::menu::flow_game::Game;
-use crate::menu::rounds::*;
 use rc2k_core::menu::rounds;
-
-const CALLS: &[usize] = &[
-    0xB, 0x10, 0x15, 0x52, 0x57, 0x6F, 0x74, 0x89, 0x8E, 0xA0, 0xB5, 0xBA, 0xCC, 0xE1, 0xE6, 0xF8,
-    0xFD, 0x10C, 0x11B, 0x12A, 0x139, 0x15E, 0x187, 0x1AD, 0x1BB, 0x1C0, 0x1E4, 0x1F2, 0x1F7,
-    0x21E, 0x22C, 0x231, 0x258, 0x266, 0x26B, 0x286, 0x2A2, 0x2B1, 0x2C0, 0x2CF, 0x2DE, 0x2F3,
-    0x301, 0x310, 0x31E, 0x32D, 0x33B, 0x34A, 0x358, 0x366, 0x374, 0x379, 0x3C6,
-];
 
 flow_hook!("menu::time_trial_four", 0x48B90F, time_trial_four, test);
 
@@ -37,22 +29,4 @@ pub unsafe fn time_trial_four(entry: &Regs, call: Call) -> Result<Regs, Refused>
     // Converted: `rc2k_core::menu::rounds::time_trial_four`.
     rounds::time_trial_four(&mut Game::new(entry, call))?;
     Ok(*entry)
-}
-
-fn test(t: crate::framework::SelfTest) -> (usize, usize) {
-    let flow = Flow {
-        address: 0x48B90F,
-        len: 0x3CD,
-        // pusha; mov g_eventMode, 3
-        entry: &[
-            0x60, 0xC7, 0x05, 0xD0, 0x56, 0x75, 0x00, 0x03, 0x00, 0x00, 0x00,
-        ],
-        calls: CALLS,
-        fatal_jumps: &[],
-        writes: &WRITES,
-    };
-    let rounds = crate::menu::time_trial_one::time_trial_scripts(4, TIME_TRIAL_RESULTS_LOOP);
-    test_rounds(t, &flow, 4, rounds, &|r, c| unsafe {
-        time_trial_four(r, c)
-    })
 }

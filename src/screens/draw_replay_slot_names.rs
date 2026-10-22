@@ -8,34 +8,15 @@
 //! `g_markerX`/`g_markerY` and its row counter in `dword_7559EC`, left at 0x213, 0x183 and 10.
 //! Refuses a page past the fifth: the table has 100 names. Called through the menu tables
 //! (0x758BCE, 0x758BD6). Was not a function in IDA (made 2026-10-19: the standalone's
-//! replay pages showed no names). Self-test: the original against the Rust version on the
-//! five pages of the owner's own replay list.
+//! replay pages showed no names).
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, rva};
 use crate::menu::name_lists::{NAME_LEN, REPLAY_NAMES_RVA, REPLAY_PAGE_RVA};
-use crate::screens::font_is_loaded;
-use crate::screens::harness::{Left, check_draw, dispatch_draw, drawing_unavailable, push_dwords};
-use crate::service::harness::{at, capture, restore};
+use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::Canvas;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_replay_slot_names",
-    rva(0x46F41A),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -46,7 +27,6 @@ const ROW_RVA: usize = rva(0x7559EC); // dword_7559EC: a work variable, here the
 const SLOT_PAGE_RVA: usize = REPLAY_PAGE_RVA;
 pub const FONT: usize = 0x51E8C4; // stru_51E8C4
 pub const COLUMNS: [i32; 2] = [0xC6, 0x213];
-const ROWS: u32 = 10;
 pub const PAGES: u32 = 5;
 
 /// The name of replay slot `slot`.
@@ -68,61 +48,15 @@ pub unsafe fn draw_replay_slot_names(canvas: &mut dyn Canvas) -> Result<(), Refu
     .map(|_| ())
 }
 
-// ---- hook ----
-
 pub const STATE_RVAS: [usize; 3] = [X_RVA, Y_RVA, ROW_RVA];
-
-fn state() -> Vec<u8> {
-    let mut s = Vec::new();
-    push_dwords(&mut s, &STATE_RVAS);
-    s
-}
 
 fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     unsafe { draw_replay_slot_names(canvas) }?;
     Ok(Left::carry(false))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_draw(&HOOK, r, call_original, &rust, &state);
-}
-
-// ---- self-test: the five pages of the owner's own replay list ----
-
-/// True if every name of the list ends within its 0x20 bytes, so that drawing stays inside it.
-fn names_end() -> bool {
-    (0..PAGES * ROWS * 2)
-        .all(|slot| (0..NAME_LEN).any(|i| unsafe { slot_name(slot).add(i).read() } == 0))
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = drawing_unavailable() {
-        return t.skip(why);
-    }
-    if !font_is_loaded(FONT) || !names_end() {
-        return t.skip("the font is not loaded or a slot name has no end");
-    }
-    let regions = [at(SLOT_PAGE_RVA), at(X_RVA), at(Y_RVA), at(ROW_RVA)];
-    let saved = capture(&regions);
-    for page in 0..PAGES {
-        check_draw(
-            &mut t,
-            &format!("page={page}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                game_write(SLOT_PAGE_RVA, page);
-                game_write(X_RVA, 0x5EEDi32);
-                game_write(Y_RVA, 0x5EEDi32);
-                game_write(ROW_RVA, 0x5EEDu32);
-            },
-            &rust,
-            &state,
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_replay_slot_names", r, &rust)
 }

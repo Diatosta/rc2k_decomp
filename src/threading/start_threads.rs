@@ -10,7 +10,7 @@
 //! started twice). Self-test: a redirected copy whose three calls go to a stand-in noting
 //! esi, 1 case.
 
-use crate::audio::buffer_play::{Leaves, dispatch_leaf};
+use crate::audio::buffer_play::{Leaves, dispatch_leaf, leaf_entry};
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
 use crate::install::stand_ins::{set_handler, stand_in};
@@ -56,6 +56,12 @@ unsafe fn rust(r: &Regs) -> Result<Leaves, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_leaf(&HOOK, r, call_original, rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    leaf_entry(r, rust)
 }
 
 static NOTED: Mutex<Vec<u32>> = Mutex::new(Vec::new());

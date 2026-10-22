@@ -189,8 +189,8 @@ pub fn game_part(which: u32, r: &mut Regs) -> Result<(), Refused> {
             9 => {
                 play::stop_buffer(v())?;
             }
-            10 => call_game(r, game_addr(rva(A3D_WAY))),
-            _ => call_game(r, game_addr(rva(MIXER_WAY))),
+            10 => crate::calls::call(rva(A3D_WAY), r),
+            _ => crate::calls::call(rva(MIXER_WAY), r),
         }
     }
     Ok(())

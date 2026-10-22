@@ -388,6 +388,21 @@ pub fn dispatch_panel(
     r.eflags = o.eflags;
 }
 
+/// `dispatch_panel` outside shadow mode, without its hook (typed tables, 2026-10-22: the entry the menus' and draw lists' enums run, with no hook).
+pub fn panel_entry(
+    name: &str,
+    r: &mut Regs,
+    rust: &dyn Fn(&mut dyn Canvas) -> Result<bool, Refused>,
+) -> Result<(), Refused> {
+    if blanked(name) {
+        return Ok(());
+    }
+    let too_wide = rust(&mut GameCanvas)?;
+    r.set_carry(too_wide);
+    r.set_zero(!too_wide);
+    Ok(())
+}
+
 /// Why the panel body cannot be tested right now, or None if it can: the hook that swallows
 /// blitter calls, the string table, the fonts and the labels.
 pub fn body_unavailable() -> Option<&'static str> {

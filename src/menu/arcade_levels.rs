@@ -13,7 +13,7 @@
 //! the Rust version: the cheat on and off, the level open and not.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, rva};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
 use crate::menu::parts::{Part, copy, dispatch_parted, run_both, test_part};
 use crate::screens::harness::CallOriginal;
 use crate::service::harness::{Region, at, capture, restore};
@@ -65,7 +65,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 )
             }?
         }
-        _ => unsafe { call_game(r, game_addr(rva(CALLEES[place as usize]))) },
+        _ => crate::calls::call(rva(CALLEES[place as usize]), r),
     }
     Ok(())
 }
@@ -78,6 +78,15 @@ pub fn dispatch_level(hook: &RawHook, r: &mut Regs, call_original: CallOriginal,
         &|r, part| unsafe { arcade_level(r, level, part) },
         game_part,
     );
+}
+
+/// `dispatch_level` without its hook (typed tables).
+pub fn level_entry(r: &mut Regs, level: u32) -> Result<(), Refused> {
+    crate::menu::parts::parted_entry(
+        r,
+        &|r, part| unsafe { arcade_level(r, level, part) },
+        game_part,
+    )
 }
 
 pub fn test_level(hook: &RawHook, address: usize, level: u32) -> (usize, usize) {

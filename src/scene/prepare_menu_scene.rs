@@ -12,24 +12,11 @@
 //! Self-test: 20 settings by lot on the game's variables.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva};
-use crate::scene::set_view_window::{self, SIZE_RVA, set_view_window};
-use crate::scene::view_matrix::{VIEW_ANGLES_RVA, VIEW_PLACE_RVA, set_view_matrices, view_regions};
+use crate::framework::{Regs, game_write, rva};
+use crate::scene::set_view_window::{SIZE_RVA, set_view_window};
+use crate::scene::view_matrix::{VIEW_ANGLES_RVA, VIEW_PLACE_RVA, set_view_matrices};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::prepare_menu_scene", rva(0x46F7FD), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 // ---- game data ----
 
@@ -50,57 +37,11 @@ pub unsafe fn prepare_menu_scene() -> Left {
     }
 }
 
-// ---- hook ----
-
-/// Everything it writes.
-fn regions() -> Vec<Region> {
-    let block = |rva: usize, len: usize| (game_addr(rva) as u32, len);
-    let mut regions = view_regions();
-    regions.extend(set_view_window::regions());
-    regions.extend([
-        block(VIEW_PLACE_RVA, 12),
-        block(VIEW_ANGLES_RVA, 12),
-        block(LIGHT_RVA, 0x18),
-        block(SIZE_RVA, 8),
-    ]);
-    regions
-}
-
 fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { prepare_menu_scene() })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let (regions, inputs) = (regions(), set_view_window::inputs());
-    let saved = (capture(&regions), capture(&inputs));
-    let mut seed = 0x27D4_EB2Fu32;
-    for case in 0..20 {
-        unsafe { set_view_window::set_inputs(&mut seed, case) };
-        let set = capture(&inputs);
-        let fill = [0xAAu8, 0x00, 0x3F][case % 3];
-        check_state(
-            &mut t,
-            &format!("case {case}, filled with {fill:#x}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| {
-                restore(&regions, &vec![fill; saved.0.len()]);
-                restore(&inputs, &set);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

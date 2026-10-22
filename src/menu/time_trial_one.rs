@@ -15,24 +15,18 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! Reached through the time trial's start menu (0x48BCDC's items). A call at +1: a
-//! private copy (0x197 bytes, its 19 calls relocated) and a jump written by hand. Ungated
-//! (a whole event). Refuses a missing player before anything, and what the callees and
-//! the stage's record (`Hand::Stage`) refuse when they are reached. Shadow mode runs the original alone.
-//! Self-test: `rounds::test_rounds`.
+//! Reached through the time trial's start menu (0x48BCDC's items). Refuses a missing player
+//! before anything, and what the callees and the stage's record (`Hand::Stage`) refuse when
+//! they are reached.
+//! Hook removed 2026-10-22 (typed tables): the start menus run its `entry`
+//! (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::menu::event_flow::*;
 use crate::menu::flow_game::Game;
-use crate::menu::rounds::*;
 use crate::menu::time_trial_qualifies::QUALIFIES;
 use rc2k_core::menu::rounds;
-
-const CALLS: &[usize] = &[
-    0x1, 0x6, 0x3D, 0x52, 0x57, 0x69, 0x6E, 0x8D, 0x9C, 0xB8, 0xD0, 0x104, 0x113, 0x121, 0x126,
-    0x12B, 0x13E, 0x143, 0x190,
-];
 
 flow_hook!(
     "menu::time_trial_one",
@@ -82,26 +76,4 @@ pub fn time_trial_scripts(n: u32, results: usize) -> Vec<(String, Script)> {
         ),
     ]);
     out
-}
-
-fn test(t: crate::framework::SelfTest) -> (usize, usize) {
-    if stage_record().is_err() {
-        return t.skip("no stage tables for the chosen stage");
-    }
-    let flow = Flow {
-        address: 0x48AE39,
-        len: 0x197,
-        // pusha; call menu::clear_players_284
-        entry: &[0x60, 0xE8, 0x3A, 0xE8, 0x01, 0x00],
-        calls: CALLS,
-        fatal_jumps: &[],
-        writes: &WRITES,
-    };
-    test_rounds(
-        t,
-        &flow,
-        1,
-        time_trial_scripts(1, STAGE_RESULT_LOOP),
-        &|r, c| unsafe { time_trial_one(r, c) },
-    )
 }

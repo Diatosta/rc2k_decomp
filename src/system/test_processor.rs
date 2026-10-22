@@ -22,31 +22,15 @@
 //! already written) a clock whose quotient does not fit in 32 bits (the original's `div`
 //! traps there). One caller, `start` (0x40101A); in the game this never gets a call (the
 //! hook DLL is loaded later); the standalone program needs it (it used a stand-in for
-//! `g_hasFpu`). Shadow mode runs the original alone (it takes a quarter of a second).
-//! Self-test: the original and the Rust version from zeros and from 0xAA, every variable
-//! compared, the clock within 5%.
+//! `g_hasFpu`).
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::service::harness::{Region, capture, restore};
+use crate::framework::{Regs, game_read, game_write, rva};
 use core::arch::x86::{__cpuid, _rdtsc};
 use rc2k_core::system::processor::{Var, test};
-use std::sync::atomic::AtomicUsize;
 use windows_sys::Win32::System::SystemInformation::GetTickCount;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("system::test_processor", rva(0x410883), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -62,9 +46,6 @@ const HAS_SSE_RVA: usize = rva(0x5183FC); // dword_5183FC
 const HAS_3DNOW_RVA: usize = rva(0x518400); // dword_518400
 const RESUME_RVA: usize = rva(0x51849C); // dword_51849C: where the filter goes on
 const FPU_WORD_RVA: usize = rva(0x93E8B0); // g_pngInfo's first word
-/// The variables from `dword_5183D0` to `dword_518400`.
-const VARS_LEN: usize = 0x34;
-
 // ---- Rust version ----
 
 /// Whether toggling `bit` in the flags changes them (`pushf` .. `popf` .. `pushf`); the
@@ -170,56 +151,8 @@ pub unsafe fn test_processor(p: &dyn Processor) -> Result<(), Refused> {
     test(p, &mut put, &get).map_err(|e| BadInput::from(e).into())
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    if let Err(e) = unsafe { test_processor(&Real) } {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-    }
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions: [Region; 3] = [
-        (game_addr(FAMILY_RVA) as u32, VARS_LEN),
-        (game_addr(RESUME_RVA) as u32, 4),
-        (game_addr(FPU_WORD_RVA) as u32, 2),
-    ];
-    let saved = capture(&regions);
-    let len = VARS_LEN + 6;
-    for fill in [0u8, 0xAA] {
-        restore(&regions, &vec![fill; len]);
-        let before = Regs::SENTINEL;
-        let mut ro = before;
-        unsafe { call_original(&mut ro) };
-        let preserved = ro.preserved_except(&before, 0);
-        let theirs = capture(&regions);
-        restore(&regions, &vec![fill; len]);
-        let done = unsafe { test_processor(&Real) };
-        let mine = capture(&regions);
-        // The clock (+0x18) within 5% (the ticks are coarse); everything else byte for byte.
-        let clock = |b: &[u8]| u32::from_le_bytes(b[0x18..0x1C].try_into().unwrap());
-        let (a, b) = (clock(&theirs), clock(&mine));
-        let close = a.abs_diff(b) as u64 * 100 <= a.max(b) as u64 * 5;
-        let rest = |v: &[u8]| [&v[..0x18], &v[0x1C..]].concat();
-        t.check(
-            preserved && done.is_ok() && close && rest(&theirs) == rest(&mine),
-            || {
-                format!(
-                    "fill {fill:#x}: original preserved={preserved} {theirs:02x?}; rust {done:?} {mine:02x?}"
-                )
-            },
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { test_processor(&Real) }?;
+    Ok(())
 }

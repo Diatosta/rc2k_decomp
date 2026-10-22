@@ -47,7 +47,7 @@ use crate::d3d::set_texture::CURRENT_RVA;
 use crate::d3d::{NO_TEXTURE, VERTEX_LEN};
 use crate::errors::BadInput;
 use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
+    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
 use crate::math::x87;
 use crate::scene::submit_polygon::{self, submit_polygon};
@@ -579,7 +579,7 @@ impl Outside for Game<'_> {
             ebx: state,
             ..*self.0.0
         };
-        unsafe { call_game(&mut r, game_addr(rva(SET_RENDER_STATE))) };
+        crate::calls::call(rva(SET_RENDER_STATE), &mut r);
     }
 }
 

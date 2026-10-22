@@ -11,9 +11,7 @@
 //! version, the batch empty and not.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
 use crate::hud::batch::{INDEX_COUNT_RVA, VERTEX_COUNT_RVA};
 use crate::service::harness::{Region, at, capture, restore};
 use std::sync::atomic::AtomicUsize;
@@ -52,7 +50,7 @@ pub unsafe fn flush_batch(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 
 /// In the game: the device's draw through the original's call.
 pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { call_game(r, game_addr(DEVICE_CALL_RVA)) };
+    crate::calls::call(DEVICE_CALL_RVA, r);
     Ok(())
 }
 

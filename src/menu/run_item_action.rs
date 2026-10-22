@@ -76,7 +76,10 @@ pub unsafe fn run_item_action(menu: u32, entry_regs: &Regs, call: Call) -> Resul
 extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
     let entry_regs = *r;
-    if shadow() || unsafe { run_item_action(r.edi, &entry_regs, &mut in_game) }.is_err() {
+    if shadow()
+        || unsafe { run_item_action(r.edi, &entry_regs, &mut crate::menu::table_calls::call) }
+            .is_err()
+    {
         unsafe { call_original(r) };
     }
 }

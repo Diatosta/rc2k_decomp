@@ -176,7 +176,7 @@ pub fn game_part(which: u32, r: &mut Regs) -> Result<(), Refused> {
             )?,
             3 => {
                 let mut c = *r;
-                call_game(&mut c, game_addr(rva(SET_MODE)));
+                crate::calls::call(rva(SET_MODE), &mut c);
             }
             4 => {}
             5 => {

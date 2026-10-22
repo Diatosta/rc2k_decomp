@@ -8,25 +8,13 @@
 //!      register kept
 //!
 //! Callers: those of `d3d::lock_texture`. The unlock is the surface's own method. Refuses
-//! a texture past the pool's 0x140, before anything. Shadow mode runs the original alone.
-//! Self-test: `texture_lock::test_slot` with a surface of the test's.
+//! a texture past the pool's 0x140, before anything.
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::d3d::texture_lock::*;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("d3d::unlock_texture", rva(0x41AB02), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn unlock_texture(entry: &Regs) -> Result<Regs, Refused> {
@@ -51,31 +39,9 @@ pub unsafe fn unlock_texture(entry: &Regs) -> Result<Regs, Refused> {
     Ok(g)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { unlock_texture(r) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    test_slot(
-        t,
-        call_original,
-        &[
-            (false, 1, 0x100),
-            (true, 0, 0x100),
-            (true, 1, 0x100),
-            (true, 2, 0x40),
-        ],
-        &|r| unsafe { unlock_texture(r) },
-    )
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { unlock_texture(r) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }

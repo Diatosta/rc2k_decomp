@@ -71,7 +71,7 @@ pub unsafe fn load_slot_texture_in_game(slot: u32, entry_regs: &Regs) -> Result<
                 ecx: slot,
                 ..*entry_regs
             };
-            call_game(&mut r, game_addr(LOAD_RVA));
+            crate::calls::call(LOAD_RVA, &mut r);
         })
     }
 }

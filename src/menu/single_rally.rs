@@ -17,39 +17,15 @@
 //! the start menu's table (0x748A8C). The registers each callee gets are the original's
 //! (one set carried through, as `pusha` keeps them). Refuses a current player past four.
 //! The screens and the race are called at the game's addresses (their hooks choose).
-//! Ungated thunk; shadow mode runs the original alone. Self-test: a redirected copy whose
-//! variables are the test's and whose 13 calls go to stand-ins that note eax, ebx, esi and
-//! act a script (the screens' answers), 9 scripts.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva, shadow};
-use crate::install::stand_ins::{set_handler, stand_in};
+use crate::framework::{Regs, game_addr, rva};
 use rc2k_core::menu::flow::{self, CarList, Hand, Reply, Var};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
 // The first 5 bytes end inside a `call`: the jump is written by hand and the original runs
 // from a private copy with its 13 calls relocated.
-pub static HOOK: RawHook = RawHook::new("menu::single_rally", rva(0x482382), thunk, &ORIGINAL)
-    .private_copy(LEN)
-    .relocate_calls(&CALLS)
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
-
-const LEN: usize = 0x13F;
-const CALLS: [usize; 13] = [
-    0x01, 0x06, 0x0B, 0x2E, 0x62, 0x74, 0x79, 0xAC, 0xBB, 0xD3, 0xE6, 0xEB, 0x138,
-];
 /// The callees, by place: the calls' order in the function.
 const CALLEES: [usize; 13] = [
     0x472BAA, // 0 begin_event
@@ -104,9 +80,6 @@ const VARIABLES: [usize; 14] = [
     0x758806, // dword_758806: the car choice was left
     0x75B028, // dword_75B028: -1 when the race gave no result
 ];
-/// How often the function's bytes hold each one.
-const REFERENCES: usize = 2 + 1 + 4 + 1 + 2 + 1 + 1 + 1 + 3 + 1 + 1 + 1 + 1 + 1;
-
 impl Vars {
     fn at(a: impl Fn(usize) -> u32) -> Self {
         let v = VARIABLES.map(a);
@@ -268,265 +241,17 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             7 => crate::service::repair_parts::repair_car()?,
             10 => items::hide_in_game_options(r.eax),
             12 => items::show_in_game_options(),
-            _ => call_game(r, game_addr(rva(CALLEES[place as usize]))),
+            _ => crate::calls::call(rva(CALLEES[place as usize]), r),
         }
     }
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    if let Err(e) = unsafe { single_rally(r, &Vars::game(), &mut game_part) } {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-    }
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { single_rally(r, &Vars::game(), &mut game_part) }?;
+    Ok(())
 }
 
-// ---- self-test ----
-
-/// A run's script: what the stand-ins put in the test's variables, by the callee's place and
-/// how many times it was called before.
-#[derive(Clone)]
-struct Script {
-    car_left: u32,
-    /// For each stage: the stage choice's yes/no and leave, the race's result, the result
-    /// screen's yes/no, the review's three.
-    stages: Vec<[u32; 7]>,
-}
-
-struct Run {
-    vars: Vars,
-    script: Script,
-    stage: usize,
-    noted: Vec<(u32, u32, u32, u32)>,
-}
-
-static RUN: Mutex<Option<Run>> = Mutex::new(None);
-
-fn act(place: u32, r: &mut Regs) {
-    let mut run = RUN.lock().unwrap();
-    let Some(run) = run.as_mut() else { return };
-    run.noted.push((place, r.eax, r.ebx, r.esi));
-    let v = run.vars;
-    // A script that runs out leaves the event at the next stage choice.
-    let s = run
-        .script
-        .stages
-        .get(run.stage)
-        .copied()
-        .unwrap_or([1, 0, 0, 0, 0, 0, 0]);
-    unsafe {
-        match place {
-            4 => put(v.car_left, run.script.car_left),
-            6 => {
-                put(v.yes_no, s[0]);
-                put(v.leave, s[1]);
-            }
-            8 => put(v.race_result, s[2]),
-            9 => put(v.yes_no, s[3]),
-            11 => {
-                put(v.left_a3c, s[4]);
-                put(v.ended_569, s[5]);
-                put(v.leave, s[6]);
-                run.stage += 1;
-            }
-            _ => {}
-        }
-    }
-}
-
-fn handler(place: u32, r: &mut Regs) {
-    act(place, r);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut mem = Box::new([0u32; 14 + 4 + 4 * 0x40]);
-    let at = mem.as_mut_ptr() as u32;
-    let players = at + 14 * 4;
-    let mut vars = Vars::at(|v| at + 4 * VARIABLES.iter().position(|&x| x == v).unwrap() as u32);
-    vars.players = players;
-    let player = |n: u32| at + 18 * 4 + n * 0x100;
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x482382,
-            len: LEN,
-            entry: &[0x60, 0xE8, 0x22, 0x08, 0xFF, 0xFF],
-            calls: &CALLS,
-            jumps_out: &[],
-        },
-        &|callee| {
-            CALLEES
-                .iter()
-                .position(|&c| rva(c) == callee)
-                .map(|n| stand_in(n as u32))
-        },
-        &VARIABLES.map(|v| (v, vars.at_of(v))),
-        REFERENCES,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    set_handler(handler);
-    let go_on = [0, 0, 0, 0, 0, 0, 0];
-    let scripts: Vec<(u32, u32, u32, Script)> = vec![
-        (
-            1,
-            0,
-            0,
-            Script {
-                car_left: 1,
-                stages: vec![],
-            },
-        ),
-        (
-            1,
-            0,
-            0,
-            Script {
-                car_left: 0,
-                stages: vec![[1, 0, 0, 0, 0, 0, 0]],
-            },
-        ),
-        (
-            0,
-            0,
-            0,
-            Script {
-                car_left: 0,
-                stages: vec![[0, 1, 0, 0, 0, 0, 0]],
-            },
-        ),
-        (
-            0,
-            2,
-            1,
-            Script {
-                car_left: 0,
-                stages: vec![go_on, go_on, [0, 0, 0, 0, 1, 0, 0]],
-            },
-        ),
-        (
-            1,
-            0,
-            2,
-            Script {
-                car_left: 0,
-                stages: vec![[0, 0, u32::MAX, 0, 0, 0, 0], [0, 0, 0, 1, 0, 0, 0]],
-            },
-        ),
-        (
-            0,
-            2,
-            3,
-            Script {
-                car_left: 0,
-                stages: vec![[0, 0, 5, 0, 0, 1, 0]],
-            },
-        ),
-        (
-            0,
-            0,
-            0,
-            Script {
-                car_left: 0,
-                stages: vec![[0, 0, u32::MAX, 0, 0, 0, 1]],
-            },
-        ),
-        (
-            1,
-            2,
-            1,
-            Script {
-                car_left: 2,
-                stages: vec![go_on, [0, 0, 0, 1, 0, 0, 0]],
-            },
-        ),
-        (
-            0,
-            0,
-            0,
-            Script {
-                car_left: 0,
-                stages: vec![go_on, go_on, go_on],
-            },
-        ),
-    ];
-    for (n, (kind, cheats, current, script)) in scripts.into_iter().enumerate() {
-        let run = |rust: bool| {
-            unsafe {
-                std::ptr::write_bytes(at as *mut u8, 0, mem_len());
-                put(vars.list_kind, kind);
-                put(vars.cheats, cheats);
-                put(vars.current_player, current);
-                for p in 0..4 {
-                    put(players + 4 * p, player(p));
-                }
-            }
-            *RUN.lock().unwrap() = Some(Run {
-                vars,
-                script: script.clone(),
-                stage: 0,
-                noted: Vec::new(),
-            });
-            let before = Regs::SENTINEL;
-            let mut ro = before;
-            let ok = if rust {
-                unsafe {
-                    single_rally(&before, &vars, &mut |p, r| {
-                        act(p, r);
-                        Ok(())
-                    })
-                }
-                .is_ok()
-            } else {
-                unsafe { call_game(&mut ro, copy.addr()) };
-                ro.preserved_except(&before, 0)
-            };
-            let run = RUN.lock().unwrap().take().unwrap();
-            let state =
-                unsafe { std::slice::from_raw_parts(at as *const u32, mem_len() / 4) }.to_vec();
-            (ok, run.noted, state)
-        };
-        let theirs = run(false);
-        let mine = run(true);
-        t.check(theirs.0 && theirs == mine, || {
-            format!("script {n}: original {theirs:x?}; rust {mine:x?}")
-        });
-    }
-    drop(mem);
-    t.finish()
-}
-
-fn mem_len() -> usize {
-    (14 + 4 + 4 * 0x40) * 4
-}
-
-impl Vars {
-    /// The test's address of a variable (by its address as IDA shows it).
-    fn at_of(&self, v: usize) -> u32 {
-        let all = [
-            self.yes_no,
-            self.list_kind,
-            self.leave,
-            self.ended_565,
-            self.ended_569,
-            self.done,
-            self.set_984,
-            self.set_988,
-            self.current_player,
-            self.left_a3c,
-            self.players,
-            self.cheats,
-            self.car_left,
-            self.race_result,
-        ];
-        all[VARIABLES.iter().position(|&x| x == v).unwrap()]
-    }
-}
+impl Vars {}

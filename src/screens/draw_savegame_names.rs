@@ -9,38 +9,16 @@
 //! 0x129, with the font at 0x51E8C4. In two draw lists (the load and save screens). The
 //! twin of `screens::draw_setup_slot_names`.
 //! Refuses a page past the tenth (the list has 100 names).
-//! Self-test: the ten pages of the owner's own list, nothing drawn.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read};
 use crate::menu::name_lists::{SAVEGAME_NAMES_RVA, SAVEGAME_PAGE_RVA};
-use crate::screens::font_is_loaded;
-use crate::screens::harness::{Left, check_draw, dispatch_draw, drawing_unavailable};
-use crate::service::harness::{at, capture, restore};
+use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::Canvas;
-use std::sync::atomic::AtomicUsize;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_savegame_names",
-    rva(0x46D45A),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const FONT: usize = 0x51E8C4;
 const NAME_LEN: usize = 0x20;
-const PAGES: u32 = 10;
-
 // ---- Rust version ----
 
 pub unsafe fn draw_savegame_names(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
@@ -55,53 +33,12 @@ pub unsafe fn draw_savegame_names(canvas: &mut dyn Canvas) -> Result<bool, Refus
     )
 }
 
-// ---- hook ----
-
 fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     Ok(Left::carry(unsafe { draw_savegame_names(canvas) }?))
 }
 
-fn state() -> Vec<u8> {
-    Vec::new()
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_draw(&HOOK, r, call_original, &rust, &state);
-}
-
-// ---- self-test ----
-
-/// True if every name ends within its 0x20 bytes.
-fn names_end() -> bool {
-    (0..PAGES as usize * 10).all(|n| {
-        let name = game_addr(SAVEGAME_NAMES_RVA) + n * NAME_LEN;
-        (0..NAME_LEN).any(|i| unsafe { ((name + i) as *const u8).read() } == 0)
-    })
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = drawing_unavailable() {
-        return t.skip(why);
-    }
-    if !font_is_loaded(FONT) || !names_end() {
-        return t.skip("the font is not loaded or a name has no end");
-    }
-    let regions = [at(SAVEGAME_PAGE_RVA)];
-    let saved = capture(&regions);
-    for page in 0..PAGES {
-        check_draw(
-            &mut t,
-            &format!("page={page}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe { game_write(SAVEGAME_PAGE_RVA, page) },
-            &rust,
-            &state,
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_savegame_names", r, &rust)
 }

@@ -17,7 +17,7 @@
 //! stand-ins noting what each reads (no wait, no window), 45 cases; the original's
 //! `stop_streams` action taken as 0 (the fix).
 
-use crate::audio::buffer_play::{Leaves, dispatch_leaf};
+use crate::audio::buffer_play::{Leaves, dispatch_leaf, leaf_entry};
 use crate::audio::voices::{read, write};
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
@@ -226,6 +226,12 @@ unsafe fn rust(r: &Regs) -> Result<Leaves, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_leaf(&HOOK, r, call_original, rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    leaf_entry(r, rust)
 }
 
 // ---- self-test ----

@@ -53,15 +53,4 @@ pub mod toggle_tyre_change;
 pub mod update_repair_total;
 pub mod write_setup_slot;
 
-pub static HOOKS: &[&dyn GameHook] = &[
-    &load_setup_values::HOOK,
-    &handle_edit_keys::HOOK,
-    &load_setup_slot::HOOK,
-    &begin_setup_name::HOOK,
-    &next_setup_page::HOOK,
-    &begin_gear_ratio_edit::HOOK,
-    &begin_tyre_edit::HOOK,
-    &begin_ride_height_edit::HOOK,
-    &begin_suspension_stiffness_edit::HOOK,
-    &toggle_repair_choice::HOOK,
-];
+pub static HOOKS: &[&dyn GameHook] = &[];

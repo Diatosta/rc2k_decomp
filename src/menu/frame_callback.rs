@@ -16,34 +16,12 @@
 //! The surface's lock and unlock, the 3D scene and the showing of the frame are the game's
 //! (DirectDraw and Direct3D calls), reached like everything else here through an `Env`:
 //! that is where a build without the game puts its own.
-//! Shadow mode runs the original alone (a frame cannot be shown twice). Manual patch with
-//! a private copy (0xB9 bytes, ten calls relocated): the first call starts at the second
-//! byte, inside what the patch overwrites.
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::menu::frame_test::{self, CHANGING, Noting};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::menu::screen_loop::{Env, Real};
-use crate::redirect::RedirectedCopy;
-use crate::service::harness::{at, capture, restore};
 use rc2k_core::menu::notice;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("menu::frame_callback", rva(0x474D4B), thunk, &ORIGINAL)
-    .private_copy(0xB9)
-    .relocate_calls(&[0x01, 0x0C, 0x11, 0x28, 0x37, 0x52, 0x57, 0xA1, 0xA6, 0xAB])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -127,154 +105,13 @@ pub unsafe fn frame_callback(entry: &Regs, env: &mut dyn Env) -> bool {
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let entry = *r;
     let made = unsafe { frame_callback(&entry, &mut Real) };
     r.set_carry(!made);
+    Ok(())
 }
 
 // ---- self-test: a copy of the original whose ten calls go to stand-ins that note them,
 // with lists of the test's made of more such stand-ins ----
-
-const LEN: usize = 0xB9;
-const ENTRY_BYTES: [u8; 8] = [0x60, 0xE8, 0x5C, 0x0B, 0xF9, 0xFF, 0x0F, 0x82];
-const CALLS: [usize; 10] = [0x01, 0x0C, 0x11, 0x28, 0x37, 0x52, 0x57, 0xA1, 0xA6, 0xAB];
-/// The place each game function has among the stand-ins; 9 to 11 are the lists' own.
-const PLACES: [(usize, u32); 8] = [
-    (LOCK_SURFACE, 0),
-    (COPY_PICTURE, 1),
-    (DRAW_MENU, 2),
-    (UNLOCK_SURFACE, 3),
-    (BEGIN_SCENE, 4),
-    (END_SCENE, 5),
-    (DRAW_STRING_BY_ID, 6),
-    (SHOW_FRAME, 7),
-];
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let redirect = |target: usize| {
-        PLACES
-            .iter()
-            .find(|&&(function, _)| function == target)
-            .map(|&(_, place)| frame_test::stand_in(place))
-    };
-    let copy = match unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x474D4B)),
-            LEN,
-            &ENTRY_BYTES,
-            &CALLS,
-            &redirect,
-        )
-    } {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    let listed = |places: &[u32]| -> Vec<u32> {
-        places
-            .iter()
-            .map(|&place| frame_test::stand_in(place) as u32)
-            .chain([END])
-            .collect()
-    };
-    let regions = [
-        at(DRAW_LIST_RVA),
-        at(SCENE_LIST_RVA),
-        at(OVERLAY_LIST_RVA),
-        at(SCENE_STATE_RVA),
-        at(NOTICE_KIND_RVA),
-        at(NOTICE_DUE_RVA),
-    ];
-    let saved = capture(&regions);
-    // A game thread that was between two hooks when the pause began gets to its next one
-    // before the lists are changed under it.
-    std::thread::sleep(std::time::Duration::from_millis(30));
-
-    // (draw list, scene list, overlay list) as places, (notice kind, notice due)
-    let lists: [(&[u32], &[u32], &[u32]); 4] = [
-        (&[], &[], &[]),
-        (&[9], &[11], &[CHANGING]),
-        (&[9, CHANGING, 11], &[CHANGING, 9], &[11, CHANGING, 9]),
-        (&[CHANGING], &[9, 11, CHANGING], &[]),
-    ];
-    for (draw, scene, overlay) in lists {
-        let (draw, scene, overlay) = (listed(draw), listed(scene), listed(overlay));
-        for (kind, due) in [(2u8, 1u32), (2, 0), (1, 1), (0, 0)] {
-            let prepare = || unsafe {
-                game_write(DRAW_LIST_RVA, draw.as_ptr() as u32);
-                game_write(SCENE_LIST_RVA, scene.as_ptr() as u32);
-                game_write(OVERLAY_LIST_RVA, overlay.as_ptr() as u32);
-                game_write(SCENE_STATE_RVA, 0xAAAA_AAAAu32);
-                game_write(NOTICE_KIND_RVA, kind);
-                game_write(NOTICE_DUE_RVA, due);
-            };
-            let observed = || {
-                (frame_test::notes(), unsafe {
-                    (
-                        game_read::<u32>(SCENE_STATE_RVA),
-                        game_read::<u32>(NOTICE_DUE_RVA),
-                    )
-                })
-            };
-            // First with every call working, which says how many calls there are; then with
-            // each of them failing in turn.
-            let mut calls = u32::MAX;
-            let mut failing = u32::MAX;
-            loop {
-                let before = Regs {
-                    ebx: 0x1234,
-                    ecx: 7,
-                    ..Regs::SENTINEL
-                };
-                prepare();
-                frame_test::begin(failing, 0);
-                let mut ro = before;
-                unsafe { call_game(&mut ro, copy.addr()) };
-                let theirs = (observed(), !ro.carry());
-                prepare();
-                frame_test::begin(failing, 0);
-                let made = unsafe { frame_callback(&before, &mut Noting { places: &PLACES }) };
-                let mine = (observed(), made);
-                let preserved = ro.preserved_except(&before, 0);
-                t.check(theirs == mine && preserved, || {
-                    let first = theirs.0.0.iter().zip(&mine.0.0).position(|(a, b)| a != b);
-                    format!(
-                        "lists of {} {} {} kind={kind} due={due} failing call {failing:#x}: preserved={preserved} original made={} calls={} left {:x?}; rust made={} calls={} left {:x?}; first different call {first:?}: {:x?} / {:x?}",
-                        draw.len() - 1,
-                        scene.len() - 1,
-                        overlay.len() - 1,
-                        theirs.1,
-                        theirs.0.0.len(),
-                        theirs.0.1,
-                        mine.1,
-                        mine.0.0.len(),
-                        mine.0.1,
-                        first.map(|n| theirs.0.0[n]),
-                        first.map(|n| mine.0.0[n])
-                    )
-                });
-                if calls == u32::MAX {
-                    calls = theirs.0.0.len() as u32;
-                    failing = 0;
-                } else {
-                    failing += 1;
-                }
-                if failing >= calls {
-                    break;
-                }
-            }
-        }
-    }
-    restore(&regions, &saved);
-    t.finish()
-}

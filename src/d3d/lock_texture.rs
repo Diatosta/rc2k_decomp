@@ -9,25 +9,13 @@
 //! Callers: the name and time plates, the mud, the mirror, the marks' masks, ... (most
 //! `jb`). The lock is the surface's own method (`d3d::texture_lock`): DirectDraw in the
 //! game, `platform_3d`'s in the standalone. Refuses a texture past the pool's 0x140,
-//! before anything. Shadow mode runs the original alone (a surface cannot be locked
-//! twice). Self-test: `texture_lock::test_slot` with a surface of the test's.
+//! before anything.
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::d3d::texture_lock::*;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva, shadow};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("d3d::lock_texture", rva(0x41AA4B), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_addr};
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn lock_texture(entry: &Regs) -> Result<Regs, Refused> {
@@ -54,34 +42,9 @@ pub unsafe fn lock_texture(entry: &Regs) -> Result<Regs, Refused> {
     Ok(g)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { lock_texture(r) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // (surface, locked, width): locked already and a failing lock are the original's fatal
-    // errors, not run
-    test_slot(
-        t,
-        call_original,
-        &[
-            (false, 0, 0x100),
-            (false, 1, 0x100),
-            (true, 0, 0x100),
-            (true, 0, 0x40),
-            (true, 2, 0x80),
-        ],
-        &|r| unsafe { lock_texture(r) },
-    )
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { lock_texture(r) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }

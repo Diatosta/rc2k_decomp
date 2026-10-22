@@ -302,6 +302,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let entry = *r;
+    unsafe { audio_thread(&entry, &ThreadVars::game(), &mut game_part) }?;
+    Ok(())
+}
+
 // ---- self-test ----
 
 /// Each call: the place, eax / ebx / ecx / edx where it reads them.

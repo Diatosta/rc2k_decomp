@@ -21,18 +21,12 @@
 //!
 //! The calls through `part` (by place in each one's `CALLEES`): in the game the screen loops,
 //! the films and the menu sound through their hooks (`call_game`), `go_back`, `sleep`,
-//! `take_player1_units` and `arcade_event` by their Rust versions. Those that run a screen
-//! have ungated thunks. Shadow mode runs the original alone. Self-test: a copy of each whose
-//! calls go to stand-ins, against the Rust version (the switches both ways, the page from 0
-//! and not, the event type 3 and not).
+//! `take_player1_units` and `arcade_event` by their Rust versions.
+//! Hooks removed 2026-10-22 (typed tables): the menus run their `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva,
-};
-use crate::menu::parts::{Part, copy, dispatch_parted, run_both, test_part};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::menu::parts::{Part, parted_entry};
 
 const SAVE_PAGE_RVA: usize = rva(0x75523C); // dword_75523C: the save list's page
 const BOX_SWITCH_RVA: usize = rva(0x75AA9C); // dword_75AA9C: a service box shown
@@ -50,9 +44,10 @@ fn p(at: usize, v: u32) {
     unsafe { game_write(at, v) }
 }
 
-/// A call into the game through its hook (where the Rust version takes closures).
+/// A call of a function of the game's: a table's through its `entry`, any other through
+/// its hook (`menu::table_calls::call_any`).
 fn hooked(address: usize, r: &mut Regs) {
-    unsafe { call_game(r, game_addr(rva(address))) };
+    crate::menu::table_calls::call_any(game_addr(rva(address)) as u32, r);
 }
 
 // ---- the Rust versions ----
@@ -110,8 +105,6 @@ pub unsafe fn new_simulation_if_unlocked(entry: &Regs, part: Part) -> Result<Reg
 }
 
 // take_player1_units, arcade_event
-const START_ARCADE_CALLEES: [usize; 2] = [0x467EA8, 0x487E2C];
-
 pub unsafe fn start_arcade(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     p(ARCADE_LEVEL_RVA, 0);
     p(ARCADE_STAGE_RVA, 0);
@@ -163,51 +156,15 @@ fn start_arcade_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 pub mod show_intro_hook {
     use super::*;
-    static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-    pub static HOOK: RawHook =
-        RawHook::new("menu::show_intro", rva(0x47058E), thunk, &ORIGINAL).self_test(self_test);
-    hook_asm!(
-        thunk,
-        call_original,
-        dispatch = dispatch,
-        original = ORIGINAL,
-        ungated
-    );
-    extern "C" fn dispatch(r: &mut Regs) {
-        dispatch_parted(
-            &HOOK,
+
+    /// The Rust version where the typed tables run it (`menu::table_calls`; hook
+    /// removed 2026-10-22).
+    pub fn entry(r: &mut Regs) -> Result<(), Refused> {
+        parted_entry(
             r,
-            call_original,
             &|r, part| unsafe { show_intro(r, part) },
             show_intro_part,
-        );
-    }
-    fn self_test() -> (usize, usize) {
-        let Some(mut t) = SelfTest::begin(&HOOK) else {
-            return (0, 0);
-        };
-        let copy = match copy(
-            0x47058E,
-            0x10,
-            &[0xB8, 1, 0, 0, 0],
-            &[5, 0xA],
-            &SHOW_INTRO_CALLEES,
-            &[],
-        ) {
-            Ok(c) => c,
-            Err(why) => return t.skip(why),
-        };
-        run_both(
-            &mut t,
-            "once",
-            &copy,
-            &[],
-            &|| {},
-            Regs::SENTINEL,
-            false,
-            &|r| unsafe { show_intro(r, &mut test_part) },
-        );
-        t.finish()
+        )
     }
 }
 
@@ -217,55 +174,11 @@ macro_rules! pure_action {
     ($module:ident, $name:literal, $address:expr, $len:expr, $entry:expr, $rust:expr, $vars:expr, $starts:expr) => {
         pub mod $module {
             use super::*;
-            static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-            pub static HOOK: RawHook =
-                RawHook::new($name, rva($address), thunk, &ORIGINAL).self_test(self_test);
-            hook_asm!(
-                thunk,
-                call_original,
-                dispatch = dispatch,
-                original = ORIGINAL
-            );
-            extern "C" fn dispatch(r: &mut Regs) {
-                HOOK.count_call();
-                if crate::framework::shadow() {
-                    unsafe { call_original(r) };
-                    return;
-                }
+            /// The Rust version where the typed tables run it (`menu::table_calls`; hook removed
+            /// 2026-10-22).
+            pub fn entry(_: &mut crate::framework::Regs) -> Result<(), crate::errors::Refused> {
                 $rust();
-            }
-            fn self_test() -> (usize, usize) {
-                let Some(mut t) = SelfTest::begin(&HOOK) else {
-                    return (0, 0);
-                };
-                let copy = match copy($address, $len, &$entry, &[], &[], &[]) {
-                    Ok(c) => c,
-                    Err(why) => return t.skip(why),
-                };
-                let vars: Vec<Region> = $vars.iter().map(|&v| at(v)).collect();
-                let saved = capture(&vars);
-                for start in $starts {
-                    let set = || {
-                        for (&v, &x) in $vars.iter().zip(start.iter()) {
-                            p(v, x);
-                        }
-                    };
-                    run_both(
-                        &mut t,
-                        &format!("from {start:x?}"),
-                        &copy,
-                        &vars,
-                        &set,
-                        Regs::SENTINEL,
-                        false,
-                        &|r| {
-                            $rust();
-                            Ok(*r)
-                        },
-                    );
-                }
-                restore(&vars, &saved);
-                t.finish()
+                Ok(())
             }
         }
     };
@@ -304,183 +217,42 @@ pure_action!(
 
 pub mod view_stage_details_hook {
     use super::*;
-    static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-    pub static HOOK: RawHook =
-        RawHook::new("menu::view_stage_details", rva(0x47037E), thunk, &ORIGINAL)
-            .self_test(self_test);
-    hook_asm!(
-        thunk,
-        call_original,
-        dispatch = dispatch,
-        original = ORIGINAL,
-        ungated
-    );
-    extern "C" fn dispatch(r: &mut Regs) {
-        dispatch_parted(
-            &HOOK,
+
+    /// The Rust version where the typed tables run it (`menu::table_calls`; hook
+    /// removed 2026-10-22).
+    pub fn entry(r: &mut Regs) -> Result<(), Refused> {
+        parted_entry(
             r,
-            call_original,
             &|r, part| unsafe { view_stage_details(r, part) },
             view_stage_part,
-        );
-    }
-    fn self_test() -> (usize, usize) {
-        let Some(mut t) = SelfTest::begin(&HOOK) else {
-            return (0, 0);
-        };
-        let copy = match copy(
-            0x47037E,
-            0x15,
-            &[0x83, 0x3D, 0x54, 0x59, 0x75, 0x00, 0x03],
-            &[9, 0xF],
-            &VIEW_STAGE_CALLEES,
-            &[],
-        ) {
-            Ok(c) => c,
-            Err(why) => return t.skip(why),
-        };
-        let vars = [at(EVENT_TYPE_RVA)];
-        let saved = capture(&vars);
-        for kind in [3u32, 1, 0] {
-            run_both(
-                &mut t,
-                &format!("event type {kind}"),
-                &copy,
-                &vars,
-                &|| p(EVENT_TYPE_RVA, kind),
-                Regs::SENTINEL,
-                false,
-                &|r| unsafe { view_stage_details(r, &mut test_part) },
-            );
-        }
-        restore(&vars, &saved);
-        t.finish()
+        )
     }
 }
 
 pub mod new_simulation_if_unlocked_hook {
     use super::*;
-    static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-    pub static HOOK: RawHook = RawHook::new(
-        "menu::new_simulation_if_unlocked",
-        rva(0x4A96BF),
-        thunk,
-        &ORIGINAL,
-    )
-    .self_test(self_test);
-    hook_asm!(
-        thunk,
-        call_original,
-        dispatch = dispatch,
-        original = ORIGINAL,
-        ungated
-    );
-    extern "C" fn dispatch(r: &mut Regs) {
-        dispatch_parted(
-            &HOOK,
+
+    /// The Rust version where the typed tables run it (`menu::table_calls`; hook
+    /// removed 2026-10-22).
+    pub fn entry(r: &mut Regs) -> Result<(), Refused> {
+        parted_entry(
             r,
-            call_original,
             &|r, part| unsafe { new_simulation_if_unlocked(r, part) },
             new_simulation_part,
-        );
-    }
-    fn self_test() -> (usize, usize) {
-        let Some(mut t) = SelfTest::begin(&HOOK) else {
-            return (0, 0);
-        };
-        let copy = match copy(
-            0x4A96BF,
-            0x27,
-            &[0x60, 0x83, 0x3D, 0xCC, 0xAC, 0x75, 0x00, 0x01],
-            &[0xF, 0x19, 0x20],
-            &NEW_SIMULATION_CALLEES,
-            &[],
-        ) {
-            Ok(c) => c,
-            Err(why) => return t.skip(why),
-        };
-        let vars = [at(UNLOCKED_RVA)];
-        let saved = capture(&vars);
-        for unlocked in [1u32, 0, 2] {
-            run_both(
-                &mut t,
-                &format!("unlocked {unlocked}"),
-                &copy,
-                &vars,
-                &|| p(UNLOCKED_RVA, unlocked),
-                Regs::SENTINEL,
-                false,
-                &|r| unsafe { new_simulation_if_unlocked(r, &mut test_part) },
-            );
-        }
-        restore(&vars, &saved);
-        t.finish()
+        )
     }
 }
 
 pub mod start_arcade_hook {
     use super::*;
-    static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-    pub static HOOK: RawHook =
-        RawHook::new("menu::start_arcade", rva(0x487CAA), thunk, &ORIGINAL).self_test(self_test);
-    hook_asm!(
-        thunk,
-        call_original,
-        dispatch = dispatch,
-        original = ORIGINAL,
-        ungated
-    );
-    extern "C" fn dispatch(r: &mut Regs) {
-        dispatch_parted(
-            &HOOK,
+
+    /// The Rust version where the typed tables run it (`menu::table_calls`; hook
+    /// removed 2026-10-22).
+    pub fn entry(r: &mut Regs) -> Result<(), Refused> {
+        parted_entry(
             r,
-            call_original,
             &|r, part| unsafe { start_arcade(r, part) },
             start_arcade_part,
-        );
-    }
-    fn self_test() -> (usize, usize) {
-        let Some(mut t) = SelfTest::begin(&HOOK) else {
-            return (0, 0);
-        };
-        let copy = match copy(
-            0x487CAA,
-            0x1F,
-            &[0xC7, 0x05, 0xEC, 0x87, 0x75, 0x00, 0x00, 0x00, 0x00, 0x00],
-            &[0x14, 0x19],
-            &START_ARCADE_CALLEES,
-            &[],
-        ) {
-            Ok(c) => c,
-            Err(why) => return t.skip(why),
-        };
-        let vars = [at(ARCADE_LEVEL_RVA), at(ARCADE_STAGE_RVA)];
-        let saved = capture(&vars);
-        run_both(
-            &mut t,
-            "once",
-            &copy,
-            &vars,
-            &|| {
-                p(ARCADE_LEVEL_RVA, 3);
-                p(ARCADE_STAGE_RVA, 5);
-            },
-            Regs::SENTINEL,
-            false,
-            &|r| unsafe { start_arcade(r, &mut test_part) },
-        );
-        restore(&vars, &saved);
-        t.finish()
+        )
     }
 }
-
-/// The seven, for the registry.
-pub static HOOKS: [&dyn crate::framework::GameHook; 7] = [
-    &show_intro_hook::HOOK,
-    &previous_save_page_hook::HOOK,
-    &open_steering_box_hook::HOOK,
-    &open_brake_box_hook::HOOK,
-    &view_stage_details_hook::HOOK,
-    &new_simulation_if_unlocked_hook::HOOK,
-    &start_arcade_hook::HOOK,
-];

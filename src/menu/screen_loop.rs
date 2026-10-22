@@ -60,7 +60,8 @@ use crate::menu::handle_yes_no::LEAVING_RVA;
 use crate::menu::item_at::CURRENT_MENU_RVA;
 use crate::menu::navigation::Game;
 use crate::menu::run_item_action::run_item_action;
-use crate::menu::run_list::{in_game, run_list};
+use crate::menu::run_list::run_list;
+use crate::menu::table_calls::call as table_call;
 use crate::menu::text_entry::ENTERING_RVA;
 use crate::menu::update_blink::update_blink;
 use crate::menu::update_frame_clock::CLOCK_RVA;
@@ -339,8 +340,8 @@ impl Env for Real {
                     update_blink();
                     true
                 }
-                RUN_LIST => run_list(regs.esi, &entry, &mut in_game).is_ok(),
-                RUN_ITEM_ACTION => run_item_action(regs.edi, &entry, &mut in_game).is_ok(),
+                RUN_LIST => run_list(regs.esi, &entry, &mut table_call).is_ok(),
+                RUN_ITEM_ACTION => run_item_action(regs.edi, &entry, &mut table_call).is_ok(),
                 // `nullsub_83`, `nullsub_84` (the review options' set-up and leaving).
                 NULLSUB_83 | NULLSUB_84 => true,
                 HANDLE_KEYS => {
@@ -353,7 +354,7 @@ impl Env for Real {
             }
         };
         if !done {
-            unsafe { call_game(regs, game_addr(function)) };
+            crate::menu::table_calls::call_any(game_addr(function) as u32, regs);
         }
     }
 
@@ -727,6 +728,24 @@ pub fn dispatch_screen(hook: &RawHook, r: &mut Regs, call_original: CallOriginal
     log(&format!(
         "{name}: the Rust version has left the screen ({why})"
     ));
+}
+
+/// `dispatch_screen` outside shadow mode, without its hook (typed tables, 2026-10-22: the entry the menus' and draw lists' enums run, with no hook).
+pub fn screen_entry(
+    name: &str,
+    r: &mut Regs,
+    screen: &Screen,
+) -> Result<(), crate::errors::Refused> {
+    log(&format!("{name}: the Rust version runs"));
+    let entry = *r;
+    let why = unsafe { screen_loop(screen, &entry, &mut Real) };
+    if let Some(result) = screen.result {
+        r.eax = unsafe { result() };
+    }
+    log(&format!(
+        "{name}: the Rust version has left the screen ({why})"
+    ));
+    Ok(())
 }
 
 // ---- self-test: a copy of the original whose calls follow a script ----

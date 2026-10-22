@@ -97,8 +97,6 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &needle_1b::HOOK,
     &needle_2a::HOOK,
     &needle_2b::HOOK,
-    &overlay_pass::HOOK,
-    &overlay_states::HOOK,
     &set_batch_depth::HOOK,
     &set_batch_texture::HOOK,
     &tenths::HOOK,

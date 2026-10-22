@@ -15,7 +15,7 @@
 //! on the same stand-ins, the switch 0 and 1, the draw failing or not.
 
 use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
+    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
 use crate::service::harness::{at, capture, restore};
 use std::sync::atomic::AtomicUsize;
@@ -68,7 +68,7 @@ pub fn game_part(place: u32, r: &mut Regs) {
         2 => LOG_TEXT_RVA,
         _ => LOG_HEX8_RVA,
     };
-    unsafe { call_game(r, game_addr(at)) };
+    crate::calls::call(at, r);
 }
 
 extern "C" fn dispatch(r: &mut Regs) {

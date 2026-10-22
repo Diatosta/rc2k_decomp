@@ -11,9 +11,7 @@
 //! the colour kept compared.
 
 use crate::d3d::recorder::record;
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
 use crate::service::harness::{at, capture, restore};
 use std::sync::atomic::AtomicUsize;
 
@@ -43,7 +41,7 @@ pub unsafe fn set_fog_colour(colour: u32) {
             ebx: s.state,
             ..Regs::default()
         };
-        call_game(&mut r, game_addr(LAYER_RVA));
+        crate::calls::call(LAYER_RVA, &mut r);
     }
 }
 

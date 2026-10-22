@@ -15,7 +15,9 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
 use crate::system::api_stand_ins::{Api, copy_with};
-use crate::system::exit_parts::{LOG_2_NL, MESSAGE_BOX, Part, compare_exit, dispatch_exit};
+use crate::system::exit_parts::{
+    LOG_2_NL, MESSAGE_BOX, Part, compare_exit, dispatch_exit, exit_entry,
+};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -91,6 +93,12 @@ fn in_game(r: &mut Regs, part: Part, api: Api) -> Result<(), Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_exit(&HOOK, r, call_original, in_game);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    exit_entry(r, in_game)
 }
 
 fn self_test() -> (usize, usize) {

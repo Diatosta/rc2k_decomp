@@ -186,13 +186,13 @@ pub unsafe fn main_loop(vars: &Vars, stack: u32, outside: Outside) -> Result<(),
 /// The calls: the Rust versions of what is ported, the game for the rest (the front end
 /// through its own hook).
 fn in_game(call: Call) -> Result<(), Refused> {
-    let game = |at: usize, eax: u32| unsafe {
-        call_game(
+    let game = |at: usize, eax: u32| {
+        crate::calls::call(
+            rva(at),
             &mut Regs {
                 eax,
                 ..Regs::default()
             },
-            game_addr(rva(at)),
         )
     };
     unsafe {

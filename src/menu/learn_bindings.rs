@@ -7,10 +7,9 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Callers: the actions of the four controller pages' items (0x749C70 ..). Shadow mode runs
-//! the original alone (the clock differs between two runs). Self-test: the original and the
-//! Rust version from the same start: the flag and the control the same, the clocks within
-//! 50 ms of each other.
+//! Callers: the actions of the four controller pages' items (0x749C70 ..).
+//! Hooks removed 2026-10-22 (typed tables) but for `learn_binding_11`, which a screen calls by
+//! address: the controller pages' items run their `entry` (`menu::table_calls`).
 
 use crate::framework::{Regs, SelfTest, game_read, game_write, rva};
 
@@ -120,6 +119,12 @@ macro_rules! learn {
                 learn_binding($control);
             }
 
+            /// The Rust version where the typed tables run it (no hook; a refusal is the caller's).
+            pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+                learn_binding($control);
+                Ok(())
+            }
+
             fn self_test() -> (usize, usize) {
                 test(&HOOK, call_original, $control)
             }
@@ -127,29 +132,31 @@ macro_rules! learn {
     };
 }
 
-learn!(learn_binding_1, "menu::learn_binding_1", 0x46AFC6, 1);
-learn!(learn_binding_2, "menu::learn_binding_2", 0x46AFE7, 2);
-learn!(learn_binding_3, "menu::learn_binding_3", 0x46B008, 3);
-learn!(learn_binding_4, "menu::learn_binding_4", 0x46B029, 4);
-learn!(learn_binding_5, "menu::learn_binding_5", 0x46B04A, 5);
-learn!(learn_binding_6, "menu::learn_binding_6", 0x46B06B, 6);
-learn!(learn_binding_7, "menu::learn_binding_7", 0x46B08C, 7);
-learn!(learn_binding_8, "menu::learn_binding_8", 0x46B0AD, 8);
-learn!(learn_binding_9, "menu::learn_binding_9", 0x46B0CE, 9);
-learn!(learn_binding_10, "menu::learn_binding_10", 0x46B0EF, 10);
+/// `learn` without the hook: the bindings the typed tables run (hooks removed 2026-10-22).
+macro_rules! learn_entry {
+    ($module:ident, $name:literal, $address:expr, $control:expr) => {
+        pub mod $module {
+            use super::*;
+            /// The Rust version where the typed tables run it (`menu::table_calls`; hook removed
+            /// 2026-10-22).
+            pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+                learn_binding($control);
+                Ok(())
+            }
+        }
+    };
+}
+
+learn_entry!(learn_binding_1, "menu::learn_binding_1", 0x46AFC6, 1);
+learn_entry!(learn_binding_2, "menu::learn_binding_2", 0x46AFE7, 2);
+learn_entry!(learn_binding_3, "menu::learn_binding_3", 0x46B008, 3);
+learn_entry!(learn_binding_4, "menu::learn_binding_4", 0x46B029, 4);
+learn_entry!(learn_binding_5, "menu::learn_binding_5", 0x46B04A, 5);
+learn_entry!(learn_binding_6, "menu::learn_binding_6", 0x46B06B, 6);
+learn_entry!(learn_binding_7, "menu::learn_binding_7", 0x46B08C, 7);
+learn_entry!(learn_binding_8, "menu::learn_binding_8", 0x46B0AD, 8);
+learn_entry!(learn_binding_9, "menu::learn_binding_9", 0x46B0CE, 9);
+learn_entry!(learn_binding_10, "menu::learn_binding_10", 0x46B0EF, 10);
 learn!(learn_binding_11, "menu::learn_binding_11", 0x46B110, 11);
 
-/// The eleven, for the registry.
-pub static HOOKS: [&dyn crate::framework::GameHook; 11] = [
-    &learn_binding_1::HOOK,
-    &learn_binding_2::HOOK,
-    &learn_binding_3::HOOK,
-    &learn_binding_4::HOOK,
-    &learn_binding_5::HOOK,
-    &learn_binding_6::HOOK,
-    &learn_binding_7::HOOK,
-    &learn_binding_8::HOOK,
-    &learn_binding_9::HOOK,
-    &learn_binding_10::HOOK,
-    &learn_binding_11::HOOK,
-];
+pub static HOOKS: [&dyn crate::framework::GameHook; 1] = [&learn_binding_11::HOOK];

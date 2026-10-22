@@ -16,22 +16,16 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! Reached through the time trial's start menu. The first five bytes hold no jump target
-//! or call. Ungated (a whole event). Refuses a missing player before anything, and what
-//! the callees and the stage's record (`Hand::Stage`) refuse when they are reached. Shadow mode runs the
-//! original alone. Self-test: `rounds::test_rounds`.
+//! Reached through the time trial's start menu. Refuses a missing player before anything, and
+//! what the callees and the stage's record (`Hand::Stage`) refuse when they are reached.
+//! Hook removed 2026-10-22 (typed tables): the start menus run its `entry`
+//! (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::menu::event_flow::*;
 use crate::menu::flow_game::Game;
-use crate::menu::rounds::*;
 use rc2k_core::menu::rounds;
-
-const CALLS: &[usize] = &[
-    0xB, 0x10, 0x15, 0x7A, 0x7F, 0x91, 0xA6, 0xAB, 0xBD, 0xCC, 0xDB, 0xEA, 0x10F, 0x138, 0x147,
-    0x160, 0x19E, 0x1AD, 0x1BC, 0x1D1, 0x1DF, 0x1EE, 0x1FC, 0x20A, 0x21D, 0x222, 0x266,
-];
 
 flow_hook!("menu::time_trial_split", 0x48AFD0, time_trial_split, test);
 
@@ -40,42 +34,4 @@ pub unsafe fn time_trial_split(entry: &Regs, call: Call) -> Result<Regs, Refused
     // Converted: `rc2k_core::menu::rounds::time_trial_split`.
     rounds::time_trial_split(&mut Game::new(entry, call))?;
     Ok(*entry)
-}
-
-fn test(t: crate::framework::SelfTest) -> (usize, usize) {
-    if stage_record().is_err() {
-        return t.skip("no stage tables for the chosen stage");
-    }
-    let flow = Flow {
-        address: 0x48AFD0,
-        len: 0x26D,
-        // pusha; mov g_eventMode, 3
-        entry: &[
-            0x60, 0xC7, 0x05, 0xD0, 0x56, 0x75, 0x00, 0x03, 0x00, 0x00, 0x00,
-        ],
-        calls: CALLS,
-        fatal_jumps: &[],
-        writes: &WRITES,
-    };
-    let race = |a: u32, b: u32| Answer::write(RACE_RESULT, a).and(RACE_RESULT_2, b);
-    let mut rounds = crate::menu::time_trial_one::time_trial_scripts(1, TIME_TRIAL_RESULTS_LOOP);
-    rounds.extend([
-        (
-            "both results -1, the review leaves".to_string(),
-            vec![
-                (RACE, vec![race(u32::MAX, u32::MAX)]),
-                (REVIEW_485F5E, vec![Answer::write(LEAVE, 1)]),
-            ],
-        ),
-        (
-            "one result, the review's yes not looked at, then the stage choice's".to_string(),
-            vec![
-                (RACE, vec![race(u32::MAX, 4), race(2, 2)]),
-                (REVIEW_485F5E, vec![Answer::yes()]),
-            ],
-        ),
-    ]);
-    test_rounds(t, &flow, 2, rounds, &|r, c| unsafe {
-        time_trial_split(r, c)
-    })
 }

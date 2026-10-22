@@ -307,7 +307,7 @@ pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused
                 let (value, state) = (r.eax, r.ebx);
                 crate::scene::set_render_state::set_render_state(r, value, state);
             }
-            4 => call_game(r, game_addr(CLEAR_TEXTURE_RVA)),
+            4 => crate::calls::call(CLEAR_TEXTURE_RVA, r),
             5 => {
                 let left = crate::marks::drift_offsets::drift_offsets(r);
                 *r = Regs { esp: r.esp, ..left };

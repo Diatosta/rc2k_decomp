@@ -11,22 +11,16 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! Reached through the start menu's table. A call at +1: a private copy (0x20E bytes, its
-//! 26 calls relocated) and a jump written by hand. Ungated (a whole event). Refuses a
-//! missing player before anything, and what the callees refuse when they are reached.
-//! Shadow mode runs the original alone. Self-test: `rounds::test_rounds`.
+//! Reached through the start menu's table. Refuses a missing player before anything, and what
+//! the callees refuse when they are reached.
+//! Hook removed 2026-10-22 (typed tables): the start menus run its `entry`
+//! (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::menu::event_flow::*;
 use crate::menu::flow_game::Game;
-use crate::menu::rounds::*;
 use rc2k_core::menu::rounds;
-
-const CALLS: &[usize] = &[
-    0x1, 0x6, 0xB, 0x2E, 0x62, 0x74, 0xA8, 0xBA, 0xC9, 0xD8, 0xE7, 0xF6, 0x105, 0x10A, 0x133,
-    0x142, 0x150, 0x155, 0x16C, 0x17B, 0x189, 0x18E, 0x1A2, 0x1B5, 0x1BA, 0x207,
-];
 
 flow_hook!(
     "menu::single_rally_two",
@@ -99,23 +93,4 @@ pub fn round_scripts(n: u32, results: usize) -> Vec<(String, Script)> {
         ));
     }
     out
-}
-
-fn test(t: crate::framework::SelfTest) -> (usize, usize) {
-    let flow = Flow {
-        address: 0x4826A2,
-        len: 0x20E,
-        // pusha; call menu::begin_event
-        entry: &[0x60, 0xE8, 0x02, 0x05, 0xFF, 0xFF],
-        calls: CALLS,
-        fatal_jumps: &[],
-        writes: &WRITES,
-    };
-    test_rounds(
-        t,
-        &flow,
-        2,
-        round_scripts(2, RESULTS_48584B),
-        &|r, c| unsafe { single_rally_two(r, c) },
-    )
 }

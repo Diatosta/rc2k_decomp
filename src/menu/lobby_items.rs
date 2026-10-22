@@ -16,7 +16,7 @@
 //! call goes to a stand-in, against the Rust versions.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::menu::parts::{Part, copy, dispatch_parted, run_both, test_part};
 use std::sync::atomic::AtomicUsize;
 
@@ -25,7 +25,7 @@ const START_LINK: usize = 0x416F50; // net::start_link
 
 /// The Rust versions' one call (place 0).
 fn game_part(_: u32, r: &mut Regs, callee: usize) -> Result<(), Refused> {
-    unsafe { call_game(r, game_addr(rva(callee))) };
+    crate::calls::call(rva(callee), r);
     Ok(())
 }
 

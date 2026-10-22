@@ -133,7 +133,7 @@ pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
         r.set_carry(false);
         return Ok(());
     }
-    unsafe { call_game(r, game_addr(DETECT_RVA)) };
+    crate::calls::call(DETECT_RVA, r);
     Ok(())
 }
 

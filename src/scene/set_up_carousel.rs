@@ -12,7 +12,6 @@
 //! and then that menu's numbers, the object's size `dword_635038`, the entries' kinds
 //! from `dword_75A674` on, `g_carouselCount`, the front, angle and direction 0, and
 //! the spacing and place (`dword_75A664` .. `dword_75A670`).
-//! Four are written by hand, the cars' carousels:
 //! - 0xB (`sub_48FED9`) the cars of the list `off_759DCA`, 0xD (`sub_4A08AB`) those
 //!   of the list in esi: the list's address to `dword_75A65C`; for each entry until
 //!   -1, the car's number (its first dword) picks a kind from `dword_75A1FE`, which
@@ -28,35 +27,16 @@
 //! - 0xC (`sub_48FF83`) the six fixed kinds 0x195 .. 0x1BD with `off_759D16` as the
 //!   list (esi = it).
 //!
-//! 26 callers (the screen loops' set-up).
-//! Refuses, for the cars' carousels, no list, a list without its -1 within 0x100
-//! entries, an entry that is not there, and a car's number of 0x400 or more.
-//! Compared in shadow mode.
-//! Self-test: every menu and some outside on the game's variables, the cars'
-//! carousels also on lists of the test's.
+//! 26 callers (the screen loops' set-up). Refuses, for the cars' carousels, no list, a list
+//! without its -1 within 0x100 entries, an entry that is not there, and a car's number of 0x400
+//! or more. Hook removed 2026-10-22 (direct calls): Rust callers run its `entry`
+//! (`calls::call`, `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    EAX, EBX, ECX, EDI, ESI, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm,
-    rva,
-};
+use crate::framework::{EAX, EBX, ECX, EDI, ESI, Regs, game_addr, game_read, game_write, rva};
 use crate::scene::carousel_set_ups::PLAIN;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
-use std::cell::Cell;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::set_up_carousel", rva(0x4904DD), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at, state_entry};
 
 // ---- game data ----
 
@@ -106,7 +86,7 @@ unsafe fn store(address: usize, value: u32) {
     unsafe { game_write(rva(address), value) }
 }
 
-unsafe fn entry(list: u32, n: usize) -> u32 {
+unsafe fn list_entry(list: u32, n: usize) -> u32 {
     unsafe { ((list as usize + n * 4) as *const u32).read_unaligned() }
 }
 
@@ -116,7 +96,7 @@ unsafe fn check_cars(list: u32, from_second: bool) -> Result<(), Refused> {
     unsafe {
         Ok(carousel::check_cars(
             list,
-            |n| entry(list, n),
+            |n| list_entry(list, n),
             |car| (car as *const u32).read_unaligned(),
             from_second,
         )?)
@@ -186,9 +166,9 @@ pub unsafe fn set_up_carousel(r: &mut Regs) -> Result<(), Refused> {
                 let list = r.esi;
                 check_cars(list, true)?;
                 store(0x75AA8C, 1);
-                let count = carousel::list_end(|n| entry(list, n), 1).unwrap_or(0);
+                let count = carousel::list_end(|n| list_entry(list, n), 1).unwrap_or(0);
                 if count == 1 {
-                    r.eax = entry(list, 0);
+                    r.eax = list_entry(list, 0);
                     ((list as usize + 4) as *mut u32).write_unaligned(r.eax);
                 }
                 cars(r, list, 0xC);
@@ -209,8 +189,6 @@ pub unsafe fn set_up_carousel(r: &mut Regs) -> Result<(), Refused> {
         Ok(())
     }
 }
-
-// ---- hook ----
 
 /// Everything it may write but a changed list.
 fn regions() -> [Region; 6] {
@@ -238,67 +216,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
         .with(EDI, left.edi))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let mut regions = regions().to_vec();
     // Menu 0xE may write over its list's first -1.
     if unsafe { game_read::<u32>(MENU_RVA) } == 0xE && r.esi != 0 {
         regions.push((r.esi.wrapping_add(4), 4));
     }
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let menu = [at(MENU_RVA)];
-    let regions = regions();
-    let saved = (capture(&regions), capture(&menu));
-    // Cars of the test's: their first dword is the number.
-    let records: [Cell<[u32; 4]>; 8] =
-        std::array::from_fn(|n| Cell::new([n as u32 * 3 + 1, 0, 0, 0]));
-    let car = |n: usize| records[n].as_ptr() as u32;
-    // Lists of the test's: one, two, five, none, and one followed by two more.
-    let lists: [Cell<[u32; 10]>; 5] = Default::default();
-    let fill_lists = || {
-        let end = u32::MAX;
-        lists[0].set([car(0), end, end, 0, 0, 0, 0, 0, 0, 0]);
-        lists[1].set([car(1), car(2), end, 0, 0, 0, 0, 0, 0, 0]);
-        lists[2].set([car(3), car(4), car(5), car(6), car(7), end, 0, 0, 0, 0]);
-        lists[3].set([end, end, end, 0, 0, 0, 0, 0, 0, 0]);
-        lists[4].set([car(2), end, car(4), car(5), end, 0, 0, 0, 0, 0]);
-    };
-    for value in (0..MENUS).chain([0x15, 0x20, 0xFFFF_FFFF]) {
-        let with_lists: &[usize] = if value == 0xD || value == 0xE {
-            &[0, 1, 2, 3, 4]
-        } else {
-            &[0]
-        };
-        for &n in with_lists {
-            let list = lists[n].as_ptr() as u32;
-            let mut all = regions.to_vec();
-            all.push((list, 40));
-            check_state(
-                &mut t,
-                &format!("menu {value:#x}, list {n}"),
-                call_original,
-                Regs {
-                    esi: list,
-                    ..Regs::SENTINEL
-                },
-                &|| unsafe {
-                    restore(&regions, &vec![0xAA; saved.0.len()]);
-                    fill_lists();
-                    game_write(MENU_RVA, value);
-                },
-                &all,
-                &rust,
-            );
-        }
-    }
-    restore(&regions, &saved.0);
-    restore(&menu, &saved.1);
-    t.finish()
+    state_entry(r, &rust)
 }

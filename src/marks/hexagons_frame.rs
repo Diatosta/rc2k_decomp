@@ -488,7 +488,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             1 => hexagons_drift::hexagons_drift(r)?,
             2 => hexagons_setup::hexagons_setup(r, &mut hexagons_setup::game_part)?,
             3 => {
-                call_game(r, game_addr(rva(0x41ADB9)));
+                crate::calls::call(rva(0x41ADB9), r);
                 return Ok(());
             }
             _ => hexagons_spawn::hexagons_spawn(r),

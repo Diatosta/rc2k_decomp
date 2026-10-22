@@ -24,56 +24,27 @@
 //! `sub_471F7E` (`menu::ready_players`), `maybeCopySomeData` (`saves::keep_player_settings`,
 //! esi the saved cars) and the two event loops (`menu::run_championship`,
 //! `menu::run_a8_championship`) are their Rust versions; the other four (`sub_4748B6`,
-//! `sub_470D08`, `sub_47059E`, `sub_40F059`) are called with `call_game` (three of them
-//! through their hooks), with the registers the original has at each call. Ten menu tables
-//! point at this function.
-//! Refuses, before anything is done: a slot past 99, a missing player or a car without
-//! its pointer at +0x18; later, what its Rust callees refuse (the event loops when their
-//! callees refuse; the original then runs from the start).
-//! It runs the game, so shadow mode runs the original alone, and the thunk is not gated: a
-//! whole event runs inside this call, and a gated thunk would count the game's thread as
-//! "inside a hook" for all that time. The self-test runs a copy of the original whose eight
-//! calls go to stand-ins that note the call; it loads a real saved game into the game's
-//! state and puts everything back.
-//! Manual patch with a private copy (0x1B8 bytes, 11 calls and one jump out relocated): a
-//! call sits in the first bytes.
+//! `sub_470D08`, `sub_47059E`, `sub_40F059`) are called with `call_game` (three of them through
+//! their hooks), with the registers the original has at each call. Ten menu tables point at
+//! this function. Refuses, before anything is done: a slot past 99, a missing player or a car
+//! without its pointer at +0x18; later, what its Rust callees refuse (the event loops when
+//! their callees refuse; the original then runs from the start). Hook removed 2026-10-22 (typed
+//! tables): the menus and draw lists run its `entry` (`menu::table_calls`); the registers above
+//! are the original's, for reference.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::files::numbered_path::buffer as path_buffer;
-use crate::files::read_file::LAST_FILE_PATH_RVA;
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::menu::go_back;
-use crate::menu::name_lists::{NAME_LEN as SLOT_NAME_LEN, SAVEGAME_PAGE_RVA};
-use crate::redirect::RedirectedCopy;
+use crate::menu::name_lists::SAVEGAME_PAGE_RVA;
 use crate::saves::gather_savegame::{
-    CAR_LEN, CAR0_A_RVA, CAR0_B_RVA, CARS, HEAD_RVAS, NAME_LEN, NAME_OFFSET, NAME_PTR_OFFSET,
+    CAR_LEN, CAR0_A_RVA, CAR0_B_RVA, HEAD_RVAS, NAME_LEN, NAME_OFFSET, NAME_PTR_OFFSET,
     RECORDS_LEN, RECORDS_RVA, cars,
 };
 use crate::saves::read_savegame_slot::read_savegame_slot;
-use crate::saves::write_savegame_slot::{FILE_LEN, FILE_RVA, SLOTS, slot_name};
-use crate::service::harness::{Region, at, capture, restore};
-use crate::service::state::{MENU_ITEM_RVA, menu_item};
+use crate::saves::write_savegame_slot::{FILE_RVA, SLOTS};
+use crate::service::state::menu_item;
 use rc2k_core::saves::savegame::{A8_MODE, CORRUPT, Resume, resume};
 use std::ptr::copy_nonoverlapping;
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("saves::load_savegame", rva(0x46E6E1), thunk, &ORIGINAL)
-    .private_copy(0x1B8)
-    .relocate_calls(&[1, 55, 157, 162, 311, 341, 389, 394, 411, 416, 428, 433])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
 
 // ---- game data ----
 
@@ -124,7 +95,7 @@ fn in_game(callee: Callee, regs: &mut Regs) -> Result<(), Refused> {
                     ..crate::menu::run_a8_championship::run_a8_championship(regs, &mut game_call)?
                 }
             }
-            _ => call_game(regs, game_addr(rva(callee as usize))),
+            _ => crate::calls::call(rva(callee as usize), regs),
         }
     }
     Ok(())
@@ -227,211 +198,10 @@ pub unsafe fn load_savegame(entry: &Regs, game: Game) -> Result<(), Refused> {
     Ok(())
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let entry = *r;
-    if let Err(e) = unsafe { load_savegame(&entry, &mut in_game) } {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-    }
-}
-
-// ---- self-test: a copy whose eight calls only note that they were made ----
-
-const FUNCTION_LEN: usize = 0x1B8;
-const ENTRY_BYTES: [u8; 6] = [0x60, 0xE8, 0x97, 0x38, 0x00, 0x00]; // pusha; call sub_471F7E
-const CALL_OFFSETS: [usize; 11] = [1, 55, 157, 162, 311, 389, 394, 411, 416, 428, 433];
-
-static CALLS: [AtomicU32; 16] = [const { AtomicU32::new(0) }; 16];
-static CALL_COUNT: AtomicU32 = AtomicU32::new(0);
-static EVENT_STATE: AtomicU32 = AtomicU32::new(0);
-
-/// A stand-in for one callee: writes its address into the list of calls made.
-macro_rules! stand_in {
-    ($name:ident, $callee:expr $(, $extra:literal)?) => {
-        #[unsafe(naked)]
-        unsafe extern "C" fn $name() {
-            core::arch::naked_asm!(
-                "push ecx",
-                "mov ecx, [{count}]",
-                "and ecx, 15",
-                "mov dword ptr [{calls} + ecx * 4], {id}",
-                "inc dword ptr [{count}]",
-                "pop ecx",
-                $($extra,)?
-                "ret",
-                count = sym CALL_COUNT,
-                calls = sym CALLS,
-                id = const $callee as u32,
-                state = sym EVENT_STATE,
-            )
-        }
-    };
-}
-stand_in!(fake_prepare, Callee::Prepare, "test dword ptr [{state}], 0");
-stand_in!(
-    fake_copy_some_data,
-    Callee::CopySomeData,
-    "test dword ptr [{state}], 0"
-);
-stand_in!(
-    fake_after_head,
-    Callee::AfterHead,
-    "test dword ptr [{state}], 0"
-);
-stand_in!(fake_event_state, Callee::EventState, "mov eax, [{state}]");
-stand_in!(
-    fake_before_event,
-    Callee::BeforeEvent,
-    "test dword ptr [{state}], 0"
-);
-stand_in!(
-    fake_run_event_13,
-    Callee::RunEventMode13,
-    "test dword ptr [{state}], 0"
-);
-stand_in!(
-    fake_run_event,
-    Callee::RunEvent,
-    "test dword ptr [{state}], 0"
-);
-stand_in!(fake_refuse, Callee::Refuse, "test dword ptr [{state}], 0");
-
-fn noted(callee: Callee, regs: &mut Regs) -> Result<(), Refused> {
-    let n = CALL_COUNT.fetch_add(1, Ordering::SeqCst) & 15;
-    CALLS[n as usize].store(callee as u32, Ordering::SeqCst);
-    if callee == Callee::EventState {
-        regs.eax = EVENT_STATE.load(Ordering::SeqCst);
-    }
+    unsafe { load_savegame(&entry, &mut in_game) }?;
     Ok(())
-}
-
-/// Everything a load writes in the game, to compare and to put back.
-fn touched(cars: [u32; CARS], slot: u32) -> Vec<Region> {
-    let mut regions: Vec<Region> = HEAD_RVAS.map(at).to_vec();
-    for rva in [
-        LOADING_RVA,
-        CLEARED_A_RVA,
-        CLEARED_B_RVA,
-        SAVED_CARS_PTR_RVA,
-        CONTINUING_RVA,
-        CAR0_A_RVA,
-        CAR0_B_RVA,
-        LAST_FILE_PATH_RVA,
-    ] {
-        regions.push(at(rva));
-    }
-    regions.extend(go_back::regions());
-    for car in cars {
-        let name = unsafe { ((car + NAME_PTR_OFFSET) as *const u32).read_unaligned() };
-        regions.push((name, NAME_LEN));
-        regions.push((car, CAR_LEN));
-    }
-    regions.push((game_addr(RECORDS_RVA) as u32, RECORDS_LEN));
-    regions.push((game_addr(FILE_RVA) as u32, FILE_LEN));
-    regions.push((path_buffer() as u32, 0x100));
-    if slot < SLOTS {
-        regions.push((slot_name(slot) as u32, SLOT_NAME_LEN));
-    }
-    regions
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let Ok(cars) = cars() else {
-        return t.skip("the players are not there");
-    };
-    let redirect = |target: usize| {
-        let stand_in: unsafe extern "C" fn() = match target {
-            t if t == rva(Callee::Prepare as usize) => fake_prepare,
-            t if t == rva(Callee::CopySomeData as usize) => fake_copy_some_data,
-            t if t == rva(Callee::AfterHead as usize) => fake_after_head,
-            t if t == rva(Callee::EventState as usize) => fake_event_state,
-            t if t == rva(Callee::BeforeEvent as usize) => fake_before_event,
-            t if t == rva(Callee::RunEventMode13 as usize) => fake_run_event_13,
-            t if t == rva(Callee::RunEvent as usize) => fake_run_event,
-            t if t == rva(Callee::Refuse as usize) => fake_refuse,
-            _ => return None, // read_savegame_slot, go_back
-        };
-        Some(stand_in as *const () as usize)
-    };
-    let copy = match unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x46E6E1)),
-            FUNCTION_LEN,
-            &ENTRY_BYTES,
-            &CALL_OFFSETS,
-            &redirect,
-        )
-    } {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-
-    let inputs = [at(SAVEGAME_PAGE_RVA), at(MENU_ITEM_RVA), at(SKIP_COPY_RVA)];
-    let saved_inputs = capture(&inputs);
-    let observed = || {
-        (
-            CALLS.each_ref().map(|c| c.load(Ordering::SeqCst)),
-            CALL_COUNT.load(Ordering::SeqCst),
-        )
-    };
-
-    // Slot 0 (the owner's first saved game, if there is one) and slot 99 (none, normally).
-    // Only event states the original accepts: any other is a fatal error.
-    for (page, item) in [(0u32, 1u32), (9, 10)] {
-        unsafe {
-            game_write(SAVEGAME_PAGE_RVA, page);
-            game_write(MENU_ITEM_RVA, item);
-        }
-        let regions = touched(cars, highlighted_slot());
-        let saved = capture(&regions);
-        for state in [0u32, 1, 3, 4, 5] {
-            for skip_copy in [0u32, 1] {
-                let prepare = || {
-                    restore(&regions, &saved);
-                    unsafe {
-                        game_write(SKIP_COPY_RVA, skip_copy);
-                        for rva in [LOADING_RVA, CLEARED_A_RVA, CLEARED_B_RVA, CONTINUING_RVA] {
-                            game_write(rva, 0x5EED_0001u32);
-                        }
-                    }
-                    for call in CALLS.iter().chain([&CALL_COUNT]) {
-                        call.store(0, Ordering::SeqCst);
-                    }
-                    EVENT_STATE.store(state, Ordering::SeqCst);
-                };
-
-                prepare();
-                let before = Regs::SENTINEL;
-                let mut ro = before;
-                unsafe { call_game(&mut ro, copy.addr()) };
-                let theirs = (capture(&regions), observed());
-
-                prepare();
-                let outcome = unsafe { load_savegame(&before, &mut noted) };
-                let mine = (capture(&regions), observed());
-
-                let preserved = ro.preserved_except(&before, 0);
-                t.check(outcome.is_ok() && theirs == mine && preserved, || {
-                    let first = mine.0.iter().zip(&theirs.0).position(|(a, b)| a != b);
-                    format!(
-                        "page={page} item={item} state={state} skip_copy={skip_copy}: preserved={preserved} original calls {:x?}; rust {outcome:?} calls {:x?}; first different byte of the state: {first:x?}",
-                        &theirs.1.0[..theirs.1.1.min(16) as usize],
-                        &mine.1.0[..mine.1.1.min(16) as usize]
-                    )
-                });
-            }
-        }
-        restore(&regions, &saved);
-    }
-    restore(&inputs, &saved_inputs);
-    t.finish()
 }

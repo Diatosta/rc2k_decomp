@@ -15,7 +15,7 @@
 //! layouts.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::{g, p};
 use crate::race::viewer::{Part, Saved, answer, dispatch_parts, dword, run_both, test_part};
 use std::sync::atomic::AtomicUsize;
@@ -72,7 +72,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     } else {
         crate::gfx::take_screenshot::UNLOCK
     };
-    unsafe { call_game(r, game_addr(rva(at))) };
+    crate::calls::call(rva(at), r);
     Ok(())
 }
 

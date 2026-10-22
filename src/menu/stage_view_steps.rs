@@ -29,7 +29,7 @@
 //! the speeches and pictures; what `item_at` refuses.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, rva};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
 use crate::menu::parts::{Answer, Part, answers, copy, dispatch_parted, run_both, test_part};
 use crate::records::find_record::{find_record_in, has_section};
 use crate::screens::harness::{CallOriginal, Left};
@@ -209,13 +209,13 @@ pub fn picture_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     } else {
         CONVERT_PICTURE
     };
-    unsafe { call_game(r, game_addr(rva(at))) };
+    crate::calls::call(rva(at), r);
     Ok(())
 }
 
 pub fn page_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     if place == 0 {
-        unsafe { call_game(r, game_addr(rva(DRAW_STAGE_MAP))) };
+        crate::calls::call(rva(DRAW_STAGE_MAP), r);
     } else {
         *r = unsafe { play_stage_speech(r, &mut speech_part) }?;
     }
@@ -258,6 +258,15 @@ pub fn dispatch_page(hook: &RawHook, r: &mut Regs, call_original: CallOriginal, 
     );
 }
 
+/// `dispatch_page` without its hook (typed tables).
+pub fn page_entry(r: &mut Regs, up: bool) -> Result<(), Refused> {
+    crate::menu::parts::parted_entry(
+        r,
+        &|r, part| unsafe { step_stage_page(r, up, part) },
+        page_part,
+    )
+}
+
 /// What the plain ones write: the page count, menu item 1.
 pub fn plain_regions() -> Vec<Region> {
     let mut r = vec![at(PAGES_RVA)];
@@ -274,6 +283,11 @@ pub fn dispatch_plain(
     rust: crate::service::harness::Rust,
 ) {
     dispatch_state(hook, r, call_original, &plain_regions(), rust);
+}
+
+/// `dispatch_plain` without its hook (typed tables).
+pub fn plain_entry(r: &mut Regs, rust: crate::service::harness::Rust) -> Result<(), Refused> {
+    crate::service::harness::state_entry(r, rust)
 }
 
 // ---- self-tests ----

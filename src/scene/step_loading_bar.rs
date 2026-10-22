@@ -14,9 +14,7 @@
 //! test points at a stand-in of its own; 30 cases.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
 use crate::install::stand_ins::{set_handler, stand_in};
 use crate::service::harness::{at, capture, restore};
 use std::sync::Mutex;
@@ -94,7 +92,7 @@ extern "C" fn dispatch(r: &mut Regs) {
     let done = unsafe {
         step_loading_bar(r, &mut |inner| {
             let show = inner.esi as usize;
-            call_game(inner, show);
+            crate::menu::table_calls::call_any(show as u32, inner);
         })
     };
     if let Err(e) = done {
@@ -149,7 +147,7 @@ fn self_test() -> (usize, usize) {
                 let kept = if rust {
                     step_loading_bar(&before, &mut |inner| {
                         let show = inner.esi as usize;
-                        call_game(inner, show);
+                        crate::menu::table_calls::call_any(show as u32, inner);
                     })
                     .is_ok()
                 } else {

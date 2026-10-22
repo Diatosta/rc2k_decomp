@@ -88,10 +88,10 @@ fn in_game(call: Call) -> Result<(), Refused> {
             Call::DropMissingControllers => {
                 crate::menu::drop_missing_controllers::drop_missing_controllers()?
             }
-            Call::BuildFonts => call_game(&mut Regs::default(), game_addr(rva(0x415563))),
-            Call::Films => call_game(&mut Regs::default(), game_addr(rva(0x4161CD))),
+            Call::BuildFonts => crate::calls::call(rva(0x415563), &mut Regs::default()),
+            Call::Films => crate::calls::call(rva(0x4161CD), &mut Regs::default()),
             Call::Log(text) => crate::menu::text_entry::log_l1(text as *const u8, true),
-            Call::MainMenuLoop => call_game(&mut Regs::default(), game_addr(rva(0x4748D9))),
+            Call::MainMenuLoop => crate::calls::call(rva(0x4748D9), &mut Regs::default()),
             Call::StorePlayerNames => {
                 crate::menu::store_player_names::store_player_names(&mut |line| {
                     crate::menu::text_entry::log_l1(line, true)
@@ -123,6 +123,19 @@ extern "C" fn dispatch(r: &mut Regs) {
         }
         Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    log("menu::run_front_end: the Rust version runs");
+    match unsafe { run_front_end(&mut in_game) } {
+        Ok(()) => {
+            r.eax = 0;
+            log("menu::run_front_end: the Rust version has come back");
+        }
+        Err(e) => return Err(e),
+    }
+    Ok(())
 }
 
 // ---- self-test ----

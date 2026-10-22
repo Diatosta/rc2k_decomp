@@ -21,7 +21,7 @@ use crate::framework::{
 };
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::fill_row_table::{ROW_TABLE_ROOM, ROW_TABLE_RVA, fill_row_table, row_address};
-use crate::gfx::harness::dispatch_pixels;
+use crate::gfx::harness::{dispatch_pixels, pixels_entry};
 use crate::gfx::pixel_format::{PixelFormat, SCRATCH_RVA, TEST_FORMATS};
 use crate::gfx::rescale_picture::STEP_X_RVA;
 use crate::redirect::RedirectedCopy;
@@ -162,6 +162,23 @@ extern "C" fn dispatch(r: &mut Regs) {
         regions.push((field(PIXELS), row * field(HEIGHT) as usize));
     }
     dispatch_pixels(&HOOK, r, call_original, &regions, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    // The surface's pixels, as far as its description says they go.
+    let surface = game_addr(SURFACE_RVA) as *const u32;
+    let field = |offset: usize| unsafe { surface.byte_add(offset).read_unaligned() };
+    let bytes = if field(BITS) == 0x10 { 2 } else { 4 };
+    let row = (field(WIDTH) as usize)
+        .saturating_mul(bytes)
+        .saturating_add(field(ROW_GAP) as usize);
+    let mut regions = work_regions();
+    if field(PIXELS) != 0 && row.saturating_mul(field(HEIGHT) as usize) < 0x100_0000 {
+        regions.push((field(PIXELS), row * field(HEIGHT) as usize));
+    }
+    pixels_entry(r, &rust)
 }
 
 // ---- self-test ----

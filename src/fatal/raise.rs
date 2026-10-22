@@ -13,9 +13,7 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::fatal::report::{CODE_RVA, MESSAGE_RVA};
-use crate::framework::{
-    GameHook, RawHook, Regs, call_game, game_addr, game_write, log, rva, shadow,
-};
+use crate::framework::{GameHook, RawHook, Regs, game_write, log, rva, shadow};
 use crate::threading::find_thread_slot::find_thread_slot;
 use std::ffi::CString;
 use std::sync::Mutex;
@@ -38,7 +36,7 @@ pub unsafe fn raise(error: FatalError, regs: &Regs) {
         game_write(CODE_RVA, error.code);
         game_write(MESSAGE_RVA, message);
         let mut regs = *regs;
-        call_game(&mut regs, game_addr(REPORTER_RVA));
+        crate::calls::call(REPORTER_RVA, &mut regs);
     }
 }
 

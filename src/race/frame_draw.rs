@@ -2457,7 +2457,7 @@ pub fn sky_part(place: u32, r: &mut crate::framework::Regs) -> Result<(), Refuse
                     .iter()
                     .find(|&&(p, _)| p == place)
                     .map_or(0, |&(_, a)| a);
-                crate::framework::call_game(r, crate::framework::game_addr(rva(callee)));
+                crate::calls::call(rva(callee), r);
             }
         }
     }

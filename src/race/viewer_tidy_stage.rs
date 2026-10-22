@@ -19,7 +19,7 @@
 //! built.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
 use crate::race::viewer::{
     Part, Saved, answer, dispatch_parts, dword, get, put, run_both, test_part,
 };
@@ -93,7 +93,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         match place {
             1 => *r = race_end::tidy_everything(r, &LoadVars::game(), &mut race_end::tidy_part)?,
-            2 | 3 | 5 => call_game(r, game_addr(rva(CALLEES[place as usize]))),
+            2 | 3 | 5 => crate::calls::call(rva(CALLEES[place as usize]), r),
             4 => {
                 sound_tables::clear_race_sound_objects(r, &mut sound_tables::object_part)?;
             }

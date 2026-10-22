@@ -6,25 +6,13 @@
 //! It is the action of the back button of several menus and the last step of other actions
 //! (seven callers, ten menu tables), so it is read as "leave this menu"; what each of the
 //! three variables means has not been worked out.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::game_write;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::go_back", rva(0x471C82), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at, state_entry};
 
 // ---- game data ----
 
@@ -43,39 +31,13 @@ pub fn go_back() {
     crate::menu::leaving::with_leaving(|l| l.go_back());
 }
 
-// ---- hook ----
-
 fn rust(_: &Regs) -> Result<Left, Refused> {
     go_back();
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let saved = capture(&regions());
-    for fill in [0u32, 0x5EED_0001] {
-        check_state(
-            &mut t,
-            &format!("fill={fill:#x}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                game_write(A_RVA, fill);
-                game_write(B_RVA, fill);
-                game_write(C_RVA, fill);
-            },
-            &regions(),
-            &rust,
-        );
-    }
-    restore(&regions(), &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

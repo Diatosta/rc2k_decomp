@@ -7,34 +7,14 @@
 //! `scene::load_slot_texture` for the slots 0 .. `dword_5DC970`.
 //! Six callers.
 //! Refuses no slots (the original goes through 2^32) and more than the table has.
-//! Shadow mode runs the original alone (each slot is checked in its own hook).
-//! Self-test: a redirected copy whose call notes the slot.
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    ECX, RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva,
-    shadow,
-};
-use crate::install::stand_ins::{act, set_handler, stand_in};
-use crate::redirect::RedirectedCopy;
+use crate::framework::{ECX, Regs, game_read};
 use crate::scene::load_slot_texture::load_slot_texture_in_game;
-use crate::scene::textures::{SLOT_COUNT_RVA, SLOTS};
+use crate::scene::textures::SLOT_COUNT_RVA;
 use crate::screens::harness::Left;
-use crate::service::harness::{at, capture, restore};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::load_slot_textures", rva(0x425778), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- Rust version ----
 
@@ -51,96 +31,15 @@ pub unsafe fn load_slot_textures(
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let entry = *r;
     match unsafe { load_slot_textures(&mut |slot| load_slot_texture_in_game(slot, &entry)) } {
         Ok(left) => left.apply(r),
         Err(e) => {
             let e: Refused = e.into();
-            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) }
+            return Err(e);
         }
     }
-}
-
-// ---- self-test ----
-
-const LEN: usize = 0x16;
-const ENTRY_BYTES: [u8; 5] = [0xB9, 0x00, 0x00, 0x00, 0x00];
-const CALLS: [usize; 1] = [0x06];
-
-static CALLED: Mutex<Vec<u32>> = Mutex::new(Vec::new());
-
-fn handler(_: u32, r: &mut Regs) {
-    CALLED.lock().unwrap().push(r.ecx);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x425778)),
-            LEN,
-            &ENTRY_BYTES,
-            &CALLS,
-            &|callee| (callee == rva(0x425ADE)).then(|| stand_in(0)),
-        )
-    };
-    let copy = match copy {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    let inputs = [at(SLOT_COUNT_RVA)];
-    let saved = capture(&inputs);
-    for count in [1u32, 2, 9, 0x100, SLOTS] {
-        let run = |rust: bool| unsafe {
-            game_write(SLOT_COUNT_RVA, count);
-            CALLED.lock().unwrap().clear();
-            set_handler(handler);
-            let before = Regs::SENTINEL;
-            let mut r = before;
-            if rust {
-                let left = load_slot_textures(&mut |slot| {
-                    act(
-                        0,
-                        &mut Regs {
-                            ecx: slot,
-                            ..before
-                        },
-                    );
-                    Ok(())
-                });
-                match left {
-                    Ok(left) => left.apply(&mut r),
-                    Err(_) => r = Regs::default(),
-                }
-            } else {
-                call_game(&mut r, copy.addr());
-            }
-            (
-                [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp],
-                CALLED.lock().unwrap().clone(),
-            )
-        };
-        let (theirs, mine) = (run(false), run(true));
-        t.check(theirs == mine && theirs.1.len() == count as usize, || {
-            format!(
-                "{count:#x} slots: original {:x?}, {} calls; rust {:x?}, {} calls",
-                theirs.0,
-                theirs.1.len(),
-                mine.0,
-                mine.1.len()
-            )
-        });
-    }
-    restore(&inputs, &saved);
-    t.finish()
+    Ok(())
 }

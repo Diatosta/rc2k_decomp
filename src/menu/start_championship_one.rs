@@ -5,10 +5,10 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! Reached through a start menu's table. A call at +1: a private copy (its calls relocated) and a
-//! jump written by hand. Ungated (a whole event). Refuses a missing player before anything, and
-//! what the callees refuse when they are reached. Shadow mode runs the original alone. Self-test:
-//! `start_event::test_starter`.
+//! Reached through a start menu's table. Refuses a missing player before anything, and what the
+//! callees refuse when they are reached.
+//! Hook removed 2026-10-22 (typed tables): the start menus run its `entry`
+//! (`menu::table_calls`).
 
 use crate::menu::start_event::{Starter, starter_hook};
 use rc2k_core::menu::starters::{self, Championship, Seats};

@@ -58,7 +58,7 @@ pub unsafe fn clear_depth_buffer(r: &mut Regs, clear: &mut dyn FnMut(&mut Regs))
 }
 
 pub unsafe fn clear_depth_buffer_in_game(r: &mut Regs) -> Result<(), Refused> {
-    unsafe { clear_depth_buffer(r, &mut |r| call_game(r, game_addr(CLEAR_RVA))) };
+    unsafe { clear_depth_buffer(r, &mut |r| crate::calls::call(CLEAR_RVA, r)) };
     Ok(())
 }
 
@@ -70,7 +70,7 @@ extern "C" fn dispatch(r: &mut Regs) {
         unsafe { call_original(r) };
         return;
     }
-    unsafe { clear_depth_buffer(r, &mut |r| call_game(r, game_addr(CLEAR_RVA))) };
+    unsafe { clear_depth_buffer(r, &mut |r| crate::calls::call(CLEAR_RVA, r)) };
 }
 
 // ---- self-test ----

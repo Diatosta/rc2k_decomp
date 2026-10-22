@@ -166,48 +166,18 @@ pub fn test_starter(t: SelfTest, s: &'static Starter) -> (usize, usize) {
 /// A starter's hook file: the hook, its dispatch and its test.
 macro_rules! starter_hook {
     ($name:literal, $starter:ident, $($patch:tt)*) => {
-        static ORIGINAL: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
-
-        pub static HOOK: $crate::framework::RawHook = $crate::framework::RawHook::new(
-            $name,
-            $crate::framework::rva($starter.address),
-            thunk,
-            &ORIGINAL,
-        )
-        $($patch)*
-        .self_test(self_test);
-
-        $crate::framework::hook_asm!(
-            thunk,
-            call_original,
-            dispatch = dispatch,
-            original = ORIGINAL,
-            ungated
-        );
-
-        extern "C" fn dispatch(r: &mut $crate::framework::Regs) {
-            HOOK.count_call();
-            if $crate::framework::shadow() {
-                unsafe { call_original(r) };
-                return;
-            }
-            match unsafe {
+        /// The Rust version where the typed tables run it (`menu::table_calls`; hook removed
+        /// 2026-10-22).
+        pub fn entry(r: &mut $crate::framework::Regs) -> Result<(), $crate::errors::Refused> {
+            let left = unsafe {
                 $crate::menu::start_event::start_event(
                     &$starter,
                     r,
                     &mut $crate::menu::event_flow::game_call,
                 )
-            } {
-                Ok(left) => *r = $crate::framework::Regs { esp: r.esp, ..left },
-                Err(e) => unsafe { $crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-            }
-        }
-
-        fn self_test() -> (usize, usize) {
-            let Some(t) = $crate::framework::SelfTest::begin(&HOOK) else {
-                return (0, 0);
-            };
-            $crate::menu::start_event::test_starter(t, &$starter)
+            }?;
+            *r = $crate::framework::Regs { esp: r.esp, ..left };
+            Ok(())
         }
     };
 }

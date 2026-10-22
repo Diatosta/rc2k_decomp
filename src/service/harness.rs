@@ -135,6 +135,14 @@ pub fn dispatch_state(
     r.esp = esp;
 }
 
+/// `dispatch_state` outside shadow mode, without its hook (typed tables, 2026-10-22: the entry the menus' and draw lists' enums run, with no hook): the Rust version, the
+/// registers it leaves applied. A refusal is the caller's; the Rust version has written
+/// nothing then.
+pub fn state_entry(r: &mut Regs, rust: Rust) -> Result<(), Refused> {
+    rust(r)?.apply(r);
+    Ok(())
+}
+
 /// `dispatch_state` for a function that takes the pending key. The key comes from another
 /// thread at any moment, so in shadow mode the original runs first, on the real key; then the
 /// variables are put back, the Rust version runs with that same key replayed, the two results

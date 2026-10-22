@@ -7,7 +7,7 @@
 //! compared: the game's memory, the objects, the backend's notes and a result.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{Regs, SelfTest, call_game, game_addr, rva};
+use crate::framework::{Regs, SelfTest, game_addr, rva};
 use crate::input::devices::com_call;
 use crate::input::di_objects::{TestWorld, describe, take_test_notes};
 use crate::service::harness::{Region, capture, diff_summary, restore};
@@ -94,7 +94,7 @@ pub const fn fatal(code: u32) -> FatalError {
 /// what comes back (the function keeps them all).
 pub fn call_pusha(at: usize, r: &Regs) -> Result<(), Refused> {
     let mut r = *r;
-    unsafe { call_game(&mut r, game_addr(rva(at))) };
+    crate::calls::call(rva(at), &mut r);
     Ok(())
 }
 

@@ -12,36 +12,18 @@
 //! Screen: confirmed by the owner on 2026-10-10: the stage details that can be opened from the
 //! service area of a championship, the screen after the first stage details where the car is
 //! set up and repaired before the stage. Named `draw_stage_info_alt` until then.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, hook_asm, rva};
+use crate::framework::{Regs, game_read, rva};
 use crate::screens::draw_stage_heading::draw_stage_heading;
-use crate::screens::draw_stage_info::{
-    MODE_RVA, TITLE_X, TITLE_Y, event_stage, event_stage_unusable, event_title,
-};
+use crate::screens::draw_stage_info::{MODE_RVA, TITLE_X, TITLE_Y, event_stage, event_title};
 use crate::screens::stage_panel::{
-    BEST_TIMES_PTR_RVA, TITLE_FONT, body_unavailable, build_second_heading, check_panel,
-    dispatch_panel, draw_records_from, draw_stage_body, label,
+    BEST_TIMES_PTR_RVA, TITLE_FONT, build_second_heading, draw_records_from, draw_stage_body,
+    label, panel_entry,
 };
 use crate::text::draw_text::Canvas;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_service_stage_info",
-    rva(0x480064),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -64,25 +46,10 @@ pub unsafe fn draw_service_stage_info(canvas: &mut dyn Canvas) -> Result<bool, R
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_panel(&HOOK, r, call_original, &|canvas| unsafe {
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    panel_entry("screens::draw_service_stage_info", r, &|canvas| unsafe {
         draw_service_stage_info(canvas)
-    });
-}
-
-// ---- self-test: one case, the event's current stage (see draw_stage_info) ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = body_unavailable().or_else(|| unsafe { event_stage_unusable() }) {
-        return t.skip(why);
-    }
-    check_panel(&mut t, call_original, &|canvas| unsafe {
-        draw_service_stage_info(canvas)
-    });
-    t.finish()
+    })
 }

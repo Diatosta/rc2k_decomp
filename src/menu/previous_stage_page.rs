@@ -3,29 +3,14 @@
 //!
 //! In:  nothing
 //! Out: every register kept
-//! A left/right handler of the stage view's item. Shadow mode runs the original alone (it
-//! draws the map and starts a stream). Self-test: `stage_view_steps::test_page`.
+//! A left/right handler of the stage view's item.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::menu::stage_view_steps::{dispatch_page, test_page};
-use std::sync::atomic::AtomicUsize;
+use crate::framework::Regs;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::previous_stage_page", rva(0x46FAEE), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_page(&HOOK, r, call_original, false);
-}
-
-fn self_test() -> (usize, usize) {
-    test_page(&HOOK, 0x46FAEE, false)
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::menu::stage_view_steps::page_entry(r, false)
 }

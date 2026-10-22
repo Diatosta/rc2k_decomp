@@ -175,7 +175,7 @@ pub unsafe fn build_texture_catalogue_in_game() -> Result<(), Refused> {
                     raise_texture_needs(level, tag);
                 }
                 Call::Try => return Ok(try_allocate_textures_in_game()?),
-                Call::Release => call_game(&mut Regs::default(), game_addr(RELEASE_RVA)),
+                Call::Release => crate::calls::call(RELEASE_RVA, &mut Regs::default()),
                 Call::CountNeeds => {
                     count_texture_needs_in_game()?;
                 }

@@ -79,6 +79,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     r.eflags = o.eflags;
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let found = unsafe { find_running_game() };
+    set_flags(r, found);
+    Ok(())
+}
+
 // ---- self-test ----
 
 fn self_test() -> (usize, usize) {

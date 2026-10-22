@@ -3,32 +3,15 @@
 //! In:  nothing
 //! Out: every register preserved
 //!
-//! See `menu/choose_key.rs`. Compared in shadow mode. Self-test: three settings.
+//! See `menu/choose_key.rs`.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::menu::choose_key::{check_choose, dispatch_choose};
-use std::sync::atomic::AtomicUsize;
+use crate::framework::Regs;
+use crate::menu::choose_key::choose_entry;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::choose_key_5", rva(0x46833C), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_choose(&HOOK, r, call_original, 5);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    check_choose(&mut t, call_original, 5);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    choose_entry(r, 5)
 }

@@ -20,7 +20,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
+    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
 use crate::race::mud::{copy, run_both_from};
 use crate::service::harness::{Region, at, capture, restore};
@@ -134,7 +134,7 @@ pub unsafe fn blit_map_tiles(entry: &Regs, part: Part) -> Result<Regs, Refused> 
 
 /// In the game: the platform's lock and unlock through the game.
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { call_game(r, game_addr(if place == 0 { LOCK_RVA } else { UNLOCK_RVA })) };
+    crate::calls::call(if place == 0 { LOCK_RVA } else { UNLOCK_RVA }, r);
     Ok(())
 }
 

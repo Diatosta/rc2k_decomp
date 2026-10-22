@@ -23,7 +23,7 @@
 //! the flags, the calls (place, registers, and a text a call gets) and memory.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{CARRY_FLAG, Regs, SelfTest, ZERO_FLAG, call_game, game_addr, rva};
+use crate::framework::{CARRY_FLAG, Regs, SelfTest, ZERO_FLAG, game_addr, rva};
 use crate::service::harness::{Region, capture, diff_summary, restore};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -562,10 +562,10 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             // game's hooked functions
             RUN_FRAME | LOCK | UNLOCK | SHOW | PUMP | BUILD_FONTS | COPY_PICTURE | FILL_RECT
             | FRAME_RECT | BLIT_GLYPH | LOAD_PICTURE | CONVERT_PICTURE | PICTURE_AS_SURFACE => {
-                call_game(r, place as usize)
+                crate::menu::table_calls::call_any(place, r)
             }
             // a list's action that is not the installer's: the game's
-            _ => call_game(r, place as usize),
+            _ => crate::menu::table_calls::call_any(place, r),
         }
     }
     Ok(())

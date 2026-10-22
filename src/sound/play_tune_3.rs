@@ -46,6 +46,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_sender(&HOOK, r, call_original, &SENDER);
 }
 
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    send_entry(r, &SENDER)
+}
+
 // ---- self-test: a redirected copy whose command and wait note the registers ----
 
 fn self_test() -> (usize, usize) {

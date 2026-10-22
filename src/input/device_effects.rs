@@ -17,7 +17,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::field;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_read, hook_asm, rva, shadow};
+use crate::framework::{RawHook, Regs, SelfTest, game_read, hook_asm, rva, shadow};
 use crate::input::devices::{RECORD_LEN, at, put, test_record};
 use crate::input::types::{ForceEffect, InputDevice};
 use crate::service::harness::{Region, at as at_rva, capture, restore};
@@ -92,7 +92,7 @@ pub unsafe fn device_effects(entry: &Regs, part: Part) -> Result<Regs, Refused> 
 /// In the game: the effect's function (`[edi]`) through the game.
 pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     let function = at(r.edi, 0);
-    unsafe { call_game(r, function as usize) };
+    crate::menu::table_calls::call_any(function, r);
     Ok(())
 }
 

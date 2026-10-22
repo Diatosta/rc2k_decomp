@@ -11,46 +11,23 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! In the draw list 0x758E4E of `menu::unused_section_times_loop_1` / `_2` (0x466E50,
-//! 0x467392), which nothing reaches (no code or data refers to them, 2026-10-20): only the
-//! self-test runs it. Refuses (before anything) a section past
-//! the six or with no table, and a line past the line buffer. Compared in shadow mode
-//! (`dispatch_draw`). Self-test: each section, nothing drawn (skipped without the fonts).
+//! Refuses (before anything) a section past the six or with no table, and a line past the line
+//! buffer. In the draw list 0x758E4E of `menu::unused_section_times_loop_1` / `_2` (0x466E50,
+//! 0x467392), which nothing reaches (no code or data refers to them, 2026-10-20). Hook removed
+//! 2026-10-22 (typed tables): the menus and draw lists run its `entry` (`menu::table_calls`);
+//! the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::screens::LINE_BUFFER_RVA;
-use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::harness::{Left, check_draw, dispatch_draw};
-use crate::service::harness::{Region, at, capture, restore};
+use crate::framework::{Regs, game_read, rva};
+use crate::screens::harness::{Left, draw_entry};
 use crate::strings::append_time::show_hours;
 use crate::text::draw_text::Canvas;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_section_best_times",
-    rva(0x46762B),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const TABLES_RVA: usize = rva(0x742C98); // off_742C98: six tables
 const SECTIONS: u32 = 6;
 const SECTION_RVA: usize = rva(0x75595C); // section
-const ROW_RVA: usize = rva(0x7559AC); // seconds
+// seconds
 const ENTRY_LEN: u32 = 0x9C;
-const LINE_LEN: usize = 0x100;
-
 fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
@@ -92,39 +69,8 @@ fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-fn written() -> Vec<Region> {
-    vec![(game_addr(LINE_BUFFER_RVA) as u32, LINE_LEN), at(ROW_RVA)]
-}
-
-fn state() -> Vec<u8> {
-    capture(&written())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_draw(&HOOK, r, call_original, &rust, &state);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = text_unavailable() {
-        return t.skip(why);
-    }
-    let inputs = [at(SECTION_RVA)];
-    let saved = (capture(&inputs), state());
-    for section in 0..SECTIONS {
-        check_draw(
-            &mut t,
-            &format!("section {section}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe { game_write(SECTION_RVA, section) },
-            &rust,
-            &state,
-        );
-    }
-    restore(&inputs, &saved.0);
-    restore(&written(), &saved.1);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_section_best_times", r, &rust)
 }

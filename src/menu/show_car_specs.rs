@@ -15,9 +15,7 @@
 //! has no `pusha` for `fatal_landing`).
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::menu::parts::{Answer, Part, answers, copy, dispatch_parted, run_both, test_part};
 use crate::service::harness::{Region, at, capture, restore};
 use std::sync::atomic::AtomicUsize;
@@ -77,7 +75,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     match place {
         0 => crate::menu::arcade_steps::secret_car_list().apply(r),
         2 => unsafe { crate::menu::take_shown_car::take_shown_car(r.esi) }?,
-        _ => unsafe { call_game(r, game_addr(rva(CALLEES[place as usize]))) },
+        _ => crate::calls::call(rva(CALLEES[place as usize]), r),
     }
     Ok(())
 }

@@ -13,34 +13,14 @@
 //!
 //! Callers: `drive::race_loop`, `quit_question`, `pause_until_key`, `finish_run`,
 //! `sub_4607A5`. The drawing, the sound tick, the screenshot and the showing are their Rust
-//! versions; the window, the scene's begin and end and the restore through the game. A private copy (a call at +0). Ungated (the sound tick's quit jump
-//! does not come back). Shadow mode runs the original alone (it draws). Self-test: a copy
-//! whose calls go to `menu::scripted`'s stand-ins, against the Rust version: each way.
+//! versions; the window, the scene's begin and end and the restore through the game. A private
+//! copy (a call at +0).
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::service::harness::{at, capture, restore};
-use std::sync::atomic::AtomicUsize;
+use crate::framework::{Regs, game_read, rva};
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("drive::race_frame", rva(0x4541BF), thunk, &ORIGINAL)
-    .private_copy(0x6A)
-    .relocate_calls(&CALLS)
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
-
-const CALLS: [usize; 8] = [0x0, 0x20, 0x27, 0x2C, 0x36, 0x3B, 0x40, 0x58];
 const QUITTING_RVA: usize = rva(0x51837C); // g_quitting
 const ACTIVE_RVA: usize = rva(0x518374); // g_windowActive
 const LOST_RVA: usize = rva(0x518380); // dword_518380
@@ -138,131 +118,19 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         *r = unsafe { show_frame(r, &mut game_part) }?;
         return Ok(());
     }
-    unsafe { call_game(r, game_addr(rva(CALLED[place as usize]))) };
+    crate::calls::call(rva(CALLED[place as usize]), r);
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     // The thunk is ungated (a frame is long) and the Rust frame calls the Rust versions
     // directly, past every gate: one gate per frame, so that a `selftest`'s pause waits for
     // the frame under way and holds the next (as the audio thread's turns).
     crate::framework::hook_enter();
     let done = race_frame(r, &mut game_part);
     crate::framework::hook_leave();
-    match done {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::install::stand_ins::{set_handler, stand_in};
-    use crate::menu::scripted::{Answer, begin, handler, notes};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match unsafe {
-        crate::redirect::RedirectedCopy::new(
-            game_addr(rva(0x4541BF)),
-            0x6A,
-            &[0xE8, 0x71, 0xC3, 0xFB, 0xFF],
-            &CALLS,
-            &|c| {
-                (1..9)
-                    .find(|&p| rva(CALLED[p]) == c)
-                    .map(|p| stand_in(p as u32))
-            },
-        )
-    } {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    set_handler(handler);
-    let vars = [at(QUITTING_RVA), at(ACTIVE_RVA), at(LOST_RVA)];
-    let saved = capture(&vars);
-    let carry = Answer {
-        carry: true,
-        ..Answer::default()
-    };
-    let regs = |r: &Regs| {
-        [
-            r.eax,
-            r.ebx,
-            r.ecx,
-            r.edx,
-            r.esi,
-            r.edi,
-            r.ebp,
-            u32::from(r.carry()),
-            u32::from(r.eflags & 0x40 != 0),
-        ]
-    };
-    // (quitting, active, lost, begin's carry, the 2D pass's carry)
-    for (quitting, active, lost, begin_fails, show_fails) in [
-        (0u32, 1u32, 0u32, false, false),
-        (1, 1, 0, false, false),
-        (0, 0, 0, false, false),
-        (0, 1, 1, false, false),
-        (0, 1, 0, true, false),
-        (0, 1, 0, false, true),
-        (0, 1, 0, false, true),
-    ] {
-        let script = vec![
-            (
-                2,
-                vec![if begin_fails {
-                    carry
-                } else {
-                    Answer::default()
-                }],
-                Answer::default(),
-            ),
-            (
-                7,
-                vec![if show_fails { carry } else { Answer::default() }],
-                Answer::default(),
-            ),
-            (
-                8,
-                vec![],
-                Answer {
-                    eax: None,
-                    al: None,
-                    carry: false,
-                    zero: None,
-                    write: None,
-                },
-            ),
-        ];
-        let prepare = || unsafe {
-            game_write(QUITTING_RVA, quitting);
-            game_write(ACTIVE_RVA, active);
-            game_write(LOST_RVA, lost);
-        };
-        prepare();
-        begin(&script);
-        let mut ro = Regs::SENTINEL;
-        unsafe { call_game(&mut ro, copy.addr()) };
-        let theirs = (notes(), regs(&ro));
-        prepare();
-        begin(&script);
-        let mine = race_frame(&Regs::SENTINEL, &mut |p, r| {
-            handler(p, r);
-            Ok(())
-        });
-        let mine = (notes(), mine.as_ref().map(regs).unwrap_or_default());
-        t.check(theirs == mine, || {
-            format!(
-                "quitting {quitting}, active {active}, lost {lost}, begin fails {begin_fails}, show fails {show_fails}: calls {:x?} / {:x?}; registers {:x?} / {:x?}",
-                theirs.0, mine.0, theirs.1, mine.1
-            )
-        });
-    }
-    restore(&vars, &saved);
-    t.finish()
+    let left = done?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }

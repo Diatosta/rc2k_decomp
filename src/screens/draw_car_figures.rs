@@ -29,38 +29,22 @@
 //! In two draw lists (the car specification screens).
 //! Refuses a page past the four, what the record's lookup refuses, and a line longer
 //! than the line buffer.
-//! Self-test: records of the test's on the four pages, both unit settings, for car 0x21
-//! and another, with notice kind 3 and another; nothing drawn.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::menu::car_description::{CarDescription, read, shown_description};
-use crate::scene::carousel_pictures::ENTRIES_RVA;
 use crate::screens::LINE_BUFFER_RVA;
-use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::harness::{Left, check_draw, dispatch_draw};
-use crate::service::harness::{Region, at, capture, restore};
-use crate::strings::car_units::UNITS_RVA;
+use crate::screens::harness::{Left, draw_entry};
+use crate::service::harness::{at, capture};
 use crate::strings::text_from_ids::{TEXT_LEN, text};
 use crate::text::draw_text::Canvas;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("screens::draw_car_figures", rva(0x47CEB4), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
 const PAGE_RVA: usize = rva(0x755998); // dword_755998
-const CAR_RVA: usize = rva(0x755990); // dword_755990
+// dword_755990
 pub const NOTICE_KIND_RVA: usize = rva(0x4E07A0); // g_noticeKind
 pub const TEXT_KEPT_RVA: usize = rva(0x7559EC); // dword_7559EC
 pub const LINE_LEN: usize = 0x100;
@@ -106,8 +90,6 @@ pub unsafe fn draw_car_page(
     }
 }
 
-// ---- hook ----
-
 fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     Ok(Left::carry(unsafe { draw_car_figures(canvas) }?))
 }
@@ -120,11 +102,11 @@ pub fn state() -> Vec<u8> {
     ])
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_draw(&HOOK, r, call_original, &rust, &state);
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_car_figures", r, &rust)
 }
-
-// ---- self-test ----
 
 /// A record of the test's: string ids where the pages take strings, figures elsewhere.
 pub fn test_record(car: u32, seed: u32) -> [u32; 0x1D] {
@@ -147,64 +129,4 @@ pub fn test_record(car: u32, seed: u32) -> [u32; 0x1D] {
         record[offset / 4] = 0x249 + next(0x18);
     }
     record
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = text_unavailable() {
-        return t.skip(why);
-    }
-    let inputs: [Region; 5] = [
-        at(PAGE_RVA),
-        at(CAR_RVA),
-        at(ENTRIES_RVA),
-        at(UNITS_RVA),
-        (game_addr(NOTICE_KIND_RVA) as u32, 1),
-    ];
-    let saved = (capture(&inputs), state());
-    for page in 0..PAGES {
-        for units in [0u32, 1] {
-            for (case, (car, notice)) in [(0x21u32, 3u8), (0x21, 2), (5, 3), (0x10, 0)]
-                .iter()
-                .enumerate()
-            {
-                let record =
-                    std::cell::RefCell::new(test_record(*car, page * 31 + units * 7 + case as u32));
-                let fresh = *record.borrow();
-                let table = [record.as_ptr() as u32];
-                check_draw(
-                    &mut t,
-                    &format!("page {page}, units {units}, car {car:#x}, notice kind {notice}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &|| unsafe {
-                        *record.borrow_mut() = fresh;
-                        game_write(PAGE_RVA, page);
-                        game_write(CAR_RVA, 0u32);
-                        game_write(ENTRIES_RVA, table.as_ptr() as u32);
-                        game_write(UNITS_RVA, units);
-                        game_write(NOTICE_KIND_RVA, *notice);
-                    },
-                    &rust,
-                    &|| {
-                        let mut s = state();
-                        s.extend(record.borrow().iter().flat_map(|v| v.to_le_bytes()));
-                        s
-                    },
-                );
-            }
-        }
-    }
-    restore(&inputs, &saved.0);
-    restore(
-        &[
-            (game_addr(LINE_BUFFER_RVA) as u32, LINE_LEN),
-            (text() as u32, TEXT_LEN),
-            at(TEXT_KEPT_RVA),
-        ],
-        &saved.1,
-    );
-    t.finish()
 }

@@ -68,7 +68,7 @@ pub unsafe fn call_in_game(call: Call, r: &Regs) -> Result<(), Refused> {
                 )?;
                 Ok(false)
             }),
-            Call::Stream => play_car_stream(r, &mut |r| call_game(r, game_addr(CALLEES[1]))),
+            Call::Stream => play_car_stream(r, &mut |r| crate::calls::call(CALLEES[1], r)),
             Call::Picture(way) => load_slideshow_picture_in_game(way),
         }
     }

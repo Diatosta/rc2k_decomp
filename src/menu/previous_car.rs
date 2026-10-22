@@ -7,25 +7,12 @@
 //! `menu::load_car_background`; `sound::play_car_stream`.
 //! The callback at +0x40 of the car's button (menu table at 0x74B62C), reached by the
 //! arrow keys.
-//! Shadow mode runs the original alone.
-//! Self-test: `menu::car_buttons::check_button`.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
+use crate::framework::Regs;
 use crate::menu::car_buttons::*;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::previous_car", rva(0x469A6F), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- Rust version ----
 
@@ -36,35 +23,10 @@ pub unsafe fn previous_car(
     unsafe { press(Which::PreviousCar, call) }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let entry = *r;
-    if let Err(e) = unsafe { previous_car(&mut |call| call_in_game(call, &entry)) } {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) }
-    }
-}
-
-// ---- self-test ----
-
-const ORIGINAL_CODE: Original = Original {
-    address: 0x469A6F,
-    len: 0x32,
-    entry: [0x60, 0x83, 0x3D, 0x90, 0x59, 0x75],
-    calls: &[0x26, 0x2B],
-};
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    check_button(&mut t, &ORIGINAL_CODE, &|call| unsafe {
-        previous_car(call)
-    });
-    t.finish()
+    unsafe { previous_car(&mut |call| call_in_game(call, &entry)) }?;
+    Ok(())
 }

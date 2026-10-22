@@ -10,28 +10,12 @@
 //! on the way out of the front end), not of the audio thread's code. Named
 //! `sound::silence` at first.
 //! Seventeen callers.
-//! Shadow mode runs the original alone.
-//! Self-test: a redirected copy whose two calls note the registers they get.
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva, shadow};
-use crate::install::stand_ins::{act, set_handler, stand_in};
-use crate::redirect::RedirectedCopy;
+use crate::framework::Regs;
 use crate::sound::queue::{COMMAND_B, Queue, send_command, sent};
 use crate::sound::wait_for_commands::{Game, wait_for_commands};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("sound::stop_music", rva(0x40F826), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- Rust version ----
 
@@ -53,73 +37,8 @@ pub fn stop_music_in_game(entry: &Regs) {
     );
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     stop_music_in_game(r);
-}
-
-// ---- self-test ----
-
-const LEN: usize = 0x18;
-const ENTRY_BYTES: [u8; 8] = [0x60, 0x33, 0xC0, 0x33, 0xDB, 0x33, 0xC9, 0xBA];
-/// The sender of command 0xB and `sound::wait_for_commands`.
-const CALLS: [usize; 2] = [0x0C, 0x11];
-const CALLEES: [usize; 2] = [0x409BF6, 0x409C1E];
-
-/// Each call: its place and the seven registers a command holds.
-static CALLED: Mutex<Vec<(u32, [u32; 7])>> = Mutex::new(Vec::new());
-
-fn handler(place: u32, r: &mut Regs) {
-    CALLED.lock().unwrap().push((place, sent(r)));
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x40F826)),
-            LEN,
-            &ENTRY_BYTES,
-            &CALLS,
-            &|callee| {
-                CALLEES
-                    .iter()
-                    .position(|&known| rva(known) == callee)
-                    .map(|place| stand_in(place as u32))
-            },
-        )
-    };
-    let copy = match copy {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    let before = Regs::SENTINEL;
-    let run = |rust: bool| {
-        CALLED.lock().unwrap().clear();
-        set_handler(handler);
-        let preserved = if rust {
-            stop_music(&before, &mut |_, r| act(0, &mut { *r }), &mut |r| {
-                act(1, &mut { *r })
-            });
-            true
-        } else {
-            let mut ro = before;
-            unsafe { call_game(&mut ro, copy.addr()) };
-            ro.preserved_except(&before, 0)
-        };
-        (preserved, CALLED.lock().unwrap().clone())
-    };
-    let (theirs, mine) = (run(false), run(true));
-    t.check(theirs == mine && theirs.0 && theirs.1.len() == 2, || {
-        format!("original {theirs:x?}; rust {mine:x?}")
-    });
-    t.finish()
+    Ok(())
 }

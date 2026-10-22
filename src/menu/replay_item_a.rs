@@ -3,40 +3,17 @@
 //! In:  nothing
 //! Out: the registers as its calls leave them; no flags read
 //!
-//! An item action in six menu tables. Ungated (the viewer runs for long and gates its own frames).
-//! Shadow mode runs the original alone (the viewer plays the replay). Self-test: `replay_items::test_item`.
+//! An item action in six menu tables. Hook removed 2026-10-22 (typed tables): the menus and
+//! draw lists run its `entry` (`menu::table_calls`); the registers above are the original's,
+//! for reference.
 
-use crate::framework::{RawHook, Regs, hook_asm, rva, shadow};
-use crate::menu::replay_items::{game_part, replay_item_a, test_item};
-use std::sync::atomic::AtomicUsize;
+use crate::framework::Regs;
+use crate::menu::replay_items::{game_part, replay_item_a};
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::replay_item_a", rva(0x47053E), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { replay_item_a(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    test_item(&HOOK, 0x47053E, 0x2D, &[0x12, 0x1D, 0x27], &|r| unsafe {
-        replay_item_a(r, &mut crate::race::mud::test_part)
-    })
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { replay_item_a(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }

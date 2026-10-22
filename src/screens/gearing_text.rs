@@ -6,30 +6,17 @@
 //!
 //! `dword_7554F0` = the current player's (`dword_75598C`) `gearing`; the string and a NUL
 //! into `byte_A8BF54`. In two entry lists (0x7593FE, 0x75941A). Refuses a current player
-//! past four, a text longer than its place (0x100). Self-test: the game's player with values
-//! of the test's, the game's strings.
+//! past four, a text longer than its place (0x100).
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::menu::player::{Player, player_at};
 use crate::menu::take_shown_car::CURRENT_PLAYER_RVA;
 use crate::screens::car_caption::put_string;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
-use crate::strings::string_table::blob;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("screens::gearing_text", rva(0x4699E0), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at, state_entry};
 
 pub const KEPT_RVA: usize = rva(0x7554F0); // dword_7554F0
 pub const TEXT_RVA: usize = rva(0xA8BF54); // byte_A8BF54
@@ -80,38 +67,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if blob().is_null() {
-        return t.skip("string table not loaded");
-    }
-    let Ok(p) = current() else {
-        return t.skip("no current player");
-    };
-    let mut all = regions().to_vec();
-    all.push((p, std::mem::size_of::<Player>()));
-    let saved = capture(&all);
-    for value in 0..4u32 {
-        check_state(
-            &mut t,
-            &format!("gearing {value}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&all, &saved);
-                std::ptr::write_bytes(game_addr(TEXT_RVA) as *mut u8, 0xAA, TEXT_LEN);
-                (*(p as *mut Player)).gearing = value;
-            },
-            &regions(),
-            &rust,
-        );
-    }
-    restore(&all, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

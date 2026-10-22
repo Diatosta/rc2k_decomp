@@ -108,7 +108,7 @@ pub fn save_game(slot: u32) {
             ebx: slot,
             ..Regs::default()
         };
-        unsafe { call_game(&mut regs, game_addr(SAVE_GAME_RVA)) };
+        crate::calls::call(SAVE_GAME_RVA, &mut regs);
     }
 }
 

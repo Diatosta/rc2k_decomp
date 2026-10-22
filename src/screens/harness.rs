@@ -263,6 +263,16 @@ pub fn dispatch_draw_rewound(
     r.esp = esp;
 }
 
+/// `dispatch_draw` / `dispatch_draw_rewound` outside shadow mode, without its hook (typed tables, 2026-10-22: the entry the menus' and draw lists' enums run, with no hook):
+/// `blank` (by the function's name), then the Rust version on the game's screen.
+pub fn draw_entry(name: &str, r: &mut Regs, rust: Draw) -> Result<(), Refused> {
+    if blanked(name) {
+        return Ok(());
+    }
+    rust(r, &mut GameCanvas)?.apply(r);
+    Ok(())
+}
+
 fn first_difference(a: &[BlitCall], b: &[BlitCall]) -> Option<usize> {
     if a == b {
         return None;

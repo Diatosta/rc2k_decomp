@@ -55,6 +55,12 @@ pub fn dispatch_sender(hook: &RawHook, r: &mut Regs, call_original: CallOriginal
     }
 }
 
+/// `dispatch_sender` without its hook.
+pub fn send_entry(r: &mut Regs, sender: &Sender) -> Result<(), crate::errors::Refused> {
+    send_in_game(sender, r);
+    Ok(())
+}
+
 /// For Rust callers: what one of the senders' Rust versions gives, sent and waited for, as
 /// its hook does outside shadow mode.
 pub fn send_in_game(sender: &Sender, entry: &Regs) {

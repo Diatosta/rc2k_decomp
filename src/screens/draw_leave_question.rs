@@ -5,33 +5,13 @@
 //!
 //! String 0x537 at (0x197, 0x122) with the font at 0x51E8A4. In the question screen's
 //! draw list (0x758CA2).
-//! Self-test: the game's string and font, nothing drawn.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::harness::{Left, check_draw, dispatch_draw};
-use crate::service::harness::capture;
-use crate::strings::text_from_ids::{TEXT_LEN, text};
+use crate::framework::Regs;
+use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::Canvas;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_leave_question",
-    rva(0x46FA75),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- Rust version ----
 
@@ -40,38 +20,12 @@ pub unsafe fn draw_leave_question(canvas: &mut dyn Canvas) -> Result<Left, Refus
     crate::screens::game_screen::draw_note(canvas, &rc2k_core::screens::notes::LEAVE_QUESTION)
 }
 
-// ---- hook ----
-
 fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     unsafe { draw_leave_question(canvas) }
 }
 
-fn state() -> Vec<u8> {
-    capture(&[(text() as u32, TEXT_LEN)])
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_draw(&HOOK, r, call_original, &rust, &state);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = text_unavailable() {
-        return t.skip(why);
-    }
-    let saved = state();
-    check_draw(
-        &mut t,
-        "the question",
-        call_original,
-        Regs::SENTINEL,
-        &|| crate::service::harness::restore(&[(text() as u32, TEXT_LEN)], &saved),
-        &rust,
-        &state,
-    );
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_leave_question", r, &rust)
 }

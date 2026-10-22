@@ -90,6 +90,15 @@ extern "C" fn dispatch(r: &mut Regs) {
     r.eflags = o.eflags;
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    match unsafe { load_background(r.eax as *mut u8, r.ebx, &mut GameCanvas) } {
+        Ok(()) => r.set_carry(false),
+        Err(e) => return Err(e),
+    }
+    Ok(())
+}
+
 // ---- self-test: the loader's test files, with the sprite's drawing recorded and not done ----
 
 fn self_test() -> (usize, usize) {

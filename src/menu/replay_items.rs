@@ -3,7 +3,7 @@
 //! `dword_75ACDC` is 1 (a reading: the replay not to be had); see `race/replay_mode.rs`.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, call_game, game_addr, game_read, rva};
+use crate::framework::{Regs, game_read, rva};
 
 pub const NO_REPLAY_RVA: usize = rva(0x75ACDC); // dword_75ACDC
 const CALLEES: [usize; 4] = [0x41CD75, 0x41100C, 0x40F059, 0x41CD89];
@@ -50,7 +50,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             1 => crate::system::sleep::sleep(r.eax),
             2 => crate::sound::play_menu_sound::play_menu_sound_in_game(r),
             3 => *r = replay_mode(r, 3, &mut viewer)?,
-            _ => call_game(r, game_addr(rva(CALLEES[place as usize]))),
+            _ => crate::calls::call(rva(CALLEES[place as usize]), r),
         }
     }
     Ok(())

@@ -32,6 +32,14 @@ pub fn dispatch_choose(hook: &RawHook, r: &mut Regs, call_original: CallOriginal
     );
 }
 
+/// `dispatch_choose` without its hook (typed tables).
+pub fn choose_entry(r: &mut Regs, place: u32) -> Result<(), Refused> {
+    crate::service::harness::state_entry(r, &move |_: &Regs| -> Result<Left, Refused> {
+        choose_key(place);
+        Ok(Left::nothing())
+    })
+}
+
 pub fn check_choose(t: &mut SelfTest, call_original: CallOriginal, place: u32) {
     let regions = [at(REDEFINING_RVA), at(PLACE_RVA)];
     let saved = capture(&regions);

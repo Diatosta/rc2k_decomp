@@ -151,7 +151,7 @@ pub unsafe fn game_call(at: usize, r: &mut Regs) {
             }
             *r = entry;
         }
-        call_game(r, game_addr(rva(at)))
+        crate::calls::call(rva(at), r)
     }
 }
 

@@ -77,6 +77,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { cars() }?;
+    crate::service::harness::state_entry(r, &rust)
+}
+
 // ---- self-test: numbers of the test's in the game's cars, put back ----
 
 fn self_test() -> (usize, usize) {

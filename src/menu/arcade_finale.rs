@@ -17,9 +17,7 @@
 //! against the Rust version.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
 use crate::menu::parts::{Part, copy, dispatch_parted, run_both, test_part};
 use crate::menu::player::{PLAYERS_RVA, player_at};
 use crate::service::harness::{Region, at, capture, restore};
@@ -93,7 +91,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     if place == 13 {
         r.eax = r.eax & !0xFF | crate::input::take_key::take_key() as u32;
     } else {
-        unsafe { call_game(r, game_addr(rva(CALLEES[place as usize]))) };
+        crate::calls::call(rva(CALLEES[place as usize]), r);
     }
     Ok(())
 }

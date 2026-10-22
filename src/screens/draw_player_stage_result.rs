@@ -9,37 +9,16 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! In a menu loop's draw list (0x758E7E). Refuses (before anything) no current player or
-//! name, no stage records, and what `strings::append_speed` refuses. Compared in shadow mode
-//! (`dispatch_draw`; the measuring font left out: see `drawn_state`). Self-test: the page's stage and the players, nothing drawn (skipped
-//! without the fonts or the records).
+//! In a menu loop's draw list (0x758E7E). Refuses (before anything) no current player or name,
+//! no stage records, and what `strings::append_speed` refuses. Hook removed 2026-10-22 (typed
+//! tables): the menus and draw lists run its `entry` (`menu::table_calls`); the registers above
+//! are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva};
-use crate::screens::best_scores::{STAGE_TIMES, draw_times_heading, times_page_ready};
-use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::harness::{Left, check_draw, dispatch_draw};
-use crate::screens::line_buffer;
-use crate::service::harness::{Region, at, capture, restore};
+use crate::framework::Regs;
+use crate::screens::best_scores::{STAGE_TIMES, draw_times_heading};
+use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::Canvas;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_player_stage_result",
-    rva(0x486299),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The Rust version.
 pub unsafe fn draw_player_stage_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
@@ -82,63 +61,8 @@ fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-/// What is compared: the two buffers, not the measuring font. The Rust version is compared
-/// on a `RecordingCanvas` (in the self-test and in shadow mode), which leaves fonts alone,
-/// while the original's measuring writes its count at the font's +0x14: compared, the font
-/// mismatched on the first call after something had put a pointer back there (once a
-/// session, 2026-10-20).
-fn drawn_state() -> Vec<u8> {
-    capture(&[
-        (line_buffer() as u32, 0x100),
-        (crate::strings::text_from_ids::text() as u32, 0x100),
-    ])
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_draw(&HOOK, r, call_original, &rust, &drawn_state);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = text_unavailable() {
-        return t.skip(why);
-    }
-    if !unsafe { times_page_ready(&STAGE_TIMES) } {
-        return t.skip("no stage records");
-    }
-    // The measuring leaves its count in the font at 0x51E624's palette (+0x14), a pointer
-    // until then: put back per case (left changed until 2026-10-18).
-    let regions: Vec<Region> = vec![at(rva(0x75598C)), (game_addr(rva(0x51E624)) as u32, 0x20)];
-    let saved = capture(&regions);
-    for player in 0..crate::menu::player::PLAYERS {
-        if crate::menu::player::player_at(player) == 0 {
-            continue;
-        }
-        // A top speed the original's `miles_to_km` traps on (mid-race data while the page is
-        // not shown): not a case.
-        unsafe { game_write(rva(0x75598C), player) };
-        let traps = crate::menu::player_settings::current().is_ok_and(|block| {
-            let speed = unsafe { ((block as u32 + 0x94) as *const u32).read_unaligned() };
-            crate::strings::append_speed::traps(speed)
-        });
-        if traps {
-            continue;
-        }
-        check_draw(
-            &mut t,
-            &format!("player {player}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&regions, &saved);
-                game_write(rva(0x75598C), player)
-            },
-            &rust,
-            &drawn_state,
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_player_stage_result", r, &rust)
 }

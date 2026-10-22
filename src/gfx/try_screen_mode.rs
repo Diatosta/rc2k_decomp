@@ -18,7 +18,7 @@
 //! failing or not), against the Rust version, on a mode table of the test's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
 use crate::race::viewer::{
     Part, Saved, answer, dispatch_parts, dword, get, put, run_both, test_part,
 };
@@ -112,7 +112,7 @@ pub fn try_screen_mode(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 
 /// In both programs: the three calls through their hooks.
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { call_game(r, game_addr(rva(CALLEES[place as usize]))) };
+    crate::calls::call(rva(CALLEES[place as usize]), r);
     Ok(())
 }
 

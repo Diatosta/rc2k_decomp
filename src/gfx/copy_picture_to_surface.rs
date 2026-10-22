@@ -77,12 +77,12 @@ impl PictureSurface for GameSurface {
     }
     fn lock(&mut self) -> bool {
         let mut g = Regs::default();
-        unsafe { call_game(&mut g, game_addr(LOCK_SURFACE)) };
+        crate::calls::call(LOCK_SURFACE, &mut g);
         !g.carry()
     }
     fn unlock(&mut self) {
         let mut g = Regs::default();
-        unsafe { call_game(&mut g, game_addr(UNLOCK_SURFACE)) };
+        crate::calls::call(UNLOCK_SURFACE, &mut g);
     }
     fn picture(&self) -> *const u8 {
         picture()
@@ -199,6 +199,14 @@ extern "C" fn dispatch(r: &mut Regs) {
             format!("after the original, row {wrong:?} of the surface is not the picture's")
         });
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+    if let Err(e) = unsafe { copy_picture_to_surface(&mut GameSurface) } {
+        return Err(e.into());
+    }
+    Ok(())
 }
 
 // ---- self-test: a copy of the original whose lock and unlock are stand-ins and whose six

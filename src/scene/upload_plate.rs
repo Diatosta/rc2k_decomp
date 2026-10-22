@@ -160,7 +160,7 @@ pub unsafe fn upload_plate_in_game(r: &Regs) -> Result<(), Refused> {
         upload_plate(r, &mut |call| match call {
             Call::Lock(texture) => {
                 let mut regs = Regs { eax: texture, ..*r };
-                call_game(&mut regs, game_addr(LOCK_RVA));
+                crate::calls::call(LOCK_RVA, &mut regs);
                 !regs.carry()
             }
             Call::Blit(regs) => {
@@ -169,7 +169,7 @@ pub unsafe fn upload_plate_in_game(r: &Regs) -> Result<(), Refused> {
             }
             Call::Unlock(texture) => {
                 let mut regs = Regs { eax: texture, ..*r };
-                call_game(&mut regs, game_addr(UNLOCK_RVA));
+                crate::calls::call(UNLOCK_RVA, &mut regs);
                 true
             }
         })

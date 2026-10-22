@@ -16,9 +16,7 @@
 //! with the same, on the game's light settings (put back).
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva, shadow};
 use crate::race::noted_calls::{Part, both, copy};
 use crate::service::harness::{Region, capture, restore};
 use std::sync::atomic::AtomicUsize;
@@ -74,7 +72,7 @@ pub fn lit_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             COURSES => match crate::race::find_present_courses::find_present_courses(r) {
                 Ok(left) => left.apply(r),
                 // Its hook refuses it again and runs the original.
-                Err(_) => call_game(r, game_addr(rva(0x4394F8))),
+                Err(_) => crate::calls::call(rva(0x4394F8), r),
             },
             _ => crate::scene::fill_light_tables::fill_light_tables().apply(r),
         }

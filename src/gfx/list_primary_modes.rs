@@ -17,28 +17,11 @@
 
 use crate::errors::Refused;
 use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-    standalone,
+    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, rva, standalone,
 };
 use crate::gfx::mark_3d_modes::{ModeVars, mark_3d_modes};
 use crate::install::stand_ins::{act, set_handler, stand_in};
 use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("gfx::list_primary_modes", rva(0x4043DA), thunk, &ORIGINAL)
-    .private_copy(0x27)
-    .relocate_calls(&[0x03, 0x0D, 0x1B, 0x20])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -104,7 +87,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         };
     }
     if !standalone() {
-        unsafe { call_game(r, game_addr(rva(CALLEES[place as usize]))) };
+        crate::calls::call(rva(CALLEES[place as usize]), r);
     } else if place == 1 {
         unsafe { standalone_modes(r.eax) };
     }
@@ -143,21 +126,12 @@ pub unsafe fn standalone_modes(card: u32) {
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let entry = *r;
-    if let Err(e) = unsafe { list_primary_modes(&entry, &CardVars::game(), &mut game_part) } {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-    }
+    unsafe { list_primary_modes(&entry, &CardVars::game(), &mut game_part) }?;
+    Ok(())
 }
-
-// ---- self-test ----
 
 /// The calls noted: (place, eax).
 pub static NOTED: Mutex<Vec<(u32, u32)>> = Mutex::new(Vec::new());
@@ -247,23 +221,4 @@ pub fn compare(
         }
     }
     drop(m);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    compare(
-        &mut t,
-        &HOOK,
-        (
-            0x4043DA,
-            0x27,
-            &[0x60, 0x33, 0xC0, 0xE8, 0x0A, 0x05, 0x00, 0x00],
-            &[0x03, 0x0D, 0x1B, 0x20],
-            1,
-        ),
-        list_primary_modes,
-    );
-    t.finish()
 }

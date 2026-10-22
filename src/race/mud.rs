@@ -168,12 +168,11 @@ pub unsafe fn init_mud(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// The game's calls: the Rust versions, and the surface's lock and unlock at the game's
 /// addresses (DirectDraw, the platform).
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::framework::call_game;
     unsafe {
         match place {
             0 | 1 => crate::race::level_init::game_part(place, r)?,
-            2 => call_game(r, game_addr(rva(0x41AA4B))),
-            3 => call_game(r, game_addr(rva(0x41AB02))),
+            2 => crate::calls::call(rva(0x41AA4B), r),
+            3 => crate::calls::call(rva(0x41AB02), r),
             4 => *r = load_mud(r, &mut game_part)?,
             5 => clear_mud_state(),
             _ => *r = sample_mud_colours(r, &mut game_part)?,

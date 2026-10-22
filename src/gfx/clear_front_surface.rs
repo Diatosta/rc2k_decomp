@@ -17,24 +17,7 @@
 //! lock failing or not), on a buffer of the test's, against the Rust version.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva, shadow, standalone,
-};
-use crate::install::stand_ins::{act, set_handler, stand_in};
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("gfx::clear_front_surface", rva(0x4059F4), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_addr, rva, standalone};
 
 // ---- game data ----
 
@@ -120,141 +103,13 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         r.set_carry(place == 0);
         return Ok(());
     }
-    unsafe { call_game(r, game_addr(rva(CALLEES[place as usize]))) };
+    crate::calls::call(rva(CALLEES[place as usize]), r);
     Ok(())
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let entry = *r;
-    if let Err(e) = unsafe { clear_front_surface(&entry, &FrontVars::game(), &mut game_part) } {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-    }
-}
-
-// ---- self-test ----
-
-static NOTED: Mutex<Vec<u32>> = Mutex::new(Vec::new());
-static LOCK_FAILS: AtomicBool = AtomicBool::new(false);
-
-fn note(place: u32, r: &mut Regs) {
-    NOTED.lock().unwrap().push(place);
-    if place == 0 {
-        r.set_carry(LOCK_FAILS.load(Ordering::SeqCst));
-    }
-}
-
-fn test_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    act(place, r);
+    unsafe { clear_front_surface(&entry, &FrontVars::game(), &mut game_part) }?;
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut vars = vec![0u32; 6];
-    let at = vars.as_mut_ptr() as u32;
-    let v = FrontVars {
-        front: at,
-        memory: at + 4,
-        pitch: at + 8,
-        row_bytes: at + 12,
-        height: at + 16,
-        row_dwords: at + 20,
-    };
-    let c = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x4059F4,
-            len: 0x3F,
-            entry: &[0x60, 0x83, 0x3D, 0xB4, 0x32, 0x4F, 0x00, 0x00],
-            calls: &[0x0A, 0x38],
-            jumps_out: &[],
-        },
-        &|callee| {
-            CALLEES
-                .iter()
-                .position(|&c| rva(c) == callee)
-                .map(|n| stand_in(n as u32))
-        },
-        &[
-            (0x4F32B4, v.front),
-            (0x4F3424, v.memory),
-            (0x4F3410, v.pitch),
-            (0x4F495C, v.row_bytes),
-            (0x4F4950, v.height),
-            (0x4F4960, v.row_dwords),
-        ],
-        6,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    set_handler(note);
-    let mut buffer = vec![0xAAu8; 0x400];
-    let memory = buffer.as_mut_ptr() as u32 + 0x10;
-    // (front, lock fails, row dwords, row bytes, pitch, height)
-    let cases = [
-        (0u32, false, 4u32, 16u32, 16u32, 4u32),
-        (1, true, 4, 16, 16, 4),
-        (1, false, 4, 16, 16, 4),
-        (1, false, 4, 16, 24, 5),
-        (1, false, 5, 20, 32, 3),
-        (1, false, 0, 0, 8, 6),
-        (1, false, 6, 22, 30, 1),
-        (1, false, 3, 12, 8, 4),
-    ];
-    for (front, fails, dwords, row_bytes, pitch, height) in cases {
-        LOCK_FAILS.store(fails, Ordering::SeqCst);
-        let run = |rust: bool| unsafe {
-            let p = at as *mut u32;
-            for (n, x) in [front, memory, pitch, row_bytes, height, dwords]
-                .into_iter()
-                .enumerate()
-            {
-                p.add(n).write_volatile(x);
-            }
-            let b = memory as *mut u8;
-            std::ptr::write_bytes(b.sub(0x10), 0xAA, 0x400);
-            NOTED.lock().unwrap().clear();
-            let before = Regs::SENTINEL;
-            let (done, preserved) = if rust {
-                (
-                    clear_front_surface(&before, &v, &mut test_part).is_ok(),
-                    true,
-                )
-            } else {
-                let mut ro = before;
-                call_game(&mut ro, c.addr());
-                (true, ro.preserved_except(&before, 0))
-            };
-            (
-                done && preserved,
-                std::mem::take(&mut *NOTED.lock().unwrap()),
-                std::slice::from_raw_parts(b.sub(0x10), 0x400).to_vec(),
-            )
-        };
-        let theirs = run(false);
-        let mine = run(true);
-        t.check(theirs == mine, || {
-            format!(
-                "front {front}, lock fails {fails}, {dwords} dwords, row {row_bytes}, pitch {pitch}, height {height}: original {} {:?}; rust {} {:?}; buffers {}",
-                theirs.0,
-                theirs.1,
-                mine.0,
-                mine.1,
-                crate::service::harness::diff_summary(&theirs.2, &mine.2)
-            )
-        });
-    }
-    drop(buffer);
-    drop(vars);
-    t.finish()
 }

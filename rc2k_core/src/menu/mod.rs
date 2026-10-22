@@ -37,5 +37,7 @@ pub mod stage_screens;
 pub mod standings;
 pub mod starters;
 pub mod steps;
+pub mod tables;
+pub mod tables_data;
 pub mod text_entry;
 pub mod welcome;

@@ -174,6 +174,11 @@ pub fn dispatch_item(
     dispatch_state(hook, r, call_original, &regions(), rust);
 }
 
+/// `dispatch_item` without its hook (typed tables).
+pub fn item_entry(r: &mut Regs, rust: crate::service::harness::Rust) -> Result<(), Refused> {
+    crate::service::harness::state_entry(r, rust)
+}
+
 /// What `raise_dead_zone_a` leaves.
 pub fn dead_zone_left(offset: u32) -> Result<Left, Refused> {
     let (value, room, p) = raise_dead_zone(offset)?;

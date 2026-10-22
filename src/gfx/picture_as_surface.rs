@@ -125,6 +125,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { picture_as_surface() }?;
+    Ok(())
+}
+
 // ---- self-test: a copy of the original that reads the flags from a test variable, writes a
 // surface block of the test's and hands the clip rectangle to a stand-in; the real surface
 // and clip rectangle are what the game's drawing reads all the time ----

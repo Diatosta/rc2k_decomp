@@ -14,28 +14,14 @@
 //! `sub_43A649`, `sub_45429B`.
 //! Refuses (before anything) a replay car (`dword_63DBA0`) above 7 with `dword_52A910`
 //! set (it would write past `dword_641680`'s eight).
-//! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables), 40 cases over the
-//! switches; the refusal.
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
-use crate::physics::copy_hooks_test::{lot, test_moves};
+use crate::framework::{EAX, Regs, game_addr, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::harness::state_entry;
 use rc2k_core::drive::shown_cars::{ShownCars, ShownSetup};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::choose_shown_cars", rva(0x4560EA), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The variables (IDA addresses), in the order the core uses them.
 const VARIABLES: [usize; 19] = [
@@ -101,49 +87,7 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { choose_shown_cars() }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let v = game();
-    let regions: Vec<_> = [0usize, 1, 3, 6, 9, 10]
-        .iter()
-        .map(|&k| (v[k], 4))
-        .chain([(v[11], 0x20)])
-        .collect();
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
-fn fill(seed: u32, out: &mut [u32]) {
-    lot(seed, out);
-    out[2] = [1, 2, 0, 3][(seed % 4) as usize];
-    out[4] = if seed % 5 < 3 { 2 } else { seed };
-    out[5] = seed / 5 % 5;
-    out[7] = u32::from(seed.is_multiple_of(3));
-    out[8] = seed % 8;
-}
-
-fn self_test() -> (usize, usize) {
-    let mut result = test_moves(
-        &HOOK,
-        0x4560EA,
-        0x1C8,
-        &[0xC7, 0x05, 0xA8, 0xDB, 0x63, 0x00, 0x00, 0x00, 0x00, 0x00],
-        &VARIABLES,
-        47,
-        40,
-        &fill,
-        &|v, _| unsafe { choose_at(v) }.unwrap_or_else(|_| Left::nothing()),
-    );
-    // The refusal, on cells of the test's.
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return result;
-    };
-    let mut cells = [0u32; 19];
-    cells[7] = 1;
-    cells[8] = 8;
-    let at: Vec<u32> = (0..19).map(|k| &cells[k] as *const u32 as u32).collect();
-    let refused = unsafe { choose_at(&at) }.is_err();
-    t.check(refused, || "replay car 8 not refused".into());
-    let (c, f) = t.finish();
-    result.0 += c;
-    result.1 += f;
-    result
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

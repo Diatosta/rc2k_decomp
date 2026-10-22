@@ -1,7 +1,7 @@
 //! The race's shell (`sub_4843EC`, `single_rally`'s race, and `sub_443F0B`, IDA
 //! 2026-10-17): what runs round a stage's loading and its run. Here its small leaves.
 
-use crate::framework::{Regs, call_game, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::service::harness::{Region, at};
 
 pub const CONTROLS_RVA: usize = rva(0x4F7DE4); // dword_4F7DE4 (`create_controls` 3)
@@ -72,7 +72,7 @@ pub unsafe fn set_race_screen_mode(entry: &Regs, part: &mut dyn FnMut(&mut Regs)
 
 /// `set_race_screen_mode`'s call in the game.
 pub fn game_screen_mode(r: &mut Regs) {
-    unsafe { call_game(r, game_addr(SET_SCREEN_MODE_RVA)) };
+    crate::calls::call(SET_SCREEN_MODE_RVA, r);
 }
 
 // ---- batch 12 ----
@@ -91,7 +91,7 @@ pub unsafe fn release_stage_textures(entry: &Regs, part: &mut dyn FnMut(&mut Reg
 
 /// `release_stage_textures`' call in the game.
 pub fn game_release_textures(r: &mut Regs) {
-    unsafe { call_game(r, game_addr(RELEASE_TEXTURES_RVA)) };
+    crate::calls::call(RELEASE_TEXTURES_RVA, r);
 }
 
 const ABSENT_0_RVA: usize = rva(0x70F49C); // the first block's +0xB0

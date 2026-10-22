@@ -22,7 +22,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
+    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
 use crate::input::devices::put;
 use crate::race::mud::{copy, run_both_from, test_part};
@@ -138,7 +138,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 r,
                 &mut crate::input::effects::game_part,
             )?,
-            p => call_game(r, game_addr(rva(CALLEES[p as usize]))),
+            p => crate::calls::call(rva(CALLEES[p as usize]), r),
         }
     }
     Ok(())

@@ -6,30 +6,13 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! In two menu loops' draw lists (0x758F12, 0x758F1A). Shadow mode runs the original alone
-//! (it draws). Self-test: `service_boxes::test_boxes` (4 cases), the two calls to stand-ins.
+//! In two menu loops' draw lists (0x758F12, 0x758F1A).
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva, shadow};
-use crate::screens::service_boxes::{Inputs, Part, quad, quad_part, rd, test_boxes};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_two_column_panel",
-    rva(0x49FE4B),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
+use crate::screens::service_boxes::{Inputs, Part, quad, quad_part, rd};
 
 pub static INPUTS: Inputs = Inputs {
     tested: &[],
@@ -66,31 +49,13 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     if crate::screens::blanked("screens::draw_two_column_panel") {
-        return;
+        return Ok(());
     }
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_two_column_panel(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    test_boxes(
-        &HOOK,
-        0x49FE4B,
-        0x17A,
-        &[0x60, 0xC7, 0x05, 0x10, 0x3E, 0x62, 0x00, 0x00],
-        &[0x45, 0x8E, 0xD7, 0x120, 0x169, 0x16E, 0x173],
-        &[(0x44B538, 1), (0x49FFC5, 2), (0x4A0078, 3)],
-        &INPUTS,
-        4,
-        &|r, p| unsafe { draw_two_column_panel(r, p) },
-    )
+    let left = unsafe { draw_two_column_panel(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }

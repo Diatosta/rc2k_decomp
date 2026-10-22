@@ -487,7 +487,7 @@ pub fn race_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             Ok(())
         }
         8 => {
-            unsafe { crate::framework::call_game(r, game_addr(rva(RACE_CALLEES[8]))) };
+            crate::calls::call(rva(RACE_CALLEES[8]), r);
             Ok(())
         }
         _ => or_in_game(RACE_CALLEES[place as usize], r, |r| race_step(place, r)),

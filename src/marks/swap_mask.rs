@@ -18,9 +18,7 @@
 //! the switch changed or not, on a narrow test surface width.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
 use crate::marks::setup::SETTINGS_RVA;
 use crate::service::harness::{Region, at, capture, restore};
 use std::sync::atomic::AtomicUsize;
@@ -112,12 +110,12 @@ pub unsafe fn swap_mask(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         match place {
-            1 => call_game(r, game_addr(LOCK_RVA)),
+            1 => crate::calls::call(LOCK_RVA, r),
             2 => {
                 let left = crate::gfx::put_surface_pixel::put_surface_pixel(r)?;
                 r.eax = left.eax;
             }
-            3 => call_game(r, game_addr(UNLOCK_RVA)),
+            3 => crate::calls::call(UNLOCK_RVA, r),
             _ => crate::scene::forget_slot_texture::forget_slot_texture(r.eax)?,
         }
     }

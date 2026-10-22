@@ -13,21 +13,8 @@
 //! Rust version, both switches.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
-use crate::gfx::list_primary_modes::{CardVars, Part, call, compare, game_part, get};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("gfx::list_secondary_modes", rva(0x404401), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
+use crate::gfx::list_primary_modes::{CardVars, Part, call, game_part, get};
 
 pub const SECONDARY: u32 = 0x2000;
 
@@ -44,37 +31,9 @@ pub unsafe fn list_secondary_modes(entry: &Regs, v: &CardVars, part: Part) -> Re
     call(entry, 3, eax, part)
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let entry = *r;
-    if let Err(e) = unsafe { list_secondary_modes(&entry, &CardVars::game(), &mut game_part) } {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-    }
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    compare(
-        &mut t,
-        &HOOK,
-        (
-            0x404401,
-            0x2B,
-            &[0x60, 0x83, 0x3D, 0xB0, 0xB4, 0x5A, 0x00, 0x01],
-            &[0x10, 0x1A, 0x1F, 0x24],
-            2,
-        ),
-        list_secondary_modes,
-    );
-    t.finish()
+    unsafe { list_secondary_modes(&entry, &CardVars::game(), &mut game_part) }?;
+    Ok(())
 }

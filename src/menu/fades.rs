@@ -80,7 +80,7 @@ pub unsafe fn fade(entry: &Regs, out: bool, part: Part) -> Result<Regs, Refused>
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     match place {
         1 => r.eax = crate::system::tick_count::tick_count(),
-        _ => unsafe { call_game(r, game_addr(RUN_FRAME)) },
+        _ => crate::calls::call(RUN_FRAME, r),
     }
     Ok(())
 }

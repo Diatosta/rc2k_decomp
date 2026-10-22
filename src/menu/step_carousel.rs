@@ -13,24 +13,13 @@
 //! In 17 lists of the screens with turning objects (the main menu's among them).
 //! Refuses a time kept above 0x71C71C6, with which the division would trap; it cannot
 //! come, the time being held to 100.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::step_carousel", rva(0x46989B), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 // ---- game data ----
 
@@ -71,80 +60,13 @@ pub unsafe fn step_carousel() -> Result<(), BadInput> {
     }
 }
 
-// ---- hook ----
-
-fn regions() -> [Region; 5] {
-    [
-        at(LAST_RVA),
-        at(PASSED_RVA),
-        at(DIRECTION_RVA),
-        at(ANGLE_RVA),
-        at(FRONT_RVA),
-    ]
-}
-
 fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { step_carousel() }?;
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-// ---- self-test: the game's variables set by the test, and put back ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let inputs = [at(CLOCK_RVA), at(COUNT_RVA)];
-    let saved = (capture(&regions), capture(&inputs));
-    let angles = [
-        0u32,
-        1,
-        0x1000,
-        0x0400_0000,
-        0x4000_0000,
-        0x8000_0000,
-        0xC000_0000,
-        0xFFFF_F000,
-        0xFFFF_FFFF,
-    ];
-    // (the clock, the last clock, the objects, the one in front)
-    let times = [
-        (1000u32, 990u32, 5u32, 2u32),
-        (1000, 0, 5, 4),
-        (5, 0xFFFF_FFF0, 1, 0),
-        (7, 7, 3, 2),
-    ];
-    for direction in [0i32, 1, -1, 0x7FFF_FFFF, i32::MIN] {
-        for angle in angles {
-            for (clock, last, count, front) in times {
-                check_state(
-                    &mut t,
-                    &format!(
-                        "direction {direction}, angle {angle:#x}, clock {clock} after {last}, object {front} of {count}"
-                    ),
-                    call_original,
-                    Regs::SENTINEL,
-                    &|| unsafe {
-                        restore(&regions, &vec![0xAA; saved.0.len()]);
-                        game_write(CLOCK_RVA, clock);
-                        game_write(LAST_RVA, last);
-                        game_write(COUNT_RVA, count);
-                        game_write(FRONT_RVA, front);
-                        game_write(DIRECTION_RVA, direction);
-                        game_write(ANGLE_RVA, angle);
-                    },
-                    &regions,
-                    &rust,
-                );
-            }
-        }
-    }
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

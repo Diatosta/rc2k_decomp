@@ -40,9 +40,7 @@
 //! the Rust version on the same answers.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::menu::parts::{Answer, Part, answers, copy, dispatch_parted, run_both, test_part};
 use crate::menu::player::player_at;
 use crate::service::harness::{Region, at, capture, restore};
@@ -246,7 +244,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 )?
             }
             24 => crate::menu::in_game_options_items::show_in_game_options(),
-            _ => call_game(r, game_addr(rva(CALLEES[place as usize]))),
+            _ => crate::calls::call(rva(CALLEES[place as usize]), r),
         }
     }
     Ok(())

@@ -15,36 +15,18 @@
 //! In a menu loop's draw list (0x758E86). The sprites' palettes are ebx as the original
 //! leaves it. Refuses (before anything) players 1 or 2 missing or without a name, no stage
 //! records, a stage line past the line buffer, and a string index past `dword_7588D2`'s 21
-//! (the original reads the -1 ends or past them). Compared in shadow mode (`dispatch_draw`;
-//! the two offsets and the line buffer as state). Self-test: the page's values as they are,
-//! with each order and "no time", nothing drawn.
+//! (the original reads the -1 ends or past them).
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::menu::player::player_at;
-use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::harness::{Left, check_draw, dispatch_draw};
-use crate::screens::line_buffer;
-use crate::service::harness::{Region, at, capture, restore};
+use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::Canvas;
-use std::sync::atomic::AtomicUsize;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("screens::draw_duel_result", rva(0x48647A), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const FIRST_RVA: usize = rva(0x758720); // dword_758720: byte offset in g_players
-const SECOND_RVA: usize = rva(0x758724); // dword_758724
-const NO_TIME: u32 = 0x36EE80;
-
+// dword_758720: byte offset in g_players
+// dword_758724
 fn k(a: usize) -> u32 {
     unsafe { game_read(rva(a)) }
 }
@@ -127,80 +109,8 @@ fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-fn state() -> Vec<u8> {
-    capture(&[
-        (line_buffer() as u32, 0x100),
-        (game_addr(FIRST_RVA) as u32, 8),
-        (crate::strings::text_from_ids::text() as u32, 0x100),
-    ])
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_draw(&HOOK, r, call_original, &rust, &state);
-}
-
-/// Whether the page has what it reads.
-unsafe fn ready() -> bool {
-    unsafe {
-        let (p1, p2) = (player_at(0), player_at(1));
-        let (base, record) = records();
-        p1 != 0
-            && p2 != 0
-            && get(p1 + 0x18) != 0
-            && get(p2 + 0x18) != 0
-            && base != 0
-            && crate::screens::page_settings::stage_line_bytes(0x482, record).is_ok()
-            && label(k(0x758768)).is_ok()
-            && label(k(0x75876C)).is_ok()
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = text_unavailable() {
-        return t.skip(why);
-    }
-    if !unsafe { ready() } {
-        return t.skip("no two players with names, stage records or labels");
-    }
-    let (p1, p2) = (player_at(0), player_at(1));
-    if unsafe {
-        [p1, p2]
-            .iter()
-            .any(|&p| crate::strings::append_speed::traps(get(p + 0x94)))
-    } {
-        return t.skip("a top speed the original traps on (mid-race data)");
-    }
-    let regions: Vec<Region> = vec![
-        at(FIRST_RVA),
-        at(SECOND_RVA),
-        (p1 + 0x88, 4),
-        (p2 + 0x88, 4),
-    ];
-    let saved = capture(&regions);
-    let times = unsafe { (get(p1 + 0x88), get(p2 + 0x88)) };
-    for (a, b) in [
-        times,
-        (6000, 5000),
-        (5000, 6000),
-        (NO_TIME, 5000),
-        (5000, NO_TIME),
-    ] {
-        check_draw(
-            &mut t,
-            &format!("times {a} {b}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                ((p1 + 0x88) as *mut u32).write_unaligned(a);
-                ((p2 + 0x88) as *mut u32).write_unaligned(b);
-            },
-            &rust,
-            &state,
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_duel_result", r, &rust)
 }

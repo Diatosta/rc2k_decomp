@@ -27,39 +27,20 @@
 //! Refuses a player past the four, a player without its name, an index past its
 //! string table, and what its parts refuse; since the conversion (2026-10-20) before the
 //! controller's item is switched (the original switches it first).
-//! Self-test: the four players, with and without a controller, typing and not, both
-//! blinks, a second view of 5; a menu of the test's; nothing drawn.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
 use crate::menu::item_at::{CURRENT_MENU_RVA, ITEM_LEN};
 use crate::menu::player::{Player, player_at};
 use crate::screens::LINE_BUFFER_RVA;
-use crate::screens::draw_menu_item_text::text_unavailable;
 use crate::screens::draw_name_cursor::{BLINK_RVA, MEASURING_FONT};
 use crate::screens::harness::{Left, check_draw, dispatch_draw};
 use crate::service::harness::{Region, at, capture, restore};
 use crate::strings::text_from_ids::{TEXT_LEN, text};
 use crate::text::draw_text::Canvas;
 use std::cell::RefCell;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_player_details",
-    rva(0x46F894),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -156,8 +137,6 @@ pub unsafe fn draw_player_page(layout: Layout, canvas: &mut dyn Canvas) -> Resul
     Ok(())
 }
 
-// ---- hook ----
-
 fn left_behind(layout: Layout) -> Vec<Region> {
     let menu: u32 = unsafe { game_read(CURRENT_MENU_RVA) };
     let mut regions = vec![
@@ -201,11 +180,19 @@ pub fn dispatch_page(
     );
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_page(&HOOK, r, call_original, FULL);
+/// `dispatch_page` without its hook (typed tables).
+pub fn page_entry(name: &str, r: &mut Regs, layout: Layout) -> Result<(), Refused> {
+    crate::screens::harness::draw_entry(name, r, &|_, canvas| {
+        unsafe { draw_player_page(layout, canvas) }?;
+        Ok(Left::nothing())
+    })
 }
 
-// ---- self-test ----
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    page_entry("screens::draw_player_details", r, FULL)
+}
 
 /// A players' page hook's self-test: the four players under four settings each.
 pub fn check_page(
@@ -274,15 +261,4 @@ pub fn check_page(
     restore(&players, &saved.1);
     restore(&left_behind(layout), &saved.2);
     restore(&font, &saved.3);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = text_unavailable() {
-        return t.skip(why);
-    }
-    check_page(&mut t, call_original, FULL);
-    t.finish()
 }

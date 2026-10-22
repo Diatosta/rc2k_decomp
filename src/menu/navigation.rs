@@ -97,7 +97,7 @@ pub struct Game;
 
 fn in_game(function: usize, regs: &Regs) {
     let mut g = *regs;
-    unsafe { call_game(&mut g, function) };
+    crate::menu::table_calls::call_any(function as u32, &mut g);
 }
 
 impl Outside for Game {
@@ -105,7 +105,8 @@ impl Outside for Game {
         in_game(game_addr(CLICK_RVA), regs);
     }
     fn callback(&mut self, function: u32, regs: &Regs) {
-        in_game(function as usize, regs);
+        let mut g = *regs;
+        crate::menu::table_calls::call(function, &mut g);
     }
     fn screenshot(&mut self, regs: &Regs) {
         // `gfx::take_screenshot`'s Rust version (what it refuses through its hook).

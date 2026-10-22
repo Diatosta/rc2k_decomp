@@ -9,30 +9,18 @@
 //! file nothing changes.
 //! Callers: `start`, `sub_412DE0`, `sub_416653`.
 //! Refuses a text of 0xFE bytes or more (the original writes past the 0x100 bytes).
-//! Self-test: a redirected copy that reads a file of the test's.
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::bridge::Raw;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_write, hook_asm, rva};
-use crate::install::{BASE_DIRECTORY_RVA, LOCALE_RVA, PATH_ROOM, copy_reading};
+use crate::framework::{Regs, game_addr, game_write, rva};
+use crate::install::{BASE_DIRECTORY_RVA, LOCALE_RVA};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, dispatch_state, restore};
+use crate::service::harness::state_entry;
 use crate::settings::read_text::read_text;
 use crate::strings::same_text::case_table;
 use rc2k_core::install::config;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("install::read_record", rva(0x4110C9), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -63,93 +51,12 @@ pub unsafe fn read_record(path: *const u8) -> Result<(), BadInput> {
     }
 }
 
-// ---- hook ----
-
-fn regions() -> [Region; 3] {
-    [
-        (game_addr(BASE_DIRECTORY_RVA) as u32, PATH_ROOM),
-        (game_addr(LOCALE_RVA) as u32, PATH_ROOM),
-        at(MEDIA_MODE_RVA),
-    ]
-}
-
 fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { read_record(game_addr(PATH_RVA) as *const u8) }?;
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-// ---- self-test ----
-
-const LEN: usize = 0xBD;
-const CALLS: [usize; 9] = [0x07, 0x18, 0x25, 0x2A, 0x57, 0x5E, 0x82, 0x8F, 0x94];
-const TEST_FILE: &str = "var\\rc2k_hook_record.zog";
-const TEST_PATH: &[u8] = b"var\\rc2k_hook_record.zog\0";
-const RECORDS: [&[u8]; 9] = [
-    b"; Rally Championship\r\n; INSTALLATION CONFIGURATION\r\n\r\ninstallation=0\r\n",
-    b"cdrom=D:\\\r\nlanguage=english\r\ninstallation=2\r\n",
-    b"cdrom=\"E:\\rally disc\"\r\ninstallation=7\r\nlanguage=\"files\\loc/\"\r\n",
-    b"installation=-4\r\ncdrom=\r\nlanguage\r\n",
-    b"CDROM d:\\games\tignored\r\nInstallation $2\r\n",
-    b"language=portuges\\\r\n",
-    b"cdrom=x\r\n",
-    b"nothing=here\r\n",
-    b"",
-];
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match unsafe { copy_reading(rva(0x4110C9), LEN, PATH_RVA, &CALLS, TEST_PATH) } {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    let regions = regions();
-    let saved = capture(&regions);
-    let last = crate::files::stream::LastPath::save();
-    let mut made = true;
-    // The last case is the file not being there.
-    for record in RECORDS.iter().map(Some).chain([None]) {
-        let _ = std::fs::remove_file(TEST_FILE);
-        if let Some(record) = record
-            && std::fs::write(TEST_FILE, record).is_err()
-        {
-            made = false;
-            break;
-        }
-        let before = Regs::SENTINEL;
-        let run = |rust: bool| unsafe {
-            restore(&regions, &vec![0xAA; saved.len()]);
-            game_write(MEDIA_MODE_RVA, 1u32);
-            let done = if rust {
-                read_record(TEST_PATH.as_ptr()).is_ok()
-            } else {
-                let mut ro = before;
-                call_game(&mut ro, copy.addr());
-                ro.preserved_except(&before, 0)
-            };
-            (done, capture(&regions))
-        };
-        let (theirs, mine) = (run(false), run(true));
-        t.check(theirs == mine && theirs.0, || {
-            let first = theirs.1.iter().zip(&mine.1).position(|(a, b)| a != b);
-            format!(
-                "record={:?}: original done={} rust done={}; first different byte {first:?} (0x100 the base directory, 0x100 the language, then the mode)",
-                record.map(|record| String::from_utf8_lossy(record)),
-                theirs.0,
-                mine.0
-            )
-        });
-    }
-    restore(&regions, &saved);
-    last.restore();
-    let _ = std::fs::remove_file(TEST_FILE);
-    if !made {
-        return t.skip("cannot create a test file in the game's var folder");
-    }
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

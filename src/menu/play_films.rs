@@ -208,10 +208,52 @@ extern "C" fn dispatch(r: &mut Regs) {
                 r.set_zero(there);
                 Ok(())
             }),
-            _ => call_game(regs, game_addr(rva(at))),
+            _ => crate::calls::call(rva(at), regs),
         });
     }
     log("menu::play_films: the Rust version has come back");
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    log(&format!(
+        "menu::play_films: the Rust version runs (mode {})",
+        r.eax
+    ));
+    // Between `pusha` and `popa`: the caller's registers stay as they are.
+    let mut running = *r;
+    let settings = [NO_FMV_RVA, SCREEN_BITS_RVA].map(|at| game_addr(at) as *const u32);
+    unsafe {
+        play_films(&mut running, settings, &mut |at, regs| match at {
+            // `nullsub_6`.
+            0x44347E => {}
+            0x415515 => in_game_unless(at, regs, |r| {
+                crate::scene::set_up_lit_engine::set_up_lit_engine_in(
+                    r,
+                    &mut crate::scene::set_up_lit_engine::lit_part,
+                )
+            }),
+            DEMONSTRATION => in_game_unless(at, regs, |r| {
+                crate::race::credits_race::credits_race_in(
+                    r,
+                    &mut crate::race::credits_race::credits_part,
+                )
+            }),
+            SWAP_MISSING_EXTENSION => in_game_unless(at, regs, |r| {
+                crate::files::swap_missing_extension::swap_missing_extension(r.eax as *mut u8)?;
+                Ok(())
+            }),
+            FILE_EXISTS => in_game_unless(at, regs, |r| {
+                let there = crate::files::file_exists::file_exists(r.eax as *const u8)?;
+                r.set_carry(!there);
+                r.set_zero(there);
+                Ok(())
+            }),
+            _ => crate::calls::call(rva(at), regs),
+        });
+    }
+    log("menu::play_films: the Rust version has come back");
+    Ok(())
 }
 
 /// A ported callee's Rust version; when it refuses, the callee at its hook (which refuses
@@ -224,7 +266,7 @@ fn in_game_unless(
     let entry = *regs;
     if rust(regs).is_err() {
         *regs = entry;
-        unsafe { call_game(regs, game_addr(rva(at))) };
+        crate::calls::call(rva(at), regs);
     }
 }
 

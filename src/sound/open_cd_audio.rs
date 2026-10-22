@@ -67,6 +67,14 @@ extern "C" fn dispatch(r: &mut Regs) {
     r.eflags = o.eflags;
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let mine = open_cd_audio(r.eax);
+    r.set_carry(mine.0);
+    r.set_zero(mine.1);
+    Ok(())
+}
+
 // ---- self-test ----
 
 fn self_test() -> (usize, usize) {

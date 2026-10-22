@@ -18,7 +18,7 @@
 //! carry by the case, against the Rust version, every way out.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva, shadow};
+use crate::framework::{RawHook, Regs, SelfTest, call_game, hook_asm, rva, shadow};
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -77,13 +77,13 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::screens::{draw_service_area, draw_service_boxes};
     unsafe {
         match place {
-            1 => call_game(r, game_addr(rva(0x4058AD))),
+            1 => crate::calls::call(rva(0x4058AD), r),
             2 => crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
                 &mut crate::gfx::copy_picture_to_surface::GameSurface,
             )?,
-            3 => call_game(r, game_addr(rva(0x405949))),
+            3 => crate::calls::call(rva(0x405949), r),
             4 => crate::scene::begin_scene::begin_scene(r, &mut |r| {
-                call_game(r, game_addr(rva(0x41ABC7)))
+                crate::calls::call(rva(0x41ABC7), r)
             }),
             5 => {
                 *r = draw_service_boxes::draw_service_boxes(r, &mut draw_service_boxes::game_part)?
@@ -93,10 +93,10 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                     draw_service_area::draw_service_area(&mut crate::text::draw_text::GameCanvas)?;
                 r.set_carry(carry);
             }
-            9 => call_game(r, game_addr(rva(0x4057D1))),
-            _ => crate::scene::end_scene::end_scene(r, &mut |r| {
-                call_game(r, game_addr(rva(0x41AB8A)))
-            }),
+            9 => crate::calls::call(rva(0x4057D1), r),
+            _ => {
+                crate::scene::end_scene::end_scene(r, &mut |r| crate::calls::call(rva(0x41AB8A), r))
+            }
         }
     }
     Ok(())

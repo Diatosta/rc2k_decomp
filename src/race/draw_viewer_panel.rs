@@ -21,7 +21,7 @@
 //! failing.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::{a, g, p};
 use crate::race::viewer::{
     BLOCK, BLOCKS, CAMERA_NAMES, CAMERAS, FRAME, Part, Saved, answer, dispatch_parts, dword, gb,
@@ -267,7 +267,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 r.ebx = out as u32;
             }
             6 => *r = crate::d3d::unlock_texture::unlock_texture(r)?,
-            7 | 8 => call_game(r, game_addr(rva(CALLEES[place as usize]))),
+            7 | 8 => crate::calls::call(rva(CALLEES[place as usize]), r),
             _ => {
                 *r =
                     crate::drive::tyre_quad::tyre_quad(r, &mut crate::drive::tyre_parts::game_part)?

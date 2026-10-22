@@ -42,7 +42,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             TURNED => *r = crate::drive::tyre_turned_quad::tyre_turned_quad(r, &mut game_part)?,
             PARTS => *r = crate::drive::tyre_screen_parts::tyre_screen_parts(r, &mut game_part)?,
             SCREEN => *r = crate::drive::tyre_screen::tyre_screen(r, &mut game_part)?,
-            _ => call_game(r, game_addr(rva(PLACES[place as usize]))),
+            _ => crate::calls::call(rva(PLACES[place as usize]), r),
         }
     }
     Ok(())

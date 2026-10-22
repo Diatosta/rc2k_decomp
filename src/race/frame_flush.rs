@@ -128,7 +128,7 @@ pub fn batch_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             }
             p => {
                 let at = [0x41ADF5usize, 0x401427, 0x401622][p as usize - 3];
-                crate::framework::call_game(r, game_addr(rva(at)));
+                crate::calls::call(rva(at), r);
             }
         }
     }
@@ -235,7 +235,7 @@ pub fn backdrop_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         match place {
             1 => crate::scene::glow_render_states::glow_render_states(r),
             2 => crate::scene::set_texture::set_texture_in_game(r),
-            3 => crate::framework::call_game(r, game_addr(rva(0x41AD9C))),
+            3 => crate::calls::call(rva(0x41AD9C), r),
             _ => crate::scene::depth_buffer_on::depth_buffer(r, true),
         }
     }

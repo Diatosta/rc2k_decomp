@@ -7,23 +7,10 @@
 //! is described by `gfx::describe_format`. One caller, `start`.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_ptr, hook_asm, rva};
-use crate::gfx::describe_format::{FORMAT_LEN, describe_format};
+use crate::framework::{Regs, game_ptr, rva};
+use crate::gfx::describe_format::describe_format;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("gfx::set_component_format", rva(0x405DB4), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 // ---- game data ----
 
@@ -44,38 +31,12 @@ pub unsafe fn set_component_format() -> Result<(), Refused> {
     Ok(())
 }
 
-// ---- hook ----
-
-fn regions() -> [Region; 1] {
-    [(game_ptr::<u8>(FORMAT_RVA) as u32, FORMAT_LEN)]
-}
-
 fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { set_component_format() }?;
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let saved = capture(&regions);
-    check_state(
-        &mut t,
-        "the format",
-        call_original,
-        Regs::SENTINEL,
-        &|| restore(&regions, &vec![0xAA; saved.len()]),
-        &regions,
-        &rust,
-    );
-    restore(&regions, &saved);
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
