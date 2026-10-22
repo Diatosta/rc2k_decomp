@@ -198,6 +198,16 @@ extern "C" fn dispatch(r: &mut Regs) {
                     &mut crate::race::credits_race::credits_part,
                 )
             }),
+            SWAP_MISSING_EXTENSION => in_game_unless(at, regs, |r| {
+                crate::files::swap_missing_extension::swap_missing_extension(r.eax as *mut u8)?;
+                Ok(())
+            }),
+            FILE_EXISTS => in_game_unless(at, regs, |r| {
+                let there = crate::files::file_exists::file_exists(r.eax as *const u8)?;
+                r.set_carry(!there);
+                r.set_zero(there);
+                Ok(())
+            }),
             _ => call_game(regs, game_addr(rva(at))),
         });
     }

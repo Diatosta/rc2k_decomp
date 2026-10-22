@@ -182,7 +182,7 @@ fn step_part(callee: u32, r: &mut Regs) -> Result<(), Refused> {
                 // As `menu::show_loading_picture`'s dispatch.
                 r.eax = game_addr(LOADING_PICTURE_RVA) as u32;
                 crate::gfx::show_picture_file::show_picture_file(r, &mut |at, regs| {
-                    call_game(regs, game_addr(rva(at)))
+                    crate::gfx::show_picture_file::game_call(at, regs)
                 });
             }
             3 => {

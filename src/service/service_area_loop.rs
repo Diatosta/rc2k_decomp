@@ -38,39 +38,13 @@
 //! Callers: `sub_48E093` (time trial) and `sub_4A15E3` (championship).
 //! Seven of its callees are not ported and are called with `call_game`: the four named
 //! under "game data" below, and `menu::draw_frame`, `screens::run_frame` and
-//! `menu::confirm_leaving` in the shared loop. Ungated thunk; shadow mode runs the original
-//! alone; each real call writes a line to hook.log saying which version ran.
-//! Manual patch with a private copy (0x360 bytes, 20 calls relocated): a call sits in the
-//! first bytes. Self-test: `screen_loop::check_screen`, a redirected copy whose calls all go
-//! to stand-ins that follow a script.
+//! `menu::confirm_leaving` in the shared loop.
+//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
+//! registers above are the original's, for reference.
 
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::rva;
 use crate::menu::run_draw_list::DRAW_LIST_RVA;
-use crate::menu::screen_loop::{
-    FRAME_CALLBACK, List, Original, Screen, Step, TAKE_KEY, check_screen, dispatch_screen,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "service::service_area_loop",
-    rva(0x47284A),
-    thunk,
-    &ORIGINAL,
-)
-.private_copy(FUNCTION_LEN)
-.relocate_calls(&CALLS)
-.manual_patch()
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
+use crate::menu::screen_loop::{FRAME_CALLBACK, List, Screen, Step, TAKE_KEY};
 
 // ---- game data ----
 
@@ -170,33 +144,3 @@ pub const SCREEN: Screen = Screen {
     also_reads: &[],
     also_writes: &[],
 };
-
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_screen(&HOOK, r, call_original, &SCREEN);
-}
-
-// ---- self-test ----
-
-const FUNCTION_LEN: usize = 0x360;
-const CALLS: [usize; 20] = [
-    0x01, 0x06, 0x0B, 0x10, 0x15, 0x1A, 0x95, 0xC6, 0xF5, 0x120, 0x12B, 0x130, 0x17F, 0x18E, 0x1D6,
-    0x234, 0x2D6, 0x2FB, 0x309, 0x34F,
-];
-const THE_ORIGINAL: Original = Original {
-    function: rva(0x47284A),
-    len: FUNCTION_LEN,
-    entry_bytes: &[0x60, 0xE8, 0x45, 0x57, 0xF9, 0xFF, 0xE8, 0x40],
-    calls: &CALLS,
-};
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Err(why) = check_screen(&mut t, &SCREEN, &THE_ORIGINAL) {
-        return t.skip(why);
-    }
-    t.finish()
-}

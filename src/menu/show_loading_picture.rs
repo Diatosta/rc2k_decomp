@@ -46,7 +46,9 @@ extern "C" fn dispatch(r: &mut Regs) {
     let esp = r.esp;
     r.eax = game_addr(PATH_RVA) as u32;
     unsafe {
-        show_picture_file(r, &mut |at, regs| call_game(regs, game_addr(rva(at))));
+        show_picture_file(r, &mut |at, regs| {
+            crate::gfx::show_picture_file::game_call(at, regs)
+        });
     }
     r.esp = esp;
 }

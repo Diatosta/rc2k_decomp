@@ -339,6 +339,21 @@ fn finish(why: &str, code: u32) -> ! {
     for (address, calls, from) in unported {
         log(&format!("  {address:#x}  {calls} calls, first from {from}"));
     }
+    // No game code runs here, so a hook's thunk is entered only by a call by address
+    // from Rust (`call_game`): these are what keeps each hook (conversion phase 4).
+    let mut reached: Vec<(&str, usize)> = ALL
+        .iter()
+        .map(|h| (h.name(), h.stats().calls.load(Ordering::Relaxed)))
+        .filter(|&(_, calls)| calls > 0)
+        .collect();
+    reached.sort();
+    log(&format!(
+        "standalone: {} hooks were reached by address:",
+        reached.len()
+    ));
+    for (name, calls) in reached {
+        log(&format!("  {name}  {calls} calls"));
+    }
     // Not `ExitProcess`: this may be an exception's handler, where the libraries'
     // leave-taking can hang.
     unsafe {
@@ -534,6 +549,12 @@ unsafe fn call(address: usize, r: &mut Regs) {
     unsafe { call_game(r, game_addr(rva(address))) };
 }
 
+/// `start`'s call of a function whose hook is gone (conversion phase 4): its Rust version
+/// runs; every one of them keeps the registers.
+fn rust(name: &str) {
+    log(&format!("standalone: start calls {name}"));
+}
+
 unsafe fn stand_in(what: &str, address: usize, value: u32) {
     log(&format!(
         "standalone: stand-in: {what} ({address:#x} = {value})"
@@ -547,15 +568,27 @@ unsafe fn stand_in(what: &str, address: usize, value: u32) {
 unsafe fn start() {
     unsafe {
         let mut r = Regs::default();
-        for address in [
-            0x410F29, 0x401864, 0x403131, 0x40188B, 0x410D4C, 0x410883, 0x410AA3, 0x410AC5,
-        ] {
+        call(0x410F29, &mut r);
+        rust("math::seed_random");
+        crate::math::seed_random::seed_random();
+        call(0x403131, &mut r);
+        // eax: `system::read_volume_serial`'s serial.
+        rust("math::stir_random");
+        crate::math::stir_random::stir_random(r.eax);
+        for address in [0x410D4C, 0x410883, 0x410AA3, 0x410AC5] {
             call(address, &mut r);
         }
         CoInitialize(std::ptr::null());
-        for address in [0x40298A, 0x402B7C, 0x4114A6, 0x4114BB, 0x401135] {
+        for address in [0x40298A, 0x402B7C] {
             call(address, &mut r);
         }
+        rust("settings::read_settings");
+        if let Err(why) = crate::settings::read_settings::read_settings() {
+            finish(&format!("settings::read_settings refused: {}", why.0), 1);
+        }
+        rust("settings::apply_feature_switches");
+        crate::settings::apply_feature_switches::apply_feature_switches();
+        call(0x401135, &mut r);
         // The folders the game saves into but never makes (`notes`: `sub_413A97` makes
         // them only from the installer's script): made here when missing, in the game's
         // folder, as the path templates at 0x5296FB .. 0x52974B name them; not in the
@@ -588,7 +621,7 @@ unsafe fn start() {
             call(address, &mut r);
         }
         // `strings::load_language` (0x40331F): Rust, its hook gone (it keeps every register).
-        log("standalone: start calls strings::load_language");
+        rust("strings::load_language");
         let compile = &mut || crate::strings::compile_lexicon::compile_lexicon();
         match crate::strings::load_language::load_language(compile) {
             Ok(()) => {}

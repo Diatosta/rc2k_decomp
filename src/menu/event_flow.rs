@@ -505,11 +505,11 @@ pub fn game_call(callee: usize, r: &mut Regs) -> Result<(), Refused> {
             TIME_TRIAL_RESULTS_LOOP => run_screen(&m::time_trial_results_loop::SCREEN, r),
             INSPECTION_AREA_LOOP => run_screen(&m::inspection_area_loop::SCREEN, r),
             SERVICE_AREA_LOOP => run_screen(&crate::service::service_area_loop::SCREEN, r),
-            // Through their hooks: the race and the front end's set-up after it, the
-            // repairs (their clock), the sound commands (the audio thread's queue), the
-            // frame (the platform's).
-            RACE | RELOAD_FRONT_END | APPLY_REPAIRS | STOP_STREAM | START_STREAM
-            | WAIT_FOR_COMMANDS | RUN_FRAME => call_game(r, game_addr(rva(callee))),
+            APPLY_REPAIRS => crate::service::apply_repairs::apply_repairs_in_game(r),
+            // Through their hooks: the race and the front end's set-up after it, the sound
+            // commands (the audio thread's queue), the frame (the platform's).
+            RACE | RELOAD_FRONT_END | STOP_STREAM | START_STREAM | WAIT_FOR_COMMANDS
+            | RUN_FRAME => call_game(r, game_addr(rva(callee))),
             _ => return Err(BadInput("a callee the event flows do not know").into()),
         }
     }

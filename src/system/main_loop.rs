@@ -211,7 +211,10 @@ fn in_game(call: Call) -> Result<(), Refused> {
             )
             .map(|_| ())?,
             Call::Sub40FCAA => game(0x40FCAA, 0),
-            Call::IsCdDrive(drive) => game(0x403310, drive as u32),
+            // Its answer is not read.
+            Call::IsCdDrive(drive) => {
+                crate::files::is_cd_drive::is_cd_drive(drive);
+            }
             // `net::lobby_launched_game`'s Rust version (a case it refuses through its hook).
             Call::Sub418DF4 => {
                 crate::race::loadlevel::or_in_game(0x418DF4, &mut Regs::default(), |r| {

@@ -7,28 +7,12 @@
 //! In:  eax the time, bl, cl, dl three bytes (the car, the stage, ...)
 //! Out: eax `value`, ebx `dword_4E0540` (the sealed block); the rest kept
 //!
-//! Caller: `sub_4A3D38`. The cipher is its Rust version. Self-test: the original and the
-//! Rust version on times and cheats by lot (the key as the game has it); the block, the
-//! subkeys and the result compared; put back.
+//! Caller: `sub_4A3D38`. The cipher is its Rust version.
+//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
+//! registers above are the original's, for reference.
 
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::race::save_seal::{BLOCK_RVA, SEALED_RVA, seal_block, seal_regions};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("records::seal_time", rva(0x40264D), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_read, game_write, rva};
+use crate::race::save_seal::{BLOCK_RVA, SEALED_RVA, seal_block};
 
 const CHEATS_RVA: usize = rva(0x75870C); // g_cheats
 const PATCH_SWITCH_RVA: usize = rva(0x71C6D0); // g_patchSwitch
@@ -57,62 +41,4 @@ pub unsafe fn seal_time(entry: &Regs) -> Regs {
             ..*entry
         }
     }
-}
-
-fn regions() -> Vec<Region> {
-    let mut v = seal_regions();
-    v.push((crate::framework::game_addr(BLOCK_RVA) as u32, 8));
-    v
-}
-
-fn rust(r: &Regs) -> Result<Left, crate::errors::Refused> {
-    Ok(left_of(&unsafe { seal_time(r) }))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let mut vars = regions.clone();
-    vars.extend([CHEATS_RVA, PATCH_SWITCH_RVA].map(at));
-    let saved = capture(&vars);
-    let times = [
-        0u32,
-        1,
-        0x1234_5678,
-        rc2k_core::files::records::LONGEST_TIME,
-        0x22551000,
-        0x7FFF_FFFF,
-        0xFFFF_FFFF,
-    ];
-    for (n, &time) in times.iter().enumerate() {
-        let cheats = [0u32, 0x2000, 0x40000, 0, 0x10000, 0x40000 | 0x4000, 0][n];
-        let switch = u32::from(n == 3 || n == 6);
-        check_state(
-            &mut t,
-            &format!("time {time:#x}, cheats {cheats:#x}, switch {switch}"),
-            call_original,
-            Regs {
-                eax: time,
-                ebx: 0x1100 + n as u32 * 0x3B,
-                ecx: 0x2200 + n as u32 * 0x29,
-                edx: 0xFF - n as u32,
-                ..Regs::SENTINEL
-            },
-            &|| unsafe {
-                restore(&vars, &saved);
-                game_write(CHEATS_RVA, cheats);
-                game_write(PATCH_SWITCH_RVA, switch);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

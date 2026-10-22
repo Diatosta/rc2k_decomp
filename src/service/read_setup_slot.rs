@@ -9,27 +9,15 @@
 //! `byte_527880[slot * 0x20]`. A file shorter than 0x48 bytes is not noticed as such: what the
 //! buffer held before decides (reproduced). Refuses a slot past the table's 100 entries.
 //! Called for all 100 slots at start-up (`sub_411239`) and by `load_setup_slot`.
+//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
+//! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::{buffer as path_buffer, numbered_path_in_game};
 use crate::files::read_file::{LAST_FILE_PATH_RVA, read_file};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_ptr, hook_asm, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::framework::{game_addr, game_ptr, rva};
+use crate::service::harness::{Region, at};
 use std::ptr::copy_nonoverlapping;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("service::read_setup_slot", rva(0x4AB31E), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -40,9 +28,7 @@ const SLOT_NAMES_RVA: usize = rva(0x527880); // byte_527880[100][0x20]
 pub const SLOT_COUNT: u32 = 100;
 pub const NAME_LEN: usize = 0x20;
 
-pub const MAGIC: u32 = 0x5553_5243; // "CRSU"
-pub const VERSION: u32 = 0x5_0000;
-
+// "CRSU"
 pub fn slot_name(slot: u32) -> *mut u8 {
     game_ptr::<u8>(SLOT_NAMES_RVA).wrapping_add(slot as usize * NAME_LEN)
 }
@@ -72,8 +58,6 @@ pub unsafe fn read_setup_slot(slot: u32) -> Result<bool, Refused> {
     }
 }
 
-// ---- hook ----
-
 /// What reading slot `slot` may write.
 pub fn regions(slot: u32) -> Vec<Region> {
     let mut regions = vec![
@@ -85,43 +69,4 @@ pub fn regions(slot: u32) -> Vec<Region> {
         regions.push((slot_name(slot) as u32, NAME_LEN));
     }
     regions
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let ok = unsafe { read_setup_slot(r.ebx) }?;
-    Ok(Left::carry(!ok))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(r.ebx), &rust);
-}
-
-// ---- self-test: every slot, with whatever setup files the owner has saved ----
-//
-// Slots without a file take the failing path. Files with a wrong head or too short are only
-// covered if such files happen to exist.
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    for slot in 0..SLOT_COUNT {
-        let regions = regions(slot);
-        let saved = capture(&regions);
-        let before = Regs {
-            ebx: slot,
-            ..Regs::SENTINEL
-        };
-        check_state(
-            &mut t,
-            &format!("slot={slot}"),
-            call_original,
-            before,
-            &|| restore(&regions, &saved),
-            &regions,
-            &rust,
-        );
-        restore(&regions, &saved);
-    }
-    t.finish()
 }

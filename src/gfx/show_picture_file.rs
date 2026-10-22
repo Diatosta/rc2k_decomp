@@ -137,7 +137,22 @@ pub unsafe fn show_picture_file(r: &mut Regs, call: CallAt) {
 // ---- hook ----
 
 fn in_game(at: usize, r: &mut Regs) {
-    unsafe { call_game(r, game_addr(rva(at))) };
+    unsafe { game_call(at, r) };
+}
+
+/// The callers' calls: `text::draw_string_by_id` in Rust (its hook is gone; a refusal
+/// runs its original), the rest in the game.
+pub unsafe fn game_call(at: usize, r: &mut Regs) {
+    unsafe {
+        if at == DRAW_STRING_BY_ID {
+            let entry = *r;
+            if crate::text::draw_string_by_id::draw_string_by_id_regs(r).is_ok() {
+                return;
+            }
+            *r = entry;
+        }
+        call_game(r, game_addr(rva(at)))
+    }
 }
 
 extern "C" fn dispatch(r: &mut Regs) {

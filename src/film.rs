@@ -54,8 +54,6 @@ const REPORTS_RVA: usize = rva(0x4F52AC); // dword_4F52AC
 const SURFACE_RVA: usize = rva(0x4F4998); // g_surface
 const FORMAT_RVA: usize = rva(0x4F496C); // g_surfaceFormat
 const TAKE_KEY: usize = rva(0x407F95); // input::take_key
-const RESOLVE_PATH: usize = rva(0x403206); // files::resolve_path
-const FILE_EXISTS: usize = rva(0x402EBE); // files::file_exists
 const PUMP: usize = rva(0x410535); // system::pump_messages
 const LOCK: usize = rva(0x4058AD); // gfx::lock_surface
 const UNLOCK: usize = rva(0x405949); // gfx::unlock_surface
@@ -659,17 +657,22 @@ pub unsafe fn play_film(entry: &Regs) -> bool {
         let mut k = r;
         call_game(&mut k, game_addr(TAKE_KEY));
         r.eax = entry.eax;
-        // the open: the path resolved, there
-        call_game(&mut r, game_addr(RESOLVE_PATH));
-        call_game(&mut r, game_addr(FILE_EXISTS));
-        let path = if r.carry() {
-            None
-        } else {
-            Some(
-                CStr::from_ptr(r.eax as *const c_char)
-                    .to_string_lossy()
-                    .into_owned(),
-            )
+        // the open: the path resolved (`files::resolve_path`), there (`files::file_exists`)
+        let found = crate::files::resolve_path::resolve_path_in_game(entry.eax as *const u8)
+            .and_then(|at| Ok((at, crate::files::file_exists::file_exists(at)?)));
+        let path = match found {
+            Ok((at, there)) => {
+                r.eax = at as u32;
+                there.then(|| {
+                    CStr::from_ptr(at as *const c_char)
+                        .to_string_lossy()
+                        .into_owned()
+                })
+            }
+            Err(why) => {
+                log(&format!("gfx::play_film: the path refused: {}", why.0));
+                None
+            }
         };
         let mut eax = entry.eax; // the path: the zero flag clear when it does not open
         if let Some(path) = path {

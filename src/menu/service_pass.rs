@@ -26,7 +26,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
+    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
 use crate::menu::standings::*;
 use crate::service::harness::{Region, at, capture, restore};
@@ -53,7 +53,6 @@ const DUE_RVA: usize = rva(0x755938); // dword_755938
 const CLEARED_RVA: [usize; 2] = [rva(0x75AC8C), rva(0x75AB38)]; // dword_75AC8C, dword_75AB38
 const OUT_RVA: usize = rva(0x755978); // dword_755978
 const ANSWER_RVA: usize = rva(0x75524C); // g_yesNoAnswer
-const APPLY_REPAIRS: usize = rva(0x46C14D); // service::apply_repairs, through its hook
 const SERVICE_LOOP: usize = 0x47284A; // service::service_area_loop
 
 /// Its calls (the test's copy).
@@ -144,7 +143,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             6 => {
                 crate::menu::screen_loop::run_screen(&crate::service::service_area_loop::SCREEN, r)
             }
-            7 => call_game(r, game_addr(APPLY_REPAIRS)),
+            7 => crate::service::apply_repairs::apply_repairs_in_game(r),
             8 => {
                 let key = crate::input::take_key::take_key();
                 r.eax = (r.eax & !0xFF) | u32::from(key);

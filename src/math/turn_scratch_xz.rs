@@ -6,32 +6,12 @@
 //! Out: edx = the entry; the rest preserved
 //!
 //! x' = x cos + z sin, z' = z cos - x sin, on the x87 as the original (`math::x87::
-//! turn_in_place`). Six callers, `math::turn_point_xz` and its three siblings. Self-test:
-//! the original and the Rust version on the scratch point, put back afterwards.
+//! turn_in_place`). Six callers, `math::turn_point_xz` and its three siblings.
+//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
+//! registers above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::{
-    EDX, GameHook, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-};
-use crate::math::x87_run::{DOUBLE, TEST_CONTROL_WORDS, with_control_word};
-use crate::screens::harness::Left;
-use crate::service::floats::{
-    FLOAT, Floats, Tolerance, check_state_floats, dispatch_state_floats, note_control_word,
-};
-use crate::service::harness::{Region, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("math::turn_scratch_xz", rva(0x41FEF8), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::service::harness::Region;
 
 pub const Z_RVA: usize = rva(0x5C5F4C); // dword_5C5F4C
 pub const X_RVA: usize = rva(0x5C5F50); // dword_5C5F50
@@ -83,86 +63,4 @@ pub unsafe fn turn_scratch_xz_plain(angle: u32) -> u32 {
 
 pub fn scratch() -> Region {
     (game_addr(Z_RVA) as u32, 12)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(Left::nothing().with(EDX, unsafe { turn_scratch_xz_plain(r.edx) }))
-}
-
-/// What a test case at `word` compares within tolerances: nothing at double precision,
-/// the game's.
-pub fn point_floats<'a>(
-    word: u16,
-    memory: &'a [(Region, Tolerance)],
-    regs: &'a [(u8, Tolerance)],
-) -> Floats<'a> {
-    if word == DOUBLE {
-        Floats::EXACT
-    } else {
-        Floats { memory, regs }
-    }
-}
-
-/// The scratch point's floats.
-pub fn scratch_floats() -> [(Region, Tolerance); 1] {
-    [(scratch(), FLOAT)]
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    note_control_word(HOOK.name());
-    let floats = scratch_floats();
-    let floats = Floats {
-        memory: &floats,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &[scratch()], &floats, &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = [scratch()];
-    let saved = capture(&regions);
-    let tolerant = scratch_floats();
-    for word in TEST_CONTROL_WORDS {
-        // At double precision the same bits; at the others within the tolerance.
-        let floats = if word == DOUBLE {
-            Floats::EXACT
-        } else {
-            Floats {
-                memory: &tolerant,
-                regs: &[],
-            }
-        };
-        with_control_word(word, &mut || {
-            for (x, z, angle) in [
-                (1.0f32, 0.0f32, 0u32),
-                (123.456, -78.9, 0x4000_0000),
-                (-5000.25, 3.5, 0x1234_5678),
-                (0.1, 0.7, 0xFFF8_0000),
-                (1e9, -1e-9, 0x8007_FFFF),
-                (f32::MAX, 2.0, 0x3000_0000),
-            ] {
-                check_state_floats(
-                    &mut t,
-                    HOOK.name(),
-                    &format!("control word {word:#x}, x {x}, z {z}, angle {angle:#x}"),
-                    call_original,
-                    Regs {
-                        edx: angle,
-                        ..Regs::SENTINEL
-                    },
-                    &|| unsafe {
-                        game_write(Z_RVA, [z.to_bits(), x.to_bits(), 0x5555_5555]);
-                    },
-                    &regions,
-                    &floats,
-                    &rust,
-                );
-            }
-        });
-    }
-    restore(&regions, &saved);
-    t.finish()
 }

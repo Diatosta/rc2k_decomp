@@ -26,41 +26,16 @@
 //! clock is `tick_count`. They come in through `Driver`, so that the logic can be run and
 //! compared without real frames.
 //! Called from `sub_48E0FD` and `sub_4A16AB`. Refuses a missing player.
-//!
-//! Shadow mode cannot run both for real (it takes seconds and draws): the original runs, the
-//! variables are put back, the Rust version runs with a clock that jumps and no frames, the
-//! results are compared and the original's are put in place. The self-test cannot run the
-//! real original either (it would run frames from the console's thread): it runs a copy of
-//! it whose calls to the frame function, the clock and the sleep go to stand-ins.
+//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
+//! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::redirect::RedirectedCopy;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, restore};
+use crate::framework::{Regs, call_game, game_addr, game_read, game_write, rva};
 use crate::service::pages::{GEAR_RATIO, RIDE_HEIGHT, SUSPENSION_STIFFNESS, TYRE};
 use crate::service::reset_tyre_wear::reset_tyre_wear;
-use crate::service::state::{
-    FLAG_TABLE_LEN, REPAIR_FLAGS_RVA, REPAIR_MARKS_RVA, current_player, repair_flag,
-    set_repair_flag,
-};
+use crate::service::state::{current_player, repair_flag, set_repair_flag};
 use crate::system::sleep::sleep;
 use crate::system::tick_count::tick_count;
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("service::apply_repairs", rva(0x46C14D), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -73,11 +48,7 @@ const FRAME_FUNCTION_RVA: usize = rva(0x405A71); // sub_405A71
 const DRAW_CALLBACK_RVA: usize = rva(0x46CFD7); // sub_46CFD7
 
 // Converted: `rc2k_core::service::workshop` (the car's offsets, the items, the order).
-use rc2k_core::service::workshop::{BODY_STATE, DAMAGE, STATE_BITS, Setting, Timer, Workshop};
-const DAMAGE_OFFSET: u32 = DAMAGE;
-const STATE_BITS_OFFSET: u32 = STATE_BITS;
-const BODY_STATE_OFFSET: u32 = BODY_STATE;
-
+use rc2k_core::service::workshop::{Setting, Timer, Workshop};
 // ---- Rust version ----
 
 /// Where time, frames and sleep come from.
@@ -183,271 +154,12 @@ pub unsafe fn apply_repairs(driver: &mut dyn Driver) -> Result<(), Refused> {
     rc2k_core::service::workshop::apply_repairs(&mut Game { player, driver })
 }
 
-// ---- hook ----
-
-/// What the function decides: the car from its damage values to its state bits, both flag
-/// tables, the "working" switch and the block of chosen and installed setup values.
-fn result_regions(player: u32) -> Vec<Region> {
-    vec![
-        (
-            player + DAMAGE_OFFSET,
-            (STATE_BITS_OFFSET + 4 - DAMAGE_OFFSET) as usize,
-        ),
-        (game_addr(REPAIR_FLAGS_RVA) as u32, FLAG_TABLE_LEN),
-        (game_addr(REPAIR_MARKS_RVA) as u32, FLAG_TABLE_LEN),
-        at(WORKING_RVA),
-        (game_addr(rva(0x75AC90)) as u32, 0x2C), // dword_75AC90 .. dword_75ACB8
-    ]
-}
-
-/// Its three time-keeping variables, which depend on the clock.
-fn timing_regions() -> [Region; 3] {
-    [at(START_RVA), at(ELAPSED_RVA), at(LAST_STEP_RVA)]
-}
-
-/// A clock that moves 5 ms at every reading, no frames, no sleep.
-struct InstantDriver(u32);
-
-impl Driver for InstantDriver {
-    fn clock(&mut self) -> u32 {
-        self.0 = self.0.wrapping_add(5);
-        self.0
-    }
-    fn frame(&mut self) {}
-    fn sleep(&mut self, _: u32) {}
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    let Some(player) = current_player() else {
-        unsafe { call_original(r) };
-        return;
-    };
-    if !shadow() {
-        if unsafe { apply_repairs(&mut GameDriver) }.is_err() {
-            unsafe { call_original(r) };
+/// For Rust callers: the Rust version, or, for a missing player or a refusal, the original
+/// (as the hook did; it has not written anything then). Every register kept.
+pub unsafe fn apply_repairs_in_game(r: &mut Regs) {
+    unsafe {
+        if current_player().is_none() || apply_repairs(&mut GameDriver).is_err() {
+            crate::framework::call_game(r, game_addr(rva(0x46C14D)));
         }
-        return;
     }
-
-    // The original, for real; then the Rust logic on the same starting point, without frames.
-    let results = result_regions(player);
-    let timing = timing_regions();
-    let before = capture(&results);
-    let mut o = *r;
-    unsafe { call_original(&mut o) };
-    let theirs = (capture(&results), capture(&timing));
-
-    restore(&results, &before);
-    let outcome = unsafe { apply_repairs(&mut InstantDriver(0)) };
-    let mine = capture(&results);
-    restore(&results, &theirs.0);
-    restore(&timing, &theirs.1);
-
-    if outcome.is_err() || mine != theirs.0 || !Left::nothing().matches(r, &o) {
-        HOOK.mismatch(|| {
-            let first = mine.iter().zip(&theirs.0).position(|(a, b)| a != b);
-            format!(
-                "rust {outcome:?}; first different byte of the results: {first:x?} (0 = player +0xCC); flags before {:x?}",
-                &before[results[0].1..results[0].1 + FLAG_TABLE_LEN]
-            )
-        });
-    }
-    let esp = r.esp;
-    *r = o;
-    r.esp = esp;
-}
-
-// ---- self-test: a copy of the original with its frames, clock and sleep replaced ----
-
-const FUNCTION_LEN: usize = 0xE8A;
-
-/// Offsets of every `call rel32` in the function.
-const CALL_OFFSETS: [usize; 98] = [
-    444, 477, 503, 508, 613, 629, 634, 673, 699, 704, 809, 825, 830, 869, 895, 900, 1005, 1021,
-    1026, 1065, 1091, 1096, 1201, 1217, 1222, 1261, 1287, 1292, 1397, 1413, 1418, 1457, 1483, 1488,
-    1593, 1609, 1614, 1653, 1679, 1684, 1805, 1821, 1826, 1865, 1891, 1896, 2001, 2017, 2022, 2061,
-    2087, 2092, 2197, 2213, 2218, 2257, 2283, 2288, 2393, 2409, 2414, 2453, 2479, 2484, 2589, 2605,
-    2610, 2649, 2675, 2680, 2785, 2801, 2806, 2845, 2871, 2876, 2981, 2997, 3002, 3041, 3067, 3072,
-    3193, 3209, 3214, 3255, 3281, 3286, 3407, 3423, 3428, 3469, 3495, 3500, 3621, 3637, 3642, 3715,
-];
-
-static FAKE_CLOCK: AtomicU32 = AtomicU32::new(0);
-static FRAMES: AtomicU32 = AtomicU32::new(0);
-static SLEPT: AtomicU32 = AtomicU32::new(0);
-
-const CLOCK_STEP: u32 = 3;
-
-/// Stands in for `tick_count`: eax = the fake clock, which then moves on. Like the real one
-/// it changes nothing but eax and flags.
-#[unsafe(naked)]
-unsafe extern "C" fn fake_tick_count() {
-    core::arch::naked_asm!(
-        "mov eax, [{clock}]",
-        "add dword ptr [{clock}], 3",
-        "ret",
-        clock = sym FAKE_CLOCK,
-    )
-}
-
-/// Stands in for the frame function: counts the call.
-#[unsafe(naked)]
-unsafe extern "C" fn fake_frame() {
-    core::arch::naked_asm!("inc dword ptr [{frames}]", "ret", frames = sym FRAMES)
-}
-
-/// Stands in for `sleep`: adds up what was asked for.
-#[unsafe(naked)]
-unsafe extern "C" fn fake_sleep() {
-    core::arch::naked_asm!("add [{slept}], eax", "ret", slept = sym SLEPT)
-}
-
-/// The same stand-ins for the Rust version.
-struct TestDriver;
-
-impl Driver for TestDriver {
-    fn clock(&mut self) -> u32 {
-        FAKE_CLOCK.fetch_add(CLOCK_STEP, Ordering::SeqCst)
-    }
-    fn frame(&mut self) {
-        FRAMES.fetch_add(1, Ordering::SeqCst);
-    }
-    fn sleep(&mut self, milliseconds: u32) {
-        SLEPT.fetch_add(milliseconds, Ordering::SeqCst);
-    }
-}
-
-/// The original's first ten bytes: `pusha; mov dword_75AB38, 1`, with the address as it is
-/// in the image at its preferred base (the test checks the base before using them).
-const ENTRY_BYTES: [u8; 11] = [
-    0x60, 0xC7, 0x05, 0x38, 0xAB, 0x75, 0x00, 0x01, 0x00, 0x00, 0x00,
-];
-const PREFERRED_BASE: usize = 0x40_0000;
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let Some(player) = current_player() else {
-        return t.skip("there is no current player object");
-    };
-    if game_addr(0) != PREFERRED_BASE {
-        return t.skip("the game is not loaded at its preferred base");
-    }
-    let redirect = |target: usize| match target {
-        t if t == rva(0x411024) => Some(fake_tick_count as *const () as usize),
-        t if t == rva(0x405A71) => Some(fake_frame as *const () as usize),
-        t if t == rva(0x41100C) => Some(fake_sleep as *const () as usize),
-        _ => None, // `reset_tyre_wear`
-    };
-    let copy = match unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x46C14D)),
-            FUNCTION_LEN,
-            &ENTRY_BYTES,
-            &CALL_OFFSETS,
-            &redirect,
-        )
-    } {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-
-    let mut regions = result_regions(player);
-    regions.extend(timing_regions());
-    let saved = capture(&regions);
-    let observed = || [&FAKE_CLOCK, &FRAMES, &SLEPT].map(|counter| counter.load(Ordering::SeqCst));
-
-    // (chosen items with their flag value, damage of every part, tyre and body damage end
-    // up 0 or not through these)
-    let cases: [(&[(u32, u32)], i32); 7] = [
-        (&[], 40),
-        (&[(2, 1)], 40),
-        (
-            &[(2, 1), (3, 1), (0xE, 1), (0xF, 1), (0x12, 1), (0x13, 1)],
-            7,
-        ),
-        (&[(4, 1), (6, 2), (8, 1), (0xD, 1)], 1),
-        (&[(3, 1), (5, 1), (7, 1), (9, 1), (0xB, 1), (0xF, 1)], 0),
-        (&[(0xA, 1), (0xC, 1), (0x12, 2), (0x13, 1)], -3),
-        (
-            &[
-                (2, 1),
-                (3, 1),
-                (4, 1),
-                (5, 1),
-                (6, 1),
-                (7, 1),
-                (8, 1),
-                (9, 1),
-                (0xA, 1),
-                (0xB, 1),
-                (0xC, 1),
-                (0xD, 1),
-                (0xE, 1),
-                (0xF, 1),
-                (0x12, 1),
-                (0x13, 1),
-            ],
-            100,
-        ),
-    ];
-    for (n, (chosen, damage)) in cases.into_iter().enumerate() {
-        let prepare = || unsafe {
-            restore(&regions, &saved);
-            for item in 0..20 {
-                set_repair_flag(item, 0);
-            }
-            for &(item, flag) in chosen {
-                set_repair_flag(item, flag);
-            }
-            for item in 2..=0xF {
-                field(player, DAMAGE_OFFSET + 4 * item).write_unaligned(damage + item as i32 % 3);
-            }
-            // Small numbers in what gets zeroed, so that the zeroing shows.
-            for offset in (0x17C..0x20C)
-                .step_by(4)
-                .chain((BODY_STATE_OFFSET..0x26C).step_by(4))
-            {
-                field(player, offset).write_unaligned(1);
-            }
-            (field(player, STATE_BITS_OFFSET) as *mut u32).write_unaligned(0x100);
-            game_write(WORKING_RVA, 0u32);
-            for (rva, value) in [
-                (GEAR_RATIO.change.chosen_rva, 3u32),
-                (TYRE.change.chosen_rva, 4),
-                (RIDE_HEIGHT.change.chosen_rva, 61),
-                (SUSPENSION_STIFFNESS.change.chosen_rva, 62),
-            ] {
-                game_write(rva, value);
-            }
-            FAKE_CLOCK.store(1000, Ordering::SeqCst);
-            FRAMES.store(0, Ordering::SeqCst);
-            SLEPT.store(0, Ordering::SeqCst);
-        };
-
-        prepare();
-        let before = Regs::SENTINEL;
-        let mut ro = before;
-        unsafe { call_game(&mut ro, copy.addr()) };
-        let theirs = (capture(&regions), observed());
-
-        prepare();
-        let outcome = unsafe { apply_repairs(&mut TestDriver) };
-        let mine = (capture(&regions), observed());
-
-        let preserved = ro.preserved_except(&before, 0);
-        t.check(outcome.is_ok() && theirs == mine && preserved, || {
-            let first = mine.0.iter().zip(&theirs.0).position(|(a, b)| a != b);
-            format!(
-                "case {n}: preserved={preserved} original clock/frames/slept {:?}; rust {outcome:?} {:?}; first different byte: {first:x?} (0 = player +0xCC, the player part is {:#x} long)",
-                theirs.1,
-                mine.1,
-                regions[0].1
-            )
-        });
-    }
-
-    restore(&regions, &saved);
-    t.finish()
 }

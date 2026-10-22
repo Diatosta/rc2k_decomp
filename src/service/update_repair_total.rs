@@ -5,34 +5,13 @@
 //! In:  nothing
 //! Out: every register preserved
 //! Refuses what `state::chosen_repairs_time` refuses.
+//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
+//! registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::framework::{game_read, game_write};
-use crate::screens::harness::Left;
-use crate::service::harness::{
-    FLAG_PATTERNS, RepairTest, check_state, dispatch_state, repair_regions, set_flags,
-};
 use crate::service::state::{REPAIR_TOTAL_RVA, TIME_BUDGET_RVA};
 use crate::service::state::{flags, marks, store_marks, time_of};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "service::update_repair_total",
-    rva(0x46BA2C),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- Rust version ----
 
@@ -45,46 +24,4 @@ pub unsafe fn update_repair_total() -> Result<(), Refused> {
     store_marks(&m);
     unsafe { game_write(REPAIR_TOTAL_RVA, total) };
     Ok(())
-}
-
-// ---- hook ----
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { update_repair_total() }?;
-    Ok(Left::nothing())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &repair_regions(), &rust);
-}
-
-// ---- self-test: known repair times, several sets of chosen items ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let test = RepairTest::begin();
-    RepairTest::set_known_times();
-    for (n, chosen) in FLAG_PATTERNS.iter().enumerate() {
-        for budget in [
-            0i32, 500, 899, 900, 1000, 1099, 1100, 1101, 1700, 2000, 5000, 100_000, -50,
-        ] {
-            check_state(
-                &mut t,
-                &format!("pattern={n} budget={budget}"),
-                call_original,
-                Regs::SENTINEL,
-                &|| unsafe {
-                    set_flags(chosen, 1);
-                    game_write(TIME_BUDGET_RVA, budget);
-                    game_write(REPAIR_TOTAL_RVA, 0x5EED_0001u32);
-                },
-                &repair_regions(),
-                &rust,
-            );
-        }
-    }
-    test.end();
-    t.finish()
 }

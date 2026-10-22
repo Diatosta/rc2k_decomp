@@ -547,6 +547,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             MEASURE_STRING => measure_string(r)?,
             READ_FILE => read_file(r)?,
             WRITE_FILE => write_file(r)?,
+            RESOLVE_PATH => {
+                r.eax = crate::files::resolve_path::resolve_path_in_game(r.eax as *const u8)? as u32
+            }
             PALETTE_TO_DWORDS => crate::gfx::palette_to_dwords::palette_to_dwords(
                 r.esi as *const u8,
                 r.edi as *mut u32,
