@@ -1,4 +1,6 @@
-use crate::framework::GameHook;
+//! The game's log (`var\logfile.txt`): no hooks left (conversion phase 4, 2026-10-22); Rust
+//! callers call `write_line::log_text` and the number loggers directly, or through the
+//! routes (`crate::routes`, ungated: `routes::gated`).
 
 pub mod date_text;
 pub mod log_float;
@@ -11,15 +13,3 @@ pub mod log_write;
 pub mod numeric;
 pub mod start_log;
 pub mod write_line;
-
-pub static HOOKS: &[&dyn GameHook] = &[
-    &write_line::HOOK,
-    &log_write::HOOK,
-    &log_int::HOOK,
-    &log_int_fmt::HOOK,
-    &log_float::HOOK,
-    &log_hex8::HOOK,
-    &log_hex2::HOOK,
-    &log_hex4::HOOK,
-    &date_text::HOOK,
-];

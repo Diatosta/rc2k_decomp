@@ -390,27 +390,6 @@ const SDL_DOES: [(usize, &str); 5] = [
     (0x410509, "system::drain_messages"),
 ];
 
-/// The log's wrappers: (the wrapper, its edx, the hooked function it jumps to), as IDA
-/// shows them (`logfile::log_write_l1` .. `logfile::log_hex4_l1`).
-const LOG_WRAPPERS: [(usize, u32, usize); 16] = [
-    (0x401427, 0x000, 0x4013CB), // log_write_l1
-    (0x40142B, 0x001, 0x4013CB), // log_write_l1_nl
-    (0x401432, 0x100, 0x4013CB), // log_write_l2
-    (0x401439, 0x101, 0x4013CB), // log_write_l2_nl
-    (0x401472, 0x000, 0x401440), // log_int_l1
-    (0x401476, 0x001, 0x401440), // log_int_l1_nl
-    (0x40147D, 0x100, 0x401440), // log_int_l2
-    (0x401484, 0x101, 0x401440), // log_int_l2_nl
-    (0x4014BF, 0x000, 0x40148B), // log_int_fmt_l1
-    (0x4015CF, 0x000, 0x4014D8), // log_float_l1
-    (0x4015D6, 0x001, 0x4014D8), // log_float_l1_nl
-    (0x401622, 0x000, 0x4015F4), // log_hex8_l1
-    (0x401626, 0x001, 0x4015F4), // log_hex8_l1_nl
-    (0x40162D, 0x100, 0x4015F4), // log_hex8_l2
-    (0x401634, 0x101, 0x4015F4), // log_hex8_l2_nl
-    (0x4016B0, 0x000, 0x401682), // log_hex4_l1
-];
-
 unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {
     const CONTINUE_EXECUTION: i32 = -1;
     const CONTINUE_SEARCH: i32 = 0;
@@ -459,24 +438,6 @@ unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {
                 finish(&format!("the hook at {at:#x} has no jump"), 1);
             };
             context.Eip = thunk as u32;
-            return CONTINUE_EXECUTION;
-        }
-        // The log's few-byte wrappers (edx the newline and level, then a jump into a
-        // hooked function): edx set and on at that function's thunk.
-        if let Some(&(_, edx, target)) = LOG_WRAPPERS.iter().find(|w| w.0 == at)
-            && let Some(thunk) = thunk_of(game_addr(rva(target)))
-        {
-            context.Edx = edx;
-            context.Eip = thunk as u32;
-            return CONTINUE_EXECUTION;
-        }
-        // `logfile::log_newline_l1` (0x4013DE): an empty text with a line break, at level
-        // 1, every register kept (`pusha` .. `popa`).
-        if at == 0x4013DE {
-            crate::logfile::log_write::log_write(game_addr(rva(0x4E00B7)) as *const u8, true, 1);
-            let from = (context.Esp as *const u32).read_unaligned();
-            context.Eip = from;
-            context.Esp += 4;
             return CONTINUE_EXECUTION;
         }
         // The platform's own at the start and the end, which SDL does here: nothing.

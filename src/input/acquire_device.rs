@@ -90,7 +90,7 @@ fn log_text(rva: usize) {
 }
 
 fn log_int(v: u32, newline: bool) {
-    unsafe { crate::logfile::log_int::log_int(v as i32, newline, 2) };
+    crate::logfile::log_int::log_int(v as i32, newline, 2);
 }
 
 /// The settings from the configuration, and the log's line.
@@ -145,7 +145,7 @@ fn settings(record: u32, entry: u32) {
     log_text(AXMODE_RVA);
     log_int(at(record, kind), false);
     log_text(AXCODE_RVA);
-    unsafe { crate::logfile::log_hex8::log_hex8(at(record, field!(D, axis_code)), false, 2) };
+    crate::logfile::log_hex8::log_hex8(at(record, field!(D, axis_code)), false, 2);
     log_text(DZ_RVA);
     log_int(at(record, field!(D, dead_zone)), false);
     log_int(at(record, field!(D, end_zone)), false);

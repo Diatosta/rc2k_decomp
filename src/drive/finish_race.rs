@@ -41,7 +41,7 @@ fn log_text(text: usize) {
 }
 
 fn log_number(v: u32) {
-    unsafe { crate::logfile::log_int::log_int(v as i32, true, 1) };
+    crate::logfile::log_int::log_int(v as i32, true, 1);
 }
 
 /// A variable's IDA address.

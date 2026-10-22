@@ -374,3 +374,100 @@ mod head_tests {
         assert_eq!(entry(10, || 2), Entry::Written);
     }
 }
+
+/// The log's state: the game keeps it in `g_logEnabled`, `g_logLevel`, `g_logIndent` and
+/// `g_logAtLineStart` (0x4E0094 .. 0x4E00A4).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LogState {
+    /// On while above 0 (signed).
+    pub enabled: i32,
+    /// The highest level logged; 0 logs nothing.
+    pub level: u32,
+    /// Spaces before a line (0 .. 80 used).
+    pub indent: i32,
+    /// 1 when the next text starts a line.
+    pub line_start: u32,
+}
+
+/// What one call of the log does with a text.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Logged {
+    /// Logging is off or its level is 0: the lock not taken, nothing changed.
+    Off,
+    /// The text's level is above the log's: the lock taken and given back, nothing else.
+    Above,
+    /// The line to append to the log's file (the state's line-start flag set for the next).
+    Line(Vec<u8>),
+}
+
+/// One text logged at `level` (1 or 2; the original adds 1 to `level - 1` as a byte, so 0
+/// is 256), with a line break after it if `newline`: `log_write` and `write_line` together.
+pub fn log_line(state: &mut LogState, text: &[u8], newline: bool, level: u8) -> Logged {
+    if entry(state.enabled, || state.level) != Entry::Written {
+        return Logged::Off;
+    }
+    let level = match level {
+        0 => 256,
+        n => n as u32,
+    };
+    if state.level < level {
+        return Logged::Above;
+    }
+    let (line, flag) = format_line(text, newline, state.indent, state.line_start);
+    state.line_start = flag;
+    Logged::Line(line)
+}
+
+#[cfg(test)]
+mod line_tests {
+    use super::*;
+
+    fn on(level: u32) -> LogState {
+        LogState {
+            enabled: 1,
+            level,
+            indent: 2,
+            line_start: 1,
+        }
+    }
+
+    #[test]
+    fn gates() {
+        let mut off = LogState {
+            enabled: 0,
+            ..on(2)
+        };
+        assert_eq!(log_line(&mut off, b"x", true, 1), Logged::Off);
+        let mut negative = LogState {
+            enabled: -1,
+            ..on(2)
+        };
+        assert_eq!(log_line(&mut negative, b"x", true, 1), Logged::Off);
+        let mut silent = on(0);
+        assert_eq!(log_line(&mut silent, b"x", true, 1), Logged::Off);
+        let mut one = on(1);
+        assert_eq!(log_line(&mut one, b"x", true, 2), Logged::Above);
+        assert_eq!(one, on(1));
+        // level 0 is 256: above any log level the game sets
+        assert_eq!(log_line(&mut on(255), b"x", true, 0), Logged::Above);
+    }
+
+    #[test]
+    fn lines_and_indent() {
+        let mut s = on(2);
+        assert_eq!(
+            log_line(&mut s, b"cpu=", false, 1),
+            Logged::Line(b"  cpu= ".to_vec())
+        );
+        assert_eq!(s.line_start, 0);
+        assert_eq!(
+            log_line(&mut s, b"6", true, 2),
+            Logged::Line(b"6\r\n".to_vec())
+        );
+        assert_eq!(s.line_start, 1);
+        assert_eq!(
+            log_line(&mut s, b"", true, 1),
+            Logged::Line(b"  \r\n".to_vec())
+        );
+    }
+}

@@ -10,36 +10,21 @@
 //!
 //! The original writes the real file, so there is no shadow comparison: in shadow mode the
 //! original runs alone, and the self-test is the only check of the Rust version.
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{
-    EAX, EBX, ECX, EDX, RawHook, Regs, SelfTest, game_ptr, game_read, game_write, hook_asm, rva,
-    shadow,
-};
+use crate::framework::{Regs, game_ptr, game_read, game_write, rva};
 use std::ffi::{CStr, c_char};
-use std::io::{Read, Seek, SeekFrom};
 use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts;
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU32, Ordering};
 use windows_sys::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
 use windows_sys::Win32::Storage::FileSystem::{CreateFileA, SetFilePointer, WriteFile};
 use windows_sys::Win32::System::Threading::Sleep;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("logfile::write_line", rva(0x40132C), thunk, &ORIGINAL).self_test(self_test);
-
 // The game enters this tail holding `g_logLock`, which self-tests that log also take: if the
 // thunk waited for self-tests here, the two would wait for each other. So this hook (and the
 // hooks it reaches) never waits; the lock is what keeps them apart.
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    log_lock
-);
-
 // ---- game data ----
 
 pub const LOG_LEVEL_RVA: usize = rva(0x4E0098); // g_logLevel
@@ -140,7 +125,48 @@ pub unsafe fn write_line(msg: *const u8, newline: bool, level_m1: u8) -> Option<
     }
 }
 
-// ---- hook ----
+/// The log's state as the game keeps it (`rc2k_core::files::log::LogState`).
+mod state {
+    use crate::bridge::Global;
+    pub static ENABLED: Global<i32> = Global::at(0x4E_0094); // g_logEnabled
+    pub static LEVEL: Global<u32> = Global::at(0x4E_0098); // g_logLevel
+    pub static INDENT: Global<i32> = Global::at(0x4E_00A0); // g_logIndent
+    pub static LINE_START: Global<u32> = Global::at(0x4E_00A4); // g_logAtLineStart
+}
+
+fn load_state() -> rc2k_core::files::log::LogState {
+    rc2k_core::files::log::LogState {
+        enabled: state::ENABLED.get(),
+        level: state::LEVEL.get(),
+        indent: state::INDENT.get(),
+        line_start: state::LINE_START.get(),
+    }
+}
+
+/// Logs `text` at `level` (1 or 2), with a line break after it if `newline`: what the
+/// game's log functions do (`log_write` and this tail; converted:
+/// `rc2k_core::files::log::log_line`). The lock (`g_logLock`, shared with the game's code
+/// while it logs too) is held from the level check to the file's write; the line is left in
+/// the game's line buffer, as the original leaves it.
+pub fn log_text(text: &[u8], newline: bool, level: u8) {
+    use rc2k_core::files::log::{Entry, Logged, entry, log_line};
+    let first = load_state();
+    if entry(first.enabled, || first.level) != Entry::Written {
+        return;
+    }
+    acquire();
+    let mut now = load_state();
+    if let Logged::Line(line) = log_line(&mut now, text, newline, level) {
+        state::LINE_START.set(now.line_start);
+        // SAFETY: the line is at most `LINE_LIMIT` + 2 bytes, the buffer's size.
+        unsafe {
+            let buf = game_ptr::<u8>(LINE_BUF_RVA);
+            copy_nonoverlapping(line.as_ptr(), buf, line.len());
+            append_to_file(LOG_PATH, from_raw_parts(buf, line.len()));
+        }
+    }
+    lock().store(0, Ordering::Release);
+}
 
 /// `write_line` with the original's registers in and out.
 pub unsafe fn write_line_regs(r: &mut Regs) {
@@ -156,20 +182,10 @@ pub unsafe fn write_line_regs(r: &mut Regs) {
     }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     unsafe { write_line_regs(r) };
-}
-
-// ---- self-test: appends lines to the real var\logfile.txt ----
-
-type Impl = unsafe fn(&mut Regs);
-unsafe fn original_regs(r: &mut Regs) {
-    unsafe { call_original(r) }
+    Ok(())
 }
 
 /// Takes the lock the way `log_lock_acquire` does.
@@ -177,138 +193,4 @@ pub fn acquire() {
     while lock().swap(1, Ordering::Acquire) != 0 {
         unsafe { Sleep(1) }
     }
-}
-pub fn file_len() -> u64 {
-    std::fs::metadata("var\\logfile.txt")
-        .map(|m| m.len())
-        .unwrap_or(0)
-}
-pub fn file_bytes(start: u64, max: usize) -> Vec<u8> {
-    let Ok(mut f) = std::fs::File::open("var\\logfile.txt") else {
-        return Vec::new();
-    };
-    if f.seek(SeekFrom::Start(start)).is_err() {
-        return Vec::new();
-    }
-    let mut v = Vec::new();
-    let _ = f.take(max as u64).read_to_end(&mut v);
-    v
-}
-
-/// Takes the lock as a log function would, sets the line state, runs `f` (the tail releases the
-/// lock). The file offset is measured under the lock, so our bytes at [before, before+len)
-/// cannot be disturbed by other logging threads.
-/// Returns (registers after, file length before, line-start flag after).
-unsafe fn run(
-    f: Impl,
-    msg: *const u8,
-    dh: u8,
-    dl: u8,
-    start: u32,
-    indent: i32,
-) -> (Regs, u64, u32) {
-    acquire();
-    unsafe {
-        game_write(LOG_LINE_START_RVA, start);
-        game_write(LOG_INDENT_RVA, indent as u32);
-    }
-    let before = file_len();
-    let mut r = Regs {
-        eax: msg as u32,
-        edx: (dh as u32) << 8 | dl as u32,
-        ..Regs::SENTINEL
-    };
-    unsafe { f(&mut r) };
-    // may race with another logging thread
-    (r, before, unsafe { game_read(LOG_LINE_START_RVA) })
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let impls: [Impl; 2] = [original_regs, write_line_regs];
-    let lvl: u32 = unsafe { game_read(LOG_LEVEL_RVA) };
-    let dh_log = (lvl as u8).wrapping_sub(1); // level byte = lvl & 0xFF <= lvl, so it always logs
-    acquire();
-    let (saved_start, saved_indent): (u32, u32) =
-        unsafe { (game_read(LOG_LINE_START_RVA), game_read(LOG_INDENT_RVA)) };
-    lock().store(0, Ordering::Release);
-
-    let long: Vec<u8> = std::iter::repeat_n(b'x', 1200).chain([0]).collect();
-    // (message with NUL, newline, indent, line-start flag)
-    let msgs: Vec<(Vec<u8>, bool, i32, u32)> = vec![
-        (b"rc2k_hook selftest: plain\0".to_vec(), true, 0, 0),
-        (b"rc2k_hook selftest: no newline\0".to_vec(), false, 0, 0),
-        (b"rc2k_hook selftest: indented\0".to_vec(), true, 3, 1),
-        (
-            b"rc2k_hook selftest: indent clamped\0".to_vec(),
-            true,
-            200,
-            1,
-        ),
-        (
-            b"rc2k_hook selftest: negative indent\0".to_vec(),
-            true,
-            -5,
-            1,
-        ),
-        (b"\0".to_vec(), true, 0, 0),
-        (long, true, 0, 0), // truncated at the buffer limit
-    ];
-    let buf = game_ptr::<u8>(LINE_BUF_RVA) as u32;
-    for (msg, newline, indent, start) in &msgs {
-        let dl = *newline as u8;
-        let text = &msg[..msg.len() - 1];
-        let (want, want_flag) = format_line(text, *newline, *indent, *start);
-        let regs_ok = |r: &Regs| {
-            r.eax == want.len() as u32
-                && r.ebx == buf
-                && r.ecx == want.len() as u32
-                && r.edx == dl as u32
-                && r.preserved_except(&Regs::SENTINEL, EAX | EBX | ECX | EDX)
-        };
-        let mut ok = true;
-        for f in impls {
-            let (r, before, flag) = unsafe { run(f, msg.as_ptr(), dh_log, dl, *start, *indent) };
-            ok &= file_bytes(before, want.len()) == want && regs_ok(&r) && flag == want_flag;
-        }
-        t.check(ok, || {
-            format!(
-                "{:?} (want len {})",
-                String::from_utf8_lossy(&text[..text.len().min(40)]),
-                want.len()
-            )
-        });
-    }
-
-    // Level gate: dh = lvl gives level lvl+1 > lvl, so nothing may be written.
-    if lvl < 255 {
-        let msg = b"rc2k_hook selftest: MUST NOT APPEAR\0";
-        for f in impls {
-            let (r, before, _) = unsafe { run(f, msg.as_ptr(), lvl as u8, 1, 0, 0) };
-            let leaked = file_bytes(before, 1 << 16)
-                .windows(msg.len() - 1)
-                .any(|w| w == &msg[..msg.len() - 1]);
-            let ok = !leaked
-                && r.eax == msg.as_ptr() as u32
-                && r.ecx == lvl + 1
-                && r.edx == 1
-                && r.ebx == Regs::SENTINEL.ebx;
-            t.check(ok, || {
-                format!(
-                    "level gate (leaked={leaked}, eax={:#x}, ecx={})",
-                    r.eax, r.ecx
-                )
-            });
-        }
-    }
-
-    acquire();
-    unsafe {
-        game_write(LOG_LINE_START_RVA, saved_start);
-        game_write(LOG_INDENT_RVA, saved_indent);
-    }
-    lock().store(0, Ordering::Release);
-    t.finish()
 }

@@ -10,7 +10,32 @@ use crate::framework::{IMAGE_BASE, Regs};
 pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
     match at.wrapping_add(IMAGE_BASE) {
         0x401135 => Some(crate::logfile::start_log::entry(r)), // logfile::start_log
+        0x40132C => Some(crate::logfile::write_line::entry(r)), // logfile::write_line
         0x4013CB => Some(crate::logfile::log_write::entry(r)), // logfile::log_write
+        0x4013DE => Some({ crate::logfile::log_write::log_newline_l1(); Ok(()) }), // logfile::log_newline_l1
+        0x401427 => Some({ r.edx = 0x0; crate::logfile::log_write::entry(r) }), // logfile::log_write_l1
+        0x40142B => Some({ r.edx = 0x1; crate::logfile::log_write::entry(r) }), // logfile::log_write_l1_nl
+        0x401432 => Some({ r.edx = 0x100; crate::logfile::log_write::entry(r) }), // logfile::log_write_l2
+        0x401439 => Some({ r.edx = 0x101; crate::logfile::log_write::entry(r) }), // logfile::log_write_l2_nl
+        0x401440 => Some(crate::logfile::log_int::entry(r)), // logfile::log_int
+        0x401472 => Some({ r.edx = 0x0; crate::logfile::log_int::entry(r) }), // logfile::log_int_l1
+        0x401476 => Some({ r.edx = 0x1; crate::logfile::log_int::entry(r) }), // logfile::log_int_l1_nl
+        0x40147D => Some({ r.edx = 0x100; crate::logfile::log_int::entry(r) }), // logfile::log_int_l2
+        0x401484 => Some({ r.edx = 0x101; crate::logfile::log_int::entry(r) }), // logfile::log_int_l2_nl
+        0x40148B => Some(crate::logfile::log_int_fmt::entry(r)), // logfile::log_int_fmt
+        0x4014BF => Some({ r.edx = 0x0; crate::logfile::log_int_fmt::entry(r) }), // logfile::log_int_fmt_l1
+        0x4014D8 => Some(crate::logfile::log_float::entry(r)), // logfile::log_float
+        0x4015CF => Some({ r.edx = 0x0; crate::logfile::log_float::entry(r) }), // logfile::log_float_l1
+        0x4015D6 => Some({ r.edx = 0x1; crate::logfile::log_float::entry(r) }), // logfile::log_float_l1_nl
+        0x4015F4 => Some(crate::logfile::log_hex8::entry(r)), // logfile::log_hex8
+        0x401622 => Some({ r.edx = 0x0; crate::logfile::log_hex8::entry(r) }), // logfile::log_hex8_l1
+        0x401626 => Some({ r.edx = 0x1; crate::logfile::log_hex8::entry(r) }), // logfile::log_hex8_l1_nl
+        0x40162D => Some({ r.edx = 0x100; crate::logfile::log_hex8::entry(r) }), // logfile::log_hex8_l2
+        0x401634 => Some({ r.edx = 0x101; crate::logfile::log_hex8::entry(r) }), // logfile::log_hex8_l2_nl
+        0x40163B => Some(crate::logfile::log_hex2::entry(r)), // logfile::log_hex2
+        0x401682 => Some(crate::logfile::log_hex4::entry(r)), // logfile::log_hex4
+        0x4016B0 => Some({ r.edx = 0x0; crate::logfile::log_hex4::entry(r) }), // logfile::log_hex4_l1
+        0x401D74 => Some(crate::logfile::date_text::entry(r)), // logfile::date_text
         0x40298A => Some(crate::memory::open_own_heap::entry(r)), // memory::open_own_heap
         0x4029DB => Some(crate::memory::free_own_heap::entry(r)), // memory::free_own_heap
         0x402B7C => Some(crate::system::set_error_mode::entry(r)), // system::set_error_mode
@@ -187,4 +212,39 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x4904DD => Some(crate::scene::set_up_carousel::entry(r)), // scene::set_up_carousel
         _ => None,
     }
+}
+
+/// Whether a call of the function at `at` (an RVA) passes the hooks' gate: not the
+/// log's, entered holding or taking `g_logLock`, as their thunks were not (`log_lock`).
+pub fn gated(at: usize) -> bool {
+    !matches!(
+        at.wrapping_add(IMAGE_BASE),
+        0x401135
+            | 0x40132C
+            | 0x4013CB
+            | 0x4013DE
+            | 0x401427
+            | 0x40142B
+            | 0x401432
+            | 0x401439
+            | 0x401440
+            | 0x401472
+            | 0x401476
+            | 0x40147D
+            | 0x401484
+            | 0x40148B
+            | 0x4014BF
+            | 0x4014D8
+            | 0x4015CF
+            | 0x4015D6
+            | 0x4015F4
+            | 0x401622
+            | 0x401626
+            | 0x40162D
+            | 0x401634
+            | 0x40163B
+            | 0x401682
+            | 0x4016B0
+            | 0x401D74
+    )
 }

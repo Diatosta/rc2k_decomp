@@ -412,17 +412,6 @@ pub extern "C" fn hook_leave() {
     }
 }
 
-/// Called by the `log_lock` thunks before `dispatch`.
-pub extern "C" fn log_enter() {
-    LOG_DEPTH.set(LOG_DEPTH.get() + 1);
-}
-
-/// Called by the `log_lock` thunks after `dispatch`.
-pub extern "C" fn log_leave() {
-    LOG_DEPTH.set(LOG_DEPTH.get() - 1);
-    LOG_CALLS_DONE.fetch_add(1, Ordering::SeqCst);
-}
-
 /// The self-test running now, for a crash report.
 static RUNNING_TEST: Mutex<Option<&'static str>> = Mutex::new(None);
 
