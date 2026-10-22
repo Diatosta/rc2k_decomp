@@ -70,6 +70,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     unsafe { inspection_screen(r, &mut Real) };
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { inspection_screen(r, &mut Real) };
+    Ok(())
+}
+
 const PLACES: [(usize, u32); 4] = [
     (PREPARE, 0),
     (LOAD_BACKGROUND, 1),

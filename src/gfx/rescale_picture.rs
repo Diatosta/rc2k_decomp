@@ -24,7 +24,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::gfx::fill_row_table::{ROW_TABLE_ROOM, fill_row_table, row_address};
-use crate::gfx::harness::{check_pixels, dispatch_pixels};
+use crate::gfx::harness::{check_pixels, dispatch_pixels, pixels_entry};
 use crate::gfx::pcx::{DECODED_HEIGHT_RVA, DECODED_WIDTH_RVA, PIXELS_RVA, ROW_GAP_RVA};
 use crate::gfx::picture::{HEIGHT_RVA, PICTURE_DWORDS, WIDTH_RVA, picture};
 use crate::memory::MemoryList;
@@ -141,6 +141,12 @@ fn regions() -> Vec<Region> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_pixels(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    pixels_entry(r, &rust)
 }
 
 // ---- self-test: small pictures of the test's own stretched and shrunk into the game's

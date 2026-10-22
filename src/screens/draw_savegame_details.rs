@@ -38,7 +38,7 @@ use crate::saves::gather_savegame::CAR_LEN;
 use crate::saves::write_savegame_slot::FILE_RVA;
 use crate::screens::draw_empty_savegame::{preview_unavailable, state as text_state};
 use crate::screens::draw_stage_info::RECORD_TABLE_RVA;
-use crate::screens::harness::{Left, check_draw, dispatch_draw, push_dwords};
+use crate::screens::harness::{Left, check_draw, dispatch_draw, draw_entry, push_dwords};
 use crate::screens::line_buffer;
 use crate::screens::stage_panel::{dword, table_dword};
 use crate::service::harness::{Region, at, capture, restore};
@@ -142,6 +142,12 @@ fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_draw(&HOOK, r, call_original, &rust, &state);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_savegame_details", r, &rust)
 }
 
 // ---- self-test: the saved game that is in the buffer, if one is ----

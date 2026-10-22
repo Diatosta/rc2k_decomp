@@ -96,6 +96,15 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    match unsafe { load_picture_to_texture_in_game(r.eax, r.ecx, r.ebx) } {
+        Ok(()) => r.set_carry(false),
+        Err(e) => return Err(e),
+    }
+    Ok(())
+}
+
 // ---- self-test ----
 
 const START: usize = 0x405313;

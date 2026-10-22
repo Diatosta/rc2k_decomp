@@ -18,25 +18,15 @@
 //! objects and a null device on the way taken. Shadow mode runs the original alone (requests are sent).
 //! Self-test: a copy whose fifteen references to the variables go to the test's and whose
 //! calls go to the noting stand-in, against the Rust version: every way through.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
+use crate::framework::{Regs, game_addr, rva};
 use crate::input::devices::at;
-use crate::input::effects::{CAR, HAS_EFFECTS, Part, compare, dispatch_effects};
-use crate::system::api_stand_ins::copy_with;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("input::update_effects", rva(0x40F2C0), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::input::effects::{CAR, HAS_EFFECTS, Part, effects_entry};
 
 /// g_playerCarA, g_playerCarB, g_onePlayer, g_raceSoundObjectCount (four dwords).
 const CARS: usize = 0x514F70;
@@ -107,100 +97,8 @@ pub fn update_effects(r: &mut Regs, part: Part) -> Result<(), Refused> {
     update_effects_with(r, &Vars::game(), part)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_effects(&HOOK, r, call_original, update_effects);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // cars (4), devices (2), views (2), objects (8), two devices (1)
-    let mut mem = [0u32; 17];
-    let base = mem.as_mut_ptr() as u32;
-    let v = Vars {
-        cars: base,
-        devices: base + 0x10,
-        views: base + 0x18,
-        objects: base + 0x20,
-        two_devices: base + 0x40,
-    };
-    // cmp g_raceSoundObjectCount, 0 (its last bytes: the hook's jump covers five)
-    let entry = [0x83, 0x3D, 0x7C, 0x4F, 0x51, 0x00, 0x00];
-    let copy = match copy_with(
-        0x40F2C0,
-        0x87,
-        &entry,
-        &[0x27, 0x53, 0x81],
-        &[CAR],
-        &[],
-        &[
-            (CARS, 0x10, v.cars),
-            (DEVICES, 8, v.devices),
-            (VIEWS, 8, v.views),
-            (OBJECTS, 0x20, v.objects),
-            (TWO_DEVICES, 4, v.two_devices),
-        ],
-        15,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    // Two device records of the test's: only +0x28 is read.
-    let mut records = [[0u32; 11]; 2];
-    let rec = [
-        records[0].as_mut_ptr() as u32,
-        records[1].as_mut_ptr() as u32,
-    ];
-    let all = [(base, 0x44usize)];
-    for case in 0..64u32 {
-        let (car_a, car_b) = match case % 4 {
-            0 => (0, 1),
-            1 => (3, 7),
-            2 => (6, 2),
-            _ => (1, 1),
-        };
-        let fill = || unsafe {
-            let m = base as *mut u32;
-            m.write_volatile(car_a);
-            m.add(1).write_volatile(car_b);
-            m.add(2).write_volatile((case >> 2) & 1);
-            m.add(3).write_volatile(if case & 8 != 0 { 0 } else { 2 });
-            m.add(4).write_volatile(rec[0]);
-            m.add(5).write_volatile(rec[1]);
-            m.add(6).write_volatile(0x6000_0000);
-            m.add(7).write_volatile(0x6000_1000);
-            for k in 0..8 {
-                m.add(8 + k).write_volatile(0x5000_0000 + 0x100 * k as u32);
-            }
-            m.add(16).write_volatile((case >> 4) & 1);
-            (rec[0] as *mut u32).add(10).write_volatile((case >> 5) & 1);
-            (rec[1] as *mut u32)
-                .add(10)
-                .write_volatile(if case % 3 == 0 { 0 } else { 1 });
-        };
-        compare(
-            &mut t,
-            &format!("case {case}"),
-            &copy,
-            Regs::SENTINEL,
-            &fill,
-            &all,
-            &|r, part| update_effects_with(r, &v, part),
-            false,
-        );
-    }
-    // A car past the eight on the way taken is refused (the first load is always car A).
-    unsafe {
-        (base as *mut u32).write_volatile(9);
-        (base as *mut u32).add(3).write_volatile(1);
-    }
-    let mut r = Regs::SENTINEL;
-    t.check(
-        update_effects_with(&mut r, &v, &mut crate::sound::turn_parts::test_part).is_err(),
-        || "car A 9 was not refused".into(),
-    );
-    crate::sound::turn_parts::take_called();
-    let _ = (&mut records, &mut mem);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    effects_entry(r, update_effects)
 }

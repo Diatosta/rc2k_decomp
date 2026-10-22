@@ -90,16 +90,5 @@ for at in sorted(set(routes) | set(special)):
     else:
         name, path = routes[at]
         out.append(f'        0x{at:X} => Some({path}(r)), // {name}')
-out += ['        _ => None,', '    }', '}', '']
-out += [
-    '/// Whether a call of the function at `at` (an RVA) passes the hooks\' gate: not the',
-    '/// log\'s, entered holding or taking `g_logLock`, as their thunks were not (`log_lock`).',
-    'pub fn gated(at: usize) -> bool {',
-    '    !matches!(',
-    '        at.wrapping_add(IMAGE_BASE),',
-    '        ' + ' | '.join(f'0x{a:X}' for a in sorted(
-        set(a for a in routes if routes[a][1].startswith('crate::logfile::')) | set(special))),
-    '    )',
-    '}',
-]
+out += ['        _ => None,', '    }', '}']
 print('\n'.join(out))

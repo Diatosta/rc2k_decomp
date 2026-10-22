@@ -12,7 +12,7 @@ use crate::framework::{RawHook, Regs, SelfTest, call_game, hook_asm, rva};
 use crate::physics::mirror::{Mirror, Spec};
 use crate::physics::rate_damage::{RANGES, SPEC, fill, rate_damage, rate_damage_at, regions};
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, dispatch_state, restore};
+use crate::service::harness::{capture, dispatch_state, restore, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -40,6 +40,12 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(&Mirror::game()), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

@@ -240,6 +240,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { layout_2(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
+}
+
 fn self_test() -> (usize, usize) {
     const CALLS: [usize; 82] = [
         0x20, 0x3B, 0x94, 0xA7, 0xCC, 0xDD, 0xEC, 0x16F, 0x1D3, 0x238, 0x290, 0x33A, 0x3B1, 0x44F,

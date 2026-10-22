@@ -12,7 +12,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::gfx::harness::{check_pixels, dispatch_pixels};
+use crate::gfx::harness::{check_pixels, dispatch_pixels, pixels_entry};
 use crate::gfx::texture_pixels::{self, test_pixels};
 use crate::screens::harness::Left;
 use crate::service::harness::Region;
@@ -56,6 +56,12 @@ fn regions(r: &Regs) -> Vec<Region> {
 extern "C" fn dispatch(r: &mut Regs) {
     let regions = regions(r);
     dispatch_pixels(&HOOK, r, call_original, &regions, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    pixels_entry(r, &rust)
 }
 
 // ---- self-test ----

@@ -34,7 +34,7 @@ use crate::menu::remove_secret_cars::{
 use crate::menu::text_entry::log_l1;
 use crate::redirect::RedirectedCopy;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, dispatch_replayed_state, restore};
+use crate::service::harness::{Region, at, capture, dispatch_replayed_state, restore, state_entry};
 use rc2k_core::menu::car_lists;
 use std::sync::Mutex;
 use std::sync::atomic::AtomicUsize;
@@ -133,6 +133,12 @@ fn quiet(_: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_replayed_state(&HOOK, r, call_original, &regions(), &rust, &quiet);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 // ---- self-test ----

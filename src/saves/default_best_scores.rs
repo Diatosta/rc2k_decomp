@@ -14,33 +14,15 @@
 //! Refuses a missing table, a group without drivers (the original divides by 0), a
 //! driver past the 180, and a name that does not fit.
 //! Converted: `rc2k_core::saves::defaults::best_scores`.
+//!
+//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::math::next_random::STATE_RVA;
+use crate::framework::{game_read, rva};
 use crate::saves::default_times::{GameSource, to_nowhere};
-use crate::saves::drivers::table_at;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
 use rc2k_core::saves::defaults::{SCORE_TABLE_LEN, best_scores, write_best_scores};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "saves::default_best_scores",
-    rva(0x47C923),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -73,53 +55,6 @@ pub unsafe fn default_best_scores() -> Result<(), Refused> {
         Ok(())
     }
 }
-// ---- hook ----
-
-fn regions() -> Vec<Region> {
-    vec![(table_at(TABLE_RVA), SCORE_TABLE_LEN), at(STATE_RVA)]
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { default_best_scores() }?;
-    Ok(Left::nothing())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    if table_at(TABLE_RVA) == 0 {
-        HOOK.count_call();
-        let e = BadInput("no table of best scores");
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-        return;
-    }
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
 
 // ---- self-test: the game's table, filled by both from the same random numbers, and put
 // back ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if table_at(TABLE_RVA) == 0 {
-        return t.skip("the table of best scores is not there yet");
-    }
-    let regions = regions();
-    let saved = capture(&regions);
-    for seed in [1u32, 0x1234_5678, 0xDEAD_BEEF, 0x8000_0001] {
-        check_state(
-            &mut t,
-            &format!("seed {seed:#x}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&regions, &vec![0xAA; saved.len()]);
-                game_write(STATE_RVA, seed);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
-}

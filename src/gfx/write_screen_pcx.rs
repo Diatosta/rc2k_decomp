@@ -166,6 +166,16 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let mut left = *r;
+    match unsafe { write_screen_pcx_in_game(&mut left) } {
+        Ok(()) => r.eflags = left.eflags,
+        Err(e) => return Err(e),
+    }
+    Ok(())
+}
+
 // ---- self-test ----
 
 const FILE_A: &str = "var\\rc2k_hook_pcx_a.pcx";

@@ -20,40 +20,20 @@
 //! DirectInput objects made in Rust (`input::di_harness`): the joystick and the wheel, a
 //! device that is not there (`CreateDevice` fails), 0, 5, 15 and 16 controllers before,
 //! the force-feedback switch both ways.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::field;
-use crate::framework::{RawHook, SelfTest, rva};
+use crate::framework::rva;
 use crate::input::devices::{at, put};
 use crate::input::di_harness::{
     CAPS_LEN, CAPS_RVA, CONTROLLER_COUNT_RVA, CONTROLLER_LEN, CONTROLLERS, CONTROLLERS_RVA,
     DIRECT_INPUT_RVA, HWND_RVA, IID_DEVICE2_RVA, JOYSTICK_FORMAT_RVA, NEW_DEVICE_RVA,
-    NEW_DEVICE2_RVA, a, call_stdcall2, compare, dispatch_callback, g, method, p, shared_regions,
-    slot,
+    NEW_DEVICE2_RVA, a, g, method, p, slot,
 };
 use crate::input::types::{Controller, DiDevCaps, DiDeviceInstance};
-use std::sync::atomic::{AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-unsafe extern "system" fn thunk(instance: u32, context: u32) -> u32 {
-    dispatch_callback(
-        &HOOK,
-        ORIGINAL.load(Ordering::SeqCst),
-        instance,
-        context,
-        joystick_found,
-    )
-}
-
-type Thunk = unsafe extern "system" fn(u32, u32) -> u32;
-
-pub static HOOK: RawHook = RawHook::new(
-    "input::joystick_found",
-    rva(0x408238),
-    unsafe { std::mem::transmute::<Thunk, unsafe extern "C" fn()>(thunk) },
-    &ORIGINAL,
-)
-.self_test(self_test);
 
 pub const NO_FORCE_RVA: usize = rva(0x4F68F4); // dword_4F68F4: force feedback turned off
 pub const KEEP_CASE_RVA: usize = rva(0x4E0144); // dword_4E0144
@@ -170,56 +150,4 @@ pub fn joystick_found(instance: u32, _context: u32) -> u32 {
         }
     }
     1
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let devices = crate::input::di_objects::test_devices();
-    let world = crate::input::di_objects::TestWorld::begin(devices.clone(), Default::default());
-    let original = ORIGINAL.load(Ordering::SeqCst);
-    let mut regions = shared_regions();
-    regions.push((a(NO_FORCE_RVA), 4));
-    regions.push((a(KEEP_CASE_RVA), 4));
-    let mut missing = devices[0].clone();
-    missing.instance[0] ^= 0xFF;
-    let instances: Vec<crate::input::types::DiDeviceInstance> = devices
-        .iter()
-        .chain([&missing])
-        .map(crate::input::di_objects::device_instance)
-        .collect();
-    for (n, instance) in instances.iter().enumerate() {
-        for count in [0u32, 5, 15, 16] {
-            for no_force in [0u32, 1] {
-                let i = instance as *const crate::input::types::DiDeviceInstance as u32;
-                compare(
-                    &mut t,
-                    &format!("device {n}, {count} before, force feedback off {no_force}"),
-                    &world,
-                    &regions,
-                    &|| {
-                        p(DIRECT_INPUT_RVA, crate::input::di_objects::create_input());
-                        p(NEW_DEVICE_RVA, 0);
-                        p(NEW_DEVICE2_RVA, 0);
-                        p(CONTROLLER_COUNT_RVA, count);
-                        p(NO_FORCE_RVA, no_force);
-                        p(KEEP_CASE_RVA, 1);
-                        let table = a(CONTROLLERS_RVA) as *mut u8;
-                        unsafe {
-                            std::ptr::write_bytes(
-                                table,
-                                0xAA,
-                                (CONTROLLERS * CONTROLLER_LEN) as usize,
-                            )
-                        };
-                    },
-                    &mut || format!("{}", unsafe { call_stdcall2(original, i, 0x1234) }),
-                    &mut || format!("{}", joystick_found(i, 0x1234)),
-                );
-            }
-        }
-    }
-    drop(world);
-    t.finish()
 }

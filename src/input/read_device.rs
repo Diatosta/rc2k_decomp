@@ -25,31 +25,17 @@
 //! the original alone (it polls the device). Self-test: a copy whose poll goes to a
 //! stand-in, against the Rust version, on records of the test's: keys, axes and buttons by
 //! lot, each kind, read or not.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva, shadow};
-use crate::input::devices::{KEYS_DOWN_RVA, RECORD_LEN, put, test_record};
+use crate::framework::{Regs, rva};
+use crate::input::devices::put;
 use crate::input::devices::{joy_state, key_table, record_bytes};
-use crate::race::mud::{copy, run_both_from, test_part};
-use crate::service::harness::{Region, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("input::read_device", rva(0x408E38), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const POLL_RVA: usize = rva(0x408869); // sub_408869: the device polled (DirectInput)
-const BINDINGS: u32 = 0x41C;
-const BINDINGS_COUNT: u32 = 12;
-
 /// A call by place: 0 the poll (esi the record).
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
@@ -79,105 +65,9 @@ pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { read_device(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-/// A record of the test's whose twelve bindings are made from `seed`: keys 0 .. 0xFF,
-/// axes at +0x2C, +0x30, +0x34 or none, signs 1 or -1, buttons by bit or none; the axes
-/// and buttons in the state copies by lot.
-fn bound_record(seed: u32, kind: u32, read: u32) -> Vec<u8> {
-    let mut x = seed.wrapping_mul(0x9E37_79B9) | 1;
-    let mut next = || {
-        x ^= x << 13;
-        x ^= x >> 17;
-        x ^= x << 5;
-        x
-    };
-    let mut r = test_record(seed);
-    let mut put = |o: usize, v: u32| r[o..o + 4].copy_from_slice(&v.to_le_bytes());
-    put(8, kind);
-    put(0x414, read);
-    put(0x2C, next() % 0x200);
-    put(0x30, (next() % 0x200).wrapping_sub(0x100));
-    put(0x34, next() % 0x100);
-    put(0x38, next());
-    for k in 0..BINDINGS_COUNT as usize {
-        let g = BINDINGS as usize + 0x10 * k;
-        put(g, next() & 0xFF);
-        put(g + 4, [0u32, 0x2C, 0x30, 0x34][(next() % 4) as usize]);
-        put(g + 8, if next() & 1 == 0 { 1 } else { u32::MAX });
-        put(
-            g + 0xC,
-            if next() % 3 == 0 {
-                0
-            } else {
-                1 << (next() % 32)
-            },
-        );
-    }
-    r
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; call sub_408869
-    let rel = (0x408869i64 - (0x408E39 + 5)) as i32;
-    let b = rel.to_le_bytes();
-    let copy = match copy(
-        0x408E38,
-        0x4D5,
-        &[0x60, 0xE8, b[0], b[1], b[2], b[3]],
-        &[1, 0x15, 0x1F],
-        &[(0x408869, 0)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let shared: Vec<Region> = crate::input::devices::shared_regions().to_vec();
-    let saved = capture(&shared);
-    for seed in 0..24u32 {
-        let kind = [1u32, 2, 3][(seed % 3) as usize];
-        let read = if seed % 8 == 7 { 0 } else { 1 };
-        let mut record = bound_record(seed, kind, read);
-        let start = record.clone();
-        let p = record.as_mut_ptr() as u32;
-        let regions: Vec<Region> = vec![(p, RECORD_LEN)];
-        run_both_from(
-            &mut t,
-            &format!("seed {seed}, kind {kind}, read {read}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                std::ptr::copy_nonoverlapping(start.as_ptr(), p as *mut u8, RECORD_LEN);
-                // Some keys down: those of some bindings, and others.
-                let keys = game_addr(KEYS_DOWN_RVA) as *mut u8;
-                for k in 0..0x100usize {
-                    *keys.add(k) = if (k as u32).wrapping_mul(seed | 1).is_multiple_of(5) {
-                        0x80
-                    } else {
-                        0
-                    };
-                }
-            },
-            Regs {
-                esi: p,
-                ..Regs::SENTINEL
-            },
-            &|r| unsafe { read_device(r, &mut test_part) },
-        );
-        drop(record);
-    }
-    restore(&shared, &saved);
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { read_device(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }

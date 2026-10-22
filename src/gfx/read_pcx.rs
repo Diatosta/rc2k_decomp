@@ -70,6 +70,16 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    {
+        let worked = unsafe { read_pcx(r.eax as *const u8) }?;
+        r.set_carry(!worked);
+        r.set_zero(worked);
+    }
+    Ok(())
+}
+
 // ---- self-test: PCX files of the test's own, of both kinds and of neither ----
 
 fn self_test() -> (usize, usize) {

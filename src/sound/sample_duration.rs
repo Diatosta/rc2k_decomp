@@ -10,27 +10,16 @@
 //! that the shift makes 0 (the original's `div` traps).
 //! Shadow mode: both, the registers compared (`dispatch_state`, nothing written).
 //! Self-test: every record with a set of rates, and record 0 as the test's (put back).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
+use crate::framework::{EAX, Regs};
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, check_state, dispatch_state, restore};
-use crate::sound::sample_settings::{
-    BUFFER_RATE, OWN, RECORD_LEN, RECORDS, RECORDS_RVA, TEST_RATES, loaded, record,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("sound::sample_duration", rva(0x40BA0B), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
+use crate::sound::sample_settings::{loaded, record};
 
 // ---- Rust version ----
 
@@ -43,72 +32,12 @@ pub fn sample_duration(sample: u32, rate: u32) -> Result<u32, BadInput> {
     )?)
 }
 
-// ---- hook ----
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing().with(EAX, sample_duration(r.eax, r.edx)?))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &[], &rust);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let case = |t: &mut SelfTest, sample: u32, rate: u32, fill: &dyn Fn()| {
-        fill();
-        // The original traps where the Rust version refuses: not run there.
-        if sample_duration(sample, rate).is_err() {
-            return;
-        }
-        check_state(
-            t,
-            &format!("sample {sample:#x}, rate {rate:#x}"),
-            call_original,
-            Regs {
-                eax: sample,
-                edx: rate,
-                ..Regs::SENTINEL
-            },
-            fill,
-            &[],
-            &rust,
-        );
-    };
-    for sample in 0..RECORDS {
-        for rate in TEST_RATES {
-            case(&mut t, sample, rate, &|| {});
-        }
-    }
-    let one = (game_addr(RECORDS_RVA) as u32, RECORD_LEN);
-    let saved = capture(&[one]);
-    for (has_buffer, looping, own_rate, shift, length) in [
-        (false, 0u32, 22050u32, 0u32, 0x1000u32),
-        (true, 1, 22050, 0, 0x1000),
-        (true, 0, BUFFER_RATE, 0x11, 0x0123_4567),
-        (true, 0, OWN, 0x3, 0x10_0000),
-        (true, 0, 300_000, 0x1F, 0x8000),
-        (true, 2, 44100, 0, 0xFFFF_FFFF),
-    ] {
-        let buffer = [0u32, 0, 0, 0, 0, 0, 0, 0, 0, 11025, shift, length];
-        let fill = || unsafe {
-            let r = one.0 as *mut u32;
-            r.add(2).write(if has_buffer {
-                buffer.as_ptr() as u32
-            } else {
-                0
-            });
-            r.add(5).write(looping);
-            r.add(12).write(own_rate);
-        };
-        for rate in TEST_RATES {
-            case(&mut t, 0, rate, &fill);
-        }
-    }
-    restore(&[one], &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

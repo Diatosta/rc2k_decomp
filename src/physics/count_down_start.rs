@@ -20,7 +20,7 @@ use crate::framework::{
 };
 use crate::physics::listed_car_flags::{CURRENT_CAR, TABLE, set_flag_at, twin_copy};
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, dispatch_state};
+use crate::service::harness::{capture, dispatch_state, state_entry};
 use rc2k_core::physics::start::{CarStart, StartCount};
 use std::sync::atomic::AtomicUsize;
 
@@ -107,6 +107,12 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 extern "C" fn dispatch(r: &mut Regs) {
     let p = CountPlaces::game();
     dispatch_state(&HOOK, r, call_original, &[(p.count, 4), (p.flag, 4)], &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

@@ -9,27 +9,13 @@
 //! 14 callers. Shadow mode runs the original alone (a command must not be sent twice).
 //! Self-test: a redirected copy whose two variables are the test's and whose command
 //! notes its registers.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva, shadow,
-};
-use crate::install::stand_ins::{set_handler, stand_in};
-use crate::redirect::RedirectedCopy;
+use crate::framework::{Regs, game_read, rva};
 use crate::sound::queue::{Queue, send_command, sent};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("sound::play_sound", rva(0x409B36), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -61,93 +47,8 @@ pub fn play_sound_in_game(entry: &Regs) {
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     play_sound_in_game(r);
-}
-
-// ---- self-test ----
-
-const LEN: usize = 0x35;
-const ENTRY_BYTES: [u8; 8] = [0x60, 0x83, 0x3D, 0x84, 0x6C, 0x50, 0x00, 0x01];
-/// `sound::send_command`.
-const CALLS: [usize; 1] = [0x2D];
-/// Where the code names the two variables.
-const HELD_BACK_AT: usize = 0x03;
-const MODE_AT: usize = 0x0C;
-
-static SENT: Mutex<Vec<[u32; 7]>> = Mutex::new(Vec::new());
-
-fn handler(_: u32, r: &mut Regs) {
-    SENT.lock().unwrap().push(sent(r));
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = unsafe {
-        RedirectedCopy::new(game_addr(rva(0x409B36)), LEN, &ENTRY_BYTES, &CALLS, &|_| {
-            Some(stand_in(0))
-        })
-    };
-    let copy = match copy {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    let vars = Box::new([0u32; 2]);
-    unsafe {
-        let code = std::slice::from_raw_parts(copy.addr() as *const u8, LEN);
-        let names = |at: usize, var: usize| {
-            u32::from_le_bytes(code[at..at + 4].try_into().unwrap()) == game_addr(var) as u32
-        };
-        if !names(HELD_BACK_AT, HELD_BACK_RVA) || !names(MODE_AT, MODE_RVA) {
-            return t.skip("the function does not name its variables where the test expects");
-        }
-        copy.patch_u32(HELD_BACK_AT, &raw const vars[0] as u32);
-        copy.patch_u32(MODE_AT, &raw const vars[1] as u32);
-    }
-    let vars = Box::into_raw(vars);
-    for held_back in [0u32, 1, 2] {
-        for mode in [
-            0u32,
-            0x11221,
-            0x0244_1220,
-            0x10_1220,
-            0xFFFF_FFFF,
-            0xFFEF_FFFF,
-        ] {
-            let before = Regs::SENTINEL;
-            let run = |rust: bool| unsafe {
-                vars.write([held_back, mode]);
-                SENT.lock().unwrap().clear();
-                set_handler(handler);
-                let preserved = if rust {
-                    if let Some(with) = play_sound(&before, held_back, mode) {
-                        SENT.lock().unwrap().push(sent(&with));
-                    }
-                    true
-                } else {
-                    let mut ro = before;
-                    call_game(&mut ro, copy.addr());
-                    ro.preserved_except(&before, 0)
-                };
-                (preserved, SENT.lock().unwrap().clone())
-            };
-            let (theirs, mine) = (run(false), run(true));
-            t.check(theirs == mine && theirs.0, || {
-                format!(
-                    "held back {held_back}, mode {mode:#x}: original {theirs:x?}; rust {mine:x?}"
-                )
-            });
-        }
-    }
-    drop(unsafe { Box::from_raw(vars) });
-    t.finish()
+    Ok(())
 }

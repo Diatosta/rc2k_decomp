@@ -10,9 +10,11 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_write, hook_asm, rva};
 use crate::menu::name_lists::{NAME_LEN, SAVEGAME_PAGE_RVA, savegame_name};
-use crate::menu::text_entry::{LENGTH_RVA, entry, length, put_entry, set_length};
+use crate::menu::text_entry::{LENGTH_RVA, entry as text_entry, length, put_entry, set_length};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{
+    Region, at, capture, check_state, dispatch_state, restore, state_entry,
+};
 use crate::service::state::MENU_ITEM_RVA;
 use std::sync::atomic::AtomicUsize;
 
@@ -41,7 +43,7 @@ pub unsafe fn backspace_savegame_name() -> Result<(), BadInput> {
         return Ok(());
     }
     let name = savegame_name()?;
-    let mut e = entry();
+    let mut e = text_entry();
     if let Some(at) = e.backspace(NAME_LEN)? {
         put_entry(&e);
         unsafe { name.add(at).write(0) };
@@ -66,6 +68,12 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 // ---- self-test: the last name of the list (page 9, item 10), which is put back ----

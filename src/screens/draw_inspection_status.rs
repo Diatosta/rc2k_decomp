@@ -23,7 +23,9 @@ use crate::framework::{
 };
 use crate::gfx::blit_bar::Bar;
 use crate::screens::font_is_loaded;
-use crate::screens::harness::{Left, check_draw, dispatch_draw, drawing_unavailable, push_dwords};
+use crate::screens::harness::{
+    Left, check_draw, dispatch_draw, draw_entry, drawing_unavailable, push_dwords,
+};
 use crate::service::state::{current_player, repair_flag, repair_flag_addr};
 use crate::strings::string_table::{blob, is_table_id};
 use crate::strings::text_from_ids::{TEXT_LEN, text};
@@ -145,6 +147,12 @@ fn rust(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_draw(&HOOK, r, call_original, &rust, &state);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_inspection_status", r, &rust)
 }
 
 // ---- self-test: the current car, with the repair flags all clear, all set and mixed ----

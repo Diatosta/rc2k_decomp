@@ -11,7 +11,7 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::input::effects::compare;
-use crate::net::{Part, SEND_MESSAGE, dispatch_net};
+use crate::net::{Part, SEND_MESSAGE, dispatch_net, net_entry};
 use crate::system::api_stand_ins::copy_with;
 use std::sync::atomic::AtomicUsize;
 
@@ -40,6 +40,12 @@ pub fn send_race_message(r: &mut Regs, part: Part) -> Result<(), Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_net(&HOOK, r, call_original, send_race_message);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    net_entry(r, send_race_message)
 }
 
 fn self_test() -> (usize, usize) {

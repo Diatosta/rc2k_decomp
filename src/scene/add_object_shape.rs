@@ -462,6 +462,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { add_object_shape(r.esi as usize) }?;
+    Ok(())
+}
+
 // ---- self-test ----
 
 fn self_test() -> (usize, usize) {

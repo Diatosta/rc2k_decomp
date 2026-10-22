@@ -1,17 +1,15 @@
 use crate::framework::GameHook;
 use crate::{
-    audio, d3d, drive, fatal, gfx, hud, input, install, marks, memory, menu, net, physics, race,
-    saves, scene, screens, service, sound, system, threading,
+    audio, d3d, drive, fatal, gfx, hud, input, install, marks, menu, net, physics, race, scene,
+    screens, service, sound, system,
 };
 use std::sync::LazyLock;
 
 /// Whenever a hook module is registered, it is added to this list.
 pub static ALL: LazyLock<Vec<&'static dyn GameHook>> = LazyLock::new(|| {
     [
-        threading::HOOKS,
         gfx::HOOKS,
         &gfx::mmx_converters::HOOKS,
-        &input::effect_objects::HOOKS,
         screens::HOOKS,
         service::HOOKS,
         input::HOOKS,
@@ -19,10 +17,8 @@ pub static ALL: LazyLock<Vec<&'static dyn GameHook>> = LazyLock::new(|| {
         &menu::ranked_lookups::HOOKS,
         &install::install_frames::HOOKS,
         &menu::learn_bindings::HOOKS,
-        saves::HOOKS,
         system::HOOKS,
         fatal::HOOKS,
-        memory::HOOKS,
         install::HOOKS,
         physics::HOOKS,
         sound::HOOKS,

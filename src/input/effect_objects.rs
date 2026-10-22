@@ -17,11 +17,14 @@
 //! calls DirectInput). Self-test: the original and the Rust version on DirectInput objects
 //! made in Rust (`input::di_harness`): an effect with no object and one with a constant
 //! force's, `set_effect_parameters` with several flags.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::field;
-use crate::framework::{Regs, SelfTest};
 use crate::input::devices::{at, put};
-use crate::input::di_harness::{EFFECT_LEN, compare, method, regs_text, slot};
+use crate::input::di_harness::{EFFECT_LEN, method, slot};
 use crate::input::types::ForceEffect;
 
 /// `release_effect`'s Rust version.
@@ -63,16 +66,6 @@ pub fn stop_effect(effect: u32) {
     }
 }
 
-/// The four (0 release, 1 start, 2 set, 3 stop): the Rust version on the registers.
-fn rust_of(which: u32, r: &Regs) {
-    match which {
-        0 => release_effect(r.edi),
-        1 => start_effect(r.edi),
-        2 => set_effect_parameters(r.edi, r.eax),
-        _ => stop_effect(r.edi),
-    }
-}
-
 /// An effect of the test's at `entry` (0xA4 bytes): a constant force's parameters
 /// (`input::make_effect`'s), and an object made for it on the wheel (`object`).
 pub fn test_effect(entry: u32, object: bool) {
@@ -108,109 +101,3 @@ pub fn test_effect(entry: u32, object: bool) {
         );
     }
 }
-
-fn test(
-    hook: &crate::framework::RawHook,
-    call_original: crate::screens::harness::CallOriginal,
-    which: u32,
-) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let world = crate::input::di_objects::TestWorld::begin(
-        crate::input::di_objects::test_devices(),
-        Default::default(),
-    );
-    let mut entry = vec![0u8; EFFECT_LEN as usize];
-    let e = entry.as_mut_ptr() as u32;
-    let flags: &[u32] = if which == 2 {
-        &[0x1, 0x4, 0x100, 0x2000_0100, 0x1FF]
-    } else {
-        &[0]
-    };
-    for object in [false, true] {
-        for &eax in flags {
-            let entry_regs = Regs {
-                eax,
-                edi: e,
-                ..Regs::SENTINEL
-            };
-            compare(
-                &mut t,
-                &format!("object {object}, flags {eax:#x}"),
-                &world,
-                &[(e, EFFECT_LEN as usize)],
-                &|| test_effect(e, object),
-                &mut || {
-                    let mut r = entry_regs;
-                    unsafe { call_original(&mut r) };
-                    regs_text(&Regs { esp: 0, ..r })
-                },
-                &mut || {
-                    rust_of(which, &entry_regs);
-                    regs_text(&Regs {
-                        esp: 0,
-                        ..entry_regs
-                    })
-                },
-            );
-        }
-    }
-    drop(world);
-    drop(entry);
-    t.finish()
-}
-
-/// A hook for one of the four.
-macro_rules! effect_object {
-    ($module:ident, $name:literal, $address:expr, $which:expr) => {
-        pub mod $module {
-            use super::*;
-            use crate::framework::{RawHook, hook_asm, rva, shadow};
-            use std::sync::atomic::AtomicUsize;
-
-            static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-            pub static HOOK: RawHook =
-                RawHook::new($name, rva($address), thunk, &ORIGINAL).self_test(self_test);
-
-            hook_asm!(
-                thunk,
-                call_original,
-                dispatch = dispatch,
-                original = ORIGINAL
-            );
-
-            extern "C" fn dispatch(r: &mut Regs) {
-                HOOK.count_call();
-                if shadow() {
-                    unsafe { call_original(r) };
-                    return;
-                }
-                rust_of($which, r);
-            }
-
-            fn self_test() -> (usize, usize) {
-                test(&HOOK, call_original, $which)
-            }
-        }
-    };
-}
-
-effect_object!(release_effect_hook, "input::release_effect", 0x409ACC, 0);
-effect_object!(start_effect_hook, "input::start_effect", 0x409AEE, 1);
-effect_object!(
-    set_effect_parameters_hook,
-    "input::set_effect_parameters",
-    0x409B1F,
-    2
-);
-effect_object!(stop_effect_hook, "input::stop_effect", 0x409B0D, 3);
-
-/// The four, for `input/mod.rs`.
-pub static HOOKS: [&dyn crate::framework::GameHook; 4] = [
-    &release_effect_hook::HOOK,
-    &start_effect_hook::HOOK,
-    &set_effect_parameters_hook::HOOK,
-    &stop_effect_hook::HOOK,
-];

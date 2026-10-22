@@ -9,24 +9,13 @@
 //! numbers. What they are lists of is a reading: cars that can be chosen.
 //! Refuses a list of numbers without its -1 within its own length, and a number of
 //! 0x400 or more (the original runs on, and reads wherever the number leads).
+//!
+//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("saves::rebuild_car_lists", rva(0x47088C), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::errors::BadInput;
+use crate::framework::{game_read, game_write, rva};
 
 // ---- game data ----
 
@@ -59,63 +48,4 @@ pub unsafe fn rebuild_car_lists() -> Result<(), BadInput> {
         }
         Ok(())
     }
-}
-
-// ---- hook ----
-
-fn regions() -> [Region; 2] {
-    LISTS.map(|(_, pointers, len)| (game_addr(pointers) as u32, len * 4))
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { rebuild_car_lists() }?;
-    Ok(Left::nothing())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut all = regions().to_vec();
-    all.extend(LISTS.map(|(numbers, _, len)| (game_addr(numbers) as u32, len * 4)));
-    let saved = capture(&all);
-    let cases: [(&[u32], &[u32]); 5] = [
-        (&[], &[]),
-        (&[0], &[1]),
-        (&[3, 1, 4, 1, 5, 9, 2, 6], &[0, 0, 0]),
-        (
-            &[
-                10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
-            ],
-            &[2, 7],
-        ),
-        (&[1; 0x27], &[2; 0x13]),
-    ];
-    for (first, second) in cases {
-        let prepare = || unsafe {
-            restore(&all, &vec![0xAA; saved.len()]);
-            for (ids, (numbers, _, _)) in [first, second].into_iter().zip(LISTS) {
-                for (n, &id) in ids.iter().chain([&u32::MAX]).enumerate() {
-                    game_write(numbers + n * 4, id);
-                }
-            }
-        };
-        check_state(
-            &mut t,
-            &format!("numbers {first:?} and {second:?}"),
-            call_original,
-            Regs::SENTINEL,
-            &prepare,
-            &regions(),
-            &rust,
-        );
-    }
-    restore(&all, &saved);
-    t.finish()
 }

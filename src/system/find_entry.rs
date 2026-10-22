@@ -106,6 +106,21 @@ extern "C" fn dispatch(r: &mut Regs) {
     (r.ebx, r.ecx, r.eflags) = (o.ebx, o.ecx, o.eflags);
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let found = match unsafe { find_entry(r.eax, r.ebx, r.ecx) } {
+        Ok(found) => found,
+        Err(e) => {
+            return Err(e.into());
+        }
+    };
+    let mine = left(r, found);
+    (r.ebx, r.ecx) = (mine.0, mine.1);
+    r.set_carry(mine.2);
+    r.set_zero(mine.3);
+    Ok(())
+}
+
 // ---- self-test ----
 
 fn self_test() -> (usize, usize) {

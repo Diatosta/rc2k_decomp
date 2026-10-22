@@ -89,6 +89,15 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    if crate::screens::blanked("screens::draw_message_box") {
+        return Ok(());
+    }
+    unsafe { draw_message_box(r.ecx as i32, &mut GameCanvas) }?;
+    Ok(())
+}
+
 fn self_test() -> (usize, usize) {
     use crate::gfx::rect::RectStage;
     use crate::service::harness::capture;

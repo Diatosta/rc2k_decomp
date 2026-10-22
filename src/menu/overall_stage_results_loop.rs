@@ -20,7 +20,7 @@ use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write
 use crate::menu::class_stage_results_loop::LOAD_BACKGROUND;
 use crate::menu::run_draw_list::DRAW_LIST_RVA;
 use crate::menu::screen_loop::{
-    Env, FRAME_CALLBACK, List, Original, Screen, Step, check_screen, dispatch_screen,
+    Env, FRAME_CALLBACK, List, Original, Screen, Step, check_screen, dispatch_screen, screen_entry,
 };
 use std::sync::atomic::AtomicUsize;
 
@@ -129,6 +129,12 @@ pub const SCREEN: Screen = Screen {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_screen(&HOOK, r, call_original, &SCREEN);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::overall_stage_results_loop", r, &SCREEN)
 }
 
 // ---- self-test ----

@@ -109,6 +109,15 @@ extern "C" fn dispatch(r: &mut Regs) {
     r.eflags = o.eflags;
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    {
+        let read = unsafe { load_picture(r.eax as *mut u8) }?;
+        r.set_carry(!read)
+    }
+    Ok(())
+}
+
 // ---- for this self-test and `menu::load_background`'s: everything a picture's loading
 // writes, saved and put back, and files to load ----
 

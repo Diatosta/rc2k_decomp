@@ -73,6 +73,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     );
 }
 
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::service::floats::floats_entry(r, &rust)
+}
+
 /// The test of both: `original` (the hook's `call_original`) on a test block whose
 /// matrix at `offset` is by lot, against `turn_point_by`.
 pub fn test_turn_at(

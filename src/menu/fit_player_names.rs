@@ -16,7 +16,7 @@ use crate::framework::{RawHook, Regs, SelfTest, game_ptr, hook_asm, rva};
 use crate::gfx::blit_glyph::record_calls;
 use crate::menu::player_names::{NAME_LEN, PLAYERS, name};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state, restore};
+use crate::service::harness::{Region, capture, dispatch_state, restore, state_entry};
 use crate::text::draw_text::GameCanvas;
 use crate::text::font::Font;
 use crate::text::glyph_kerning::{STATE_LEN, state_ptr};
@@ -84,6 +84,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 // ---- self-test: names of the test's in the game's place, measured with the game's

@@ -17,7 +17,7 @@ use crate::errors::Refused;
 use crate::framework::{EAX, ECX, EDI, ESI, RawHook, Regs, SelfTest, call_game, hook_asm, rva};
 use crate::physics::restore_saved_car::SavedCar;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state};
+use crate::service::harness::{Region, capture, dispatch_state, state_entry};
 use rc2k_core::physics::saved_car::{CarState, MOST_SAVED, save_count};
 use std::sync::atomic::AtomicUsize;
 
@@ -100,6 +100,12 @@ fn regions(p: &SavedCar) -> Vec<Region> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(&SavedCar::game()), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

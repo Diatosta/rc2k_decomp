@@ -209,6 +209,15 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    match unsafe { upload_texture_picture(r.eax, r.ebx, r.ecx, r.edx, &mut GameSurfaces) } {
+        Ok(()) => r.set_carry(false),
+        Err(e) => return Err(e),
+    }
+    Ok(())
+}
+
 // ---- self-test ----
 
 const TEST_TEXTURE: u32 = TEXTURES - 1;

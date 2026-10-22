@@ -30,7 +30,7 @@ use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
 use crate::service::harness::{
-    Region, at as at_rva, capture, check_state, dispatch_state, restore,
+    Region, at as at_rva, capture, check_state, dispatch_state, restore, state_entry,
 };
 use std::sync::atomic::AtomicUsize;
 
@@ -201,6 +201,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(r.edi), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 /// Every game variable the emitters write.

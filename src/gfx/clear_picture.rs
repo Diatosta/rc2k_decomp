@@ -63,6 +63,14 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+    if let Err(e) = unsafe { clear_picture() } {
+        return Err(e.into());
+    }
+    Ok(())
+}
+
 // ---- self-test: the game's own buffer, filled and put back ----
 
 fn self_test() -> (usize, usize) {

@@ -148,6 +148,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { draw_view_strip(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
+}
+
 /// A quad as the tests note it: the place, eax .. ebp, its inputs and texture.
 type Noted = (u32, [u32; 6], [u32; 0x10], u32);
 

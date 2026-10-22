@@ -109,6 +109,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { time_trial_service(r, &mut game_call) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
+}
+
 const CALLS: [usize; 10] = [0x25, 0x2F, 0x34, 0x3E, 0x4D, 0x5C, 0x6A, 0x6F, 0x8B, 0x90];
 
 fn self_test() -> (usize, usize) {

@@ -195,6 +195,16 @@ extern "C" fn dispatch(r: &mut Regs) {
     r.eflags = o.eflags;
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let path = r.eax as *const u8;
+    {
+        let worked = unsafe { read_png(path) }?;
+        r.set_carry(!worked);
+    }
+    Ok(())
+}
+
 // ---- self-test: PNG files made for the purpose, read into the game's own picture buffer,
 // which is put back with everything else ----
 

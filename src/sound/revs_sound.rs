@@ -16,34 +16,18 @@
 //! Shadow mode runs the original alone (it sends a sound).
 //! Self-test: a copy whose jumps out go to stand-ins, against the Rust version
 //! (`turn_parts::test_car_sound`).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::game_addr;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::{Regs, rva};
 use crate::physics::flow::{base, x87_run};
-use crate::sound::turn_parts::{PLACED, Part, STOP, dispatch_turn, test_car_sound};
+use crate::sound::turn_parts::{PLACED, Part, STOP, turn_entry};
 use rc2k_core::sound::engine::{computers, revs_sound_number, revs_stopped};
-use std::sync::atomic::AtomicUsize;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("sound::revs_sound", rva(0x40DD19), thunk, &ORIGINAL)
-    .private_copy(LEN)
-    .relocate_calls(&OUTS)
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const LEN: usize = 0x7D;
-/// The jumps to `sound::stop_sound` and the one to `sound::play_placed_sound`.
-const OUTS: [usize; 3] = [0x15, 0x22, 0x6D];
-const ENTRY: [u8; 6] = [0x8B, 0x03, 0x85, 0xC0, 0x78, 0x6C];
 /// unk_516230: the computer's cars' set.
 const COMPUTERS: usize = 0x516230;
 
@@ -112,18 +96,8 @@ pub fn revs_sound_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
     part(PLACED, c)
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_turn(&HOOK, r, call_original, revs_sound_in, None);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    test_car_sound(&mut t, 0x40DD19, LEN, &ENTRY, &OUTS, revs_sound_in, &[]);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    turn_entry(r, revs_sound_in)
 }

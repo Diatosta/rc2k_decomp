@@ -16,7 +16,7 @@ use crate::bridge::Raw;
 use crate::errors::Refused;
 use crate::framework::{ECX, RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{check_state, dispatch_state};
+use crate::service::harness::{check_state, dispatch_state, state_entry};
 use rc2k_core::drive::rle;
 use std::sync::atomic::AtomicUsize;
 
@@ -55,6 +55,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 extern "C" fn dispatch(r: &mut Regs) {
     let n = unsafe { out_len(r.esi) }.unwrap_or(0) as usize;
     dispatch_state(&HOOK, r, call_original, &[(r.edi, n)], &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

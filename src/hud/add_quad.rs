@@ -92,6 +92,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { add_quad(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
+}
+
 fn self_test() -> (usize, usize) {
     use crate::hud::batch::run_both_floats;
     use crate::race::mud::{copy, test_part};

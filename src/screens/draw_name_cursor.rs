@@ -15,7 +15,7 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
 use crate::menu::player::{Player, player_at};
 use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::harness::{Left, check_draw, dispatch_draw};
+use crate::screens::harness::{Left, check_draw, dispatch_draw, draw_entry};
 use crate::service::harness::{Region, at, capture, restore};
 use crate::strings::text_from_ids::{TEXT_LEN, text};
 use crate::text::draw_text::Canvas;
@@ -82,6 +82,12 @@ pub fn state() -> Vec<u8> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_draw(&HOOK, r, call_original, &rust, &state);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_name_cursor", r, &rust)
 }
 
 // ---- self-test ----

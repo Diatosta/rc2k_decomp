@@ -35,7 +35,7 @@ use crate::net::lobby::{FLAGS, answer, run_both, set_sign};
 use crate::net::message_vars::{MessageVars, TestVars, as_rust, get, get8, set, set8};
 use crate::net::{
     CHAT_LINE, LOCK, Part, RECEIVE, RECEIVED_LEN, SEND, STORE, SYSTEM_MESSAGE, TICK, UNLOCK,
-    dispatch_net,
+    dispatch_net, net_entry,
 };
 use rc2k_core::net::messages::{self, Kind};
 use std::sync::atomic::AtomicUsize;
@@ -162,6 +162,12 @@ pub fn take_messages(r: &mut Regs, part: Part) -> Result<(), Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_net(&HOOK, r, call_original, take_messages);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    net_entry(r, take_messages)
 }
 
 /// For the Rust receiving thread: the Rust version (counted as a call of the hook), a

@@ -46,6 +46,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { cast_car_shadow(r, &mut faces_in_game) }?;
+    Ok(())
+}
+
 static CALLS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
 fn stand_in(_: u32, _: &mut Regs) {

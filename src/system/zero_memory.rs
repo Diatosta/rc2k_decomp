@@ -62,6 +62,15 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let (block, length) = (r.ebx as *mut u8, r.ecx);
+    if let Err(e) = unsafe { zero_memory(block, length) } {
+        return Err(e.into());
+    }
+    Ok(())
+}
+
 // ---- self-test ----
 
 fn self_test() -> (usize, usize) {

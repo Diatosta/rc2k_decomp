@@ -13,7 +13,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::race::objects::{BY_Y, sort_points};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, check_state, dispatch_state};
+use crate::service::harness::{Region, check_state, dispatch_state, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -49,6 +49,12 @@ fn regions(r: &Regs) -> Vec<Region> {
 extern "C" fn dispatch(r: &mut Regs) {
     let regions = regions(r);
     dispatch_state(&HOOK, r, call_original, &regions, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

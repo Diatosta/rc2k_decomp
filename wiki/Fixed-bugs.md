@@ -13,6 +13,52 @@ Each entry says:
 
 ---
 
+## Sounds stuck on after a stage ends (lost sound commands)
+
+*Original*: `sound::send_command` (0x409C45) and `audio::take_commands` (0x40A8A4).
+*Fixed*: 2026-10-21.
+
+- **What**: the game thread queues sound commands for the audio thread and counts them up;
+  the audio thread takes them and counts down. Both change the one counter without an
+  atomic instruction, so on a processor with more than one core an update can be lost.
+  A lost count-up leaves a command uncounted: every later command is taken one late, and
+  the last one before a quiet moment not at all. A lost count-down replays an old command.
+- **In game**: at a stage's end the "stop every sound" command can go missing, so the
+  car's looping engine sounds (or a stage's ambient loop) keep playing over the results
+  and the menus, even while paused, until the next stop; now and then an old sound is
+  played again. Machines of the game's day had one core and never showed it.
+- **Seen**: yes, in play (fifteen stop commands sent, nine taken in one session).
+- **Fix**: both sides change the counter atomically (`sound::queue`,
+  `audio::take_commands`).
+
+## The music can hang the sound
+
+*Original*: `audio::music_command` (0x40C4DD). *Fixed*: 2026-10-20.
+
+- **What**: two ways for the audio thread to loop for ever. When a tune starts but stops
+  at its first block of data while a next tune is set, that next tune is played again and
+  again (it is never cleared once used). And with the saved tune position past its last
+  value (a damaged `ral.dat`) and no tune files 10 .. 15, the search for the next tune
+  never ends.
+- **In game**: the music stops and the sound effects stop answering (the audio thread
+  no longer takes commands), until the game is closed.
+- **Seen**: suspected in play (stuck sound and stopped music), not reproduced; found by
+  reading the code.
+- **Fix**: `rc2k_core::audio::streams`: after seven plays in a row that stop at once the
+  music falls silent (logged); a tune position past the last starts again from the first.
+
+## Changing the sound mode leaves the music playing
+
+*Original*: `audio::set_mode` (0x40A426, sound command 5). *Fixed*: 2026-10-20.
+
+- **What**: before closing and reopening the sound device for a new mode, the original
+  asks to stop the music streams, but passes whatever a register happens to hold as the
+  kind of stop; usually that is "feed the stream", not "stop it".
+- **In game**: changing the sound options does not stop the music before the device it
+  plays on is closed and reopened (a glitch or a cut at the change).
+- **Seen**: no; found by reading the code.
+- **Fix**: the Rust version always asks for a stop (`audio::set_mode`).
+
 ## Text lookup with a bad string id reads anywhere
 
 *Original*: `strings::expand_entry` (0x401FE1). *Fixed*: 2026-10-20.

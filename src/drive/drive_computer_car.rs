@@ -43,7 +43,7 @@ use crate::math::x87_run::{
 use crate::race::norms::normalise_work_vector;
 use crate::scene::view_matrix::cross_product;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state, restore};
+use crate::service::harness::{Region, capture, dispatch_state, restore, state_entry};
 use rc2k_core::drive::computer_driver as driver;
 use std::sync::atomic::AtomicUsize;
 
@@ -317,6 +317,12 @@ pub fn regions() -> Vec<Region> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

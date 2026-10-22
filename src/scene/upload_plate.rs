@@ -190,6 +190,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { upload_plate_in_game(r) }?;
+    Ok(())
+}
+
 // ---- self-test ----
 
 const START: usize = 0x41B2F2;

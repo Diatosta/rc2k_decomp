@@ -20,7 +20,7 @@ use crate::physics::fill_race_slot::{inputs, regions, set_slots};
 use crate::physics::fill_slot_on_bit::fill_slot_on_bit_in;
 use crate::physics::test_car_word::test_word;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
 use rc2k_core::physics::parts::{self, DROP_TESTS, Hit, HitTest};
 use std::sync::atomic::AtomicUsize;
 
@@ -110,6 +110,12 @@ fn all_regions() -> Vec<Region> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &all_regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 /// The hit tests' inputs: the kind, the word, the timers, the bits.

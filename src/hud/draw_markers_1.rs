@@ -122,6 +122,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { draw_markers_1(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
+}
+
 /// A call as the tests note it: the place, eax .. esi, the values.
 pub type Noted = (u32, [u32; 5], Vec<[u8; 10]>);
 

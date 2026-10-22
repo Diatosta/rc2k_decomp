@@ -15,7 +15,7 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, dispatch_state};
+use crate::service::harness::{capture, dispatch_state, state_entry};
 use rc2k_core::physics::motion::stop_timers;
 use std::sync::atomic::AtomicUsize;
 
@@ -86,6 +86,12 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 extern "C" fn dispatch(r: &mut Regs) {
     let v = game();
     dispatch_state(&HOOK, r, call_original, &[(v[0], 12), (v[4], 4)], &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

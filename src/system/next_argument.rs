@@ -76,6 +76,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     r.esp = esp;
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let (start, len, next) = unsafe { next_argument(r.eax as *const u8) };
+    (r.eax, r.ecx, r.ebx) = (start as u32, len, next as u32);
+    Ok(())
+}
+
 // ---- self-test ----
 
 pub const TEST_LINES: [&[u8]; 12] = [

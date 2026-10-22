@@ -41,7 +41,7 @@ use crate::framework::{
 };
 use crate::physics::ground::Ground;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state, restore};
+use crate::service::harness::{Region, capture, dispatch_state, restore, state_entry};
 use rc2k_core::drive::lit_faces::{
     COUNTDOWN_OBJECT, FaceBytes, RISE_TOP, align, blink, count_down, fall_turn, pace, rise,
 };
@@ -293,6 +293,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

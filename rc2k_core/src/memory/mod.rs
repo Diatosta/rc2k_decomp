@@ -125,6 +125,25 @@ pub fn own_heap_head(bytes: u32) -> [u32; 2] {
     [0, bytes]
 }
 
+/// `memory::move_bytes` (0x46573F) inside one buffer: `count` bytes from `from` to `to`,
+/// forwards, a dword at a time (each read before it is written) and then the last bytes
+/// one by one. With `to` a little past `from` the copy repeats what was there, as the
+/// original's `rep movsd` / `rep movsb` does. Both ranges must lie in `buf`.
+pub fn move_forward(buf: &mut [u8], from: usize, to: usize, count: usize) {
+    let (mut f, mut t) = (from, to);
+    for _ in 0..count / 4 {
+        let dword: [u8; 4] = buf[f..f + 4].try_into().unwrap();
+        buf[t..t + 4].copy_from_slice(&dword);
+        f += 4;
+        t += 4;
+    }
+    for _ in 0..count % 4 {
+        buf[t] = buf[f];
+        f += 1;
+        t += 1;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -183,5 +202,25 @@ mod tests {
         assert_eq!(own_heap_size(0x4000), Some((0x4000, 0x100_0000)));
         assert_eq!(own_heap_size(0x40_0000), None);
         assert_eq!(own_heap_head(5), [0, 5]);
+    }
+
+    #[test]
+    fn moves_forward() {
+        let start: Vec<u8> = (0..16).collect();
+        let mut b = start.clone();
+        move_forward(&mut b, 0, 8, 7);
+        assert_eq!(&b[8..15], &start[0..7]);
+        assert_eq!(b[15], 15);
+        // one byte on: each dword read before it is written, the bytes one by one
+        let mut b = start.clone();
+        move_forward(&mut b, 0, 1, 6);
+        assert_eq!(&b[..8], &[0, 0, 1, 2, 3, 3, 3, 7]);
+        // backwards in the buffer: a plain copy
+        let mut b = start.clone();
+        move_forward(&mut b, 4, 0, 9);
+        assert_eq!(&b[..9], &start[4..13]);
+        let mut b = start.clone();
+        move_forward(&mut b, 3, 3, 0);
+        assert_eq!(b, start);
     }
 }

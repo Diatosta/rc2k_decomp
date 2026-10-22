@@ -135,6 +135,15 @@ pub fn dispatch_effect(
     );
 }
 
+/// `dispatch_effect` without its hook (a refusal is the caller's).
+pub fn effect_entry(r: &mut Regs, number: u32) -> Result<(), Refused> {
+    crate::menu::parts::parted_entry(
+        r,
+        &|r, part| unsafe { effect_change(r, number, part) },
+        game_part,
+    )
+}
+
 pub fn test_effect(hook: &RawHook, e: Effect) -> (usize, usize) {
     let Some(mut t) = SelfTest::begin(hook) else {
         return (0, 0);

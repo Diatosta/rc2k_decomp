@@ -40,6 +40,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { car_part_matrices(r.esi) }?;
+    Ok(())
+}
+
 /// Everything the function writes but the block.
 pub fn written() -> Vec<Region> {
     let g = |a: usize, len: usize| (game_addr(rva(a)) as u32, len);

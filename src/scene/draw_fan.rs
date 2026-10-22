@@ -80,6 +80,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     unsafe { draw_fan(r, &mut game_part) };
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { draw_fan(r, &mut game_part) };
+    Ok(())
+}
+
 fn self_test() -> (usize, usize) {
     use crate::race::mud::{copy, run_both, test_part};
     let Some(mut t) = SelfTest::begin(&HOOK) else {

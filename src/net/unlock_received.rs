@@ -12,7 +12,7 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, hook_asm, rva};
 use crate::net::message_vars::{MessageVars, get};
-use crate::net::{Part, RELEASE_MUTEX, dispatch_net};
+use crate::net::{Part, RELEASE_MUTEX, dispatch_net, net_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -45,6 +45,12 @@ pub fn unlock_received(r: &mut Regs, part: Part) -> Result<(), Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_net(&HOOK, r, call_original, unlock_received);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    net_entry(r, unlock_received)
 }
 
 fn self_test() -> (usize, usize) {

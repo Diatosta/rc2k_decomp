@@ -40,6 +40,10 @@ TWINS = {
     'dispatch_net': ('net_entry', [0], False),
     'dispatch_state_floats': ('floats_entry', [2], False),
     'dispatch_sender': ('send_entry', [0], False),
+    'dispatch_turn': ('turn_entry', [0], False),
+    'dispatch_effects': ('effects_entry', [0], False),
+    'dispatch_effect': ('effect_entry', [0], False),
+    'dispatch_turn_floats': ('turn_entry', [0], False),
 }
 # dispatchers of the same name in two modules: by the module the file takes it from
 BY_MODULE = {
@@ -129,7 +133,7 @@ def entry_for(path, name):
         '\n/// The Rust version where the typed tables run it (no hook; a refusal is the\n'
         '/// caller\'s).\n'
         f'pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {{\n'
-        f'    {before.strip()}\n    {call_text}\n}}\n'
+        f'    {call_text}\n}}\n'
     ).replace('\n    \n', '\n')
     s = s[:end] + '\n' + fn + s[end:]
     if not prefix:

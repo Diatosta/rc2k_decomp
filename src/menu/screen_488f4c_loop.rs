@@ -11,7 +11,9 @@
 //! writes a line to hook.log. Self-test: `screen_loop::check_screen`.
 
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::menu::screen_loop::{List, Original, Screen, Step, check_screen, dispatch_screen};
+use crate::menu::screen_loop::{
+    List, Original, Screen, Step, check_screen, dispatch_screen, screen_entry,
+};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -95,6 +97,12 @@ pub const SCREEN: Screen = Screen {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_screen(&HOOK, r, call_original, &SCREEN);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::screen_488f4c_loop", r, &SCREEN)
 }
 
 // ---- self-test ----

@@ -21,23 +21,13 @@
 //! Compared in shadow mode (the options and both modes; the Rust version's log calls noted,
 //! not written). Self-test: the original on options of the test's, with the real log
 //!, 53 cases.
+//!
+//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, rva, shadow};
-use crate::service::harness::{capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("audio::choose_modes", rva(0x40A1CA), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{game_addr, game_read, rva};
 
 pub const OPTIONS_RVA: usize = rva(0x506C88); // g_audioOptions
 pub const QUALITY_MODES_RVA: usize = rva(0x4F8294); // g_qualityModes: 4 dwords
@@ -92,13 +82,6 @@ pub fn choose_modes(
     )?)
 }
 
-fn regions() -> [(u32, usize); 2] {
-    [
-        (game_addr(OPTIONS_RVA) as u32, 0x40),
-        (game_addr(MENU_MODE_RVA) as u32, 8),
-    ]
-}
-
 /// On the game's variables, logging with `log`.
 pub fn in_game(log: Log) -> Result<(), Refused> {
     unsafe {
@@ -111,92 +94,4 @@ pub fn in_game(log: Log) -> Result<(), Refused> {
 
 pub fn real_log(place: u32, eax: u32) {
     let _ = crate::audio::sound_device::game_part(place, eax);
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if !shadow() {
-        if let Err(e) = in_game(&mut real_log) {
-            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-        }
-        return;
-    }
-    let regions = regions();
-    let before = capture(&regions);
-    let mine = in_game(&mut |_, _| {});
-    let after_mine = capture(&regions);
-    restore(&regions, &before);
-    unsafe { call_original(r) };
-    let theirs = capture(&regions);
-    // A refusal is the original's alone, not a mismatch.
-    if mine.is_ok() && after_mine != theirs {
-        HOOK.mismatch(|| {
-            format!(
-                "options and modes {:x?}: original {:x?}; rust {mine:?} {:x?}",
-                before, theirs, after_mine
-            )
-        });
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let saved = capture(&regions);
-    let f = game_facts();
-    let mut cases = Vec::new();
-    for race in [0x11221u32, 0x2441220, 0x1511220, 0x112222, 0x10220] {
-        cases.push((AudioOptions::default(), race));
-    }
-    let base = AudioOptions {
-        kept: 1,
-        applied: [1, 0, 1, 0, 0, 0],
-        has_3d: 1,
-        ..AudioOptions::default()
-    };
-    for quality in [0u32, 3] {
-        for n in 0..6 {
-            for on in [0u32, 1] {
-                let mut o = base;
-                o.choice = o.applied;
-                o.choice[0] = quality;
-                if n > 0 {
-                    o.choice[n] = on;
-                }
-                cases.push((o, 0));
-                let mut p = o;
-                p.applied = [quality, 1, 0, 1, 1, 1];
-                cases.push((p, 0));
-            }
-        }
-    }
-    for (options, race) in cases {
-        let set = || unsafe {
-            *(game_addr(OPTIONS_RVA) as *mut AudioOptions) = options;
-            *(game_addr(MENU_MODE_RVA) as *mut u32) = 0x5555;
-            *(game_addr(RACE_MODE_RVA) as *mut u32) = race;
-        };
-        set();
-        let mut r = Regs::SENTINEL;
-        unsafe { call_original(&mut r) };
-        let theirs = (capture(&regions), r.preserved_except(&Regs::SENTINEL, 0));
-        set();
-        let mut o = options;
-        let (mut race_m, mut menu_m) = (race, 0x5555u32);
-        let mine = choose_modes(&mut o, &mut race_m, &mut menu_m, &f, &mut |_, _| {});
-        let mut expected = Vec::new();
-        expected.extend(unsafe { std::slice::from_raw_parts(&o as *const _ as *const u8, 0x40) });
-        expected.extend(menu_m.to_le_bytes());
-        expected.extend(race_m.to_le_bytes());
-        t.check(mine.is_ok() && theirs.1 && theirs.0 == expected, || {
-            format!(
-                "options {options:x?}, race {race:#x}: original {:x?}; rust {mine:?} {expected:x?}",
-                theirs.0
-            )
-        });
-    }
-    restore(&regions, &saved);
-    t.finish()
 }

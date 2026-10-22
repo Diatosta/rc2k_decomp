@@ -47,7 +47,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             LOG_2_NL => log_write(r.eax as *const u8, true, 2),
             HEX8_2_NL => log_hex8(r.eax, true, 2),
             WAIT_FOR_THREADS => {
-                crate::threading::wait_for_threads::wait_for_threads(r, &mut game_api)?
+                r.eax = crate::threading::wait_for_threads::wait_for_threads(&mut game_api)
             }
             _ => return Err(BadInput("a call of the way out with no version").into()),
         }

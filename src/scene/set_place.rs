@@ -18,7 +18,9 @@ use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::matrix::{self, PLACED_RVA, matrix};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{
+    Region, at, capture, check_state, dispatch_state, restore, state_entry,
+};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -43,6 +45,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 extern "C" fn dispatch(r: &mut Regs) {
     let regions: [Region; 2] = [(game_addr(PLACED_RVA + 0x30) as u32, 12), at(CHECKED_RVA)];
     dispatch_state(&HOOK, r, call_original, &regions, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 // ---- self-test ----

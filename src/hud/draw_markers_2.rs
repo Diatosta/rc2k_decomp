@@ -43,6 +43,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { draw_markers_2(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
+}
+
 fn self_test() -> (usize, usize) {
     test_markers(&HOOK, 0x4B55EE, &|r, p| unsafe { draw_markers_2(r, p) })
 }

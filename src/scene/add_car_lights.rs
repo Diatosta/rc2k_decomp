@@ -122,6 +122,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { add_car_lights(&mut |car| Ok(add_car_light(car)?)) }?;
+    left.apply(r);
+    Ok(())
+}
+
 // ---- self-test ----
 
 const LEN: usize = 0xA1;

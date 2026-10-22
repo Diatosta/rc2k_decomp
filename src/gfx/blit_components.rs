@@ -20,7 +20,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, rva};
-use crate::gfx::harness::{check_pixels, dispatch_pixels};
+use crate::gfx::harness::{check_pixels, dispatch_pixels, pixels_entry};
 use crate::gfx::pixel_format::{PixelFormat, SCRATCH_RVA, TEST_FORMATS};
 use crate::gfx::surface::{BASE_RVA, BYTES_PER_PIXEL_RVA, PITCH_RVA};
 use crate::gfx::texture_pixels::test_pixels;
@@ -141,6 +141,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     let mut regions = rows(r, &game_target()).unwrap_or_default();
     regions.push(at(SCRATCH_RVA));
     dispatch_pixels(&HOOK, r, call_original, &regions, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    pixels_entry(r, &rust)
 }
 
 // ---- self-test ----

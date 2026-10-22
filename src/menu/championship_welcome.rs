@@ -70,6 +70,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { championship_welcome(r, &mut game_call) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
+}
+
 const CALLS: [usize; 12] = [
     0x1A, 0x1F, 0x4E, 0x59, 0x5E, 0x69, 0x73, 0x7A, 0x8A, 0x95, 0x9A, 0xAC,
 ];

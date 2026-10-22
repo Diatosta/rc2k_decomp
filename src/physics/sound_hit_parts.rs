@@ -16,7 +16,7 @@ use crate::physics::car_sounds::test_regions;
 use crate::physics::drop_hit_parts::{Timers, g, hit_tests, p, set_hits};
 use crate::physics::sound_on_bit::sound_on_bit;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
 use rc2k_core::physics::parts::{SOUND_TESTS, has_hit_sounds};
 use std::sync::atomic::AtomicUsize;
 
@@ -71,6 +71,12 @@ fn regions() -> Vec<Region> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

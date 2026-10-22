@@ -17,7 +17,7 @@ use crate::framework::{
 use crate::physics::car_sounds::{object, test_regions};
 use crate::physics::place_car_sound::place_car_sound;
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, check_state, dispatch_state, restore};
+use crate::service::harness::{capture, check_state, dispatch_state, restore, state_entry};
 use rc2k_core::physics::parts::take_bit;
 use std::sync::atomic::AtomicUsize;
 
@@ -59,6 +59,12 @@ extern "C" fn dispatch(r: &mut Regs) {
         regions.extend([(o + 0x10, 4), (o + 0x214, 0x14)]);
     }
     dispatch_state(&HOOK, r, call_original, &regions, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

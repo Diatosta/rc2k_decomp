@@ -83,6 +83,21 @@ pub fn dispatch_effects(
     }
 }
 
+/// `dispatch_effects` without its hook (no shadow mode; a refusal is the caller's).
+pub fn effects_entry(
+    r: &mut Regs,
+    rust: fn(&mut Regs, Part) -> Result<(), Refused>,
+) -> Result<(), Refused> {
+    let mut g = *r;
+    rust(&mut g, &mut game_part)?;
+    *r = Regs {
+        esp: r.esp,
+        eflags: r.eflags,
+        ..g
+    };
+    Ok(())
+}
+
 /// What a Rust version does in a test: the registers in, its calls through the part.
 pub type Rust<'a> = &'a dyn Fn(&mut Regs, Part) -> Result<(), Refused>;
 

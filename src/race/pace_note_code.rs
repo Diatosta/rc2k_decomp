@@ -13,7 +13,7 @@
 use crate::framework::{EAX, RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::race::pace_notes::{Course, Machine, TestStage, case};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::harness::{dispatch_state, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -39,6 +39,14 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &[], &|r| {
         pace_note_code(r, crate::race::pace_notes::game_course())
     });
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &|r| {
+        pace_note_code(r, crate::race::pace_notes::game_course())
+    })
 }
 
 fn self_test() -> (usize, usize) {

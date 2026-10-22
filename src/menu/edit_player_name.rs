@@ -38,7 +38,7 @@ use crate::menu::text_entry::{ENTERING_RVA, LENGTH_RVA, MAX_LENGTH_RVA, TEXT_LEN
 use crate::screens::harness::Left;
 use crate::screens::{font_at, font_is_loaded};
 use crate::service::harness::{
-    Region, at, capture, check_state_with, dispatch_keyed_state, restore,
+    Region, at, capture, check_state_with, dispatch_keyed_state, restore, state_entry,
 };
 use crate::service::state::PLAYER_INDEX_RVA;
 use crate::text::draw_text::{Canvas, GameCanvas, RecordingCanvas};
@@ -137,6 +137,12 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_keyed_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 // ---- self-test ----

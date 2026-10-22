@@ -14,25 +14,14 @@
 //! with a shift key switches the layout: left shift picks 0x4F07F8, right shift 0x4F080C.
 //! Refuses: no layout; a dead key pending with no plain table (the original reads through
 //! null); lists without an end within 256 entries.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{
-    EAX, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("input::key_to_char", rva(0x407E43), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::service::harness::{Region, at};
 
 // ---- game data ----
 
@@ -129,130 +118,19 @@ pub unsafe fn key_to_char(eax: u32) -> Result<u32, BadInput> {
     }
 }
 
-// ---- hook ----
-
 fn set_result(r: &mut Regs, eax: u32) {
     r.eax = eax;
     r.set_carry(eax as u8 == 0);
     r.set_zero(eax as u8 == 1);
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if !shadow() {
-        match unsafe { key_to_char(r.eax) } {
-            Ok(eax) => set_result(r, eax),
-            Err(_) => unsafe { call_original(r) },
-        }
-        return;
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    match unsafe { key_to_char(r.eax) } {
+        Ok(eax) => set_result(r, eax),
+        Err(_) => unsafe {
+            crate::framework::call_game(r, crate::framework::game_addr(rva(0x407E43)))
+        },
     }
-
-    // Shadow: the Rust version first; what it wrote is put back before the original runs.
-    let regions = regions();
-    let before = capture(&regions);
-    let mine = unsafe { key_to_char(r.eax) };
-    let state = capture(&regions);
-    restore(&regions, &before);
-    let mut o = *r;
-    unsafe { call_original(&mut o) };
-    if let Ok(eax) = mine {
-        let theirs = capture(&regions);
-        if o.eax != eax || theirs != state || !o.preserved_except(r, EAX) {
-            HOOK.mismatch(|| {
-                format!(
-                    "eax={:#x} state {before:x?}: original eax={:#x} {theirs:x?}; rust eax={eax:#x} {state:x?}",
-                    r.eax, o.eax
-                )
-            });
-        }
-    }
-    let esp = r.esp;
-    *r = o;
-    r.esp = esp;
-}
-
-// ---- self-test: every key with and without shift, AltGr and a pending dead key ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let layout: u32 = unsafe { game_read(LAYOUT_RVA) };
-    if layout == 0 || unsafe { dword(layout + 4) } == 0 {
-        return t.skip("no keyboard layout is loaded");
-    }
-    let keys = [
-        (game_addr(LEFT_SHIFT_RVA) as u32, 1),
-        (game_addr(RIGHT_SHIFT_RVA) as u32, 1),
-        (game_addr(ALT_RVA) as u32, 1),
-        (game_addr(ALT_GR_RVA) as u32, 1),
-    ];
-    let saved = (capture(&regions()), capture(&keys));
-
-    // Dead keys to leave pending: the first few different ones of the compose list.
-    let mut pendings = vec![0u8];
-    let mut entry = game_addr(COMPOSE_RVA) as u32;
-    for _ in 0..256 {
-        let dead = unsafe { (entry as *const u8).read() };
-        if dead == 0 || pendings.len() >= 4 {
-            break;
-        }
-        if !pendings.contains(&dead) {
-            pendings.push(dead);
-        }
-        entry += 4;
-    }
-    // In layout mode 2 a held AltGr with shift switches to a layout that may be empty, where
-    // a pending dead key makes the original read through null: AltGr stays up there.
-    let alt_grs: &[u8] = if unsafe { game_read::<u8>(LAYOUT_MODE_RVA) } == 2 {
-        &[0]
-    } else {
-        &[0, 1]
-    };
-
-    for &pending in &pendings {
-        for shift in [0u8, 1] {
-            for &alt_gr in alt_grs {
-                for key in 0u32..=255 {
-                    let prepare = || unsafe {
-                        game_write(LAYOUT_RVA, layout);
-                        game_write(DEAD_KEY_RVA, pending);
-                        game_write(LEFT_SHIFT_RVA, shift);
-                        game_write(RIGHT_SHIFT_RVA, 0u8);
-                        game_write(ALT_RVA, 0u8);
-                        game_write(ALT_GR_RVA, alt_gr);
-                    };
-                    let before = Regs {
-                        eax: 0x5EED_AB00 | key,
-                        ..Regs::SENTINEL
-                    };
-                    prepare();
-                    let mut ro = before;
-                    unsafe { call_original(&mut ro) };
-                    let theirs = capture(&regions());
-                    let (carry_o, zero_o) = (ro.carry(), ro.eflags & 0x40 != 0);
-
-                    prepare();
-                    let mine = unsafe { key_to_char(before.eax) };
-                    let state = capture(&regions());
-
-                    let ok = mine == Ok(ro.eax)
-                        && theirs == state
-                        && carry_o == (ro.eax as u8 == 0)
-                        && zero_o == (ro.eax as u8 == 1)
-                        && ro.preserved_except(&before, EAX);
-                    t.check(ok, || {
-                        format!(
-                            "key={key:#x} shift={shift} alt_gr={alt_gr} pending={pending:#x}: original eax={:#x} carry={carry_o} zero={zero_o} {theirs:x?}; rust {mine:x?} {state:x?}",
-                            ro.eax
-                        )
-                    });
-                }
-            }
-        }
-    }
-
-    restore(&regions(), &saved.0);
-    restore(&keys, &saved.1);
-    t.finish()
+    Ok(())
 }

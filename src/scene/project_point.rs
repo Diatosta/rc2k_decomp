@@ -361,6 +361,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state_floats(&HOOK, r, call_original, &regions(r.eax), &floats, &rust);
 }
 
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::service::floats::floats_entry(r, &rust)
+}
+
 // ---- self-test: points, records and a view of the test's ----
 
 /// The variables a test of the projection sets, to be put back afterwards.

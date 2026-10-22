@@ -12,7 +12,9 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
 use crate::screens::font_is_loaded;
-use crate::screens::harness::{Left, check_draw, dispatch_draw, drawing_unavailable, push_dwords};
+use crate::screens::harness::{
+    Left, check_draw, dispatch_draw, draw_entry, drawing_unavailable, push_dwords,
+};
 use crate::service::harness::{at, capture, restore};
 use crate::service::load_setup_slot::SLOT_PAGE_RVA;
 use crate::service::read_setup_slot::{NAME_LEN, slot_name};
@@ -78,6 +80,12 @@ fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_draw(&HOOK, r, call_original, &rust, &state);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_setup_slot_names", r, &rust)
 }
 
 // ---- self-test: the three pages of the owner's own slot list ----

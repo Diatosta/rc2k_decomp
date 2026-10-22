@@ -15,7 +15,7 @@ use crate::physics::compare_split_times::compare_split_times_in;
 use crate::physics::rank_split_time::rank_split_time_in;
 use crate::physics::splits::{FIGURE, MODE, g, guarded, p, test_splits, written};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::harness::{dispatch_state, state_entry};
 use rc2k_core::physics::splits::{SplitFigure, split_figure};
 use std::sync::atomic::AtomicUsize;
 
@@ -57,6 +57,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &written(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

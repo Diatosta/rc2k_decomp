@@ -18,7 +18,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::menu::parts::{Part, copy, dispatch_parted, run_both, test_part};
+use crate::menu::parts::{Part, copy, dispatch_parted, parted_entry, run_both, test_part};
 use crate::menu::player::{PLAYERS_RVA, player_at};
 use crate::service::harness::{Region, at, capture, restore};
 use std::sync::atomic::AtomicUsize;
@@ -104,6 +104,12 @@ extern "C" fn dispatch(r: &mut Regs) {
         &|r, part| unsafe { arcade_finale(r, part) },
         game_part,
     );
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    parted_entry(r, &|r, part| unsafe { arcade_finale(r, part) }, game_part)
 }
 
 fn self_test() -> (usize, usize) {

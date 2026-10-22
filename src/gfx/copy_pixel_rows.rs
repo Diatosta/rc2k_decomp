@@ -16,7 +16,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{EBX, EDI, EDX, ESI, RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::gfx::harness::{check_pixels, dispatch_pixels};
+use crate::gfx::harness::{check_pixels, dispatch_pixels, pixels_entry};
 use crate::screens::harness::Left;
 use crate::service::harness::Region;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -101,6 +101,12 @@ pub fn written(r: &Regs, bytes_per_dword: u32) -> Vec<Region> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_pixels(&HOOK, r, call_original, &written(r, 4), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    pixels_entry(r, &rust)
 }
 
 // ---- self-test ----

@@ -175,6 +175,20 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    match unsafe { try_allocate_textures_in_game() } {
+        Ok(had) => {
+            r.set_carry(!had);
+        }
+        Err(e) => {
+            let e: Refused = e.into();
+            return Err(e);
+        }
+    }
+    Ok(())
+}
+
 // ---- self-test ----
 
 const START: usize = 0x4224C4;

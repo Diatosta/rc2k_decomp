@@ -122,6 +122,17 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let (object, palette) = (r.edi as *const u8, r.ebx);
+
+    // A fatal error in the blitter: the original, run from the start, meets the same one.
+    if let Err(e) = unsafe { blit_marker_pair(object, palette) } {
+        return Err(e.into());
+    }
+    Ok(())
+}
+
 // ---- self-test: the blitter's hook swallows the calls, so nothing is drawn ----
 
 fn self_test() -> (usize, usize) {

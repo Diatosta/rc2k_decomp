@@ -23,7 +23,7 @@ use crate::framework::{
 use crate::race::course_data::{CDAT_DIGITS, set_cdat_number};
 use crate::race::level_init::{NUMBER_PLACES, set_course_number};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -111,6 +111,12 @@ pub fn find_present_courses(entry: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &find_present_courses);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &find_present_courses)
 }
 
 fn self_test() -> (usize, usize) {

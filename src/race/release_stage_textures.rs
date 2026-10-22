@@ -44,6 +44,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     *r = Regs { esp: r.esp, ..g };
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let g = unsafe { release_stage_textures(r, &mut game_release_textures) };
+    *r = Regs { esp: r.esp, ..g };
+    Ok(())
+}
+
 fn self_test() -> (usize, usize) {
     use crate::race::level_init::{note, take_called};
     let Some(mut t) = SelfTest::begin(&HOOK) else {

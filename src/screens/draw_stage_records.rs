@@ -205,6 +205,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_rows(&HOOK, r, call_original, &STAGE_ROWS);
 }
 
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    rows_entry("screens::draw_stage_records", r, &STAGE_ROWS)
+}
+
 /// The dispatch of a records drawer (this one, `screens::draw_time_trial_records`).
 pub fn dispatch_rows(
     hook: &RawHook,

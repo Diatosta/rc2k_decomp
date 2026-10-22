@@ -7,7 +7,7 @@
 //! `stage_view_steps::test_style`.
 
 use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::menu::stage_view_steps::{dispatch_plain, style_stage_item, test_style};
+use crate::menu::stage_view_steps::{dispatch_plain, plain_entry, style_stage_item, test_style};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -24,6 +24,12 @@ hook_asm!(
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_plain(&HOOK, r, call_original, &|_| style_stage_item(false));
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    plain_entry(r, &|_| style_stage_item(false))
 }
 
 fn self_test() -> (usize, usize) {

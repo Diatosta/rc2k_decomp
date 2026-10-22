@@ -22,36 +22,20 @@
 //! Shadow mode runs the original alone (it sends sounds).
 //! Self-test: a copy whose calls go to stand-ins (the random numbers a sequence of the
 //! test's), against the Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::physics::flow::guard;
-use crate::service::harness::{Region, at, capture, restore};
 use crate::sound::car_slot_sounds::SLOT;
 use crate::sound::sample_settings::OWN;
 use crate::sound::turn_parts::{
-    CLOCK, PLAY, Part, RANDOM, REQUEST, SCRATCH, both, common_regions, copy_of, dispatch_turn,
-    run_copy,
+    CLOCK, PLAY, Part, RANDOM, REQUEST, SCRATCH, common_regions, turn_entry,
 };
-use std::sync::atomic::AtomicUsize;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("sound::stage_sounds", rva(0x40E2A9), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const LEN: usize = 0x2F5;
-const OUTS: [usize; 10] = [
-    0x46, 0x7C, 0xB2, 0x12C, 0x152, 0x176, 0x192, 0x232, 0x24E, 0x2EE,
-];
-const ENTRY: [u8; 7] = [0x60, 0x8D, 0x35, 0xBC, 0x24, 0x51, 0x00];
 /// The stage sounds' variables, `dword_51659C` .. `dword_5165E8`.
 const VARS: usize = 0x51659C;
 const VARS_LEN: usize = 0x50;
@@ -161,57 +145,8 @@ pub fn stage_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     })
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_turn(&HOOK, r, call_original, stage_sounds_in, None);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy_of(0x40E2A9, LEN, &ENTRY, &OUTS, &[PLAY, SLOT, RANDOM]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let run = run_copy(&copy);
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let mut all: Vec<Region> = common_regions();
-    all.extend([(a(VARS), VARS_LEN), at(rva(CLOCK)), at(rva(MIX_RATE))]);
-    let saved = capture(&all);
-    for case in 0..48u32 {
-        let fill = || unsafe {
-            let v = a(VARS) as *mut u32;
-            for n in 0..VARS_LEN / 4 {
-                v.add(n).write(0x40 + n as u32 * 3);
-            }
-            for (k, (flag, _)) in ONE_OFFS.iter().enumerate() {
-                p(*flag, (case >> k) & 1);
-            }
-            p(ARM, (case >> 3) & 1);
-            p(WAITING, [0, 1, 1][(case % 3) as usize]);
-            p(DUE, [0, 5000, 0x8000_0000][(case % 3) as usize]);
-            for (k, (flag, _)) in RANDOMS.iter().enumerate() {
-                p(*flag, ((case >> 4) + k as u32) & 1);
-            }
-            p(VOLUME_A, 0xFFFF_FFF1);
-            p(CLOCK, 1000);
-            p(MIX_RATE, [22050, 44100, 11025][(case % 3) as usize]);
-        };
-        both(
-            &mut t,
-            &format!("case {case}"),
-            &run,
-            Regs::SENTINEL,
-            &fill,
-            &all,
-            stage_sounds_in,
-            false,
-        );
-    }
-    restore(&all, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    turn_entry(r, stage_sounds_in)
 }

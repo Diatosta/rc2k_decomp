@@ -17,7 +17,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::net::dplay::{SEND, method};
 use crate::net::lobby::{DPLAY_METHOD, FLAGS, TestObject, com_answer, run_both, test_eax};
 use crate::net::message_vars::{MessageVars, TestVars, as_rust, get, set};
-use crate::net::{Part, dispatch_net};
+use crate::net::{Part, dispatch_net, net_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -57,6 +57,12 @@ pub fn dplay_send(r: &mut Regs, _part: Part) -> Result<(), Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_net(&HOOK, r, call_original, dplay_send);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    net_entry(r, dplay_send)
 }
 
 fn self_test() -> (usize, usize) {

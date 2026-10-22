@@ -46,7 +46,7 @@ use crate::physics::ground_search::test_ground;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state, restore};
+use crate::service::harness::{Region, capture, dispatch_state, restore, state_entry};
 use rc2k_core::physics::ground;
 use std::sync::atomic::AtomicUsize;
 
@@ -237,6 +237,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(&Ground::game()), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 /// The inputs of a probe test case: the test's ground cleared, `count` points, turns,

@@ -92,6 +92,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { flush_draw_batch(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
+}
+
 /// What the test's device gives back (its HRESULT).
 static DEVICE_GIVES: AtomicU32 = AtomicU32::new(0);
 

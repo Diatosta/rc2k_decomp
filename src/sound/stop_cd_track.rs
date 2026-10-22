@@ -9,25 +9,13 @@
 //! 1: `sound::open_cd_audio`). Shadow mode runs the original alone (the device is stopped
 //! once). Self-test: a copy whose two variables are the test's and whose MCI call goes to a
 //! stand-in that notes its arguments, against the Rust version, open and not.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva, shadow, standalone,
-};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("sound::stop_cd_track", rva(0x40FCC8), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_addr, rva, standalone};
 
 // ---- game data ----
 
@@ -82,75 +70,8 @@ pub fn game_part(_place: u32, _r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
     unsafe { stop_cd_track(&CdVars::game(), &mut game_send) };
-}
-
-// ---- self-test ----
-
-static NOTED: Mutex<Vec<[u32; 4]>> = Mutex::new(Vec::new());
-
-extern "system" fn note_send(device: u32, message: u32, a: u32, b: u32) -> u32 {
-    NOTED.lock().unwrap().push([device, message, a, b]);
-    0
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut vars = vec![0u32; 2];
-    let at = vars.as_mut_ptr() as u32;
-    let v = CdVars {
-        open: at,
-        device: at + 4,
-    };
-    let c = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x40FCC8,
-            len: 0x20,
-            entry: &[0x60, 0x83, 0x3D, 0x08, 0x81, 0x51, 0x00, 0x01],
-            calls: &[0x19],
-            jumps_out: &[],
-        },
-        &|callee| (callee == MCI_SEND_COMMAND).then_some(note_send as *const () as usize),
-        &[(0x518108, v.open), (0x518118, v.device)],
-        2,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    for open in [0u32, 1, 2] {
-        let run = |rust: bool| unsafe {
-            let p = at as *mut u32;
-            p.write_volatile(open);
-            p.add(1).write_volatile(0x0042_0017);
-            NOTED.lock().unwrap().clear();
-            let preserved = if rust {
-                stop_cd_track(&v, &mut |d, m, a, b| note_send(d, m, a, b));
-                true
-            } else {
-                let before = Regs::SENTINEL;
-                let mut ro = before;
-                call_game(&mut ro, c.addr());
-                ro.preserved_except(&before, 0)
-            };
-            (preserved, std::mem::take(&mut *NOTED.lock().unwrap()))
-        };
-        let theirs = run(false);
-        let mine = run(true);
-        t.check(theirs == mine, || {
-            format!("open {open}: original {theirs:x?}; rust {mine:x?}")
-        });
-    }
-    drop(vars);
-    t.finish()
+    Ok(())
 }

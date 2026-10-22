@@ -42,11 +42,7 @@ fn run(function: u32, r: &mut Regs, only_tables: bool) {
         .wrapping_sub(game_addr(0))
         .wrapping_add(IMAGE_BASE) as u32;
     let entry = *r;
-    // the log's functions are entered holding or taking `g_logLock`: no gate (`routes::gated`)
-    let gated = crate::routes::gated((ral as usize).wrapping_sub(IMAGE_BASE));
-    if gated {
-        hook_enter();
-    }
+    hook_enter();
     let result = if let Some(f) = ItemFn::from_ral(ral) {
         Some((Named::Item(f), item_fn(f, r)))
     } else if let Some(f) = ScreenFn::from_ral(ral) {
@@ -55,9 +51,7 @@ fn run(function: u32, r: &mut Regs, only_tables: bool) {
         let at = (ral as usize).wrapping_sub(IMAGE_BASE);
         crate::routes::by_rva(at, r).map(|done| (Named::Routed, done))
     };
-    if gated {
-        hook_leave();
-    }
+    hook_leave();
     match result {
         Some((_, Ok(()))) => {}
         Some((name, Err(Refused::BadInput(why)))) => {

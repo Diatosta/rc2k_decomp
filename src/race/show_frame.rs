@@ -133,6 +133,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { show_frame(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
+}
+
 /// Which of the test's calls fail (carry), by place bit (1 the lock, 0x20 the showing).
 static FAILING: AtomicU32 = AtomicU32::new(0);
 

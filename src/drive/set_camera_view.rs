@@ -17,7 +17,7 @@
 use crate::errors::Refused;
 use crate::framework::{EAX, RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, dispatch_state};
+use crate::service::harness::{capture, dispatch_state, state_entry};
 use rc2k_core::drive::camera_views::CameraView;
 use std::sync::atomic::AtomicUsize;
 
@@ -71,6 +71,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &[(r.esi + 0x684, 0x1C)], &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 /// A copy of the original whose step count is at `step`.

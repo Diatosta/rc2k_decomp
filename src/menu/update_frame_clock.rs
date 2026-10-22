@@ -70,6 +70,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     r.eax = o.eax;
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let first = update_frame_clock();
+    r.eax = first;
+    Ok(())
+}
+
 // ---- self-test ----
 
 fn self_test() -> (usize, usize) {

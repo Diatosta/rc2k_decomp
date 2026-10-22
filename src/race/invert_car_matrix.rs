@@ -18,7 +18,7 @@ use crate::race::start_place::*;
 use crate::scene::matrix::{MATRIX_LEN, test_floats};
 use crate::screens::harness::Left;
 use crate::service::floats::{Floats, Tolerance, check_state_floats};
-use crate::service::harness::{capture, dispatch_state, restore};
+use crate::service::harness::{capture, dispatch_state, restore, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -40,6 +40,12 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &invert_regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

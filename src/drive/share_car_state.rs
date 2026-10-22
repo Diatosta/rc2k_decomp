@@ -33,7 +33,7 @@ use crate::math::x87;
 use crate::math::x87_run::{TEST_CONTROL_WORDS, compare_full, sub_div_to_int, with_control_word};
 use crate::race::mud::car_file_number;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state, restore};
+use crate::service::harness::{Region, capture, dispatch_state, restore, state_entry};
 use rc2k_core::drive::sharing;
 use std::sync::atomic::AtomicUsize;
 
@@ -180,6 +180,12 @@ pub fn regions(r: &Regs) -> Vec<Region> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(r), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 /// Fills a test block, record and sound object by `seed`.

@@ -48,6 +48,19 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    {
+        let g = unsafe { loadlevel_init(r, LoadVars::game(), &mut game_part) }?;
+        *r = Regs {
+            esp: r.esp,
+            eflags: r.eflags,
+            ..g
+        }
+    }
+    Ok(())
+}
+
 const CALLS: [usize; 57] = [
     0x7, 0x9F, 0xAE, 0xC3, 0xD2, 0x118, 0x127, 0x131, 0x15A, 0x169, 0x192, 0x1A1, 0x1CA, 0x1D9,
     0x202, 0x211, 0x23A, 0x249, 0x272, 0x281, 0x2AA, 0x2B9, 0x2E2, 0x2F1, 0x32E, 0x33D, 0x366,

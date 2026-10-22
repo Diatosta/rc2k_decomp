@@ -16,7 +16,7 @@ use crate::physics::rate_current_car::OWN_SPEC as RATE_CURRENT;
 use crate::physics::rate_damage::{SPEC as RATE, fill, rate_damage_at};
 use crate::physics::reset_car_grades::{BLOCK_LEN, reset_grades_at};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state, restore};
+use crate::service::harness::{Region, capture, dispatch_state, restore, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -84,6 +84,12 @@ pub fn regions(m: &Mirror) -> Vec<Region> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(&Mirror::game()), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 /// The copies of the whole: this one's address and the copies to keep alive.

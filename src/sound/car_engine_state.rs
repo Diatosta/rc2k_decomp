@@ -40,29 +40,17 @@
 //! Shadow mode: both, the object and the scratch dword compared.
 //! Self-test: the original against the Rust version on objects of the test's, the
 //! table's first kind pointing at a kind of the test's (put back).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::math::x87::from_int;
 use crate::physics::flow::{base, x87_run};
-use crate::service::harness::{Region, at, capture, restore};
-use crate::sound::turn_parts::{
-    CLOCK, OBJECT_LEN, Part, SCRATCH, both, dispatch_turn, test_object,
-};
+use crate::sound::turn_parts::{CLOCK, Part, SCRATCH};
 use rc2k_core::sound::engine::{Left, Words, extrapolation, over_256, readings, state};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("sound::car_engine_state", rva(0x40D8E2), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// off_514F90: the sound kinds, 36 pointers.
 pub const KINDS: usize = 0x514F90;
@@ -185,120 +173,14 @@ pub fn car_engine_state_in(c: &mut Regs, _: Part) -> Result<(), Refused> {
     Ok(())
 }
 
-// ---- hook ----
-
-fn regions(r: &Regs) -> Vec<Region> {
-    vec![(r.ebx, OBJECT_LEN), at(rva(SCRATCH))]
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     if r.ebx == 0 {
-        dispatch_turn(&HOOK, r, call_original, refuse_null, None);
-        return;
+        return crate::sound::turn_parts::turn_entry(r, refuse_null);
     }
-    dispatch_turn(&HOOK, r, call_original, car_engine_state_in, Some(&regions));
+    crate::sound::turn_parts::turn_entry(r, car_engine_state_in)
 }
 
 fn refuse_null(_: &mut Regs, _: Part) -> Result<(), Refused> {
     Err(BadInput("a null sound object").into())
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut kind = vec![0u32; KIND_LEN / 4];
-    let k = kind.as_mut_ptr() as u32;
-    let mut object = test_object(0x77, &[]);
-    let o = object.as_mut_ptr() as u32;
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let all = [
-        (o, OBJECT_LEN),
-        (k, KIND_LEN),
-        (a(KINDS), 4),
-        at(rva(SCRATCH)),
-        at(rva(CLOCK)),
-        at(rva(HOLD)),
-    ];
-    let saved = capture(&all);
-    let mut seed = 0x1357_9BDFu32;
-    let mut pick = |choices: &[u32]| {
-        seed = seed.wrapping_mul(0x41C6_4E6D).wrapping_add(0x3039);
-        choices[(seed >> 16) as usize % choices.len()]
-    };
-    for case in 0..600u32 {
-        let fields: Vec<(u32, u32)> = vec![
-            (0x04, pick(&[0, 0, 0, 3, 35, 36])),
-            (0x10, pick(&[0, 1])),
-            (0x14, pick(&[0, 500, 1000, 1001, 3999, 4000, 9000])),
-            (0x18, pick(&[0, 0x10, 0x80, 0xFF, 0x100, 0xFFFF_FF00])),
-            (0x118, pick(&[0, 0x10, 0x80, 0xF0, 0xF1, 0x200])),
-            (0x94, pick(&[0, 100, 1000])),
-            (0x98, pick(&[0, 100, 120, 3000, 0x8000_0000])),
-            (0x9C, pick(&[0, 2000, 0x7FFF_FFFF])),
-            (0xA0, pick(&[0, 2500, 0x8000_0000])),
-            (0x20, pick(&[0, 0, 1])),
-            (0x128, pick(&[0, 1, 2])),
-            (0x130, pick(&[0, 1, 2])),
-            (0xFC, pick(&[0, 1, 2])),
-            (0xE8, pick(&[0, 1, 2, 3])),
-            (0xEC, pick(&[0, 1, 2, 3])),
-            (0xF4, pick(&[0, 1, 9])),
-            (0xF8, pick(&[0, 1])),
-            (0x1F4, pick(&[0, 1, 0xFFFF_FFFF, 5])),
-            (0x1EC, pick(&[0, 0x1C, 0x20])),
-            (0x2C, pick(&[0, 0x3F00_0000, 0x4120_0000, 0xC2C8_0000])),
-            (0x134, pick(&[0, 0x3F80_0000, 0x4120_0000])),
-        ];
-        let bits = pick(&[0, 0x1000, 0x2000, 0x3123, 0x1FFF]);
-        let (clock, hold) = (pick(&[0, 105, 3333, 0x8000_0005]), pick(&[0, 1]));
-        let fill = || unsafe {
-            let p = o as *mut u32;
-            for (n, v) in test_object(case, &[]).into_iter().enumerate() {
-                p.add(n).write(v);
-            }
-            for &(at, v) in &fields {
-                p.add(at as usize / 4).write(v);
-            }
-            let q = k as *mut u32;
-            for n in 0..KIND_LEN / 4 {
-                q.add(n).write(0x3E00_0000 + n as u32 * 0x11_1111);
-            }
-            q.write(bits);
-            game_write(rva(KINDS), k);
-            game_write(rva(CLOCK), clock);
-            game_write(rva(HOLD), hold);
-        };
-        let refuses = fields[0].1 >= KIND_COUNT || {
-            // The extrapolation's quotient, as the Rust version works it out.
-            let w = |at: u32| fields.iter().find(|f| f.0 == at).unwrap().1;
-            let gap = w(0x98).wrapping_sub(w(0x94));
-            let gap = if gap as i32 > 1000 { 1000 } else { gap };
-            w(0x10) != 1 && hold != 1 && gap != 0 && {
-                let p = clock.wrapping_sub(w(0x98)) as i32 as i64
-                    * w(0xA0).wrapping_sub(w(0x9C)) as i32 as i64;
-                let q = p / gap as i32 as i64;
-                q != q as i32 as i64
-            }
-        };
-        both(
-            &mut t,
-            &format!(
-                "case {case}: kind bits {bits:#x}, clock {clock:#x}, hold {hold}, fields {fields:x?}"
-            ),
-            &|r| unsafe { call_original(r) },
-            Regs {
-                ebx: o,
-                ..Regs::SENTINEL
-            },
-            &fill,
-            &all,
-            car_engine_state_in,
-            refuses,
-        );
-    }
-    restore(&all, &saved);
-    t.finish()
 }

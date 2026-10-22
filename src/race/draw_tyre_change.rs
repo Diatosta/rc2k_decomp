@@ -268,6 +268,19 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let mut w = *r;
+    match unsafe { draw_tyre_change_in(&mut w, &mut draw_part) } {
+        Ok(()) => {
+            r.ebp = w.ebp;
+            r.eflags = w.eflags;
+        }
+        Err(e) => return Err(e),
+    }
+    Ok(())
+}
+
 // ---- self-test ----
 
 static CALLED: Mutex<Vec<(u32, [u32; 7])>> = Mutex::new(Vec::new());

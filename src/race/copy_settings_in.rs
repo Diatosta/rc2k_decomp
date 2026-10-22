@@ -47,6 +47,19 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    {
+        let g = unsafe { copy_settings_in(r, &mut game_part) }?;
+        *r = Regs {
+            esp: r.esp,
+            eflags: r.eflags,
+            ..g
+        }
+    }
+    Ok(())
+}
+
 const CALL_OFFSETS: &[usize] = &[
     0x7, 0x14, 0x117, 0x123, 0x130, 0x13C, 0x149, 0x155, 0x162, 0x16E, 0x17B, 0x187, 0x194, 0x1A0,
     0x1AD, 0x1B9, 0x1C6, 0x1D2, 0x1DF, 0x1EB, 0x1F8, 0x204, 0x211, 0x21D, 0x22A, 0x236, 0x243,

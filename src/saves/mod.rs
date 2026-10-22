@@ -1,6 +1,5 @@
-//! Saved games.
-
-use crate::framework::GameHook;
+//! Saved games, options and best times: no hooks left (conversion phase 4, 2026-10-22);
+//! Rust callers call these directly.
 
 pub mod allocate_best_times;
 pub mod default_best_scores;
@@ -25,24 +24,3 @@ pub mod save_best_times;
 pub mod save_game_data;
 pub mod save_options;
 pub mod write_savegame_slot;
-
-pub static HOOKS: &[&dyn GameHook] = &[
-    &gather_savegame::HOOK,
-    &write_savegame_slot::HOOK,
-    &read_savegame_slot::HOOK,
-    &read_replay_slot::HOOK,
-    &rebuild_car_lists::HOOK,
-    &load_options::HOOK,
-    &allocate_best_times::HOOK,
-    &load_best_times::HOOK,
-    &list_car_numbers::HOOK,
-    &default_best_scores::HOOK,
-    &default_class_times::HOOK,
-    &default_championship_times::HOOK,
-    &default_checkpoint_times::HOOK,
-    &default_stage_times::HOOK,
-    &default_stage_times_alt::HOOK,
-    &save_options::HOOK,
-    &save_best_times::HOOK,
-    &keep_player_settings::HOOK,
-];

@@ -11,31 +11,15 @@
 //! Shadow mode runs the original alone (it stops sounds).
 //! Self-test: a copy whose call goes to a stand-in, against the Rust version, on the
 //! game's voices (put back).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
-use crate::service::harness::{capture, restore};
-use crate::sound::spot_voices::{FREE, VOICE_COUNT, fill_voices, set, voice, voice_regions};
-use crate::sound::turn_parts::{
-    Part, REQUEST, STOP, both, common_regions, copy_of, dispatch_turn, run_copy,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("sound::free_spot_voices", rva(0x40E6F4), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const LEN: usize = 0x3F;
-const OUTS: [usize; 1] = [0x25];
-const ENTRY: [u8; 7] = [0x60, 0x8D, 0x1D, 0xC0, 0x68, 0x51, 0x00];
+use crate::framework::Regs;
+use crate::sound::spot_voices::{VOICE_COUNT, voice};
+use crate::sound::turn_parts::{Part, STOP, turn_entry};
 
 // ---- Rust version ----
 
@@ -57,49 +41,8 @@ pub fn free_spot_voices_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     done
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_turn(&HOOK, r, call_original, free_spot_voices_in, None);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy_of(0x40E6F4, LEN, &ENTRY, &OUTS, &[STOP]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let run = run_copy(&copy);
-    let mut all = voice_regions();
-    all.extend(common_regions());
-    let saved = capture(&all);
-    for seed in 0..4u32 {
-        let fill = || {
-            fill_voices(seed, &|n, v| {
-                let k = n.wrapping_add(seed);
-                set(v, 4, [1, 0, 2][k as usize % 3]);
-                set(v, 0x28, [1, 0, 1, 1, 3][k as usize % 5]);
-                set(v, 0, if k % 7 == 0 { FREE } else { 0x300 + n });
-            });
-        };
-        both(
-            &mut t,
-            &format!("voices {seed}"),
-            &run,
-            Regs {
-                esi: game_addr(rva(REQUEST)) as u32,
-                ..Regs::SENTINEL
-            },
-            &fill,
-            &all,
-            free_spot_voices_in,
-            false,
-        );
-    }
-    restore(&all, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    turn_entry(r, free_spot_voices_in)
 }

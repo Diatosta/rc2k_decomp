@@ -35,6 +35,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { face_depth_test_on(r, &mut depth_part) }?;
+    Ok(())
+}
+
 fn self_test() -> (usize, usize) {
     crate::race::face_depth_test_off::depth_test(
         &HOOK,

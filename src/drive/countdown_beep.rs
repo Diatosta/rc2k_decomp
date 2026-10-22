@@ -17,7 +17,7 @@ use crate::errors::Refused;
 use crate::framework::{EAX, EBX, EDX, RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::{a, g, p};
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, check_state, dispatch_state, restore};
+use crate::service::harness::{capture, check_state, dispatch_state, restore, state_entry};
 use rc2k_core::drive::countdown::{self, Beep};
 use std::sync::atomic::AtomicUsize;
 
@@ -75,6 +75,12 @@ extern "C" fn dispatch(r: &mut Regs) {
         &[(r.edi, 4), (a(0x614114), 4)],
         &rust,
     );
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

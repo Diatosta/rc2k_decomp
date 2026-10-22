@@ -8,7 +8,7 @@
 
 use crate::framework::{RawHook, Regs, hook_asm, rva};
 use crate::menu::option_steps::{apply_audio_choices, audio_part, test_audio};
-use crate::menu::parts::dispatch_parted;
+use crate::menu::parts::{dispatch_parted, parted_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -31,6 +31,16 @@ extern "C" fn dispatch(r: &mut Regs) {
         &|r, part| unsafe { apply_audio_choices(r, part) },
         audio_part,
     );
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    parted_entry(
+        r,
+        &|r, part| unsafe { apply_audio_choices(r, part) },
+        audio_part,
+    )
 }
 
 fn self_test() -> (usize, usize) {

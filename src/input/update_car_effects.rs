@@ -29,28 +29,17 @@
 //! original alone (requests are sent). Self-test: a copy whose `g_soundScratch` is the
 //! test's and whose calls go to the noting stand-ins, against the Rust version, on blocks
 //! and objects of the test's: every kind, both branches of each test.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::input::devices::{at, put};
-use crate::input::effects::{Part, SET_EFFECT, compare, dispatch_effects};
+use crate::input::effects::{Part, SET_EFFECT, effects_entry};
 use crate::math::x87::{mul_to_int, x87};
-use crate::math::x87_run::{DOUBLE, with_control_word};
 use crate::sound::turn_parts::SCRATCH;
-use crate::system::api_stand_ins::copy_with;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("input::update_car_effects", rva(0x40F347), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const TEN: usize = 0x5180DC; // flt_5180DC: 10.0
 const ANGLE_SCALE: usize = 0x5180E0; // flt_5180E0: 162.97
@@ -301,137 +290,8 @@ pub fn update_car_effects_plain(r: &mut Regs, part: Part) -> Result<(), Refused>
     update_car_effects_plain_with(r, game_addr(rva(SCRATCH)) as u32, part)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_effects(&HOOK, r, call_original, update_car_effects_plain);
-}
-
-// ---- self-test ----
-
-/// The offsets of the calls (to `set_effect`).
-const CALLS: [usize; 19] = [
-    0x119, 0x151, 0x170, 0x187, 0x1A6, 0x1C0, 0x1DC, 0x1F3, 0x212, 0x229, 0x258, 0x271, 0x288,
-    0x2BA, 0x2CE, 0x306, 0x330, 0x383, 0x3F6,
-];
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut scratch = 0u32;
-    let scratch_at = &raw mut scratch as u32;
-    // mov eax, [ebx+248h]
-    let entry = [0x8B, 0x83, 0x48, 0x02, 0x00, 0x00];
-    let copy = match copy_with(
-        0x40F347,
-        0x3FC,
-        &entry,
-        &CALLS,
-        &[SET_EFFECT],
-        &[],
-        &[(SCRATCH, 4, scratch_at)],
-        1,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let mut view = vec![0u32; 0x250 / 4];
-    let mut object = vec![0u32; 0x300 / 4];
-    let mut device = [0u32; 4];
-    let (vb, ob, db) = (
-        view.as_mut_ptr() as u32,
-        object.as_mut_ptr() as u32,
-        device.as_mut_ptr() as u32,
-    );
-    let all = [(vb, 0x250usize), (ob, 0x300), (scratch_at, 4)];
-    let f = |v: f32| v.to_bits();
-    let mut seed = 0x1357_9BDFu32;
-    let mut next = || {
-        seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-        seed
-    };
-    // At double precision, the game's: the same bits (at the others a rounding may send
-    // other requests, which no tolerance makes sense of).
-    with_control_word(DOUBLE, &mut || {
-        for case in 0..160u32 {
-            let surface = case % 14; // 13 .. 15 read the table's zeros
-            let speed = [0u32, 3, 5, 6, 0xFFFF_FFFB, 0x150, 0xFFFF_FE00, 0x8000_0000]
-                [(case / 14) as usize % 8];
-            let r1 = next();
-            let r2 = next();
-            let r3 = next();
-            let fill = || unsafe {
-                let w = |base: u32, o: u32, v: u32| ((base + o) as *mut u32).write_volatile(v);
-                for o in (0..0x250).step_by(4) {
-                    w(vb, o, 0xA5A5_0000 | o);
-                }
-                for o in (0..0x300).step_by(4) {
-                    w(ob, o, 0x5A5A_0000 | o);
-                }
-                w(vb, 0x248, (r1 >> 3) & 1);
-                w(vb, 0x1A4, f(((r1 >> 8) % 400) as f32 / 37.0 - 5.0));
-                w(vb, 0x1AC, f(((r2 >> 8) % 400) as f32 / 29.0 - 7.0));
-                w(vb, 0x1B8, f(((r3 >> 8) % 400) as f32 / 31.0 - 6.0));
-                w(
-                    ob,
-                    0xC4,
-                    if r1 & 0x10 != 0 {
-                        0x8000_0000
-                    } else {
-                        f(((r2 >> 4) % 200) as f32 / 9.0 - 11.0)
-                    },
-                );
-                w(ob, 0xCC, f(((r3 >> 4) % 200) as f32 / 7.0 - 14.0));
-                w(
-                    ob,
-                    0xD0,
-                    if r1 & 0x20 != 0 {
-                        0
-                    } else {
-                        f(((r1 >> 12) % 100) as f32 / 3.0)
-                    },
-                );
-                w(ob, 0x14, r2 >> 18);
-                w(ob, 0x284, speed);
-                w(ob, 0x294, surface);
-                w(ob, 0x278, (r2 >> 2) & 1);
-                w(ob, 0xDC, (r3 >> 1) % 5);
-                w(ob, 0xD8, r3 >> 20);
-                w(ob, 0x27C, (r1 >> 21).wrapping_sub(0x200));
-                w(db, 0, r2 & 0xF);
-                (scratch_at as *mut u32).write_volatile(0xAAAA_AAAA);
-            };
-            let entry = Regs {
-                ebx: vb,
-                edi: ob,
-                esi: db,
-                ..Regs::SENTINEL
-            };
-            compare(
-                &mut t,
-                &format!("case {case} (surface {surface}, speed {speed:#x})"),
-                &copy,
-                entry,
-                &fill,
-                &all,
-                &|r, part| update_car_effects_plain_with(r, scratch_at, part),
-                false,
-            );
-        }
-    });
-    // A surface past the table is refused.
-    object[0x294 / 4] = 16;
-    let mut r = Regs {
-        ebx: vb,
-        edi: object.as_mut_ptr() as u32,
-        esi: db,
-        ..Regs::SENTINEL
-    };
-    t.check(
-        update_car_effects_with(&mut r, scratch_at, &mut crate::sound::turn_parts::test_part)
-            .is_err(),
-        || "surface 16 was not refused".into(),
-    );
-    crate::sound::turn_parts::take_called();
-    let _ = (&mut view, &mut device);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    effects_entry(r, update_car_effects_plain)
 }

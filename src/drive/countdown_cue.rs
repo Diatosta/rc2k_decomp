@@ -49,6 +49,15 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    {
+        let eax = countdown_cue(r.ebx)?;
+        r.eax = eax
+    }
+    Ok(())
+}
+
 fn self_test() -> (usize, usize) {
     let Some(t) = SelfTest::begin(&HOOK) else {
         return (0, 0);

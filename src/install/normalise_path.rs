@@ -104,6 +104,22 @@ extern "C" fn dispatch(r: &mut Regs) {
     r.eflags = o.eflags;
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let (path, to) = (r.esi as *const u8, r.edx as *mut u8);
+    let mine = match unsafe { normalised(path, &mut || current_directory()) } {
+        Ok(mine) => mine,
+        Err(e) => {
+            return Err(e.into());
+        }
+    };
+    if let Some(text) = &mine {
+        unsafe { std::ptr::copy(text.as_ptr(), to, text.len()) };
+    }
+    r.set_carry(mine.is_none());
+    Ok(())
+}
+
 // ---- self-test ----
 
 pub const TEST_PATHS: [&[u8]; 14] = [

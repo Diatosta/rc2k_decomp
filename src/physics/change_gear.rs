@@ -25,7 +25,7 @@ use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::physics::gear_bit::gear_bit_at;
 use crate::physics::gearing::{GearPlaces, TestGearing, revs_from_wheels_at, wheels_from_revs_at};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state};
+use crate::service::harness::{Region, capture, dispatch_state, state_entry};
 use rc2k_core::physics::gear_shifts::Change;
 use std::sync::atomic::AtomicUsize;
 
@@ -136,6 +136,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     let mut regions: Vec<Region> = gp.regions();
     regions.extend([(gp.gear, 4), (c.changed, 8)]);
     dispatch_state(&HOOK, r, call_original, &regions, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

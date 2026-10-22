@@ -1,4 +1,6 @@
-//! `menu::stage_result_loop` (0x48558D): the loop of the stage result screen of a time trial.
+//! `menu::stage_result_loop` (0x48558D): the loop of a stage's result screen. Seen after a
+//! single race's stage (owner, 2026-10-22: the standalone reached it there); earlier
+//! called a time trial's, wrongly.
 //!
 //! In:  nothing
 //! Out: every register preserved
@@ -6,7 +8,7 @@
 //! (`SCREEN`), as extracted from the disassembly: background `results1.png` through
 //! `menu::load_background` (carry afterwards = fatal error 0x80712345); leaving is asked about;
 //! its own 3D list goes to `g_sceneList` before the first frame only.
-//! Screen: the one player's result after a time trial stage, "RESULTADOS": the rally and
+//! Screen: the one player's result after a stage, "RESULTADOS": the rally and
 //! stage, then "piloto", "tempo" and "velocidade máxima" (owner's screenshot from a Rust-run
 //! visit, 2026-10-11). Named `screen_48558d_loop` until then.
 //! Callers: `sub_482382`, `sub_48AE39`. Ungated thunk; shadow mode runs the original alone;
@@ -14,7 +16,9 @@
 //! writes a line to hook.log. Self-test: `screen_loop::check_screen`.
 
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::menu::screen_loop::{List, Original, Screen, Step, check_screen, dispatch_screen};
+use crate::menu::screen_loop::{
+    List, Original, Screen, Step, check_screen, dispatch_screen, screen_entry,
+};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -114,6 +118,12 @@ pub const SCREEN: Screen = Screen {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_screen(&HOOK, r, call_original, &SCREEN);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::stage_result_loop", r, &SCREEN)
 }
 
 // ---- self-test ----

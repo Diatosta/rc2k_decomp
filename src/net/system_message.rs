@@ -21,7 +21,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::net::dplay::{DELETE_PLAYER_FROM_GROUP, method};
 use crate::net::lobby::{FLAGS, TestObject, answer, cmp_flags, run_both, set_sign};
 use crate::net::message_vars::{MessageVars, TestVars, as_rust, get, get8, set, set8};
-use crate::net::{DESTROY, Part, dispatch_net};
+use crate::net::{DESTROY, Part, dispatch_net, net_entry};
 use rc2k_core::net::players::{A_PLAYER, System, made_host};
 use std::sync::atomic::AtomicUsize;
 
@@ -91,6 +91,12 @@ pub fn system_message(r: &mut Regs, part: Part) -> Result<(), Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_net(&HOOK, r, call_original, system_message);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    net_entry(r, system_message)
 }
 
 fn self_test() -> (usize, usize) {

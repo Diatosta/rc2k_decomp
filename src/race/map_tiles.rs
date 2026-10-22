@@ -36,6 +36,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     let _ = unsafe { map_tiles(r, &mut tiles_part) };
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let _ = unsafe { map_tiles(r, &mut tiles_part) };
+    Ok(())
+}
+
 /// Notes the place and the tile row (edx) in the note's eax.
 fn handler(place: u32, r: &mut Regs) {
     note(place, r);

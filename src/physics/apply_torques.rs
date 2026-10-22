@@ -14,7 +14,7 @@ use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, 
 use crate::physics::apply_force::BLOCK_LEN;
 use crate::physics::apply_torque::{apply_torque, apply_torque_at, fill};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state};
+use crate::service::harness::{Region, capture, dispatch_state, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -63,6 +63,12 @@ pub fn regions() -> Vec<Region> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 /// Copies for a test: this one (its `g_car` at `car`, its call to a copy of

@@ -64,6 +64,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     r.eax = o.eax;
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let first = tick_count();
+    r.eax = first;
+    Ok(())
+}
+
 // ---- self-test: the real clock, and the override with both settings ----
 
 fn self_test() -> (usize, usize) {

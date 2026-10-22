@@ -6,22 +6,13 @@
 //! `dword_5180FC` (the music's volume, by its use).
 //! Called by `sub_48AD73`.
 //! Shadow mode runs the original alone.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{RawHook, Regs, hook_asm, rva};
+use crate::framework::Regs;
 use crate::sound::senders::*;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("sound::play_tune_7", rva(0x40F7DA), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- Rust version ----
 
@@ -40,14 +31,8 @@ const SENDER: Sender = Sender {
     reads: &[(0x5180FC, &[0, 0x40, 0x7F])],
 };
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_sender(&HOOK, r, call_original, &SENDER);
-}
-
-// ---- self-test: a redirected copy whose command and wait note the registers ----
-
-fn self_test() -> (usize, usize) {
-    check_sender(&HOOK, &SENDER)
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    send_entry(r, &SENDER)
 }

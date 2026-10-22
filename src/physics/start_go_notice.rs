@@ -16,7 +16,7 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
 use crate::physics::listed_car_flags::{CURRENT_CAR, TABLE, set_flag_at, twin_copy};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state};
+use crate::service::harness::{Region, capture, dispatch_state, state_entry};
 use rc2k_core::physics::progress::{GO_NOTICE, GoFacts};
 use std::sync::atomic::AtomicUsize;
 
@@ -90,6 +90,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     let (v, twin) = game();
     let regions: Vec<Region> = vec![(v[2], 4), (v[5], 4), (v[6], 4), (v[7], 4), (twin[2], 4)];
     dispatch_state(&HOOK, r, call_original, &regions, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

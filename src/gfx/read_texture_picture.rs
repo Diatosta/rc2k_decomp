@@ -92,6 +92,19 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    match unsafe { read_texture_picture(r.eax as *mut u8) } {
+        Ok((pixels, width, height, failed)) => Left::carry(failed)
+            .with(EBX, pixels)
+            .with(ECX, width)
+            .with(EDX, height)
+            .apply(r),
+        Err(e) => return Err(e),
+    }
+    Ok(())
+}
+
 // ---- self-test ----
 
 fn self_test() -> (usize, usize) {

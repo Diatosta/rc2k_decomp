@@ -14,7 +14,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::sound::turn_parts::{Part, both, copy_of, dispatch_turn, run_copy};
+use crate::sound::turn_parts::{Part, both, copy_of, dispatch_turn, run_copy, turn_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -61,6 +61,12 @@ pub fn textures_alloc_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_turn(&HOOK, r, call_original, textures_alloc_game, None);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    turn_entry(r, textures_alloc_game)
 }
 
 fn textures_alloc_game(r: &mut Regs, _: Part) -> Result<(), Refused> {

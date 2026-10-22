@@ -172,6 +172,19 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let entry = *r;
+    let done = unsafe {
+        draw_object_polygon(&mut |step| match step {
+            Step::Project => project_polygon().map(|_| ()),
+            Step::Draw => draw_clipped_polygon_in_game(&entry),
+        })
+    };
+    done?;
+    Ok(())
+}
+
 // ---- self-test ----
 
 const LEN: usize = 0xE1;

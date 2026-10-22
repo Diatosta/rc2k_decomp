@@ -289,6 +289,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let face = r.ebp as usize;
+    unsafe { list_object_face(face) }?;
+    Ok(())
+}
+
 // ---- self-test: faces and switches drawn by lot ----
 
 fn self_test() -> (usize, usize) {

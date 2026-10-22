@@ -43,6 +43,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { copy_mirror_picture(r, &mut surface_part) }?;
+    Ok(())
+}
+
 /// The test's two surfaces: (pixels, pitch, bits) for slots 1 and 2, the dest format, and
 /// which slot's lock fails (0 none).
 static SOURCE: [AtomicU32; 3] = [AtomicU32::new(0), AtomicU32::new(0), AtomicU32::new(0)];

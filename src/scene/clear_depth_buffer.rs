@@ -73,6 +73,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     unsafe { clear_depth_buffer(r, &mut |r| crate::calls::call(CLEAR_RVA, r)) };
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { clear_depth_buffer(r, &mut |r| crate::calls::call(CLEAR_RVA, r)) };
+    Ok(())
+}
+
 // ---- self-test ----
 
 const LEN: usize = 0x39;

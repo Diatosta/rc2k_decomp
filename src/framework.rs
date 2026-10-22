@@ -331,29 +331,20 @@ impl HookStats {
 // as long as a test is running.
 // Every test pauses the game, those whose originals log included (2026-10-18: before, those
 // ran with the game going on, and a menu screen drawing in the meantime wrote what they
-// compared). A thread inside the log writer (the `log_lock` thunks, entered holding or about to
-// take `g_logLock`) never waits: a test that logs would wait for it. A thread that would wait
-// while `g_logLock` is taken and no `log_lock` thunk has finished for `LOG_LOCK_WAIT_MS` (a log
-// original running without its hook, holding the lock at a gate) is let through, logged. Only
-// the lock being taken is not enough: a test whose original logs line after line holds it most
-// of the time (`build_glyphs`, 2026-10-18, let the menu's drawing in).
+// compared). The log's lock (`g_logLock`) needs no exception (2026-10-22): no hooked
+// function is reached from the game's log code any more, so no thread waits at a gate
+// holding it (the escape that let a waiting thread through after 500 ms of a taken lock,
+// with the log's `log_lock` thunks, went with the `logfile` hooks).
 
 /// Thread running a self-test that pauses the game; 0 when there is none.
 static TEST_THREAD: AtomicU32 = AtomicU32::new(0);
 /// Threads that are inside a hook right now.
 static THREADS_IN_HOOKS: AtomicUsize = AtomicUsize::new(0);
 static PAUSE_TIMEOUTS: AtomicUsize = AtomicUsize::new(0);
-static LOG_LOCK_ESCAPES: AtomicUsize = AtomicUsize::new(0);
-const LOG_LOCK_RVA: usize = rva(0x4E009C); // g_logLock
-const LOG_LOCK_WAIT_MS: u32 = 500;
-/// `log_lock` thunks finished, by any thread: the log writer is making progress.
-static LOG_CALLS_DONE: AtomicUsize = AtomicUsize::new(0);
 
 thread_local! {
     /// How many hooks this thread is inside: hooked functions call hooked functions.
     static HOOK_DEPTH: Cell<u32> = const { Cell::new(0) };
-    /// How many `log_lock` thunks this thread is inside.
-    static LOG_DEPTH: Cell<u32> = const { Cell::new(0) };
 }
 
 fn other_thread_is_testing() -> bool {
@@ -368,30 +359,8 @@ pub extern "C" fn hook_enter() {
     if depth > 0 {
         return; // already inside a hook: never wait half way through one
     }
-    if LOG_DEPTH.get() > 0 {
-        THREADS_IN_HOOKS.fetch_add(1, Ordering::SeqCst);
-        return; // inside the log writer: a test that logs would wait for this thread
-    }
     loop {
-        let mut locked_ms = 0;
-        let mut done = LOG_CALLS_DONE.load(Ordering::SeqCst);
         while other_thread_is_testing() {
-            let now = LOG_CALLS_DONE.load(Ordering::SeqCst);
-            locked_ms = match unsafe { game_read::<u32>(LOG_LOCK_RVA) } {
-                0 => 0,
-                _ if now != done => 0,
-                _ => locked_ms + 1,
-            };
-            done = now;
-            if locked_ms >= LOG_LOCK_WAIT_MS {
-                if LOG_LOCK_ESCAPES.fetch_add(1, Ordering::SeqCst) < 5 {
-                    log(
-                        "GATE: a thread waited while g_logLock stayed taken and the log writer stood still; let through",
-                    );
-                }
-                THREADS_IN_HOOKS.fetch_add(1, Ordering::SeqCst);
-                return;
-            }
             unsafe { Sleep(1) };
         }
         THREADS_IN_HOOKS.fetch_add(1, Ordering::SeqCst);
@@ -713,34 +682,6 @@ macro_rules! hook_asm {
                 "popfd",               // the caller's flags, or what dispatch set
                 "ret",
                 dispatch = sym $dispatch,
-            )
-        }
-
-        $crate::framework::hook_asm!(@call_original $call_original, $orig);
-    };
-
-    // For the log writer, which the game enters holding `g_logLock` or about to take it: the
-    // thunk does not wait for self-tests, and neither do the hooks it reaches.
-    ($thunk:ident, $call_original:ident, dispatch = $dispatch:ident, original = $orig:ident, log_lock) => {
-        /// Detour target: the game calls this believing it is the original function.
-        #[unsafe(naked)]
-        pub(crate) unsafe extern "C" fn $thunk() {
-            core::arch::naked_asm!(
-                "pushfd",              // Regs.eflags
-                "pushad",
-                "cld",                 // Rust code expects the direction flag clear
-                "call {enter}",
-                "mov eax, esp",
-                "push eax",            // arg: *mut Regs
-                "call {dispatch}",
-                "add esp, 4",
-                "call {leave}",
-                "popad",
-                "popfd",               // the caller's flags, or what dispatch set
-                "ret",
-                dispatch = sym $dispatch,
-                enter = sym $crate::framework::log_enter,
-                leave = sym $crate::framework::log_leave,
             )
         }
 

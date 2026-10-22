@@ -13,32 +13,16 @@
 //! puts back what was written (sounds already sent stay sent).
 //! Shadow mode runs the original alone (it sends sounds).
 //! Self-test: a copy whose nine calls go to stand-ins, against the Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::physics::flow::guard;
-use crate::service::harness::{Region, capture, restore};
-use crate::sound::turn_parts::{
-    OBJECT_LEN, OBJECTS, Part, REQUEST, both, common_regions, copy_of, dispatch_turn, run_copy,
-    test_object, turn_regions,
-};
-use std::sync::atomic::AtomicUsize;
+use crate::sound::turn_parts::{OBJECTS, Part, REQUEST, turn_entry, turn_regions};
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("sound::car_sounds", rva(0x40D893), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const LEN: usize = 0x4F;
-const OUTS: [usize; 9] = [0x0E, 0x25, 0x2A, 0x2F, 0x34, 0x39, 0x3E, 0x43, 0x48];
-const ENTRY: [u8; 8] = [0x60, 0x8B, 0x1C, 0x85, 0x10, 0x2A, 0x51, 0x00];
 const ENGINE: u32 = 0x40D8E2;
 /// After the factors, in the original's order.
 const SOUNDS: [u32; 8] = [
@@ -76,51 +60,8 @@ pub fn car_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     })
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_turn(&HOOK, r, call_original, car_sounds_in, None);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut places = vec![ENGINE];
-    places.extend(SOUNDS);
-    let copy = match copy_of(0x40D893, LEN, &ENTRY, &OUTS, &places) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let run = run_copy(&copy);
-    let mut object = test_object(0x1234, &[]);
-    let o = object.as_mut_ptr() as u32;
-    let table = (game_addr(rva(OBJECTS)) as u32, 0x20);
-    let mut all: Vec<Region> = vec![(o, OBJECT_LEN), table];
-    all.extend(common_regions());
-    let saved = capture(&all);
-    for which in [0u32, 5, 7, 8] {
-        let fill = || unsafe {
-            for n in 0..8 {
-                game_write(rva(OBJECTS + 4 * n), o);
-            }
-        };
-        both(
-            &mut t,
-            &format!("car {which}"),
-            &run,
-            Regs {
-                eax: which,
-                ..Regs::SENTINEL
-            },
-            &fill,
-            &all,
-            car_sounds_in,
-            which > 7,
-        );
-    }
-    restore(&all, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    turn_entry(r, car_sounds_in)
 }

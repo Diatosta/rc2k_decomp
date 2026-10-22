@@ -467,6 +467,49 @@ extern "C" fn dispatch(r: &mut Regs) {
     (r.eax, r.ebx, r.ecx, r.edx) = (o.eax, o.ebx, o.ecx, o.edx);
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let surface = surface();
+    let (glyph, table) = (r.eax, r.esi as *const u8);
+
+    let swallowed = note_call(BlitCall::new(
+        glyph,
+        r.ecx as i32,
+        r.edx as i32,
+        r.ebx,
+        r.esi,
+    ));
+    if swallowed {
+        return Ok(());
+    }
+
+    let record = match unsafe { glyph_record(&surface, table, glyph) } {
+        Ok(value) => value,
+        Err(e) => {
+            return Err(e.into());
+        }
+    };
+    let (x, y, palette) = (r.ecx as i32, r.edx as i32, r.ebx as *const u32);
+    let clip = clip();
+    let mut scratch = read_scratch();
+
+    let (exit, _) = unsafe {
+        blit_glyph(
+            record,
+            x,
+            y,
+            palette,
+            &surface,
+            &clip,
+            &mut scratch,
+            &mut |addr, bytes| copy_nonoverlapping(bytes.as_ptr(), addr as *mut u8, bytes.len()),
+        )
+    };
+    write_scratch(&scratch);
+    (r.eax, r.ebx, r.ecx, r.edx) = (exit.eax, exit.ebx, exit.ecx, exit.edx);
+    Ok(())
+}
+
 // ---- self-test ----
 //
 // The original reads the surface and clip globals, which the game's own drawing uses all the

@@ -12,7 +12,7 @@ use crate::framework::{RawHook, Regs, game_addr, hook_asm, rva};
 use crate::physics::cells::{get, put};
 use crate::physics::copy_hooks_test::test_moves;
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::harness::{dispatch_state, state_entry};
 use rc2k_core::physics::ground::surface_flag;
 use std::sync::atomic::AtomicUsize;
 
@@ -60,6 +60,12 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &[(game()[1], 4)], &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

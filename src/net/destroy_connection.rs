@@ -18,7 +18,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::input::effects::compare;
 use crate::net::{
     CLOSE_SESSION, DESTROY_PLAYER, FREE, LOG_TEXT_2_NL, ON, Part, RELEASE_DPLAY, RELEASE_LOBBY, a,
-    dispatch_net,
+    dispatch_net, net_entry,
 };
 use crate::system::api_stand_ins::copy_with;
 use std::sync::atomic::AtomicUsize;
@@ -70,6 +70,12 @@ pub fn destroy_connection(r: &mut Regs, part: Part) -> Result<(), Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_net(&HOOK, r, call_original, destroy_connection);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    net_entry(r, destroy_connection)
 }
 
 fn self_test() -> (usize, usize) {

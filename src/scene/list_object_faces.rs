@@ -88,6 +88,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { list_object_faces(&mut |face| list_object_face(face)) }?;
+    left.apply(r);
+    Ok(())
+}
+
 // ---- self-test ----
 
 const LEN: usize = 0x3F;

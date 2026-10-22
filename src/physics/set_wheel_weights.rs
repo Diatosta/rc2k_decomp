@@ -21,7 +21,7 @@ use crate::math::x87;
 use crate::math::x87_run::{TEST_CONTROL_WORDS, compare_full, weight_force, with_control_word};
 use crate::physics::turn_by_inverse::turn_by_inverse;
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, dispatch_state};
+use crate::service::harness::{capture, dispatch_state, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -130,6 +130,12 @@ extern "C" fn dispatch(r: &mut Regs) {
         &[(p.scratch, 4), (p.records, 0x80)],
         &rust,
     );
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

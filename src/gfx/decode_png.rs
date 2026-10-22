@@ -204,6 +204,34 @@ extern "C" fn dispatch(r: &mut Regs) {
     r.eax = result;
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    // A C function: its arguments are above the return address, which is above the flags
+    // the thunk pushed before the registers.
+    let args = (r.esp as usize + 8) as *const u32;
+    let (file, pixels, info) = unsafe {
+        (
+            args.read() as *const u8,
+            args.add(1).read() as *mut u8,
+            args.add(2).read() as *mut PngInfo,
+        )
+    };
+    let original: Original = unsafe { std::mem::transmute(ORIGINAL.load(Ordering::SeqCst)) };
+    // The length is only known for the file `read_png` holds.
+    let known = !file.is_null() && unsafe { game_read::<u32>(FILE_RVA) } == file as u32;
+    let mine = if known {
+        let length = unsafe { game_read::<u32>(FILE_LEN_RVA) } as usize;
+        unsafe { decode_png(std::slice::from_raw_parts(file, length), pixels, info) }
+    } else {
+        Err(BadInput("a PNG file of unknown length"))
+    };
+    r.eax = match mine {
+        Ok(result) => result,
+        Err(_) => unsafe { original(file, pixels, info) },
+    };
+    Ok(())
+}
+
 // ---- self-test: PNG files made for the purpose, decoded into buffers of the test ----
 
 fn self_test() -> (usize, usize) {

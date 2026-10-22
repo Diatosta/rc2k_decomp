@@ -47,6 +47,19 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    {
+        let g = unsafe { auto_set_up_car(r, &mut cars_part) }?;
+        *r = Regs {
+            esp: r.esp,
+            eflags: r.eflags,
+            ..g
+        }
+    }
+    Ok(())
+}
+
 const CALLS: &[usize] = &[
     0x31, 0x43, 0x4A, 0x7D, 0x84, 0xA0, 0xA7, 0xB4, 0xC7, 0xCE, 0xDB, 0xEF, 0xF6, 0x103, 0x116,
     0x11D, 0x12A, 0x130,

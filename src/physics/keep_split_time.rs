@@ -15,7 +15,7 @@
 use crate::errors::Refused;
 use crate::framework::{EAX, EBX, RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, dispatch_state};
+use crate::service::harness::{capture, dispatch_state, state_entry};
 use rc2k_core::physics::splits::kept_split_slot;
 use std::sync::atomic::AtomicUsize;
 
@@ -84,6 +84,12 @@ extern "C" fn dispatch(r: &mut Regs) {
         &[(SplitPlaces::game().table, 0x100)],
         &rust,
     );
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

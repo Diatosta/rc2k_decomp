@@ -14,7 +14,7 @@ use crate::errors::Refused;
 use crate::framework::{ECX, EDI, ESI, RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::{a, p};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
 use rc2k_core::drive::replay_frames::{START_DWORDS, start_layout};
 use std::sync::atomic::AtomicUsize;
 
@@ -52,6 +52,12 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 extern "C" fn dispatch(r: &mut Regs) {
     let all: Vec<Region> = pieces().iter().map(|&(x, n)| (a(x), 4 * n)).collect();
     dispatch_state(&HOOK, r, call_original, &all, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

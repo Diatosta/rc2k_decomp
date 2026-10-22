@@ -209,6 +209,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let entry = *r;
+    unsafe { submit_polygon(&mut Game(&entry)) };
+    Ok(())
+}
+
 // ---- self-test ----
 
 /// `submit_polygon`, `draw_polygon_fan` and `check_polygon_vertices`: address, length,

@@ -203,6 +203,14 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let entry = *r;
+    let pixels_b = game_addr(PALETTE_B_RVA) as *const u32;
+    unsafe { build_game_fonts(&entry, &mut Game, pixels_b) }?;
+    Ok(())
+}
+
 // ---- self-test ----
 
 const LEN: usize = 0x144;

@@ -687,6 +687,16 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let entry = *r;
+    let done = unsafe { draw_polygon_in_game(&entry) };
+    if let Err(e) = done {
+        return Err(e.into());
+    }
+    Ok(())
+}
+
 // ---- self-test: polygons of the test's in the game's own tables, nothing drawn ----
 
 fn self_test() -> (usize, usize) {

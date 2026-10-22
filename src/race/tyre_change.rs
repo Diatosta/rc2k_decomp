@@ -50,6 +50,16 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    {
+        let after = unsafe { tyre_change_at(r, &tyre_variables(), &mut tyre_part) }?;
+        r.eax = after.eax;
+        r.esi = after.esi;
+    }
+    Ok(())
+}
+
 // ---- self-test ----
 
 static CALLED: Mutex<Vec<(u32, u32)>> = Mutex::new(Vec::new());

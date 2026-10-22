@@ -19,27 +19,14 @@
 //! anything) a device past 1 for command 1.
 //! Shadow mode runs the original alone (it acquires devices). Self-test: a copy whose
 //! calls go to stand-ins, against the Rust version: each command, each player setting.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::input::devices::put;
-use crate::race::mud::{copy, run_both_from, test_part};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("input::device_command", rva(0x408AE5), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 pub const DEVICES_RVA: usize = rva(0x4F6EE8); // g_inputDevices: the two records
 const EFFECTS_ON_RVA: usize = rva(0x518090); // dword_518090
@@ -144,96 +131,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { device_command(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let places: &'static [(usize, u32)] = Box::leak(
-        CALLEES
-            .iter()
-            .enumerate()
-            .map(|(p, &a)| (a, p as u32))
-            .collect::<Vec<_>>()
-            .into_boxed_slice(),
-    );
-    // pusha; cmp al, 1; jnz short
-    let copy = match copy(
-        0x408AE5,
-        0xE8,
-        &[0x60, 0x3C, 0x01, 0x75, 0x19],
-        &[
-            0xF, 0x14, 0x2C, 0x31, 0x3C, 0x51, 0x75, 0xB9, 0xCD, 0xD2, 0xD7,
-        ],
-        places,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    // Two records of the test's in `g_inputDevices`.
-    let mut records = [vec![0u8; 0x4F8], vec![0u8; 0x4F8]];
-    let (p0, p1) = (
-        records[0].as_mut_ptr() as u32,
-        records[1].as_mut_ptr() as u32,
-    );
-    let mut regions: Vec<Region> = vec![
-        (game_addr(DEVICES_RVA) as u32, 8),
-        at(EFFECTS_ON_RVA),
-        at(CONTROLS_RVA[0]),
-        at(CONTROLS_RVA[1]),
-        at(TWO_DEVICES_RVA),
-        at(ONE_PLAYER_RVA),
-    ];
-    let saved = capture(&regions);
-    regions.extend([(p0, 0x4F8), (p1, 0x4F8)]);
-    for (command, two, one, same) in [
-        (0x001u32, 0u32, 1u32, false),
-        (0x101, 0, 1, false),
-        (0x002, 0, 1, false),
-        (0x003, 0, 1, false),
-        (0x003, 0, 2, false),
-        (0x003, 1, 1, true),
-        (0x003, 0, 0, true),
-        (0x004, 0, 1, false),
-        (0xFF03, 0, 2, false),
-    ] {
-        run_both_from(
-            &mut t,
-            &format!(
-                "command {command:#x}, two devices {two}, one player {one}, same controls {same}"
-            ),
-            &copy,
-            &regions,
-            &|| unsafe {
-                restore(&regions[..6], &saved);
-                game_write(DEVICES_RVA, [p0, p1]);
-                for p in [p0, p1] {
-                    std::ptr::write_bytes(p as *mut u8, 0xAA, 0x4F8);
-                }
-                game_write(TWO_DEVICES_RVA, two);
-                game_write(ONE_PLAYER_RVA, one);
-                game_write(CONTROLS_RVA[0], 2u32);
-                game_write(CONTROLS_RVA[1], if same { 2u32 } else { 3 });
-            },
-            Regs {
-                eax: command,
-                ..Regs::SENTINEL
-            },
-            &|r| unsafe { device_command(r, &mut test_part) },
-        );
-    }
-    restore(&regions[..6], &saved);
-    drop(records);
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { device_command(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }

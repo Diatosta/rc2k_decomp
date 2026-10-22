@@ -48,6 +48,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     r.set_carry(!made);
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let made = unsafe { run_steps(r, &STEPS, &mut Real) };
+    r.set_carry(!made);
+    Ok(())
+}
+
 fn self_test() -> (usize, usize) {
     let Some(t) = SelfTest::begin(&HOOK) else {
         return (0, 0);

@@ -151,6 +151,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let entry = *r;
+    unsafe { mark_3d_modes(&entry, &ModeVars::game(), &mut game_part) }?;
+    Ok(())
+}
+
 // ---- self-test ----
 
 static CALLS: AtomicU32 = AtomicU32::new(0);

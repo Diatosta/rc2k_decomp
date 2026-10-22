@@ -51,6 +51,20 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    {
+        let g = unsafe { tyre_turned_quad(r, &mut game_part) }?;
+        let esp = r.esp;
+        *r = Regs {
+            eflags: r.eflags,
+            ..g
+        };
+        r.esp = esp;
+    }
+    Ok(())
+}
+
 /// The Rust version, the draw through `part`.
 pub unsafe fn tyre_turned_quad(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let (uv, rect, colour, device) = (entry.eax, entry.ebx, entry.ecx, entry.esi);

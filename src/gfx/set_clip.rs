@@ -79,6 +79,15 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let rectangle = r.ebx as *const [u32; 4];
+    if let Err(e) = unsafe { set_clip(rectangle) } {
+        return Err(e.into());
+    }
+    Ok(())
+}
+
 // ---- self-test: a copy of the original that writes four variables of the test's instead
 // of the clip rectangle, which the game's drawing reads all the time ----
 

@@ -91,6 +91,15 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    // The game's parts never fail.
+    if let Ok(left) = wait_or_key(r, &mut game_part) {
+        *r = Regs { esp: r.esp, ..left };
+    }
+    Ok(())
+}
+
 fn self_test() -> (usize, usize) {
     let Some(t) = SelfTest::begin(&HOOK) else {
         return (0, 0);

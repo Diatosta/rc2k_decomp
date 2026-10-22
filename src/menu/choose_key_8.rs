@@ -6,7 +6,7 @@
 //! See `menu/choose_key.rs`. Compared in shadow mode. Self-test: three settings.
 
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::menu::choose_key::{check_choose, dispatch_choose};
+use crate::menu::choose_key::{check_choose, choose_entry, dispatch_choose};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -23,6 +23,12 @@ hook_asm!(
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_choose(&HOOK, r, call_original, 8);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    choose_entry(r, 8)
 }
 
 fn self_test() -> (usize, usize) {

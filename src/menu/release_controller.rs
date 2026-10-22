@@ -7,7 +7,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::menu::controller_items::{dispatch_item, release_controller, test_item};
+use crate::menu::controller_items::{dispatch_item, item_entry, release_controller, test_item};
 use crate::screens::harness::Left;
 use std::sync::atomic::AtomicUsize;
 
@@ -36,6 +36,12 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_item(&HOOK, r, call_original, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    item_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

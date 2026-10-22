@@ -50,6 +50,20 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let resume = game_addr(RESUME_RVA) as u32;
+    {
+        let left = unsafe { make_profiles(r, resume, &mut game_part) }?;
+        *r = Regs {
+            esp: r.esp,
+            eflags: r.eflags,
+            ..left
+        }
+    }
+    Ok(())
+}
+
 /// The tables' first four dwords as RAL.EXE holds them, in table order (0x8E506D ..).
 const PARAMETERS: [[u32; 4]; 13] = [
     [0, 0, 0, 0],

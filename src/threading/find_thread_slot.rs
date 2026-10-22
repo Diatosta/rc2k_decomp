@@ -3,28 +3,14 @@
 //! In:  nothing
 //! Out: esi = slot pointer or NULL, ZF = (esi == 0); callers branch on ZF right after the call
 //! No self-test: the result depends on which thread calls it.
+//!
+//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{RawHook, Regs, game_ptr, hook_asm, log, rva, shadow, trace};
+use crate::framework::{game_ptr, log, rva, trace};
 use crate::threading::thread_slot::ThreadSlot;
-use std::sync::atomic::AtomicUsize;
 use windows_sys::Win32::System::Threading::GetCurrentThreadId;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "threading::find_thread_slot",
-    rva(0x410CC5),
-    thunk,
-    &ORIGINAL,
-);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    epilogue = "test esi, esi"
-);
 
 // ---- game data ----
 
@@ -51,24 +37,4 @@ pub unsafe fn find_thread_slot() -> *const ThreadSlot {
         }
         None => std::ptr::null(),
     }
-}
-
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    let mine = unsafe { find_thread_slot() };
-
-    if !shadow() {
-        r.esi = mine as u32;
-        return;
-    }
-
-    let mut o = *r;
-    unsafe { call_original(&mut o) };
-    let original = o.esi as *const ThreadSlot;
-    if original != mine {
-        HOOK.mismatch(|| format!("original={original:p} rust={mine:p}"));
-    }
-    r.esi = o.esi;
 }

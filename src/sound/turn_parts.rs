@@ -229,6 +229,20 @@ pub fn dispatch_turn_floats(
     }
 }
 
+/// `dispatch_turn` / `dispatch_turn_floats` without the hook (no shadow mode; a refusal is
+/// the caller's): the Rust version with the game's parts, its registers but esp and the
+/// flags given back.
+pub fn turn_entry(r: &mut Regs, rust: Rust) -> Result<(), Refused> {
+    let mut g = *r;
+    rust(&mut g, &mut game_part)?;
+    *r = Regs {
+        esp: r.esp,
+        eflags: r.eflags,
+        ..g
+    };
+    Ok(())
+}
+
 // ---- the tests' side ----
 
 /// A call noted: the place, the registers, the request when esi pointed at it.

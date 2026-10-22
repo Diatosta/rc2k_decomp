@@ -38,6 +38,7 @@ use crate::scene::matrix3::rounded;
 use crate::screens::harness::Left;
 use crate::service::floats::{
     Agreement, FLOAT, Floats, Tolerance, at_test_precisions, compare_memory, dispatch_state_floats,
+    floats_entry,
 };
 use crate::service::harness::{Region, capture};
 use rc2k_core::physics::handling::{At, Figures};
@@ -294,6 +295,12 @@ extern "C" fn dispatch(r: &mut Regs) {
         regs: &[],
     };
     dispatch_state_floats(&HOOK, r, call_original, &regions(&m), &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 /// A case's inputs in the mirror: the figures 0x71A278 .. 0x71A32C (and 0x75B440,

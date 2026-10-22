@@ -19,7 +19,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{EAX, EBX, EDI, EDX, ESI, RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::gfx::copy_pixel_rows::written;
-use crate::gfx::harness::{check_pixels, dispatch_pixels};
+use crate::gfx::harness::{check_pixels, dispatch_pixels, pixels_entry};
 use crate::screens::harness::Left;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -102,6 +102,12 @@ extern "C" fn dispatch(r: &mut Regs) {
         written(r, 2)
     };
     dispatch_pixels(&HOOK, r, call_original, &regions, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    pixels_entry(r, &rust)
 }
 
 // ---- self-test ----

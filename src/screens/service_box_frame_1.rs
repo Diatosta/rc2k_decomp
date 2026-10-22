@@ -142,6 +142,16 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    if crate::screens::blanked("screens::service_box_frame_1") {
+        return Ok(());
+    }
+    let left = unsafe { service_box_frame_1(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
+}
+
 fn self_test() -> (usize, usize) {
     test_boxes(
         &HOOK,

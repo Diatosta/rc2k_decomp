@@ -8,7 +8,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::menu::stage_view_steps::{count_stage_pages, dispatch_plain, test_count};
+use crate::menu::stage_view_steps::{count_stage_pages, dispatch_plain, plain_entry, test_count};
 use crate::screens::harness::Left;
 use std::sync::atomic::AtomicUsize;
 
@@ -31,6 +31,12 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_plain(&HOOK, r, call_original, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    plain_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

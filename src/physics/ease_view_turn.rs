@@ -15,7 +15,7 @@ use crate::framework::{EAX, RawHook, Regs, hook_asm, rva};
 use crate::physics::camera_view::{view_regions, view_test_floats};
 use crate::physics::flow::{a, base, g, p, x87_run};
 use crate::screens::harness::Left;
-use crate::service::floats::{Floats, ROUNDED, Tolerance, dispatch_state_floats};
+use crate::service::floats::{Floats, ROUNDED, Tolerance, dispatch_state_floats, floats_entry};
 use rc2k_core::physics::camera_view::ease_turns;
 use std::sync::atomic::AtomicUsize;
 
@@ -98,6 +98,12 @@ extern "C" fn dispatch(r: &mut Regs) {
         regs: &[(EAX, ROUNDED)],
     };
     dispatch_state_floats(&HOOK, r, call_original, &view_regions(), &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

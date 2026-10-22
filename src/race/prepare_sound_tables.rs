@@ -16,7 +16,9 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::race::sound_tables::*;
 use crate::screens::harness::Left;
-use crate::service::floats::{Agreement, Floats, compare_memory, dispatch_state_floats};
+use crate::service::floats::{
+    Agreement, Floats, compare_memory, dispatch_state_floats, floats_entry,
+};
 use crate::service::harness::capture;
 use std::sync::atomic::AtomicUsize;
 
@@ -50,6 +52,12 @@ extern "C" fn dispatch(r: &mut Regs) {
         regs: &[],
     };
     dispatch_state_floats(&HOOK, r, call_original, &table_regions(&v), &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

@@ -527,6 +527,18 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let (template, list) = (r.eax as *const u8, r.ebx as *mut MemoryList);
+    let before = unsafe { Before::capture(list, true) };
+    let mine = unsafe { build_glyphs(template, list) };
+    if let Err(e) = mine {
+        before.restore();
+        return Err(e);
+    }
+    Ok(())
+}
+
 // ---- self-test: the game's own sheets, built by both into memory of the test's ----
 
 const ROOM: usize = 0x30_0000;

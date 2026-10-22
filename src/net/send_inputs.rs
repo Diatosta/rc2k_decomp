@@ -17,6 +17,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::input::effects::compare;
 use crate::net::{
     CAR, LOG_INT, LOG_INT_NL, LOG_TEXT, MESSAGE, Part, SEND_RACE, a, dispatch_net, log_send,
+    net_entry,
 };
 use crate::system::api_stand_ins::copy_with;
 use rc2k_core::net::race::Kind;
@@ -81,6 +82,12 @@ pub fn send_inputs(r: &mut Regs, part: Part) -> Result<(), Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_net(&HOOK, r, call_original, send_inputs);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    net_entry(r, send_inputs)
 }
 
 /// The test of the three: a copy of the original at `address` (`len` bytes, its first

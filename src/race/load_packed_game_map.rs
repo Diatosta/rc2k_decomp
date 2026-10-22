@@ -42,6 +42,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { load_packed_game_map(r.eax) }?;
+    Ok(())
+}
+
 pub fn kept() -> Vec<Region> {
     vec![
         (game_addr(VARS.0) as u32, VARS.1),

@@ -15,33 +15,16 @@
 //! Refuses missing tables, a record table without stages or without its end, and more
 //! rallies than the six tables. Converted: `rc2k_core::saves::defaults::championship_times`
 //! (a refusal now leaves nothing written).
+//!
+//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::math::next_random::STATE_RVA;
+use crate::framework::{game_addr, game_read, rva};
 use crate::saves::allocate_best_times::count_stages;
 use crate::saves::default_times::*;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, restore};
 use rc2k_core::saves::defaults::{Championship, RALLIES, RALLY_TABLE_LEN, championship_times};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "saves::default_championship_times",
-    rva(0x47C973),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -81,64 +64,4 @@ pub unsafe fn default_championship_times(ebp: u32, log: Log) -> Result<(), Refus
         apply(&filled, &tables);
         Ok(())
     }
-}
-// ---- hook ----
-
-fn tables() -> Result<Vec<Region>, BadInput> {
-    unsafe {
-        let stages = count_stages(game_addr(RECORD_TABLE_RVA) as *const u8)?;
-        let mut tables = vec![table_region(TABLE_RVA, stages * STAGE_LEN)?];
-        for rally in 0..RALLIES {
-            let entries: u32 = game_read(RALLY_TABLES_RVA + rally * 4);
-            if entries != 0 {
-                tables.push((entries, RALLY_TABLE_LEN));
-            }
-        }
-        Ok(tables)
-    }
-}
-
-fn run(r: &Regs, log: Log) -> Result<(), Refused> {
-    unsafe { default_championship_times(r.ebp, log) }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_times(&HOOK, r, call_original, tables(), &run);
-}
-
-// ---- self-test ----
-
-/// The game's own tables, filled by both from the same random numbers without the
-/// checkpoints (with them the original writes to the log), and put back.
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let Ok(tables) = tables() else {
-        return t.skip("the tables of best times are not there yet");
-    };
-    if unsafe { count_stages(game_addr(RECORD_TABLE_RVA) as *const u8) }.is_err() {
-        return t.skip("the record table has no end");
-    }
-    let regions = [tables, shared_regions()].concat();
-    let inputs = [at(WITH_CHECKPOINTS_RVA)];
-    let saved = (capture(&regions), capture(&inputs));
-    for seed in [1u32, 0x1234_5678, 0xDEAD_BEEF] {
-        check_state(
-            &mut t,
-            &format!("seed {seed:#x}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&regions, &vec![0xAA; saved.0.len()]);
-                game_write(STATE_RVA, seed);
-                game_write(WITH_CHECKPOINTS_RVA, 0u32);
-            },
-            &regions,
-            &|r| run(r, &mut to_nowhere).map(|()| Left::nothing()),
-        );
-    }
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
 }

@@ -39,6 +39,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     unsafe { set_race_screen_mode(r, &mut game_screen_mode) };
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { set_race_screen_mode(r, &mut game_screen_mode) };
+    Ok(())
+}
+
 fn self_test() -> (usize, usize) {
     use crate::race::level_init::{note, take_called};
     let Some(mut t) = SelfTest::begin(&HOOK) else {

@@ -10,7 +10,7 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva};
 use crate::screens::best_scores::*;
 use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::harness::{Left, check_draw, dispatch_draw};
+use crate::screens::harness::{Left, check_draw, dispatch_draw, draw_entry};
 use crate::service::harness::{Region, at, capture, restore};
 use crate::text::draw_text::Canvas;
 use std::sync::atomic::AtomicUsize;
@@ -47,6 +47,12 @@ fn state() -> Vec<u8> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_draw(&HOOK, r, call_original, &rust, &state);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_record_heading", r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

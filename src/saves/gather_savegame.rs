@@ -13,25 +13,14 @@
 //! copied to +0x124 (a name, by its size; a reading), so that the saved copy carries them.
 //! What the seven dwords and the records are has not been worked out.
 //! Refuses, before anything is written: a missing player or a car without that pointer.
+//!
+//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::errors::BadInput;
+use crate::framework::{game_addr, game_read, rva};
 use std::ptr::copy_nonoverlapping;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("saves::gather_savegame", rva(0x4AB427), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -98,69 +87,4 @@ pub unsafe fn gather_savegame(buffer: *mut u8) -> Result<(), BadInput> {
         );
     }
     Ok(())
-}
-
-// ---- hook ----
-
-/// The buffer, and what is changed in the cars.
-fn regions(buffer: u32) -> Vec<Region> {
-    let mut regions = vec![(buffer, GATHERED_LEN + 0x10)];
-    if let Ok(cars) = cars() {
-        regions.push((cars[0] + 0x14, 4));
-        regions.push((cars[0] + 0x274, 4));
-        regions.extend(cars.map(|car| (car + NAME_OFFSET, NAME_LEN)));
-    }
-    regions
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { gather_savegame(r.edi as *mut u8) }?;
-    Ok(Left::nothing())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    // The buffer is the caller's and exactly as long as what is written.
-    let mut regions = regions(r.edi);
-    regions[0].1 = GATHERED_LEN;
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
-// ---- self-test: the game as it is, into a buffer of its own ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let Ok(cars) = cars() else {
-        return t.skip("the players are not there");
-    };
-    let mut buffer = vec![0u8; GATHERED_LEN + 0x10];
-    let regions = regions(buffer.as_mut_ptr() as u32);
-    let saved = capture(&regions[1..]);
-    let before = Regs {
-        edi: buffer.as_mut_ptr() as u32,
-        ..Regs::SENTINEL
-    };
-    let buffer_ptr = buffer.as_mut_ptr();
-    for fill in [0xAAu8, 0x55] {
-        check_state(
-            &mut t,
-            &format!("fill={fill:#x}"),
-            call_original,
-            before,
-            &|| unsafe {
-                buffer_ptr.write_bytes(fill, GATHERED_LEN + 0x10);
-                // What the function rewrites in the cars gets a different value first.
-                ((cars[0] + 0x14) as *mut u32).write_unaligned(0x5EED_0001);
-                ((cars[0] + 0x274) as *mut u32).write_unaligned(0x5EED_0002);
-                for car in cars {
-                    ((car + NAME_OFFSET) as *mut u8).write_bytes(fill, NAME_LEN);
-                }
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&regions[1..], &saved);
-    t.finish()
 }

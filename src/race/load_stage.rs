@@ -59,6 +59,21 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let indent = crate::framework::game_addr(rva(0x4E00A0)) as u32; // g_logIndent
+    {
+        let g = unsafe { load_stage(r, indent, &mut game_part) }?;
+        *r = Regs {
+            esp: r.esp,
+            eflags: r.eflags,
+            ..g
+        };
+        r.set_carry(false);
+    }
+    Ok(())
+}
+
 fn self_test() -> (usize, usize) {
     use crate::audio::test_copy::{Copy, make};
     let Some(mut t) = SelfTest::begin(&HOOK) else {

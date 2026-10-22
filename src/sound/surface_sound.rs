@@ -14,36 +14,18 @@
 //! Shadow mode runs the original alone (it sends sounds).
 //! Self-test: a copy whose calls go to stand-ins (the one of `sample_settings` left),
 //! against the Rust version, on an object and sets of the test's.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
+use crate::framework::Regs;
 use crate::math::x87::from_int;
 use crate::physics::flow::{base, x87_run};
-use crate::service::harness::{Region, capture, restore};
 use crate::sound::sample_settings::{OWN, record, sample_settings};
-use crate::sound::turn_parts::{
-    OBJECT_LEN, PLACED, Part, REQUEST, STOP, both, common_regions, copy_of, dispatch_turn,
-    run_copy, test_object,
-};
+use crate::sound::turn_parts::{PLACED, Part, STOP, turn_entry};
 use rc2k_core::sound::surfaces;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("sound::surface_sound", rva(0x40E068), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const LEN: usize = 0x8E;
-/// Two calls of `stop_sound`, `sample_settings` (left), the jump to `play_placed_sound`.
-const OUTS: [usize; 4] = [0x2B, 0x48, 0x5F, 0x89];
-const ENTRY: [u8; 5] = [0x8B, 0x0B, 0x83, 0xE1, 0x03];
 
 // ---- Rust version ----
 
@@ -92,65 +74,8 @@ pub fn surface_sound_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
     part(PLACED, c)
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_turn(&HOOK, r, call_original, surface_sound_in, None);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy_of(0x40E068, LEN, &ENTRY, &OUTS, &[STOP, PLACED]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let run = run_copy(&copy);
-    let mut object = test_object(0x31, &[]);
-    let o = object.as_mut_ptr() as u32;
-    let mut sets = [0u32; 9];
-    let s = sets.as_mut_ptr() as u32;
-    let mut all: Vec<Region> = vec![(o, OBJECT_LEN), (s, 36)];
-    all.extend(common_regions());
-    let saved = capture(&all);
-    for eight in [1u32, 0, 2] {
-        for id in [0u32, 1, 2, 3, !0, !2] {
-            for outside in [0u32, 1, 2] {
-                for kept in [0u32, 0x14, 0x15, 0x1A] {
-                    let fill = || unsafe {
-                        let p = s as *mut u32;
-                        p.write(eight);
-                        for n in 1..9u32 {
-                            p.add(n as usize).write(0x10 + n);
-                        }
-                        let q = o as *mut u32;
-                        q.write(id);
-                        q.add(3).write(outside);
-                        q.add(0x144 / 4).write(kept);
-                        q.add(0x148 / 4).write(kept ^ 1);
-                    };
-                    both(
-                        &mut t,
-                        &format!("set flag {eight}, id {id:#x}, +0xC {outside}, kept {kept:#x}"),
-                        &run,
-                        Regs {
-                            ebx: o,
-                            ebp: s,
-                            esi: game_addr(rva(REQUEST)) as u32,
-                            ..Regs::SENTINEL
-                        },
-                        &fill,
-                        &all,
-                        surface_sound_in,
-                        eight == 1 && outside > 1,
-                    );
-                }
-            }
-        }
-    }
-    restore(&all, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    turn_entry(r, surface_sound_in)
 }

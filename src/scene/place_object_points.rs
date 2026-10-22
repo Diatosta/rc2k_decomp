@@ -379,6 +379,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
 }
 
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::service::floats::floats_entry(r, &rust)
+}
+
 // ---- self-test: an object of the test's in a slot of the game's tables ----
 
 fn self_test() -> (usize, usize) {

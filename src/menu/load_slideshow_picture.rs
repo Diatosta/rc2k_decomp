@@ -132,6 +132,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { load_slideshow_picture_in_game(r.eax) }?;
+    Ok(())
+}
+
 // ---- self-test ----
 
 const LEN: usize = 0xAD;

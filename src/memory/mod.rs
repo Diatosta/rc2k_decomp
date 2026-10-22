@@ -1,6 +1,8 @@
-//! The game's memory allocator: blocks on lists, and the figures it keeps about them.
+//! The game's memory allocator: blocks on lists, and the figures it keeps about them. No
+//! hooks left (conversion phase 4, 2026-10-22): Rust callers call these directly; the
+//! game's own code (hooked DLL) runs the originals, on the same lists.
 
-use crate::framework::{GameHook, rva};
+use crate::framework::rva;
 
 pub mod allocate;
 pub mod free_list;
@@ -9,14 +11,6 @@ pub mod move_bytes;
 pub mod open_own_heap;
 pub mod take_from_list;
 pub mod virtual_alloc;
-
-pub static HOOKS: &[&dyn GameHook] = &[
-    &allocate::HOOK,
-    &free_list::HOOK,
-    &move_bytes::HOOK,
-    &take_from_list::HOOK,
-    &virtual_alloc::HOOK,
-];
 
 /// A list of blocks: what `allocate` adds to and `free_list` gives back in one go. Every
 /// user of the allocator has one of its own. (`rc2k_core::memory::List`, laid out as the

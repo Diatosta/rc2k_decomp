@@ -77,6 +77,18 @@ extern "C" fn dispatch(r: &mut Regs) {
     r.eax = o.eax;
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    if r.ebx == 0 {
+        unsafe { crate::framework::call_game(r, crate::framework::game_addr(rva(0x405CFA))) };
+        return Ok(());
+    }
+    let format = unsafe { (r.ebx as *const PixelFormat).read_unaligned() };
+    let mine = pixel_to_components(&format, r.eax);
+    r.eax = mine;
+    Ok(())
+}
+
 // ---- self-test ----
 
 fn self_test() -> (usize, usize) {

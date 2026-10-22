@@ -38,6 +38,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     let _ = tiles_part(1, r);
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let _ = tiles_part(1, r);
+    Ok(())
+}
+
 fn self_test() -> (usize, usize) {
     let Some(mut t) = SelfTest::begin(&HOOK) else {
         return (0, 0);

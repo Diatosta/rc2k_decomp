@@ -11,30 +11,14 @@
 //! samples a second. Five callers: `audio::make_buffer`, the stream's and the primary
 //! buffer's set-ups.
 //! Compared in shadow mode. Self-test: the original on 18 formats and four frequencies.
+//!
+//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::audio::samples::{SAMPLE_BITS_FLAGS_RVA, SAMPLE_CHANNEL_FLAGS_RVA};
 use crate::errors::{FatalError, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::{capture, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "audio::describe_wave_format",
-    rva(0x40A6A5),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{game_addr, rva};
 
 pub const WAVE_FORMAT_RVA: usize = rva(0x506B30); // g_waveFormat
 pub const WAVE_FORMAT_LEN: usize = 0x12;
@@ -84,55 +68,4 @@ pub unsafe fn describe_wave_format(format: u32, frequency: u32) -> Result<(), Re
     let f = wave_format(format, frequency)?;
     unsafe { (game_addr(WAVE_FORMAT_RVA) as *mut WaveFormat).write_unaligned(f) };
     Ok(())
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { describe_wave_format(r.eax, r.ebx) }?;
-    Ok(Left::nothing())
-}
-
-fn region() -> [(u32, usize); 1] {
-    [(game_addr(WAVE_FORMAT_RVA) as u32, WAVE_FORMAT_LEN)]
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &region(), &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let saved = capture(&region());
-    for bits in [0x10u32, 0x20] {
-        for channels in [0x100u32, 0x200] {
-            for shift in [0u32, 1, 2, 3] {
-                for frequency in [22050u32, 44100, 100, 200_000] {
-                    let format = bits | channels | shift;
-                    let before = Regs {
-                        eax: format | 0x1000,
-                        ebx: frequency,
-                        ..Regs::SENTINEL
-                    };
-                    let mut ro = before;
-                    unsafe {
-                        (game_addr(WAVE_FORMAT_RVA) as *mut u8).write_bytes(0xAA, WAVE_FORMAT_LEN);
-                        call_original(&mut ro);
-                    }
-                    let theirs = capture(&region());
-                    unsafe {
-                        (game_addr(WAVE_FORMAT_RVA) as *mut u8).write_bytes(0xAA, WAVE_FORMAT_LEN)
-                    };
-                    let mine = unsafe { describe_wave_format(before.eax, frequency) };
-                    let state = capture(&region());
-                    t.check(
-                        mine.is_ok() && theirs == state && ro.preserved_except(&before, 0),
-                        || format!("format {format:#x}, frequency {frequency}: original {theirs:x?}; rust {mine:?} {state:x?}"),
-                    );
-                }
-            }
-        }
-    }
-    restore(&region(), &saved);
-    t.finish()
 }

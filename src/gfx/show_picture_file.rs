@@ -166,6 +166,14 @@ extern "C" fn dispatch(r: &mut Regs) {
     r.esp = esp;
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let esp = r.esp;
+    unsafe { show_picture_file(r, &mut in_game) };
+    r.esp = esp;
+    Ok(())
+}
+
 // ---- self-test ----
 
 const LEN: usize = 0x138;

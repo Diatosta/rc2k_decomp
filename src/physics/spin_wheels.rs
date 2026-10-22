@@ -15,7 +15,7 @@ use crate::framework::{EAX, RawHook, Regs, game_addr, game_read, hook_asm, rva};
 use crate::math::x87_run::div_mul3_to_int;
 use crate::physics::copy_hooks_test::{lot, test_moves_floats};
 use crate::screens::harness::Left;
-use crate::service::floats::{Floats, ROUNDED, dispatch_state_floats};
+use crate::service::floats::{Floats, ROUNDED, dispatch_state_floats, floats_entry};
 use rc2k_core::physics::motion::spin;
 use std::sync::atomic::AtomicUsize;
 
@@ -110,6 +110,12 @@ extern "C" fn dispatch(r: &mut Regs) {
         &floats,
         &rust,
     );
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 fn fill(seed: u32, out: &mut [u32]) {

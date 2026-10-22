@@ -44,6 +44,19 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    {
+        let g = unsafe { build_best_line(r, &mut build_part) }?;
+        *r = Regs {
+            esp: r.esp,
+            eflags: r.eflags,
+            ..g
+        }
+    }
+    Ok(())
+}
+
 /// The offsets of its calls.
 const CALLS: &[usize] = &[
     0x07, 0x0D, 0x26, 0x2C, 0x38, 0x3E, 0x4A, 0x50, 0x5C, 0x62, 0x6E, 0x74, 0x80, 0x86, 0x92, 0x98,

@@ -12,7 +12,7 @@
 //! and self-test.
 
 use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::screens::draw_stage_records::{TIME_TRIAL_ROWS, dispatch_rows, test_rows};
+use crate::screens::draw_stage_records::{TIME_TRIAL_ROWS, dispatch_rows, rows_entry, test_rows};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -34,6 +34,12 @@ hook_asm!(
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_rows(&HOOK, r, call_original, &TIME_TRIAL_ROWS);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    rows_entry("screens::draw_time_trial_records", r, &TIME_TRIAL_ROWS)
 }
 
 fn self_test() -> (usize, usize) {

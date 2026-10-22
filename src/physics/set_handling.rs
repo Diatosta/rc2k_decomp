@@ -28,6 +28,7 @@ use crate::physics::reset_car_grades::reset_grades_at;
 use crate::screens::harness::Left;
 use crate::service::floats::{
     Agreement, FLOAT, Floats, Tolerance, at_test_precisions, compare_memory, dispatch_state_floats,
+    floats_entry,
 };
 use crate::service::harness::{Region, capture, restore};
 use std::sync::atomic::AtomicUsize;
@@ -138,6 +139,12 @@ extern "C" fn dispatch(r: &mut Regs) {
         regs: &[],
     };
     dispatch_state_floats(&HOOK, r, call_original, &regions(&m), &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

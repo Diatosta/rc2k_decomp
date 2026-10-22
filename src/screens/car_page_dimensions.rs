@@ -6,7 +6,7 @@
 //! Self-test: `car_pages::test_page`.
 
 use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::screens::car_pages::{dispatch_page, test_page};
+use crate::screens::car_pages::{dispatch_page, page_entry, test_page};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -28,6 +28,12 @@ hook_asm!(
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_page(&HOOK, r, call_original, 3);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    page_entry("screens::car_page_dimensions", r, 3)
 }
 
 fn self_test() -> (usize, usize) {

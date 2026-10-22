@@ -46,6 +46,19 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    {
+        let g = unsafe { set_up_car_points(r, &CarPointVars::game(), &mut game_part) }?;
+        *r = Regs {
+            esp: r.esp,
+            eflags: r.eflags,
+            ..g
+        }
+    }
+    Ok(())
+}
+
 /// The original's calls a copy sends to stand-ins: the log's, by place.
 const LOGS: &[(usize, u32)] = &[(0x401427, 4), (0x401472, 5), (0x401476, 14)];
 /// Offsets of its calls: the sorts' (left on their hooks; the ones inside the sorts'

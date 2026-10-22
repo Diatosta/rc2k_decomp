@@ -12,33 +12,15 @@
 //! One caller, `menu::set_up_front_end`, when `var\hst.dat` was not loaded.
 //! Refuses a missing table and a name that does not fit.
 //! Converted: `rc2k_core::saves::defaults::class_times`.
+//!
+//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::math::next_random::STATE_RVA;
+use crate::framework::{game_read, rva};
 use crate::saves::default_times::{GameSource, to_nowhere};
-use crate::saves::drivers::table_at;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
 use rc2k_core::saves::defaults::{CLASS_TABLE_LEN, class_times, write_class_times};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "saves::default_class_times",
-    rva(0x47C8E3),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -63,53 +45,6 @@ pub unsafe fn default_class_times() -> Result<(), Refused> {
         Ok(())
     }
 }
-// ---- hook ----
-
-fn regions() -> Vec<Region> {
-    vec![(table_at(TABLE_RVA), CLASS_TABLE_LEN), at(STATE_RVA)]
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { default_class_times() }?;
-    Ok(Left::nothing())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    if table_at(TABLE_RVA) == 0 {
-        HOOK.count_call();
-        let e = BadInput("no table");
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-        return;
-    }
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
 
 // ---- self-test: the game's table, filled by both from the same random numbers, and put
 // back ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if table_at(TABLE_RVA) == 0 {
-        return t.skip("the table is not there yet");
-    }
-    let regions = regions();
-    let saved = capture(&regions);
-    for seed in [1u32, 0x1234_5678, 0xDEAD_BEEF, 0x8000_0001] {
-        check_state(
-            &mut t,
-            &format!("seed {seed:#x}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&regions, &vec![0xAA; saved.len()]);
-                game_write(STATE_RVA, seed);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
-}

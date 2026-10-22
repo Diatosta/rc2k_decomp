@@ -15,7 +15,7 @@ use crate::framework::{EAX, RawHook, Regs, game_addr, hook_asm, rva};
 use crate::physics::cells::{get, put_changed};
 use crate::physics::copy_hooks_test::{lot, test_moves};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::harness::{dispatch_state, state_entry};
 use rc2k_core::physics::ground::SkidStart;
 use std::sync::atomic::AtomicUsize;
 
@@ -91,6 +91,12 @@ extern "C" fn dispatch(r: &mut Regs) {
         .map(|&k| (v[k], 4))
         .collect();
     dispatch_state(&HOOK, r, call_original, &regions, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn fill(seed: u32, out: &mut [u32]) {

@@ -50,6 +50,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { stop_race_sounds(r, &mut game) }?;
+    Ok(())
+}
+
 fn self_test() -> (usize, usize) {
     use crate::race::level_init::{note, take_called};
     let Some(mut t) = SelfTest::begin(&HOOK) else {

@@ -46,7 +46,7 @@ use crate::saves::write_savegame_slot::write_savegame_slot;
 use crate::screens::harness::Left;
 use crate::screens::{font_at, font_is_loaded};
 use crate::service::harness::{
-    Region, at, capture, check_state_with, dispatch_keyed_state, restore,
+    Region, at, capture, check_state_with, dispatch_keyed_state, restore, state_entry,
 };
 use crate::service::state::{MENU_ITEM_RVA, menu_item};
 use crate::strings::append_string_by_id::push_string;
@@ -197,6 +197,12 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_keyed_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 // ---- self-test: the last name of the list, with the save replaced by a stand-in ----

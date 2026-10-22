@@ -18,6 +18,7 @@ use crate::math::x87;
 use crate::screens::harness::Left;
 use crate::service::floats::{
     FLOAT, Floats, Tolerance, at_test_precisions, check_state_floats, dispatch_state_floats,
+    floats_entry,
 };
 use crate::service::harness::{Region, at, capture, restore};
 use std::sync::atomic::AtomicUsize;
@@ -110,6 +111,12 @@ extern "C" fn dispatch(r: &mut Regs) {
         regs: &[],
     };
     dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 /// A slot's first dword by its number.

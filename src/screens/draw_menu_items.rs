@@ -39,7 +39,7 @@ use crate::menu::update_frame_clock::CLOCK_RVA;
 use crate::screens::buttons::{ALT, PLAIN, dword};
 use crate::screens::draw_menu_item_text::{TEST_FONT, item_text_regions, text_unavailable};
 use crate::screens::font_at;
-use crate::screens::harness::{Left, check_draw, dispatch_draw_rewound};
+use crate::screens::harness::{Left, check_draw, dispatch_draw_rewound, draw_entry};
 use crate::service::harness::{Region, at, capture, restore};
 use crate::service::state::MENU_ITEM_RVA;
 use crate::text::blend_font::blend_regions;
@@ -163,6 +163,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     // The blended font and its palette are put back before the original runs: the palette's
     // top bytes are carried over from one blend to the next.
     dispatch_draw_rewound(&HOOK, r, call_original, &rust, &state, &blend_regions());
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_menu_items", r, &rust)
 }
 
 // ---- self-test: a menu of its own with one item of each kind, each of them highlighted in

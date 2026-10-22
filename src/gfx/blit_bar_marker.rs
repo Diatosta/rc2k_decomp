@@ -74,6 +74,18 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    // The bar's x is only changed once the length is known to be valid, so on an error
+    // the original still starts from the same globals.
+    let before = Bar::read();
+    if let Err(e) = unsafe { blit_bar_marker(r.ebx, &mut on_surface) } {
+        before.write();
+        return Err(e.into());
+    }
+    Ok(())
+}
+
 // ---- self-test: the blitter's hook swallows the calls, so nothing is drawn ----
 
 fn self_test() -> (usize, usize) {

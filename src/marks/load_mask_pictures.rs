@@ -234,6 +234,19 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    {
+        let left = unsafe { load_mask_pictures(r, &mut game_part) }?;
+        *r = Regs {
+            esp: r.esp,
+            eflags: r.eflags,
+            ..left
+        }
+    }
+    Ok(())
+}
+
 /// The test's blocks, given out in turn by the allocation stand-in.
 pub(crate) static BLOCK_AT: [AtomicU32; 3] =
     [AtomicU32::new(0), AtomicU32::new(0), AtomicU32::new(0)];

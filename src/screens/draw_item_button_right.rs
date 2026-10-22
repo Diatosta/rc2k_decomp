@@ -10,7 +10,7 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::screens::buttons::{ALIGN_RIGHT, ALT, check_text_button, draw_text_button};
-use crate::screens::harness::{Left, dispatch_draw, drawing_unavailable};
+use crate::screens::harness::{Left, dispatch_draw, draw_entry, drawing_unavailable};
 use crate::strings::text_from_ids::{TEXT_LEN, text};
 use crate::text::draw_text::Canvas;
 use crate::text::measure_string_by_id::measuring_unavailable;
@@ -53,6 +53,12 @@ fn state() -> Vec<u8> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_draw(&HOOK, r, call_original, &rust, &state);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_item_button_right", r, &rust)
 }
 
 // ---- self-test ----

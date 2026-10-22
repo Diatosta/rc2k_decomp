@@ -29,7 +29,7 @@ use crate::math::x87;
 use crate::screens::harness::Left;
 use crate::service::floats::{
     FLOAT, Floats, ROUNDED, Tolerance, at_test_precisions, check_state_floats,
-    dispatch_state_floats,
+    dispatch_state_floats, floats_entry,
 };
 use crate::service::harness::{Region, capture, restore};
 use rc2k_core::physics::car_specs::{
@@ -333,6 +333,12 @@ extern "C" fn dispatch(r: &mut Regs) {
         regs: &[],
     };
     dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

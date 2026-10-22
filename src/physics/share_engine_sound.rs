@@ -18,7 +18,7 @@ use crate::framework::{
     EDI, RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, dispatch_state};
+use crate::service::harness::{capture, dispatch_state, state_entry};
 use rc2k_core::physics::engine::shares_figures;
 use std::sync::atomic::AtomicUsize;
 
@@ -98,6 +98,12 @@ extern "C" fn dispatch(r: &mut Regs) {
         vec![(o + 0x10, 4), (o + 0xC4, 0x14)]
     };
     dispatch_state(&HOOK, r, call_original, &regions, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

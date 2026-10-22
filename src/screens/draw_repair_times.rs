@@ -13,7 +13,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::screens::harness::{Left, check_draw, dispatch_draw, drawing_unavailable};
+use crate::screens::harness::{Left, check_draw, dispatch_draw, draw_entry, drawing_unavailable};
 use crate::screens::{font_is_loaded, line_buffer, set_line};
 use crate::text::draw_text::{Canvas, Outcome};
 use std::slice::from_raw_parts;
@@ -76,6 +76,12 @@ fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_draw(&HOOK, r, call_original, &rust, &state);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_repair_times", r, &rust)
 }
 
 // ---- self-test: three sets of sixteen values ----

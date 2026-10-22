@@ -153,6 +153,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     unsafe { finish_timing_plain() }.apply(r);
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { finish_timing_plain() }.apply(r);
+    Ok(())
+}
+
 static NOW: AtomicU32 = AtomicU32::new(0);
 
 fn handler(_: u32, r: &mut Regs) {

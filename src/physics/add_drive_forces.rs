@@ -18,7 +18,7 @@ use crate::math::x87_run::{TEST_CONTROL_WORDS, mul2_plus, with_control_word};
 use crate::physics::copy_hooks_test::check_floats_at;
 use crate::scene::matrix3::test_floats;
 use crate::screens::harness::Left;
-use crate::service::floats::{FLOAT, Floats, dispatch_state_floats};
+use crate::service::floats::{FLOAT, Floats, dispatch_state_floats, floats_entry};
 use crate::service::harness::capture;
 use rc2k_core::physics::drive_forces::add_drive_forces as add_drive_forces_core;
 use std::sync::atomic::AtomicUsize;
@@ -127,6 +127,12 @@ extern "C" fn dispatch(r: &mut Regs) {
         &floats,
         &rust,
     );
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

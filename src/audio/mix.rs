@@ -13,27 +13,16 @@
 //! reached.) One caller, the mixer's way of the turn.
 //! Shadow mode runs the original alone. Self-test: a redirected copy on the test
 //! DirectSound whose two calls note eax, 24 cases.
+//!
+//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::audio::fill_buffer::LOCKED_PARTS_RVA;
 use crate::audio::mixer::*;
 use crate::audio::voices::*;
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva, shadow};
-use crate::install::stand_ins::{set_handler, stand_in};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("audio::mix", rva(0x40BDC5), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_addr};
 
 const BUFFER_LOST: i32 = 0x8878_0096u32 as i32;
 
@@ -126,143 +115,4 @@ pub fn game_part(which: u32, r: &mut Regs) -> Result<(), Refused> {
             crate::audio::write_mix::write_mix_in_game()
         }
     }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { mix(&Vars::game(), &mut game_part) } {
-        Ok(fine) => r.set_carry(!fine),
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-// ---- self-test ----
-
-static NOTED: Mutex<Vec<(u32, u32)>> = Mutex::new(Vec::new());
-
-fn handler(place: u32, r: &mut Regs) {
-    NOTED
-        .lock()
-        .unwrap()
-        .push((place, if place == 0 { r.eax } else { 0 }));
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let sound = crate::audio::test_sound::TestSound::new();
-    let mut vars = Box::new([0u32; 10]);
-    let at = vars.as_mut_ptr() as u32;
-    let v = Vars {
-        primary: at,
-        size: at + 4,
-        most: at + 8,
-        play: at + 12,
-        write: at + 16,
-        parts: at + 20,
-        lost: at + 36,
-    };
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x40BDC5,
-            len: 0x107,
-            entry: &[0x60, 0x8D, 0x05, 0xE4, 0x68, 0x50, 0x00],
-            calls: &[0x5D, 0xAA],
-            jumps_out: &[],
-        },
-        &|callee| {
-            [0x40BECC, 0x40C03A]
-                .iter()
-                .position(|&a| rva(a) == callee)
-                .map(|n| stand_in(n as u32))
-        },
-        &[
-            (0x506A8C, v.primary),
-            (0x5068D8, v.size),
-            (0x5068DC, v.most),
-            (0x5068E4, v.play),
-            (0x5068E8, v.write),
-            (0x506A98, v.parts),
-            (0x506A9C, v.parts + 4),
-            (0x506AA0, v.parts + 8),
-            (0x506AA4, v.parts + 12),
-            (0x4F82CC, v.lost),
-        ],
-        27,
-    ) {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(&why),
-    };
-    set_handler(handler);
-    let mut case = 0;
-    for (old, new) in [
-        (0x100u32, 0x100u32),
-        (0x100, 0x300),
-        (0x1F00, 0x100),
-        (0x100, 0x1900),
-        (0x0, 0x1FFC),
-        (0x800, 0x7FC),
-    ] {
-        for (position, lock, unlock) in [
-            (0, 0, 0),
-            (BUFFER_LOST, 0, 0),
-            (0, -1, 0),
-            (0, 0, BUFFER_LOST),
-        ] {
-            case += 1;
-            let results = crate::audio::test_sound::Results {
-                cursor: new,
-                position,
-                lock,
-                unlock,
-                parts: (0x80, 0x40),
-                ..Default::default()
-            };
-            let run = |rust: bool, vars: &mut [u32; 10]| {
-                *vars = [sound.buffer(3), 0x2000, 0x1000, old, 0x1800, 7, 7, 7, 7, 0];
-                sound.begin(results);
-                NOTED.lock().unwrap().clear();
-                let mut ro = Regs::SENTINEL;
-                let done = if rust {
-                    unsafe {
-                        mix(&v, &mut |p, r| {
-                            handler(p, r);
-                            Ok(())
-                        })
-                    }
-                    .map(|f| (f, true))
-                } else {
-                    unsafe { call_game(&mut ro, copy.addr()) };
-                    Ok((!ro.carry(), ro.preserved_except(&Regs::SENTINEL, 0)))
-                };
-                (
-                    done,
-                    // Volatile: the code under test wrote it behind the reference.
-                    unsafe { std::ptr::from_mut(vars).read_volatile() },
-                    sound.noted(),
-                    std::mem::take(&mut *NOTED.lock().unwrap()),
-                )
-            };
-            let theirs = run(false, &mut vars);
-            let mine = run(true, &mut vars);
-            let ok = matches!(theirs.0, Ok((_, true)))
-                && mine.0.is_ok()
-                && theirs.1 == mine.1
-                && theirs.2 == mine.2
-                && theirs.3 == mine.3;
-            t.check(ok, || {
-                format!(
-                    "case {case}: cursor {old:#x} -> {new:#x}, results {position:#x} {lock:#x} {unlock:#x}: original {:x?} {:x?} {:x?}; rust {:x?} {:x?} {:x?}",
-                    theirs.1, theirs.2, theirs.3, mine.1, mine.2, mine.3
-                )
-            });
-        }
-    }
-    t.finish()
 }

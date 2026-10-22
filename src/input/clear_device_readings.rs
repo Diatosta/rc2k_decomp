@@ -6,30 +6,16 @@
 //!
 //! Callers: `sub_408473` (an acquiring that failed), `sub_4087F3` (the release).
 //! Self-test: the original and the Rust version on records of the test's.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::input::devices::{RECORD_LEN, put, test_record};
+use crate::framework::Regs;
+use crate::input::devices::put;
 use crate::screens::harness::Left;
-use crate::service::harness::{check_state, dispatch_state};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "input::clear_device_readings",
-    rva(0x40883C),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 /// The Rust version (see the header).
 pub fn clear_device_readings(record: u32) {
@@ -44,35 +30,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions = [
-        (r.esi.wrapping_add(0x2C), 0x10),
-        (r.esi.wrapping_add(0x4DC), 0x10),
-    ];
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    for seed in 0..3u32 {
-        let mut record = test_record(seed);
-        let start = record.clone();
-        let p = record.as_mut_ptr() as u32;
-        check_state(
-            &mut t,
-            &format!("record {seed}"),
-            call_original,
-            Regs {
-                esi: p,
-                ..Regs::SENTINEL
-            },
-            &|| unsafe { std::ptr::copy_nonoverlapping(start.as_ptr(), p as *mut u8, RECORD_LEN) },
-            &[(p, RECORD_LEN)],
-            &rust,
-        );
-        drop(record);
-    }
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

@@ -15,7 +15,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_ptr, hook_asm, rva};
-use crate::screens::harness::{Left, check_draw, dispatch_draw, drawing_unavailable};
+use crate::screens::harness::{Left, check_draw, dispatch_draw, draw_entry, drawing_unavailable};
 use crate::screens::{LINE_BUFFER_RVA, font_at, font_is_loaded, set_line};
 use crate::service::harness::{Region, at, capture, restore};
 use crate::strings::string_table::{blob, is_table_id};
@@ -114,6 +114,12 @@ fn state() -> Vec<u8> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_draw(&HOOK, r, call_original, &rust, &state);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_menu_item_text", r, &rust)
 }
 
 // ---- self-test: the game's strings and one of its fonts ----

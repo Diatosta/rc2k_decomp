@@ -8,27 +8,16 @@
 //! `byte_528934[slot * 0x20]`. A short file is not noticed as such: what the buffer held
 //! before decides (as in `saves::read_savegame_slot`).
 //! One caller, `sub_411239`, for all 100 slots at start-up. Refuses a slot past 99.
+//!
+//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::files::numbered_path::{buffer as path_buffer, numbered_path_in_game};
-use crate::files::read_file::{LAST_FILE_PATH_RVA, read_file};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_ptr, hook_asm, rva};
+use crate::files::numbered_path::numbered_path_in_game;
+use crate::files::read_file::read_file;
+use crate::framework::{game_addr, game_ptr, rva};
 use crate::menu::name_lists::{NAME_LEN, REPLAY_NAMES_RVA};
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("saves::read_replay_slot", rva(0x41ECAD), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -63,53 +52,4 @@ pub unsafe fn read_replay_slot(slot: u32) -> Result<bool, Refused> {
             _ => Ok(false),
         }
     }
-}
-
-// ---- hook ----
-
-fn regions(slot: u32) -> Vec<Region> {
-    let mut regions = vec![
-        (game_addr(HEAD_RVA) as u32, HEAD_LEN),
-        (path_buffer() as u32, 0x100),
-        at(LAST_FILE_PATH_RVA),
-    ];
-    if slot < SLOTS {
-        regions.push((slot_name(slot) as u32, NAME_LEN));
-    }
-    regions
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let ok = unsafe { read_replay_slot(r.ebx) }?;
-    Ok(Left::carry(!ok))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(r.ebx), &rust);
-}
-
-// ---- self-test: every slot, with whatever replays the owner has ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    for slot in 0..SLOTS {
-        let regions = regions(slot);
-        let saved = capture(&regions);
-        check_state(
-            &mut t,
-            &format!("slot={slot}"),
-            call_original,
-            Regs {
-                ebx: slot,
-                ..Regs::SENTINEL
-            },
-            &|| restore(&regions, &saved),
-            &regions,
-            &rust,
-        );
-        restore(&regions, &saved);
-    }
-    t.finish()
 }

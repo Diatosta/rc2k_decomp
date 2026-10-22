@@ -114,6 +114,14 @@ extern "C" fn dispatch(r: &mut Regs) {
     r.set_carry(!made);
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let entry = *r;
+    let made = unsafe { inspection_frame(&entry, &mut Real) };
+    r.set_carry(!made);
+    Ok(())
+}
+
 // ---- self-test ----
 
 const ENTRY_BYTES: [u8; 8] = [0x60, 0xE8, 0x8E, 0x88, 0xF9, 0xFF, 0x72, 0x74];

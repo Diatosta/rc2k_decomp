@@ -48,6 +48,19 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    {
+        let g = unsafe { set_up_cars(r, &mut cars_part) }?;
+        *r = Regs {
+            esp: r.esp,
+            eflags: r.eflags,
+            ..g
+        }
+    }
+    Ok(())
+}
+
 /// The stand-ins' part, but `scene::next_noise` (place 18) the real one, as the copy's.
 fn part(place: u32, r: &mut Regs) -> Result<(), crate::errors::Refused> {
     if place == 18 {

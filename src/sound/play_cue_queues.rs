@@ -9,28 +9,15 @@
 //! back what was written (a sound already sent stays sent).
 //! Shadow mode runs the original alone (it sends sounds).
 //! Self-test: a copy whose two calls go to a stand-in, against the Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::service::harness::{Region, at, capture, restore};
-use crate::sound::turn_parts::{COUNT, OBJECTS, Part, both, copy_of, dispatch_turn, run_copy};
-use std::sync::atomic::AtomicUsize;
+use crate::framework::{Regs, game_read, rva};
+use crate::sound::turn_parts::{COUNT, OBJECTS, Part, turn_entry};
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("sound::play_cue_queues", rva(0x40ED13), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const LEN: usize = 0x37;
-const OUTS: [usize; 2] = [0x16, 0x30];
-const ENTRY: [u8; 8] = [0x60, 0x83, 0x3D, 0x7C, 0x4F, 0x51, 0x00, 0x00];
 const QUEUE: u32 = 0x40ED4A;
 /// dword_514F70, dword_514F74: the two players' cars; dword_514F78: 1 with one player.
 const FIRST: usize = 0x514F70;
@@ -62,51 +49,8 @@ pub fn play_cue_queues_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     Ok(())
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_turn(&HOOK, r, call_original, play_cue_queues_in, None);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy_of(0x40ED13, LEN, &ENTRY, &OUTS, &[QUEUE]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let run = run_copy(&copy);
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let all: [Region; 3] = [(a(OBJECTS), 0x20), at(rva(COUNT)), (a(FIRST), 12)];
-    let saved = capture(&all);
-    for count in [0u32, 2] {
-        for (first, second) in [(0u32, 1u32), (3, 7), (8, 0), (1, 9)] {
-            for one in [0u32, 1] {
-                let fill = || unsafe {
-                    for n in 0..8u32 {
-                        game_write(rva(OBJECTS + 4 * n as usize), 0x1000 + n * 0x10);
-                    }
-                    game_write(rva(COUNT), count);
-                    game_write(rva(FIRST), first);
-                    game_write(rva(SECOND), second);
-                    game_write(rva(ONE_PLAYER), one);
-                };
-                both(
-                    &mut t,
-                    &format!("count {count}, cars {first} {second}, one player {one}"),
-                    &run,
-                    Regs::SENTINEL,
-                    &fill,
-                    &all,
-                    play_cue_queues_in,
-                    count != 0 && (first > 7 || (one != 1 && second > 7)),
-                );
-            }
-        }
-    }
-    restore(&all, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    turn_entry(r, play_cue_queues_in)
 }

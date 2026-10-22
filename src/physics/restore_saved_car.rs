@@ -20,7 +20,7 @@ use crate::framework::{
     ECX, EDI, ESI, RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state};
+use crate::service::harness::{Region, capture, dispatch_state, state_entry};
 use rc2k_core::physics::saved_car::{MOST_LISTED, restore_count, restored};
 use std::sync::atomic::AtomicUsize;
 
@@ -116,6 +116,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     let p = SavedCar::game();
     let n = unsafe { SavedCar::at(p.count) };
     dispatch_state(&HOOK, r, call_original, &p.regions(n), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

@@ -10,7 +10,7 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::screens::buttons::{HIGHLIGHTED, check_kind, draw_button};
-use crate::screens::harness::{Left, dispatch_draw, drawing_unavailable};
+use crate::screens::harness::{Left, dispatch_draw, draw_entry, drawing_unavailable};
 use crate::text::draw_text::Canvas;
 use std::sync::atomic::AtomicUsize;
 
@@ -52,6 +52,12 @@ fn rust(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_draw(&HOOK, r, call_original, &rust, &|| HIGHLIGHTED.state());
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_button_highlighted", r, &rust)
 }
 
 // ---- self-test ----

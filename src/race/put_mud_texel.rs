@@ -17,7 +17,9 @@ use crate::gfx::put_surface_pixel::put_surface_pixel;
 use crate::race::mud::{TestSurface, has_format};
 use crate::race::mud_texel::{HALVINGS_RVA, TEST_PLACES, texel_place};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{
+    Region, at, capture, check_state, dispatch_state, restore, state_entry,
+};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -75,6 +77,12 @@ fn regions(r: &Regs) -> Vec<Region> {
 extern "C" fn dispatch(r: &mut Regs) {
     let regions = regions(r);
     dispatch_state(&HOOK, r, call_original, &regions, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {
