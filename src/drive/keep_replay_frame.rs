@@ -12,28 +12,19 @@
 //! Caller: `drive::replay_step`.
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back): modes, whole frames and not.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, ECX, EDI, EDX, ESI, RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::{EAX, EBX, ECX, EDI, EDX, ESI, Regs};
 use crate::physics::flow::{a, g, p};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::drive::replay_frames::{
     PLAYING, RECORDING, SLOT_SIZE, TENTHS, frame_and_tenth, slot_offset,
 };
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::keep_replay_frame", rva(0x45FFB6), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const B: usize = 0x70F3EC; // g_carBlockStore
 const SLOTS: usize = 0x6EF7E8; // unk_6EF7E8: eight of 0x3F80
@@ -74,46 +65,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { keep_replay_frame() })
 }
 
-fn regions() -> Vec<Region> {
-    vec![
-        (a(0x6EF7D8), 8),
-        (a(SLOTS), 8 * SIZE),
-        (a(0x7172EC), 4 * (4 * 0x1A1 + 0xF0 + 0x100)),
-    ]
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut all = regions();
-    all.extend([(a(B + 8), 4), (a(0x5C5CE0), 4)]);
-    let saved = capture(&all);
-    for case in 0..9u32 {
-        let set = || {
-            p(0x5C5CE0, case % 3);
-            p(B + 8, [700u32, 701, 1234][(case / 3) as usize]);
-        };
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            Regs::SENTINEL,
-            &set,
-            &regions(),
-            &rust,
-        );
-    }
-    restore(&all, &saved);
-    t.finish()
 }

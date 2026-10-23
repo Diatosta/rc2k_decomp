@@ -9,25 +9,16 @@
 //! A chosen byte past the choices with every choice marked never ends: refused (the
 //! original goes round for ever). Callers `install::key_up`, `install::key_left`. Shadow
 //! mode compares. Self-test: items of the test's against the original.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::install::installer::{CF, ZF, rb, rd, wb};
-use crate::race::viewer::{dispatch_regs, regs_entry};
+use crate::framework::Regs;
+use crate::install::installer::{rb, rd, wb};
+use crate::race::viewer::regs_entry;
 use rc2k_core::install::items::{self, MARKS};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("install::choice_back", rva(0x414826), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// An item of choices' places: the chosen byte (edx) and the table (ebx); and whether
 /// choice `cl` is free.
@@ -58,26 +49,8 @@ pub fn choice_back(entry: &Regs) -> Result<Regs, Refused> {
     Ok(r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let target = (rd(r.esi + 8), 1usize);
-    dispatch_regs(&HOOK, r, call_original, &[target], CF | ZF, &choice_back);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &choice_back)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    crate::install::item_test::run(
-        &mut t,
-        call_original,
-        &choice_back,
-        crate::install::item_test::with_table,
-    );
-    t.finish()
 }

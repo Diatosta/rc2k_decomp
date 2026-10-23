@@ -13,29 +13,17 @@
 //! Out: every register kept (`pusha` / `popa`); no flags read
 //! Callers: `install::run_page` (twice). Shadow mode compares. Self-test: lists of the
 //! test's (every kind, marks, highlights and clocks) against the original.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::install::installer::{
-    CF, CHOICE, FRAME_CLOCK, MOVE_CLOCK, SCRIPT_PATH, ZF, g, list_regions, p, rb, rd, region, wb,
-};
-use crate::install::list_test::TestList;
-use crate::race::viewer::{Saved, check_original, dispatch_regs, regs_entry};
+use crate::framework::Regs;
+use crate::install::installer::{CHOICE, FRAME_CLOCK, MOVE_CLOCK, g, rb, rd, wb};
+use crate::race::viewer::regs_entry;
 use rc2k_core::install::items::{self, MARKS};
 use rc2k_core::install::pages::UNUSABLE;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("install::mark_page", rva(0x414B53), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 pub fn mark_page(entry: &Regs) -> Regs {
     let list = entry.edi;
@@ -103,81 +91,8 @@ fn rust(r: &Regs) -> Result<Regs, Refused> {
     Ok(mark_page(r))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions = list_regions(r.edi);
-    dispatch_regs(&HOOK, r, call_original, &regions, 0, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let list = TestList::new();
-    let regions = [
-        list.region(),
-        region(CHOICE, 4),
-        region(SCRIPT_PATH, 0x102),
-        region(FRAME_CLOCK, 8),
-    ];
-    let saved = Saved::new(&regions);
-    let pages: [&[u8]; 6] = [
-        &[1, 2, 3, 4, 5, 6],
-        &[0x82, 0x42, 2, 0xC2, 0x22, 1],
-        &[4, 0x44, 1, 2, 6, 0x14],
-        &[2, 2, 2, 2],
-        &[0x81, 0x41, 4, 0x82, 2, 5, 6, 3],
-        &[5, 1],
-    ];
-    for kinds in pages {
-        for (choices, marks, chosen) in [
-            (4u8, 0u32, 1u8),
-            (4, 0b1110, 3),
-            (4, 0b1111, 0),
-            (5, 0b10110, 9),
-            (16, 0xFFFF, 2),
-            (1, 0, 0),
-        ] {
-            for (choice, edit, clock) in [
-                (0u32, 0u8, 0u32),
-                (2, 4, 8),
-                (2, 1, 0),
-                (3, 5, 0x17),
-                (7, 0, 0),
-            ] {
-                let prepare = || {
-                    list.set(0, kinds, choices, marks, chosen, edit, 100, b"ab");
-                    p(CHOICE, choice);
-                    p(FRAME_CLOCK, 0x100 + clock);
-                    p(MOVE_CLOCK, 0x100);
-                };
-                prepare();
-                let before = Regs {
-                    edi: list.base(),
-                    ..Regs::SENTINEL
-                };
-                check_original(
-                    &mut t,
-                    &format!(
-                        "kinds {kinds:x?}, {choices} choices marked {marks:#b}, chosen {chosen}, \
-                         highlight {choice}, edit {edit:#x}, clock {clock:#x}"
-                    ),
-                    call_original,
-                    before,
-                    &regions,
-                    0,
-                    &prepare,
-                    &rust,
-                );
-            }
-        }
-    }
-    let _ = (CF, ZF);
-    drop(saved);
-    t.finish()
 }

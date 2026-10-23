@@ -11,26 +11,17 @@
 //! Callers: `drive::car_controls`, `sub_460835`, `sub_460B2F`.
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back) by lot: the bits, the inputs, the pedals about their ends.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::physics::flow::{a, g, p};
+use crate::framework::{EAX, EBX, Regs};
+use crate::physics::flow::{g, p};
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, check_state, dispatch_state, restore, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::drive::controls::{BRAKE_KEY, THROTTLE_KEY, handbrake, pedal};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::pedal_inputs", rva(0x43A004), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// One pedal: by the keys' `bit`, stepped from `input`, or set to it.
 fn step_pedal(bit: u32, input: usize, at: usize) {
@@ -51,54 +42,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { pedal_inputs() })
 }
 
-fn regions() -> [crate::service::harness::Region; 1] {
-    [(a(0x71A610), 12)]
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let all = [
-        (a(0x71A610), 12),
-        (a(0x71A440), 4),
-        (a(0x613894), 12),
-        (a(0x71A400), 4),
-    ];
-    let saved = capture(&all);
-    for case in 0..48u32 {
-        let set = || {
-            p(
-                0x71A440,
-                [0u32, 0x4000, 0x2000, 0x6000][(case % 4) as usize],
-            );
-            p(0x613894, [0u32, 0x80, 0x100][(case / 4 % 3) as usize]);
-            p(0x613898, [0x100u32, 0, 0x20][(case / 4 % 3) as usize]);
-            p(0x61389C, [0u32, 0x100, 0x101, 0x40][(case % 4) as usize]);
-            p(0x71A400, case / 12 % 2);
-            p(0x71A610, [0u32, 8, 0xF8, 0x100, 0x10][(case % 5) as usize]);
-            p(0x71A614, [0x100u32, 0, 4, 0xF5, 0x80][(case % 5) as usize]);
-        };
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            Regs::SENTINEL,
-            &set,
-            &regions(),
-            &rust,
-        );
-    }
-    restore(&all, &saved);
-    t.finish()
 }

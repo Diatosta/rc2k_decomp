@@ -8,26 +8,17 @@
 //! Caller: `drive::play_replay_frame`.
 //! Refuses what `read_replay_frame` refuses.
 //! Self-test: the original and the Rust version with `read_replay_frame`'s test replay.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::drive::read_replay_frame::{FRAME, regions, test_regions, test_replay};
+use crate::drive::read_replay_frame::FRAME;
 use crate::errors::Refused;
-use crate::framework::{EAX, ECX, EDI, ESI, RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::physics::flow::{a, g, p};
+use crate::framework::{EAX, ECX, EDI, ESI, Regs};
+use crate::physics::flow::{a, g};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::load_replay_frame", rva(0x46020A), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 const SAVED: usize = 0x7172EC;
 const DWORDS: usize = 0xA04;
@@ -49,54 +40,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { load_replay_frame() }
 }
 
-fn all_regions() -> Vec<Region> {
-    let mut all = regions();
-    all.push((a(SAVED), 4 * DWORDS));
-    all
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &all_regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut all = test_regions();
-    all.extend([
-        (a(SAVED), 4 * DWORDS),
-        (a(0x6EF7E0), 4),
-        (a(0x963BB4), 0x20),
-    ]);
-    let saved = capture(&all);
-    let Some(file) = test_replay() else {
-        restore(&all, &saved);
-        return t.skip("no test file in the temp folder");
-    };
-    for frame in [0u32, 1, 3] {
-        let set = || {
-            p(0x5BEC88, 1);
-            p(0x6EF7E0, frame);
-            file.rewind();
-        };
-        check_state(
-            &mut t,
-            &format!("frame {frame}"),
-            call_original,
-            Regs::SENTINEL,
-            &set,
-            &all_regions(),
-            &rust,
-        );
-    }
-    drop(file);
-    restore(&all, &saved);
-    t.finish()
 }

@@ -14,30 +14,20 @@
 //! Caller: `drive::race_loop`. Ungated: it waits for the player.
 //! Refuses what its calls refuse. Shadow mode runs the original alone.
 //! Self-test: skipped (it waits for a key).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::drive::race_parts::{
     input_update, race_frame, race_keys, stop_race_sounds, take_key, wake_car_sounds,
 };
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
+use crate::framework::Regs;
 use crate::physics::flow::{a, g, p};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
 use rc2k_core::drive::race_ticks;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::pause_until_key", rva(0x445376), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
 
 const B: usize = 0x70F3EC;
 const KEYS: usize = 0x4F6CDC; // g_keysPressed
@@ -108,28 +98,9 @@ pub unsafe fn pause_until_key(entry: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&r))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { pause_until_key(r) } {
-        Ok(left) => left.apply(r),
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { pause_until_key(r) }?;
     left.apply(r);
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    t.skip("it waits for a key")
 }

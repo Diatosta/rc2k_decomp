@@ -9,25 +9,16 @@
 //! with every choice marked never ends: refused (the original goes round for ever).
 //! Callers `install::key_down`, `install::key_right`. Shadow mode compares. Self-test:
 //! items of the test's against the original.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::install::choice_back::{choice_places, store_choice};
-use crate::install::installer::{CF, ZF, rb, rd};
-use crate::race::viewer::{dispatch_regs, regs_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("install::choice_on", rva(0x414848), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::install::installer::rb;
+use crate::race::viewer::regs_entry;
 
 pub fn choice_on(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
@@ -39,26 +30,8 @@ pub fn choice_on(entry: &Regs) -> Result<Regs, Refused> {
     Ok(r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let target = (rd(r.esi + 8), 1usize);
-    dispatch_regs(&HOOK, r, call_original, &[target], CF | ZF, &choice_on);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &choice_on)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    crate::install::item_test::run(
-        &mut t,
-        call_original,
-        &choice_on,
-        crate::install::item_test::with_table,
-    );
-    t.finish()
 }

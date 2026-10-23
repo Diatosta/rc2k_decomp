@@ -13,32 +13,18 @@
 //! here. Shadow mode runs the original alone (it reads a file). Self-test: a copy whose
 //! directory/file calls go to the fake file system, against the Rust version, with a
 //! matching ral.exe, a non-matching one, and no installation.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::bridge::{Raw, read_through};
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::install::installer::{
     CLOSE, INSTALLED, OPEN, Part, READ, SET_CD, STATUS, a, at, gb, p, rb,
 };
 use rc2k_core::install::version::{self, Scan};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "install::check_installed_version",
-    rva(0x413B0B),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const SAME_VERSION: usize = 0x51B9C8; // dword_51B9C8
 const SOURCE: usize = 0x51BB8D; // g_installSource
@@ -127,111 +113,10 @@ pub fn check_installed_version(entry: &Regs, part: Part) -> Result<Regs, Refused
     Ok(Regs { ..*entry })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    crate::race::viewer::dispatch_parts(&HOOK, r, call_original, &|r| {
-        check_installed_version(r, &mut crate::install::installer::game_part)
-    });
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     crate::race::viewer::regs_entry(r, &|r| {
         check_installed_version(r, &mut crate::install::installer::game_part)
     })
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    use crate::install::fakefs::{World, answer, set_world};
-    // pusha; mov dword_51B9C8, 0
-    let copy = match crate::install::installer::copy(
-        0x413B0B,
-        0x11C,
-        &[
-            0x60, 0xC7, 0x05, 0xC8, 0xB9, 0x51, 0x00, 0x00, 0x00, 0x00, 0x00,
-        ],
-        &[
-            (0x31, 0x4139EC),
-            (0x3C, 0x403105),
-            (0x54, 0x401829),
-            (0x66, 0x402DE8),
-            (0x93, 0x402E3D),
-            (0x10A, 0x402E23),
-            (0x115, 0x403105),
-        ],
-        &[0x403105, 0x402DE8, 0x402E3D, 0x402E23],
-        &[],
-        &[],
-        &[],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    // build a matching ral.exe image: "$VER: Rally 5 x\0" + the copyright line
-    let mut matching = b"junk....$VER: Rally 5 1.0\0".to_vec();
-    let mut k = 0u32;
-    loop {
-        let b = rb(a(COPYRIGHT) + k);
-        matching.push(b);
-        k += 1;
-        if b == b'.' || k > 200 {
-            break;
-        }
-    }
-    matching.push(0);
-    let non_matching = b"no version string here at all".to_vec();
-    let regions = [
-        crate::install::installer::region(SAME_VERSION, 4),
-        crate::install::installer::region(INSTALLED, 0x100),
-        crate::install::installer::region(BASE_A, 0x100),
-        crate::install::installer::region(BUF, 0x10000),
-        crate::install::installer::region(0x4F52B0, 4),
-    ];
-    let saved = crate::race::viewer::Saved::new(&regions);
-    // what `prepare` writes besides the compared regions: put back at the end
-    let _kept = crate::race::viewer::Saved::new(&[
-        crate::install::installer::region(0x51BB8C, 1),
-        crate::install::installer::region(SOURCE, 0xFF),
-    ]);
-    for (what, status, source, image) in [
-        ("matching", 1u8, b'c', Some(matching.clone())),
-        ("non-matching", 1, b'c', Some(non_matching.clone())),
-        ("not installed", 0, 0, None),
-    ] {
-        let image = image.clone();
-        let prepare = || {
-            crate::install::installer::answer(Box::new(answer));
-            let mut w = World::default();
-            if let Some(bytes) = &image {
-                w.reads.insert(".\\ral.exe".into(), bytes.clone());
-            }
-            set_world(w);
-            crate::install::installer::pb(STATUS, status);
-            // g_installSource: a short absolute path so normalise is pure
-            for (n, &b) in b"c:\\rally\0".iter().enumerate() {
-                crate::install::installer::wb(
-                    a(SOURCE) + n as u32,
-                    if source == 0 { 0 } else { b },
-                );
-            }
-            p(SAME_VERSION, 9);
-        };
-        crate::install::installer::both(
-            &mut t,
-            what,
-            &copy,
-            Regs::SENTINEL,
-            &regions,
-            0,
-            &[],
-            &prepare,
-            &|r, part, _| check_installed_version(r, part),
-        );
-    }
-    crate::install::installer::quiet();
-    drop(saved);
-    t.finish()
 }

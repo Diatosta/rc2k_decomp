@@ -19,30 +19,20 @@
 //! whose disk/registry/frame/script calls go to stand-ins, the lists pre-filled as the script
 //! would, against the Rust version; the main success path and the bad-path, no-room, not-a-CD,
 //! copy-failure and cancel branches.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::install::installer::{
     ADD_ITEMS, COPY_COUNTED, DIR_COUNT, DIRS, FILE_COUNT, FILES, FILES_COPIED, FILES_TO_COPY,
     GAME_DIR, IGNORE_ROOM, INSTALLED, INSTALLING, LIST_ANSWER, MAKE_FOLDERS, MEDIA_MODE, NORMALISE,
     OFFER_REGISTRATION, PATH_A, PATH_B, PATH_PROBLEM, Part, ROOM_NEEDED, RUN_REGISTRATION,
-    RUN_SCRIPT, STATUS, TAKE_KEY, TYPED, a, append_byte, at, both, g, gb, p, pb, quiet, rb, region,
-    rw, str_append, str_append_indexed, wb, wd,
+    RUN_SCRIPT, STATUS, TAKE_KEY, TYPED, a, append_byte, at, g, gb, p, pb, rb, rw, str_append,
+    str_append_indexed, wb, wd,
 };
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("install::install_files", rva(0x4130CD), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
 
 const WRITE_REGISTRY: usize = 0x413DC5;
 const CHECK_FOLDER: usize = 0x413A6C;
@@ -288,12 +278,6 @@ pub fn install_files(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     Ok(*entry)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    crate::race::viewer::dispatch_parts(&HOOK, r, call_original, &|r| {
-        install_files(r, &mut crate::install::installer::game_part)
-    });
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
@@ -301,148 +285,3 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
         install_files(r, &mut crate::install::installer::game_part)
     })
 }
-
-static KEY_N: std::sync::Mutex<u32> = std::sync::Mutex::new(0);
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match crate::install::installer::copy(
-        0x4130CD,
-        0x412,
-        &[0x60, 0xC6, 0x05, 0x8C, 0xBB, 0x51, 0x00, 0x80],
-        &CALLS,
-        &STOOD,
-        &[],
-        &[],
-        &[],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    crate::install::installer::set_text_of(Some(crate::install::installer::path_text));
-    let mut files_tbl = b"a.ro3\0b.ro3\0".to_vec();
-    let mut dirs_tbl = b"files\0files\\b\0".to_vec();
-    let fptr = files_tbl.as_mut_ptr() as u32;
-    let dptr = dirs_tbl.as_mut_ptr() as u32;
-    let regions = [
-        region(STATUS, 4),
-        region(PATH_PROBLEM, 4),
-        region(LIST_ANSWER, 1),
-        region(INSTALLING, 4),
-        region(ADD_ITEMS, 4),
-        region(RUN_REGISTRATION, 4),
-        region(FILES_COPIED, 4),
-        region(COPY_SPARE, 4),
-        region(FILES_TO_COPY, 4),
-        region(ROOM_NEEDED, 4),
-        region(SOURCE_VAR, 0x100),
-        region(SOURCE_SIZE, 4),
-        region(TYPED, 0x100),
-        region(INSTALLED, 0x100),
-        region(PATH_A, 0x100),
-        region(PATH_B, 0x100),
-        region(FILES, 4),
-        region(FILE_COUNT, 4),
-        region(DIRS, 4),
-        region(DIR_COUNT, 4),
-        // written by `prepare` only: in the list so that they are put back
-        region(MEDIA_MODE, 4),
-        region(IGNORE_ROOM, 4),
-        region(OFFER_REGISTRATION, 4),
-        region(LOCALE, 0x100),
-        region(GAME_DIR, 0x100),
-    ];
-    let saved = crate::race::viewer::Saved::new(&regions);
-    for (what, norm_fail, folder_bad, free_kb, is_cd, locale, cancel_at) in [
-        ("success", false, false, 0x100000u32, true, 0u8, 99u32),
-        ("bad path", true, false, 0x100000, true, 0, 99),
-        ("no room", false, false, 1, true, 0, 99),
-        ("not a cd", false, false, 0x100000, false, 0, 99),
-        ("cancel", false, false, 0x100000, true, 0, 0),
-        ("with readme", false, false, 0x100000, true, b'f', 99),
-    ] {
-        let prepare = || {
-            *KEY_N.lock().unwrap() = 0;
-            // Every call answers its flags (a stand-in otherwise hands back the flags it
-            // was called with, which differ between the sides): carry clear but where
-            // asked; the key's zero flag by the key, and a key at the 20th wait at most.
-            crate::install::installer::answer(Box::new(move |place, r| {
-                r.set_carry(false);
-                r.set_zero(false);
-                match place {
-                    x if x == a(NORMALISE) => r.set_carry(norm_fail && r.esi == a(TYPED)),
-                    x if x == a(CHECK_FOLDER) => r.set_carry(folder_bad),
-                    x if x == a(FREE_SPACE) => r.eax = free_kb,
-                    x if x == a(IS_CD) => r.set_zero(is_cd),
-                    x if x == a(TAKE_KEY) => {
-                        let mut n = KEY_N.lock().unwrap();
-                        let k = *n;
-                        *n += 1;
-                        r.eax = u32::from(k >= cancel_at || k >= 20);
-                        r.set_zero(r.eax == 0);
-                    }
-                    _ => {}
-                }
-            }));
-            pb(STATUS, 9);
-            p(PATH_PROBLEM, 9);
-            pb(LIST_ANSWER, 9);
-            p(INSTALLING, 0);
-            p(ADD_ITEMS, 0);
-            p(RUN_REGISTRATION, 0);
-            p(MEDIA_MODE, 0);
-            p(IGNORE_ROOM, 0);
-            p(OFFER_REGISTRATION, 1);
-            pb(LOCALE, locale);
-            for (k, &b) in b"c:\\rally\\\0".iter().enumerate() {
-                wb(a(TYPED) + k as u32, b);
-            }
-            crate::install::installer::fill(a(INSTALLED), 0x100, 0);
-            for (k, &b) in b"c:\\rally\\\0".iter().enumerate() {
-                wb(a(GAME_DIR) + k as u32, b);
-            }
-            p(FILES, fptr);
-            p(FILE_COUNT, 2);
-            p(DIRS, dptr);
-            p(DIR_COUNT, 2);
-        };
-        both(
-            &mut t,
-            what,
-            &copy,
-            Regs::SENTINEL,
-            &regions,
-            0,
-            &[],
-            &prepare,
-            &|r, part, _| install_files(r, part),
-        );
-    }
-    crate::install::installer::set_text_of(None);
-    quiet();
-    drop(saved);
-    drop((files_tbl, dirs_tbl));
-    t.finish()
-}
-
-#[rustfmt::skip]
-const CALLS: [(usize, u32); 61] = [
-    (0x8,0x413DC5),(0x19,0x4139EC),(0x24,0x41365D),(0x5C,0x4139EC),(0x72,0x413A6C),(0x82,0x40317D),
-    (0xA9,0x413A97),(0xB5,0x403310),(0xC6,0x405A71),(0xE4,0x401F7D),(0xF0,0x401F8E),(0xF5,0x401F16),
-    (0xFA,0x413A97),(0x114,0x403105),(0x136,0x401F7D),(0x142,0x401F8E),(0x147,0x401F16),(0x15A,0x401F7D),
-    (0x166,0x401F8E),(0x16B,0x401F16),(0x170,0x4139DA),(0x181,0x405A71),(0x18E,0x405A71),(0x193,0x407F95),
-    (0x1B3,0x403105),(0x1B8,0x411186),(0x1CE,0x4058AD),(0x1E7,0x406869),(0x226,0x402628),(0x23C,0x401ACB),
-    (0x241,0x401F16),(0x262,0x4023D5),(0x267,0x405949),(0x26C,0x4057D1),(0x279,0x4058AD),(0x280,0x4060E3),
-    (0x294,0x402370),(0x2AE,0x4066DF),(0x2B3,0x405949),(0x2B8,0x4057D1),(0x2E1,0x405A71),(0x2E7,0x4058AD),
-    (0x2F0,0x402370),(0x2F5,0x405949),(0x2FA,0x4057D1),(0x304,0x41100C),(0x309,0x407F95),(0x30E,0x407F95),
-    (0x319,0x410FFE),(0x31E,0x410535),(0x348,0x401F7D),(0x353,0x401F7D),(0x358,0x401F16),(0x363,0x4139DA),
-    (0x376,0x401F7D),(0x381,0x401F7D),(0x386,0x401F16),(0x391,0x4139DA),(0x3A2,0x41100C),(0x3CD,0x413DC5),
-    (0x3D2,0x419030),
-];
-#[rustfmt::skip]
-const STOOD: [u32; 20] = [
-    0x413DC5,0x4139EC,0x41365D,0x40317D,0x413A6C,0x413A97,0x403310,0x405A71,0x403105,0x4139DA,
-    0x411186,0x41100C,0x410FFE,0x410535,0x419030,0x407F95,0x4058AD,0x405949,0x4057D1,0x402370,
-];

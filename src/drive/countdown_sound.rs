@@ -8,21 +8,12 @@
 //! Caller: `drive::countdown_cue`.
 //! Shadow mode runs the original alone (a sound command).
 //! Self-test: none (a sound command; `sound::play_sound`'s own test covers it).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::countdown_sound", rva(0x40EC9C), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::countdown::beep_sound`.
@@ -42,24 +33,8 @@ pub fn countdown_sound(slot: u32, sound: u32) {
     crate::sound::play_sound::play_sound_in_game(&play);
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    countdown_sound(r.eax, r.ebx);
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     countdown_sound(r.eax, r.ebx);
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    t.skip("a sound command (sound::play_sound's test covers it)")
 }

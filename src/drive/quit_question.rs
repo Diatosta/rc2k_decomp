@@ -14,31 +14,18 @@
 //! player).
 //! Refuses what its calls refuse. Shadow mode runs the original alone.
 //! Self-test: skipped (it waits for an answer).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::drive::race_parts::{race_frame, stop_race_sounds, wake_car_sounds};
 use crate::errors::Refused;
-use crate::framework::{EAX, RawHook, Regs, SelfTest, hook_asm, rva, shadow};
+use crate::framework::{EAX, Regs};
 use crate::physics::flow::{g, p};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
 use rc2k_core::drive::race_ticks;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("drive::quit_question", rva(0x445069), thunk, &ORIGINAL)
-    .private_copy(0x30D)
-    .relocate_calls(&[0x0, 0x17B, 0x1A1, 0x2B6])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
 
 const B: usize = 0x70F3EC;
 const NEXT: usize = 0xFE0;
@@ -86,28 +73,9 @@ pub unsafe fn quit_question(entry: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&r).with(EAX, answer))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { quit_question(r) } {
-        Ok(left) => left.apply(r),
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { quit_question(r) }?;
     left.apply(r);
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    t.skip("it waits for an answer")
 }

@@ -8,26 +8,17 @@
 //! Caller: `sub_45FFB6`.
 //! Self-test: the original and the Rust version on the pieces filled by pattern (saved
 //! and put back).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{ECX, EDI, ESI, RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::physics::flow::{a, p};
+use crate::framework::{ECX, EDI, ESI, Regs};
+use crate::physics::flow::a;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::drive::replay_frames::{START_DWORDS, START_PIECES, StartPiece, start_layout};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::save_replay_cars", rva(0x4600B8), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const B: usize = 0x70F3EC; // g_carBlockStore (four blocks of 0xFE0)
 const SAVED: usize = 0x7172EC; // unk_7172EC
@@ -66,50 +57,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(save_replay_cars())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(
-        &HOOK,
-        r,
-        call_original,
-        &[(a(SAVED), 4 * START_DWORDS)],
-        &rust,
-    );
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let all: Vec<Region> = {
-        let mut v: Vec<Region> = pieces().iter().map(|&(x, n)| (a(x), 4 * n)).collect();
-        v.push((a(SAVED), 4 * START_DWORDS));
-        v
-    };
-    let saved = capture(&all);
-    for case in 0..2u32 {
-        let set = || {
-            for (k, &(x, n)) in pieces().iter().enumerate() {
-                for j in 0..n {
-                    p(x + 4 * j, (k * 0x1000 + j) as u32 ^ case);
-                }
-            }
-        };
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            Regs::SENTINEL,
-            &set,
-            &all,
-            &rust,
-        );
-    }
-    restore(&all, &saved);
-    t.finish()
 }

@@ -21,37 +21,18 @@
 //! the original alone (as `car_physics_step`).
 //! Self-test (in a race; skipped otherwise): the original and the Rust version from the
 //! same state, logging off, no replay (`dword_5C5CE0` 0).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, ESI, RawHook, Regs, SelfTest, game_addr, hook_asm, rva, shadow};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
+use crate::framework::{EAX, ESI, Regs};
 use crate::physics::flow::{g, p};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
 use crate::service::harness::{capture, restore};
 use rc2k_core::drive::race_steps;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("drive::replay_step", rva(0x460B2F), thunk, &ORIGINAL)
-    .private_copy(0xE1)
-    .relocate_calls(&CALLS)
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-#[rustfmt::skip]
-const CALLS: [usize; 25] = [
-    0x0, 0x5, 0xA, 0x1F, 0x39, 0x3E, 0x43, 0x5D, 0x6B, 0x70, 0x75, 0x7A, 0x7F, 0x84, 0x89,
-    0x9A, 0xB3, 0xB8, 0xBD, 0xC2, 0xC7, 0xCC, 0xD1, 0xD6, 0xDB,
-];
 
 const B: usize = 0x70F3EC; // g_carBlockStore
 const CURRENT: usize = 0x71B3F8;
@@ -144,67 +125,9 @@ pub unsafe fn replay_step(entry: &Regs) -> Result<Left, Refused> {
     }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { replay_step(r) } {
-        Ok(left) => left.apply(r),
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { replay_step(r) }?;
     left.apply(r);
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if !crate::physics::move_slot::in_race() || !(1..=8).contains(&g(CARS)) {
-        return t.skip("not in a race (no stage)");
-    }
-    let mut all = crate::drive::race_cars_step::cars_regions();
-    all.extend(crate::physics::car_physics_step::test_regions());
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    all.extend([
-        (a(0x4E0094), 4),
-        (a(0x5C5CE0), 4),
-        (a(0x5C2530), 8),
-        (a(0x6EF7D8), 8),
-        (a(0x6235EC), 4),
-        (a(0x6D1482), 0x14),
-        (a(0x614114), 4),
-        (a(0x5165A8), 0x1C),
-        (a(0x6138C4), 0x10),
-    ]);
-    let saved = capture(&all);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            let set = || {
-                restore(&all, &saved);
-                p(0x4E0094, 0);
-                p(0x5C5CE0, 0);
-            };
-            set();
-            let mut ro = Regs::SENTINEL;
-            unsafe { call_original(&mut ro) };
-            let theirs = (left_of(&ro), capture(&all));
-            set();
-            let mine = unsafe { replay_step(&Regs::SENTINEL) };
-            let state = capture(&all);
-            t.check(mine.as_ref().is_ok_and(|l| *l == theirs.0) && state == theirs.1, || {
-                let diff = theirs.1.iter().zip(&state).position(|(x, y)| x != y);
-                format!("control word {word:#x}: original {:x?}; rust {mine:x?}; memory first differs at {diff:x?}", theirs.0)
-            });
-        });
-    }
-    restore(&all, &saved);
-    t.finish()
 }

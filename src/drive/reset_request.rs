@@ -16,29 +16,19 @@
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back) by lot, counts below, at and past 100; the reset's call through `reset_parts`'
 //! stand-in in a copy.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::physics::flow::{a, c0, g, p};
-use crate::physics::reset_parts::{RESET_CAR, both_with, copy_of, dispatch_reset};
+use crate::framework::Regs;
+use crate::physics::flow::{c0, g, p};
+use crate::physics::reset_parts::RESET_CAR;
 use crate::race::car_starts::Part;
-use crate::service::harness::{Region, capture, restore};
 use rc2k_core::drive::controls::{
     RESET_NOTICE, reset_counts, reset_held, reset_penalty, reset_step,
 };
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::reset_request", rva(0x43A0D3), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const COUNT: usize = 0x71A23C;
 
@@ -80,61 +70,7 @@ pub unsafe fn reset_request(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     Ok(r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_reset(&HOOK, r, call_original, reset_request);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy_of(
-        0x43A0D3,
-        0xF7,
-        &[0x81, 0x3D, 0xEC, 0x9F, 0x71, 0x00, 0x20, 0x03, 0x00, 0x00],
-        &[0xB4],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let extra: Vec<Region> = vec![
-        (a(0x719FEC), 4),
-        (a(0x71A440), 4),
-        (a(0x62389C), 4),
-        (a(0x71A19C), 4),
-        (a(0x613828), 4),
-        (a(COUNT), 4),
-        (a(0x71A6F4), 0x18),
-        (a(0x71A1C0), 4),
-        (a(0x71A060), 4),
-    ];
-    let saved = capture(&extra);
-    for case in 0..24u32 {
-        let fill = || {
-            p(0x719FEC, [0x400u32, 0x100, 0x320][(case % 3) as usize]);
-            p(0x71A440, if case % 4 == 3 { 0 } else { 0x80 });
-            p(0x62389C, if case % 5 == 4 { 2 } else { 1 });
-            p(
-                0x71A19C,
-                [1.0f32, 5.0, f32::NAN][(case / 3 % 3) as usize].to_bits(),
-            );
-            p(0x613828, 3.0f32.to_bits());
-            p(COUNT, [0u32, 0x63, 0x64, 7][(case / 6 % 4) as usize]);
-            p(0x71A1C0, 0x55);
-            p(0x71A060, 1000);
-        };
-        both_with(
-            &mut t,
-            &format!("case {case}"),
-            &copy,
-            0,
-            Regs::SENTINEL,
-            &fill,
-            reset_request,
-            &extra,
-        );
-    }
-    restore(&extra, &saved);
-    drop(copy);
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::physics::reset_parts::reset_entry(r, reset_request)
 }

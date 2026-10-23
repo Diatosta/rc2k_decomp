@@ -24,30 +24,19 @@
 //! Self-test: a copy of the original (its scratch `dword_62400C` the test's, its calls to
 //! `car_file_number` kept) on a test block, record and sound object filled by lot, the
 //! switches and the holes varied, under three precisions; the refusal.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    EAX, EBX, ECX, EDX, RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva,
-};
+use crate::framework::{EAX, EBX, ECX, EDX, Regs, game_addr, game_read, rva};
 use crate::math::x87;
-use crate::math::x87_run::{TEST_CONTROL_WORDS, compare_full, sub_div_to_int, with_control_word};
+use crate::math::x87_run::{compare_full, sub_div_to_int};
 use crate::race::mud::car_file_number;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state, restore, state_entry};
+use crate::service::harness::{Region, state_entry};
 use rc2k_core::drive::sharing;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::share_car_state", rva(0x45699C), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 pub const BLOCK_LEN: usize = 0xFE0;
 pub const RECORD_LEN: usize = 0x440;
@@ -178,10 +167,6 @@ pub fn regions(r: &Regs) -> Vec<Region> {
     ]
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(r), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
@@ -222,65 +207,4 @@ pub fn fill(s: u32, o: u32, p: u32, seed: u32) {
             }
         }
     }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut cells = vec![0u32; (BLOCK_LEN + RECORD_LEN + SOUND_LEN) / 4 + 1];
-    let s = cells.as_mut_ptr() as u32;
-    let (o, p) = (s + BLOCK_LEN as u32, s + (BLOCK_LEN + RECORD_LEN) as u32);
-    let scratch = p + SOUND_LEN as u32;
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x45699C,
-            len: 0x50B,
-            entry: &[0x8B, 0x86, 0xAC, 0x0F, 0x00, 0x00],
-            calls: &[0xD9, 0x120],
-            jumps_out: &[],
-        },
-        &|_| None,
-        &[(0x62400C, scratch)],
-        4,
-    ) {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(&why),
-    };
-    let all: [Region; 1] = [(s, 4 * cells.len())];
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 1..=12u32 {
-                fill(s, o, p, seed);
-                let input = capture(&all);
-                let before = Regs {
-                    esi: s,
-                    edi: o,
-                    ebp: p,
-                    ..Regs::SENTINEL
-                };
-                let mut ro = before;
-                unsafe { call_game(&mut ro, copy.addr()) };
-                let theirs = capture(&all);
-                restore(&all, &input);
-                let mine = unsafe { share_car_state_at(s, o, p, scratch) };
-                let state = capture(&all);
-                let regs_ok = mine.as_ref().is_ok_and(|l| l.matches(&before, &ro));
-                t.check(regs_ok && theirs == state, || {
-                    let first = theirs.iter().zip(&state).position(|(a, b)| a != b);
-                    format!(
-                        "control word {word:#x}, seed {seed}: regs_ok={regs_ok} {mine:?}, first difference at byte {first:?}"
-                    )
-                });
-            }
-        });
-    }
-    fill(s, o, p, 3);
-    unsafe { put(s + 0x24, 0x7777) };
-    let refused = car_file_number(0x7777) < sharing::LIGHT_RECORDS
-        || unsafe { share_car_state_at(s, o, p, scratch) }.is_err();
-    t.check(refused, || "a file number above 0x21 not refused".into());
-    drop((copy, cells));
-    t.finish()
 }

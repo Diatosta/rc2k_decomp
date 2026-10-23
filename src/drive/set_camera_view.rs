@@ -13,27 +13,16 @@
 //! Callers: `drive::next_camera_view`, `sub_43A649` (0x43A94F), and code at 0x43B62E.
 //! Self-test: a copy of the original (its step count the test's) on a test block, 6
 //! fillings.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
+use crate::framework::{EAX, Regs, game_addr, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, dispatch_state, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::drive::camera_views::CameraView;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("drive::set_camera_view", rva(0x43A9BA), thunk, &ORIGINAL)
-    .private_copy(0x7E)
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 pub const STEP_RVA: usize = rva(0x719FE0); // dword_719FE0
 pub const VIEW_LEN: u32 = 0x6A0;
@@ -69,31 +58,10 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { set_camera_view(r.esi) })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &[(r.esi + 0x684, 0x1C)], &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-/// A copy of the original whose step count is at `step`.
-pub fn test_copy(step: u32) -> Result<crate::redirect::RedirectedCopy, String> {
-    crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x43A9BA,
-            len: 0x7E,
-            entry: &[0xEB, 0x1C, 0x8B, 0x9E, 0x84, 0x06, 0x00, 0x00],
-            calls: &[],
-            jumps_out: &[],
-        },
-        &|_| None,
-        &[(0x719FE0, step)],
-        2,
-    )
 }
 
 /// Fills a test block (`VIEW_LEN` bytes) by `seed`.
@@ -103,41 +71,4 @@ pub fn fill_block(s: u32, seed: u32) {
         x = x.wrapping_mul(1_103_515_245).wrapping_add(12345);
         unsafe { put(s + 4 * k, x) };
     }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut cells = vec![0u32; VIEW_LEN as usize / 4 + 1];
-    let s = cells.as_mut_ptr() as u32;
-    let step = s + VIEW_LEN;
-    let copy = match test_copy(step) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let all = [(s, VIEW_LEN as usize + 4)];
-    for seed in 1..=6u32 {
-        let fill = || {
-            fill_block(s, seed);
-            unsafe { put(step, seed * 1000) };
-        };
-        fill();
-        let before = Regs {
-            esi: s,
-            ..Regs::SENTINEL
-        };
-        let mut ro = before;
-        unsafe { call_game(&mut ro, copy.addr()) };
-        let theirs = capture(&all);
-        fill();
-        let left = unsafe { set_view_at(s, step) };
-        let mine = capture(&all);
-        let regs_ok = left.matches(&before, &ro);
-        t.check(regs_ok && theirs == mine, || {
-            format!("seed {seed}: regs_ok={regs_ok}; the block differs")
-        });
-    }
-    drop((copy, cells));
-    t.finish()
 }

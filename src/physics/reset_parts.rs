@@ -91,6 +91,20 @@ pub fn dispatch_reset(
     }
 }
 
+/// `dispatch_reset` without its hook (Rust callers; a refusal is the caller's).
+pub fn reset_entry(
+    r: &mut Regs,
+    rust: unsafe fn(&Regs, Part) -> Result<Regs, Refused>,
+) -> Result<(), Refused> {
+    let g = unsafe { rust(r, &mut game_part) }?;
+    *r = Regs {
+        esp: r.esp,
+        eflags: r.eflags,
+        ..g
+    };
+    Ok(())
+}
+
 // ---- for the self-tests ----
 
 /// Which calls to place 13 say blocked: bit k (mod 64) for the k-th.

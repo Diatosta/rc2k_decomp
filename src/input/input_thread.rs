@@ -100,6 +100,10 @@ pub unsafe fn input_thread(part: Part) -> Result<(), Refused> {
                     break;
                 }
             }
+            // One gate a tick, before anything is written: a self-test's pause waits for this
+            // one and holds the next (2026-10-23: the gate began after the count, so a pause
+            // begun during the wait let one count through; `install::run_page`'s test saw it).
+            crate::framework::hook_enter();
             loop {
                 unsafe { game_write(TICKS_RVA, g(TICKS_RVA).wrapping_add(1)) };
                 gone -= TICK_MS;
@@ -109,8 +113,6 @@ pub unsafe fn input_thread(part: Part) -> Result<(), Refused> {
                 }
             }
             unsafe { game_write(LAST_TICK_RVA, last) };
-            // One gate a tick: a self-test's pause waits for this one and holds the next.
-            crate::framework::hook_enter();
             let ticked = (|| {
                 part(6, &mut r)?;
                 part(7, &mut r)?;

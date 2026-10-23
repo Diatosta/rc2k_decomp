@@ -267,6 +267,8 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x412F34 => Some(crate::install::install_from_command::entry(r)), // install::install_from_command
         0x412FA2 => Some(crate::install::run_after_exit::entry(r)), // install::run_after_exit
         0x4130CD => Some(crate::install::install_files::entry(r)), // install::install_files
+        0x413295 => Some(crate::install::install_frames::progress::entry(r)), // install::progress_frame
+        0x413340 => Some(crate::install::install_frames::copying::entry(r)), // install::copying_frame
         0x4134DF => Some(crate::install::uninstall::entry(r)), // install::uninstall
         0x413629 => Some(crate::install::open_installed::entry(r)), // install::open_installed
         0x413650 => Some(crate::install::ask_registration::entry(r)), // install::ask_registration
@@ -441,6 +443,7 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x41EC47 => Some(crate::race::step_viewed_replay::entry(r)), // race::step_viewed_replay
         0x41ECFF => Some(crate::race::save_last_replay::entry(r)), // race::save_last_replay
         0x41ED1C => Some(crate::race::save_viewed_replay::entry(r)), // race::save_viewed_replay
+        0x41EEB5 => Some(crate::drive::read_packed::entry(r)), // drive::read_packed
         0x41EEE4 => Some(crate::race::write_replay_chunk::entry(r)), // race::write_replay_chunk
         0x41EF27 => Some(crate::race::replay_path::entry(r)), // race::replay_path
         0x41EF51 => Some(crate::race::find_snapshot_number::entry(r)), // race::find_snapshot_number
@@ -553,6 +556,7 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x4364BD => Some(crate::race::set_up_mode_0_cars::entry(r)), // race::set_up_mode_0_cars
         0x43658A => Some(crate::race::reset_car_blocks::entry(r)), // race::reset_car_blocks
         0x43670F => Some(crate::race::set_player_car_kinds::entry(r)), // race::set_player_car_kinds
+        0x436758 => Some(crate::drive::race_mode_cars::entry(r)), // drive::race_mode_cars
         0x436790 => Some(crate::physics::race_timers::entry(r)), // physics::race_timers
         0x436833 => Some(crate::physics::take_split_counted::entry(r)), // physics::take_split_counted
         0x436900 => Some(crate::physics::take_split::entry(r)), // physics::take_split
@@ -571,6 +575,9 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x43703E => Some(crate::drive::start_cars_behind::entry(r)), // drive::start_cars_behind
         0x4373A4 => Some(crate::drive::note_gap_ahead::entry(r)), // drive::note_gap_ahead
         0x4373C0 => Some(crate::drive::note_gap_behind::entry(r)), // drive::note_gap_behind
+        0x4375A5 => Some(crate::drive::checkpoint_taken::entry(r)), // drive::checkpoint_taken
+        0x4375F2 => Some(crate::drive::car_near_checkpoint::entry(r)), // drive::car_near_checkpoint
+        0x437613 => Some(crate::drive::start_car_on_line::entry(r)), // drive::start_car_on_line
         0x4376E3 => Some(crate::drive::clear_start_state::entry(r)), // drive::clear_start_state
         0x437720 => Some(crate::race::index_of_kind::entry(r)), // race::index_of_kind
         0x43773D => Some(crate::drive::start_blend::entry(r)), // drive::start_blend
@@ -608,6 +615,7 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x439BF6 => Some(crate::physics::gear_input_rules::entry(r)), // physics::gear_input_rules
         0x439DB1 => Some(crate::drive::steer_inputs::entry(r)), // drive::steer_inputs
         0x43A004 => Some(crate::drive::pedal_inputs::entry(r)), // drive::pedal_inputs
+        0x43A0D3 => Some(crate::drive::reset_request::entry(r)), // drive::reset_request
         0x43A1CA => Some(crate::drive::simple_car_step::entry(r)), // drive::simple_car_step
         0x43A27E => Some(crate::drive::car_input_words::entry(r)), // drive::car_input_words
         0x43A35A => Some(crate::drive::read_car_controls::entry(r)), // drive::read_car_controls
@@ -748,6 +756,7 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x445376 => Some(crate::drive::pause_until_key::entry(r)), // drive::pause_until_key
         0x4454D2 => Some(crate::drive::race_step::entry(r)), // drive::race_step
         0x445506 => Some(crate::race::players_all_out::entry(r)), // race::players_all_out
+        0x445554 => Some(crate::drive::race_clock_tick::entry(r)), // drive::race_clock_tick
         0x4455A9 => Some(crate::drive::race_tick::entry(r)), // drive::race_tick
         0x4455FC => Some(crate::race::load_level::entry(r)), // race::load_level
         0x445698 => Some(crate::race::load_prefs::entry(r)), // race::load_prefs

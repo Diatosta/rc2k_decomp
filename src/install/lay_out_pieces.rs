@@ -14,27 +14,17 @@
 //! refused (the original writes over the list variables after them). Caller
 //! `install::run_page`. Shadow mode compares. Self-test: lists of the test's against the
 //! original (the fatal kind only on the Rust version).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::install::installer::{LAYOUT, a, fatal, rb, region, rw, wb, wd, ww};
-use crate::install::list_test::TestList;
-use crate::race::viewer::{Saved, check_original, dispatch_regs, regs_entry};
+use crate::framework::Regs;
+use crate::install::installer::{LAYOUT, a, fatal, rb, rw, wb, wd, ww};
+use crate::race::viewer::regs_entry;
 use rc2k_core::install::layout;
 use rc2k_core::install::pieces::{self, LayoutError, ListMemory};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("install::lay_out_pieces", rva(0x414C7E), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 pub const PIECE: u32 = layout::PIECE;
 pub const MOST_PIECES: u32 = pieces::MOST_PIECES;
@@ -85,87 +75,8 @@ pub fn lay_out_pieces(entry: &Regs) -> Result<Regs, Refused> {
     Ok(*entry)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions = [region(LAYOUT, 4 + (PIECE * MOST_PIECES) as usize)];
-    dispatch_regs(&HOOK, r, call_original, &regions, 0, &lay_out_pieces);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &lay_out_pieces)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let list = TestList::new();
-    let regions = [
-        region(LAYOUT, 4 + (PIECE * MOST_PIECES) as usize),
-        list.region(),
-    ];
-    let saved = Saved::new(&regions);
-    // Stale text words in the table, as the second pieces keep them.
-    crate::install::installer::fill(a(LAYOUT), 4 + (PIECE * MOST_PIECES) as usize, 0x5A);
-    let pages: [&[u8]; 6] = [
-        &[1, 2, 3, 4, 5, 6],
-        &[0x41, 0x82, 0xC3, 0x14, 0x44, 0x26],
-        &[2, 2, 0x42],
-        &[4, 0x14, 0x84],
-        &[5],
-        &[0x46, 0x41],
-    ];
-    for kinds in pages {
-        for flags in [0u8, 0x40, 0x80, 0xC0, 0x10] {
-            for (choices, marks) in [(3u8, 0u32), (5, 0b10100), (2, 0b11)] {
-                let prepare = || {
-                    list.set(flags, kinds, choices, 0, 0, 0, 100, b"");
-                    // choices hidden by their high bits (0x40 of 0xC0)
-                    for k in 0..kinds.len() as u32 {
-                        if kinds[k as usize] & 0xF == 2 {
-                            let table = crate::install::installer::rd(list.item(k) + 0xC);
-                            for c in 0..0x10u32 {
-                                let high = if marks >> c & 1 != 0 {
-                                    0x40
-                                } else {
-                                    (c as u8 & 2) << 6
-                                };
-                                wb(table + 2 * c + 1, high | 2);
-                            }
-                        }
-                    }
-                };
-                prepare();
-                let before = Regs {
-                    edi: list.base(),
-                    ..Regs::SENTINEL
-                };
-                check_original(
-                    &mut t,
-                    &format!(
-                        "flags {flags:#x}, kinds {kinds:x?}, {choices} choices, hidden {marks:#b}"
-                    ),
-                    call_original,
-                    before,
-                    &regions,
-                    0,
-                    &prepare,
-                    &lay_out_pieces,
-                );
-            }
-        }
-    }
-    // A kind it does not know: the fatal error (the original's would end the game).
-    list.set(0, &[1, 7], 0, 0, 0, 0, 100, b"");
-    let refused = lay_out_pieces(&Regs {
-        edi: list.base(),
-        ..Regs::SENTINEL
-    });
-    t.check(
-        matches!(refused, Err(Refused::Fatal(f)) if f.code == 0x80A9_7451),
-        || format!("kind 7: {refused:?}", refused = refused.map(|_| ())),
-    );
-    drop(saved);
-    t.finish()
 }

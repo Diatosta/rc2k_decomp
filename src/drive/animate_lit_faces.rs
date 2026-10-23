@@ -33,31 +33,19 @@
 //! Rust version on the game's own stage, with a list of the test's (twelve faces of the
 //! stage, their objects and bytes by lot); every game variable it writes saved and put
 //! back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    EAX, EBX, ECX, EDX, ESI, RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write,
-    hook_asm, rva,
-};
+use crate::framework::{EAX, EBX, ECX, EDX, ESI, Regs, game_addr, game_read, game_write, rva};
 use crate::physics::ground::Ground;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state, restore, state_entry};
+use crate::service::harness::{Region, capture, restore, state_entry};
 use rc2k_core::drive::lit_faces::{
     COUNTDOWN_OBJECT, FaceBytes, RISE_TOP, align, blink, count_down, fall_turn, pace, rise,
 };
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::animate_lit_faces", rva(0x45EB06), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const LIST_RVA: usize = rva(0x6D3220); // g_litFaces
 const COUNT_RVA: usize = rva(0x6D3620); // g_litFaceCount
@@ -291,98 +279,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
         .with(ESI, g.esi))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if !crate::physics::move_slot::in_race() {
-        return t.skip("not in a race (no stage's faces)");
-    }
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x45EB06,
-            len: 0x26A,
-            entry: &[0x83, 0x3D, 0x20, 0x36, 0x6D, 0x00, 0x00],
-            calls: &[0x1BC, 0x20D],
-            jumps_out: &[],
-        },
-        &|_| None,
-        &[],
-        0,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let face_count: u32 = unsafe { game_read(FACE_COUNT_RVA) };
-    let faces: u32 = unsafe { game_read(FACES_RVA) };
-    // The faces the test lists: twelve of the stage's, spread out.
-    let chosen: Vec<u32> = (0..12u32)
-        .map(|k| (k * 7919 + 13) % face_count.max(1))
-        .collect();
-    let set_list = |seed: u32| unsafe {
-        let mut x = seed.wrapping_mul(0x9E37_79B9) | 1;
-        let mut next = move || {
-            x = x.wrapping_mul(1_103_515_245).wrapping_add(12345);
-            x >> 8
-        };
-        game_write(COUNT_RVA, chosen.len() as u32);
-        for (k, &n) in chosen.iter().enumerate() {
-            game_write(list(k as u32), n);
-            let f = faces + (n << 6);
-            let mut object = if next() % 4 == 0 {
-                0x3B
-            } else {
-                (next() % 0x60) as u8
-            };
-            // Only objects whose kind is a small number (the kind table's rows).
-            if game_read::<u32>(OBJECT_KINDS_RVA + 4 * object as usize) >= 0x40 {
-                object = 0x3B;
-            }
-            set_byte(f + 1, object);
-            for o in [8u32, 9, 0x11, 0x12, 0x13] {
-                set_byte(f + o, (next() % 0x50) as u8);
-            }
-        }
-    };
-    // What the cases change: the list, the chosen faces, and the rest it writes.
-    let mut all = regions();
-    all.extend(chosen.iter().map(|&n| (faces + (n << 6), 0x40)));
-    let saved = capture(&all);
-    for seed in 1..=8u32 {
-        set_list(seed);
-        let input = capture(&all);
-        let mut ro = Regs::SENTINEL;
-        unsafe { call_game(&mut ro, copy.addr()) };
-        let theirs = capture(&all);
-        restore(&all, &input);
-        let mut g = Regs::SENTINEL;
-        let mine = unsafe { animate_at(&mut g) };
-        let state = capture(&all);
-        restore(&all, &saved);
-        let regs_ok = mine.is_ok()
-            && Left::nothing()
-                .with(EAX, g.eax)
-                .with(EBX, g.ebx)
-                .with(ECX, g.ecx)
-                .with(EDX, g.edx)
-                .with(ESI, g.esi)
-                .matches(&Regs::SENTINEL, &ro);
-        t.check(regs_ok && theirs == state, || {
-            let first = theirs.iter().zip(&state).position(|(a, b)| a != b);
-            format!("seed {seed}: regs_ok={regs_ok} {mine:?}, first difference at byte {first:?}")
-        });
-    }
-    drop(copy);
-    t.finish()
 }

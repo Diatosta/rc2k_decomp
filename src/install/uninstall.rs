@@ -15,28 +15,18 @@
 //! path strings built directly. Ungated. Shadow mode runs the original alone. Self-test: a
 //! copy whose disk/registry/frame/script calls go to stand-ins, the lists pre-filled as the
 //! script would, against the Rust version; the deletes, removes and final globals compared.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::install::installer::{
     DELETE_FILE, DIR_COUNT, DIRS, FILE_COUNT, FILES, INSTALLED, INSTALLING, Part, REMOVE_DIR,
-    RUN_FRAME, RUN_SCRIPT, SET_CD, SLEEP, SOURCE, STATUS, a, append_byte, at, both, g, gb, p, pb,
-    quiet, region, str_append, str_append_indexed, wb,
+    RUN_FRAME, RUN_SCRIPT, SET_CD, SLEEP, SOURCE, STATUS, a, append_byte, at, g, gb, p, pb,
+    str_append, str_append_indexed, wb,
 };
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("install::uninstall", rva(0x4134DF), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
 
 const WRITE_REGISTRY: usize = 0x413DC5;
 const NORMALISE: usize = 0x4139EC;
@@ -133,123 +123,10 @@ pub fn uninstall(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     Ok(Regs { ..*entry })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    crate::race::viewer::dispatch_parts(&HOOK, r, call_original, &|r| {
-        uninstall(r, &mut crate::install::installer::game_part)
-    });
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     crate::race::viewer::regs_entry(r, &|r| {
         uninstall(r, &mut crate::install::installer::game_part)
     })
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; cmp g_installStatus, 0
-    let copy = match crate::install::installer::copy(
-        0x4134DF,
-        0x14A,
-        &[0x60, 0x80, 0x3D, 0x8C, 0xBB, 0x51, 0x00, 0x00],
-        &[
-            (0x22, 0x413DC5),
-            (0x2A, 0x405A71),
-            (0x30, 0x4058AD),
-            (0x37, 0x4060E3),
-            (0x4B, 0x402370),
-            (0x50, 0x405949),
-            (0x55, 0x4057D1),
-            (0x66, 0x4139EC),
-            (0x71, 0x403105),
-            (0x7C, 0x41365D),
-            (0x9A, 0x401F7D),
-            (0xA6, 0x401F8E),
-            (0xAB, 0x401F16),
-            (0xB2, 0x402E8C),
-            (0xDE, 0x401F7D),
-            (0xEA, 0x401F8E),
-            (0xEF, 0x401F16),
-            (0xF4, 0x403123),
-            (0x102, 0x403105),
-            (0x10D, 0x403123),
-            (0x117, 0x41100C),
-            (0x12A, 0x413DC5),
-            (0x12F, 0x4190E9),
-        ],
-        &[
-            0x413DC5, 0x405A71, 0x4058AD, 0x4060E3, 0x402370, 0x405949, 0x4057D1, 0x4139EC,
-            0x403105, 0x41365D, 0x402E8C, 0x403123, 0x41100C, 0x4190E9,
-        ],
-        &[],
-        &[],
-        &[],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    crate::install::installer::set_text_of(Some(crate::install::installer::path_text));
-    // a file-name table (packed) and a folder-name table
-    let mut files_tbl = b"game.exe\0data.bun\0readme.txt\0".to_vec();
-    let mut dirs_tbl = b"files\0files\\d\0".to_vec();
-    let fptr = files_tbl.as_mut_ptr() as u32;
-    let dptr = dirs_tbl.as_mut_ptr() as u32;
-    let regions = [
-        region(STATUS, 4),
-        region(SOURCE_VAR, 1),
-        region(INSTALLING, 4),
-        region(REMOVE_ITEMS, 4),
-        region(PATH_B, 0x200),
-        region(INSTALLED, 0x100),
-        region(FILES, 4),
-        region(FILE_COUNT, 4),
-        region(DIRS, 4),
-        region(DIR_COUNT, 4),
-    ];
-    let regions = &regions[..];
-    let saved = crate::race::viewer::Saved::new(regions);
-    for (status, source, lock_fail) in [(1u8, b's', false), (1, b's', true), (0, 0, false)] {
-        let prepare = || {
-            crate::install::installer::answer(Box::new(move |place, r| {
-                if place == a(0x4058AD) {
-                    r.set_carry(lock_fail);
-                } else if place == a(0x4139EC) {
-                    r.set_carry(false);
-                }
-            }));
-            pb(STATUS, status);
-            wb(a(SOURCE_VAR), source);
-            p(INSTALLING, 1);
-            p(REMOVE_ITEMS, 0);
-            // the install folder and the lists the script "built"
-            for (k, &b) in b"c:\\rally\\\0".iter().enumerate() {
-                wb(a(INSTALLED) + k as u32, b);
-            }
-            p(FILES, fptr);
-            p(FILE_COUNT, if status == 0 { 0 } else { 3 });
-            p(DIRS, dptr);
-            p(DIR_COUNT, if status == 0 { 0 } else { 2 });
-            crate::install::installer::fill(a(PATH_B), 0x200, 0xAA);
-        };
-        both(
-            &mut t,
-            &format!("status {status}, source {source}, lock_fail {lock_fail}"),
-            &copy,
-            Regs::SENTINEL,
-            regions,
-            0,
-            &[],
-            &prepare,
-            &|r, part, _| uninstall(r, part),
-        );
-    }
-    crate::install::installer::set_text_of(None);
-    quiet();
-    drop(saved);
-    drop((files_tbl, dirs_tbl));
-    t.finish()
 }

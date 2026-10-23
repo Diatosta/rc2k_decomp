@@ -15,33 +15,19 @@
 //! Shadow mode: the file is put back where it was after the Rust version's read.
 //! Self-test: the original and the Rust version on a test file (written to the temp
 //! folder, read from its start each time): plain and packed reads.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::files::handle::read;
-use crate::framework::{EAX, RawHook, Regs, SelfTest, hook_asm, rva, shadow};
+use crate::framework::{EAX, Regs};
 use crate::physics::flow::a;
 use crate::screens::harness::Left;
-use crate::service::harness::{check_state, dispatch_state};
-use std::sync::atomic::AtomicUsize;
 use windows_sys::Win32::Storage::FileSystem::{
-    CREATE_ALWAYS, CreateFileA, DeleteFileA, FILE_ATTRIBUTE_NORMAL, FILE_BEGIN, FILE_CURRENT,
-    GetTempPathA, SetFilePointer,
+    CREATE_ALWAYS, CreateFileA, DeleteFileA, FILE_ATTRIBUTE_NORMAL, GetTempPathA, SetFilePointer,
 };
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("drive::read_packed", rva(0x41EEB5), thunk, &ORIGINAL)
-    .private_copy(0x2F)
-    .relocate_calls(&[0x2, 0x17, 0x20])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// `g_pngInfo`: the packed bytes' buffer.
 pub const PACKED: usize = 0x93E8B0;
@@ -71,30 +57,9 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::carry(carry).with(EAX, eax))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let n = if (r.ecx as i32) < 0 {
-        0x10000
-    } else {
-        r.ecx as usize
-    };
-    // In shadow mode the Rust version reads first: the file goes back to where it was, so
-    // that the original (whose bytes the game gets) reads the same ones.
-    let file = r.eax;
-    let place = unsafe { SetFilePointer(file as _, 0, std::ptr::null_mut(), FILE_CURRENT) };
-    let rust_in_place = |r: &Regs| {
-        let left = rust(r);
-        if shadow() {
-            unsafe { SetFilePointer(file as _, place as i32, std::ptr::null_mut(), FILE_BEGIN) };
-        }
-        left
-    };
-    dispatch_state(
-        &HOOK,
-        r,
-        call_original,
-        &[(r.ebx, n), (a(PACKED), 0x400)],
-        &rust_in_place,
-    );
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::service::harness::state_entry(r, &rust)
 }
 
 /// A file in the temp folder with `bytes`, removed when dropped (for the tests).
@@ -146,44 +111,4 @@ impl Drop for TestFile {
             DeleteFileA(self.path.as_ptr());
         }
     }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut bytes: Vec<u8> = vec![0xFD, 1, 2, 3, 0x05, 0x77, 0];
-    bytes.extend((0..0x40).map(|x| x as u8 ^ 0x5A));
-    let Some(file) = TestFile::new("rc2k_read_packed.tmp", &bytes) else {
-        return t.skip("no test file in the temp folder");
-    };
-    let saved = crate::service::harness::capture(&[(a(PACKED), 0x40)]);
-    let mut out = vec![0xAAu8; 0x100];
-    let at = out.as_mut_ptr() as u32;
-    for count in [7u32, 0x20, 0, (-7i32) as u32, (-6i32) as u32] {
-        let set = || {
-            file.rewind();
-            unsafe {
-                std::ptr::write_bytes(at as *mut u8, 0xAA, 0x100);
-                std::ptr::write_bytes(a(PACKED) as *mut u8, 0, 0x40);
-            }
-        };
-        check_state(
-            &mut t,
-            &format!("count {count:#x}"),
-            call_original,
-            Regs {
-                eax: file.handle,
-                ebx: at,
-                ecx: count,
-                ..Regs::SENTINEL
-            },
-            &set,
-            &[(at, 0x100), (a(PACKED), 0x40)],
-            &rust,
-        );
-    }
-    crate::service::harness::restore(&[(a(PACKED), 0x40)], &saved);
-    drop(file);
-    t.finish()
 }

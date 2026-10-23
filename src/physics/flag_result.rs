@@ -88,3 +88,12 @@ pub fn dispatch_flags(
     *r = o;
     r.esp = esp;
 }
+
+/// `dispatch_flags` without its hook (Rust callers; a refusal is the caller's).
+pub fn flags_entry(
+    r: &mut Regs,
+    rust: &dyn Fn(&Regs) -> Result<FlagResult, Refused>,
+) -> Result<(), Refused> {
+    rust(r)?.apply(r);
+    Ok(())
+}

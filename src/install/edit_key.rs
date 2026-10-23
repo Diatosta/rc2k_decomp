@@ -18,30 +18,19 @@
 //! Caller `install::page_key`. Shadow mode compares (the measuring only writes the font's
 //! two results). Self-test: an edit of the test's and the game's fonts, against the
 //! original, every key's way.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::bridge::{Raw, read_through};
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::install::installer::{
-    CF, COLOURS, FONTS, SCRIPT_PATH, ZF, a, append_string_by_id, g, logic, rb, rd, region, rw, wb,
+    COLOURS, FONTS, SCRIPT_PATH, a, append_string_by_id, g, logic, rb, rd, rw, wb,
 };
-use crate::install::list_test::TestList;
-use crate::race::viewer::{Saved, check_original, dispatch_regs, regs_entry};
-use crate::service::harness::Region;
+use crate::race::viewer::regs_entry;
 use rc2k_core::install::edits::{self, EDITING, EditKey};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("install::edit_key", rva(0x4148F7), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const LAYOUT_MODE: usize = 0x4F07D2; // byte_4F07D2
 const LAYOUT: usize = 0x4F07D4; // g_keyboardLayout
@@ -176,85 +165,8 @@ pub fn edit_key(entry: &Regs) -> Result<Regs, Refused> {
     done(r)
 }
 
-fn regions_of(item: u32) -> Vec<Region> {
-    let record = rd(item + 0xC);
-    let mut all = vec![
-        (record, 8),
-        (rd(item + 8), rb(record + 1) as usize + 2),
-        region(LAYOUT, 4),
-        (edit_font(record), 0x20),
-    ];
-    all.extend(crate::input::key_to_char::regions());
-    all
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions = regions_of(r.esi);
-    dispatch_regs(&HOOK, r, call_original, &regions, CF | ZF, &edit_key);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &edit_key)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if !crate::input::key_to_char::has_layout() {
-        return t.skip("no keyboard layout yet");
-    }
-    let list = TestList::new();
-    list.set(0, &[4, 4], 0, 0, 0, 1, 100, b"");
-    if edit_font(rd(list.item(1) + 0xC)) == 0 {
-        return t.skip("the installer's fonts are not there");
-    }
-    let mut regions = regions_of(list.item(1));
-    regions.push(list.region());
-    regions.push(region(SCRIPT_PATH, 0x102));
-    let saved = Saved::new(&regions);
-    for text in [
-        &b"c:\\games"[..],
-        b"",
-        b"  \x01 ",
-        b"0123456789abcdef0123456789abcde",
-    ] {
-        for width in [0x200u16, 30] {
-            for eax in [
-                1u32, 0x1C, 0x6E, 0xE, 0x66, 0x69, 0x10, 0x1E, 0x39, 0x0B, 0x9E, 0x141, 0x105,
-            ] {
-                let prepare = || {
-                    list.set(0, &[4, 4], 0, 0, 0, 1, width, text);
-                    let backup = a(SCRIPT_PATH);
-                    for n in 0..0x22 {
-                        wb(backup + n, b"backup text\0"[n as usize % 12]);
-                    }
-                };
-                prepare();
-                let before = Regs {
-                    eax: 0x7700_0000 | eax,
-                    esi: list.item(1),
-                    edi: list.base(),
-                    ..Regs::SENTINEL
-                };
-                check_original(
-                    &mut t,
-                    &format!(
-                        "key {eax:#x}, width {width}, text {}",
-                        crate::strings::utils::bytes_str(text)
-                    ),
-                    call_original,
-                    before,
-                    &regions,
-                    CF | ZF,
-                    &prepare,
-                    &edit_key,
-                );
-            }
-        }
-    }
-    drop(saved);
-    t.finish()
 }

@@ -9,26 +9,16 @@
 //! write).
 //! Self-test: the original and the Rust version off the tenth and with the replay not
 //! being written.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
-use crate::physics::flow::{a, g, p};
+use crate::framework::Regs;
+use crate::physics::flow::g;
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, check_state, restore};
 use rc2k_core::drive::replay_frames::flush_due;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::flush_replay_if", rva(0x460031), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::flush_due`.
@@ -43,52 +33,9 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { flush_replay_if(r) }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match rust(r) {
-        Ok(left) => left.apply(r),
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = rust(r)?;
     left.apply(r);
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let all = [
-        (a(0x9613A4), 0x2810),
-        (a(0x5BEC88), 4),
-        (a(0x5C5CE0), 4),
-        (a(0x6EF7DC), 4),
-    ];
-    let saved = capture(&all);
-    for case in 0..4u32 {
-        let set = || {
-            p(0x5BEC88, 0);
-            p(0x5C5CE0, case % 2);
-            p(0x6EF7DC, if case < 2 { 0x63 } else { 5 });
-        };
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            Regs::SENTINEL,
-            &set,
-            &all[..1],
-            &rust,
-        );
-    }
-    restore(&all, &saved);
-    t.finish()
 }

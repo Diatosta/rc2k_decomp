@@ -11,28 +11,18 @@
 //! Callers: `drive::finish_race_0`, `sub_442FEF`. Ungated: it loads a stage and plays.
 //! Refuses what its calls refuse. Shadow mode runs the original alone.
 //! Self-test: skipped (it loads a stage and plays the routine).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::drive::race_parts::log_line;
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva, shadow};
+use crate::framework::{Regs, game_addr, rva};
 use crate::physics::flow::{g, p};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
 use rc2k_core::drive::finish_routine::{self, Set, Var};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::finish_race", rva(0x459116), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
 
 const B: usize = 0x70F3EC;
 
@@ -122,28 +112,9 @@ pub unsafe fn finish_race(entry: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&r))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { finish_race(r) } {
-        Ok(left) => left.apply(r),
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { finish_race(r) }?;
     left.apply(r);
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    t.skip("it loads a stage and plays the finish routine")
 }

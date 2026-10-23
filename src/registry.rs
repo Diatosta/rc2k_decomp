@@ -1,7 +1,6 @@
 use crate::framework::GameHook;
 use crate::{
-    audio, d3d, drive, fatal, gfx, input, install, marks, menu, net, physics, race, scene, service,
-    sound,
+    audio, d3d, fatal, gfx, input, marks, menu, net, physics, race, scene, service, sound,
 };
 use std::sync::LazyLock;
 
@@ -13,10 +12,8 @@ pub static ALL: LazyLock<Vec<&'static dyn GameHook>> = LazyLock::new(|| {
         input::HOOKS,
         menu::HOOKS,
         &menu::ranked_lookups::HOOKS,
-        &install::install_frames::HOOKS,
         &menu::learn_bindings::HOOKS,
         fatal::HOOKS,
-        install::HOOKS,
         physics::HOOKS,
         sound::HOOKS,
         audio::HOOKS,
@@ -24,7 +21,6 @@ pub static ALL: LazyLock<Vec<&'static dyn GameHook>> = LazyLock::new(|| {
         scene::HOOKS,
         race::HOOKS,
         marks::HOOKS,
-        drive::HOOKS,
         net::HOOKS,
     ]
     .into_iter()

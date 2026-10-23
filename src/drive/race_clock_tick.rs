@@ -11,31 +11,16 @@
 //! copy of its 0x55 bytes (the call relocated) and a hand-made patch.
 //! Self-test: a copy whose clock call goes to a stand-in giving the test's times, against
 //! the Rust version with the same times: within 1000 and beyond, round tenths and not.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, EDX, RawHook, Regs, SelfTest, call_game, hook_asm, rva};
-use crate::install::stand_ins::{set_handler, stand_in};
-use crate::physics::flow::{a, g, p};
-use crate::redirect::RedirectedCopy;
+use crate::framework::{EAX, EBX, EDX, Regs};
+use crate::physics::flow::{g, p};
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, restore};
 use rc2k_core::drive::clocks::RaceClock;
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("drive::race_clock_tick", rva(0x445554), thunk, &ORIGINAL)
-    .private_copy(0x55)
-    .relocate_calls(&[0x0])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The Rust version after the clock's reading `now` (already in `g_sceneClock`).
 // Converted: `rc2k_core::drive::clocks::RaceClock::tick`.
@@ -61,68 +46,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { race_clock_tick() })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    // The clock moves between two runs: the original alone in shadow mode.
-    HOOK.count_call();
-    if crate::framework::shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    rust(r).expect("infallible").apply(r);
-}
-
-static NOW: AtomicU32 = AtomicU32::new(0);
-
-fn handler(_: u32, r: &mut Regs) {
-    let now = NOW.load(Ordering::SeqCst);
-    p(0x613830, now);
-    r.eax = now;
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = unsafe {
-        RedirectedCopy::new(
-            crate::framework::game_addr(rva(0x445554)),
-            0x55,
-            &[0xE8, 0x28, 0xAE, 0x00, 0x00],
-            &[0x00],
-            &|_| Some(stand_in(0)),
-        )
-    };
-    let copy = match copy {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    set_handler(handler);
-    let all = [(a(0x613830), 4), (a(0x61383C), 12)];
-    let saved = capture(&all);
-    for (now, last) in [
-        (5000u32, 4990u32),
-        (5000, 3000),
-        (5007, 5000),
-        (12, 0xFFFF_FF00),
-        (999, 0),
-    ] {
-        NOW.store(now, Ordering::SeqCst);
-        p(0x613840, last);
-        let mut ro = Regs::SENTINEL;
-        unsafe { call_game(&mut ro, copy.addr()) };
-        let theirs = (ro, capture(&all));
-        p(0x613840, last);
-        p(0x613830, now);
-        let mine = tick_from(now);
-        let state = capture(&all);
-        t.check(mine.matches(&Regs::SENTINEL, &theirs.0) && state == theirs.1, || {
-            let o = &theirs.0;
-            format!(
-                "now {now}, last {last}: original eax {:x} ebx {:x} edx {:x} {:x?}; rust {mine:?} {state:x?}",
-                o.eax, o.ebx, o.edx, theirs.1
-            )
-        });
-    }
-    restore(&all, &saved);
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    rust(r)?.apply(r);
+    Ok(())
 }

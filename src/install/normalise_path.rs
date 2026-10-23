@@ -9,24 +9,15 @@
 //! written. 14 callers, most of them in the installer.
 //! Refuses a path of 0xF8 bytes or more, and a current directory that does not fit the
 //! 0xFF bytes asked with.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
+use crate::framework::Regs;
 use crate::strings::same_text::case_table;
-use std::sync::atomic::AtomicUsize;
 use windows_sys::Win32::System::Environment::GetCurrentDirectoryA;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("install::normalise_path", rva(0x4139EC), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- Rust version ----
 
@@ -63,47 +54,6 @@ pub unsafe fn normalise_path(path: *const u8, to: *mut u8) -> Result<bool, BadIn
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    let (path, to) = (r.esi as *const u8, r.edx as *mut u8);
-    let mine = match unsafe { normalised(path, &mut || current_directory()) } {
-        Ok(mine) => mine,
-        Err(e) => {
-            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-            return;
-        }
-    };
-    if !shadow() {
-        if let Some(text) = &mine {
-            unsafe { std::ptr::copy(text.as_ptr(), to, text.len()) };
-        }
-        r.set_carry(mine.is_none());
-        return;
-    }
-    let mut o = *r;
-    unsafe { call_original(&mut o) };
-    let same = match &mine {
-        Some(text) => {
-            !o.carry() && unsafe { std::slice::from_raw_parts(to, text.len()) } == &text[..]
-        }
-        None => o.carry(),
-    };
-    if !same || !o.preserved_except(r, 0) {
-        HOOK.mismatch(|| {
-            format!(
-                "path={:?}: original carry={}; rust {:?}",
-                unsafe { std::ffi::CStr::from_ptr(path as *const _) },
-                o.carry(),
-                mine.as_ref()
-                    .map(|text| String::from_utf8_lossy(text).into_owned())
-            )
-        });
-    }
-    r.eflags = o.eflags;
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let (path, to) = (r.esi as *const u8, r.edx as *mut u8);
@@ -119,8 +69,6 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     r.set_carry(mine.is_none());
     Ok(())
 }
-
-// ---- self-test ----
 
 pub const TEST_PATHS: [&[u8]; 14] = [
     b"\0",
@@ -138,39 +86,3 @@ pub const TEST_PATHS: [&[u8]; 14] = [
     b"\xC9:\\\xC0b\0",
     b"1:/\0",
 ];
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    for path in TEST_PATHS {
-        let run = |rust: bool| {
-            let mut to = [0xAAu8; 0x140];
-            let before = Regs {
-                esi: path.as_ptr() as u32,
-                edx: to.as_mut_ptr() as u32,
-                ..Regs::SENTINEL
-            };
-            let written = if rust {
-                unsafe { normalise_path(path.as_ptr(), to.as_mut_ptr()) }.ok()
-            } else {
-                let mut ro = before;
-                unsafe { call_original(&mut ro) };
-                ro.preserved_except(&before, 0).then_some(!ro.carry())
-            };
-            (written, to)
-        };
-        let (theirs, mine) = (run(false), run(true));
-        t.check(theirs == mine && theirs.0.is_some(), || {
-            format!(
-                "path={:?}: original {:?} {:?}; rust {:?} {:?}",
-                String::from_utf8_lossy(path),
-                theirs.0,
-                crate::strings::utils::bytes_str(&theirs.1[..0x40]),
-                mine.0,
-                crate::strings::utils::bytes_str(&mine.1[..0x40])
-            )
-        });
-    }
-    t.finish()
-}

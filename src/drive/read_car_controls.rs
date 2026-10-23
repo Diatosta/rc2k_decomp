@@ -21,31 +21,20 @@
 //! Self-test: in a race only: a copy of the original (its calls the game's) against the
 //! Rust version on the game's state, keys and switches by lot; everything written saved
 //! and put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::drive::drive_computer_car::drive_computer_car;
 use crate::drive::next_camera_view::next_camera_view;
 use crate::drive::start_blend::start_blend;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    EAX, ESI, RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{EAX, ESI, Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state, restore, state_entry};
+use crate::service::harness::{Region, state_entry};
 use rc2k_core::drive::controls::{FLIP_BIT, VIEW_BIT, computer_drives, flipped, read_keys};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::read_car_controls", rva(0x43A35A), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 fn g(x: u32) -> u32 {
     unsafe { game_read(rva(x as usize)) }
@@ -158,92 +147,8 @@ pub fn regions() -> Vec<Region> {
     r
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if !crate::physics::move_slot::in_race() || g(0x623640) < 0x20 {
-        return t.skip("not in a race (no stage's checkpoints)");
-    }
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x43A35A,
-            len: 0x1EC,
-            entry: &[0xFF, 0x35, 0x40, 0xA4, 0x71, 0x00],
-            calls: &[0xFA, 0x12C, 0x13D, 0x19D],
-            jumps_out: &[],
-        },
-        &|_| None,
-        &[],
-        0,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let inputs = [
-        0x6138C4u32,
-        0x6138C8,
-        0x6138CC,
-        0x6138D0,
-        0x52A910,
-        CURRENT,
-        0x63DB94,
-        0x71C3E0,
-        0x62389C,
-        0x71A234,
-        0x71A070,
-    ];
-    let mut all = regions();
-    all.extend(inputs.iter().map(|&v| (a(v), 4)));
-    let saved = capture(&all);
-    for seed in 1..=16u32 {
-        let mut x = seed.wrapping_mul(0x9E37_79B9) | 1;
-        let mut next = move || {
-            x = x.wrapping_mul(1_103_515_245).wrapping_add(12345);
-            x >> 8
-        };
-        p(0x6138C4, next() % 0x200);
-        p(0x6138C8, next() & 0x2F);
-        p(0x6138CC, next() % 0x200);
-        p(0x6138D0, next() % 0x200);
-        p(0x71A440, next() & 0x2F);
-        p(0x52A910, u32::from(seed % 5 == 0));
-        p(CURRENT, next() % 4);
-        p(0x63DB94, 1 + next() % 2);
-        p(0x71C3E0, u32::from(seed % 3 == 0));
-        p(0x62389C, next() % 4);
-        p(0x71A234, next() % 3);
-        p(0x71A070, next() % g(0x623640));
-        let input = capture(&all);
-        let mut ro = Regs::SENTINEL;
-        unsafe { call_game(&mut ro, copy.addr()) };
-        let theirs = capture(&all);
-        restore(&all, &input);
-        let mut gr = Regs::SENTINEL;
-        let mine = unsafe { read_car_controls(&mut gr) };
-        let state = capture(&all);
-        restore(&all, &saved);
-        let regs_ok = mine.is_ok()
-            && Left::nothing()
-                .with(EAX, gr.eax)
-                .with(ESI, gr.esi)
-                .matches(&Regs::SENTINEL, &ro);
-        t.check(regs_ok && theirs == state, || {
-            let first = theirs.iter().zip(&state).position(|(a, b)| a != b);
-            format!("seed {seed}: regs_ok={regs_ok} {mine:?}, first difference at byte {first:?}")
-        });
-    }
-    drop(copy);
-    t.finish()
 }

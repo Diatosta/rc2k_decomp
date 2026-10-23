@@ -7,28 +7,16 @@
 //! Out: every register kept; the flags of its last test (no caller reads them read back)
 //! Caller `install::run_page` (the folder page). Shadow mode compares. Self-test: lists of
 //! the test's against the original, every key and both bit-3 states.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::install::installer::{
-    CF, KEY_TAKEN, LIST_ANSWER, LIST_LEAVE, ZF, logic, pb, rb, region,
-};
-use crate::install::list_test::TestList;
-use crate::race::viewer::{Saved, check_original, dispatch_regs, regs_entry};
+use crate::framework::Regs;
+use crate::install::installer::{LIST_ANSWER, LIST_LEAVE, logic, pb, rb};
+use crate::race::viewer::regs_entry;
 use rc2k_core::install::items::FolderKey;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("install::folder_key", rva(0x41534E), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 pub fn folder_key(entry: &Regs) -> Regs {
     let mut r = *entry;
@@ -68,55 +56,8 @@ fn rust(r: &Regs) -> Result<Regs, Refused> {
     Ok(folder_key(r))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_regs(
-        &HOOK,
-        r,
-        call_original,
-        &[region(KEY_TAKEN, 3)],
-        CF | ZF,
-        &rust,
-    );
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let list = TestList::new();
-    let regions = [list.region(), region(KEY_TAKEN, 3)];
-    let saved = Saved::new(&regions);
-    for flags in [0u8, 0x10] {
-        for eax in [0x801u32, 0x81C, 0x830, 1, 0x1C, 0x839] {
-            let prepare = || {
-                list.set(flags, &[1], 0, 0, 0, 0, 0, b"");
-                pb(LIST_ANSWER, 9);
-                pb(LIST_LEAVE, 0);
-            };
-            prepare();
-            let before = Regs {
-                eax: 0x5500_0000 | eax,
-                edi: list.base(),
-                ..Regs::SENTINEL
-            };
-            check_original(
-                &mut t,
-                &format!("flags {flags:#x}, eax {eax:#x}"),
-                call_original,
-                before,
-                &regions,
-                CF | ZF,
-                &prepare,
-                &rust,
-            );
-        }
-    }
-    drop(saved);
-    t.finish()
 }

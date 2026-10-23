@@ -7,24 +7,15 @@
 //! In:  edi the list
 //! Out: every register kept; the flags of its last test (no caller reads them)
 //! A page action; `ebx` is ignored. Caller `install::run_page`. Shadow mode compares.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::install::installer::{OFFER_REGISTRATION, SAME_VERSION, STATUS, cmp, g, gb, rb, rw, wb};
-use crate::race::viewer::{dispatch_regs, regs_entry};
+use crate::race::viewer::regs_entry;
 use rc2k_core::install::pages;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("install::mark_main_page", rva(0x4141EF), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 pub fn mark_main_page(entry: &Regs) -> Regs {
     let mut r = *entry;
@@ -47,21 +38,8 @@ fn rust(r: &Regs) -> Result<Regs, Refused> {
     Ok(mark_main_page(r))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions = crate::install::page_action_test::globals();
-    dispatch_regs(&HOOK, r, call_original, &regions, 0, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    crate::install::page_action_test::run(&mut t, call_original, &rust);
-    t.finish()
 }

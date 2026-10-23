@@ -15,46 +15,17 @@
 //!
 //! Shadow mode runs the original alone (it draws). Self-test: a copy whose calls go to
 //! stand-ins noting them (`drive/tyre_parts.rs`), against the Rust version with the same.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
+use crate::framework::Regs;
 use crate::physics::flow::{a, g, p};
 use crate::race::car_starts::Part;
-use crate::service::harness::{capture, restore};
 use rc2k_core::drive::tyre_screen::{layout, wheel_place};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::tyre_screen", rva(0x41C5FA), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { tyre_screen(r, &mut game_part) } {
-        Ok(g) => {
-            let esp = r.esp;
-            *r = Regs {
-                eflags: r.eflags,
-                ..g
-            };
-            r.esp = esp;
-        }
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
@@ -131,37 +102,4 @@ pub unsafe fn tyre_screen(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     }
     part(PARTS, &mut r)?;
     Ok(*entry)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let calls = [
-        0xA3, 0xB2, 0xC1, 0xD0, 0xDF, 0xEE, 0xFD, 0x10C, 0x11B, 0x12A, 0x139, 0x148, 0x15E, 0x174,
-        0x18A, 0x18F,
-    ];
-    let copy = match copy_of(0x41C5FA, 0x196, &[0x60, 0x33, 0xD2, 0x85, 0xC0], &calls) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let all = test_regions();
-    let saved = capture(&all);
-    for (mode, car) in [(0u32, 0u32), (2, 0), (2, 1), (1, 0), (1, 1)] {
-        both(
-            &mut t,
-            &format!("mode {mode}, car {car}"),
-            &copy,
-            Regs {
-                eax: mode,
-                esi: car,
-                ..Regs::SENTINEL
-            },
-            &|| {},
-            tyre_screen,
-        );
-    }
-    restore(&all, &saved);
-    drop(copy);
-    t.finish()
 }

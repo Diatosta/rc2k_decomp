@@ -1,7 +1,7 @@
 //! What the game reads about its installation: the record `var\ral.zog`, the languages
 //! file `lang.cfg`, the edition file `files\d\gfx\sku`.
 
-use crate::framework::{GameHook, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::redirect::RedirectedCopy;
 
 pub mod check_at_start;
@@ -93,78 +93,6 @@ pub mod value_down;
 pub mod value_up;
 pub mod write_record;
 pub mod write_registry;
-
-pub static HOOKS: &[&dyn GameHook] = &[
-    &choose_language::HOOK,
-    &read_sku::HOOK,
-    &normalise_path::HOOK,
-    &read_registry::HOOK,
-    &ask_registration::HOOK,
-    &backdrop_frame::HOOK,
-    &blit_glyph_list::HOOK,
-    &check_folder_name::HOOK,
-    &check_installed_version::HOOK,
-    &choice_back::HOOK,
-    &choice_by_number::HOOK,
-    &choice_on::HOOK,
-    &close_installer::HOOK,
-    &copy_counted::HOOK,
-    &draw_pieces::HOOK,
-    &draw_string_list::HOOK,
-    &drive_page::HOOK,
-    &dxsetup_page::HOOK,
-    &edit_key::HOOK,
-    &finish_page::HOOK,
-    &folder_key::HOOK,
-    &folder_page::HOOK,
-    &ignore_room::HOOK,
-    &install_files::HOOK,
-    &install_clio::HOOK,
-    &uninstall::HOOK,
-    &install_from_command::HOOK,
-    &item_action::HOOK,
-    &item_enter::HOOK,
-    &item_link::HOOK,
-    &key_down::HOOK,
-    &key_left::HOOK,
-    &key_number::HOOK,
-    &key_right::HOOK,
-    &key_up::HOOK,
-    &language_page::HOOK,
-    &lay_out_pieces::HOOK,
-    &list_drives::HOOK,
-    &list_folder::HOOK,
-    &list_files::HOOK,
-    &list_folder_tree::HOOK,
-    &run_script::HOOK,
-    &make_folders::HOOK,
-    &mark_main_page::HOOK,
-    &mark_page::HOOK,
-    &measure_pieces::HOOK,
-    &mode_page::HOOK,
-    &next_edit::HOOK,
-    &open_installed::HOOK,
-    &end_text_line::HOOK,
-    &open_installer::HOOK,
-    &page_key::HOOK,
-    &place_pieces::HOOK,
-    &place_row::HOOK,
-    &register_lobby::HOOK,
-    &room_page::HOOK,
-    &run_installer::HOOK,
-    &run_page::HOOK,
-    &run_pages::HOOK,
-    &script_name::HOOK,
-    &set_lobby_value::HOOK,
-    &show_backdrop::HOOK,
-    &start_edit::HOOK,
-    &unregister_lobby::HOOK,
-    &value_by_number::HOOK,
-    &value_down::HOOK,
-    &value_up::HOOK,
-    &write_record::HOOK,
-    &write_registry::HOOK,
-];
 
 /// byte_5189A8: base directory A (`cdrom` in the record), and byte_518AA8: what a `%` in a
 /// path stands for (the language's directory). 0x100 bytes each.

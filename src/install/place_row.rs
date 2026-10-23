@@ -13,28 +13,17 @@
 //! Caller `install::place_pieces`. A loop target at +4: private copy, manual patch. Shadow
 //! mode compares. Self-test: pieces of the test's (labels, choices, the rest, every bit)
 //! in boxes narrow and wide, against the original.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::install::installer::{LAYOUT, a, fill, rb, rd, region, wb, wd};
-use crate::install::lay_out_pieces::{MOST_PIECES, PIECE};
-use crate::race::viewer::{Saved, check_original, dispatch_regs, regs_entry};
+use crate::framework::Regs;
+use crate::install::installer::{a, rb, rd, wd};
+use crate::install::lay_out_pieces::PIECE;
+use crate::race::viewer::regs_entry;
 use rc2k_core::install::layout::{self, Area, Piece};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("install::place_row", rva(0x414F11), thunk, &ORIGINAL)
-    .private_copy(0x147)
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const TITLE_BOX: usize = 0x51DD98; // unk_51DD98
 
@@ -76,100 +65,8 @@ pub fn place_row(entry: &Regs) -> Result<Regs, Refused> {
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions = [region(LAYOUT, 4 + (PIECE * MOST_PIECES) as usize)];
-    dispatch_regs(&HOOK, r, call_original, &regions, 0, &place_row);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &place_row)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = [region(LAYOUT, 4 + (PIECE * MOST_PIECES) as usize)];
-    let saved = Saved::new(&regions);
-    let base = a(LAYOUT) + 4;
-    // (the pieces' kinds and their own bits, widths) in boxes of (width, height)
-    let rows: [&[(u8, u8, u32, u32)]; 6] = [
-        &[(0, 0, 80, 12)],
-        &[
-            (1, 0, 60, 12),
-            (2, 0, 30, 10),
-            (2, 0, 40, 10),
-            (2, 0, 50, 14),
-        ],
-        &[(1, 0, 60, 12), (0x12, 0, 90, 12)],
-        &[
-            (0, 0x20, 30, 12),
-            (4, 0, 30, 12),
-            (8, 0, 30, 12),
-            (0xC, 0, 10, 8),
-            (0x10, 0, 70, 20),
-        ],
-        &[
-            (1, 0, 20, 12),
-            (2, 0, 90, 10),
-            (2, 0, 90, 16),
-            (2, 0, 90, 10),
-            (1, 0, 70, 9),
-            (2, 0, 30, 10),
-        ],
-        &[(2, 0, 30, 10), (2, 0, 40, 10)],
-    ];
-    for pieces in rows {
-        for (width, height) in [(300u32, 200u32), (150, 61), (90, 7)] {
-            for title in [false, true] {
-                for eax in [0u32, 0x1234] {
-                    let the_box = if title { a(TITLE_BOX) } else { base + 0xF00 };
-                    if title && width != 300 {
-                        continue;
-                    }
-                    let prepare = || {
-                        fill(base, 0xF00, 0x33);
-                        for (n, &(kind, own, w, h)) in pieces.iter().enumerate() {
-                            let at = base + PIECE * n as u32;
-                            wb(at, own);
-                            wb(at + 1, kind);
-                            wd(at + 8, 0);
-                            wd(at + 0xC, 0);
-                            wd(at + 0x10, w);
-                            wd(at + 0x14, h);
-                        }
-                        if !title {
-                            wd(the_box, 50);
-                            wd(the_box + 4, 150);
-                            wd(the_box + 8, width);
-                            wd(the_box + 0xC, height);
-                        }
-                    };
-                    let before = Regs {
-                        eax,
-                        ebx: base,
-                        ecx: pieces.len() as u32,
-                        esi: the_box,
-                        ..Regs::SENTINEL
-                    };
-                    check_original(
-                        &mut t,
-                        &format!(
-                            "pieces {pieces:?}, box {width} x {height}, title {title}, eax {eax:#x}"
-                        ),
-                        call_original,
-                        before,
-                        &regions,
-                        0,
-                        &prepare,
-                        &place_row,
-                    );
-                }
-            }
-        }
-    }
-    drop(saved);
-    t.finish()
 }

@@ -7,30 +7,15 @@
 //!      reads them)
 //! Callers `install::folder_page` (the folder page's action), `install::mark_page`.
 //! Shadow mode compares. Self-test: lists of the test's against the original.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::install::installer::{
-    CF, CHOICE, SCRIPT_PATH, ZF, cmp, g, list_regions, logic, p, rb, region,
-};
-use crate::install::list_test::TestList;
-use crate::race::viewer::{Saved, check_original, dispatch_regs, regs_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("install::next_edit", rva(0x41530F), thunk, &ORIGINAL)
-    .private_copy(0x3F)
-    .relocate_calls(&[0x38])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
+use crate::install::installer::{CHOICE, cmp, g, logic, p, rb};
+use crate::race::viewer::regs_entry;
 
 pub fn next_edit(entry: &Regs) -> Regs {
     let mut r = *entry;
@@ -61,54 +46,8 @@ fn rust(r: &Regs) -> Result<Regs, Refused> {
     Ok(next_edit(r))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions = list_regions(r.edi);
-    dispatch_regs(&HOOK, r, call_original, &regions, CF | ZF, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let list = TestList::new();
-    let regions = [list.region(), region(CHOICE, 4), region(SCRIPT_PATH, 0x102)];
-    let saved = Saved::new(&regions);
-    for (kinds, choice, ebx) in [
-        (&[1u8, 1, 4, 1][..], 0u32, 0u32),
-        (&[1, 1, 4, 1], 2, 0),
-        (&[1, 4, 1, 1], 2, 0),
-        (&[1, 1, 1, 1], 1, 0),
-        (&[4, 1, 6, 0x14], 3, 0),
-        (&[4, 1, 6, 1], 1, 1),
-        (&[4, 1, 6, 1], 1, 0xFFFF_FFFF),
-    ] {
-        let prepare = || {
-            list.set(0, kinds, 0, 0, 0, 0, 100, b"edit");
-            p(CHOICE, choice);
-        };
-        prepare();
-        let before = Regs {
-            ebx,
-            edi: list.base(),
-            ..Regs::SENTINEL
-        };
-        check_original(
-            &mut t,
-            &format!("kinds {kinds:x?}, highlight {choice}, ebx {ebx:#x}"),
-            call_original,
-            before,
-            &regions,
-            CF | ZF,
-            &prepare,
-            &rust,
-        );
-    }
-    drop(saved);
-    t.finish()
 }

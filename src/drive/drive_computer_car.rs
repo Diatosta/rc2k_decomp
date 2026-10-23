@@ -31,11 +31,13 @@
 //! Self-test: in a race only: a copy of the original (its calls the game's) against the
 //! Rust version on the game's stage, with the work car's checkpoint, speed, gear, step
 //! count and the slot's counters by lot; everything it writes saved and put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::math::x87_run::{
     compare_full, float_hypot_to_int, int_toward_to_int, mul2_to_int, times_fist_compare,
@@ -43,21 +45,8 @@ use crate::math::x87_run::{
 use crate::race::norms::normalise_work_vector;
 use crate::scene::view_matrix::cross_product;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state, restore, state_entry};
+use crate::service::harness::{Region, state_entry};
 use rc2k_core::drive::computer_driver as driver;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::drive_computer_car", rva(0x462811), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 fn g(x: u32) -> u32 {
     unsafe { game_read(rva(x as usize)) }
@@ -315,83 +304,8 @@ pub fn regions() -> Vec<Region> {
     ]
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if !crate::physics::move_slot::in_race() || g(COUNT) < 0x20 {
-        return t.skip("not in a race (no stage's checkpoints)");
-    }
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x462811,
-            len: 0xA85,
-            entry: &[0x60, 0x33, 0xC0, 0xA3, 0x88, 0xBF, 0x71, 0x00],
-            calls: &[
-                0x78F, 0x794, 0x7B9, 0x7F0, 0x815, 0x8B4, 0x8B9, 0x8DE, 0x935,
-            ],
-            jumps_out: &[],
-        },
-        &|_| None,
-        &[],
-        0,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let inputs: Vec<u32> = vec![
-        0x719FEC, 0x71A0A0, 0x71A070, 0x71A170, 0x71A178, 0x71A8F8, GEAR,
-    ];
-    let mut all = regions();
-    all.extend(inputs.iter().map(|&v| (a(v), 4)));
-    let saved = capture(&all);
-    let count = g(COUNT);
-    for seed in 1..=20u32 {
-        let mut x = seed.wrapping_mul(0x9E37_79B9) | 1;
-        let mut next = move || {
-            x = x.wrapping_mul(1_103_515_245).wrapping_add(12345);
-            x >> 8
-        };
-        p(
-            0x719FEC,
-            if seed % 7 == 0 {
-                0x100
-            } else {
-                0x400 + next() % 0x400
-            },
-        );
-        p(0x71A070, next() % count);
-        p(0x71A170, ((next() % 80) as f32 - 40.0).to_bits());
-        p(0x71A178, ((next() % 80) as f32 - 40.0).to_bits());
-        p(0x71A8F8, next() % 5);
-        p(GEAR, [u32::MAX, 0, 1, 3][(next() % 4) as usize]);
-        p(0x71BFA8, if seed % 3 == 0 { 0xC7 } else { next() % 0x40 });
-        p(0x71BFD0, if seed % 4 == 0 { 3 } else { 0 });
-        let input = capture(&all);
-        let mut ro = Regs::SENTINEL;
-        unsafe { call_game(&mut ro, copy.addr()) };
-        let theirs = capture(&all);
-        restore(&all, &input);
-        let mine = unsafe { drive_computer_car() };
-        let state = capture(&all);
-        restore(&all, &saved);
-        let regs_ok = mine.is_ok() && ro.preserved_except(&Regs::SENTINEL, 0);
-        t.check(regs_ok && theirs == state, || {
-            let first = theirs.iter().zip(&state).position(|(a, b)| a != b);
-            format!("seed {seed}: regs_ok={regs_ok} {mine:?}, first difference at byte {first:?}")
-        });
-    }
-    drop(copy);
-    t.finish()
 }

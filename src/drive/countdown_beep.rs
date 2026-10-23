@@ -12,26 +12,17 @@
 //! Refuses what `countdown_cue` refuses.
 //! Self-test: the original and the Rust version on a test block and the game's variables
 //! (saved and put back), the car with no sound slot: before, during, after.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, EDX, RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::physics::flow::{a, g, p};
+use crate::framework::{EAX, EBX, EDX, Regs};
+use crate::physics::flow::{g, p};
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, check_state, dispatch_state, restore, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::drive::countdown::{self, Beep};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::countdown_beep", rva(0x440EA3), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The Rust version: the block at `block`, the second into `to`.
 // Converted: `rc2k_core::drive::countdown::countdown_beep`.
@@ -67,66 +58,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { countdown_beep(r.esi, r.edi) }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(
-        &HOOK,
-        r,
-        call_original,
-        &[(r.edi, 4), (a(0x614114), 4)],
-        &rust,
-    );
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let all = [
-        (a(0x614114), 4),
-        (a(0x6D1814), 4),
-        (a(0x71B3F8), 4),
-        (a(0x641680), 0x20),
-    ];
-    let saved = capture(&all);
-    let mut block = vec![0u32; 0x100];
-    let mut out = [0xAAAA_AAAAu32; 1];
-    let (bl, to) = (block.as_mut_ptr() as u32, out.as_mut_ptr() as u32);
-    for case in 0..12u32 {
-        let set = || {
-            p(0x71B3F8, 3);
-            p(0x641680 + 12, u32::MAX);
-            p(0x6D1814, 1000);
-            unsafe {
-                ((bl + 0x1C) as *mut u32).write((case == 11) as u32);
-                ((bl + 0x25C) as *mut u32).write((case != 10) as u32);
-                ((bl + 0x14) as *mut u32).write(
-                    [900u32, 1000, 1150, 1200, 1300, 1550, 1600, 2600, 1499, 1001]
-                        [(case % 10) as usize],
-                );
-                (to as *mut u32).write(0xAAAA_AAAA);
-            }
-        };
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            Regs {
-                esi: bl,
-                edi: to,
-                ..Regs::SENTINEL
-            },
-            &set,
-            &[(to, 4), (a(0x614114), 4)],
-            &rust,
-        );
-    }
-    restore(&all, &saved);
-    let _ = &mut block;
-    t.finish()
 }

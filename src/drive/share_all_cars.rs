@@ -17,33 +17,21 @@
 //! Rust version on the game's own state, only in a race (skipped otherwise): everything
 //! it writes is saved first and put back after each run. Its pieces have their own
 //! tests on test memory.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::drive::keep_lead_car_values::keep_lead_car_values;
 use crate::drive::put_back_lead_car_values::put_back_lead_car_values;
 use crate::drive::set_listener::set_listener;
-use crate::drive::share_car_state::{BLOCK_LEN, RECORD_LEN, share_car_state};
+use crate::drive::share_car_state::share_car_state;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    EAX, EBP, ECX, EDI, ESI, RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write,
-    hook_asm, rva,
-};
+use crate::framework::{EAX, EBP, ECX, EDI, ESI, Regs, game_read, game_write, rva};
 use crate::race::mud::car_file_number;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state, restore, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::drive::sharing;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::share_all_cars", rva(0x456484), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const BLOCKS_RVA: usize = rva(0x71B3B8); // g_carBlocks
 const RECORDS_RVA: usize = rva(0x71B3D8); // g_carRecords (was off_71B3D8)
@@ -124,71 +112,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { share_all_cars() }
 }
 
-/// What it writes: its pieces' regions, the blocks, records and sound objects.
-fn regions() -> Vec<Region> {
-    let mut r = crate::drive::set_listener::regions(&crate::physics::mirror::Mirror::game());
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    r.push((a(0x64165C), 0x20));
-    r.push((a(0x70FA70), 0x70));
-    r.push((game_addr(CURRENT_RVA) as u32, 4));
-    r.push((game_addr(SHOWN_RVA) as u32, 4));
-    for (block, record, sound) in cars() {
-        if block != 0 && record != 0 && sound != 0 {
-            r.push((block, BLOCK_LEN));
-            r.push((record, RECORD_LEN));
-            r.push((sound + 0xF0, 4));
-        }
-    }
-    r
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = unsafe { refusal() } {
-        return t.skip(&format!("not in a race ({why})"));
-    }
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x456484,
-            len: 0x71,
-            entry: &[0xE8, 0x6C, 0x00, 0x00, 0x00],
-            calls: &[0, 5, 0x2B, 0x6B],
-            jumps_out: &[],
-        },
-        &|_| None,
-        &[],
-        0,
-    ) {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(&why),
-    };
-    let all = regions();
-    let saved = capture(&all);
-    let mut ro = Regs::SENTINEL;
-    unsafe { call_game(&mut ro, copy.addr()) };
-    let theirs = capture(&all);
-    restore(&all, &saved);
-    let mine = unsafe { share_all_cars() };
-    let state = capture(&all);
-    restore(&all, &saved);
-    let regs_ok = mine.as_ref().is_ok_and(|l| l.matches(&Regs::SENTINEL, &ro));
-    t.check(regs_ok && theirs == state, || {
-        let first = theirs.iter().zip(&state).position(|(a, b)| a != b);
-        format!("regs_ok={regs_ok} {mine:?}, first difference at byte {first:?}")
-    });
-    drop(copy);
-    t.finish()
 }

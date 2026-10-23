@@ -10,28 +10,18 @@
 //! Caller: `sub_43A35A` (0x43A486).
 //! Self-test: `physics/copy_hooks_test.rs` (`test_moves_floats`: a copy on test
 //! variables against the converted version), 24 cases, exact at double precision.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, RawHook, Regs, game_addr, game_read, hook_asm, rva};
+use crate::framework::{EAX, Regs, game_addr, game_read, rva};
 use crate::math::x87;
 use crate::math::x87_run::{add3, compare_full};
-use crate::physics::copy_hooks_test::{lot, test_moves_floats};
 use crate::screens::harness::Left;
-use crate::service::floats::{FLOAT, Floats, dispatch_state_floats, floats_entry};
+use crate::service::floats::floats_entry;
 use rc2k_core::drive::start_blend::start_blend as start_blend_core;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::start_blend", rva(0x43773D), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The car's, the lead's, the scratch, the share, the base, the offset, the result.
 const VARIABLES: [usize; 7] = [
@@ -112,48 +102,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing().with(EAX, unsafe { blend_at_plain(&game()) }))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let v = game();
-    let floats = Floats {
-        memory: &[((v[3], 4), FLOAT), ((v[6], 4), FLOAT)],
-        regs: &[],
-    };
-    dispatch_state_floats(
-        &HOOK,
-        r,
-        call_original,
-        &[(v[2], 4), (v[3], 4), (v[6], 4)],
-        &floats,
-        &rust,
-    );
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-fn fill(seed: u32, out: &mut [u32]) {
-    lot(seed, out);
-    out[1] = 1000;
-    out[0] = [990u32, 1000, 1050, 1100, 1200, 0x8000_0000][(seed % 6) as usize];
-    out[4] = (seed as f32 * 0.21 - 1.0).to_bits();
-    out[5] = ((seed / 6) as f32 * 0.3 - 0.4).to_bits();
-}
-
-fn self_test() -> (usize, usize) {
-    test_moves_floats(
-        &HOOK,
-        0x43773D,
-        0x93,
-        &[0xA1, 0x70, 0xA0, 0x71, 0x00],
-        &VARIABLES,
-        13,
-        24,
-        &fill,
-        &|v, _| Left::nothing().with(EAX, unsafe { blend_at_plain(v) }),
-        &[(3, FLOAT), (6, FLOAT)],
-        &[],
-    )
 }

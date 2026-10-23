@@ -20,31 +20,18 @@
 //! same state (everything written saved and put back), logging off. The pace notes'
 //! sound cues (`physics::pace_notes_step` -> the sound objects' queues) are not put back
 //! between the two runs: a mismatch there would show in those queues only.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, ESI, RawHook, Regs, SelfTest, game_addr, hook_asm, rva, shadow};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
+use crate::framework::{EAX, ESI, Regs, game_addr, rva};
 use crate::physics::flow::{g, p};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, restore};
 use rc2k_core::drive::race_steps;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("drive::race_cars_step", rva(0x4608BB), thunk, &ORIGINAL)
-    .private_copy(0x8E)
-    .relocate_calls(&[0x0, 0x4D, 0x5B, 0x60, 0x65, 0x6A, 0x83, 0x88])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const CURRENT: usize = 0x71B3F8; // g_currentCar
 const CARS: usize = 0x63DB90; // g_raceCars
@@ -126,58 +113,9 @@ pub unsafe fn race_cars_step(entry: &Regs) -> Result<Left, Refused> {
     }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { race_cars_step(r) } {
-        Ok(left) => left.apply(r),
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { race_cars_step(r) }?;
     left.apply(r);
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if !crate::physics::move_slot::in_race() || !(1..=8).contains(&g(CARS)) {
-        return t.skip("not in a race (no stage)");
-    }
-    let mut all = cars_regions();
-    all.extend(crate::physics::car_physics_step::test_regions());
-    all.push((game_addr(rva(0x4E0094)) as u32, 4));
-    let saved = capture(&all);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            let set = || {
-                restore(&all, &saved);
-                p(0x4E0094, 0);
-            };
-            set();
-            let mut ro = Regs::SENTINEL;
-            unsafe { call_original(&mut ro) };
-            let theirs = (left_of(&ro), capture(&all));
-            set();
-            let mine = unsafe { race_cars_step(&Regs::SENTINEL) };
-            let state = capture(&all);
-            t.check(mine.as_ref().is_ok_and(|l| *l == theirs.0) && state == theirs.1, || {
-                let diff = theirs.1.iter().zip(&state).position(|(x, y)| x != y);
-                format!(
-                    "control word {word:#x}: original {:x?}; rust {mine:x?}; memory first differs at {diff:x?}",
-                    theirs.0
-                )
-            });
-        });
-    }
-    restore(&all, &saved);
-    t.finish()
 }

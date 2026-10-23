@@ -10,28 +10,16 @@
 //! copy of its 0x34 bytes (four calls relocated) and a hand-made patch.
 //! Refuses what its calls refuse. Shadow mode runs the original alone (the clock moves).
 //! Self-test: skipped (its parts carry their own; the race in play checks it).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
+use crate::framework::Regs;
 use crate::physics::flow::g;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("drive::race_step", rva(0x4454D2), thunk, &ORIGINAL)
-    .private_copy(0x34)
-    .relocate_calls(&[0x0, 0x1A, 0x20, 0x2E])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::race_ticks::run_ticks`.
@@ -50,28 +38,9 @@ pub unsafe fn race_step(entry: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&r))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { race_step(r) } {
-        Ok(left) => left.apply(r),
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { race_step(r) }?;
     left.apply(r);
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    t.skip("its parts carry their own tests; the race in play checks it")
 }

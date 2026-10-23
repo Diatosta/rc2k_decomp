@@ -14,34 +14,16 @@
 //! Shadow mode runs the original alone (the clock moves). Self-test: a copy whose clock
 //! call goes to a stand-in giving the test's times, against the Rust version with the
 //! same, under three precisions.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{EAX, RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva, shadow};
-use crate::install::stand_ins::{set_handler, stand_in};
+use crate::framework::{EAX, Regs};
 use crate::math::x87::loaded;
-use crate::physics::flow::{a, base, c0, g, p, x87_run};
-use crate::redirect::RedirectedCopy;
+use crate::physics::flow::{base, c0, g, p, x87_run};
 use crate::screens::harness::Left;
-use crate::service::floats::{
-    Agreement, FLOAT, Floats, at_test_precisions, compare_memory, note_drift,
-};
-use crate::service::harness::{capture, restore};
 use rc2k_core::drive::finish_timing::FinishFigures;
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("drive::finish_timing", rva(0x45948A), thunk, &ORIGINAL)
-    .private_copy(0x144)
-    .relocate_calls(&[0x0])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const T: usize = 0x64BB64;
 
@@ -144,102 +126,8 @@ pub unsafe fn finish_timing_plain() -> Left {
     timing_from_plain(now)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    unsafe { finish_timing_plain() }.apply(r);
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     unsafe { finish_timing_plain() }.apply(r);
     Ok(())
-}
-
-static NOW: AtomicU32 = AtomicU32::new(0);
-
-fn handler(_: u32, r: &mut Regs) {
-    let now = NOW.load(Ordering::SeqCst);
-    p(0x613830, now);
-    r.eax = now;
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x45948A)),
-            0x144,
-            &[0xE8, 0xF2, 0x6E, 0xFF, 0xFF],
-            &[0x00],
-            &|_| Some(stand_in(0)),
-        )
-    };
-    let copy = match copy {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    set_handler(handler);
-    let all = [
-        (a(0x613830), 4),
-        (a(0x62400C), 4),
-        (a(0x64BB44), 0x34),
-        (a(0x75B108), 4),
-        (a(0x5C2F88), 4),
-    ];
-    let saved = capture(&all);
-    let set_figures = || {
-        p(0x64BB60, 1000);
-        for (x, v) in [
-            (0x64BB44usize, 2.0f32),
-            (0x64BB48, 5.0),
-            (0x64BB70, 3.0),
-            (0x64BB74, 6.0),
-        ] {
-            p(x, v.to_bits());
-        }
-        p(0x5C2F88, 0);
-    };
-    let tolerant = Floats {
-        memory: &[((a(T), 12), FLOAT)],
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, floats| {
-        for (now, flag) in [
-            (1100u32, 1u32),
-            (1300, 1),
-            (1350, 0),
-            (1450, 1),
-            (1800, 1),
-            (3000, 1),
-        ] {
-            NOW.store(now, Ordering::SeqCst);
-            set_figures();
-            p(0x75B108, flag);
-            let mut ro = Regs::SENTINEL;
-            unsafe { call_game(&mut ro, copy.addr()) };
-            let theirs = (ro.eax, capture(&all));
-            set_figures();
-            p(0x75B108, flag);
-            p(0x613830, now);
-            let mine = timing_from_plain(now);
-            let state = capture(&all);
-            let agree = compare_memory(&all, &theirs.1, &state, floats);
-            if let Agreement::Drift(n) = agree {
-                note_drift("drive::finish_timing", || {
-                    format!("self-test now {now}: {n} places")
-                });
-            }
-            t.check(mine == Left::nothing().with(EAX, theirs.0) && agree != Agreement::Differ, || {
-                    format!("control word {word:#x}, now {now}, flag {flag}: original eax {:x}; rust {mine:?}", theirs.0)
-                });
-        }
-    });
-    restore(&all, &saved);
-    t.finish()
 }
