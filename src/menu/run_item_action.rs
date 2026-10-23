@@ -11,27 +11,16 @@
 //! The action is the game's and can run for as long as an event lasts, so the thunk is not
 //! gated and shadow mode runs the original alone. 89 callers: every screen loop.
 //! Refuses a menu without an end in its first 256 items.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::menu::item_at::{ITEM_LEN, MENU_HEAD_LEN};
-use crate::menu::run_list::{Call, in_game};
-use crate::service::harness::{at, capture, restore};
+use crate::menu::run_list::Call;
 use crate::service::state::MENU_ITEM_RVA;
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::run_item_action", rva(0x474683), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
 
 // ---- game data ----
 
@@ -71,101 +60,9 @@ pub unsafe fn run_item_action(menu: u32, entry_regs: &Regs, call: Call) -> Resul
     Ok(())
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let entry_regs = *r;
-    if shadow()
-        || unsafe { run_item_action(r.edi, &entry_regs, &mut crate::menu::table_calls::call) }
-            .is_err()
-    {
-        unsafe { call_original(r) };
-    }
-}
-
-// ---- self-test: a menu of its own whose actions are a stand-in ----
-
-static ACTIONS: AtomicU32 = AtomicU32::new(0);
-static ACTION_EAX: AtomicU32 = AtomicU32::new(0);
-static ACTION_EBP: AtomicU32 = AtomicU32::new(0);
-static HIGHLIGHT_ADDR: AtomicU32 = AtomicU32::new(0);
-
-/// Stands in for an item's action: notes eax and ebp, and moves the highlight elsewhere, as
-/// an action may.
-#[unsafe(naked)]
-unsafe extern "C" fn fake_action() {
-    core::arch::naked_asm!(
-        "mov [{eax}], eax",
-        "mov [{ebp}], ebp",
-        "inc dword ptr [{actions}]",
-        "push ecx",
-        "mov ecx, [{highlight}]",
-        "mov dword ptr [ecx], 0x77",
-        "pop ecx",
-        "ret",
-        eax = sym ACTION_EAX,
-        ebp = sym ACTION_EBP,
-        actions = sym ACTIONS,
-        highlight = sym HIGHLIGHT_ADDR,
-    )
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = [at(MENU_ITEM_RVA), at(ACTION_VALUE_RVA)];
-    let saved = capture(&regions);
-    HIGHLIGHT_ADDR.store(regions[0].0, Ordering::SeqCst);
-
-    // A head, three items of types 5, 9 and 2, and the end mark.
-    let mut menu = vec![0xAAAA_AAAAu32; (4 + 3 * 0x5C + 4) / 4 + 1];
-    for (n, (kind, value)) in [(5u32, 0x111u32), (9, 0x222), (2, 0x333)]
-        .into_iter()
-        .enumerate()
-    {
-        let item = 1 + n * 0x5C / 4;
-        menu[item + 0x10 / 4] = kind;
-        menu[item + 0x44 / 4] = fake_action as *const () as u32;
-        menu[item + 0x54 / 4] = value;
-    }
-    menu[1 + 3 * 0x5C / 4] = u32::MAX;
-    let before = Regs {
-        edi: menu.as_ptr() as u32,
-        ..Regs::SENTINEL
-    };
-    let observed = || {
-        (
-            capture(&regions),
-            [&ACTIONS, &ACTION_EAX, &ACTION_EBP].map(|v| v.load(Ordering::SeqCst)),
-        )
-    };
-
-    for highlighted in [5u32, 9, 2, 7, 0] {
-        let prepare = || {
-            unsafe {
-                game_write(MENU_ITEM_RVA, highlighted);
-                game_write(ACTION_VALUE_RVA, 0x5EED_0001u32);
-            }
-            for v in [&ACTIONS, &ACTION_EAX, &ACTION_EBP] {
-                v.store(0, Ordering::SeqCst);
-            }
-        };
-        prepare();
-        let mut ro = before;
-        unsafe { call_original(&mut ro) };
-        let theirs = observed();
-        prepare();
-        let outcome = unsafe { run_item_action(before.edi, &before, &mut in_game) };
-        let mine = observed();
-        let preserved = ro.preserved_except(&before, 0);
-        t.check(outcome.is_ok() && theirs == mine && preserved, || {
-            format!(
-                "highlighted={highlighted}: original {theirs:x?} preserved={preserved}; rust {outcome:?} {mine:x?}"
-            )
-        });
-    }
-    restore(&regions, &saved);
-    t.finish()
+    unsafe { run_item_action(r.edi, &entry_regs, &mut crate::menu::table_calls::call) }?;
+    Ok(())
 }

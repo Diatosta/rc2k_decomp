@@ -9,77 +9,16 @@
 //! Callers: `sub_4A2B75` and two of the game's. Refuses a null entry, record or name,
 //! before anything. Self-test: the original and the Rust version on an entry and a record
 //! of the test's.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::menu::standings::*;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::copy_standing_entry", rva(0x46613F), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-/// An entry, a record and a name of the test's.
-struct Test {
-    entry: [u32; 0x20],
-    record: [u32; 0x40],
-    name: [u8; 0x20],
-}
-
-static mut TEST: Test = Test {
-    entry: [0xAAAA_AAAA; 0x20],
-    record: [0; 0x40],
-    name: *b"A test driver's name, 32 bytes!!",
-};
-
-/// The registers pointing at the test's entry and record.
-unsafe fn test_regs() -> Regs {
-    {
-        let p = &raw const TEST;
-        unsafe {
-            Regs {
-                edi: (&raw const (*p).entry) as u32,
-                esi: (&raw const (*p).record) as u32,
-                ebx: 2,
-                ..Regs::SENTINEL
-            }
-        }
-    }
-}
-const EXTRA: [usize; 0] = [];
-const CASES: u32 = 2;
-
-fn test_entry() -> Regs {
-    unsafe { test_regs() }
-}
-
-fn refusal_expected() -> bool {
-    false
-}
-
-fn prepare(case: u32) {
-    let _ = case;
-    unsafe {
-        let p = &raw mut TEST;
-        for k in 0..0x40usize {
-            (*p).record[k] = (k as u32 * 0x1111 + case) & 0xFFFF;
-        }
-        (*p).record[0x18 / 4] = (&raw const (*p).name) as u32;
-        (*p).entry = [0xAAAA_AAAA; 0x20];
-    }
-}
+use crate::service::harness::state_entry;
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn copy_standing_entry(entry: &Regs) -> Result<Regs, Refused> {
@@ -106,58 +45,12 @@ pub unsafe fn copy_standing_entry(entry: &Regs) -> Result<Regs, Refused> {
     Ok(*entry)
 }
 
-fn regions(r: &Regs) -> Vec<Region> {
-    let _ = r;
-    vec![(r.edi, 0x78)]
-}
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { copy_standing_entry(r) }?))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions = regions(r);
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let before = test_entry();
-    let regions = regions(&before);
-    if regions.iter().any(|&(p, _)| p == 0) {
-        return t.skip("the game's tables are not there");
-    }
-    let mut vars = regions.clone();
-    vars.extend(EXTRA.map(at));
-    let saved = capture(&vars);
-    // The probe runs on the saved tables: it writes what the tests write.
-    let refused = unsafe { copy_standing_entry(&before) }.is_err();
-    restore(&vars, &saved);
-    if refused && !refusal_expected() {
-        return t.skip("the Rust version refuses the game's tables");
-    }
-    for case in 0..CASES {
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            test_entry(),
-            &|| {
-                restore(&vars, &saved);
-                prepare(case);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

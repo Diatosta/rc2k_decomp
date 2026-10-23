@@ -13,28 +13,14 @@
 //! addresses, Rust where hooked). Shadow mode runs the original alone (it shows a frame).
 //! Self-test: a copy whose calls go to `menu::frame_test`'s stand-ins, against the Rust
 //! version on the same: the calls and the variables compared.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_write, hook_asm, rva, shadow,
-};
-use crate::menu::frame_test::{self, Noting};
+use crate::framework::{Regs, game_write, rva};
 use crate::menu::plain_frame::{COPY_PICTURE, SHOW_FRAME};
 use crate::menu::screen_loop::{Env, Real};
-use crate::redirect::RedirectedCopy;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::inspection_screen", rva(0x4A1BBF), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const PREPARE: usize = rva(0x46F7FD); // scene::prepare_menu_scene
 const LOAD_BACKGROUND: usize = rva(0x470F55); // service::load_background
@@ -61,93 +47,8 @@ pub unsafe fn inspection_screen(entry: &Regs, env: &mut dyn Env) {
     }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    unsafe { inspection_screen(r, &mut Real) };
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     unsafe { inspection_screen(r, &mut Real) };
     Ok(())
-}
-
-const PLACES: [(usize, u32); 4] = [
-    (PREPARE, 0),
-    (LOAD_BACKGROUND, 1),
-    (COPY_PICTURE, 2),
-    (SHOW_FRAME, 3),
-];
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let redirect = |target: usize| {
-        PLACES
-            .iter()
-            .find(|&&(function, _)| function == target)
-            .map(|&(_, place)| frame_test::stand_in(place))
-    };
-    let copy = match unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x4A1BBF)),
-            0x61,
-            // pusha; mov dword_623FB0, 0
-            &[
-                0x60, 0xC7, 0x05, 0xB0, 0x3F, 0x62, 0x00, 0x00, 0x00, 0x00, 0x00,
-            ],
-            &[0x1F, 0x50, 0x55, 0x5A],
-            &redirect,
-        )
-    } {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    let regions: Vec<Region> = [
-        ZEROED_RVA[0],
-        ZEROED_RVA[1],
-        SCALE_RVA,
-        EDGES_RVA[0],
-        EDGES_RVA[1],
-        CLIP_RVA[0],
-        CLIP_RVA[1],
-    ]
-    .map(at)
-    .to_vec();
-    let saved = capture(&regions);
-    let before = Regs {
-        ebx: 0x4321,
-        ..Regs::SENTINEL
-    };
-    let poison = || {
-        for &(p, n) in &regions {
-            unsafe { std::ptr::write_bytes(p as *mut u8, 0xAA, n) };
-        }
-    };
-    poison();
-    frame_test::begin(u32::MAX, 0);
-    let mut ro = before;
-    unsafe { call_game(&mut ro, copy.addr()) };
-    let theirs = (frame_test::notes(), capture(&regions));
-    poison();
-    frame_test::begin(u32::MAX, 0);
-    unsafe { inspection_screen(&before, &mut Noting { places: &PLACES }) };
-    let mine = (frame_test::notes(), capture(&regions));
-    let preserved = ro.preserved_except(&before, 0);
-    t.check(theirs == mine && preserved, || {
-        format!(
-            "preserved={preserved}; calls {} / {}, same {}; state same {}",
-            theirs.0.len(),
-            mine.0.len(),
-            theirs.0 == mine.0,
-            theirs.1 == mine.1
-        )
-    });
-    restore(&regions, &saved);
-    t.finish()
 }

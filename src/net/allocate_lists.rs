@@ -9,28 +9,18 @@
 //! (`net::lobby_calls`: the Rust version). Shadow mode runs the original alone (memory is
 //! taken). Self-test: a copy whose calls go to a stand-in and whose jumps to the fatal stubs
 //! land in the test, against the Rust version: both taken, either failing.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::net::lobby::{
-    ALLOCATE, CONNECTION_TABLE, CONNECTIONS, NET_MEMORY, NO_CONNECTION_MEMORY, NO_SESSION_MEMORY,
-    Part, SESSION_TABLE, SESSIONS, Saved, a, answer, dispatch_lobby, dword, fatal, fatal_popa_1,
-    fatal_popa_2, fill, p, run_both,
+    ALLOCATE, CONNECTION_TABLE, CONNECTIONS, NET_MEMORY, Part, SESSION_TABLE, SESSIONS, a, fatal,
+    lobby_entry, p,
 };
 use rc2k_core::net::lists;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::allocate_lists", rva(0x418576), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The Rust version: the registers it leaves (the entry's).
 pub fn allocate_lists(entry: &Regs, part: Part) -> Result<Regs, Refused> {
@@ -56,57 +46,8 @@ pub fn allocate_lists(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, allocate_lists);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; mov eax, 5400h
-    let copy = match crate::net::lobby::copy(
-        0x418576,
-        0x45,
-        &[0x60, 0xB8, 0x00, 0x54, 0x00, 0x00],
-        &[0xC, 0x27],
-        &[ALLOCATE],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    unsafe {
-        copy.retarget(0x11 + 2, fatal_popa_1 as *const () as usize);
-        copy.retarget(0x2C + 2, fatal_popa_2 as *const () as usize);
-    }
-    let regions = [
-        dword(CONNECTION_TABLE),
-        dword(SESSION_TABLE),
-        dword(CONNECTIONS),
-        dword(SESSIONS),
-    ];
-    let saved = Saved::new(&regions);
-    for fails in [0u32, 1, 2] {
-        run_both(
-            &mut t,
-            &format!("call {fails} failing"),
-            copy.addr(),
-            Regs::SENTINEL,
-            &regions,
-            0,
-            &[NO_CONNECTION_MEMORY, NO_SESSION_MEMORY],
-            &|| {
-                fill(CONNECTION_TABLE, 4, 3);
-                let mut n = 0;
-                answer(Box::new(move |_, r| {
-                    n += 1;
-                    r.eax = 0x0055_0000 + n;
-                    r.set_carry(n == fails);
-                }));
-            },
-            &allocate_lists,
-        );
-    }
-    drop(saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, allocate_lists)
 }

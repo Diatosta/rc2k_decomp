@@ -13,29 +13,18 @@
 //! controller's (+0x280). Callers: the event loops' starts (`sub_482382` and nine more).
 //! Refuses drivers without their end within 0x400 (the original runs on), a missing player.
 //! Self-test: the game's drivers and players, modes 0 and 3, put back afterwards.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::menu::player::{PLAYERS, player_at, player_regions};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::menu::player::{PLAYERS, player_at};
 use crate::menu::standings::put_all;
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
+use crate::service::harness::state_entry;
 use rc2k_core::menu::event::KEEPS_SETUP;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::begin_event", rva(0x472BAA), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 pub const DRIVERS_RVA: usize = rva(0x73B674); // g_drivers
 pub const DRIVER_LEN: u32 = 0x94;
@@ -83,64 +72,13 @@ pub unsafe fn begin_event() -> Result<(), Refused> {
     Ok(())
 }
 
-fn regions() -> Vec<Region> {
-    let mut r = player_regions();
-    r.extend([
-        at(CLEARED_A_RVA),
-        at(STATE_RVA),
-        at(NEW_EVENT_RVA),
-        at(CLEARED_B_RVA),
-        at(CURRENT_PLAYER_RVA),
-    ]);
-    if let Some(count) = drivers() {
-        r.push((game_addr(DRIVERS_RVA) as u32, (count * DRIVER_LEN) as usize));
-    }
-    r
-}
-
 fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { begin_event() }?;
     Ok(Left::nothing())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if drivers().is_none() {
-        return t.skip("the drivers do not end within 0x400");
-    }
-    if player_regions().len() != PLAYERS as usize {
-        return t.skip("a player missing from g_players");
-    }
-    let regions = regions();
-    let mut all = regions.clone();
-    all.push(at(MODE_RVA));
-    let saved = capture(&all);
-    for mode in [0u32, KEEPS_SETUP, 0x13] {
-        check_state(
-            &mut t,
-            &format!("mode {mode:#x}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&all, &saved);
-                game_write(MODE_RVA, mode);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&all, &saved);
-    t.finish()
 }

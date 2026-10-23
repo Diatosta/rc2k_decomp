@@ -9,27 +9,17 @@
 //! (`sub_4154CD` through the game). The whole game runs inside it: ungated. Shadow mode runs
 //! the original alone. Self-test: a copy whose calls go to stand-ins, against the Rust
 //! version, launched or not.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::net::lobby::{
     LOBBY_LAUNCHED, NULLSUB_6, OBJECTS_TIDY, Part, RELEASE_TEXTURES, RENDER3D_TIDY,
-    START_FRONT_END, Saved, dispatch_lobby, dword, g, p, run_both,
+    START_FRONT_END, g, lobby_entry,
 };
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::lobby_launched_game", rva(0x418DF4), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
 
 const START_LINK: u32 = 0x416F50; // net::start_link
 
@@ -55,47 +45,8 @@ pub fn lobby_launched_game(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, lobby_launched_game);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; cmp g_lobbyLaunched, 1
-    let copy = match crate::net::lobby::copy(
-        0x418DF4,
-        0x2F,
-        &[0x60, 0x83, 0x3D, 0x90, 0xB2, 0x5A, 0x00, 0x01],
-        &[0xA, 0x14, 0x19, 0x1E, 0x23, 0x28],
-        &[
-            START_FRONT_END,
-            START_LINK,
-            RENDER3D_TIDY,
-            OBJECTS_TIDY,
-            NULLSUB_6,
-            RELEASE_TEXTURES,
-        ],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let all = [dword(LOBBY_LAUNCHED)];
-    let saved = Saved::new(&all);
-    for launched in [0u32, 1, 2] {
-        run_both(
-            &mut t,
-            &format!("launched {launched}"),
-            copy.addr(),
-            Regs::SENTINEL,
-            &all,
-            0,
-            &[],
-            &|| p(LOBBY_LAUNCHED, launched),
-            &lobby_launched_game,
-        );
-    }
-    drop(saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, lobby_launched_game)
 }

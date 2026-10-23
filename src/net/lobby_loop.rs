@@ -26,33 +26,22 @@
 //! through the game). The whole screen runs inside it: ungated. Shadow mode runs the
 //! original alone. Self-test: a copy whose calls go to stand-ins (the keys and the clock
 //! scripted, the other players' states given), against the Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::net::choose_connection::chosen;
 use crate::net::lobby::{
-    ALL_RACED, BACK_FROM_RACE, BLOCK, CAR_ITEM, CHOICE, CLOCK, CLOCK_A, EDITED, FLAGS, FRAME_CLOCK,
+    ALL_RACED, BACK_FROM_RACE, BLOCK, CAR_ITEM, CHOICE, CLOCK, CLOCK_A, EDITED, FRAME_CLOCK,
     KEY_CLOCK, LIST_TAKE_KEY, MAYBE_LEXICON, MOVE_CLOCK, OWN, PLAYER, PLAYERS, Part, QUITTING,
     RACING, RUN_FRAME, SCREENSHOT, SCREENSHOTS_ON, SEND, SEND_BUFFER, SHOW_GAPS, STAGE_ITEM, SYNC,
-    SYNC_CLOCK, SYNC_FIRST, SYNCED, Saved, TICK, a, answer, block, dispatch_lobby, dword, g, game,
-    gb, p, pb, region, run_both,
+    SYNC_CLOCK, SYNC_FIRST, SYNCED, TICK, a, block, dword, g, game, gb, lobby_entry, p, pb, region,
 };
 use crate::net::types::NetPlayerBlock;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::lobby_loop", rva(0x417A0D), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
 
 const SHOW_BACKGROUND: u32 = 0x4173E7; // net::show_background
 const FRAME: u32 = 0x417D95; // net::lobby_frame
@@ -285,8 +274,10 @@ pub fn lobby_loop(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     Ok(chosen(entry, &r))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, lobby_loop);
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, lobby_loop)
 }
 
 /// The sync's and the loops' variables, for the tests.
@@ -319,138 +310,4 @@ pub fn set_players(states: &[u8]) {
             ((b + field!(NetPlayerBlock, record.state)) as *mut u8).write(s);
         }
     }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let places = [
-        SHOW_BACKGROUND,
-        TICK,
-        RUN_FRAME,
-        LIST_PLAYERS,
-        LIST_TAKE_KEY,
-        CHAT_KEY,
-        CHOOSE_CAR,
-        CHOOSE_STAGE,
-        BEGIN_CHAT,
-        SCREENSHOT,
-        MAYBE_LEXICON,
-        SEND,
-    ];
-    // pusha; mov g_netPlayers, 0
-    let copy = match crate::net::lobby::copy(
-        0x417A0D,
-        0x388,
-        &[
-            0x60, 0xC7, 0x05, 0x98, 0xAD, 0x52, 0x00, 0x00, 0x00, 0x00, 0x00,
-        ],
-        &[
-            0x15, 0x3D, 0x89, 0x8E, 0xA8, 0xBD, 0xCB, 0x1BA, 0x1BF, 0x1CF, 0x1D4, 0x1E4, 0x20D,
-            0x212, 0x28D, 0x2D5,
-        ],
-        &places,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let all = lobby_regions();
-    let saved = Saved::new(&all);
-    // (what, this player's state, the players' states (listed), back from a race, the keys,
-    // the frames after which the others answer (fills `byte_52AD90`))
-    type Case = (&'static str, u8, Vec<u8>, u32, Vec<u32>, u32);
-    let cases: Vec<Case> = vec![
-        ("Escape", 0x02, vec![0x02, 0x00], 0, vec![], 99),
-        (
-            "moves",
-            0x00,
-            vec![0x00],
-            0,
-            vec![
-                0x69, 0x69, 0x69, 0x69, 0x68, 0x68, 0x68, 0x68, 0x0F, 0x52, 0x31,
-            ],
-            99,
-        ),
-        (
-            "moves after a race",
-            0x10,
-            vec![0x14, 0x14],
-            1,
-            vec![0x69, 0x69, 0x69, 0x68],
-            99,
-        ),
-        (
-            "car, stage, chat",
-            0x10,
-            vec![0x10, 0x00],
-            0,
-            vec![0x69, 0x69, 0x1C, 0x69, 0x1C, 0x68, 0x68, 0x1C, 0x10, 0x1C],
-            99,
-        ),
-        (
-            "ready, the host syncs",
-            0x10,
-            vec![0x11, 0x81, 0x01],
-            0,
-            vec![0x69, 0x69, 0x69, 0x1C, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10],
-            3,
-        ),
-        (
-            "ready, not the host",
-            0x00,
-            vec![0x01, 0x01],
-            0,
-            vec![0x69, 0x69, 0x69, 0x1C, 0x69, 0x10],
-            99,
-        ),
-    ];
-    for (what, own, states, back, keys, answered) in cases {
-        run_both(
-            &mut t,
-            what,
-            copy.addr(),
-            Regs::SENTINEL,
-            &all,
-            FLAGS,
-            &[],
-            &|| {
-                pb(OWN, own);
-                p(BACK_FROM_RACE, back);
-                p(ALL_RACED, 0);
-                p(SHOW_GAPS, 0);
-                p(PLAYER, 0);
-                p(SCREENSHOTS_ON, 1);
-                let states = states.clone();
-                let mut take = crate::net::settings_loop::keys(keys.clone());
-                let mut clock = 0x5000u32;
-                let mut frames = 0;
-                answer(Box::new(move |place, r| {
-                    take(place, r);
-                    match place {
-                        TICK => {
-                            clock += 400;
-                            r.eax = clock;
-                        }
-                        LIST_PLAYERS => {
-                            p(PLAYERS, states.len() as u32);
-                            set_players(&states);
-                        }
-                        RUN_FRAME => {
-                            frames += 1;
-                            if frames >= answered {
-                                unsafe { std::ptr::write_bytes(a(SYNCED) as *mut u8, 1, 8) };
-                            }
-                        }
-                        BEGIN_CHAT => p(EDITED, 3),
-                        CHAT_KEY => p(EDITED, u32::MAX),
-                        _ => {}
-                    }
-                }));
-            },
-            &lobby_loop,
-        );
-    }
-    drop(saved);
-    t.finish()
 }

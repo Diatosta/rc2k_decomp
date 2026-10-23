@@ -13,27 +13,18 @@
 //! (`net::lobby_calls`: the Rust versions). Shadow mode runs the original alone (the random
 //! numbers). Self-test: a copy whose calls go to stand-ins, against the Rust version, with
 //! a stage and with none.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::net::lobby::{
-    COPY_PRINTABLE, NEXT_RANDOM, OWN, OWN_TIME, OWN_TOTAL, PLAYER_NAME, Part, Saved, a, answer,
-    dispatch_lobby, dword, fill, g, p, pb, region, run_both,
+    COPY_PRINTABLE, NEXT_RANDOM, OWN, OWN_TIME, OWN_TOTAL, PLAYER_NAME, Part, a, g, lobby_entry, p,
+    pb,
 };
 use rc2k_core::net::record;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::fill_own_player", rva(0x4181A3), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 pub const STAGE: usize = 0x75ACD4; // dword_75ACD4: the stage chosen
 pub const DIRECTION: usize = 0x75ACF0; // dword_75ACF0
@@ -112,58 +103,8 @@ pub fn fill_own_player(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, fill_own_player);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; pusha; mov ecx, 1Fh
-    let copy = match crate::net::lobby::copy(
-        0x4181A3,
-        0x14F,
-        &[0x60, 0x60, 0xB9, 0x1F, 0x00, 0x00, 0x00],
-        &[0xF, 0x6F],
-        &[COPY_PRINTABLE, NEXT_RANDOM],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let all = [
-        region(OWN, 0x10),
-        region(0x75AD00, 0x410),
-        dword(STAGE),
-        dword(DIRECTION),
-    ];
-    let saved = Saved::new(&all);
-    for stage in [0u32, 7, 0x1234_5600] {
-        run_both(
-            &mut t,
-            &format!("stage {stage:#x}"),
-            copy.addr(),
-            Regs {
-                eax: 0x0075_1234,
-                ..Regs::SENTINEL
-            },
-            &all,
-            0,
-            &[],
-            &|| {
-                fill(OWN, 0x10, 31);
-                fill(0x75AD00, 0x410, 32);
-                p(STAGE, stage);
-                p(DIRECTION, 0x101);
-                answer(Box::new(|place, r| {
-                    if place == NEXT_RANDOM {
-                        r.eax = 0x1234_5678;
-                    }
-                }));
-            },
-            &fill_own_player,
-        );
-    }
-    drop(saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, fill_own_player)
 }

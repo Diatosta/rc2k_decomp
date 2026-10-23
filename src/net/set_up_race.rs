@@ -17,29 +17,20 @@
 //! mode runs the original alone (it loads a stage). Self-test: a copy whose calls go to
 //! stand-ins, against the Rust version, on one, two and eight players, the host first or
 //! not.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::net::lobby::{
     ARCADE_CARS, LOAD_STAGE, LOG_INT_L1_NL, LOG_L1, LOG_L1_NL, PLAYER, PLAYERS, Part, START_STATES,
-    Saved, block, dispatch_lobby, dword, fill, g, log_text, p, region, run_both,
+    block, g, lobby_entry, log_text, p,
 };
 use crate::net::types::NetPlayerBlock;
 use rc2k_core::net::record;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::set_up_race", rva(0x463A94), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const RESET_CARS: u32 = 0x463E52; // net::reset_cars
 const LOCAL: usize = 0x63DBA0; // dword_63DBA0
@@ -138,79 +129,8 @@ pub fn set_up_race(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     Ok(r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, set_up_race);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let places = [
-        RESET_CARS,
-        ARCADE_CARS,
-        START_STATES,
-        LOG_L1_NL,
-        LOG_L1,
-        LOG_INT_L1_NL,
-        LOAD_STAGE,
-    ];
-    let outs: Vec<usize> = std::iter::once(0x8F)
-        .chain([0x94, 0x99, 0x165, 0x172])
-        .chain((0..11).flat_map(|k| [0x17F + 0x19 * k, 0x18B + 0x19 * k]))
-        .chain([0x28B, 0x297, 0x2A4])
-        .collect();
-    // push g_netPlayer
-    let copy = match crate::net::lobby::copy(
-        0x463A94,
-        0x2AB,
-        &[0xFF, 0x35, 0x20, 0xA9, 0x52, 0x00],
-        &outs,
-        &places,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut all = vec![
-        region(STAGE, 0xA4),
-        region(RACE_CARS, 0x14),
-        dword(CLEARED_2),
-        dword(PLAYERS),
-        dword(PLAYER),
-    ];
-    for (to, _) in STORED {
-        all.push(dword(to));
-    }
-    for n in 0..8 {
-        all.push((block(n) + 0x20, 0x10));
-    }
-    let saved = Saved::new(&all);
-    for (players, host) in [(1u32, 0u32), (2, 1), (8, 5), (8, 9)] {
-        run_both(
-            &mut t,
-            &format!("{players} players, the host {host}"),
-            copy.addr(),
-            Regs::SENTINEL,
-            &all,
-            0,
-            &[],
-            &|| {
-                fill(STAGE, 0xA4, 51);
-                fill(RACE_CARS, 0x14, 52);
-                p(PLAYERS, players);
-                p(PLAYER, 1);
-                for n in 0..8u32 {
-                    let at = (block(n) + 0x20) as usize;
-                    for k in 0..0x10u32 {
-                        unsafe { ((at as u32 + k) as *mut u8).write((n * 0x11 + k * 7) as u8) };
-                    }
-                    let state = (block(n) + 0x24) as *mut u8;
-                    unsafe { state.write(if n == host { 0x91 } else { 0x02 }) };
-                }
-            },
-            &set_up_race,
-        );
-    }
-    drop(saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, set_up_race)
 }

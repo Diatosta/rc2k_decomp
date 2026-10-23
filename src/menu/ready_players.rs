@@ -8,28 +8,16 @@
 //! events. Refuses (before anything) a player count of 0 or past 4 or a player missing
 //! (the original runs on past the table or reads through 0). Self-test: the game's players
 //! with test values, for each count, put back afterwards.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_write, hook_asm, rva};
-use crate::menu::player::player_regions;
-use crate::menu::standings::{PLAYER_COUNT_RVA, counted_players, player, put, put_all};
+use crate::framework::Regs;
+use crate::menu::standings::{counted_players, put_all};
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::ready_players", rva(0x471F7E), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 pub fn ready_players() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::event::PLAYER_READY`.
@@ -44,46 +32,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &player_regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions: Vec<Region> = player_regions();
-    if regions.len() != 4 {
-        return t.skip("a player missing from g_players");
-    }
-    let mut vars = regions.clone();
-    vars.push(at(PLAYER_COUNT_RVA));
-    let saved = capture(&vars);
-    for count in 1..=4u32 {
-        check_state(
-            &mut t,
-            &format!("{count} players"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&vars, &saved);
-                game_write(PLAYER_COUNT_RVA, count);
-                for n in 0..4 {
-                    for o in [0x88u32, 0x94, 0xD0] {
-                        put(player(n) + o, 0x5EED_0000 + n * 0x100 + o);
-                    }
-                }
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

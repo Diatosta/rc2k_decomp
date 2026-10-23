@@ -11,24 +11,15 @@
 //! (step 2 of 32). Its calls through `part`. Shadow mode runs the original alone. Self-test: a
 //! copy whose car block and message are the test's and whose calls go to noting
 //! stand-ins, against the Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::net::send_inputs::{Message, send_fields, test_send};
-use crate::net::{Part, dispatch_net, net_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::send_position", rva(0x464201), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
+use crate::net::send_inputs::{Message, send_fields};
+use crate::net::{Part, net_entry};
 
 pub const POSITION: Message = Message {
     text: 0x4DE0E0, // "send p"
@@ -41,23 +32,8 @@ pub fn send_position(r: &mut Regs, part: Part) -> Result<(), Refused> {
     send_fields(r, &POSITION, part)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_net(&HOOK, r, call_original, send_position);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     net_entry(r, send_position)
-}
-
-fn self_test() -> (usize, usize) {
-    test_send(
-        &HOOK,
-        0x464201,
-        0x1F9,
-        &[0x60, 0x8D, 0x05, 0xE0, 0xE0, 0x4D, 0x00],
-        0x1F3,
-        &POSITION,
-    )
 }

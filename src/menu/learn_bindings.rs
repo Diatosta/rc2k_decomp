@@ -10,8 +10,12 @@
 //! Callers: the actions of the four controller pages' items (0x749C70 ..).
 //! Hooks removed 2026-10-22 (typed tables) but for `learn_binding_11`, which a screen calls by
 //! address: the controller pages' items run their `entry` (`menu::table_calls`).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{Regs, SelfTest, game_read, game_write, rva};
+use crate::framework::{Regs, game_write, rva};
 
 const LEARNING_RVA: usize = rva(0x7551F4); // dword_7551F4: 1 while a control learns
 const STARTED_RVA: usize = rva(0x7551F8); // dword_7551F8: when it began
@@ -31,108 +35,8 @@ pub fn learn_binding(control: u32) {
     }
 }
 
-fn read() -> [u32; 3] {
-    unsafe {
-        [
-            game_read(LEARNING_RVA),
-            game_read(STARTED_RVA),
-            game_read(CONTROL_RVA),
-        ]
-    }
-}
-
-fn put(v: [u32; 3]) {
-    unsafe {
-        game_write(LEARNING_RVA, v[0]);
-        game_write(STARTED_RVA, v[1]);
-        game_write(CONTROL_RVA, v[2]);
-    }
-}
-
-fn test(
-    hook: &crate::framework::RawHook,
-    call_original: crate::screens::harness::CallOriginal,
-    control: u32,
-) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let kept = read();
-    let start = [0, 0x1234, u32::MAX];
-    put(start);
-    let mut r = Regs::SENTINEL;
-    unsafe { call_original(&mut r) };
-    let theirs = (
-        read(),
-        Regs {
-            esp: 0,
-            eflags: 0,
-            ..r
-        },
-    );
-    put(start);
-    learn_binding(control);
-    let mine = read();
-    put(kept);
-    let regs_kept = theirs.1.preserved_except(&Regs::SENTINEL, 0);
-    t.check(
-        regs_kept
-            && theirs.0[0] == mine[0]
-            && theirs.0[2] == mine[2]
-            && theirs.0[1].abs_diff(mine[1]) <= 50,
-        || {
-            format!(
-                "original {:x?} (registers kept {regs_kept}), rust {mine:x?}",
-                theirs.0
-            )
-        },
-    );
-    t.finish()
-}
-
-/// A hook for one binding item.
-macro_rules! learn {
-    ($module:ident, $name:literal, $address:expr, $control:expr) => {
-        pub mod $module {
-            use super::*;
-            use crate::framework::{RawHook, hook_asm, shadow};
-            use std::sync::atomic::AtomicUsize;
-
-            static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-            pub static HOOK: RawHook =
-                RawHook::new($name, rva($address), thunk, &ORIGINAL).self_test(self_test);
-
-            hook_asm!(
-                thunk,
-                call_original,
-                dispatch = dispatch,
-                original = ORIGINAL
-            );
-
-            extern "C" fn dispatch(r: &mut Regs) {
-                HOOK.count_call();
-                if shadow() {
-                    unsafe { call_original(r) };
-                    return;
-                }
-                learn_binding($control);
-            }
-
-            /// The Rust version where the typed tables run it (no hook; a refusal is the caller's).
-            pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-                learn_binding($control);
-                Ok(())
-            }
-
-            fn self_test() -> (usize, usize) {
-                test(&HOOK, call_original, $control)
-            }
-        }
-    };
-}
-
-/// `learn` without the hook: the bindings the typed tables run (hooks removed 2026-10-22).
+/// A binding item without its hook: the bindings the typed tables run (hooks removed
+/// 2026-10-22, the eleventh 2026-10-23).
 macro_rules! learn_entry {
     ($module:ident, $name:literal, $address:expr, $control:expr) => {
         pub mod $module {
@@ -157,6 +61,4 @@ learn_entry!(learn_binding_7, "menu::learn_binding_7", 0x46B08C, 7);
 learn_entry!(learn_binding_8, "menu::learn_binding_8", 0x46B0AD, 8);
 learn_entry!(learn_binding_9, "menu::learn_binding_9", 0x46B0CE, 9);
 learn_entry!(learn_binding_10, "menu::learn_binding_10", 0x46B0EF, 10);
-learn!(learn_binding_11, "menu::learn_binding_11", 0x46B110, 11);
-
-pub static HOOKS: [&dyn crate::framework::GameHook; 1] = [&learn_binding_11::HOOK];
+learn_entry!(learn_binding_11, "menu::learn_binding_11", 0x46B110, 11);

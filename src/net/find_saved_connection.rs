@@ -7,32 +7,17 @@
 //! Callers: `net::start_link`, `net::settings_done`. Its calls through `part`. Shadow mode
 //! runs the original alone. Self-test: a copy whose calls go to stand-ins (the records
 //! given, the second the same), against the Rust version: none listed, found, not found.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{CARRY_FLAG, RawHook, Regs, SelfTest, ZERO_FLAG, hook_asm, rva};
+use crate::framework::{Regs, ZERO_FLAG};
 use crate::net::lobby::{
-    CONNECTIONS, FLAGS, Part, SAME_GUID, SAVED_CONNECTION, Saved, a, answer, dispatch_lobby, dword,
-    g, p, run_both, test_eax,
+    CONNECTIONS, Part, SAME_GUID, SAVED_CONNECTION, a, g, lobby_entry, test_eax,
 };
 use rc2k_core::net::lists;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "net::find_saved_connection",
-    rva(0x4185DF),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const CONNECTION_ENTRY: u32 = 0x418530; // net::connection_entry
 
@@ -71,51 +56,8 @@ pub fn find_saved_connection(entry: &Regs, part: Part) -> Result<Regs, Refused> 
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, find_saved_connection);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // push ebx; push ecx; cmp dword_52AC34, 0
-    let copy = match crate::net::lobby::copy(
-        0x4185DF,
-        0x3E,
-        &[0x53, 0x51, 0x83, 0x3D, 0x34, 0xAC, 0x52, 0x00, 0x00],
-        &[0x15, 0x1D],
-        &[CONNECTION_ENTRY, SAME_GUID],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let all = [dword(CONNECTIONS)];
-    let saved = Saved::new(&all);
-    for (count, same) in [(0u32, 9u32), (3, 1), (3, 0), (3, 9), (1, 9)] {
-        run_both(
-            &mut t,
-            &format!("{count} listed, the same at {same}"),
-            copy.addr(),
-            Regs::SENTINEL,
-            &all,
-            FLAGS,
-            &[],
-            &|| {
-                p(CONNECTIONS, count);
-                answer(Box::new(move |place, r| {
-                    if place == CONNECTION_ENTRY {
-                        r.eax = 0x0060_0000 + 0x54 * r.eax;
-                    } else {
-                        r.set_zero(r.eax == 0x0060_0040 + 0x54 * same);
-                        r.set_carry(r.eax & 1 != 0);
-                    }
-                }));
-            },
-            &find_saved_connection,
-        );
-    }
-    drop(saved);
-    let _ = CARRY_FLAG;
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, find_saved_connection)
 }

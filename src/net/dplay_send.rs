@@ -11,26 +11,17 @@
 //! (no check of `g_dplay`, as the original). Shadow mode runs the original alone (the
 //! message is sent). Self-test: a copy whose two variables are the test's and whose
 //! DirectPlay is a test object noting its arguments, against the Rust version: sent, failed.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::net::dplay::{SEND, method};
-use crate::net::lobby::{DPLAY_METHOD, FLAGS, TestObject, com_answer, run_both, test_eax};
-use crate::net::message_vars::{MessageVars, TestVars, as_rust, get, set};
-use crate::net::{Part, dispatch_net, net_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::dplay_send", rva(0x4196FF), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::net::lobby::test_eax;
+use crate::net::message_vars::{MessageVars, get};
+use crate::net::{Part, net_entry};
 
 /// The Rust version on the variables at `v`.
 pub fn dplay_send_with(r: &mut Regs, v: &MessageVars) {
@@ -55,61 +46,8 @@ pub fn dplay_send(r: &mut Regs, _part: Part) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_net(&HOOK, r, call_original, dplay_send);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     net_entry(r, dplay_send)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let tv = TestVars::new(0);
-    // push eax; push ecx; push edx; push ecx; push ebx
-    let copy = match tv.copy(0x4196FF, 0x23, &[0x50, 0x51, 0x52, 0x51, 0x53], &[], &[], 2) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let v = tv.v;
-    let dplay = TestObject::dplay();
-    let dp = dplay.addr();
-    for result in [0u32, 0x8877_0010, 0x0000_0001] {
-        run_both(
-            &mut t,
-            &format!("Send gives {result:#x}"),
-            copy.addr(),
-            Regs {
-                eax: 0x0000_7001,
-                ebx: 0x00AB_C000,
-                ecx: 0x22,
-                edx: 1,
-                ..Regs::SENTINEL
-            },
-            &[tv.region()],
-            FLAGS,
-            &[],
-            &|| {
-                set(v.dplay, dp);
-                set(v.player_id, 0x0000_6001);
-                com_answer(Box::new(move |place, _| {
-                    if place == DPLAY_METHOD | SEND {
-                        result
-                    } else {
-                        0
-                    }
-                }));
-            },
-            &as_rust(|r, _| {
-                dplay_send_with(r, &v);
-                Ok(())
-            }),
-        );
-    }
-    drop(dplay);
-    t.finish()
 }

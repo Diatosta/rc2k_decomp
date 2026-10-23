@@ -28,36 +28,20 @@
 //! are taken). Self-test: a copy whose variables are the test's and whose calls go to
 //! noting stand-ins (the receive one giving a script of messages), against the Rust
 //! version: no object, no message, each kind of message, on the host and not.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::net::lobby::{FLAGS, answer, run_both, set_sign};
-use crate::net::message_vars::{MessageVars, TestVars, as_rust, get, get8, set, set8};
+use crate::framework::Regs;
+use crate::net::lobby::set_sign;
+use crate::net::message_vars::{MessageVars, get, get8, set, set8};
 use crate::net::{
     CHAT_LINE, LOCK, Part, RECEIVE, RECEIVED_LEN, SEND, STORE, SYSTEM_MESSAGE, TICK, UNLOCK,
-    dispatch_net, net_entry,
+    net_entry,
 };
 use rc2k_core::net::messages::{self, Kind};
-use std::sync::atomic::AtomicUsize;
-
-/// The calls' offsets (receive, system message, chat line, send twice, tick, lock, store,
-/// unlock).
-const CALLS: [usize; 9] = [0x0E, 0x26, 0x5A, 0x9A, 0x129, 0x18D, 0x195, 0x19A, 0x19F];
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("net::take_messages", rva(0x4194CC), thunk, &ORIGINAL)
-    .private_copy(0x1AB)
-    .relocate_calls(&CALLS)
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The players the blocks have room for.
 pub const MOST_PLAYERS: u32 = 16;
@@ -160,166 +144,8 @@ pub fn take_messages(r: &mut Regs, part: Part) -> Result<(), Refused> {
     take_messages_with(r, &MessageVars::game(), part)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_net(&HOOK, r, call_original, take_messages);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     net_entry(r, take_messages)
-}
-
-/// For the Rust receiving thread: the Rust version (counted as a call of the hook), a
-/// refusal handed on as the hook's.
-pub fn from_rust(r: &mut Regs) {
-    HOOK.count_call();
-    let mut g = *r;
-    match take_messages(&mut g, &mut crate::net::game_part) {
-        Ok(()) => *r = Regs { esp: r.esp, ..g },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    const PLAYERS: u32 = 3;
-    let mut blocks = vec![0u8; (PLAYERS * RECEIVED_LEN) as usize];
-    let received = blocks.as_mut_ptr() as u32;
-    let tv = TestVars::new(received);
-    // pusha; cmp g_dplay, 0
-    let entry = [0x60, 0x83, 0x3D, 0x88, 0xB2, 0x5A, 0x00, 0x00];
-    let copy = match tv.copy(
-        0x4194CC,
-        0x1AB,
-        &entry,
-        &CALLS,
-        &[
-            RECEIVE,
-            SYSTEM_MESSAGE,
-            CHAT_LINE,
-            SEND,
-            TICK,
-            LOCK,
-            STORE,
-            UNLOCK,
-        ],
-        20,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let v = tv.v;
-    const SLOT: u32 = 0x110;
-    const MESSAGES: usize = 24;
-    let mut buffer = vec![0u8; SLOT as usize * MESSAGES];
-    let buf = buffer.as_mut_ptr() as u32;
-    let ids = [0x0000_7001u32, 0x0000_7002, 0x0000_7003];
-    const ROUND: u8 = 0x37;
-    // (the sender, the bytes; the size given is their length unless `sizes` says)
-    type Message = (u32, Vec<u8>, Option<u32>);
-    let race: Vec<u8> = (0..0x20u8).map(|k| k ^ 0x93).collect();
-    let mut chat = b"\x22hello".to_vec();
-    chat.resize(6, 0);
-    let mut long_race = vec![0x85u8; 0x100];
-    long_race[1] = 0x11;
-    let mixed: Vec<Message> = vec![
-        (0, vec![3, 0, 0, 0], Some(0x10)),
-        (0x0000_7999, vec![0x85, 1, 2], None),
-        (ids[1], chat.clone(), None),
-        (ids[2], vec![0x40, ROUND], None),
-        (ids[0], vec![0x40, ROUND ^ 1], None),
-        (ids[0], vec![0x40, ROUND, 0], None),
-        (ids[1], vec![0x41, ROUND], None),
-        (ids[2], vec![0x41, ROUND], None),
-        (ids[0], vec![0x50, ROUND], None),
-        (ids[2], vec![0x51, ROUND], None),
-        (ids[1], vec![0x51, ROUND ^ 2], None),
-        (ids[1], race.clone(), None),
-        (ids[2], vec![0x81], None),
-        (ids[0], long_race.clone(), None),
-        (ids[0], long_race[..0xFF].to_vec(), None),
-        (ids[2], vec![0x10, 1, 2, 3], None),
-        (ids[1], vec![0xFF; 0x100], Some(0x100)),
-        (
-            ids[1],
-            {
-                let mut c = vec![0x22u8; 0x100];
-                c[1] = b'x';
-                c
-            },
-            None,
-        ),
-    ];
-    let cases: Vec<(&str, u32, u32, u8, Vec<Message>)> = vec![
-        ("no object", 0, PLAYERS, 0, mixed.clone()),
-        ("no message", 1, PLAYERS, 0, Vec::new()),
-        ("not the host", 1, PLAYERS, 0x01, mixed.clone()),
-        ("the host", 1, PLAYERS, 0x11, mixed.clone()),
-        ("no players", 1, 0, 0x00, mixed.clone()),
-        ("one player", 1, 1, 0x00, mixed.clone()),
-    ];
-    for (what, object, players, own, script) in cases {
-        let script = std::sync::Arc::new(script);
-        run_both(
-            &mut t,
-            what,
-            copy.addr(),
-            Regs::SENTINEL,
-            &[tv.region(), (buf, SLOT as usize * MESSAGES)],
-            FLAGS,
-            &[],
-            &|| {
-                set(v.dplay, object);
-                set(v.taken, 0x0000_0100);
-                set(v.players, players);
-                set8(v.sync, ROUND);
-                set8(v.own, own);
-                set(v.answer, 0xAAAA_AAAA);
-                set(v.all_raced, 0);
-                set(v.race_over, 0);
-                set(v.synced, 0);
-                set(v.synced + 4, 0);
-                for (k, id) in ids.iter().enumerate() {
-                    set(received + k as u32 * RECEIVED_LEN + 0x20, *id);
-                }
-                for k in 0..SLOT * MESSAGES as u32 {
-                    set8(buf + k, (k as u8).wrapping_mul(7));
-                }
-                let script = script.clone();
-                let mut next = 0usize;
-                let mut clock = 0x00C0_0000u32;
-                answer(Box::new(move |place, r| match place {
-                    RECEIVE => match script.get(next) {
-                        Some((from, bytes, size)) => {
-                            let at = buf + next as u32 * SLOT;
-                            for (k, &b) in bytes.iter().enumerate() {
-                                set8(at + k as u32, b);
-                            }
-                            r.eax = *from;
-                            r.ebx = at;
-                            r.ecx = size.unwrap_or(bytes.len() as u32);
-                            next += 1;
-                        }
-                        None => {
-                            r.eax = 0x0000_7777;
-                            r.ebx = buf;
-                            r.ecx = 0;
-                        }
-                    },
-                    TICK => {
-                        clock += 0x11;
-                        r.eax = clock;
-                    }
-                    _ => {}
-                }));
-            },
-            &as_rust(|r, part| take_messages_with(r, &v, part)),
-        );
-    }
-    drop(blocks);
-    drop(buffer);
-    t.finish()
 }

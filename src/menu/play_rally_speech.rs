@@ -5,30 +5,18 @@
 //! Out: every register kept
 //! Called by `menu::welcome_loop` (after the first frame). Shadow mode runs the original alone (it starts a stream). Manual
 //! patch with a private copy (a call at the second byte). Self-test: `stage_view_steps::test_speech`.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::menu::stage_view_steps::{dispatch_speech, test_speech};
-use std::sync::atomic::AtomicUsize;
+use crate::framework::Regs;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("menu::play_rally_speech", rva(0x47F40F), thunk, &ORIGINAL)
-    .private_copy(0x28)
-    .relocate_calls(&[0x1, 0x21])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_speech(&HOOK, r, call_original, true);
-}
-
-fn self_test() -> (usize, usize) {
-    test_speech(&HOOK, true)
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::menu::parts::parted_entry(
+        r,
+        &|r, part| unsafe { crate::menu::stage_view_steps::play_rally_speech(r, part) },
+        crate::menu::stage_view_steps::speech_part,
+    )
 }

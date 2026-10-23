@@ -28,11 +28,12 @@
 //! against the Rust version on a list of the test's: each position, each class, the first
 //! entry with no class and with one; the Rust version alone on a search that finds nothing
 //! (the fatal error).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{EAX, EDI, Regs, SelfTest};
-use crate::screens::harness::Left;
-use crate::service::harness::{check_state, dispatch_state};
 
 pub const ENTRY_LEN: u32 = 0x9C;
 const LIMIT: u32 = 0x400;
@@ -114,35 +115,6 @@ pub fn first_overall_time(list: u32, kind: u32, rally: bool) -> Result<u32, Refu
     Ok(get(e + if rally { 0x18 } else { 0x14 }))
 }
 
-fn found(e: u32) -> Left {
-    Left {
-        carry: Some(false),
-        zero: Some(true),
-        ..Left::nothing().with(EDI, e)
-    }
-}
-
-fn rust_entry(r: &Regs) -> Result<Left, Refused> {
-    Ok(found(find_ranked_entry(r.edi, r.eax, r.ebx)?))
-}
-
-fn rust_position(r: &Regs) -> Result<Left, Refused> {
-    Ok(found(find_ranked_position(r.edi, r.eax)?))
-}
-
-fn rust_champ(r: &Regs) -> Result<Left, Refused> {
-    Ok(found(find_champ_position(r.edi, r.eax)?))
-}
-
-fn rust_first(r: &Regs) -> Result<Left, Refused> {
-    let time = first_overall_time(r.edi, r.eax, r.ebx == 1)?;
-    Ok(Left {
-        carry: Some(r.ebx == 0),
-        zero: Some(r.ebx == 1),
-        ..Left::nothing().with(EAX, time)
-    })
-}
-
 // ---- self-tests ----
 
 /// A list of 24 entries (the first two with no class and position 99, then classes 2 and 3
@@ -175,166 +147,3 @@ pub fn champ_list() -> Vec<u32> {
     list[12 * words] = u32::MAX;
     list
 }
-
-fn test(
-    hook: &crate::framework::RawHook,
-    call_original: crate::screens::harness::CallOriginal,
-    which: u32,
-) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let list = if which == 3 {
-        champ_list()
-    } else {
-        test_list()
-    };
-    let base = list.as_ptr() as u32;
-    let len = if which == 3 {
-        CHAMP_ENTRY_LEN
-    } else {
-        ENTRY_LEN
-    };
-    let rust: &dyn Fn(&Regs) -> Result<Left, Refused> = match which {
-        0 => &rust_entry,
-        1 => &rust_position,
-        3 => &rust_champ,
-        _ => &rust_first,
-    };
-    let cases: Vec<(u32, u32, u32)> = match which {
-        // (start entry, eax, ebx)
-        // every search finds its entry (the original's fatal end is not run)
-        0 => (1..=11)
-            .flat_map(|p| [(0, p, 2), (0, p, 3)])
-            .chain((2..=11).map(|p| (4, p, 3)))
-            .collect(),
-        1 => (1..=11)
-            .map(|p| (0, p, 0))
-            .chain((3..=11).map(|p| (6, p, 0)))
-            .collect(),
-        3 => (1..=12)
-            .map(|p| (0, p, 0))
-            .chain((4..=12).map(|p| (3, p, 0)))
-            .collect(),
-        _ => [0u32, 1, 3]
-            .iter()
-            .flat_map(|&s| [(s, 2, 1), (s, 2, 0), (s, 1, 1), (s, 0, 0)])
-            .collect(),
-    };
-    for (start, eax, ebx) in cases {
-        check_state(
-            &mut t,
-            &format!("from entry {start}, eax {eax}, ebx {ebx}"),
-            call_original,
-            Regs {
-                eax,
-                ebx,
-                edi: base + start * len,
-                ..Regs::SENTINEL
-            },
-            &|| {},
-            &[],
-            rust,
-        );
-    }
-    // nothing found: the fatal error (the Rust version alone)
-    let none = match which {
-        0 => find_ranked_entry(base, 13, 2),
-        1 => find_ranked_position(base, 13),
-        3 => find_champ_position(base, 13),
-        _ => {
-            // a list whose entries have no class
-            let mut bare = vec![0u32; 2 * ENTRY_LEN as usize / 4];
-            bare[ENTRY_LEN as usize / 4] = u32::MAX;
-            first_overall_time(bare.as_ptr() as u32, 2, true)
-        }
-    };
-    let wanted = [NOT_FOUND_LOGGED, NOT_FOUND, NO_CLASS, NOT_IN_CHAMP][which as usize];
-    t.check(none == Err(wanted.into()), || {
-        format!(
-            "nothing found: rust {none:?}, not fatal error {:#x}",
-            wanted.code
-        )
-    });
-    drop(list);
-    t.finish()
-}
-
-/// A hook for one look-up.
-macro_rules! lookup {
-    ($module:ident, $name:literal, $address:expr, $len:expr, $relocate:expr, $which:expr, $rust:ident) => {
-        pub mod $module {
-            use super::*;
-            use crate::framework::{RawHook, hook_asm, rva};
-            use std::sync::atomic::AtomicUsize;
-
-            static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-            pub static HOOK: RawHook = RawHook::new($name, rva($address), thunk, &ORIGINAL)
-                .private_copy($len)
-                .relocate_calls(&$relocate)
-                .manual_patch()
-                .self_test(self_test);
-
-            hook_asm!(
-                thunk,
-                call_original,
-                dispatch = dispatch,
-                original = ORIGINAL
-            );
-
-            extern "C" fn dispatch(r: &mut Regs) {
-                dispatch_state(&HOOK, r, call_original, &[], &$rust);
-            }
-
-            fn self_test() -> (usize, usize) {
-                test(&HOOK, call_original, $which)
-            }
-        }
-    };
-}
-
-lookup!(
-    find_ranked_entry_hook,
-    "menu::find_ranked_entry",
-    0x4A2547,
-    0x25,
-    [0x1A, 0x1F],
-    0,
-    rust_entry
-);
-lookup!(
-    find_ranked_position_hook,
-    "menu::find_ranked_position",
-    0x4A2584,
-    0x16,
-    [0x10],
-    1,
-    rust_position
-);
-lookup!(
-    find_champ_position_hook,
-    "menu::find_champ_position",
-    0x4A5A85,
-    0x13,
-    [0xD],
-    3,
-    rust_champ
-);
-lookup!(
-    first_overall_time_hook,
-    "menu::first_overall_time",
-    0x4A327A,
-    0x2B,
-    [0x17],
-    2,
-    rust_first
-);
-
-/// The three, for the registry.
-pub static HOOKS: [&dyn crate::framework::GameHook; 4] = [
-    &find_champ_position_hook::HOOK,
-    &find_ranked_entry_hook::HOOK,
-    &find_ranked_position_hook::HOOK,
-    &first_overall_time_hook::HOOK,
-];

@@ -73,6 +73,9 @@ for at, edx, target, name in WRAPPERS:
                    f'{{ r.edx = 0x{edx:X}; {routes[target][1]}(r) }}')
 special[0x4013DE] = ('logfile::log_newline_l1',
                      '{ crate::logfile::log_write::log_newline_l1(); Ok(()) }')
+# the eleventh binding item (macro-made, in no typed table)
+special[0x46B110] = ('menu::learn_binding_11',
+                     'crate::menu::learn_bindings::learn_binding_11::entry(r)')
 # the installer's two frames: hooks of a module each inside `install_frames.rs`
 special[0x413295] = ('install::progress_frame',
                      'crate::install::install_frames::progress::entry(r)')

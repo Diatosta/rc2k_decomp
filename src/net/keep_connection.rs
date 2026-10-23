@@ -8,28 +8,16 @@
 //! `part` (`net::connection_entry`, which may end in its fatal errors). Shadow mode runs the
 //! original alone. Self-test: a copy whose call goes to a stand-in (a test record), against
 //! the Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::net::lobby::{
-    Part, SAVED_CONNECTION, SAVED_NAME, Saved, a, answer, dispatch_lobby, fill, movsb, region,
-    run_both,
-};
+use crate::framework::Regs;
+use crate::net::lobby::{Part, SAVED_CONNECTION, SAVED_NAME, a, lobby_entry, movsb};
 use crate::net::types::NetConnection;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::keep_connection", rva(0x417661), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const CONNECTION_ENTRY: u32 = 0x418530; // net::connection_entry
 
@@ -49,46 +37,8 @@ pub fn keep_connection(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, keep_connection);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; call sub_418530
-    let copy = match crate::net::lobby::copy(
-        0x417661,
-        0x27,
-        &[0x60, 0xE8, 0xC9, 0x0E, 0x00, 0x00],
-        &[0x1],
-        &[CONNECTION_ENTRY],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let record: Vec<u8> = (0..0x54u8).map(|n| n.wrapping_mul(3)).collect();
-    let at = record.as_ptr() as u32;
-    let all = [region(SAVED_CONNECTION, 0x50)];
-    let saved = Saved::new(&all);
-    run_both(
-        &mut t,
-        "connection 2",
-        copy.addr(),
-        Regs {
-            eax: 2,
-            ..Regs::SENTINEL
-        },
-        &all,
-        0,
-        &[],
-        &|| {
-            fill(SAVED_CONNECTION, 0x50, 71);
-            answer(Box::new(move |_, r| r.eax = at));
-        },
-        &keep_connection,
-    );
-    drop(saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, keep_connection)
 }

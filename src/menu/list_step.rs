@@ -13,28 +13,15 @@
 //! +4 (the patch would cut `jz`): private copy, manual patch. Shadow mode compares.
 //! Self-test: the original against the Rust version, every key with and without a table,
 //! items first, inside and last, table entries negative or not.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::race::viewer::{
-    CF, CHOICE, ZF, check_original, dispatch_regs, dword, get, put, regs_entry,
-};
+use crate::framework::Regs;
+use crate::race::viewer::{CHOICE, get, put, regs_entry};
 use rc2k_core::menu::list_menu::{MOVES, Step, step};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("menu::list_step", rva(0x414A55), thunk, &ORIGINAL)
-    .private_copy(0x74)
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The Rust version: the registers and flags it leaves.
 pub unsafe fn list_step(entry: &Regs) -> Regs {
@@ -76,53 +63,8 @@ fn rust(r: &Regs) -> Result<Regs, Refused> {
     Ok(unsafe { list_step(r) })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_regs(&HOOK, r, call_original, &[dword(CHOICE)], CF | ZF, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = [dword(CHOICE)];
-    let saved = crate::race::viewer::Saved::new(&regions);
-    let mut list = [0xAAu8; 0x20];
-    list[1] = 5;
-    // Five items' neighbours, some negative.
-    let table: [u8; 20] = [
-        4, 1, 0xFF, 2, 0, 2, 3, 0xFE, 1, 3, 0x80, 4, 2, 4, 0, 1, 3, 0, 1, 0xFF,
-    ];
-    for key in [0x66u32, 0x6B, 0x68, 0x69, 0x10, 0x70, 0x6A] {
-        for with_table in [false, true] {
-            for choice in [0u32, 2, 4, 0x1_0003] {
-                if with_table && choice > 4 {
-                    continue; // the table has five items
-                }
-                let before = Regs {
-                    eax: 0xAB00 | key,
-                    ebx: if with_table { table.as_ptr() as u32 } else { 0 },
-                    edi: list.as_mut_ptr() as u32,
-                    ..Regs::SENTINEL
-                };
-                check_original(
-                    &mut t,
-                    &format!("key {key:#x}, table {with_table}, item {choice:#x}"),
-                    call_original,
-                    before,
-                    &regions,
-                    CF | ZF,
-                    &|| put(CHOICE, choice),
-                    &rust,
-                );
-            }
-        }
-    }
-    drop(saved);
-    t.finish()
 }

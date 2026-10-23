@@ -49,25 +49,15 @@
 //! what its callees refuse, when they are reached (the original then runs from the start).
 //! Shadow mode runs the original alone. Self-test: `event_flow::test_flow`, record kinds
 //! and the screens' answers by script.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
+use crate::framework::{Regs, SelfTest};
 use crate::menu::event_flow::*;
 use crate::menu::flow_game::Game;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::run_championship", rva(0x4A0E60), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
 
 pub const STAGES_DONE: usize = 0x755950; // dword_755950
 pub const RESET_TIMES: usize = 0x755250; // dword_755250
@@ -134,33 +124,12 @@ pub unsafe fn run_championship(entry: &Regs, call: Call) -> Result<Regs, Refused
     unsafe { run_event(entry, call, false) }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { run_championship(r, &mut game_call) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { run_championship(r, &mut game_call) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }
-
-const CALLS: &[usize] = &[
-    0x27, 0x2C, 0x31, 0x36, 0x3B, 0x4A, 0x4F, 0x54, 0x9D, 0xA4, 0xA9, 0x130, 0x163, 0x168, 0x185,
-    0x18A, 0x18F, 0x194, 0x199, 0x19E, 0x1C8, 0x1CD, 0x1D2, 0x1D7, 0x1DC, 0x1E1, 0x1E6, 0x205,
-    0x217, 0x267, 0x2C3, 0x2DB, 0x2EC, 0x304, 0x315, 0x32D, 0x37D, 0x382, 0x387, 0x39A, 0x39F,
-    0x3A4, 0x3C1, 0x3E7, 0x3F9, 0x3FE, 0x403, 0x41B, 0x42F, 0x434, 0x439, 0x451, 0x472, 0x497,
-    0x49C, 0x4B4, 0x4D2, 0x4D7, 0x4DC, 0x4F4, 0x512, 0x517, 0x525, 0x53D, 0x55B, 0x597, 0x5AF,
-    0x5EC, 0x5F3, 0x639, 0x647, 0x64C, 0x65A, 0x65F, 0x665,
-];
 
 /// The scripts both championships' tests run: (continuing, the section given, stages
 /// done, `dword_755920`, `dword_75AAD8`, the script).
@@ -333,20 +302,4 @@ pub fn test_event(t: SelfTest, flow: &Flow, a8: bool) -> (usize, usize) {
         })
         .collect();
     test_flow(t, flow, &[], &cases, &|r, c| unsafe { run_event(r, c, a8) })
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let flow = Flow {
-        address: 0x4A0E60,
-        len: 0x66B,
-        // pusha; cmp dword_755970, 1
-        entry: &[0x60, 0x83, 0x3D, 0x70, 0x59, 0x75, 0x00, 0x01],
-        calls: CALLS,
-        fatal_jumps: &[0x2BD],
-        writes: &VARIABLES,
-    };
-    test_event(t, &flow, false)
 }

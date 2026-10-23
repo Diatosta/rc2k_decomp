@@ -11,27 +11,16 @@
 //! One caller, `system::load_game_data`, when the setting `allsecretcars` is 0.
 //! Refuses a list without its end within its room, and a list that would be left with no
 //! car at all: the original copies one entry back and then counts through all 32 bits.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
+use crate::service::harness::{Region, state_entry};
 use rc2k_core::menu::car_lists;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::remove_secret_cars", rva(0x471BC7), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -95,84 +84,13 @@ pub unsafe fn remove_secret_cars() -> Result<(), BadInput> {
     }
 }
 
-// ---- hook ----
-
-fn regions() -> [Region; 4] {
-    [
-        region(FIRST),
-        region(SECOND),
-        region(SCRATCH),
-        at(CHEATS_RVA),
-    ]
-}
-
 fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { remove_secret_cars() }?;
     Ok(Left::nothing())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-// ---- self-test: lists of the test's in the game's places, which are put back ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let Ok(secret) = (unsafe { read_list(SECRET) }) else {
-        return t.skip("the list of secret cars has no end");
-    };
-    if secret.len() < 3 {
-        return t.skip("the list of secret cars is not what the test was made for");
-    }
-    let regions = regions();
-    let saved = capture(&regions);
-    let (a, b, c) = (0x1111_0000u32, 0x2222_0000u32, 0x3333_0000u32);
-    let (s0, s1, last) = (secret[0], secret[1], secret[secret.len() - 1]);
-    let all: Vec<u32> = [&[a][..], &secret[..], &[b][..]].concat();
-    let cases: [(&str, Vec<u32>, Vec<u32>); 6] = [
-        ("no secret car", vec![a, b, c], vec![c]),
-        (
-            "secret cars first and last",
-            vec![s0, a, b, last],
-            vec![s1, c, s0],
-        ),
-        (
-            "secret cars in the middle",
-            vec![a, s1, s0, b, last, c],
-            vec![a, last, b],
-        ),
-        ("every secret car", all, vec![last, s0, a]),
-        ("one car twice", vec![a, a, s0, a], vec![b, s1, b]),
-        (
-            "long lists",
-            (0..0x27).map(|n| a + n).collect(),
-            (0..0x2C).map(|n| b + n).collect(),
-        ),
-    ];
-    for (what, first, second) in cases {
-        check_state(
-            &mut t,
-            what,
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&regions, &vec![0xAA; saved.len()]);
-                write_list(FIRST, &first);
-                write_list(SECOND, &second);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
 }

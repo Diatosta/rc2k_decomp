@@ -7,23 +7,14 @@
 //!
 //! Callers: `race::replay_viewer` (three), `sub_4144CF` (three), reading carry. Shadow mode
 //! compares. Self-test: every mark and kind of the item against the original.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::race::viewer::{CF, CHOICE, check_original, dispatch_regs, get, put, regs_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::list_item_unusable", rva(0x414C1B), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
+use crate::race::viewer::{CHOICE, get, regs_entry};
 
 /// The Rust version: carry.
 pub unsafe fn list_item_unusable(list: u32) -> bool {
@@ -41,41 +32,8 @@ fn rust(r: &Regs) -> Result<Regs, Refused> {
     Ok(left)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_regs(&HOOK, r, call_original, &[], CF, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let saved = crate::race::viewer::Saved::new(&[crate::race::viewer::dword(CHOICE)]);
-    let mut list = [0u8; 0x18 + 0x30];
-    let list_at = list.as_mut_ptr() as u32;
-    for byte in [0x00u8, 0x40, 0x80, 0xC0, 0x05, 0x45, 0xC5, 0x02, 0x15, 0x3F] {
-        for choice in [0u32, 2] {
-            list[0x18 + 0x10 * choice as usize] = byte;
-            check_original(
-                &mut t,
-                &format!("item {choice} byte {byte:#x}"),
-                call_original,
-                Regs {
-                    edi: list_at,
-                    ..Regs::SENTINEL
-                },
-                &[],
-                CF,
-                &|| put(CHOICE, choice),
-                &rust,
-            );
-        }
-    }
-    drop(saved);
-    t.finish()
 }

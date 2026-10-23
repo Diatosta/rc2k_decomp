@@ -9,26 +9,17 @@
 //! versions, the send through the game). Shadow mode runs the original alone (it sends).
 //! Self-test: a copy whose calls go to stand-ins (`str_append` done), against the Rust
 //! version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::net::lobby::{
-    LOCK_RECEIVED, Part, SEND, SEND_BUFFER, SEND_TO, STR_APPEND, Saved, UNLOCK_RECEIVED, a, answer,
-    dispatch_lobby, dword, fill, g, p, region, run_both, test_eax,
+    LOCK_RECEIVED, Part, SEND, SEND_BUFFER, SEND_TO, STR_APPEND, UNLOCK_RECEIVED, a, g,
+    lobby_entry, test_eax,
 };
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::send_chat", rva(0x4193C8), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const ADD_CHAT_LINE: u32 = 0x419428; // net::add_chat_line
 
@@ -55,54 +46,8 @@ pub fn send_chat(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, send_chat);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; call net::lock_received
-    let copy = match crate::net::lobby::copy(
-        0x4193C8,
-        0x37,
-        &[0x60, 0xE8, 0xA6, 0xF0, 0xFF, 0xFF],
-        &[0x1, 0x6, 0xB, 0x1D, 0x2E],
-        &[
-            LOCK_RECEIVED,
-            ADD_CHAT_LINE,
-            UNLOCK_RECEIVED,
-            STR_APPEND,
-            SEND,
-        ],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let all = [region(SEND_BUFFER, 0x40), dword(SEND_TO)];
-    let saved = Saved::new(&all);
-    for message in [&b"\0"[..], b"hello there\0"] {
-        run_both(
-            &mut t,
-            &format!("{:?}", String::from_utf8_lossy(message)),
-            copy.addr(),
-            Regs {
-                eax: 2,
-                ebx: message.as_ptr() as u32,
-                ..Regs::SENTINEL
-            },
-            &all,
-            0,
-            &[],
-            &|| {
-                fill(SEND_BUFFER, 0x40, 12);
-                p(SEND_TO, 0x0000_7777);
-                answer(crate::net::add_chat_line::chat_answers());
-            },
-            &send_chat,
-        );
-    }
-    drop(saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, send_chat)
 }

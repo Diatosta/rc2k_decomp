@@ -19,32 +19,23 @@
 //! Self-test: a copy whose calls go to stand-ins (the texts written), against the Rust
 //! version: the lock failing; no players; three players with and without gaps, ready or
 //! not, times and none; the buttons' switches.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
 use crate::field;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::net::lobby::{
     APPEND_STRING, APPEND_TIME, BLIT, BLOCK, CAR_ITEM, CHAT, CHAT_INPUT, COPY_PICTURE, DRAW_HLINE,
     DRAW_STRING, DRAW_TEXT, DRAW_TIME, FONT, LOCK, LOCK_RECEIVED, PLAYERS, Part, SHOW_FRAME,
-    SHOW_GAPS, SORTED, SPRITES, STAGE_ITEM, STR_APPEND, Saved, TEXT, UNLOCK, UNLOCK_RECEIVED, a,
-    answer, dispatch_lobby, dword, g, p, region, run_both,
+    SHOW_GAPS, SORTED, SPRITES, STAGE_ITEM, STR_APPEND, TEXT, UNLOCK, UNLOCK_RECEIVED, a, g,
+    lobby_entry, p,
 };
 use crate::net::types::NetPlayerBlock;
 use rc2k_core::net::players::{self, READY};
 use rc2k_core::net::screens;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::lobby_frame", rva(0x417D95), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const HEADING_FONT: usize = 0x51E564; // stru_51E564
 const NAME_FONT: usize = 0x51E6C4; // stru_51E6C4
@@ -237,121 +228,8 @@ pub fn lobby_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     done(&r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, lobby_frame);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let places = [
-        LOCK,
-        COPY_PICTURE,
-        DRAW_STRING,
-        SORT_PLAYERS,
-        BLIT,
-        STR_APPEND,
-        DRAW_TEXT,
-        APPEND_STRING,
-        APPEND_TIME,
-        DRAW_TIME,
-        LOCK_RECEIVED,
-        UNLOCK_RECEIVED,
-        CHAT_INPUT_LINE,
-        LOBBY_BUTTON,
-        DRAW_HLINE,
-        UNLOCK,
-        SHOW_FRAME,
-    ];
-    // pusha; call gfx::lock_surface
-    let copy = match crate::net::lobby::copy(
-        0x417D95,
-        0x29A,
-        &[0x60, 0xE8, 0x12, 0xDB, 0xFE, 0xFF],
-        &[
-            0x1, 0xC, 0x28, 0x3F, 0x54, 0x7F, 0x91, 0x96, 0xB2, 0xDD, 0x10A, 0x10F, 0x11F, 0x146,
-            0x150, 0x155, 0x165, 0x1A0, 0x1AA, 0x1AF, 0x1BD, 0x1E1, 0x1F9, 0x1FE, 0x217, 0x22D,
-            0x241, 0x255, 0x260, 0x27F, 0x289, 0x28E, 0x293,
-        ],
-        &places,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let all = [
-        dword(PLAYERS),
-        dword(SHOW_GAPS),
-        dword(CAR_ITEM),
-        dword(STAGE_ITEM),
-        dword(SHOW_HOURS),
-        region(TEXT, 0x40),
-        region(SORTED, 3 * BLOCK as usize),
-    ];
-    let saved = Saved::new(&all);
-    // (what, the lock failing, players, gaps, car, stage)
-    let cases: [(&str, bool, u32, u32, u32, u32); 6] = [
-        ("the lock failing", true, 3, 0, 1, 1),
-        ("no players", false, 0, 0, 1, 1),
-        ("three", false, 3, 0, 1, 0),
-        ("three with gaps", false, 3, 1, 0, 1),
-        ("one with gaps", false, 1, 1, 0, 0),
-        ("three, gaps 2", false, 3, 2, 1, 1),
-    ];
-    // (state, nationality, car, time, total) of the sorted rows
-    let rows: [(u8, u8, u8, u32, u32); 3] = [
-        (1, 3, 0x18, 6000, 9000),
-        (0, 5, 0x19, u32::MAX, 0x40_0000),
-        (1, 1, 0x05, 6500, 0x0100_0000),
-    ];
-    for (what, fails, players, gaps, car, stage) in cases {
-        run_both(
-            &mut t,
-            what,
-            copy.addr(),
-            Regs::SENTINEL,
-            &all,
-            0,
-            &[],
-            &|| {
-                p(PLAYERS, players);
-                p(SHOW_GAPS, gaps);
-                p(CAR_ITEM, car);
-                p(STAGE_ITEM, stage);
-                p(SHOW_HOURS, 0);
-                for (n, &(state, nation, car, time, total)) in rows.iter().enumerate() {
-                    let b = a(SORTED) + n as u32 * BLOCK;
-                    unsafe {
-                        std::ptr::copy_nonoverlapping(
-                            c"Name".as_ptr() as *const u8,
-                            b as *mut u8,
-                            5,
-                        );
-                        ((b + field!(NetPlayerBlock, record.state)) as *mut u8).write(state);
-                        ((b + 0x25) as *mut u8).write(car);
-                        ((b + 0x27) as *mut u8).write(nation);
-                        ((b + 0x2C) as *mut u32).write_unaligned(time);
-                        ((b + 0x30) as *mut u32).write_unaligned(total);
-                    }
-                }
-                let mut inner = crate::net::draw_setting_value::string_answers();
-                answer(Box::new(move |place, r| match place {
-                    LOCK => r.set_carry(fails),
-                    APPEND_TIME => {
-                        let text = format!("{:08}", r.eax % 100_000_000);
-                        unsafe {
-                            std::ptr::copy_nonoverlapping(text.as_ptr(), r.ebx as *mut u8, 8)
-                        };
-                        r.ebx += 8;
-                    }
-                    BLIT => (r.eax, r.ebx, r.ecx, r.edx) = (1, 2, 3, 4),
-                    LOBBY_BUTTON => r.edi -= 0x60,
-                    _ => inner(place, r),
-                }));
-            },
-            &lobby_frame,
-        );
-    }
-    drop(saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, lobby_frame)
 }

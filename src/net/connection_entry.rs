@@ -9,26 +9,14 @@
 //! `net::connection_found`, `net::build_address`, `net::connections_frame`. Shadow mode: both
 //! run, eax compared. Self-test: a copy whose jumps to the fatal stubs land in the test,
 //! against the Rust version, on numbers in and past the list and no table.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::net::lobby::{
-    CONNECTION_TABLE, CONNECTIONS, NO_CONNECTION, NO_CONNECTIONS, Part, Saved, connection, dword,
-    fatal_ret_1, fatal_ret_2, p, run_both,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::connection_entry", rva(0x418530), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{RawHook, Regs, SelfTest};
+use crate::net::lobby::{Part, Saved, connection, dword, fatal_ret_1, fatal_ret_2, p, run_both};
 
 /// The Rust version: the registers it leaves.
 pub fn connection_entry(entry: &Regs, _: Part) -> Result<Regs, Refused> {
@@ -39,30 +27,12 @@ pub fn connection_entry(entry: &Regs, _: Part) -> Result<Regs, Refused> {
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    crate::race::viewer::dispatch_regs(&HOOK, r, call_original, &[], 0, &|r| {
-        connection_entry(r, &mut crate::net::lobby::game_part)
-    });
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     crate::race::viewer::regs_entry(r, &|r| {
         connection_entry(r, &mut crate::net::lobby::game_part)
     })
-}
-
-fn self_test() -> (usize, usize) {
-    entry_test(
-        &HOOK,
-        0x418530,
-        [0x3B, 0x05, 0x34, 0xAC, 0x52, 0x00],
-        CONNECTIONS,
-        CONNECTION_TABLE,
-        [NO_CONNECTION, NO_CONNECTIONS],
-        connection_entry,
-    )
 }
 
 /// The test of the two record functions: a copy, its fatal jumps (at +6 and +0x16) to the

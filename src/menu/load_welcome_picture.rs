@@ -5,32 +5,18 @@
 //! Out: every register kept
 //! Called by `menu::welcome_loop` (its background). Shadow mode runs the original alone (it
 //! loads a file). Self-test: `stage_view_steps::test_picture`.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::menu::stage_view_steps::{dispatch_picture, test_picture};
-use std::sync::atomic::AtomicUsize;
+use crate::framework::Regs;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "menu::load_welcome_picture",
-    rva(0x4684BD),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_picture(&HOOK, r, call_original);
-}
-
-fn self_test() -> (usize, usize) {
-    test_picture(&HOOK)
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::menu::parts::parted_entry(
+        r,
+        &|r, part| unsafe { crate::menu::stage_view_steps::load_welcome_picture(r, part) },
+        crate::menu::stage_view_steps::picture_part,
+    )
 }

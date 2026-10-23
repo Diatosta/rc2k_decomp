@@ -38,41 +38,20 @@
 //! (a call at the second byte; its 26 calls relocated). Self-test: a copy whose calls go
 //! to stand-ins that answer by scripts (the screens' choices, the race's result), against
 //! the Rust version on the same answers.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::menu::parts::{
-    Answer, Part, answers, copy, dispatch_parted, parted_entry, run_both, test_part,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::menu::parts::{Part, parted_entry};
 use crate::menu::player::player_at;
-use crate::service::harness::{Region, at, capture, restore};
 use rc2k_core::menu::arcade_event::{self as arcade, Hand, Step, Var};
-use std::sync::atomic::AtomicUsize;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("menu::arcade_event", rva(0x487E2C), thunk, &ORIGINAL)
-    .private_copy(LEN)
-    .relocate_calls(&CALLS)
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
-
-const LEN: usize = 0x329;
 // The call sites (26: `secret_car_list` is called from two). 0x323, the call of
 // `show_in_game_options` after the `popa`, was missing until 2026-10-20: the private copy
 // called 0x027C7DB7 when shadow mode left the arcade ("Branch to Alpha Centauri").
-const CALLS: [usize; 26] = [
-    0x1, 0x28, 0x8D, 0x92, 0xAB, 0xB0, 0xBF, 0xD1, 0x10D, 0x117, 0x159, 0x16B, 0x197, 0x1A5, 0x1B3,
-    0x1B8, 0x1BD, 0x1E2, 0x1F0, 0x1F5, 0x1FA, 0x20C, 0x227, 0x282, 0x2E8, 0x323,
-];
 /// The callees, each once (the parts' numbers).
 pub const CALLEES: [usize; 25] = [
     0x4A9679, // 0 menu::clear_players_284
@@ -252,185 +231,8 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_parted(
-        &HOOK,
-        r,
-        call_original,
-        &|r, part| unsafe { arcade_event(r, part) },
-        game_part,
-    );
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     parted_entry(r, &|r, part| unsafe { arcade_event(r, part) }, game_part)
-}
-
-// ---- self-test ----
-
-const ENTRY: [u8; 6] = [0x60, 0xE8, 0x47, 0x18, 0x02, 0x00];
-
-/// Everything the flow writes or reads.
-fn variables() -> Vec<Region> {
-    let mut v: Vec<Region> = [
-        0x7587F4, 0x7587A8, 0x758798, 0x7587B8, 0x758768, 0x755984, 0x755988, 0x75555D, 0x7587F0,
-        0x75598C, 0x758806, 0x75524C, 0x75AFF4, 0x75AFF8, 0x75ACF0, 0x75870C, 0x75B028, 0x758758,
-        0x75AFFC, 0x75B000, 0x7587EC, 0x755918, 0x755569, 0x755565, 0x755980,
-    ]
-    .iter()
-    .map(|&a| at(rva(a)))
-    .collect();
-    v.push(at(rva(0x75647C)));
-    v
-}
-
-/// A script: the answers by place.
-struct Script {
-    level: u32,
-    cheats: u32,
-    answers: Vec<(u32, Vec<Answer>)>,
-}
-
-fn s(a: usize, v: u32) -> Answer {
-    Answer::sets(rva(a), v)
-}
-
-fn scripts() -> Vec<Script> {
-    let yes = |a: usize| s(a, 1);
-    let no = |a: usize| s(a, 0);
-    let ok_race = Answer::writes(rva(0x75B028), 0, rva(0x75B000), 2);
-    let failed_race = s(0x75B028, u32::MAX);
-    vec![
-        // The car choice left.
-        Script {
-            level: 1,
-            cheats: 0,
-            answers: vec![(3, vec![s(0x758806, 1)])],
-        },
-        // The first stage choice answered "yes".
-        Script {
-            level: 2,
-            cheats: 2,
-            answers: vec![(3, vec![no(0x758806)]), (5, vec![yes(0x75524C)])],
-        },
-        // A stage raced, results, the next stage's review left.
-        Script {
-            level: 1,
-            cheats: 1 << 0x12,
-            answers: vec![
-                (5, vec![no(0x75524C)]),
-                (8, vec![ok_race]),
-                (10, vec![no(0x75524C)]),
-                (12, vec![no(0x755918)]),
-                (23, vec![no(0x755569), s(0x75555D, 1)]),
-            ],
-        },
-        // Six stages, a best time, then the level's end and its review left.
-        Script {
-            level: 3,
-            cheats: 0,
-            answers: vec![
-                (5, vec![no(0x75524C)]),
-                (8, vec![ok_race]),
-                (10, vec![no(0x75524C)]),
-                (12, vec![yes(0x755918)]),
-                (15, vec![no(0x75524C)]),
-                (19, vec![no(0x75524C)]),
-                (23, vec![no(0x755569)]),
-                (21, vec![yes(0x755569)]),
-            ],
-        },
-        // A failed race: the retry, then a level done and the next level, then out.
-        Script {
-            level: 4,
-            cheats: 0,
-            answers: vec![
-                (5, vec![no(0x75524C)]),
-                (8, vec![failed_race, ok_race]),
-                (10, vec![no(0x75524C)]),
-                (12, vec![no(0x755918)]),
-                (16, vec![no(0x755918)]),
-                (22, vec![Answer::writes(rva(0x755569), 0, rva(0x755565), 1)]),
-                (23, vec![no(0x755569)]),
-                (21, vec![Answer::writes(rva(0x755569), 0, rva(0x755565), 1)]),
-                (3, vec![no(0x758806), s(0x758806, 1)]),
-            ],
-        },
-        // The last level through: its end ends the event.
-        Script {
-            level: 5,
-            cheats: 0,
-            answers: vec![
-                (5, vec![no(0x75524C)]),
-                (8, vec![ok_race]),
-                (10, vec![no(0x75524C)]),
-                (12, vec![no(0x755918)]),
-                (16, vec![yes(0x755918)]),
-                (19, vec![no(0x75524C)]),
-                (23, vec![no(0x755569)]),
-            ],
-        },
-        // A best score's screen answered "yes".
-        Script {
-            level: 2,
-            cheats: 0,
-            answers: vec![
-                (5, vec![no(0x75524C)]),
-                (8, vec![ok_race]),
-                (10, vec![no(0x75524C)]),
-                (12, vec![no(0x755918)]),
-                (16, vec![yes(0x755918)]),
-                (19, vec![yes(0x75524C)]),
-                (23, vec![no(0x755569)]),
-            ],
-        },
-    ]
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy(0x487E2C, LEN, &ENTRY, &CALLS, &CALLEES, &[]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut record = vec![0u8; 0x300];
-    let player0 = record.as_mut_ptr() as u32;
-    let mut regions = variables();
-    regions.push((player0, 0x300));
-    let saved = capture(&variables());
-    for (n, script) in scripts().into_iter().enumerate() {
-        let list: Vec<(u32, &[Answer])> = script
-            .answers
-            .iter()
-            .map(|(p, a)| (*p, a.as_slice()))
-            .collect();
-        answers(&list);
-        run_both(
-            &mut t,
-            &format!("script {n}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                std::ptr::write_bytes(player0 as *mut u8, 0x5A, 0x300);
-                for &(a, _) in &variables() {
-                    (a as *mut u32).write_unaligned(0);
-                }
-                game_write(rva(0x75647C), player0);
-                p(0x7587EC, script.level);
-                p(0x75870C, script.cheats);
-                p(0x755565, 1);
-            },
-            Regs::SENTINEL,
-            false,
-            &|r| unsafe { arcade_event(r, &mut test_part) },
-        );
-    }
-    answers(&[]);
-    restore(&variables(), &saved);
-    drop(record);
-    t.finish()
 }

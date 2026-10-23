@@ -23,33 +23,22 @@
 //! Rust (`net::dplay`). Shadow mode runs the original alone. Self-test: a copy whose calls
 //! go to stand-ins and whose objects are test objects, against the Rust version, on every
 //! way out.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::net::create_dplay::{IID_DIRECTPLAY4A, create};
 use crate::net::dplay::{
     CONNECT, GET_CONNECTION_SETTINGS, QUERY_INTERFACE, RELEASE, SET_CONNECTION_SETTINGS, call,
     method,
 };
 use crate::net::lobby::{
-    ALLOCATE, CO_CREATE, COPY_PRINTABLE, DPLAY, DPLAY_2, DPLAY_METHOD, FLAGS, LOBBY,
-    LOBBY_LAUNCHED, LOBBY_METHOD, LOG_L2_NL, NET_MEMORY, OWN, PLAYER_NAME, Part, SETTINGS,
-    SETTINGS_SIZE, Saved, TestObject, a, answer, com_answer, dispatch_lobby, dword, g, gb,
-    log_text, p, pb, region, run_both, test_eax,
+    ALLOCATE, COPY_PRINTABLE, DPLAY, DPLAY_2, LOBBY, LOBBY_LAUNCHED, LOG_L2_NL, NET_MEMORY, OWN,
+    PLAYER_NAME, Part, SETTINGS, SETTINGS_SIZE, a, g, gb, lobby_entry, log_text, p, pb, test_eax,
 };
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::open_lobby", rva(0x418E9B), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const TEXT: usize = 0x5C2F5A; // "NET: Create dplobby"
 pub const CLSID_DIRECTPLAY_LOBBY: usize = 0x5AB340; // stru_5AB340
@@ -178,177 +167,8 @@ fn test_ebx(r: &mut Regs) {
     crate::net::lobby::set_sign(r, r.ebx as i32);
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, open_lobby);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let places = [
-        LOG_L2_NL,
-        ALLOCATE,
-        COPY_PRINTABLE,
-        FILL_OWN_PLAYER,
-        CREATE_PLAYER,
-        CREATE_GROUP,
-        JOIN_GROUP,
-        LIST_PLAYERS,
-    ];
-    // pusha; pusha; lea eax, aNetCreateDplob
-    let copy = match crate::net::lobby::copy(
-        0x418E9B,
-        0x174,
-        &[0x60, 0x60, 0x8D, 0x05, 0x5A, 0x2F, 0x5C, 0x00],
-        &[0x8, 0x21, 0x6F, 0x131, 0x137, 0x13C, 0x158, 0x161, 0x168],
-        &places,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let dplay = TestObject::dplay();
-    let lobby = TestObject::lobby();
-    let older = TestObject::dplay();
-    let (dp, lo, old) = (dplay.addr(), lobby.addr(), older.addr());
-    // The connection's settings: +4 the flags, +8 the session's description, +0xC the
-    // player's name (a DPNAME, +8 the short name).
-    let mut memory = vec![0u32; 0x40];
-    let m = memory.as_mut_ptr() as u32;
-    let all = [
-        dword(DPLAY),
-        dword(LOBBY),
-        dword(DPLAY_2),
-        dword(LOBBY_LAUNCHED),
-        dword(SETTINGS),
-        dword(SETTINGS_SIZE),
-        region(OWN, 1),
-        (m, 0x100),
-    ];
-    let saved = Saved::new(&all);
-    // (what, launched, CoCreateInstance, first settings, allocation fails, Connect, QI,
-    // create the session, the player made fails)
-    type Case = (&'static str, u32, u32, u32, bool, u32, u32, bool, bool);
-    let cases: [Case; 10] = [
-        (
-            "no lobby object",
-            1,
-            0x8004_0154,
-            0,
-            false,
-            0,
-            0,
-            false,
-            false,
-        ),
-        ("not launched", 0, 0, 0, false, 0, 0, false, false),
-        ("the size not asked", 1, 0, 0, false, 0, 0, false, false),
-        (
-            "no memory",
-            1,
-            0,
-            BUFFER_TOO_SMALL,
-            true,
-            0,
-            0,
-            false,
-            false,
-        ),
-        (
-            "Connect fails",
-            1,
-            0,
-            BUFFER_TOO_SMALL,
-            false,
-            0x8877_0005,
-            0,
-            false,
-            false,
-        ),
-        (
-            "QueryInterface fails",
-            1,
-            0,
-            BUFFER_TOO_SMALL,
-            false,
-            0,
-            0x8000_4002,
-            false,
-            false,
-        ),
-        ("joined", 1, 0, BUFFER_TOO_SMALL, false, 0, 0, false, false),
-        ("hosted", 1, 0, BUFFER_TOO_SMALL, false, 0, 0, true, false),
-        (
-            "the player not made",
-            1,
-            0,
-            BUFFER_TOO_SMALL,
-            false,
-            0,
-            0,
-            true,
-            true,
-        ),
-        ("launched 2", 2, 0, 0, false, 0, 0, false, false),
-    ];
-    for (what, launched, made, first, no_memory, connect, query, host, no_player) in cases {
-        run_both(
-            &mut t,
-            what,
-            copy.addr(),
-            Regs::SENTINEL,
-            &all,
-            FLAGS,
-            &[],
-            &|| unsafe {
-                p(DPLAY, dp);
-                p(LOBBY, 0);
-                p(DPLAY_2, old);
-                p(LOBBY_LAUNCHED, launched);
-                p(SETTINGS, 0x1111);
-                p(SETTINGS_SIZE, 0x2222);
-                pb(OWN, 0x02);
-                std::ptr::write_bytes(m as *mut u8, 0x5C, 0x100);
-                let wm = m + 0x40;
-                (wm as *mut [u32; 4]).write([
-                    0x50,
-                    if host { 0x2 } else { 0x1 },
-                    m + 0x80,
-                    m + 0xC0,
-                ]);
-                ((m + 0xC0 + 8) as *mut u32).write(0x0055_AA00);
-                let mut gets = 0;
-                com_answer(Box::new(move |place, args| match place {
-                    CO_CREATE => {
-                        (args[4] as *mut u32).write_unaligned(if made == 0 { lo } else { 0 });
-                        made
-                    }
-                    x if x == LOBBY_METHOD | GET_CONNECTION_SETTINGS => {
-                        gets += 1;
-                        if gets == 1 {
-                            (args[3] as *mut u32).write_unaligned(0x50);
-                            first
-                        } else {
-                            0
-                        }
-                    }
-                    x if x == LOBBY_METHOD | CONNECT => connect,
-                    x if x == DPLAY_METHOD | QUERY_INTERFACE => query,
-                    _ => 0,
-                }));
-                answer(Box::new(move |place, r| match place {
-                    ALLOCATE => {
-                        r.eax = wm;
-                        r.set_carry(no_memory);
-                    }
-                    CREATE_PLAYER => r.set_carry(no_player),
-                    _ => {}
-                }));
-            },
-            &open_lobby,
-        );
-    }
-    drop(saved);
-    let _ = (&mut memory, dplay, lobby, older);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, open_lobby)
 }

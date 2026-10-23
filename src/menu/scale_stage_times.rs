@@ -13,56 +13,20 @@
 //! original and the Rust version on a record of the test's, times and sections by lot, at
 //! the test precisions (exact at 0x027F; the times within one at 0x037F, exact there too
 //! below 2^29).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::menu::standings::*;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::floats::{Floats, ROUNDED, at_test_precisions, check_state_floats};
-use crate::service::harness::{Region, at, capture, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::scale_stage_times", rva(0x46354E), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 pub const TIMES_RVA: usize = rva(0x75AAE8); // dword_75AAE8 .. dword_75AAF4
 const KEPT_RVA: [usize; 2] = [rva(0x71C3D8), rva(0x71C3DC)]; // flt_71C3D8, flt_71C3DC
 const FACTORS_RVA: [usize; 2] = [rva(0x60463C), rva(0x604654)]; // flt_60463C, flt_604654: 6
 const TEXTS_RVA: [usize; 4] = [rva(0x4DDF93), rva(0x4DDFA4), rva(0x4DDFA8), rva(0x4DDFAC)];
-const EXTRA: [usize; 1] = [SECTION_RVA];
-
-static mut RECORD: [u32; 0x20] = [0; 0x20];
-const CASES: u32 = 4;
-
-fn test_entry(_case: u32) -> Regs {
-    Regs {
-        edi: (&raw const RECORD) as u32,
-        ..Regs::SENTINEL
-    }
-}
-
-fn prepare(case: u32) {
-    unsafe {
-        game_write(SECTION_RVA, [0u32, 3, 9, 0xFFFF_FFFE][case as usize]);
-        (&raw mut RECORD).cast::<u32>().add(0x10).write(0x40 + case);
-        for k in 0..4 {
-            game_write(
-                TIMES_RVA + 4 * k,
-                0x1_0000 * (k as u32 + 1) + case * 0x3333 + 7,
-            );
-        }
-    }
-}
-
 /// The section held to 0 .. 5.
 pub fn held_section() -> u32 {
     rc2k_core::menu::stage_scale::held_section(unsafe { game_read(SECTION_RVA) })
@@ -106,71 +70,11 @@ pub unsafe fn scale_stage_times(entry: &Regs) -> Result<Regs, Refused> {
     })
 }
 
-fn regions() -> Vec<Region> {
-    vec![
-        (game_addr(TIMES_RVA) as u32, 16),
-        at(KEPT_RVA[0]),
-        at(KEPT_RVA[1]),
-    ]
-}
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { scale_stage_times(r) }?))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    // It logs: in shadow mode the original alone (the self-test compares the two).
-    if crate::framework::shadow() {
-        HOOK.count_call();
-        unsafe { call_original(r) };
-        return;
-    }
-    let regions = regions();
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // Unpaused: frames drawn meanwhile may see the tables this test changes.
-    let _disturbing = crate::screens::harness::Disturbing::begin();
-    let regions = regions();
-    if regions.iter().any(|&(p, _)| p == 0) {
-        return t.skip("the game's tables are not there");
-    }
-    let mut vars = regions.clone();
-    vars.extend(EXTRA.map(at));
-    let saved = capture(&vars);
-    // The probe runs on the saved tables: it writes what the tests write.
-    let refused = unsafe { scale_stage_times(&test_entry(0)) }.is_err();
-    restore(&vars, &saved);
-    if refused {
-        return t.skip("the Rust version refuses the game's tables");
-    }
-    let places = [((game_addr(TIMES_RVA) as u32, 16), ROUNDED)];
-    let tolerant = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        for case in 0..CASES {
-            check_state_floats(
-                &mut t,
-                "menu::scale_stage_times",
-                &format!("control word {word:#x}, case {case}"),
-                call_original,
-                test_entry(case),
-                &|| {
-                    restore(&vars, &saved);
-                    prepare(case);
-                },
-                &regions,
-                held,
-                &rust,
-            );
-        }
-    });
-    restore(&vars, &saved);
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::service::harness::state_entry(r, &rust)
 }

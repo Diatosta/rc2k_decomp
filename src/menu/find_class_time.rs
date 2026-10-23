@@ -10,26 +10,15 @@
 //! patch with a private copy (0x20 bytes, nothing to relocate): its loop comes back to the
 //! second byte, and a `jz` sits in the first five. Self-test: lists of the test's, classes
 //! in them and not, ebx 1 and 0.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::{EAX, Regs};
 use crate::screens::harness::Left;
-use crate::service::harness::{check_state, dispatch_state, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("menu::find_class_time", rva(0x47B4EA), thunk, &ORIGINAL)
-    .private_copy(0x20)
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 pub const ENTRY_LEN: u32 = 0x9C;
 const LIMIT: u32 = 0x400;
@@ -69,47 +58,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing().with(EAX, v))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &[], &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut list = vec![0u32; 6 * ENTRY_LEN as usize / 4];
-    for (n, d) in list.iter_mut().enumerate() {
-        *d = 0x1000 + n as u32;
-    }
-    let at = list.as_mut_ptr() as u32;
-    for (k, class) in [3u32, 5, 3, 7, 9].iter().enumerate() {
-        unsafe { ((at + k as u32 * ENTRY_LEN + 0x1C) as *mut u32).write_unaligned(*class) };
-    }
-    unsafe { ((at + 5 * ENTRY_LEN) as *mut u32).write_unaligned(u32::MAX) };
-    for class in [3u32, 5, 7, 9, 4] {
-        for ebx in [1u32, 0, 2] {
-            check_state(
-                &mut t,
-                &format!("class {class}, ebx {ebx}"),
-                call_original,
-                Regs {
-                    eax: class,
-                    ebx,
-                    edi: at,
-                    ..Regs::SENTINEL
-                },
-                &|| {},
-                &[(at, list.len() * 4)],
-                &rust,
-            );
-        }
-    }
-    drop(list);
-    t.finish()
 }

@@ -7,26 +7,17 @@
 //! Callers: the event drivers and `sub_4A9C9B`. Refuses a table without its end entry,
 //! before anything. Self-test: the original and the Rust version on the game's drivers;
 //! put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
+use crate::framework::Regs;
 use crate::menu::standings::*;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::reset_drivers", rva(0x470399), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn reset_drivers(entry: &Regs) -> Result<Regs, Refused> {
@@ -35,46 +26,12 @@ pub unsafe fn reset_drivers(entry: &Regs) -> Result<Regs, Refused> {
     Ok(*entry)
 }
 
-fn regions() -> Vec<Region> {
-    let first = game_addr(DRIVERS_RVA) as u32;
-    match entries(first, DRIVER) {
-        Ok(all) => vec![(first, all.len() * DRIVER as usize)],
-        Err(_) => vec![],
-    }
-}
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { reset_drivers(r) }?))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    if regions.is_empty() {
-        return t.skip("the drivers' table without its end");
-    }
-    let saved = capture(&regions);
-    check_state(
-        &mut t,
-        "the game's drivers",
-        call_original,
-        Regs::SENTINEL,
-        &|| restore(&regions, &saved),
-        &regions,
-        &rust,
-    );
-    restore(&regions, &saved);
-    t.finish()
 }

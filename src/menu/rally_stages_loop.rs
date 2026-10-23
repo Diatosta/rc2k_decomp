@@ -16,27 +16,15 @@
 //! error 0x80712345; leaving is asked about, and a "no" sets the screen up again.
 //! Callers: the event loops `sub_4A0E60` and `sub_4AA4D7`. Ungated thunk; shadow mode runs the original alone; each real call writes a
 //! line to hook.log. Self-test: `screen_loop::check_screen`.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::{Regs, rva};
 use crate::menu::class_stage_results_loop::LOAD_BACKGROUND;
 use crate::menu::run_draw_list::DRAW_LIST_RVA;
-use crate::menu::screen_loop::{
-    FRAME_CALLBACK, List, Original, Screen, Step, check_screen, dispatch_screen, screen_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::rally_stages_loop", rva(0x472596), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
+use crate::menu::screen_loop::{FRAME_CALLBACK, List, Screen, Step, screen_entry};
 
 // ---- game data ----
 
@@ -107,33 +95,8 @@ pub const SCREEN: Screen = Screen {
     also_writes: &[],
 };
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_screen(&HOOK, r, call_original, &SCREEN);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     screen_entry("menu::rally_stages_loop", r, &SCREEN)
-}
-
-// ---- self-test ----
-
-const THE_ORIGINAL: Original = Original {
-    function: rva(0x472596),
-    len: 0x2B4,
-    entry_bytes: &[0x60, 0xC7, 0x05, 0x3C, 0x5A, 0x75, 0x00, 0x00],
-    calls: &[0x97, 0xA8, 0xAD, 0xFC, 0x101, 0x149, 0x1A7, 0x249, 0x26E],
-};
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Err(why) = check_screen(&mut t, &SCREEN, &THE_ORIGINAL) {
-        return t.skip(why);
-    }
-    t.finish()
 }

@@ -7,29 +7,18 @@
 //! in `dword_75524C`, one for no stores 0; either also sets `dword_758806` to 1 and leaves
 //! the screen with `menu::go_back`. One caller, `menu::handle_keys`.
 //! Refuses what the yes/no functions refuse.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_write, hook_asm, rva};
+use crate::framework::Regs;
 use crate::input::yes_no_for_key::yes_no_for_key;
-use crate::input::yes_no_key::{NO, YES, yes_no_regions, yes_no_unavailable};
+use crate::input::yes_no_key::{NO, YES, yes_no_regions};
 use crate::menu::leaving::{question, with_question};
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::handle_yes_no", rva(0x470D2E), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at, state_entry};
 
 // ---- game data ----
 
@@ -61,59 +50,13 @@ pub unsafe fn handle_yes_no(eax: u32) -> Result<(), BadInput> {
     Ok(())
 }
 
-// ---- hook ----
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { handle_yes_no(r.eax) }?;
     Ok(Left::nothing())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &handle_yes_no_regions(), &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-// ---- self-test: every key, on a question screen and off one ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = yes_no_unavailable() {
-        return t.skip(why);
-    }
-    let regions = [&handle_yes_no_regions()[..], &[at(ASKING_RVA)]].concat();
-    let saved = capture(&regions);
-    let compared = regions.len() - 1;
-    for asking in [1u32, 0, 2] {
-        for key in 0..0x80u32 {
-            let before = Regs {
-                eax: key,
-                ..Regs::SENTINEL
-            };
-            check_state(
-                &mut t,
-                &format!("asking={asking} key={key:#x}"),
-                call_original,
-                before,
-                &|| {
-                    restore(&regions, &saved);
-                    unsafe {
-                        game_write(ASKING_RVA, asking);
-                        game_write(ANSWER_RVA, 0x5EEDu32);
-                        game_write(LEAVING_RVA, 0x5EEDu32);
-                    }
-                },
-                &regions[..compared],
-                &rust,
-            );
-        }
-    }
-    restore(&regions, &saved);
-    t.finish()
 }

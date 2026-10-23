@@ -18,24 +18,14 @@
 //! player missing before anything, a current player past the four when it is read.
 //! Shadow mode runs the original alone. Self-test: `event_flow::test_flow`, scripts of
 //! the two pages' answers and the players' +0xD0.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
+use crate::framework::Regs;
 use crate::menu::event_flow::*;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::time_trial_service", rva(0x48E093), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
 
 const SERVICE_TIME: usize = 0x75593C; // dword_75593C
 const GOES_ON: usize = 0x75592C; // dword_75592C
@@ -97,107 +87,9 @@ pub unsafe fn time_trial_service(entry: &Regs, call: Call) -> Result<Regs, Refus
     Ok(*entry)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { time_trial_service(r, &mut game_call) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { time_trial_service(r, &mut game_call) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-const CALLS: [usize; 10] = [0x25, 0x2F, 0x34, 0x3E, 0x4D, 0x5C, 0x6A, 0x6F, 0x8B, 0x90];
-
-fn self_test() -> (usize, usize) {
-    let Some(t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if (0..4).any(|n| player(n) == 0) {
-        return t.skip("a player missing from g_players");
-    }
-    let flow = Flow {
-        address: 0x48E093,
-        len: 0xD6,
-        // pusha; mov dword_75593C, 0A8Ch
-        entry: &[
-            0x60, 0xC7, 0x05, 0x3C, 0x59, 0x75, 0x00, 0x8C, 0x0A, 0x00, 0x00,
-        ],
-        calls: &CALLS,
-        fatal_jumps: &[],
-        writes: &[
-            SERVICE_TIME,
-            GOES_ON,
-            CLEARED[0],
-            CLEARED[1],
-            OUT,
-            DUE,
-            CURRENT,
-            PLAYER_COUNT,
-        ],
-    };
-    // A player out after the repairs: the entry kind's answer writes its +0xD0 (the
-    // test's players are the game's).
-    let out = |n: u32| Answer::none().and_player(n, 0xD0, 2);
-    let mut cases = Vec::new();
-    for (count, script) in [
-        (1u32, vec![]),
-        (2, vec![(SET_PLAYER_ENTRY_KIND, vec![out(0), out(1)])]),
-        (
-            3,
-            vec![(SET_PLAYER_ENTRY_KIND, vec![Answer::none(), out(1)])],
-        ),
-        (
-            4,
-            vec![(
-                SERVICE_AREA_LOOP,
-                vec![Answer::none(), Answer::none(), Answer::yes()],
-            )],
-        ),
-        (
-            2,
-            vec![
-                (SET_PLAYER_ENTRY_KIND, vec![out(0)]),
-                (INSPECTION_AREA_LOOP, vec![Answer::yes()]),
-            ],
-        ),
-    ] {
-        cases.push((count, script));
-    }
-    let prepares: Vec<Box<dyn Fn()>> = cases
-        .iter()
-        .map(|&(count, _)| {
-            Box::new(move || {
-                set(PLAYER_COUNT, count);
-                set(OUT, 0);
-                set(ANSWER, 0);
-                for n in 0..4 {
-                    put(player(n) + 0xD0, 1);
-                }
-            }) as Box<dyn Fn()>
-        })
-        .collect();
-    let cases: Vec<Case> = cases
-        .into_iter()
-        .zip(&prepares)
-        .enumerate()
-        .map(|(n, ((count, script), prepare))| Case {
-            what: format!("case {n}, {count} players"),
-            prepare: prepare.as_ref(),
-            script,
-            before: Regs::SENTINEL,
-        })
-        .collect();
-    test_flow(t, &flow, &[], &cases, &|r, c| unsafe {
-        time_trial_service(r, c)
-    })
 }

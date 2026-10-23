@@ -834,6 +834,44 @@ pub fn dispatch_callback(hook: &RawHook, original: usize, args: &[u32], rust: Ca
     eax
 }
 
+/// A callback's Rust version where DirectPlay calls it (no hook; 2026-10-23): shadow mode
+/// runs the game's callback at `ral` (an IDA address); a refused input runs it too (logged
+/// once, as `menu::table_calls` does), a fatal error is raised.
+pub fn callback_entry(name: &str, ral: u32, args: &[u32], rust: Callback) -> u32 {
+    if shadow() {
+        return unsafe { call_stdcall(game(ral) as usize, args) };
+    }
+    crate::framework::hook_enter();
+    let result = rust(args, &mut game_part);
+    crate::framework::hook_leave();
+    match result {
+        Ok(eax) => eax,
+        Err(Refused::BadInput(why)) => {
+            static SEEN: std::sync::Mutex<Vec<(u32, &'static str)>> =
+                std::sync::Mutex::new(Vec::new());
+            let mut seen = SEEN.lock().unwrap();
+            if !seen.contains(&(ral, why.0)) {
+                seen.push((ral, why.0));
+                crate::framework::log(&format!(
+                    "{name}: refused (first time, the game's runs): {}",
+                    why.0
+                ));
+            }
+            drop(seen);
+            unsafe { call_stdcall(game(ral) as usize, args) }
+        }
+        Err(Refused::Fatal(error)) => {
+            crate::framework::log(&format!(
+                "{name}: the Rust version raises fatal error {:#x} {:?}",
+                error.code, error.message
+            ));
+            let r = Regs::default();
+            unsafe { crate::fatal::raise::raise(error, &r) };
+            r.eax
+        }
+    }
+}
+
 /// One case of a callback's test: `prepare`, the copy with `args`; `prepare`, the Rust
 /// version; eax, the calls (their place and eax: the other registers in a callback are its
 /// caller's) and `regions` compared.

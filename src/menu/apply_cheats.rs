@@ -22,34 +22,18 @@
 //! variables put back, compared. Self-test: a redirected copy whose log calls note the
 //! text, on lists of the test's in the game's places.
 //! Refuses a list without its end, or without room for a car more.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva,
-};
-use crate::install::stand_ins::{set_handler, stand_in};
-use crate::menu::remove_secret_cars::{
-    CHEATS_RVA, FIRST, List, SECOND, read_list, region, write_list,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::menu::remove_secret_cars::{CHEATS_RVA, FIRST, List, SECOND, read_list, write_list};
 use crate::menu::text_entry::log_l1;
-use crate::redirect::RedirectedCopy;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, dispatch_replayed_state, restore, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::menu::car_lists;
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::apply_cheats", rva(0x480AC1), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -115,24 +99,9 @@ pub unsafe fn apply_cheats(log: &mut dyn FnMut(*const u8)) -> Result<(), BadInpu
     }
 }
 
-// ---- hook ----
-
-fn regions() -> [Region; 4] {
-    [region(FIRST), region(SECOND), at(CHEATS_RVA), at(A8_RVA)]
-}
-
 fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { apply_cheats(&mut |line| log_l1(line, true)) }?;
     Ok(Left::nothing())
-}
-
-fn quiet(_: &Regs) -> Result<Left, Refused> {
-    unsafe { apply_cheats(&mut |_| {}) }?;
-    Ok(Left::nothing())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_replayed_state(&HOOK, r, call_original, &regions(), &rust, &quiet);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
@@ -141,106 +110,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
 }
 
-// ---- self-test ----
-
-const LEN: usize = 0x1FE;
-const ENTRY_BYTES: [u8; 8] = [0x60, 0x0F, 0xBA, 0x25, 0x0C, 0x87, 0x75, 0x00];
-/// The nineteen log calls and the ten calls of the cars' functions.
-const CALLS: [usize; 29] = [
-    0x12, 0x29, 0x40, 0x46, 0x5C, 0x62, 0x78, 0x7E, 0x94, 0x9A, 0xB0, 0xB6, 0xCC, 0xD2, 0xE8, 0xEE,
-    0x104, 0x10A, 0x120, 0x137, 0x13D, 0x153, 0x159, 0x16F, 0x186, 0x19D, 0x1B4, 0x1CB, 0x1EC,
-];
-const LOG_RVA: usize = rva(0x40142B); // logfile::log_write_l1_nl
-
-/// The texts a run logged.
-static LOGGED: Mutex<Vec<u32>> = Mutex::new(Vec::new());
-
-fn note_line(_: u32, r: &mut Regs) {
-    LOGGED.lock().unwrap().push(r.eax);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x480AC1)),
-            LEN,
-            &ENTRY_BYTES,
-            &CALLS,
-            &|callee| (callee == LOG_RVA).then(|| stand_in(0)),
-        )
-    };
-    let copy = match copy {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    let regions = regions();
-    let saved = capture(&regions);
-    let car = |n: usize| game_addr(rva(CHEATS[n].1)) as u32;
-    let (a, b) = (0x1111_0000u32, 0x2222_0000u32);
-    // (what, the first list, the second)
-    let lists: [(&str, Vec<u32>, Vec<u32>); 5] = [
-        ("plain lists", vec![a, b], vec![b]),
-        ("empty lists", vec![], vec![]),
-        (
-            "three of the cars there",
-            vec![car(2), a, car(6), car(12)],
-            vec![a],
-        ),
-        ("Max Power in the second only", vec![a], vec![b, car(6)]),
-        (
-            "lists that all the cars fill",
-            (0..0x1D).map(|n| a + n).collect(),
-            (0..0x2B).map(|n| b + n).collect(),
-        ),
-    ];
-    let mut flags: Vec<u32> = (0..19).map(|bit| 1 << bit).collect();
-    flags.extend([
-        0,
-        0x1FBC,
-        0x7_FFFF,
-        u32::MAX,
-        0xFFF8_0000,
-        0x5_5555,
-        0x2_AAAA,
-    ]);
-    for (what, first, second) in &lists {
-        for &cheats in &flags {
-            let before = Regs::SENTINEL;
-            let run = |rust: bool| unsafe {
-                restore(&regions, &vec![0xAA; saved.len()]);
-                write_list(FIRST, first);
-                write_list(SECOND, second);
-                game_write(CHEATS_RVA, cheats);
-                LOGGED.lock().unwrap().clear();
-                set_handler(note_line);
-                let ended = if rust {
-                    match apply_cheats(&mut |line| LOGGED.lock().unwrap().push(line as u32)) {
-                        Ok(()) => 0,
-                        Err(_) => 2,
-                    }
-                } else {
-                    let mut ro = before;
-                    call_game(&mut ro, copy.addr());
-                    !ro.preserved_except(&before, 0) as u32
-                };
-                (ended, capture(&regions), LOGGED.lock().unwrap().clone())
-            };
-            let (theirs, mine) = (run(false), run(true));
-            t.check(theirs == mine && theirs.0 == 0, || {
-                format!(
-                    "{what}, cheats {cheats:#x}: original ended {} logged {:x?}; rust ended {} logged {:x?}; first different byte left {:?}",
-                    theirs.0,
-                    theirs.2,
-                    mine.0,
-                    mine.2,
-                    theirs.1.iter().zip(&mine.1).position(|(a, b)| a != b),
-                )
-            });
-        }
-    }
-    restore(&regions, &saved);
-    t.finish()
-}
+// logfile::log_write_l1_nl

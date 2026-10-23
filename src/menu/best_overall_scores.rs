@@ -8,31 +8,20 @@
 //! player). Refuses a player count of 0 or past 4, a missing player, no table, and what an entry refuses, before anything. Self-test: a copy whose page call goes to a stand-in (the entries'
 //! to their hooks), against the Rust version, on the game's tables with scores by lot;
 //! put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::menu::standings::*;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::best_overall_scores", rva(0x4A91BF), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
 
 const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
 const ENTERED_RVA: usize = rva(0x755920); // dword_755920
-const CLASS_RVA: usize = rva(0x7558F4); // dword_7558F4
-const CLASSES_RVA: usize = rva(0x7558F8); // dword_7558F8
-const ANSWER_RVA: usize = rva(0x75524C); // g_yesNoAnswer
+// dword_7558F4
+// dword_7558F8
+// g_yesNoAnswer
 
 /// A call by place: 1 the page.
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
@@ -75,73 +64,9 @@ pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { best_overall_scores(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { best_overall_scores(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy(
-        0x4A91BF,
-        0x70,
-        &[0x60, 0xB9, 0x00, 0x00, 0x00, 0x00],
-        &[0x48, 0x69],
-        &[(0x4A8B15, 1)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut regions: Vec<Region> = rank_regions();
-    regions.extend(
-        (0..4u32)
-            .map(|n| (player(n), 0x400))
-            .filter(|&(p, _)| p != 0),
-    );
-    regions.extend([CURRENT_RVA, ENTERED_RVA, CLASS_RVA].map(at));
-    if regions[0].0 == 0 || (0..4).any(|n| player(n) == 0) {
-        return t.skip("the game's tables are not there");
-    }
-    let mut vars = regions.clone();
-    vars.extend([CLASSES_RVA, PLAYER_COUNT_RVA, ANSWER_RVA].map(at));
-    let saved = capture(&vars);
-    for case in 0..3u32 {
-        run_both(
-            &mut t,
-            &format!("case {case}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                restore(&vars, &saved);
-                game_write(CLASSES_RVA, 3u32);
-                game_write(PLAYER_COUNT_RVA, 1 + case);
-                game_write(ANSWER_RVA, u32::from(case == 2));
-                for n in 0..4u32 {
-                    put(player(n) + 0x90, (n + case) % 3);
-                    put(player(n) + 0xB0, [0u32, 0x7FFF_FFFF, 5][case as usize] + n);
-                    put(player(n) + 0xCC, [0u32, 0x7FFF_FFFF, 5][case as usize] + n);
-                }
-            },
-            &|r| unsafe { best_overall_scores(r, &mut test_part) },
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

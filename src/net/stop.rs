@@ -13,26 +13,14 @@
 //! the original alone. Self-test: a copy whose four variables are the test's and whose
 //! calls go to noting stand-ins, against the Rust version, on the cases that end (a stand-
 //! in changes nothing): not busy; busy, closing and the thread ended.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::input::effects::compare;
-use crate::net::{DESTROY, ON, PUMP, Part, SLEEP_1MS, a, dispatch_net, net_entry};
-use crate::system::api_stand_ins::copy_with;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::stop", rva(0x41838C), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
+use crate::framework::Regs;
+use crate::net::{DESTROY, ON, PUMP, Part, SLEEP_1MS, a, net_entry};
 
 const BUSY: usize = 0x52A918; // dword_52A918: the receiving thread is busy
 const ENDED: usize = 0x52A4B0; // dword_52A4B0: the receiving thread has ended
@@ -73,62 +61,8 @@ pub fn stop(r: &mut Regs, part: Part) -> Result<(), Refused> {
     stop_with(r, &v, part)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_net(&HOOK, r, call_original, stop);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     net_entry(r, stop)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut mem = [0u32; 4];
-    let base = mem.as_mut_ptr() as u32;
-    let v = Vars {
-        on: base,
-        busy: base + 4,
-        ended: base + 8,
-        quitting: base + 12,
-    };
-    // pusha; mov dword_52A910, 0
-    let entry = [
-        0x60, 0xC7, 0x05, 0x10, 0xA9, 0x52, 0x00, 0x00, 0x00, 0x00, 0x00,
-    ];
-    let copy = match copy_with(
-        0x41838C,
-        0x37,
-        &entry,
-        &[0x14, 0x19, 0x30],
-        &[SLEEP_1MS, PUMP, DESTROY],
-        &[],
-        &[
-            (ON, 4, v.on),
-            (BUSY, 4, v.busy),
-            (ENDED, 4, v.ended),
-            (QUITTING, 4, v.quitting),
-        ],
-        4,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    for (busy, ended, quitting) in [(0u32, 0u32, 0u32), (0, 1, 1), (1, 1, 1), (7, 1, 1)] {
-        compare(
-            &mut t,
-            &format!("busy {busy}, ended {ended}, quitting {quitting}"),
-            &copy,
-            Regs::SENTINEL,
-            &|| unsafe { (base as *mut [u32; 4]).write_volatile([1, busy, ended, quitting]) },
-            &[(base, 16)],
-            &|r, part| stop_with(r, &v, part),
-            false,
-        );
-    }
-    let _ = &mut mem;
-    t.finish()
 }

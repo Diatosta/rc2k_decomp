@@ -4,23 +4,14 @@
 //! Out: every register kept (`pusha` .. `popa`); the carry `net::find_sessions` leaves (set: none)
 //! Callers: `net::start_link`, `net::choose_session`. Its call through `part`. Shadow mode runs the original alone. Self-test: a copy whose call goes to a
 //! stand-in, against the Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::net::lobby::{FLAGS, Part, answer, dispatch_lobby, run_both, test_eax};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::find_sessions_regs", rva(0x41771E), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
+use crate::net::lobby::{Part, lobby_entry, test_eax};
 
 const CALLEE: u32 = 0x418999; // net::find_sessions
 
@@ -35,48 +26,8 @@ pub fn find_sessions_regs(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, find_sessions_regs);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match crate::net::lobby::copy(
-        0x41771E,
-        0x8,
-        &[0x60, 0xE8, 0x75, 0x12, 0x00, 0x00],
-        &[0x1],
-        &[CALLEE],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-
-    for (eax, carry) in [(0u32, false), (5, true), (0x8000_0000, false)] {
-        run_both(
-            &mut t,
-            &format!("eax {eax:#x}, the call's carry {carry}"),
-            copy.addr(),
-            Regs {
-                eax,
-                ..Regs::SENTINEL
-            },
-            &[],
-            FLAGS,
-            &[],
-            &|| {
-                answer(Box::new(move |_, r| {
-                    r.eax = 0x77;
-                    r.ebx = 0x66;
-                    r.set_carry(carry);
-                    r.set_zero(!carry);
-                }))
-            },
-            &find_sessions_regs,
-        );
-    }
-
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, find_sessions_regs)
 }

@@ -7,26 +7,16 @@
 //! Caller: `net::lobby_frame`. Its calls through `part` (`strings::append_nul` inline).
 //! Shadow mode runs the original alone (it draws). Self-test: a copy whose calls go to
 //! stand-ins, against the Rust version, edited or not.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::net::lobby::{
-    APPEND_STRING, DRAW_TEXT, EDITED, Part, STR_APPEND, Saved, TEXT, a, answer, dispatch_lobby,
-    dword, g, p, region, run_both,
+    APPEND_STRING, DRAW_TEXT, EDITED, Part, STR_APPEND, TEXT, a, g, lobby_entry,
 };
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::chat_input_line", rva(0x418083), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 pub const CHAT_FONT: usize = 0x51E584; // stru_51E584
 
@@ -51,50 +41,8 @@ pub fn chat_input_line(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     Ok(r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, chat_input_line);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // cmp esi, dword_52A4B8
-    let copy = match crate::net::lobby::copy(
-        0x418083,
-        0x42,
-        &[0x3B, 0x35, 0xB8, 0xA4, 0x52, 0x00],
-        &[0xE, 0x18, 0x1D, 0x3C],
-        &[STR_APPEND, APPEND_STRING, DRAW_TEXT],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let all = [dword(EDITED), region(TEXT, 0x40)];
-    let saved = Saved::new(&all);
-    let text = b"hello\0";
-    for edited in [3u32, u32::MAX] {
-        run_both(
-            &mut t,
-            &format!("edited {edited:#x}"),
-            copy.addr(),
-            Regs {
-                eax: text.as_ptr() as u32,
-                esi: 3,
-                ebp: 0x1A0,
-                ..Regs::SENTINEL
-            },
-            &all,
-            0,
-            &[],
-            &|| {
-                p(EDITED, edited);
-                crate::net::lobby::fill(TEXT, 0x40, 8);
-                answer(crate::net::draw_setting_value::string_answers());
-            },
-            &chat_input_line,
-        );
-    }
-    drop(saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, chat_input_line)
 }

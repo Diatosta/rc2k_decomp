@@ -10,27 +10,17 @@
 //! calls through `part` (`strings::append_nul` inline). Shadow mode runs the original alone
 //! (it draws). Self-test: a copy whose calls go to stand-ins (the strings appended), against
 //! the Rust version: edited, empty, a text.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::net::lobby::{
-    APPEND_STRING, DRAW_TEXT, EDITED, FONT, Part, STR_APPEND, Saved, TEXT, a, answer,
-    dispatch_lobby, dword, g, p, region, run_both,
+    APPEND_STRING, DRAW_TEXT, EDITED, FONT, Part, STR_APPEND, TEXT, a, g, lobby_entry,
 };
 use rc2k_core::net::screens::{self, Value};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::draw_setting_value", rva(0x416BC4), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 fn nul(r: &mut Regs) {
     unsafe { (r.ebx as *mut u8).write(0) };
@@ -69,8 +59,10 @@ pub fn draw_setting_value(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     Ok(r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, draw_setting_value);
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, draw_setting_value)
 }
 
 /// The test's answers for the strings: appended as the game's.
@@ -97,51 +89,4 @@ pub fn string_answers() -> crate::net::lobby::Answer {
         }
         _ => {}
     })
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // cmp esi, dword_52A4B8
-    let copy = match crate::net::lobby::copy(
-        0x416BC4,
-        0x62,
-        &[0x3B, 0x35, 0xB8, 0xA4, 0x52, 0x00],
-        &[0xE, 0x18, 0x1D, 0x3A, 0x3F, 0x5C],
-        &[STR_APPEND, APPEND_STRING, DRAW_TEXT],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let all = [dword(EDITED), region(TEXT, 0x40)];
-    let saved = Saved::new(&all);
-    for (what, edited, text) in [
-        ("edited", 1u32, &b"name\0"[..]),
-        ("empty", u32::MAX, b"\0"),
-        ("a text", 3, b"192.168.0.1\0"),
-    ] {
-        run_both(
-            &mut t,
-            what,
-            copy.addr(),
-            Regs {
-                eax: text.as_ptr() as u32,
-                esi: 1,
-                ebp: 0xB2,
-                ..Regs::SENTINEL
-            },
-            &all,
-            0,
-            &[],
-            &|| {
-                p(EDITED, edited);
-                crate::net::lobby::fill(TEXT, 0x40, 3);
-                answer(string_answers());
-            },
-            &draw_setting_value,
-        );
-    }
-    drop(saved);
-    t.finish()
 }

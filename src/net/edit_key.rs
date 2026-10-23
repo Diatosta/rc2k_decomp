@@ -13,28 +13,19 @@
 //! the Rust versions). Shadow mode runs the original alone (the dead key's state). Self-test:
 //! a copy whose calls go to stand-ins (the character and the width given), against the Rust
 //! version: not editing, each key, a character below 0x20, too wide, a full text.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::bridge::{Raw, read_through};
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, ZERO_FLAG, hook_asm, rva};
+use crate::framework::Regs;
 use crate::net::lobby::{
-    EDIT_FONT, EDIT_SAVED, EDIT_TEXT, EDIT_WIDTH, EDITED, FLAGS, KEY_TO_CHAR, MEASURE_TEXT, Part,
-    Saved, a, answer, dispatch_lobby, fill, g, movsb, p, region, run_both, set_sign,
+    EDIT_FONT, EDIT_SAVED, EDIT_TEXT, EDIT_WIDTH, EDITED, KEY_TO_CHAR, MEASURE_TEXT, Part, a, g,
+    lobby_entry, movsb, p, set_sign,
 };
 use rc2k_core::net::editing::{self, EditKey};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::edit_key", rva(0x416E43), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The flags of `cmp dword_52A4B8, -1`.
 pub fn editing_flags(r: &mut Regs) {
@@ -100,89 +91,8 @@ pub fn edit_key(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     Ok(left)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, edit_key);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; cmp dword_52A4B8, 0FFFFFFFFh
-    let copy = match crate::net::lobby::copy(
-        0x416E43,
-        0xA9,
-        &[0x60, 0x83, 0x3D, 0xB8, 0xA4, 0x52, 0x00, 0xFF],
-        &[0x6B, 0x8F],
-        &[KEY_TO_CHAR, MEASURE_TEXT],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut text = vec![0u8; 0x50];
-    let at = text.as_mut_ptr() as u32;
-    let mut all = vec![region(EDIT_TEXT, 0x10), region(EDIT_SAVED, 0x40)];
-    let saved = Saved::new(&all);
-    all.push((at, 0x50));
-    let long = [b'x'; 0x3F];
-    // (editing, the key, the text, what key_to_char gives, the width measured)
-    let cases: [(bool, u32, &[u8], u32, u32); 13] = [
-        (false, 0x1E, b"abc", 0x61, 0),
-        (true, 1, b"abc", 0, 0),
-        (true, 0x1C, b"abc", 0, 0),
-        (true, 0x6E, b"abc", 0, 0),
-        (true, 0x0E, b"abc", 0, 0),
-        (true, 0x0E, b"", 0, 0),
-        (true, 0x0E, b"q", 0, 0),
-        (true, 0x1E, b"abc", 0x0000_1261, 0x100),
-        (true, 0x1E, b"abc", 0x0000_0261, 0x30C),
-        (true, 0x1E, b"abc", 0x61, 0x30D),
-        (true, 0x1E, b"abc", 0x1F, 0),
-        (true, 0x9E, b"abc", 0xAB00_0000, 0),
-        (true, 0x1E, &long, 0x61, 0),
-    ];
-    for (editing, key, sample, given, width) in cases {
-        run_both(
-            &mut t,
-            &format!(
-                "editing {editing}, key {key:#x}, text of {}, char {given:#x}, width {width:#x}",
-                sample.len()
-            ),
-            copy.addr(),
-            Regs {
-                eax: 0x1234_0000 | key,
-                ..Regs::SENTINEL
-            },
-            &all,
-            FLAGS,
-            &[],
-            &|| unsafe {
-                fill(EDIT_SAVED, 0x40, 11);
-                p(EDITED, if editing { 2 } else { u32::MAX });
-                p(EDIT_TEXT, at);
-                p(EDIT_WIDTH, 0x30C);
-                p(EDIT_FONT, 0x0051_E424);
-                std::ptr::write_bytes(at as *mut u8, 0xC3, 0x50);
-                std::ptr::copy_nonoverlapping(sample.as_ptr(), at as *mut u8, sample.len());
-                (at as *mut u8).add(sample.len()).write(0);
-                answer(Box::new(move |place, r| match place {
-                    KEY_TO_CHAR => {
-                        r.eax = given;
-                        r.set_carry(given as u8 == 0);
-                        r.set_zero(given as u8 == 1);
-                    }
-                    _ => {
-                        r.eax = 0;
-                        r.ebx = 1;
-                        r.ecx = width;
-                        r.edx = 0x40;
-                    }
-                }));
-            },
-            &edit_key,
-        );
-    }
-    let _ = (&mut text, ZERO_FLAG);
-    drop(saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, edit_key)
 }

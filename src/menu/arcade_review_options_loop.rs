@@ -12,30 +12,13 @@
 //! visit.
 //! Callers: `sub_487E2C`. Ungated thunk; shadow mode runs the original alone; each real call
 //! writes a line to hook.log. Self-test: `screen_loop::check_screen`.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::menu::screen_loop::{
-    Env, List, Original, Screen, Step, check_screen, dispatch_screen, screen_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "menu::arcade_review_options_loop",
-    rva(0x488958),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
+use crate::framework::{Regs, game_read, game_write, rva};
+use crate::menu::screen_loop::{Env, List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -132,35 +115,8 @@ pub const SCREEN: Screen = Screen {
     ],
 };
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_screen(&HOOK, r, call_original, &SCREEN);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     screen_entry("menu::arcade_review_options_loop", r, &SCREEN)
-}
-
-// ---- self-test ----
-
-const THE_ORIGINAL: Original = Original {
-    function: rva(0x488958),
-    len: 0x331,
-    entry_bytes: &[0x60, 0xC7, 0x05, 0x5D, 0x55, 0x75, 0x00, 0x00],
-    calls: &[
-        0x3D, 0x56, 0x101, 0x112, 0x117, 0x166, 0x16B, 0x1B3, 0x211, 0x2B3, 0x2E1,
-    ],
-};
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Err(why) = check_screen(&mut t, &SCREEN, &THE_ORIGINAL) {
-        return t.skip(why);
-    }
-    t.finish()
 }

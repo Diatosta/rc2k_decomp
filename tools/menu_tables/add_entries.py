@@ -44,6 +44,7 @@ TWINS = {
     'dispatch_effects': ('effects_entry', [0], False),
     'dispatch_effect': ('effect_entry', [0], False),
     'dispatch_parts': ('regs_entry', [0], False),
+    'dispatch_lobby': ('lobby_entry', [0], False),
     'dispatch_regs': ('regs_entry', [2], False),
     'dispatch_spread': ('spread_entry', [0], False),
     'dispatch_reader': ('reader_entry', [0], False),

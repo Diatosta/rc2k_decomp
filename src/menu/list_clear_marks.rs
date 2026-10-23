@@ -10,25 +10,16 @@
 //! the original (the callers' lists have items). Callers: `race::mark_viewer_items`,
 //! `sub_4144CF` (three). Shadow mode compares. Self-test: lists of the test's (kinds 2 and
 //! others, marks set) against the original.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::race::viewer::{check_original, dispatch_regs, regs_entry};
+use crate::framework::Regs;
+use crate::race::viewer::regs_entry;
 use crate::service::harness::Region;
 use rc2k_core::menu::list_menu::{has_choices, rounds, unmarked};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::list_clear_marks", rva(0x414AC9), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The Rust version.
 pub unsafe fn list_clear_marks(list: u32) {
@@ -81,48 +72,8 @@ pub unsafe fn regions_of(list: u32) -> Vec<Region> {
     }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions = unsafe { regions_of(r.edi) };
-    dispatch_regs(&HOOK, r, call_original, &regions, 0, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut choices = [0xFFu8; 0x40];
-    for count in [1u8, 3, 6] {
-        let mut list = vec![0xAAu8; 0x18 + 0x10 * count as usize];
-        list[1] = count;
-        for n in 0..count as usize {
-            let item = &mut list[0x18 + 0x10 * n..0x28 + 0x10 * n];
-            item[0] = [0xC2, 0x45, 0x82, 0xF1, 0x02, 0x4F][n];
-            item[1] = [3, 0, 7, 2, 1, 9][n];
-            let at = choices.as_mut_ptr() as u32 + 2 * n as u32;
-            item[0xC..0x10].copy_from_slice(&at.to_le_bytes());
-        }
-        let list_at = list.as_mut_ptr() as u32;
-        let regions = unsafe { regions_of(list_at) };
-        let first = crate::service::harness::capture(&regions);
-        check_original(
-            &mut t,
-            &format!("{count} items"),
-            call_original,
-            Regs {
-                edi: list_at,
-                ..Regs::SENTINEL
-            },
-            &regions,
-            0,
-            &|| crate::service::harness::restore(&regions, &first),
-            &rust,
-        );
-    }
-    t.finish()
 }

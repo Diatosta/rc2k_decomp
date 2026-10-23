@@ -167,7 +167,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         2 => {
             hook_enter();
             let _gate = Gate;
-            crate::net::take_messages::from_rust(r);
+            crate::calls::call(rva(0x4194CC), r); // net::take_messages
         }
         3 => {
             hook_enter();

@@ -11,28 +11,18 @@
 //! `part`; `CreatePlayer` from Rust (`net::dplay`). Shadow mode runs the original alone.
 //! Self-test: a copy whose calls go to stand-ins and whose DirectPlay is a test object,
 //! against the Rust version: made, failing.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::net::dplay::{CREATE_PLAYER, call};
 use crate::net::lobby::{
-    DP_NAME, DPLAY, DPLAY_METHOD, FLAGS, LOG_L2, LOG_L2_NL, OWN, PLAYER_ID, PLAYER_NAME, Part,
-    Saved, TestObject, ZERO_MEMORY, a, answer, com_answer, dispatch_lobby, dword, fill, g,
-    log_text, p, region, run_both, test_eax,
+    DP_NAME, DPLAY, LOG_L2, LOG_L2_NL, OWN, PLAYER_ID, PLAYER_NAME, Part, ZERO_MEMORY, a, g,
+    lobby_entry, log_text, p, test_eax,
 };
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::create_player", rva(0x4190FB), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const TEXT: usize = 0x5C2F6E; // "NET: Create player"
 const EVENT: usize = 0x52AB68; // g_netEvent
@@ -73,54 +63,8 @@ pub fn create_player(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, create_player);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; pusha; lea eax, aNetCreatePlaye
-    let copy = match crate::net::lobby::copy(
-        0x4190FB,
-        0x70,
-        &[0x60, 0x60, 0x8D, 0x05, 0x6E, 0x2F, 0x5C, 0x00],
-        &[0x8, 0x15, 0x28],
-        &[LOG_L2, LOG_L2_NL, ZERO_MEMORY],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let dplay = TestObject::dplay();
-    let dp = dplay.addr();
-    let all = [dword(DPLAY), region(DP_NAME, 0x10)];
-    let saved = Saved::new(&all);
-    for result in [0u32, 0x8877_0005] {
-        run_both(
-            &mut t,
-            &format!("CreatePlayer gives {result:#x}"),
-            copy.addr(),
-            Regs::SENTINEL,
-            &all,
-            FLAGS,
-            &[],
-            &|| {
-                p(DPLAY, dp);
-                fill(DP_NAME, 0x10, 91);
-                answer(Box::new(|_, _| {}));
-                com_answer(Box::new(move |place, _| {
-                    if place == DPLAY_METHOD | CREATE_PLAYER {
-                        result
-                    } else {
-                        0
-                    }
-                }));
-            },
-            &create_player,
-        );
-    }
-    drop(saved);
-    drop(dplay);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, create_player)
 }

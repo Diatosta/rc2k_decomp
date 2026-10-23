@@ -279,6 +279,12 @@ pub fn dispatch_outside(
     r.esp = esp;
 }
 
+/// `dispatch_outside` without its hook (Rust callers; a refusal is the caller's).
+pub fn outside_entry(r: &mut Regs, run: Run) -> Result<(), Refused> {
+    run(r, &mut Game)?.apply(r);
+    Ok(())
+}
+
 // ---- self-test machinery: stand-ins that note how they were called ----
 
 const NOTE_SLOTS: usize = 16;

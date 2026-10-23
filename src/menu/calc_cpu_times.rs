@@ -21,25 +21,15 @@
 //! anything. Shadow mode runs the original alone (it logs). Self-test:
 //! the original and the Rust version on the game's tables, the random state and the
 //! counters by lot; put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::menu::standings::*;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::calc_cpu_times", rva(0x470950), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 use crate::menu::scale_stage_times::{TIMES_RVA, held_section, scaled};
 
@@ -51,26 +41,10 @@ const GAP_RVA: usize = rva(0x7559F0); // hhmm
 const SPREAD_RVA: usize = rva(0x7559EC); // dword_7559EC
 const FIRST_RVA: usize = rva(0x755944); // dword_755944
 const STEP_RVA: usize = rva(0x755948); // dword_755948
-const RANDOM_RVA: usize = crate::math::next_random::STATE_RVA;
 const DIVIDE_BY_ZERO: FatalError = FatalError {
     code: 0x80701010,
     message: "",
 };
-const EXTRA: [usize; 1] = [CLASSES_RVA];
-const CASES: u32 = 4;
-
-fn test_entry(_case: u32) -> Regs {
-    Regs::SENTINEL
-}
-
-fn prepare(case: u32) {
-    unsafe {
-        game_write(RANDOM_RVA, 0x1234_5678u32.wrapping_mul(case + 1));
-        game_write(FIRST_RVA, u32::from(case == 1));
-        game_write(STEP_RVA, case * 2);
-    }
-}
-
 /// The current record (see `standings::current_event`'s checks).
 pub fn record() -> Result<u32, BadInput> {
     current_event()?;
@@ -173,76 +147,11 @@ pub unsafe fn calc_cpu_times(entry: &Regs) -> Result<Regs, Refused> {
     Ok(*entry)
 }
 
-fn regions() -> Vec<Region> {
-    let first = game_addr(DRIVERS_RVA) as u32;
-    let Ok(drivers) = entries(first, DRIVER) else {
-        return vec![(0, 0)];
-    };
-    vec![
-        (first, drivers.len() * DRIVER as usize),
-        (game_addr(TIMES_RVA) as u32, 0x18),
-        (game_addr(rva(0x71C3D8)) as u32, 8),
-        at(GAP_RVA),
-        at(SPREAD_RVA),
-        at(FIRST_RVA),
-        at(STEP_RVA),
-        at(RANDOM_RVA),
-    ]
-}
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { calc_cpu_times(r) }?))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    // It logs: in shadow mode the original alone (the self-test compares the two).
-    if crate::framework::shadow() {
-        HOOK.count_call();
-        unsafe { call_original(r) };
-        return;
-    }
-    let regions = regions();
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    // Unpaused (it logs): the generator to this test alone meanwhile.
-    crate::math::next_random::own_random(test)
-}
-
-fn test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // Unpaused: frames drawn meanwhile may see the tables this test changes.
-    let _disturbing = crate::screens::harness::Disturbing::begin();
-    let regions = regions();
-    if regions.iter().any(|&(p, _)| p == 0) {
-        return t.skip("the game's tables are not there");
-    }
-    let mut vars = regions.clone();
-    vars.extend(EXTRA.map(at));
-    let saved = capture(&vars);
-    // The probe runs on the saved tables: it writes what the tests write.
-    let refused = unsafe { calc_cpu_times(&test_entry(0)) }.is_err();
-    restore(&vars, &saved);
-    if refused {
-        return t.skip("the Rust version refuses the game's tables");
-    }
-    for case in 0..CASES {
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            test_entry(case),
-            &|| {
-                restore(&vars, &saved);
-                prepare(case);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::service::harness::state_entry(r, &rust)
 }

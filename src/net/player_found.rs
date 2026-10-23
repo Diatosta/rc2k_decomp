@@ -10,37 +10,16 @@
 //! (`net::lobby::dispatch_callback`). Its call through `part`. Shadow mode runs the original
 //! alone. Self-test: a copy called with test arguments, its call to a stand-in (the name
 //! copied), against the Rust version: 0, 5 and 8 listed.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): DirectPlay is given `callback`, the Rust
+//! version; in the hooked DLL the game's own code passes the original. What the header
+//! says of the thunk, shadow mode and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::{RawHook, Regs, SelfTest, rva};
-use crate::net::lobby::{
-    COPY_PRINTABLE, PLAYERS, Part, Saved, answer, block, dispatch_callback, dword, g, p,
-    run_callback,
-};
+use crate::framework::Regs;
+use crate::net::lobby::{COPY_PRINTABLE, PLAYERS, Part, block, g, p};
 use crate::net::types::NetPlayerBlock;
-use std::sync::atomic::{AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-unsafe extern "system" fn thunk(a: u32, b: u32, c: u32, d: u32, e: u32) -> u32 {
-    dispatch_callback(
-        &HOOK,
-        ORIGINAL.load(Ordering::SeqCst),
-        &[a, b, c, d, e],
-        player_found,
-    )
-}
-
-type Thunk = unsafe extern "system" fn(u32, u32, u32, u32, u32) -> u32;
-
-pub static HOOK: RawHook = RawHook::new(
-    "net::player_found",
-    rva(0x41929E),
-    unsafe { std::mem::transmute::<Thunk, unsafe extern "C" fn()>(thunk) },
-    &ORIGINAL,
-)
-.self_test(self_test);
 
 /// The Rust version: eax.
 pub fn player_found(args: &[u32], part: Part) -> Result<u32, Refused> {
@@ -61,50 +40,12 @@ pub fn player_found(args: &[u32], part: Part) -> Result<u32, Refused> {
     Ok(1)
 }
 
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // push ebp; mov ebp, esp; push ebx; push esi
-    let copy = match crate::net::lobby::copy(
+/// The callback DirectPlay is given (no hook; 2026-10-23): the Rust version.
+pub unsafe extern "system" fn callback(a: u32, b: u32, c: u32, d: u32, e: u32) -> u32 {
+    crate::net::lobby::callback_entry(
+        "net::player_found",
         0x41929E,
-        0x4C,
-        &[0x55, 0x8B, 0xEC, 0x53, 0x56],
-        &[0x38],
-        &[COPY_PRINTABLE],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut all = vec![dword(PLAYERS)];
-    for n in 0..8 {
-        all.push((block(n), field!(NetPlayerBlock, record) as usize));
-    }
-    let saved = Saved::new(&all);
-    let name = b"Colin\0";
-    let dp_name = [0x10u32, 0, name.as_ptr() as u32, 0];
-    for count in [0u32, 5, 8] {
-        run_callback(
-            &mut t,
-            &format!("{count} listed"),
-            copy.addr(),
-            &[0x1234, 0, dp_name.as_ptr() as u32, 0, 0],
-            &all,
-            &|| {
-                p(PLAYERS, count);
-                answer(Box::new(|_, r| {
-                    let _ = unsafe {
-                        crate::strings::copy_printable::copy_printable(
-                            r.eax as *const u8,
-                            r.ebx as *mut u8,
-                            r.ecx,
-                        )
-                    };
-                }));
-            },
-            player_found,
-        );
-    }
-    drop(saved);
-    t.finish()
+        &[a, b, c, d, e],
+        player_found,
+    )
 }

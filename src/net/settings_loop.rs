@@ -16,28 +16,17 @@
 //! Its calls through `part` (the frames through the game). The whole screen runs inside it:
 //! ungated. Shadow mode runs the original alone. Self-test: a copy whose calls go to
 //! stand-ins (the keys scripted, Escape at the end), against the Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::net::lobby::{
     CHOICE, CLOCK, EDITED, FRAME_CLOCK, KEY_CLOCK, LIST_TAKE_KEY, MAYBE_LEXICON, MODE, MOVE_CLOCK,
-    Part, QUITTING, RUN_FRAME, SCREENSHOT, SCREENSHOTS_ON, Saved, answer, dispatch_lobby, dword, g,
-    game, p, run_both,
+    Part, QUITTING, RUN_FRAME, SCREENSHOT, SCREENSHOTS_ON, g, game, lobby_entry, p,
 };
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::settings_loop", rva(0x4168CF), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
 
 const SHOW_BACKGROUND: u32 = 0x4173E7; // net::show_background
 const SETTINGS_DONE: u32 = 0x416F0B; // net::settings_done
@@ -114,8 +103,10 @@ pub fn settings_loop(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, settings_loop);
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, settings_loop)
 }
 
 /// The list screens' tests: a key script for `menu::list_take_key` (Escape after it).
@@ -129,87 +120,4 @@ pub fn keys(script: Vec<u32>) -> crate::net::lobby::Answer {
             r.ebx = 0x1000 + n as u32;
         }
     })
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let places = [
-        SHOW_BACKGROUND,
-        SETTINGS_DONE,
-        RUN_FRAME,
-        LIST_TAKE_KEY,
-        SETTING_KEY,
-        SETTINGS_LINK,
-        BEGIN_SETTING_EDIT,
-        SCREENSHOT,
-        MAYBE_LEXICON,
-    ];
-    // pusha; mov dword_52A908, 0
-    let copy = match crate::net::lobby::copy(
-        0x4168CF,
-        0x113,
-        &[
-            0x60, 0xC7, 0x05, 0x08, 0xA9, 0x52, 0x00, 0x00, 0x00, 0x00, 0x00,
-        ],
-        &[0xB, 0x10, 0x3E, 0x4D, 0x5B, 0xB9, 0xCA, 0xE2, 0xE7],
-        &places,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let all = [
-        dword(MODE),
-        dword(CHOICE),
-        dword(EDITED),
-        dword(KEY_CLOCK),
-        dword(FRAME_CLOCK),
-        dword(MOVE_CLOCK),
-        dword(SCREENSHOTS_ON),
-    ];
-    let saved = Saved::new(&all);
-    let scripts: [(&str, &[u32], u32); 6] = [
-        ("Escape", &[], 0),
-        (
-            "up, down to 4, Enter",
-            &[0x66, 0x6B, 0x6B, 0x6B, 0x6B, 0x6B, 0x1C],
-            0,
-        ),
-        (
-            "Enter on 0, then on 2 and editing",
-            &[0x1C, 0x6B, 0x6B, 0x1C, 0x1E, 0x1C],
-            0,
-        ),
-        ("a screenshot", &[0x52, 0x10, 0x52], 1),
-        ("no screenshots", &[0x52, 0x0], 0),
-        ("Enter on 1 and keys", &[0x6B, 0x1C, 0x30, 0x31, 0x1C], 0),
-    ];
-    for (what, script, shots) in scripts {
-        run_both(
-            &mut t,
-            what,
-            copy.addr(),
-            Regs::SENTINEL,
-            &all,
-            0,
-            &[],
-            &|| {
-                p(SCREENSHOTS_ON, shots);
-                let mut take = keys(script.to_vec());
-                answer(Box::new(move |place, r| {
-                    take(place, r);
-                    match place {
-                        BEGIN_SETTING_EDIT => p(EDITED, g(CHOICE)),
-                        // The editing ends with Enter.
-                        SETTING_KEY if r.eax as u8 == 0x1C => p(EDITED, u32::MAX),
-                        _ => {}
-                    }
-                }));
-            },
-            &settings_loop,
-        );
-    }
-    drop(saved);
-    t.finish()
 }

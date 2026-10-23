@@ -14,33 +14,24 @@
 //! `posted_open_host`). Shadow mode runs the original alone. Self-test: a copy whose calls go
 //! to stand-ins and whose DirectPlay is a test object, against the Rust version: no object,
 //! posting, each failure, done.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::{Regs, SelfTest};
 use crate::net::dplay::{OPEN, call};
 use crate::net::find_sessions::zeroed_description;
 use crate::net::lobby::{
     APP_GUID, DPLAY, DPLAY_METHOD, FLAGS, JOINED, JOINED_MOST, JOINED_NAME, JOINED_PASSWORD,
     LOG_HEX_L2_NL, LOG_L2, LOG_L2_NL, MACHINE_NAME, MOST_PLAYERS, POST_CALL, POSTING, Part,
     RESTORE_WINDOW, SESSION_DESC, SESSION_OPEN, SESSION_PASSWORD, Saved, TestObject, ZERO_MEMORY,
-    a, answer, cmp_flags, com_answer, dispatch_lobby, dword, fill, g, game, log_text, movsb, p,
+    a, answer, cmp_flags, com_answer, dword, fill, g, game, lobby_entry, log_text, movsb, p,
     region, run_both, test_eax,
 };
 use crate::net::types::DpSessionDesc;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::host_session", rva(0x418B13), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const HOST: usize = 0x5C2EDA; // "NET: Host"
 pub const OPENED: usize = 0x5C2EE4; // "NET: Open"
@@ -146,8 +137,10 @@ pub fn finish(
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, host_session);
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, host_session)
 }
 
 /// The test of `net::host_session` and `net::join_session`: the cases on a copy.
@@ -217,42 +210,4 @@ pub fn session_test(
     }
     drop(saved);
     drop(dplay);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let places = [
-        LOG_L2,
-        LOG_L2_NL,
-        ZERO_MEMORY,
-        POST_CALL,
-        LOG_HEX_L2_NL,
-        RESTORE_WINDOW,
-        CREATE_PLAYER,
-        CREATE_GROUP,
-    ];
-    // pusha; pusha; lea eax, aNetHost
-    let copy = match crate::net::lobby::copy(
-        0x418B13,
-        0x147,
-        &[0x60, 0x60, 0x8D, 0x05, 0xDA, 0x2E, 0x5C, 0x00],
-        &[
-            0x8, 0x15, 0x35, 0x7D, 0xE5, 0x105, 0x10C, 0x112, 0x125, 0x12C, 0x13A,
-        ],
-        &places,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    session_test(
-        &mut t,
-        copy.addr(),
-        Regs::SENTINEL,
-        CREATE_GROUP,
-        0,
-        &host_session,
-    );
-    t.finish()
 }

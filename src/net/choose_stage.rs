@@ -8,28 +8,16 @@
 //! Caller: `net::lobby_loop`. Its calls through `part` (the stage screen through its hook).
 //! The screen runs inside it: ungated. Shadow mode runs the original alone. Self-test: a copy
 //! whose calls go to stand-ins, against the Rust version, left with Escape or not.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::net::choose_car::ESCAPED;
 use crate::net::fill_own_player::{DIRECTION, STAGE};
-use crate::net::lobby::{
-    OWN, Part, SELECT_STAGE, Saved, answer, dispatch_lobby, dword, g, p, pb, region, run_both,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::choose_stage", rva(0x418347), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
+use crate::net::lobby::{OWN, Part, SELECT_STAGE, g, lobby_entry, p, pb};
 
 const SHOW_BACKGROUND: u32 = 0x4173E7; // net::show_background
 
@@ -51,55 +39,8 @@ pub fn choose_stage(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, choose_stage);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; mov dword_755A3C, 0
-    let copy = match crate::net::lobby::copy(
-        0x418347,
-        0x34,
-        &[
-            0x60, 0xC7, 0x05, 0x3C, 0x5A, 0x75, 0x00, 0x00, 0x00, 0x00, 0x00,
-        ],
-        &[0xB, 0x2D],
-        &[SELECT_STAGE, SHOW_BACKGROUND],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let all = [
-        dword(ESCAPED),
-        region(OWN, 8),
-        dword(STAGE),
-        dword(DIRECTION),
-    ];
-    let saved = Saved::new(&all);
-    for escaped in [0u32, 1] {
-        run_both(
-            &mut t,
-            &format!("Escape {escaped}"),
-            copy.addr(),
-            Regs::SENTINEL,
-            &all,
-            0,
-            &[],
-            &|| {
-                p(STAGE, 0x1234);
-                p(DIRECTION, 0x101);
-                answer(Box::new(move |place, _| {
-                    if place == SELECT_STAGE {
-                        p(ESCAPED, escaped);
-                    }
-                }));
-            },
-            &choose_stage,
-        );
-    }
-    drop(saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, choose_stage)
 }

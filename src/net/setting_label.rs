@@ -8,23 +8,14 @@
 //! Caller: `net::settings_frame` (four times). Its call through `part`. Shadow mode runs the
 //! original alone (it draws). Self-test: a copy whose call goes to a stand-in, against the
 //! Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::net::lobby::{Part, dispatch_lobby, run_both};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::setting_label", rva(0x416AF8), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
+use crate::net::lobby::{Part, lobby_entry};
 
 const DRAW_BUTTON: u32 = 0x416CE0; // net::draw_button
 
@@ -39,40 +30,8 @@ pub fn setting_label(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     Ok(r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, setting_label);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // mov ebx, 0
-    let copy = match crate::net::lobby::copy(
-        0x416AF8,
-        0x15,
-        &[0xBB, 0x00, 0x00, 0x00, 0x00],
-        &[0xC],
-        &[DRAW_BUTTON],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    run_both(
-        &mut t,
-        "a label",
-        copy.addr(),
-        Regs {
-            eax: 0x163,
-            esi: 1,
-            ebp: 0x92,
-            ..Regs::SENTINEL
-        },
-        &[],
-        0,
-        &[],
-        &|| {},
-        &setting_label,
-    );
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, setting_label)
 }

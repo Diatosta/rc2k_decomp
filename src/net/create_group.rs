@@ -10,28 +10,16 @@
 //! from Rust (`net::dplay`). Shadow mode runs the original alone. Self-test: a copy whose
 //! call goes to a stand-in and whose DirectPlay is a test object, against the Rust version:
 //! made, either failing.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::net::create_player::dp_name;
 use crate::net::dplay::{ADD_PLAYER_TO_GROUP, CREATE_GROUP, call};
-use crate::net::lobby::{
-    DP_NAME, DPLAY, DPLAY_METHOD, FLAGS, PLAYER_ID, Part, SEND_TO, Saved, TestObject, ZERO_MEMORY,
-    a, com_answer, dispatch_lobby, dword, fill, g, p, region, run_both, test_eax,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::create_group", rva(0x4192EA), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::net::lobby::{DP_NAME, DPLAY, PLAYER_ID, Part, SEND_TO, a, g, lobby_entry, test_eax};
 
 pub const GROUP_NAME: usize = 0x5AB25C; // "susanivanovafanclub"
 
@@ -62,63 +50,8 @@ pub fn create_group(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, create_group);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; push ebx; push ecx; lea ebx, dword_5AB29C
-    let copy = match crate::net::lobby::copy(
-        0x4192EA,
-        0x6A,
-        &[0x60, 0x53, 0x51, 0x8D, 0x1D, 0x9C, 0xB2, 0x5A, 0x00],
-        &[0xE],
-        &[ZERO_MEMORY],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let dplay = TestObject::dplay();
-    let dp = dplay.addr();
-    let all = [
-        dword(DPLAY),
-        region(DP_NAME, 0x10),
-        dword(SEND_TO),
-        dword(PLAYER_ID),
-    ];
-    let saved = Saved::new(&all);
-    for (made, added) in [(0u32, 0u32), (0x8877_0005, 0), (0, 0x8877_0006)] {
-        run_both(
-            &mut t,
-            &format!("CreateGroup {made:#x}, AddPlayerToGroup {added:#x}"),
-            copy.addr(),
-            Regs::SENTINEL,
-            &all,
-            FLAGS,
-            &[],
-            &|| {
-                p(DPLAY, dp);
-                fill(DP_NAME, 0x10, 92);
-                p(SEND_TO, 0x22);
-                p(PLAYER_ID, 0x33);
-                com_answer(Box::new(move |place, args| {
-                    if place == DPLAY_METHOD | CREATE_GROUP {
-                        unsafe { (args[1] as *mut u32).write_unaligned(0x4444) };
-                        made
-                    } else if place == DPLAY_METHOD | ADD_PLAYER_TO_GROUP {
-                        added
-                    } else {
-                        0
-                    }
-                }));
-            },
-            &create_group,
-        );
-    }
-    drop(saved);
-    drop(dplay);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, create_group)
 }

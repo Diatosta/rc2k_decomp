@@ -13,25 +13,14 @@
 //! finale runs a race's drive); shadow mode runs the original alone. Self-test: a copy
 //! whose calls go to stand-ins, against the Rust version: lost, won the first time, won
 //! again.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::menu::parts::{Part, copy, dispatch_parted, parted_entry, run_both, test_part};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::arcade_level_end", rva(0x48AD73), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::menu::parts::{Part, parted_entry};
 
 const CALLEES: [usize; 8] = [
     0x40F7DA, // 0 sound::play_tune_7
@@ -98,16 +87,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_parted(
-        &HOOK,
-        r,
-        call_original,
-        &|r, part| unsafe { arcade_level_end(r, part) },
-        game_part,
-    );
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
@@ -116,57 +95,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
         &|r, part| unsafe { arcade_level_end(r, part) },
         game_part,
     )
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let calls = [0xA, 0xF, 0x20, 0x25, 0x45, 0x4A, 0x4F, 0x54];
-    let copy = match copy(
-        0x48AD73,
-        0x5B,
-        &[0x60, 0x83, 0x3D, 0x68, 0x87, 0x75, 0x00, 0x01],
-        &calls,
-        &CALLEES,
-        &[],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions: [Region; 4] = [
-        at(WON_RVA),
-        at(LEVEL_RVA),
-        at(RETRY_RVA),
-        (game_addr(DONE_RVA) as u32, 8),
-    ];
-    let saved = capture(&regions);
-    for (won, level, done) in [
-        (0u32, 2u32, 0u8),
-        (2, 1, 0),
-        (1, 3, 0),
-        (1, 3, 1),
-        (1, 0, 0),
-        (1, 5, 7),
-    ] {
-        run_both(
-            &mut t,
-            &format!("place {won}, level {level}, won before {done}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                game_write(WON_RVA, won);
-                game_write(LEVEL_RVA, level);
-                game_write(RETRY_RVA, 0u32);
-                for n in 0..8 {
-                    game_write(DONE_RVA + n, if n == level as usize { done } else { 0x5A });
-                }
-            },
-            Regs::SENTINEL,
-            false,
-            &|r| unsafe { arcade_level_end(r, &mut test_part) },
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
 }

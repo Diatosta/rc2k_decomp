@@ -11,26 +11,17 @@
 //! Refuses nothing. Shadow mode runs the original alone. Self-test: a copy whose two
 //! variables are the test's and whose DirectPlay is a test object noting its arguments,
 //! against the Rust version: id 0, id not 0.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::net::dplay::{DESTROY_PLAYER, method};
-use crate::net::lobby::{FLAGS, TestObject, cmp_flags, run_both};
-use crate::net::message_vars::{MessageVars, TestVars, as_rust, get, set};
-use crate::net::{Part, dispatch_net, net_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::destroy_player", rva(0x41916B), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::net::lobby::cmp_flags;
+use crate::net::message_vars::{MessageVars, get, set};
+use crate::net::{Part, net_entry};
 
 /// The Rust version on the variables at `v`.
 pub fn destroy_player_with(r: &mut Regs, v: &MessageVars) {
@@ -48,50 +39,8 @@ pub fn destroy_player(r: &mut Regs, _part: Part) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_net(&HOOK, r, call_original, destroy_player);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     net_entry(r, destroy_player)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let tv = TestVars::new(0);
-    // pusha; cmp g_netPlayerId, 0
-    let entry = [0x60, 0x83, 0x3D, 0x70, 0xB2, 0x5A, 0x00, 0x00];
-    let copy = match tv.copy(0x41916B, 0x27, &entry, &[], &[], 4) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let v = tv.v;
-    let dplay = TestObject::dplay();
-    let dp = dplay.addr();
-    for id in [0u32, 0x0000_6001, 0x8000_0002] {
-        run_both(
-            &mut t,
-            &format!("player {id:#x}"),
-            copy.addr(),
-            Regs::SENTINEL,
-            &[tv.region()],
-            // After the method its flags (the test object's code's).
-            if id == 0 { 0 } else { FLAGS },
-            &[],
-            &|| {
-                set(v.dplay, dp);
-                set(v.player_id, id);
-            },
-            &as_rust(|r, _| {
-                destroy_player_with(r, &v);
-                Ok(())
-            }),
-        );
-    }
-    drop(dplay);
-    t.finish()
 }

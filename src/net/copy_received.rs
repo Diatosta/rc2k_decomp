@@ -15,31 +15,17 @@
 //! Shadow mode runs the original alone (the mutex). Self-test: a copy whose records and
 //! count are the test's and whose calls go to noting stand-ins, against the Rust version:
 //! 0 .. 3 players.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
 use crate::field;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::input::effects::compare;
+use crate::framework::Regs;
 use crate::net::types::NetPlayerBlock;
-use crate::net::{LOCK, PLAYERS, Part, RECEIVED, RECEIVED_LEN, UNLOCK, a, dispatch_net, net_entry};
-use crate::system::api_stand_ins::copy_with;
+use crate::net::{LOCK, PLAYERS, Part, RECEIVED, RECEIVED_LEN, UNLOCK, a, net_entry};
 use rc2k_core::net::inbox;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("net::copy_received", rva(0x4173A0), thunk, &ORIGINAL)
-    .private_copy(0x47)
-    .relocate_calls(&[1, 0x40])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The records' room: 16 players.
 pub const MOST_PLAYERS: u32 = 16;
@@ -88,76 +74,8 @@ pub fn copy_received(r: &mut Regs, part: Part) -> Result<(), Refused> {
     copy_received_with(r, a(RECEIVED), a(PLAYERS), part)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_net(&HOOK, r, call_original, copy_received);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     net_entry(r, copy_received)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let len = 3 * RECEIVED_LEN as usize + 0x10;
-    let mut mem = vec![0u8; len];
-    let mut players = 0u32;
-    let (base, count) = (mem.as_mut_ptr() as u32, &raw mut players as u32);
-    // pusha; call sub_418474
-    let entry = [0x60, 0xE8, 0xCE, 0x10, 0x00, 0x00];
-    let copy = match copy_with(
-        0x4173A0,
-        0x47,
-        &entry,
-        &[1, 0x40],
-        &[LOCK, UNLOCK],
-        &[],
-        &[
-            (RECEIVED, (RECEIVED_LEN * MOST_PLAYERS) as usize, base),
-            (PLAYERS, 4, count),
-        ],
-        2,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let all = [(base, len), (count, 4)];
-    for n in 0..4u32 {
-        let fill = || unsafe {
-            let m = base as *mut u8;
-            for k in 0..len {
-                m.add(k)
-                    .write_volatile((k as u32).wrapping_mul(0x3B).wrapping_add(n) as u8);
-            }
-            (count as *mut u32).write_volatile(n);
-        };
-        compare(
-            &mut t,
-            &format!("{n} players"),
-            &copy,
-            Regs::SENTINEL,
-            &fill,
-            &all,
-            &|r, part| copy_received_with(r, base, count, part),
-            false,
-        );
-    }
-    unsafe { (count as *mut u32).write_volatile(17) };
-    let mut r = Regs::SENTINEL;
-    t.check(
-        copy_received_with(
-            &mut r,
-            base,
-            count,
-            &mut crate::sound::turn_parts::test_part,
-        )
-        .is_err(),
-        || "17 players were not refused".into(),
-    );
-    crate::sound::turn_parts::take_called();
-    let _ = (&mut mem, &mut players);
-    t.finish()
 }
