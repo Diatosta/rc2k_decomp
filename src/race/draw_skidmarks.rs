@@ -24,7 +24,7 @@ use crate::race::skidmarks::*;
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     {
-        let after = unsafe { draw_skidmarks(r, &mut skid_part) }?;
+        let after = unsafe { draw_skidmarks(r) }?;
         let esp = r.esp;
         *r = after;
         r.esp = esp;

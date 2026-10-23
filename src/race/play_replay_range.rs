@@ -22,20 +22,19 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::race::viewer::{
-    BLOCK, BLOCKS, FRAME, KEY_AFTER_PLAY, Part, RECORDING, STOPPED, WAIT_RELEASE, get, put,
-    regs_entry,
+    BLOCK, BLOCKS, FRAME, KEY_AFTER_PLAY, RECORDING, STOPPED, WAIT_RELEASE, get, put, regs_entry,
 };
 
 /// The Rust version: the registers it leaves (the entry's).
-pub fn play_replay_range(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn play_replay_range(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
-    part(1, &mut r)?;
+    crate::race::play_replay_range::game_part(1, &mut r)?;
     if get(RECORDING) != 1 {
-        part(2, &mut r)?;
+        crate::race::play_replay_range::game_part(2, &mut r)?;
     }
-    part(3, &mut r)?;
-    part(4, &mut r)?;
-    part(5, &mut r)?;
+    crate::race::play_replay_range::game_part(3, &mut r)?;
+    crate::race::play_replay_range::game_part(4, &mut r)?;
+    crate::race::play_replay_range::game_part(5, &mut r)?;
     r.eax &= 0xFF;
     put(KEY_AFTER_PLAY, r.eax);
     put(WAIT_RELEASE, 1);
@@ -54,16 +53,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         match place {
             1 => crate::drive::replay_frame_marks::replay_frame_marks(),
             2 => crate::race::sounds::start_race_sounds(r, &mut crate::race::sounds::game_part)?,
-            3 => {
-                *r =
-                    crate::race::play_movie::play_movie(r, &mut crate::race::play_movie::game_part)?
-            }
+            3 => *r = crate::race::play_movie::play_movie(r)?,
             4 => {
-                race_end::reset_race_sounds(
-                    r,
-                    &race_end::SoundVars::game(),
-                    &mut race_end::sound_part,
-                )?;
+                race_end::reset_race_sounds(r, &race_end::SoundVars::game())?;
             }
             _ => crate::race::viewer_load_stage::take_key(r),
         }
@@ -74,5 +66,5 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| play_replay_range(r, &mut game_part))
+    regs_entry(r, &|r| play_replay_range(r))
 }

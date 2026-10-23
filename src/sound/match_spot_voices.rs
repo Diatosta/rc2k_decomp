@@ -22,11 +22,11 @@ use crate::sound::spot_voices::{
     MOST_KIND, MOST_SPOTS, SOUND_OF_KIND, SPOT_COUNT, SPOT_LEN, SPOTS, g, load_voices,
     store_voices, vw,
 };
-use crate::sound::turn_parts::{Part, turn_entry};
+use crate::sound::turn_parts::turn_entry;
 
 // ---- Rust version ----
 
-pub fn match_spot_voices_in(_: &mut Regs, _: Part) -> Result<(), Refused> {
+pub fn match_spot_voices_in(_: &mut Regs) -> Result<(), Refused> {
     use rc2k_core::sound::spot_voices::Spot;
     // Converted: `rc2k_core::sound::spot_voices::match_spots`.
     let count = g(SPOT_COUNT);

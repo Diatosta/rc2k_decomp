@@ -23,8 +23,7 @@
 //!      bytes where the original loads `al`); no flags read (the caller goes on)
 //!
 //! Caller: `physics::record_face_contacts`.
-//! Refuses a kind past the 0x4B0 material records, and what its calls refuse; what was
-//! written is put back (the faces touched included).
+//! Refuses a kind past the 0x4B0 material records, and what its calls refuse.
 //! Self-test (in a race; skipped otherwise): the original and the Rust version on the
 //! stage's own faces (everything written saved and put back), the car where it is and
 //! moved onto each object face's point (so the paths inside are taken), both directions.
@@ -37,23 +36,18 @@ use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::math::x87::int_hypot;
 use crate::math::x87_run::compare_80;
-use crate::physics::contact_force::{self, RECORD, contact_force};
+use crate::physics::contact_force::{RECORD, contact_force};
 use crate::physics::flow::{a, base, copy3, fill3, g, negate, p, x87_run};
-use crate::physics::point_hits_car::{self, KIND};
-use crate::physics::touch_face::{self, FACES, touch_face};
+use crate::physics::point_hits_car::KIND;
+use crate::physics::touch_face::{FACES, touch_face};
 use crate::physics::vector_length::vector_length;
-use crate::race::norms::norm_regions;
 use crate::race::norms::normalise_work_vector;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, restore};
 use rc2k_core::physics::face_contacts::{self as contacts, FaceObject, Inside};
 
 const WORK: usize = 0x5C5F60; // g_workVector
 const OBJECT: usize = 0x6D321C; // dword_6D321C
-
-/// The faces `touch_face` may write, saved before it runs: put back on a refusal.
-pub type Touched = Vec<(u32, [u8; 0x40])>;
 
 fn byte(x: u32) -> u32 {
     unsafe { (x as *const u8).read() as u32 }
@@ -63,17 +57,14 @@ fn low(r: &mut Regs, v: u32) {
     r.eax = (r.eax & !0xFF) | v;
 }
 
-fn touch(r: &mut Regs, face: u32, touched: &mut Touched) -> Result<(), Refused> {
-    touched.push((face, unsafe {
-        (face as *const [u8; 0x40]).read_unaligned()
-    }));
+fn touch(r: &mut Regs, _face: u32) -> Result<(), Refused> {
     unsafe { touch_face() }?.apply(r);
     Ok(())
 }
 
-/// The steps, not guarded (`guarded` puts back): `r` as the original leaves it.
+/// The steps: `r` as the original leaves it.
 // Converted: `rc2k_core::physics::face_contacts` (the x87 steps stay).
-pub fn steps(r: &mut Regs, touched: &mut Touched) -> Result<(), Refused> {
+pub fn steps(r: &mut Regs) -> Result<(), Refused> {
     p(0x6D3218, r.ebx);
     r.esi = (r.ebx << 6).wrapping_add(g(FACES));
     let face = r.esi;
@@ -86,7 +77,7 @@ pub fn steps(r: &mut Regs, touched: &mut Touched) -> Result<(), Refused> {
         FaceObject::TouchOnly => {
             low(r, contacts::TOUCH_ONLY);
             p(KIND, 0xFF);
-            return touch(r, face, touched);
+            return touch(r, face);
         }
         FaceObject::Object(object) => object,
     };
@@ -172,12 +163,12 @@ pub fn steps(r: &mut Regs, touched: &mut Touched) -> Result<(), Refused> {
     r.eax = g(KIND);
     match contacts::inside(r.eax) {
         Inside::PushBack => {}
-        Inside::Touch => return touch(r, face, touched),
+        Inside::Touch => return touch(r, face),
         Inside::Nothing => return Ok(()),
     }
     unsafe { crate::physics::restore_saved_car::restore_saved_car() }?.apply(r);
     unsafe { crate::physics::feel_ground::feel_ground(r) }?;
-    touch(r, face, touched)?;
+    touch(r, face)?;
     // 0x45E62A: pushed back against the motion, level.
     copy3(WORK, 0x71A170);
     negate(WORK);
@@ -199,51 +190,14 @@ pub fn steps(r: &mut Regs, touched: &mut Touched) -> Result<(), Refused> {
     Ok(())
 }
 
-/// Everything the face contacts and their calls write but the faces.
-pub fn regions() -> Vec<Region> {
-    let mut all = contact_force::regions();
-    all.extend(point_hits_car::regions());
-    all.extend(crate::physics::object_turn_matrix::regions());
-    all.extend(touch_face::regions());
-    all.extend(crate::physics::feel_ground::regions());
-    all.extend(norm_regions());
-    all.extend([
-        (a(0x614A50), 0x18),
-        (a(RECORD), 4),
-        (a(0x614108), 8),
-        (a(0x6D3B40), 12),
-        (a(0x614738), 4),
-        (a(0x71A10C), 12),
-        (a(0x71A08C), 0x40),
-        (a(0x71ADC8), 0x100),
-        (a(0x6D3218), 8),
-        (a(KIND), 4),
-        (a(0x635038), 0x10),
-        (a(0x6D3B70), 8),
-        (a(0x62400C), 4),
-        (a(0x639824), 12),
-    ]);
-    all
-}
-
-/// `f` on a copy of `entry`, everything written put back when it refuses.
+/// `f` on a copy of `entry`.
 pub fn guarded(
     entry: &Regs,
-    f: impl FnOnce(&mut Regs, &mut Touched) -> Result<(), Refused>,
+    f: impl FnOnce(&mut Regs) -> Result<(), Refused>,
 ) -> Result<Left, Refused> {
-    let all = regions();
-    let saved = capture(&all);
-    let (mut r, mut touched) = (*entry, Touched::new());
-    match f(&mut r, &mut touched) {
-        Ok(()) => Ok(left_of(&r)),
-        Err(e) => {
-            restore(&all, &saved);
-            for (face, bytes) in touched.iter().rev() {
-                unsafe { (*face as *mut [u8; 0x40]).write_unaligned(*bytes) };
-            }
-            Err(e)
-        }
-    }
+    let mut r = *entry;
+    f(&mut r)?;
+    Ok(left_of(&r))
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
@@ -252,16 +206,10 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     faces_entry(r, steps)
 }
 
-pub fn put_back_faces(touched: &Touched) {
-    for (face, bytes) in touched.iter().rev() {
-        unsafe { (*face as *mut [u8; 0x40]).write_unaligned(*bytes) };
-    }
-}
-
 /// `dispatch_faces` without its hook (Rust callers; a refusal is the caller's).
 pub fn faces_entry(
     r: &mut Regs,
-    steps: fn(&mut Regs, &mut Touched) -> Result<(), Refused>,
+    steps: fn(&mut Regs) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     crate::service::harness::state_entry(r, &|e| guarded(e, steps))
 }

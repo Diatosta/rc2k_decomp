@@ -18,31 +18,28 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_read, game_write, rva};
-use crate::physics::flow::guard;
 use crate::race::muddy_texel::TEXTURE_RVA;
-use crate::service::harness::at;
 
 const FRAMES_RVA: usize = rva(0x623D58); // dword_623D58
 
-/// A call by place: 0 `race::mud_texture_turn`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn mud_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn mud_frame(entry: &Regs) -> Result<Regs, Refused> {
     // Converted: `rc2k_core::race::mud::{count_frame, texture_turn, next_texture}`.
     use rc2k_core::race::mud::{count_frame, next_texture, texture_turn};
-    guard(&[at(FRAMES_RVA), at(TEXTURE_RVA)], || unsafe {
-        let mut r = *entry;
-        let (frames, due) = count_frame(game_read(FRAMES_RVA));
-        game_write(FRAMES_RVA, frames);
-        if !due {
-            return Ok(r);
+    (|| -> Result<_, crate::errors::Refused> {
+        unsafe {
+            let mut r = *entry;
+            let (frames, due) = count_frame(game_read(FRAMES_RVA));
+            game_write(FRAMES_RVA, frames);
+            if !due {
+                return Ok(r);
+            }
+            game_write(TEXTURE_RVA, texture_turn(game_read(TEXTURE_RVA)));
+            crate::race::mud_frame::game_part(0, &mut r)?;
+            game_write(TEXTURE_RVA, next_texture(game_read(TEXTURE_RVA)));
+            Ok(r)
         }
-        game_write(TEXTURE_RVA, texture_turn(game_read(TEXTURE_RVA)));
-        part(0, &mut r)?;
-        game_write(TEXTURE_RVA, next_texture(game_read(TEXTURE_RVA)));
-        Ok(r)
-    })
+    })()
 }
 
 /// In the game: `mud_texture_turn`'s Rust version with its own calls.
@@ -54,7 +51,7 @@ pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { mud_frame(r, &mut game_part) }?;
+    let left = unsafe { mud_frame(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

@@ -5,7 +5,6 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::race::loadlevel::or_in_game;
 
 /// A step's calls by callee (`CALLEES`' index).
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
@@ -165,10 +164,10 @@ pub unsafe fn load_stage(entry: &Regs, indent: u32, part: Part) -> Result<Regs, 
     Ok(s.g)
 }
 
-/// The calls in the game: the Rust versions (each through `or_in_game`); race init the
+/// The calls in the game: the Rust versions; race init the
 /// game's.
 pub fn game_part(callee: u32, r: &mut Regs) -> Result<(), Refused> {
-    or_in_game(CALLEES[callee as usize], r, |r| step_part(callee, r))
+    step_part(callee, r)
 }
 
 fn step_part(callee: u32, r: &mut Regs) -> Result<(), Refused> {
@@ -179,10 +178,10 @@ fn step_part(callee: u32, r: &mut Regs) -> Result<(), Refused> {
             LOG => log_write(r.eax as *const u8, true, 1),
             2 => {
                 // As `menu::show_loading_picture`'s dispatch.
-                r.eax = game_addr(LOADING_PICTURE_RVA) as u32;
-                crate::gfx::show_picture_file::show_picture_file(r, &mut |at, regs| {
-                    crate::gfx::show_picture_file::game_call(at, regs)
-                });
+                r.eax = crate::gfx::show_picture_file::show_picture_file(game_addr(
+                    LOADING_PICTURE_RVA,
+                )
+                    as *mut u8)?;
             }
             3 => {
                 let g = crate::race::sounds::wake_car_sounds(

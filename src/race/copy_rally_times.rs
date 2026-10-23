@@ -19,6 +19,6 @@ use crate::race::rally::*;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { copy_rally_times(r, &mut log_part) }?;
+    unsafe { copy_rally_times(r) }?;
     Ok(())
 }

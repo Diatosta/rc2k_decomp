@@ -15,12 +15,12 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::input::effects::{Part, STOP, effects_entry};
+use crate::input::effects::{STOP, effects_entry};
 
 /// The Rust version.
-pub fn end_effects(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn end_effects(r: &mut Regs) -> Result<(), Refused> {
     let mut g = *r;
-    part(STOP, &mut g)
+    crate::input::effects::game_part(STOP, &mut g)
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

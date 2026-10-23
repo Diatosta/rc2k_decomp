@@ -14,19 +14,16 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::sound::turn_parts::{Part, turn_entry};
-
-/// `sound::merge_spot_voices`.
-const EACH: u32 = 0x40E809;
+use crate::sound::turn_parts::turn_entry;
 
 // ---- Rust version ----
 
-pub fn merge_spot_voices_all_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn merge_spot_voices_all_in(r: &mut Regs) -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::spot_voices::MERGED_SOUNDS`.
     let mut c = *r;
     for sound in rc2k_core::sound::spot_voices::MERGED_SOUNDS {
         c.eax = sound;
-        part(EACH, &mut c)?;
+        crate::sound::merge_spot_voices::merge_spot_voices_in(&mut c)?;
     }
     Ok(())
 }

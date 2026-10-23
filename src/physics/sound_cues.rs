@@ -14,8 +14,6 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 pub const PLAY: u32 = 0;
 pub const QUEUE: u32 = 1;
 pub const CUE: u32 = 2;
@@ -26,25 +24,19 @@ pub const CUE_LAST: u32 = 4;
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     match place {
         PLAY => crate::sound::play_sound::play_sound_in_game(r),
-        QUEUE => crate::physics::queue_sound_cue::queue_sound_cue_in(r, &mut game_part)?,
-        CUE => crate::physics::cue_car_sound::cue_car_sound_in(r, &mut game_part)?,
-        LISTED => crate::physics::cue_listed_car_sound::cue_listed_car_sound_in(r, &mut game_part)?,
-        CUE_LAST => crate::physics::cue_car_sound_last::cue_car_sound_last_in(r, &mut game_part)?,
-        _ => crate::physics::cue_listed_car_sound_last::cue_listed_car_sound_last_in(
-            r,
-            &mut game_part,
-        )?,
+        QUEUE => crate::physics::queue_sound_cue::queue_sound_cue_in(r)?,
+        CUE => crate::physics::cue_car_sound::cue_car_sound_in(r)?,
+        LISTED => crate::physics::cue_listed_car_sound::cue_listed_car_sound_in(r)?,
+        CUE_LAST => crate::physics::cue_car_sound_last::cue_car_sound_last_in(r)?,
+        _ => crate::physics::cue_listed_car_sound_last::cue_listed_car_sound_last_in(r)?,
     }
     Ok(())
 }
 
 /// `dispatch_cue` without its hook (Rust callers; a refusal is the caller's).
-pub fn cue_entry(
-    r: &mut Regs,
-    rust: fn(&mut Regs, Part) -> Result<(), Refused>,
-) -> Result<(), Refused> {
+pub fn cue_entry(r: &mut Regs, rust: fn(&mut Regs) -> Result<(), Refused>) -> Result<(), Refused> {
     let mut g = *r;
-    rust(&mut g, &mut game_part)?;
+    rust(&mut g)?;
     *r = Regs {
         esp: r.esp,
         eflags: r.eflags,

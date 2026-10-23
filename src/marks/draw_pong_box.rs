@@ -30,9 +30,6 @@ const PLACES_RVA: usize = rva(0x76920A); // dword_76920A .. dword_769216
 const CORNERS_RVA: usize = rva(0x89CF92); // flt_89CF92 .. flt_89CFBE
 const NEAR_RVA: usize = rva(0x76921A); // flt_76921A
 
-/// A call by place: 1 `draw_fan`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The original's 0x4B8599 .. 0x4B8659 on the four values: the sides; the place's two
 /// values (left untouched) popped after.
 unsafe fn sides(b: u32, v: &[[u8; 10]; 4]) {
@@ -226,7 +223,7 @@ unsafe fn projected(b: u32, p: u32) {
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_pong_box(entry: &Regs, v: [[u8; 10]; 4], part: Part) -> Result<Regs, Refused> {
+pub unsafe fn draw_pong_box(entry: &Regs, v: [[u8; 10]; 4]) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         let b = game_addr(0) as u32;
@@ -250,7 +247,7 @@ pub unsafe fn draw_pong_box(entry: &Regs, v: [[u8; 10]; 4], part: Part) -> Resul
         for n in 0..4 {
             game_write(VERTICES_RVA + 0x20 * n + 0x10, 0xFFFF_FFFFu32);
         }
-        part(1, &mut g)?;
+        crate::marks::draw_pong_box::game_part(1, &mut g)?;
     }
     Ok(g)
 }

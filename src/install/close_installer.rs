@@ -14,15 +14,15 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::install::installer::{BUFFERS, DIRS, FILES, FREE_LIST, Part, a, at, p};
+use crate::install::installer::{BUFFERS, DIRS, FILES, FREE_LIST, a, at, p};
 use crate::race::viewer::regs_entry;
 
-pub fn close_installer(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn close_installer(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = Regs {
         ebx: a(BUFFERS),
         ..*entry
     };
-    part(at(FREE_LIST), &mut r)?;
+    crate::install::installer::game_part(at(FREE_LIST), &mut r)?;
     p(DIRS, 0);
     p(FILES, 0);
     Ok(*entry)
@@ -31,7 +31,5 @@ pub fn close_installer(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| {
-        close_installer(r, &mut crate::install::installer::game_part)
-    })
+    regs_entry(r, &|r| close_installer(r))
 }

@@ -20,7 +20,6 @@ pub mod mark_car_voices;
 pub mod match_spot_voices;
 pub mod merge_spot_voices;
 pub mod merge_spot_voices_all;
-pub mod open_cd_audio;
 pub mod plain_sender;
 pub mod play_car_stream;
 pub mod play_cue_queue;

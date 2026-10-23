@@ -25,7 +25,7 @@ use crate::math::x87;
 use crate::math::x87_run::{ext_div2, int_80};
 use crate::scene::matrix::{multiply_matrices, set_turn_x, set_turn_y};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
@@ -101,18 +101,6 @@ pub unsafe fn object_turn_matrix(entry: &Regs) -> Result<Left, Refused> {
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { object_turn_matrix(r) }
-}
-
-pub fn regions() -> Vec<Region> {
-    vec![
-        (a(OUT), 0x40),
-        (a(TURN_Y), 0x40),
-        (a(TURN_X), 0x40),
-        (a(LIT), 0x40),
-        (a(TURNED), 0x40),
-        (a(0x62400C), 4),
-        (a(0x624148), 16), // the turns' work (sine, cosine)
-    ]
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

@@ -62,6 +62,6 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
 /// In the game: `add_sprite`'s Rust version.
 pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::hud::add_sprite as s;
-    *r = unsafe { s::add_sprite(r, &mut crate::hud::add_triangle::game_part_quad) }?;
+    *r = unsafe { s::add_sprite(r) }?;
     Ok(())
 }

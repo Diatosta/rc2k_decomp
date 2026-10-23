@@ -14,7 +14,7 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::install::installer::{Part, at, cmp, rb};
+use crate::install::installer::{at, cmp, rb};
 use crate::race::viewer::regs_entry;
 use rc2k_core::install::items::EnterWay;
 
@@ -22,7 +22,7 @@ const LINK: usize = 0x414A28;
 const START_EDIT: usize = 0x4148D6;
 const ACTION: usize = 0x414A4B;
 
-pub fn item_enter(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn item_enter(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     let kind = rb(r.esi) & 0xF;
     r.ebx = r.ebx & !0xFF | kind as u32;
@@ -37,14 +37,12 @@ pub fn item_enter(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         }
     };
     cmp(&mut r, kind as u32, kind as u32);
-    part(at(callee), &mut r)?;
+    crate::install::installer::game_part(at(callee), &mut r)?;
     Ok(r)
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| {
-        item_enter(r, &mut crate::install::installer::game_part)
-    })
+    regs_entry(r, &|r| item_enter(r))
 }

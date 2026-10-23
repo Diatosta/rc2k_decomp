@@ -258,15 +258,12 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 crate::net::lobby::cmp_flags(r, result as u32, 1);
             }
             TICK => r.eax = crate::system::tick_count::tick_count(),
-            STORE => crate::race::loadlevel::or_in_game(STORE as usize, r, |r| {
-                store_received::store_received(r, &mut game_part)
-            })?,
+            STORE => { store_received::store_received(r, &mut game_part) }?,
             RECEIVE => receive_message::receive_message(r, &mut game_part)?,
             SYSTEM_MESSAGE => system_message::system_message(r, &mut game_part)?,
-            CHAT_LINE => crate::race::loadlevel::or_in_game(CHAT_LINE as usize, r, |r| {
+            CHAT_LINE => {
                 *r = chat_line_locked::chat_line_locked(r, &mut crate::net::lobby::game_part)?;
-                Ok(())
-            })?,
+            }
             CLOSE_EVENT | CLOSE_MUTEX => {
                 if r.eax != 0 {
                     CloseHandle(r.eax as _);

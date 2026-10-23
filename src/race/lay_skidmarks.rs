@@ -15,10 +15,10 @@
 //! and the self-test was the hook's.
 
 use crate::framework::Regs;
-use crate::race::skid_laying::{lay_skidmarks, skid_point_part};
+use crate::race::skid_laying::lay_skidmarks;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { lay_skidmarks(r, &mut skid_point_part) }?;
+    unsafe { lay_skidmarks(r) }?;
     Ok(())
 }

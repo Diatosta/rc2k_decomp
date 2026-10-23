@@ -17,10 +17,10 @@
 //! and the self-test was the hook's.
 
 use crate::framework::Regs;
-use crate::race::frame_views::{copy_mirror_picture, surface_part};
+use crate::race::frame_views::copy_mirror_picture;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { copy_mirror_picture(r, &mut surface_part) }?;
+    unsafe { copy_mirror_picture(r) }?;
     Ok(())
 }

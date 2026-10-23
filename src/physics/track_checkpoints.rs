@@ -39,17 +39,9 @@ pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         match place {
-            0 => {
-                *r = crate::physics::find_car_checkpoint::find_car_checkpoint(
-                    r,
-                    &mut crate::physics::reset_parts::game_part,
-                )?
-            }
+            0 => *r = crate::physics::find_car_checkpoint::find_car_checkpoint(r)?,
             1 => crate::physics::checkpoint_offset::checkpoint_offset()?.apply(r),
-            2 => crate::physics::off_line_warnings::off_line_warnings_in(
-                r,
-                &mut crate::physics::sound_cues::game_part,
-            )?,
+            2 => crate::physics::off_line_warnings::off_line_warnings_in(r)?,
             _ => crate::physics::passed_split_point::passed_split_point(r)?.apply(r),
         }
     }

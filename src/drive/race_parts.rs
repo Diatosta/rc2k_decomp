@@ -38,13 +38,8 @@ pub fn race_keys(r: &mut Regs) -> Result<(), Refused> {
 
 /// `race::tyre_change`: eax, esi.
 pub fn tyre_change(r: &mut Regs) -> Result<(), Refused> {
-    let after = unsafe {
-        crate::race::frame::tyre_change_at(
-            r,
-            &crate::race::frame::tyre_variables(),
-            &mut crate::race::frame::tyre_part,
-        )
-    }?;
+    let after =
+        unsafe { crate::race::frame::tyre_change_at(r, &crate::race::frame::tyre_variables()) }?;
     r.eax = after.eax;
     r.esi = after.esi;
     Ok(())
@@ -64,7 +59,6 @@ pub fn stop_race_sounds(r: &mut Regs) -> Result<(), Refused> {
             *r = crate::race::race_end::reset_race_sounds(
                 r,
                 &crate::race::race_end::SoundVars::game(),
-                &mut crate::race::race_end::sound_part,
             )?;
             Ok(())
         })

@@ -25,9 +25,6 @@ const OFF_RVA: usize = rva(0x5BEC94); // dword_5BEC94
 const BLOCKS_RVA: usize = rva(0x63DBB0); // g_viewBlocks
 const PLAYERS_RVA: usize = rva(0x6238A4); // dword_6238A4
 
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// Whether esi's block's strip is shown (see the header); eax / edx / ebx as the test
 /// leaves them.
 unsafe fn flashing(g: &mut Regs) -> bool {
@@ -42,7 +39,7 @@ unsafe fn flashing(g: &mut Regs) -> bool {
 
 /// The Rust version (see the header): the registers it leaves.
 // Converted: `rc2k_core::hud::strips`
-pub unsafe fn draw_view_strips(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn draw_view_strips(entry: &Regs) -> Result<Regs, Refused> {
     use rc2k_core::hud::strips::{SECOND_VIEW, TEXTURES};
     let mut g = *entry;
     unsafe {
@@ -51,7 +48,7 @@ pub unsafe fn draw_view_strips(entry: &Regs, part: Part) -> Result<Regs, Refused
             if flashing(&mut g) {
                 g.ebp = game_read(PLAYERS_RVA);
                 game_write(TEXTURE_RVA, TEXTURES[0]);
-                part(1, &mut g)?;
+                crate::hud::draw_view_strips::game_part(1, &mut g)?;
             }
             g.ebp = game_read(PLAYERS_RVA);
             if g.ebp != 0 {
@@ -59,11 +56,11 @@ pub unsafe fn draw_view_strips(entry: &Regs, part: Part) -> Result<Regs, Refused
                 if flashing(&mut g) {
                     g.ebp = game_read::<u32>(PLAYERS_RVA).wrapping_add(SECOND_VIEW);
                     game_write(TEXTURE_RVA, TEXTURES[1]);
-                    part(1, &mut g)?;
+                    crate::hud::draw_view_strips::game_part(1, &mut g)?;
                 }
             }
         }
-        part(2, &mut g)?;
+        crate::hud::draw_view_strips::game_part(2, &mut g)?;
     }
     Ok(g)
 }
@@ -82,7 +79,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_view_strips(r, &mut game_part) }?;
+    let left = unsafe { draw_view_strips(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

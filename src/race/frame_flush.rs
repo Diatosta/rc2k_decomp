@@ -184,10 +184,7 @@ fn int_over_two(i: u32, a: u32, b: u32) -> u32 {
 /// the glow's render states (part 1, `sub_44E44D`), texture `dword_5D1DE8` (part 2,
 /// `scene::set_texture`), the device's unclipped fan (part 3, `d3d::draw_fan_unclipped`),
 /// then the depth buffer on (part 4).
-pub unsafe fn draw_view_backdrop(
-    r: &mut Regs,
-    part: crate::race::frame::Part,
-) -> Result<(), Refused> {
+pub unsafe fn draw_view_backdrop(r: &mut Regs) -> Result<(), Refused> {
     w(0x623DF0, 0xF8_0000);
     w(0x623E00, 0x8_0000);
     let left = k(0x623FB0);
@@ -222,11 +219,11 @@ pub unsafe fn draw_view_backdrop(
         w(v(0x10 + 0x20 * n), r.eax);
     }
     w(0x6240F8, 4);
-    part(1, r)?;
+    crate::race::frame_flush::backdrop_part(1, r)?;
     r.eax = k(0x5D1DE8);
-    part(2, r)?;
-    part(3, r)?;
-    part(4, r)
+    crate::race::frame_flush::backdrop_part(2, r)?;
+    crate::race::frame_flush::backdrop_part(3, r)?;
+    crate::race::frame_flush::backdrop_part(4, r)
 }
 
 /// Its parts in the game.

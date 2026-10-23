@@ -97,14 +97,14 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::marks::*;
     unsafe {
         let left = match place {
-            1 => swap_mask::swap_mask(r, &mut swap_mask::game_part)?,
+            1 => swap_mask::swap_mask(r)?,
             2 => setup::tick_clock(r),
             4 => run_rain::run_rain(r, &mut |p, g, v| run_rain::game_part(p, g, v))?,
-            5 => run_snow::run_snow(r, &mut run_snow::game_part)?,
+            5 => run_snow::run_snow(r)?,
             6 => draw_frame::draw_frame(r, &mut draw_frame::game_part)?,
-            7 => ring_frame::ring_frame(r, &mut ring_frame::game_part)?,
-            8 => flare_frame::flare_frame(r, &mut flare_frame::game_part)?,
-            9 => draw_mark_slots::draw_mark_slots(r, &mut draw_mark_slots::game_part)?,
+            7 => ring_frame::ring_frame(r)?,
+            8 => flare_frame::flare_frame(r)?,
+            9 => draw_mark_slots::draw_mark_slots(r)?,
             10 => {
                 run_particles::run_particles(r, &mut |p, g, v| run_particles::game_part(p, g, v))?
             }

@@ -16,32 +16,19 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_read, game_write, rva};
-use crate::marks::expire_squares::{self, expire_squares};
-use crate::marks::pick_shapes::{self, pick_shapes};
+use crate::marks::expire_squares::expire_squares;
+use crate::marks::pick_shapes::pick_shapes;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, restore, state_entry};
+use crate::service::harness::state_entry;
 
 const CLEARED_RVA: usize = rva(0x81623A); // dword_81623A
 const CLOCK_RVA: usize = rva(0x814714); // dword_814714
 const LATEST_RVA: usize = rva(0x84460C); // dword_84460C
 
-pub fn regions() -> Vec<Region> {
-    let mut r = expire_squares::regions();
-    r.extend(pick_shapes::regions());
-    r.extend([CLEARED_RVA, CLOCK_RVA, LATEST_RVA].map(at));
-    r
-}
-
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn squares_step(entry: &Regs) -> Result<Regs, Refused> {
-    let written = regions();
-    let saved = capture(&written);
-    let done = unsafe { run(entry) };
-    if done.is_err() {
-        restore(&written, &saved);
-    }
-    done
+    unsafe { run(entry) }
 }
 
 // Converted: `rc2k_core::marks::steps::{steps, next_step}`

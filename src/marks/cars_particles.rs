@@ -28,8 +28,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::marks::emit_car_particles::{self, emit_car_particles};
+use crate::framework::{Regs, game_read, game_write, rva};
+use crate::marks::emit_car_particles::emit_car_particles;
 use crate::marks::emitters::*;
 use crate::marks::lines::SETTINGS_RVA;
 use crate::marks::{emit_particle_13, emit_particle_19, emit_particle_22};
@@ -37,7 +37,7 @@ use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::scene::adjugate_matrix::adjugate_matrix;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at as at_rva, capture, restore, state_entry};
+use crate::service::harness::state_entry;
 
 const CAR_LEN: u32 = 0x4C8;
 const MOST_CARS: u32 = 8;
@@ -99,13 +99,8 @@ pub unsafe fn cars_particles(entry: &Regs) -> Result<Regs, Refused> {
     if let Some(why) = unsafe { refusal(settings) } {
         return Err(BadInput(why).into());
     }
-    let written = regions(settings);
-    let saved = capture(&written);
-    let done = unsafe { run(entry, settings) };
-    if done.is_err() {
-        restore(&written, &saved);
-    }
-    done
+
+    unsafe { run(entry, settings) }
 }
 
 unsafe fn run(entry: &Regs, settings: u32) -> Result<Regs, Refused> {
@@ -209,45 +204,6 @@ unsafe fn run(entry: &Regs, settings: u32) -> Result<Regs, Refused> {
         }
     }
     Ok(g)
-}
-
-/// The globals it and its emitters may write (no ring entry: the cursor may be 0 outside
-/// a stage, so nothing here reads through it).
-fn globals() -> Vec<Region> {
-    let mut r = emit_car_particles::globals();
-    r.extend(emit_particle_13::globals());
-    r.extend(emit_particle_19::globals(&emit_particle_19::NINETEENTH));
-    r.extend(emit_particle_19::globals(&emit_particle_22::TWENTY_SECOND));
-    r.extend([TAG_RVA, OBJECT_RVA].map(at_rva));
-    r.push((game_addr(ACROSS_RVA) as u32, 12));
-    r
-}
-
-/// What it may write: the globals, the cars' fields and records, and as many ring entries
-/// as all the cars' records (and three a car) take at most.
-pub fn regions(settings: u32) -> Vec<Region> {
-    let mut r = globals();
-    if settings == 0 {
-        return r;
-    }
-    let cars = unsafe { cars(settings) };
-    let mut most = 0u32;
-    for &car in &cars {
-        r.push((car + 0x30, 4));
-        r.push((car + 0x40, 0xD4 - 0x40));
-        r.push((car + 0x90, 4));
-        r.push((car + 0xD4, 0x23C - 0xD4));
-        most = most.saturating_add(unsafe { emit_car_particles::entry_bound(car) } + 3);
-    }
-    let mut e: u32 = unsafe { game_read(RING_CURSOR_RVA) };
-    for _ in 0..most.min(MOST_TAKEN + 1) {
-        if e == 0 {
-            break;
-        }
-        e = unsafe { at(e) };
-        r.push((e, ENTRY_LEN));
-    }
-    r
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

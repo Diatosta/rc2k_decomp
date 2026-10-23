@@ -32,10 +32,10 @@ use crate::framework::Regs;
 use crate::math::turn_float_point_xz::turn_float_point_xz;
 use crate::math::x87::mul;
 use crate::physics::contact_force::{RECORD, contact_force};
-use crate::physics::flow::{a, base, copy3, g, guard, p, x87_run};
+use crate::physics::flow::{a, base, copy3, g, p, x87_run};
 use crate::physics::scene_point_hits_car::SCENE_POINTS;
 use crate::physics::touch_face::FACES;
-use crate::physics::wall_contacts::{WALL_RECORD, regions};
+use crate::physics::wall_contacts::WALL_RECORD;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
 use crate::service::harness::state_entry;
@@ -124,11 +124,11 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version.
 pub unsafe fn wall_edge_contact(entry: &Regs) -> Result<Left, Refused> {
-    guard(&regions(), || {
+    {
         let mut r = *entry;
         steps(&mut r)?;
         Ok(left_of(&r))
-    })
+    }
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

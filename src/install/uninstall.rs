@@ -23,9 +23,9 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::install::installer::{
-    DELETE_FILE, DIR_COUNT, DIRS, FILE_COUNT, FILES, INSTALLED, INSTALLING, Part, REMOVE_DIR,
-    RUN_FRAME, RUN_SCRIPT, SET_CD, SLEEP, SOURCE, STATUS, a, append_byte, at, g, gb, p, pb,
-    str_append, str_append_indexed, wb,
+    DELETE_FILE, DIR_COUNT, DIRS, FILE_COUNT, FILES, INSTALLED, INSTALLING, REMOVE_DIR, RUN_FRAME,
+    RUN_SCRIPT, SET_CD, SLEEP, SOURCE, STATUS, a, append_byte, at, g, gb, p, pb, str_append,
+    str_append_indexed, wb,
 };
 
 const WRITE_REGISTRY: usize = 0x413DC5;
@@ -54,34 +54,34 @@ fn build_path(table: usize, index: u32, r: &mut Regs) {
     append_byte(r, 0);
 }
 
-pub fn uninstall(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn uninstall(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     if gb(STATUS) == 0 || crate::install::installer::gb(SOURCE_VAR) == 0 {
         return Ok(*entry);
     }
     pb(STATUS, 0x80);
-    part(at(WRITE_REGISTRY), &mut r)?;
+    crate::install::installer::game_part(at(WRITE_REGISTRY), &mut r)?;
     // the "removing" frame
     let mut f = Regs { eax: 0, ..r };
-    part(at(RUN_FRAME), &mut f)?;
-    part(at(LOCK), &mut r)?;
+    crate::install::installer::game_part(at(RUN_FRAME), &mut f)?;
+    crate::install::installer::game_part(at(LOCK), &mut r)?;
     if !r.carry() {
-        part(at(COPY_PICTURE), &mut r)?;
+        crate::install::installer::game_part(at(COPY_PICTURE), &mut r)?;
         r.eax = 1;
         r.ebx = a(REMOVE_STRINGS);
         r.ecx = 0;
         r.edx = 0;
-        part(at(DRAW_LIST), &mut r)?;
-        part(at(UNLOCK), &mut r)?;
-        part(at(SHOW), &mut r)?;
+        crate::install::installer::game_part(at(DRAW_LIST), &mut r)?;
+        crate::install::installer::game_part(at(UNLOCK), &mut r)?;
+        crate::install::installer::game_part(at(SHOW), &mut r)?;
     }
     r.esi = a(SOURCE);
     r.edx = a(INSTALLED);
-    part(at(NORMALISE), &mut r)?;
+    crate::install::installer::game_part(at(NORMALISE), &mut r)?;
     r.edx = a(INSTALLED);
-    part(at(SET_CD), &mut r)?;
+    crate::install::installer::game_part(at(SET_CD), &mut r)?;
     r.ebx = a(SCRIPT);
-    part(at(RUN_SCRIPT), &mut r)?;
+    crate::install::installer::game_part(at(RUN_SCRIPT), &mut r)?;
     // Register for register: ebp the index, edx the path being built.
     if g(FILE_COUNT) != 0 {
         r.ebp = 0;
@@ -89,7 +89,7 @@ pub fn uninstall(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             r.edx = a(PATH_B);
             build_path(FILES, r.ebp, &mut r);
             r.eax = r.edx;
-            part(at(DELETE_FILE), &mut r)?;
+            crate::install::installer::game_part(at(DELETE_FILE), &mut r)?;
             r.ebp = r.ebp.wrapping_add(1);
             if r.ebp == g(FILE_COUNT) {
                 break;
@@ -101,7 +101,7 @@ pub fn uninstall(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         loop {
             r.edx = a(PATH_B);
             build_path(DIRS, r.ebp, &mut r);
-            part(at(REMOVE_DIR), &mut r)?;
+            crate::install::installer::game_part(at(REMOVE_DIR), &mut r)?;
             r.ebp = r.ebp.wrapping_sub(1);
             if (r.ebp as i32) < 0 {
                 break;
@@ -109,15 +109,15 @@ pub fn uninstall(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         }
     }
     r.edx = a(DOTDOT);
-    part(at(SET_CD), &mut r)?;
+    crate::install::installer::game_part(at(SET_CD), &mut r)?;
     r.edx = a(INSTALLED);
-    part(at(REMOVE_DIR), &mut r)?;
+    crate::install::installer::game_part(at(REMOVE_DIR), &mut r)?;
     r.eax = 1000;
-    part(at(SLEEP), &mut r)?;
+    crate::install::installer::game_part(at(SLEEP), &mut r)?;
     pb(STATUS, 0);
     wb(a(SOURCE_VAR), 0);
-    part(at(WRITE_REGISTRY), &mut r)?;
-    part(at(UNREGISTER), &mut r)?;
+    crate::install::installer::game_part(at(WRITE_REGISTRY), &mut r)?;
+    crate::install::installer::game_part(at(UNREGISTER), &mut r)?;
     p(REMOVE_ITEMS, 1);
     p(INSTALLING, 0);
     Ok(Regs { ..*entry })
@@ -126,7 +126,5 @@ pub fn uninstall(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::race::viewer::regs_entry(r, &|r| {
-        uninstall(r, &mut crate::install::installer::game_part)
-    })
+    crate::race::viewer::regs_entry(r, &|r| uninstall(r))
 }

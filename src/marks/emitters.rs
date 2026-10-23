@@ -16,7 +16,6 @@ pub const FLAGS_RVA: usize = rva(0x939BAE); // g_marksWheelFlags: the wheel's +0
 pub const RATE_RVA: usize = rva(0x9356B0); // dword_9356B0
 pub const SIDES_RVA: usize = rva(0x93554A); // dword_93554A, dword_93554E
 pub const ONE_RVA: usize = rva(0x76516C); // flt_76516C
-pub const ENTRY_LEN: usize = 0x94;
 pub const MOST_TAKEN: u32 = 0x3FE;
 
 /// A random of the emitters' kind: times 0xC5 plus 0x5D, kept.

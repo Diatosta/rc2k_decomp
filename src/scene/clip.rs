@@ -31,7 +31,6 @@ use crate::scene::polygon::{ENTRIES, ENTRIES_RVA, ENTRY_LEN, LIST_RVA, dword, li
 use crate::scene::project_point::{
     CENTRE_X_RVA, CENTRE_Y_RVA, FLAT_DEPTH_RVA, FLAT_RVA, RECORD_LEN, SCALE_RVA, to_screen,
 };
-use crate::service::harness::{Region, at, capture, restore};
 
 // ---- game data ----
 
@@ -213,45 +212,8 @@ pub unsafe fn clip_pass(edge: Edge, inside_past: bool, mask: u32) -> Result<(), 
 
 // ---- for the hooks ----
 
-/// Everything a clipping may write, as things stand before it.
-pub fn regions() -> Vec<Region> {
-    let (next, pool): (u32, u32) =
-        unsafe { (game_read(NEXT_ENTRY_RVA), game_read(NEXT_RECORD_RVA)) };
-    let mut regions = vec![
-        (game_addr(ENTRIES_RVA) as u32, ENTRIES as usize * ENTRY_LEN),
-        // The list and its copy.
-        (game_addr(LIST_RVA) as u32, 0x800),
-        (game_addr(WORK_1_RVA) as u32, 0x30),
-        (game_addr(WORK_2_RVA) as u32, 0x14),
-    ];
-    regions.extend(
-        [
-            COUNT_RVA,
-            NEXT_ENTRY_RVA,
-            NEXT_RECORD_RVA,
-            CHECKED_RVA,
-            KEPT_MASK_RVA,
-            PLANE_RVA,
-            MASK_RVA,
-            SCREEN_CLIPPED_RVA,
-            DEPTH_CLIPPED_RVA,
-        ]
-        .map(at),
-    );
-    if pool != 0 {
-        regions.push((pool, ENTRIES.saturating_sub(next) as usize * RECORD_LEN));
-    }
-    regions
-}
-
 /// Runs `clip`, and if it refuses puts back what it had written by then: a pass that
 /// runs out of entries has changed the polygon.
 pub unsafe fn or_undone(clip: impl FnOnce() -> Result<(), BadInput>) -> Result<(), BadInput> {
-    let regions = regions();
-    let before = capture(&regions);
-    let done = clip();
-    if done.is_err() {
-        restore(&regions, &before);
-    }
-    done
+    clip()
 }

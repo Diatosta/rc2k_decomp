@@ -13,19 +13,17 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_read, rva};
-use crate::sound::turn_parts::{Part, turn_entry};
+use crate::sound::turn_parts::turn_entry;
 
 /// dword_6218F0: the race's sounds on.
 const ON: usize = 0x6218F0;
-pub const RACE_TURN: u32 = 0x40D5F3;
-
 // ---- Rust version ----
 
-pub fn race_turn_if_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn race_turn_if_in(r: &mut Regs) -> Result<(), Refused> {
     if unsafe { game_read::<u32>(rva(ON)) } == 0 {
         return Ok(());
     }
-    part(RACE_TURN, r)?;
+    crate::sound::race_turn::race_turn_in(r)?;
     r.ebx = 0x531_7707;
     Ok(())
 }

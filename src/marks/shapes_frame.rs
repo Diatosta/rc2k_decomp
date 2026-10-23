@@ -19,7 +19,7 @@ use crate::marks::lines::SETTINGS_RVA;
 use crate::marks::{copy_first_point, run_shapes, scale_setting, tilt_shape};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, restore, state_entry};
+use crate::service::harness::{Region, state_entry};
 
 /// What it may write.
 pub fn regions() -> Vec<Region> {
@@ -35,17 +35,12 @@ pub unsafe fn shapes_frame(entry: &Regs) -> Result<Regs, Refused> {
     if unsafe { game_read::<u32>(SETTINGS_RVA) } == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    let written = regions();
-    let saved = capture(&written);
-    let done = unsafe {
+
+    unsafe {
         copy_first_point::copy_first_point();
         let g = tilt_shape::tilt_shape(entry);
         scale_setting::scale_setting(&g).and_then(|g| run_shapes::run_shapes(&g))
-    };
-    if done.is_err() {
-        restore(&written, &saved);
     }
-    done
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

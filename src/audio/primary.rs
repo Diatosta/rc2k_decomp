@@ -48,10 +48,9 @@ pub unsafe fn open_listener(
     listener: u32,
     setting: u32,
     no_listener: u32,
-    part: crate::audio::sound_device::Part,
 ) -> Result<bool, Refused> {
     unsafe {
-        part(1, game_addr(OPEN_TEXT) as u32)?;
+        crate::audio::sound_device::game_part(1, game_addr(OPEN_TEXT) as u32)?;
         // Converted: `rc2k_core::audio::device::listener_refused`.
         let code =
             match rc2k_core::audio::device::listener_refused(read(setting), || read(no_listener)) {
@@ -67,9 +66,9 @@ pub unsafe fn open_listener(
                     r as u32
                 }
             };
-        part(0, game_addr(FAILED_TEXT) as u32)?;
-        part(3, code)?;
-        part(8, 0)?;
+        crate::audio::sound_device::game_part(0, game_addr(FAILED_TEXT) as u32)?;
+        crate::audio::sound_device::game_part(3, code)?;
+        crate::audio::sound_device::game_part(8, 0)?;
         Ok(false)
     }
 }
@@ -107,10 +106,7 @@ impl PrimaryVars {
 /// past 0x40 becomes `volume_index` of the kept one; it is shown and set
 /// (`set_master_volume`, place 12, eax); in 3D `open_listener` (place 13), whose failure
 /// takes 3D out of the mode.
-pub unsafe fn make_primary(
-    v: &PrimaryVars,
-    part: crate::audio::sound_device::Part,
-) -> Result<bool, Refused> {
+pub unsafe fn make_primary(v: &PrimaryVars) -> Result<bool, Refused> {
     use crate::audio::make_buffer::{BufferDescription, DESCRIPTION_RVA};
     unsafe {
         if crate::audio::buffer_settings::a3d() {
@@ -135,14 +131,14 @@ pub unsafe fn make_primary(
             return Ok(false);
         }
         crate::audio::com::call1(read(v.primary), GET_VOLUME, v.kept);
-        part(10, read(v.mode))?;
+        crate::audio::sound_device::game_part(10, read(v.mode))?;
         let (volume, stored) = master_volume(read(v.master), || volume_index(read(v.kept) as i32));
         if stored {
             write(v.master, volume);
         }
         write(v.shown, volume);
-        part(12, volume)?;
-        if read(v.mode) & MODE_3D != 0 && part(13, 0)? {
+        crate::audio::sound_device::game_part(12, volume)?;
+        if read(v.mode) & MODE_3D != 0 && crate::audio::sound_device::game_part(13, 0)? {
             write(v.mode, without_3d(read(v.mode)));
         }
         Ok(true)

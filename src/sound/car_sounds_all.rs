@@ -25,10 +25,9 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_read, game_write, rva};
-use crate::physics::flow::{base, guard, x87_run};
-use crate::sound::turn_parts::{COUNT, OBJECTS, Part, turn_entry, turn_regions};
+use crate::physics::flow::{base, x87_run};
+use crate::sound::turn_parts::{COUNT, OBJECTS, turn_entry};
 
-const CAR_SOUNDS: u32 = 0x40D893;
 /// dword_514F80, dword_514F84: the nearest and the next of the computer's cars.
 const NEAREST: usize = 0x514F80;
 const NEXT: usize = 0x514F84;
@@ -45,7 +44,7 @@ fn word(o: u32, at: u32) -> u32 {
 
 // ---- Rust version ----
 
-pub fn car_sounds_all_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn car_sounds_all_in(r: &mut Regs) -> Result<(), Refused> {
     let count = g(COUNT);
     if count == 0 {
         return Ok(());
@@ -57,14 +56,13 @@ pub fn car_sounds_all_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     if (0..count).any(|n| object(n) == 0) {
         return Err(BadInput("a null sound object").into());
     }
-    let all = turn_regions();
     // Converted: `rc2k_core::sound::turn::Nearest` (the choice; eax, ebx, ecx and edx
     // hold it as the original's do).
     use rc2k_core::sound::turn::{NEAREST_MARK, NEXT_MARK, Nearest};
     let hold = |c: &mut Regs, n: &Nearest| {
         (c.eax, c.ebx, c.ecx, c.edx) = (n.first, n.second, n.first_distance, n.second_distance)
     };
-    guard(&all, || {
+    {
         let mut c = *r;
         let mut nearest = Nearest::default();
         hold(&mut c, &nearest);
@@ -77,7 +75,7 @@ pub fn car_sounds_all_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
             if word(c.esi, 0) as i32 >= 0 {
                 let kept = c.eax;
                 c.eax = n;
-                part(CAR_SOUNDS, &mut c)?;
+                crate::sound::car_sounds::car_sounds_in(&mut c)?;
                 c.eax = kept;
                 // The choice goes on from the registers as the call left them.
                 nearest = Nearest {
@@ -117,11 +115,11 @@ pub fn car_sounds_all_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
             c.esi = object(c.eax);
             let kept = word(c.esi, 0);
             unsafe { (c.esi as *mut u32).write_unaligned(mark) };
-            part(CAR_SOUNDS, &mut c)?;
+            crate::sound::car_sounds::car_sounds_in(&mut c)?;
             unsafe { (c.esi as *mut u32).write_unaligned(kept) };
         }
         Ok(())
-    })
+    }
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

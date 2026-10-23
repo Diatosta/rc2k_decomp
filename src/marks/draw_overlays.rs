@@ -27,9 +27,6 @@ use crate::marks::setup::SETTINGS_RVA;
 
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (1, 0x1C), (1, 0x1B)];
 
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The shadow's refusals, checked before anything is drawn.
 fn shadow_refuses() -> Option<Refused> {
     let corner: u32 = unsafe { game_read(SECOND.corner()) };
@@ -46,23 +43,23 @@ fn shadow_refuses() -> Option<Refused> {
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_overlays(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn draw_overlays(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     if let Some(e) = shadow_refuses() {
         return Err(e);
     }
-    part(1, &mut g)?;
-    part(2, &mut g)?;
+    crate::marks::draw_overlays::game_part(1, &mut g)?;
+    crate::marks::draw_overlays::game_part(2, &mut g)?;
     for (value, state) in STATES {
         [g.eax, g.ebx] = [value, state];
-        part(3, &mut g)?;
+        crate::marks::draw_overlays::game_part(3, &mut g)?;
     }
     for place in [4, 5, 6] {
-        part(place, &mut g)?;
+        crate::marks::draw_overlays::game_part(place, &mut g)?;
     }
     unsafe {
         draw_shadow_with(&g, &SECOND, false, &mut |p, r| {
-            part(if p == 4 { 7 } else { p }, r)
+            crate::marks::draw_overlays::game_part(if p == 4 { 7 } else { p }, r)
         })
     }
 }
@@ -73,9 +70,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         match place {
             1..=3 => draw_shadow::game_part(place, r)?,
-            4 => *r = draw_plane::draw_plane(r, &mut draw_plane::game_part)?,
-            5 => *r = squares_frame::squares_frame(r, &mut squares_frame::game_part)?,
-            6 => *r = hexagons_top::hexagons_top(r, &mut hexagons_top::game_part)?,
+            4 => *r = draw_plane::draw_plane(r)?,
+            5 => *r = squares_frame::squares_frame(r)?,
+            6 => *r = hexagons_top::hexagons_top(r)?,
             _ => draw_shadow::game_part(4, r)?,
         }
     }
@@ -84,7 +81,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_overlays(r, &mut game_part) }?;
+    let left = unsafe { draw_overlays(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

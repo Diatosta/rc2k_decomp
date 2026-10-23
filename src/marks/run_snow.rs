@@ -65,9 +65,6 @@ const WIDE_FOCAL_RVA: usize = rva(0x8D20F0); // xmmword_8D20F0
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
@@ -211,7 +208,7 @@ unsafe fn turn_light(b: u32) {
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn run_snow(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn run_snow(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         let s: u32 = game_read(SETTINGS_RVA);
@@ -223,7 +220,7 @@ pub unsafe fn run_snow(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         game_write(KEPT_RVA, g.eax);
         g.esi = game_addr(rva(0x5EA2CC)) as u32;
         turn_light(game_addr(0) as u32);
-        part(1, &mut g)?;
+        crate::marks::run_snow::game_part(1, &mut g)?;
         let s: u32 = game_read(SETTINGS_RVA);
         g.esi = s;
         let mut flakes = get(s + 0x2760) as i32;
@@ -242,15 +239,15 @@ pub unsafe fn run_snow(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         for n in 0..3 {
             game_write(COPIES_B + 4 * n, get(s + 0x1C + 4 * n as u32));
         }
-        part(2, &mut g)?;
+        crate::marks::run_snow::game_part(2, &mut g)?;
         g.eax = game_read(TEXTURE_RVA);
-        part(3, &mut g)?;
-        part(4, &mut g)?;
-        part(5, &mut g)?;
+        crate::marks::run_snow::game_part(3, &mut g)?;
+        crate::marks::run_snow::game_part(4, &mut g)?;
+        crate::marks::run_snow::game_part(5, &mut g)?;
         for (value, state) in STATES {
             g.eax = value;
             g.ebx = state;
-            part(6, &mut g)?;
+            crate::marks::run_snow::game_part(6, &mut g)?;
         }
         g.edi = game_addr(VERTICES_RVA) as u32;
         g.eax = game_read(RHW_RVA);
@@ -295,8 +292,8 @@ pub unsafe fn run_snow(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         for m in 0..4 {
             game_write(WIDE_FOCAL_RVA + 4 * m, g.eax);
         }
-        part(7, &mut g)?;
-        part(8, &mut g)?;
+        crate::marks::run_snow::game_part(7, &mut g)?;
+        crate::marks::run_snow::game_part(8, &mut g)?;
     }
     Ok(g)
 }
@@ -307,7 +304,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         let left = match place {
             1 => crate::marks::make_fade_colours::make_fade_colours(r),
             2 => crate::marks::place_view_2::place_view_2(r)?,
-            7 => crate::marks::draw_snow::draw_snow(r, &mut crate::marks::draw_snow::game_part)?,
+            7 => crate::marks::draw_snow::draw_snow(r)?,
             _ => {
                 match place {
                     3 => crate::scene::set_texture::set_texture_in_game(r),
@@ -329,7 +326,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { run_snow(r, &mut game_part) }?;
+    let left = unsafe { run_snow(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

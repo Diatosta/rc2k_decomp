@@ -17,16 +17,13 @@ use crate::framework::{Regs, game_addr, rva};
 const TRACK_RVA: usize = rva(0x518110); // dword_518110
 const STOPS: u32 = 5;
 
-/// A call: 0 `sound::stop_cd_track`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 // ---- Rust version ----
 
-pub unsafe fn stop_cd_audio(entry: &Regs, track: u32, part: Part) -> Result<(), Refused> {
+pub unsafe fn stop_cd_audio(entry: &Regs, track: u32) -> Result<(), Refused> {
     unsafe { (track as *mut u32).write_unaligned(0) };
     let mut r = *entry;
     for _ in 0..STOPS {
-        part(0, &mut r)?;
+        crate::sound::stop_cd_track::game_part(0, &mut r)?;
     }
     Ok(())
 }
@@ -35,6 +32,6 @@ pub unsafe fn stop_cd_audio(entry: &Regs, track: u32, part: Part) -> Result<(), 
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let entry = *r;
     let track = game_addr(TRACK_RVA) as u32;
-    unsafe { stop_cd_audio(&entry, track, &mut crate::sound::stop_cd_track::game_part) }?;
+    unsafe { stop_cd_audio(&entry, track) }?;
     Ok(())
 }

@@ -139,6 +139,9 @@ pub unsafe fn convert_picture(screen_bits: u32, converter: u32) -> Result<(), Ba
 
 /// With the screen's bits and the surface format's converter as they are now.
 pub unsafe fn convert_picture_now() -> Result<(), BadInput> {
+    if picture().is_null() {
+        return Err(BadInput("no picture buffer"));
+    }
     unsafe { convert_picture(game_read(SCREEN_BITS_RVA), converter()) }
 }
 

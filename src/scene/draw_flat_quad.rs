@@ -46,15 +46,12 @@ const MODE_RVA: usize = rva(0x63DAB4); // g_polygonMode
 const SIDES_RVA: [usize; 2] = [rva(0x6240E0), rva(0x6240E4)];
 const RECORD: usize = 0x44;
 
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 fn set(r: usize, v: u32) {
     unsafe { game_write(r, v) };
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_flat_quad(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn draw_flat_quad(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         set(DRAWN_RVA, 0);
@@ -106,16 +103,16 @@ pub unsafe fn draw_flat_quad(entry: &Regs, part: Part) -> Result<Regs, Refused> 
         set(LIST_RVA + 16, 0);
         set(NEXT_ENTRY_RVA, 4);
         [g.eax, g.ecx] = [0, 4];
-        part(1, &mut g)?;
-        part(2, &mut g)?;
+        crate::scene::draw_flat_quad::game_part(1, &mut g)?;
+        crate::scene::draw_flat_quad::game_part(2, &mut g)?;
         if game_read::<u32>(COUNT_RVA) >= 3 {
             set(MODE_RVA, 6);
             set(SIDES_RVA[0], 1);
             set(SIDES_RVA[1], 0);
-            part(3, &mut g)?;
-            part(4, &mut g)?;
+            crate::scene::draw_flat_quad::game_part(3, &mut g)?;
+            crate::scene::draw_flat_quad::game_part(4, &mut g)?;
             set(DRAWN_RVA, 1);
-            part(5, &mut g)?;
+            crate::scene::draw_flat_quad::game_part(5, &mut g)?;
         }
         set(COLOUR_RVA, 0xFF_FFFF);
     }
@@ -139,7 +136,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_flat_quad(r, &mut game_part) }?;
+    let left = unsafe { draw_flat_quad(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

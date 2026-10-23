@@ -26,11 +26,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, ESI, Regs, game_addr, rva};
+use crate::framework::{EAX, ESI, Regs};
 use crate::physics::flow::{g, p};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, restore};
 use rc2k_core::drive::race_steps;
 
 const CURRENT: usize = 0x71B3F8; // g_currentCar
@@ -84,32 +83,13 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The cars' blocks, the step's own words and the physics' (put back on a refusal).
-pub fn cars_regions() -> Vec<Region> {
-    let mut all = crate::physics::car_physics_step::step_regions();
-    for k in 0..8 {
-        let block = g(BLOCKS + 4 * k);
-        if block != 0 {
-            all.push((block, 0xFE0));
-        }
-    }
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    all.extend([(a(0x6138C4), 0x10), (a(0x71B404), 4), (a(CURRENT), 4)]);
-    all
-}
-
 /// The Rust version.
 pub unsafe fn race_cars_step(entry: &Regs) -> Result<Left, Refused> {
     race_steps::check_cars(g(CARS))?;
-    let all = cars_regions();
-    let saved = capture(&all);
     let mut r = *entry;
     match steps(&mut r) {
         Ok(()) => Ok(left_of(&r)),
-        Err(e) => {
-            restore(&all, &saved);
-            Err(e)
-        }
+        Err(e) => Err(e),
     }
 }
 

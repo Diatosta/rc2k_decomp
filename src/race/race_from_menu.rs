@@ -7,7 +7,7 @@
 //!
 //! See `race/race_end.rs`. One caller, `sub_4843EC` (a call follows). It begins with its
 //! call: private copy, its five calls relocated, manual patch. Steps through
-//! `or_in_game`. Shadow mode runs the original alone (it runs the race). Self-test: a
+//! direct calls. Shadow mode runs the original alone (it runs the race). Self-test: a
 //! copy whose four calls go to stand-ins (`nullsub_6` the real one), against the Rust
 //! version on the same.
 //!
@@ -21,7 +21,7 @@ use crate::race::race_end::*;
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     {
-        let g = unsafe { race_from_menu(r, &mut menu_part) }?;
+        let g = unsafe { race_from_menu(r) }?;
         *r = Regs {
             esp: r.esp,
             eflags: r.eflags,

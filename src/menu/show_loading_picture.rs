@@ -17,13 +17,6 @@ const PATH_RVA: usize = rva(0x731BBF); // "files\g\graphics\screens\loading.pcx"
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let esp = r.esp;
-    r.eax = game_addr(PATH_RVA) as u32;
-    unsafe {
-        show_picture_file(r, &mut |at, regs| {
-            crate::gfx::show_picture_file::game_call(at, regs)
-        });
-    }
-    r.esp = esp;
+    r.eax = unsafe { show_picture_file(game_addr(PATH_RVA) as *mut u8) }?;
     Ok(())
 }

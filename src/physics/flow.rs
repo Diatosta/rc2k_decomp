@@ -116,20 +116,6 @@ pub fn fill3(to: usize, v: u32) {
     }
 }
 
-/// `f` run with `all` saved and, when it refuses, put back: for a Rust version whose
-/// callees may refuse after it has written.
-pub fn guard<T>(
-    all: &[crate::service::harness::Region],
-    f: impl FnOnce() -> Result<T, crate::errors::Refused>,
-) -> Result<T, crate::errors::Refused> {
-    let saved = crate::service::harness::capture(all);
-    let result = f();
-    if result.is_err() {
-        crate::service::harness::restore(all, &saved);
-    }
-    result
-}
-
 /// A clamped table lerp (the damage model's, e.g. 0x4AB61C .. 0x4AB680): the table at
 /// `t` is (x0, y0, x1, y1); the value at `x` below x0 (or unordered) gives y0, below x1
 /// gives y0 + (x - x0) / (x1 - x0) x (y1 - y0) (y0 when x1 - x0, unrounded, equals the

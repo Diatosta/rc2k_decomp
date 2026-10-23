@@ -1,4 +1,4 @@
-//! `gfx::screenshot_if_key` (0x43B573): a screenshot while key 0x52 is down.
+//! `gfx::screenshot_if_key` (0x43B573): a screenshot while key 0x52 (Numpad 0) is down.
 //!
 //! In:  nothing
 //! Out: every register preserved

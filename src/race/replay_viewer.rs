@@ -15,7 +15,7 @@
 //! (`menu::list_take_key`); the game quitting, or (only shown) the play over, ends it; keys
 //! held after a play (`dword_5C2554`, until `byte_4F6ADD` and `byte_4F6AF8` are up) do
 //! nothing; Escape twice in a row ends it. Playing (`dword_5BEC98` 0): a frame on
-//! (`race::step_viewed_replay`); its end or any key stops. Stopped: key 0x52 a screenshot
+//! (`race::step_viewed_replay`); its end or any key stops. Stopped: key 0x52 (Numpad 0) a screenshot
 //! (`gfx::take_screenshot`, with screenshots on); while a camera is edited 0x68, 0x69,
 //! Escape, Enter are actions 0x1E, 0x1F, 0x20, 0x21; else the arrows move the highlight
 //! (`menu::list_step`), Enter does the item's action (its byte 1), 0x3B and 0x3C actions 6
@@ -368,48 +368,28 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::race::*;
     unsafe {
         match place {
-            1 => {
-                *r = crate::menu::replay_slot_loop::replay_slot_loop(
-                    r,
-                    &mut crate::menu::replay_slot_loop::game_part,
-                )?
-            }
-            2 => *r = save_last_replay::save_last_replay(r, &mut save_last_replay::game_part)?,
+            1 => *r = crate::menu::replay_slot_loop::replay_slot_loop(r)?,
+            2 => *r = save_last_replay::save_last_replay(r)?,
             3 => {
                 *r = open_viewed_replay::open_viewed_replay(r, &mut open_viewed_replay::game_part)?
             }
             4 => find_snapshot_number::find_snapshot_number(),
-            5 => *r = viewer_load_stage::viewer_load_stage(r, &mut viewer_load_stage::game_part)?,
+            5 => *r = viewer_load_stage::viewer_load_stage(r)?,
             6 => viewer_load_stage::take_key(r),
             7 => mark_viewer_items::mark_viewer_items(r.edi),
             8 => *r = viewer_action::viewer_action(r, &mut viewer_action::game_part)?,
             9 => crate::calls::call(rva(CALLEES[9]), r),
-            10 => {
-                *r = crate::menu::list_take_key::list_take_key(
-                    r,
-                    &mut crate::menu::list_take_key::game_part,
-                )?
-            }
+            10 => *r = crate::menu::list_take_key::list_take_key(r)?,
             11 => *r = step_viewed_replay::step_viewed_replay(r)?,
-            12 => {
-                *r = crate::gfx::take_screenshot::take_screenshot(
-                    r,
-                    &mut crate::gfx::take_screenshot::game_part,
-                )?
-            }
+            12 => crate::gfx::take_screenshot::take_screenshot()?,
             13 => *r = crate::menu::list_step::list_step(r),
             14 => {
                 let unusable = crate::menu::list_item_unusable::list_item_unusable(r.edi);
                 r.set_carry(unusable);
             }
             15 => crate::sound::play_menu_sound::play_menu_sound_in_game(r),
-            16 => {
-                *r = close_viewed_replay::close_viewed_replay(
-                    r,
-                    &mut close_viewed_replay::game_part,
-                )?
-            }
-            _ => *r = viewer_tidy_stage::viewer_tidy_stage(r, &mut viewer_tidy_stage::game_part)?,
+            16 => *r = close_viewed_replay::close_viewed_replay(r)?,
+            _ => *r = viewer_tidy_stage::viewer_tidy_stage(r)?,
         }
     }
     Ok(())

@@ -35,17 +35,14 @@ const GAP_RVA: usize = rva(0x5BE9AD); // dword_5BE9AD
 const LOCK_RVA: usize = rva(0x41AA4B); // d3d::lock_texture
 const UNLOCK_RVA: usize = rva(0x41AB02); // d3d::unlock_texture
 
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 fn g(a: usize) -> u32 {
     unsafe { game_read(a) }
 }
 
 /// The Rust version (see the header): the registers it leaves (`popa`'s: the entry's).
-pub unsafe fn blit_map_tiles(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn blit_map_tiles(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
-    part(0, &mut r)?;
+    crate::race::blit_map_tiles::game_part(0, &mut r)?;
     if r.carry() {
         return Ok(*entry);
     }
@@ -59,7 +56,7 @@ pub unsafe fn blit_map_tiles(entry: &Regs, part: Part) -> Result<Regs, Refused> 
     let (first_x, first_y) = (entry.ecx, entry.edx);
     if let Err(e) = check_tiles(pixels, tiles, any_inside(first_x, first_y)) {
         let mut u = r;
-        part(1, &mut u)?;
+        crate::race::blit_map_tiles::game_part(1, &mut u)?;
         return Err(e.into());
     }
     let gap = row_gap(pitch, bytes);
@@ -111,7 +108,7 @@ pub unsafe fn blit_map_tiles(entry: &Regs, part: Part) -> Result<Regs, Refused> 
     r.ebx = BLITTED;
     r.ecx = first_x;
     r.edx = first_y.wrapping_add(BLITTED);
-    part(1, &mut r)?;
+    crate::race::blit_map_tiles::game_part(1, &mut r)?;
     Ok(*entry)
 }
 
@@ -123,13 +120,13 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version with the game's calls: for Rust callers.
 pub unsafe fn blit_map_tiles_in_game(r: &mut Regs) -> Result<(), Refused> {
-    *r = unsafe { blit_map_tiles(r, &mut game_part) }?;
+    *r = unsafe { blit_map_tiles(r) }?;
     Ok(())
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { blit_map_tiles(r, &mut game_part) }?;
+    let left = unsafe { blit_map_tiles(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

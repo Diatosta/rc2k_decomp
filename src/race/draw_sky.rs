@@ -19,7 +19,7 @@ use crate::race::frame_draw::*;
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     {
-        let after = unsafe { draw_sky(r, &mut sky_part) }?;
+        let after = unsafe { draw_sky(r) }?;
         let esp = r.esp;
         *r = after;
         r.esp = esp;

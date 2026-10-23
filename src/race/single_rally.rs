@@ -273,36 +273,28 @@ pub unsafe fn player(n: u32) -> u32 {
 /// The calls in the game: the race's Rust versions; the sound, scene, input and screen
 /// ones through their hooks (`call_game`; the screen mode is the platform's).
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::race::loadlevel::or_in_game;
     let address = CALLS[place as usize - 1];
-    or_in_game(address, r, |r| unsafe {
-        match place {
-            1 => *r = crate::race::rally::copy_rally_times(r, &mut crate::race::rally::log_part)?,
-            3 => crate::race::race_shell::set_race_screen_mode(
-                r,
-                &mut crate::race::race_shell::game_screen_mode,
-            ),
-            5 => {
-                *r = crate::race::sound_tables::set_up_race_sound_objects(
+    {
+        unsafe {
+            match place {
+                1 => *r = crate::race::rally::copy_rally_times(r)?,
+                3 => crate::race::race_shell::set_race_screen_mode(
                     r,
-                    &crate::race::sound_tables::ObjectVars::game(),
-                    &mut crate::race::sound_tables::object_part,
-                )?
+                    &mut crate::race::race_shell::game_screen_mode,
+                ),
+                5 => {
+                    *r = crate::race::sound_tables::set_up_race_sound_objects(
+                        r,
+                        &crate::race::sound_tables::ObjectVars::game(),
+                    )?
+                }
+                7 => *r = crate::race::race_end::race_from_menu(r)?,
+                9 => *r = crate::race::sound_tables::clear_race_sound_objects(r)?,
+                _ => crate::calls::call(rva(address), r),
             }
-            7 => {
-                *r =
-                    crate::race::race_end::race_from_menu(r, &mut crate::race::race_end::menu_part)?
-            }
-            9 => {
-                *r = crate::race::sound_tables::clear_race_sound_objects(
-                    r,
-                    &mut crate::race::sound_tables::object_part,
-                )?
-            }
-            _ => crate::calls::call(rva(address), r),
+            Ok(())
         }
-        Ok(())
-    })
+    }
 }
 
 // The table (made from the disassembly by script).

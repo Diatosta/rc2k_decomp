@@ -40,12 +40,10 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     let on = unsafe { game_read::<u32>(RACE_ON_RVA) };
     match place {
         SET_EFFECT => crate::input::set_effect::set_effect(r, on)?,
-        START_DEVICE => {
-            crate::input::start_device_effects::start_device_effects(r, &mut game_part)?
-        }
-        STOP_DEVICE => crate::input::stop_device_effects::stop_device_effects(r, &mut game_part)?,
-        START => crate::input::start_effects::start_effects(r, &mut game_part)?,
-        STOP => crate::input::stop_effects::stop_effects(r, &mut game_part)?,
+        START_DEVICE => crate::input::start_device_effects::start_device_effects(r)?,
+        STOP_DEVICE => crate::input::stop_device_effects::stop_device_effects(r)?,
+        START => crate::input::start_effects::start_effects(r)?,
+        STOP => crate::input::stop_effects::stop_effects(r)?,
         CAR => crate::input::update_car_effects::update_car_effects(r, &mut game_part)?,
         TICK => r.eax = crate::system::tick_count::tick_count(),
         _ => return Err(BadInput("a force feedback call with no version").into()),
@@ -56,10 +54,10 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// `dispatch_effects` without its hook (no shadow mode; a refusal is the caller's).
 pub fn effects_entry(
     r: &mut Regs,
-    rust: fn(&mut Regs, Part) -> Result<(), Refused>,
+    rust: fn(&mut Regs) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     let mut g = *r;
-    rust(&mut g, &mut game_part)?;
+    rust(&mut g)?;
     *r = Regs {
         esp: r.esp,
         eflags: r.eflags,

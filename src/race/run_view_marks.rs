@@ -9,10 +9,10 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::framework::Regs;
-use crate::race::frame_views::{run_view_marks, view_marks_part};
+use crate::race::frame_views::run_view_marks;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { run_view_marks(r, &mut view_marks_part) }?;
+    unsafe { run_view_marks(r) }?;
     Ok(())
 }

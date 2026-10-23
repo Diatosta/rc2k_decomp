@@ -41,12 +41,11 @@
 
 use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::scene::draw_object_faces::{LIST_RVA, LISTED_RVA};
 use crate::scene::face_faces_away::face_faces_away;
 use crate::scene::face_sort_key::{KEY_RVA, face_sort_key};
 use crate::scene::polygon::dword;
-use crate::service::harness::{at, capture, restore};
 use rc2k_core::scene::face_tests::{Face, FaceWorld, dropped, listed_key};
 
 // ---- game data ----
@@ -186,21 +185,12 @@ pub unsafe fn list_object_face(face: usize) -> Result<(), Refused> {
         if listed >= LIST_ROOM {
             return Err(BadInput("no room in the list of faces").into());
         }
-        // The tests write three variables; a refusal puts them back.
-        let regions = [
-            at(SEE_THROUGH_RVA),
-            (game_addr(HIDDEN_GROUPS_RVA) as u32, 8),
-        ];
-        let before = capture(&regions);
         game_write(SEE_THROUGH_RVA, 0x100u32);
         let bytes = face_bytes(face);
         match dropped(&mut GameFace, bytes) {
             Ok(true) => return Ok(()),
             Ok(false) => {}
-            Err(why) => {
-                restore(&regions, &before);
-                return Err(why.into());
-            }
+            Err(why) => return Err(why.into()),
         }
         if face_faces_away(face)? {
             return Ok(());

@@ -15,11 +15,11 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::install::installer::{Part, cmp, logic, pb, rb, rd};
+use crate::install::installer::{cmp, logic, pb, rb, rd};
 use crate::race::viewer::regs_entry;
 use rc2k_core::install::items::{self, LinkWay};
 
-pub fn item_link(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn item_link(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     let action = rd(r.esi + 8);
     // Converted: `rc2k_core::install::items::link`.
@@ -33,7 +33,7 @@ pub fn item_link(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         LinkWay::Action => {
             r.edx = rd(r.esi + 0xC);
             cmp(&mut r, action, 1);
-            part(action, &mut r)?;
+            crate::install::installer::game_part(action, &mut r)?;
         }
         LinkWay::Leave(next) => {
             pb(crate::install::installer::LIST_ANSWER, next);
@@ -47,7 +47,5 @@ pub fn item_link(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| {
-        item_link(r, &mut crate::install::installer::game_part)
-    })
+    regs_entry(r, &|r| item_link(r))
 }

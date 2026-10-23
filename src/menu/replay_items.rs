@@ -8,10 +8,6 @@ use crate::framework::{Regs, game_read, rva};
 pub const NO_REPLAY_RVA: usize = rva(0x75ACDC); // dword_75ACDC
 const CALLEES: [usize; 4] = [0x41CD75, 0x41100C, 0x40F059, 0x41CD89];
 
-/// A call by place: 0 `race::replay_mode_1`, 1 `system::sleep` (eax), 2
-/// `sound::play_menu_sound` (eax), 3 `race::replay_mode_3`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 fn g(a: usize) -> u32 {
     unsafe { game_read(a) }
 }
@@ -19,24 +15,24 @@ fn g(a: usize) -> u32 {
 /// `menu::replay_item_a` (0x47053E): unless `dword_75ACDC` is 1, with a replay there
 /// (`dword_5BEC84` 1) `race::replay_mode_1`; else half a second's sleep and the menu's sound
 /// 8. The registers it leaves.
-pub unsafe fn replay_item_a(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn replay_item_a(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     if g(NO_REPLAY_RVA) != 1 && g(crate::race::replay_mode::REPLAY_RVA) == 1 {
-        part(0, &mut r)?;
+        crate::menu::replay_items::game_part(0, &mut r)?;
         return Ok(r);
     }
     r.eax = 500;
-    part(1, &mut r)?;
+    crate::menu::replay_items::game_part(1, &mut r)?;
     r.eax = 8;
-    part(2, &mut r)?;
+    crate::menu::replay_items::game_part(2, &mut r)?;
     Ok(r)
 }
 
 /// `menu::replay_item_b` (0x47052F): unless `dword_75ACDC` is 1, `race::replay_mode_3`.
-pub unsafe fn replay_item_b(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn replay_item_b(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     if g(NO_REPLAY_RVA) != 1 {
-        part(3, &mut r)?;
+        crate::menu::replay_items::game_part(3, &mut r)?;
     }
     Ok(r)
 }

@@ -24,7 +24,6 @@
 use crate::errors::Refused;
 use crate::framework::{Regs, game_read, game_write, rva};
 use crate::physics::reset_parts::reset_entry;
-use crate::race::car_starts::Part;
 use rc2k_core::physics::notices::Notice;
 use rc2k_core::physics::start::CarStart;
 
@@ -43,7 +42,7 @@ fn p(a: usize, v: u32) {
 
 /// The Rust version, `start_car` through `part` (place 11).
 // Converted: `rc2k_core::physics::start::CarStart::false_start`.
-pub unsafe fn false_start(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn false_start(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     let was = CarStart {
         timer: g(TIMER),
@@ -82,7 +81,7 @@ pub unsafe fn false_start(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         }
     }
     if done.put_back {
-        part(11, &mut r)?;
+        crate::physics::reset_parts::game_part(11, &mut r)?;
     }
     Ok(r)
 }

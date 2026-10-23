@@ -266,7 +266,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             3 => draw_stage_bar::draw_stage_bar(r, &mut draw_stage_bar::game_part)?,
             4 => icons_0::icons_0(r, &mut icons_0::game_part)?,
             5 => draw_marker::draw_marker(r, &mut draw_marker::game_part)?,
-            6 => draw_signs::draw_signs(r, &mut draw_signs::game_part)?,
+            6 => draw_signs::draw_signs(r)?,
             _ => dials::set_up(r, &needle_0::SETUP, &mut draw_needle::game_part_needle)?,
         };
     }

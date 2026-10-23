@@ -4,8 +4,8 @@
 //! `dword_623704`, `sub_4467C7`, called with esi it). Every step is Rust but two, which
 //! are called through the game (`call_game`, at their hooks): init mark (`sub_456EA7`,
 //! the marks) and the loading bar's callback (`nullsub_8` after the loading: nothing). The
-//! pace notes are `race::init_pace_notes` since 2026-10-19. A step that refuses is run in the game
-//! through its own hook (`or_in_game`), so the function itself refuses nothing.
+//! pace notes are `race::init_pace_notes` since 2026-10-19. A step's refusal is the
+//! function's (2026-10-23: no longer handed to the step's address).
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
@@ -309,33 +309,10 @@ pub unsafe fn loadlevel_init(entry: &Regs, v: LoadVars, part: Part) -> Result<Re
     Ok(s.g)
 }
 
-/// A step's Rust version, or, when it refuses a case it has not worked out, the step
-/// called in the game through its hook (registers as at entry): that hook refuses again,
-/// logs it and runs the step's original. So a refusal mid-way costs one step, not the
-/// whole function run again over the steps already done.
-pub fn or_in_game(
-    address: usize,
-    r: &mut Regs,
-    rust: impl FnOnce(&mut Regs) -> Result<(), Refused>,
-) -> Result<(), Refused> {
-    let entry = *r;
-    match rust(r) {
-        Err(Refused::BadInput(_)) => {
-            *r = entry;
-            crate::calls::call(rva(address), r);
-            Ok(())
-        }
-        other => other,
-    }
-}
-
-/// The calls in the game: the Rust versions (each through `or_in_game`); init mark and the
+/// The calls in the game: the Rust versions; init mark and the
 /// loading bar through the game.
 pub fn game_part(callee: u32, r: &mut Regs) -> Result<(), Refused> {
-    match callee {
-        0..28 => or_in_game(CALLEES[callee as usize], r, |r| step_part(callee, r)),
-        _ => step_part(callee, r),
-    }
+    step_part(callee, r)
 }
 
 fn step_part(callee: u32, r: &mut Regs) -> Result<(), Refused> {
@@ -348,7 +325,6 @@ fn step_part(callee: u32, r: &mut Regs) -> Result<(), Refused> {
                     r,
                     &Vars::game(),
                     game_addr(crate::race::level_init::COURSE_LIST_RVA) as u32,
-                    &mut crate::race::level_init::game_part,
                 )?
             }
             2 => {
@@ -369,12 +345,7 @@ fn step_part(callee: u32, r: &mut Regs) -> Result<(), Refused> {
                 r,
                 &mut crate::race::level_init::game_part,
             )?,
-            6 => {
-                *r = crate::scene::texture_levels::init_texture_levels(
-                    r,
-                    &mut crate::scene::texture_levels::game_part,
-                )?
-            }
+            6 => *r = crate::scene::texture_levels::init_texture_levels(r)?,
             7 => {
                 use crate::scene::build_texture_catalogue::build_texture_catalogue_in_game;
                 crate::scene::set_up_textures::set_up_textures(
@@ -388,25 +359,14 @@ fn step_part(callee: u32, r: &mut Regs) -> Result<(), Refused> {
                 r.set_carry(false);
             }
             8 => *r = crate::race::level_init::build_texture_infos(r, &Vars::game())?,
-            9 => {
-                *r = crate::race::course_data::locate_current_course(
-                    r,
-                    &mut crate::race::course_data::locate_part,
-                )?
-            }
+            9 => *r = crate::race::course_data::locate_current_course(r)?,
             10 => crate::scene::reset_texture_places::reset_texture_places().apply(r),
             11 => {
                 *r = crate::race::objects::reload_objects(r, &mut crate::race::objects::game_part)?
             }
-            12 => {
-                *r = crate::race::set_all_plates::set_all_plates(
-                    r,
-                    &mut crate::race::set_all_plates::game_part,
-                )?
-            }
+            12 => *r = crate::race::set_all_plates::set_all_plates(r)?,
             13 => {
-                let g =
-                    crate::race::game_map::load_game_map(r, &mut crate::race::game_map::game_part)?;
+                let g = crate::race::game_map::load_game_map(r)?;
                 r.eax = g.eax;
             }
             14 => {
@@ -430,7 +390,7 @@ fn step_part(callee: u32, r: &mut Regs) -> Result<(), Refused> {
                     &mut crate::race::level_init::game_part,
                 )?
             }
-            21 => *r = crate::race::mud::init_mud(r, &mut crate::race::mud::game_part)?,
+            21 => *r = crate::race::mud::init_mud(r)?,
             22 => *r = crate::race::stage_prefs::get_mat_crash(r),
             23 => {
                 let g = crate::race::norms::store_norms(r, &mut crate::race::norms::game_normal)?;

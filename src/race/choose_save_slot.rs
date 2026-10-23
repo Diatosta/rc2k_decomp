@@ -18,13 +18,13 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::race::viewer::{Part, regs_entry};
+use crate::race::viewer::regs_entry;
 
 /// The Rust version: the registers it leaves.
-pub fn choose_save_slot(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn choose_save_slot(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     for place in 1..=3 {
-        part(place, &mut r)?;
+        crate::race::choose_save_slot::game_part(place, &mut r)?;
     }
     Ok(r)
 }
@@ -33,12 +33,9 @@ pub fn choose_save_slot(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::race::{viewer_load_stage as load, viewer_tidy_stage as tidy};
     *r = match place {
-        1 => tidy::viewer_tidy_stage(r, &mut tidy::game_part)?,
-        2 => crate::menu::replay_slot_loop::replay_slot_loop(
-            r,
-            &mut crate::menu::replay_slot_loop::game_part,
-        )?,
-        _ => load::viewer_load_stage(r, &mut load::game_part)?,
+        1 => tidy::viewer_tidy_stage(r)?,
+        2 => crate::menu::replay_slot_loop::replay_slot_loop(r)?,
+        _ => load::viewer_load_stage(r)?,
     };
     Ok(())
 }
@@ -46,5 +43,5 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| choose_save_slot(r, &mut game_part))
+    regs_entry(r, &|r| choose_save_slot(r))
 }

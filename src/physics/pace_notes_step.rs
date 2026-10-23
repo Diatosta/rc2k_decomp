@@ -26,7 +26,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_read, game_write, rva};
-use crate::physics::queue_pace_note::{EXPIRE, PACE, Part, pace_entry};
+use crate::physics::queue_pace_note::{EXPIRE, PACE, pace_entry};
 use rc2k_core::physics::pace_calls::{call_target, calling, calls};
 
 /// The gates: (variable, the value it must have); the last is "1000 or more".
@@ -54,7 +54,7 @@ fn p(x: usize, v: u32) {
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::pace_calls::{calling, call_target, calls}`.
-pub fn pace_notes_step_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn pace_notes_step_in(r: &mut Regs) -> Result<(), Refused> {
     if !calling(ZERO.map(g), g(ONE), g(TIME)) {
         return Ok(());
     }
@@ -69,14 +69,14 @@ pub fn pace_notes_step_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
         loop {
             r.edx = r.edx.wrapping_add(1);
             let mut c = *r;
-            part(PACE, &mut c)?;
+            crate::physics::queue_pace_note::pace_part(PACE, &mut c)?;
             if r.edx >= r.ebx {
                 break;
             }
         }
         p(LAST_CALLED, r.ebx);
     }
-    part(EXPIRE, r)
+    crate::physics::queue_pace_note::pace_part(EXPIRE, r)
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

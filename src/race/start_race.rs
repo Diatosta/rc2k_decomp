@@ -17,7 +17,7 @@ use crate::race::race_end::*;
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     {
-        let g = unsafe { start_race(r, &mut start_part) }?;
+        let g = unsafe { start_race(r) }?;
         *r = Regs {
             esp: r.esp,
             eflags: r.eflags,

@@ -81,16 +81,11 @@ pub unsafe fn mud_pixel(x: u32, y: u32) -> u32 {
     }
 }
 
-/// A call: 0 `memory::allocate` (eax, ebx), 1 `files::read_whole_file` (eax, ebx, ecx), 2
-/// the surface's lock (eax the surface), 3 its unlock, 4 `race::load_mud`, 5
-/// `race::clear_mud_state`, 6 `race::sample_mud_colours`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// `race::load_mud` (0x449D95): the car's file number's two digits (`div 10`, each +
 /// '0', as bytes) into the path, the file (0x10000 bytes at most) into the mud. Leaves eax
 /// the quotient (its low byte + '0'), edx the remainder (its low byte + '0'), ebx 10, esi
 /// the mud.
-pub unsafe fn load_mud(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn load_mud(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         // Converted: `rc2k_core::race::mud::file_digits`.
@@ -106,7 +101,7 @@ pub unsafe fn load_mud(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             ecx: MUD_LEN,
             ..g
         };
-        part(1, &mut r)?;
+        crate::race::mud::game_part(1, &mut r)?;
     }
     Ok(g)
 }
@@ -125,11 +120,11 @@ pub unsafe fn clear_mud_state() {
 /// at (0x89 + (n & 3) + (n >> 5) * 4, 0x68 + ((n & 0x1C) >> 2)) by `mud_pixel`, unlocked
 /// (part 3). Leaves eax the surface, ecx and edx the last place, edi past the colours, ebp
 /// 0x100.
-pub unsafe fn sample_mud_colours(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn sample_mud_colours(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         g.eax = game_read(PICTURE_RVA);
-        part(2, &mut g)?;
+        crate::race::mud::game_part(2, &mut g)?;
         g.edi = game_addr(COLOURS_RVA) as u32;
         // Converted: `rc2k_core::race::mud::sample_place`.
         for n in 0..rc2k_core::race::mud::SAMPLES {
@@ -140,14 +135,14 @@ pub unsafe fn sample_mud_colours(entry: &Regs, part: Part) -> Result<Regs, Refus
         }
         g.ebp = 0x100;
         g.eax = game_read(PICTURE_RVA);
-        part(3, &mut g)?;
+        crate::race::mud::game_part(3, &mut g)?;
     }
     Ok(g)
 }
 
 /// `race::init_mud` (0x449DD6): the list's total + 0x10000, the mud taken (part 0) into
 /// `dword_623D50`, then parts 4, 5, 6. Leaves the registers as they leave them.
-pub unsafe fn init_mud(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn init_mud(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         g.eax = MUD_LEN;
@@ -156,10 +151,10 @@ pub unsafe fn init_mud(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             LIST_TOTAL_RVA,
             game_read::<u32>(LIST_TOTAL_RVA).wrapping_add(MUD_LEN),
         );
-        part(0, &mut g)?;
+        crate::race::mud::game_part(0, &mut g)?;
         game_write(MUD_RVA, g.eax);
         for place in [4, 5, 6] {
-            part(place, &mut g)?;
+            crate::race::mud::game_part(place, &mut g)?;
         }
     }
     Ok(g)
@@ -173,9 +168,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             0 | 1 => crate::race::level_init::game_part(place, r)?,
             2 => crate::calls::call(rva(0x41AA4B), r),
             3 => crate::calls::call(rva(0x41AB02), r),
-            4 => *r = load_mud(r, &mut game_part)?,
+            4 => *r = load_mud(r)?,
             5 => clear_mud_state(),
-            _ => *r = sample_mud_colours(r, &mut game_part)?,
+            _ => *r = sample_mud_colours(r)?,
         }
     }
     Ok(())

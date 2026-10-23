@@ -19,6 +19,6 @@ use crate::race::name_plates::*;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { draw_time_plate(r, &mut plate_part) }?;
+    unsafe { draw_time_plate(r) }?;
     Ok(())
 }

@@ -24,16 +24,13 @@
 use crate::errors::Refused;
 use crate::framework::{Regs, rva};
 
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers and flags it leaves.
-pub unsafe fn service_area_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn service_area_frame(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     let done = 'frame: {
         for steps in [&[1u32, 2, 3, 4][..], &[5, 10, 1], &[7, 3, 9]] {
             for &p in steps {
-                part(p, &mut g)?;
+                crate::screens::service_area_frame::game_part(p, &mut g)?;
                 if matches!(p, 1 | 4 | 9) && g.carry() {
                     break 'frame false;
                 }
@@ -87,7 +84,7 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     if crate::screens::blanked("screens::service_area_frame") {
         return Ok(());
     }
-    let left = unsafe { service_area_frame(r, &mut game_part) }?;
+    let left = unsafe { service_area_frame(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

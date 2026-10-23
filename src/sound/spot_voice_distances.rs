@@ -20,13 +20,13 @@ use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::physics::flow::{base, x87_run};
 use crate::sound::spot_voices::{VOICE_COUNT, load_voices, set, store_voices, voice, vw};
-use crate::sound::turn_parts::{Part, turn_entry};
+use crate::sound::turn_parts::turn_entry;
 
 // ---- Rust version ----
 
 /// The converted version (`rc2k_core::sound::spot_voices::hear`, plain floats): the hook's. The
 /// exact one below stays for the race sound's turn (`turn_parts`), compared exactly.
-pub fn spot_voice_distances_plain(_: &mut Regs, _: Part) -> Result<(), Refused> {
+pub fn spot_voice_distances_plain(_: &mut Regs) -> Result<(), Refused> {
     let float = |x: usize| f32::from_bits(crate::sound::spot_voices::g(x));
     let hearing = rc2k_core::sound::spot_voices::Hearing {
         turns_a_second: float(0x5124EC),
@@ -40,7 +40,7 @@ pub fn spot_voice_distances_plain(_: &mut Regs, _: Part) -> Result<(), Refused> 
     Ok(())
 }
 
-pub fn spot_voice_distances_in(_: &mut Regs, _: Part) -> Result<(), Refused> {
+pub fn spot_voice_distances_in(_: &mut Regs) -> Result<(), Refused> {
     let b = base();
     for n in 0..VOICE_COUNT {
         let bx = voice(n);

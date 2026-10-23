@@ -28,7 +28,7 @@ use crate::marks::setup::SEED_RVA;
 use crate::math::x87;
 use crate::scene::matrix3::rounded;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at as at_rva, state_entry};
+use crate::service::harness::state_entry;
 
 const RATE_K: [usize; 4] = [rva(0x93A312), rva(0x93A316), rva(0x93A31A), rva(0x93A31E)];
 const SIDE_RANDOM_RVA: usize = rva(0x93A322);
@@ -137,29 +137,6 @@ pub unsafe fn emit_particle_21(wheel: u32, object: u32) -> Result<(), Refused> {
         put(0x60, x87::int_times(size as i32, game_read(SIZE_K_RVA)));
     }
     Ok(())
-}
-
-/// What it may write: the globals, the wheel's +4 and, when one is to be taken, the next
-/// entry.
-pub fn regions(wheel: u32) -> Vec<Region> {
-    let mut r: Vec<Region> = [
-        RATE_RVA,
-        SIDE_RANDOM_RVA,
-        SPIN_RANDOM_RVA,
-        SEED_RVA,
-        RING_CURSOR_RVA,
-        RING_COUNT_RVA,
-    ]
-    .map(at_rva)
-    .to_vec();
-    r.push((crate::framework::game_addr(SIDES_RVA) as u32, 8));
-    if wheel != 0 {
-        r.push((wheel + 4, 4));
-    }
-    if let Some(e) = unsafe { next_entry() } {
-        r.push((e, ENTRY_LEN));
-    }
-    r
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

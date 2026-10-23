@@ -71,10 +71,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         let failed = unsafe { crate::drive::read_replay_frame::read_replay_frame(r.eax, r.ebx) }?;
         r.set_carry(failed);
     } else {
-        *r = crate::race::play_replay_range::play_replay_range(
-            r,
-            &mut crate::race::play_replay_range::game_part,
-        )?;
+        *r = crate::race::play_replay_range::play_replay_range(r)?;
     }
     Ok(())
 }

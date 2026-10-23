@@ -30,18 +30,16 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_read, rva};
-use crate::physics::flow::guard;
 use crate::sound::sample_duration::sample_duration;
-use crate::sound::turn_parts::{CLOCK, OBJECT_LEN, PLAY, Part, turn_entry};
+use crate::sound::turn_parts::{CLOCK, turn_entry};
 
-const DROP: u32 = 0x40EE32;
 const QUEUE: u32 = 0x298;
 
 // ---- Rust version ----
 
 /// Converted: `rc2k_core::sound::cars::cue_turn`; the drops through `sound::drop_cue` with
 /// the registers the original has there, the queue in the game's memory meanwhile.
-pub fn play_cue_queue_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn play_cue_queue_in(c: &mut Regs) -> Result<(), Refused> {
     use rc2k_core::sound::cars::{CueQueue, CueTurn, OWN, cue_turn};
     let o = c.ebx;
     if o == 0 {
@@ -55,7 +53,7 @@ pub fn play_cue_queue_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
         return Ok(());
     }
     c.edi = q as u32;
-    guard(&[(o, OBJECT_LEN)], || {
+    (|| -> Result<_, crate::errors::Refused> {
         let turn = cue_turn::<Refused>(
             &mut queue,
             in_use,
@@ -64,7 +62,7 @@ pub fn play_cue_queue_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
             |queue, place| {
                 unsafe { q.write_unaligned(queue.to_words()) };
                 (c.eax, c.ebx) = (0, place);
-                part(DROP, c)?;
+                crate::sound::drop_cue::drop_cue_in(c)?;
                 *queue = CueQueue::from_words(&unsafe { q.read_unaligned() });
                 Ok(())
             },
@@ -81,11 +79,11 @@ pub fn play_cue_queue_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
         match turn {
             CueTurn::Play { sound } => {
                 (c.eax, c.ebx, c.edx, c.ecx, c.edi, c.ebp) = (sound, OWN, OWN, 0, 0, 0);
-                part(PLAY, c)
+                crate::sound::turn_parts::play(c)
             }
             _ => Ok(()),
         }
-    })
+    })()
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

@@ -319,38 +319,23 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             6 => *r = copy_marked::copy_marked(r)?,
             7 => reset_marks::reset_marks()?,
             8 => *r = undo_edit::undo_edit(r)?,
-            9 => *r = viewer_tidy_stage::viewer_tidy_stage(r, &mut viewer_tidy_stage::game_part)?,
-            10 => {
-                *r = crate::menu::replay_slot_loop::replay_slot_loop(
-                    r,
-                    &mut crate::menu::replay_slot_loop::game_part,
-                )?
-            }
-            11 => {
-                *r = close_viewed_replay::close_viewed_replay(
-                    r,
-                    &mut close_viewed_replay::game_part,
-                )?
-            }
+            9 => *r = viewer_tidy_stage::viewer_tidy_stage(r)?,
+            10 => *r = crate::menu::replay_slot_loop::replay_slot_loop(r)?,
+            11 => *r = close_viewed_replay::close_viewed_replay(r)?,
             12 => {
                 *r = open_viewed_replay::open_viewed_replay(r, &mut open_viewed_replay::game_part)?
             }
-            13 => *r = viewer_load_stage::viewer_load_stage(r, &mut viewer_load_stage::game_part)?,
+            13 => *r = viewer_load_stage::viewer_load_stage(r)?,
             14 => {
                 *r = save_viewed_replay::save_viewed_replay(r, &mut save_viewed_replay::game_part)?
             }
-            15 => *r = choose_save_slot::choose_save_slot(r, &mut choose_save_slot::game_part)?,
+            15 => *r = choose_save_slot::choose_save_slot(r)?,
             16 => *r = spread_camera::spread_camera(r)?,
             17 => *r = edit_camera::edit_camera(r, 1),
             18 => *r = edit_camera::edit_camera(r, 2),
             19 => *r = edit_camera::step_camera(r, 1)?,
             20 => *r = edit_camera::step_camera(r, -1)?,
-            21 => {
-                *r = start_frame_pictures::start_frame_pictures(
-                    r,
-                    &mut start_frame_pictures::game_part,
-                )?
-            }
+            21 => *r = start_frame_pictures::start_frame_pictures(r)?,
             _ => stop_frame_pictures::stop_frame_pictures(),
         }
     }

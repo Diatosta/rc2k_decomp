@@ -17,10 +17,10 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::physics::fill_race_slot::{g, regions};
+use crate::physics::fill_race_slot::g;
 use crate::physics::fill_slot_on_bit::fill_slot_on_bit_in;
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, restore, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::parts::{BROKEN_BITS, breaks, broken_checked};
 
 /// The steps on `r`.
@@ -45,15 +45,10 @@ pub fn drop_broken_parts_in(r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version.
 pub unsafe fn drop_broken_parts(entry: &Regs) -> Result<Left, Refused> {
-    let all = regions();
-    let saved = capture(&all);
     let mut r = *entry;
     match drop_broken_parts_in(&mut r) {
         Ok(()) => Ok(crate::race::stage_prefs::left_of(&r)),
-        Err(e) => {
-            restore(&all, &saved);
-            Err(e)
-        }
+        Err(e) => Err(e),
     }
 }
 

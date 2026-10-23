@@ -33,11 +33,10 @@ use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::emit_particle_21::emit_particle_21;
 use crate::marks::emitters::*;
 use crate::marks::jitter_point::jitter_point;
-use crate::marks::setup::SEED_RVA;
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at as at_rva, state_entry};
+use crate::service::harness::state_entry;
 
 const CHOICE_RVA: usize = rva(0x93A1D6); // g_marksKind1Choice: emit_particle_21 when not 0
 const STRENGTH_RVA: usize = rva(0x9356C0); // dword_9356C0
@@ -216,34 +215,6 @@ pub unsafe fn emit_kind_1(wheel: u32, object: u32) -> Result<(), Refused> {
             emit_particle_1(wheel, object)
         }
     }
-}
-
-/// What it may write.
-pub fn regions(wheel: u32) -> Vec<Region> {
-    if unsafe { game_read::<u32>(CHOICE_RVA) } != 0 {
-        return crate::marks::emit_particle_21::regions(wheel);
-    }
-    let mut r: Vec<Region> = [
-        FLAGS_RVA,
-        STRENGTH_RVA,
-        LIFE_RVA,
-        FADE_RVA,
-        SIDE_RVA,
-        SIDE_RANDOM_RVA,
-        SPIN_RANDOM_RVA,
-        SEED_RVA,
-        RING_CURSOR_RVA,
-        RING_COUNT_RVA,
-    ]
-    .map(at_rva)
-    .to_vec();
-    if wheel != 0 {
-        r.push((wheel + 4, 4));
-    }
-    if let Some(e) = unsafe { next_entry() } {
-        r.push((e, ENTRY_LEN));
-    }
-    r
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

@@ -21,9 +21,7 @@
 use crate::bridge::{Raw, read_through};
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::install::installer::{
-    CLOSE, INSTALLED, OPEN, Part, READ, SET_CD, STATUS, a, at, gb, p, rb,
-};
+use crate::install::installer::{CLOSE, INSTALLED, OPEN, READ, SET_CD, STATUS, a, at, gb, p, rb};
 use rc2k_core::install::version::{self, Scan};
 
 const SAME_VERSION: usize = 0x51B9C8; // dword_51B9C8
@@ -35,7 +33,7 @@ const TAIL: usize = BUF + 0xFF00;
 const SCAN_LEN: u32 = version::CHUNK;
 const COPYRIGHT: usize = 0x4E001C; // byte_4E001C
 
-pub fn check_installed_version(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn check_installed_version(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     p(SAME_VERSION, 0);
     if gb(STATUS) != 1 || gb(SOURCE) == 0 {
@@ -53,7 +51,7 @@ pub fn check_installed_version(entry: &Regs, part: Part) -> Result<Regs, Refused
     }
     r.esi = a(SOURCE);
     r.edx = a(INSTALLED);
-    part(at(SET_CD), &mut r)?;
+    crate::install::installer::game_part(at(SET_CD), &mut r)?;
     if r.carry() {
         return Ok(*entry);
     }
@@ -62,7 +60,7 @@ pub fn check_installed_version(entry: &Regs, part: Part) -> Result<Regs, Refused
     // image).
     r.eax = crate::install::run_after_exit::RC2K.as_ptr() as u32;
     r.ebx = 0;
-    part(at(OPEN), &mut r)?;
+    crate::install::installer::game_part(at(OPEN), &mut r)?;
     if !r.carry() {
         // Register for register: edx the handle; the close gets ebx and ecx where the scan
         // stopped (`loc_413C13`).
@@ -78,7 +76,7 @@ pub fn check_installed_version(entry: &Regs, part: Part) -> Result<Regs, Refused
             r.eax = r.edx;
             r.ebx = a(READ_TARGET);
             r.ecx = SCAN_LEN;
-            part(at(READ), &mut r)?;
+            crate::install::installer::game_part(at(READ), &mut r)?;
             if r.carry() || r.eax == 0 {
                 break;
             }
@@ -101,17 +99,15 @@ pub fn check_installed_version(entry: &Regs, part: Part) -> Result<Regs, Refused
             }
         }
         r.eax = r.edx;
-        part(at(CLOSE), &mut r)?;
+        crate::install::installer::game_part(at(CLOSE), &mut r)?;
     }
     r.edx = a(BASE_A);
-    part(at(SET_CD), &mut r)?;
+    crate::install::installer::game_part(at(SET_CD), &mut r)?;
     Ok(Regs { ..*entry })
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::race::viewer::regs_entry(r, &|r| {
-        check_installed_version(r, &mut crate::install::installer::game_part)
-    })
+    crate::race::viewer::regs_entry(r, &|r| check_installed_version(r))
 }

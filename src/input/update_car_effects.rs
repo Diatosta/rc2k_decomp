@@ -219,11 +219,7 @@ pub fn update_car_effects_with(r: &mut Regs, scratch: u32, part: Part) -> Result
 
 /// The converted version (`rc2k_core::input::feedback`, plain floats), the angle written to
 /// `scratch` (an address): the hook's. Here the fields loaded and stored, the requests sent.
-pub fn update_car_effects_plain_with(
-    r: &mut Regs,
-    scratch: u32,
-    part: Part,
-) -> Result<(), Refused> {
+pub fn update_car_effects_plain_with(r: &mut Regs, scratch: u32) -> Result<(), Refused> {
     use rc2k_core::input::feedback::{Constants, Feel, View, update_car_effects};
     let (view, object) = (r.ebx, r.edi);
     let float = |v: u32| f32::from_bits(v);
@@ -275,7 +271,7 @@ pub fn update_car_effects_plain_with(
         r.ebx = 3;
         r.ecx = request.ecx;
         r.edx = request.edx;
-        part(SET_EFFECT, r)?;
+        crate::input::effects::game_part(SET_EFFECT, r)?;
     }
     Ok(())
 }
@@ -286,8 +282,8 @@ pub fn update_car_effects(r: &mut Regs, part: Part) -> Result<(), Refused> {
 }
 
 /// The converted version: the hook's.
-pub fn update_car_effects_plain(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    update_car_effects_plain_with(r, game_addr(rva(SCRATCH)) as u32, part)
+pub fn update_car_effects_plain(r: &mut Regs) -> Result<(), Refused> {
+    update_car_effects_plain_with(r, game_addr(rva(SCRATCH)) as u32)
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

@@ -25,7 +25,6 @@ use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::physics::flow::{c0, g, p};
 use crate::physics::reset_parts::RESET_CAR;
-use crate::race::car_starts::Part;
 use rc2k_core::drive::controls::{
     RESET_NOTICE, reset_counts, reset_held, reset_penalty, reset_step,
 };
@@ -40,7 +39,7 @@ fn clear_notice() {
 
 /// The Rust version, the reset through `part` (place 15).
 // Converted: `rc2k_core::drive::controls::{reset_counts, reset_held, reset_step, reset_penalty}`.
-pub unsafe fn reset_request(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn reset_request(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     if !reset_counts(g(0x719FEC)) {
         return Ok(r);
@@ -66,7 +65,7 @@ pub unsafe fn reset_request(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     r.eax = reset_penalty(g(0x71A1C0));
     p(0x71A060, g(0x71A060).wrapping_add(r.eax));
     clear_notice();
-    part(RESET_CAR, &mut r)?;
+    crate::physics::reset_parts::game_part(RESET_CAR, &mut r)?;
     Ok(r)
 }
 

@@ -139,8 +139,6 @@ pub unsafe fn group_records_by_kind(entry: &Regs) -> Result<Regs, Refused> {
 
 // ---- for the self-tests ----
 
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 const COURSE_PATH_RVA: usize = rva(0x60B02B); // "srclvls\level01\cdat00c"
 const FIRST_PART_RVA: usize = rva(0x5C6FC8); // dword_5C6FC8: the course memory's first part
 pub const READ_BYTES_RVA: usize = rva(0x60B2CC); // dword_60B2CC
@@ -159,12 +157,12 @@ const NOT_READ: crate::errors::FatalError = crate::errors::FatalError {
 };
 
 /// A log line's call, inside `pusha`.
-fn load_log(n: usize, g: &Regs, part: Part) -> Result<(), Refused> {
+fn load_log(n: usize, g: &Regs) -> Result<(), Refused> {
     let mut r = Regs {
         eax: game_addr(LOAD_LOG[n]) as u32,
         ..*g
     };
-    part(5, &mut r)
+    crate::race::course_data::load_part(5, &mut r)
 }
 
 /// `race::load_level` (0x4455FC): the course data (cdat 0) read into the course memory's
@@ -173,32 +171,32 @@ fn load_log(n: usize, g: &Regs, part: Part) -> Result<(), Refused> {
 /// lights reset, with "loadlevel", "done", "next", "this", "then", "ok" in the log. Leaves
 /// eax and edx the digits, ecx 0, ebx the face count, esi the last face, edi past the
 /// header.
-pub unsafe fn load_level(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn load_level(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = Regs { eax: 0, ..*entry };
     unsafe {
-        part(0, &mut g)?;
+        crate::race::course_data::load_part(0, &mut g)?;
         game_write(READ_BYTES_RVA, 0u32);
         g.esi = game_read(COURSE_MEMORY_RVA);
-        load_log(0, &g, part)?;
+        load_log(0, &g)?;
         let mut r = Regs {
             eax: game_addr(COURSE_PATH_RVA) as u32,
             ebx: game_read(COURSE_MEMORY_RVA),
             ecx: game_read(FIRST_PART_RVA),
             ..g
         };
-        part(1, &mut r)?;
+        crate::race::course_data::load_part(1, &mut r)?;
         game_write(READ_BYTES_RVA, r.eax);
         if r.carry() {
             return Err(NOT_READ.into());
         }
-        load_log(1, &g, part)?;
-        load_log(2, &g, part)?;
-        part(2, &mut g)?;
-        load_log(3, &g, part)?;
-        part(3, &mut g)?;
-        load_log(4, &g, part)?;
-        part(4, &mut g)?;
-        load_log(5, &g, part)?;
+        load_log(1, &g)?;
+        load_log(2, &g)?;
+        crate::race::course_data::load_part(2, &mut g)?;
+        load_log(3, &g)?;
+        crate::race::course_data::load_part(3, &mut g)?;
+        load_log(4, &g)?;
+        crate::race::course_data::load_part(4, &mut g)?;
+        load_log(5, &g)?;
     }
     Ok(g)
 }
@@ -230,13 +228,13 @@ const CDAT_NUMBER_RVA: usize = rva(0x609380); // dword_609380
 /// it), `load_level`, `lay_out_course` (its test of `dword_621514` jumps to the next
 /// instruction either way: section 16), `group_records_by_kind`, `build_best_line`. Leaves
 /// the registers as the last does.
-pub unsafe fn locate_current_course(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn locate_current_course(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         game_write(CDAT_NUMBER_RVA, 0u32);
         g.eax = 0;
         for place in 0..4 {
-            part(place, &mut g)?;
+            crate::race::course_data::locate_part(place, &mut g)?;
         }
     }
     Ok(g)
@@ -246,7 +244,7 @@ pub unsafe fn locate_current_course(entry: &Regs, part: Part) -> Result<Regs, Re
 pub fn locate_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         match place {
-            0 => *r = load_level(r, &mut load_part)?,
+            0 => *r = load_level(r)?,
             1 => crate::race::norms::lay_out_course(),
             2 => *r = group_records_by_kind(r)?,
             _ => {

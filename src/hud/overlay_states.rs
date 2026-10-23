@@ -13,16 +13,13 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 
-/// A call by place: 1 `set_render_state`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
 // Converted: `rc2k_core::scene::render_states::OVERLAY`
-pub unsafe fn overlay_states(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn overlay_states(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     for s in rc2k_core::scene::render_states::OVERLAY {
         [g.eax, g.ebx] = [s.value, s.state];
-        part(1, &mut g)?;
+        crate::hud::overlay_states::game_part(1, &mut g)?;
     }
     Ok(g)
 }
@@ -36,7 +33,7 @@ pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { overlay_states(r, &mut game_part) }?;
+    let left = unsafe { overlay_states(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

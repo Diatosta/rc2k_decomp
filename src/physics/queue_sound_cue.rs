@@ -22,7 +22,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_read, rva};
-use crate::physics::sound_cues::{PLAY, Part, cue_entry};
+use crate::physics::sound_cues::{PLAY, cue_entry};
 use rc2k_core::physics::sound_queue::{ENTRY_DWORDS, Place, check_cue, place, sounds};
 
 unsafe fn at(a: u32) -> u32 {
@@ -35,7 +35,7 @@ unsafe fn put(a: u32, v: u32) {
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::sound_queue::{check_cue, place, sounds}`.
-pub fn queue_sound_cue_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn queue_sound_cue_in(r: &mut Regs) -> Result<(), Refused> {
     check_cue(r.ebx)?;
     let q = r.edi;
     unsafe {
@@ -54,7 +54,7 @@ pub fn queue_sound_cue_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
                 r.eax = at(q + 4);
                 r.eax = at(q.wrapping_add(r.eax.wrapping_mul(4)).wrapping_add(0x18));
                 r.ebx = 0;
-                part(PLAY, r)?;
+                crate::physics::sound_cues::game_part(PLAY, r)?;
                 put(q + 4, u32::MAX);
                 r.ebx = cue;
                 r.ecx = count.wrapping_mul(ENTRY_DWORDS);

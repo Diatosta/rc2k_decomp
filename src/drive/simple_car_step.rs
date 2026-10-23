@@ -42,10 +42,7 @@ pub unsafe fn simple_car_step(entry: &Regs) -> Result<Left, Refused> {
         r.esi = c.esi;
         crate::drive::steer_inputs::steer_inputs(&r).apply(&mut r);
         crate::drive::pedal_inputs::pedal_inputs().apply(&mut r);
-        r = crate::drive::reset_request::reset_request(
-            &r,
-            &mut crate::physics::reset_parts::game_part,
-        )?;
+        r = crate::drive::reset_request::reset_request(&r)?;
     }
     r.eax = 0;
     r.ecx = roam_distance(

@@ -17,7 +17,7 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::physics::flow::a;
-use crate::race::viewer::{Part, get, put, regs_entry};
+use crate::race::viewer::{get, put, regs_entry};
 
 const SCENE_CLOCK: usize = 0x613830; // g_sceneClock
 const CLOCK_BASE: usize = 0x613840; // dword_613840
@@ -25,22 +25,22 @@ const IN_TEXT: usize = 0x4DDF10; // "shaunplayrendermovie - in"
 const OUT_TEXT: usize = 0x4DDF2A; // "shaunplayrendermovie - out"
 
 /// The Rust version: the registers it leaves.
-pub fn play_movie(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn play_movie(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     let mut s = Regs {
         eax: a(IN_TEXT),
         ..r
     };
-    part(1, &mut s)?;
-    part(2, &mut r)?;
+    crate::race::play_movie::game_part(1, &mut s)?;
+    crate::race::play_movie::game_part(2, &mut r)?;
     r.eax = get(SCENE_CLOCK);
     put(CLOCK_BASE, r.eax);
-    part(3, &mut r)?;
+    crate::race::play_movie::game_part(3, &mut r)?;
     let mut s = Regs {
         eax: a(OUT_TEXT),
         ..r
     };
-    part(4, &mut s)?;
+    crate::race::play_movie::game_part(4, &mut s)?;
     Ok(r)
 }
 
@@ -62,5 +62,5 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| play_movie(r, &mut game_part))
+    regs_entry(r, &|r| play_movie(r))
 }

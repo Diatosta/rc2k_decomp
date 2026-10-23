@@ -27,11 +27,8 @@ const VERTICES_RVA: usize = rva(0x6D3CF4); // unk_6D3CF4
 const INDICES_RVA: usize = rva(0x6D7CF4); // unk_6D7CF4
 const DRAWTRI_RVA: usize = rva(0x4DDCA4); // "drawtri"
 
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn flush_draw_batch(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn flush_draw_batch(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     unsafe {
         r.edx = game_read(INDEX_COUNT_RVA);
@@ -39,15 +36,15 @@ pub unsafe fn flush_draw_batch(entry: &Regs, part: Part) -> Result<Regs, Refused
             r.ecx = game_addr(INDICES_RVA) as u32;
             r.eax = game_read(VERTEX_COUNT_RVA);
             r.ebx = game_addr(VERTICES_RVA) as u32;
-            part(3, &mut r)?;
+            crate::race::flush_draw_batch::game_part(3, &mut r)?;
             if r.eax != 0 {
                 let mut log = Regs {
                     eax: game_addr(DRAWTRI_RVA) as u32,
                     ..r
                 };
-                part(4, &mut log)?;
+                crate::race::flush_draw_batch::game_part(4, &mut log)?;
                 let mut log = r;
-                part(5, &mut log)?;
+                crate::race::flush_draw_batch::game_part(5, &mut log)?;
             }
         }
         game_write(INDEX_COUNT_RVA, 0u32);
@@ -63,13 +60,13 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version with the game's calls: for Rust callers.
 pub unsafe fn flush_draw_batch_in_game(r: &mut Regs) -> Result<(), Refused> {
-    *r = unsafe { flush_draw_batch(r, &mut game_part) }?;
+    *r = unsafe { flush_draw_batch(r) }?;
     Ok(())
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { flush_draw_batch(r, &mut game_part) }?;
+    let left = unsafe { flush_draw_batch(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

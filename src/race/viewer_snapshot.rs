@@ -7,55 +7,36 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` / `popa`); no flags read (the caller `test`s eax)
 //!
-//! Caller: `race::viewer_frame` (when `dword_5C2540` asks). Its calls through `part`: 1 the
-//! lock (carry), 2 the writer, 3 the unlock; in the game as `gfx::take_screenshot`'s. Shadow
-//! mode runs the original alone (it writes a file). Self-test: a copy whose calls go to
-//! stand-ins, against the Rust version: digits to carry, the lock failing.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `race::viewer_frame` (when `dword_5C2540` asks), which calls it directly; the
+//! lock and unlock (the platform's) and the writer are called directly (2026-10-23).
 
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::gfx::write_screen_pcx::PICTURE_NAME;
 use crate::physics::flow::a;
 use crate::race::find_snapshot_number::{SNAPSHOT_DIGITS, SNAPSHOT_PATH};
-use crate::race::viewer::{Part, get, put, regs_entry};
+use crate::race::viewer::{get, put};
 
-/// The Rust version: the registers it leaves (the entry's).
-pub fn viewer_snapshot(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+/// The Rust version (see the header).
+pub fn viewer_snapshot() -> Result<(), Refused> {
     let kept = get(PICTURE_NAME);
     let digits = a(SNAPSHOT_DIGITS) as *mut u8;
-    let mut r = Regs {
-        eax: a(SNAPSHOT_PATH),
-        ..*entry
-    };
     // Converted: `rc2k_core::race::viewer::next_snapshot`.
     unsafe {
-        let (next, last, ecx) =
-            rc2k_core::race::viewer::next_snapshot(digits.cast::<[u8; 3]>().read());
+        let (next, _, _) = rc2k_core::race::viewer::next_snapshot(digits.cast::<[u8; 3]>().read());
         digits.cast::<[u8; 3]>().write(next);
-        r.ebx = digits.add(last) as u32;
-        r.ecx = ecx;
     }
-    put(PICTURE_NAME, r.eax);
-    part(1, &mut r)?;
-    if !r.carry() {
-        part(2, &mut r)?;
-        part(3, &mut r)?;
+    put(PICTURE_NAME, a(SNAPSHOT_PATH));
+    // `cmp g_surfaceLocked, 1`'s carry: not locked.
+    if crate::platform::lock_surface() >= 1 {
+        unsafe { crate::gfx::write_screen_pcx::write_screen_pcx() }?;
+        crate::platform::unlock_surface();
     }
     put(PICTURE_NAME, kept);
-    Ok(*entry)
+    Ok(())
 }
 
-/// In the game: as `gfx::take_screenshot`'s.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    crate::gfx::take_screenshot::game_part(place, r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| viewer_snapshot(r, &mut game_part))
+/// The Rust version where the typed tables run it (a refusal is the caller's).
+pub fn entry(_: &mut Regs) -> Result<(), Refused> {
+    viewer_snapshot()
 }

@@ -48,9 +48,6 @@ const DRIFTING_RVA: usize = rva(0x7652A0); // dword_7652A0
 const TEXTURE_RVA: usize = rva(0x5D1E10); // dword_5D1E10
 const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
 
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 fn addr(r: usize) -> u32 {
     game_addr(r) as u32
 }
@@ -206,7 +203,7 @@ unsafe fn point_turned(b: u32, p: u32) {
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn hexagons_top(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn hexagons_top(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         let s: u32 = game_read(SETTINGS_RVA);
@@ -251,7 +248,7 @@ pub unsafe fn hexagons_top(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         ];
         g.eax = POINTS;
         if game_read::<u32>(RATE_RVA) != 0 {
-            part(1, &mut g)?;
+            crate::marks::hexagons_top::game_part(1, &mut g)?;
             let at_now: u32 = game_read(BUFFER_RVA);
             if at_now != addr(BUFFER_START) {
                 g.eax = x87::int_over_int_to_int(
@@ -263,17 +260,17 @@ pub unsafe fn hexagons_top(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                 g.eax = g.eax.wrapping_mul(12);
                 game_write(BATCH[0], g.eax);
                 game_write(BATCH[1], g.ebx);
-                part(2, &mut g)?;
+                crate::marks::hexagons_top::game_part(2, &mut g)?;
             }
             g.esi = game_read(SETTINGS_RVA);
             if ((g.esi + 0x2744) as *const u32).read_unaligned() != 0
                 && game_read::<u32>(DRIFTING_RVA) != 0
             {
-                part(3, &mut g)?;
+                crate::marks::hexagons_top::game_part(3, &mut g)?;
             }
         }
         g.eax = game_read(TEXTURE_RVA);
-        part(4, &mut g)?;
+        crate::marks::hexagons_top::game_part(4, &mut g)?;
         game_write(COUNT_RVA, 4u32);
     }
     Ok(g)
@@ -285,7 +282,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         match place {
             1 => {
-                let left = hexagons_frame::hexagons_frame(r, &mut hexagons_frame::game_part)?;
+                let left = hexagons_frame::hexagons_frame(r)?;
                 *r = Regs { esp: r.esp, ..left };
             }
             2 => crate::calls::call(rva(0x41ADB9), r),
@@ -301,7 +298,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { hexagons_top(r, &mut game_part) }?;
+    let left = unsafe { hexagons_top(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

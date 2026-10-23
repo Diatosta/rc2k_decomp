@@ -20,6 +20,6 @@ use crate::race::course_faces::*;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { draw_whole_quad(r, &mut whole_quad_part).map(|carry| r.set_carry(carry)) }?;
+    unsafe { draw_whole_quad(r).map(|carry| r.set_carry(carry)) }?;
     Ok(())
 }

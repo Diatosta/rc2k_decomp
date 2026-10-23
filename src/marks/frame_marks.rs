@@ -24,7 +24,7 @@ use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::lines::SETTINGS_RVA;
 use crate::marks::{morph_object_points, scale_vectors_by, view_frame};
 use crate::math::x87;
-use crate::service::harness::{Region, at, capture, restore};
+use crate::service::harness::{Region, at};
 
 const LAST_RVA: usize = rva(0x765110); // dword_765110
 const FRAME_CYCLES_RVA: usize = rva(0x765114); // dword_765114
@@ -66,12 +66,8 @@ pub unsafe fn frame_marks(entry: &Regs) -> Result<Regs, Refused> {
     }
     let mut written = regions();
     written.extend([LAST_RVA, FRAME_CYCLES_RVA, SHARE_RVA].map(at));
-    let saved = capture(&written);
-    let done = unsafe { run(entry, settings) };
-    if done.is_err() {
-        restore(&written, &saved);
-    }
-    done
+
+    unsafe { run(entry, settings) }
 }
 
 unsafe fn run(entry: &Regs, settings: u32) -> Result<Regs, Refused> {

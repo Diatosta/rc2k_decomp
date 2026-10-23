@@ -15,14 +15,14 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::input::effects::{Part, SET_EFFECT, effects_entry};
+use crate::input::effects::{SET_EFFECT, effects_entry};
 
 /// The six effects told `what` (the loop of both functions).
-pub fn all_six(r: &mut Regs, what: u32, part: Part) -> Result<(), Refused> {
+pub fn all_six(r: &mut Regs, what: u32) -> Result<(), Refused> {
     r.eax = 0;
     r.ebx = what;
     loop {
-        part(SET_EFFECT, r)?;
+        crate::input::effects::game_part(SET_EFFECT, r)?;
         r.eax += 1;
         if r.eax == 6 {
             return Ok(());
@@ -31,8 +31,8 @@ pub fn all_six(r: &mut Regs, what: u32, part: Part) -> Result<(), Refused> {
 }
 
 /// The Rust version.
-pub fn start_device_effects(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    all_six(r, 2, part)
+pub fn start_device_effects(r: &mut Regs) -> Result<(), Refused> {
+    all_six(r, 2)
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

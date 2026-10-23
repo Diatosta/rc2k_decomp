@@ -24,13 +24,12 @@ use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::physics::flow::{a, g, p};
-use crate::race::car_starts::Part;
 use rc2k_core::drive::tyre_screen::{layout, wheel_place};
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     {
-        let g = unsafe { tyre_screen(r, &mut game_part) }?;
+        let g = unsafe { tyre_screen(r) }?;
         let esp = r.esp;
         *r = Regs {
             eflags: r.eflags,
@@ -57,7 +56,7 @@ const STATES: [(u32, u32); 11] = [
 
 /// The Rust version, the calls through `part`.
 // Converted: `rc2k_core::drive::tyre_screen::{layout, wheel_place}`.
-pub unsafe fn tyre_screen(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn tyre_screen(entry: &Regs) -> Result<Regs, Refused> {
     let (mode, car) = (entry.eax, entry.esi);
     if car > 7 {
         return Err(crate::errors::BadInput("a car past 7 (g_inputDevices)").into());
@@ -84,11 +83,11 @@ pub unsafe fn tyre_screen(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         ..*entry
     };
     r.eax = g(0x5BEBE4);
-    part(TEXTURE, &mut r)?;
+    crate::drive::tyre_parts::game_part(TEXTURE, &mut r)?;
     for (value, state) in STATES {
         r.eax = value;
         r.ebx = state;
-        part(STATE, &mut r)?;
+        crate::drive::tyre_parts::game_part(STATE, &mut r)?;
     }
     for (uv, rect, place) in [
         (0x5BEB00, 0x5BEAD0, QUAD),
@@ -98,8 +97,8 @@ pub unsafe fn tyre_screen(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         r.eax = a(uv);
         r.ebx = a(rect);
         r.ecx = 0xFF_FFFF;
-        part(place, &mut r)?;
+        crate::drive::tyre_parts::game_part(place, &mut r)?;
     }
-    part(PARTS, &mut r)?;
+    crate::drive::tyre_parts::game_part(PARTS, &mut r)?;
     Ok(*entry)
 }

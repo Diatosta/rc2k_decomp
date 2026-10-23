@@ -44,11 +44,10 @@ use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::physics::camera_ground::carry_entry;
 use crate::physics::camera_view::{rd, record};
-use crate::physics::flow::{a, base, g, guard, hold_high, hold_low, p, x87_run};
+use crate::physics::flow::{a, base, g, hold_high, hold_low, p, x87_run};
 use crate::physics::touch_face::FACES;
 use crate::race::car_starts::Part;
 use crate::scene::matrix3::rounded;
-use crate::service::harness::Region;
 use rc2k_core::physics::camera_view;
 
 const MODE: usize = 0x71A65C;
@@ -311,42 +310,13 @@ pub fn steps(r: &mut Regs, part: Part) -> Result<(), Refused> {
     Ok(())
 }
 
-/// Everything the camera's step and its calls write (and the tests set).
-pub fn camera_regions() -> Vec<Region> {
-    let mut all = crate::physics::camera_view::view_regions();
-    all.extend(crate::physics::camera_ground::test_regions());
-    all.extend(crate::physics::probe_ground::regions(
-        &crate::physics::ground::Ground::game(),
-    ));
-    all.extend(crate::physics::reset_parts::regions());
-    all.extend([
-        (a(0x608B20), 0x110),
-        (a(0x5CCD40), 0xA4), // 0x5CCD40 .. 0x5CCDE4
-        (a(0x606570), 0xD0), // 0x606570 .. 0x606640
-        (a(0x6062BC), 0x64), // 0x6062BC .. 0x606320
-        (a(0x71AF88), 4),
-        (a(0x623FD4), 0x1C),
-        (a(0x605264), 8),
-        (a(0x637638), 0x10),
-        (a(0x614094), 4),
-        (a(0x71AEC8), 0x14),
-        (a(0x6416E8), 12),
-        (game_addr_state(), 4),
-    ]);
-    all
-}
-
-fn game_addr_state() -> u32 {
-    crate::framework::game_addr(crate::math::next_random::STATE_RVA) as u32
-}
-
 /// The Rust version, the probes through `part`; everything written put back on a refusal.
 pub unsafe fn update_camera(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    guard(&camera_regions(), || {
+    {
         let mut r = *entry;
         steps(&mut r, part)?;
         Ok(r)
-    })
+    }
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

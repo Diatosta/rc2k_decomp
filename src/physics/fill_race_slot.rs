@@ -26,7 +26,7 @@ use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87_run::{ext_to_int, int_80, int_mul_add};
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::parts::{LAST_PART, choose_slot};
 
 pub const SLOTS: usize = 0x71BAC8; // g_raceSlots
@@ -116,12 +116,6 @@ pub unsafe fn fill_race_slot(entry: &Regs) -> Result<Left, Refused> {
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { fill_race_slot(r) }
-}
-
-/// What the slots' steps write.
-pub fn regions() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    vec![(a(SLOTS), 8 * 0x78), (a(0x635004), 12), (a(0x71A270), 4)]
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

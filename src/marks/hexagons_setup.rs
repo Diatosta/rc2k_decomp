@@ -43,9 +43,6 @@ const STATES: [(u32, u32); 8] = [
     (1, 3),
 ];
 
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The original's 0x4BBE62 .. 0x4BBF1A: the axes scaled.
 unsafe fn axes(b: u32) {
     unsafe {
@@ -95,7 +92,7 @@ unsafe fn axes(b: u32) {
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn hexagons_setup(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn hexagons_setup(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         axes(game_addr(0) as u32);
@@ -103,12 +100,12 @@ pub unsafe fn hexagons_setup(entry: &Regs, part: Part) -> Result<Regs, Refused> 
             game_addr(rva(0x814C7A)) as u32,
             game_addr(rva(0x814C92)) as u32,
         ];
-        part(1, &mut g)?;
+        crate::marks::hexagons_setup::game_part(1, &mut g)?;
         g.eax = game_read(TEXTURE_RVA);
-        part(2, &mut g)?;
+        crate::marks::hexagons_setup::game_part(2, &mut g)?;
         for (value, state) in STATES {
             [g.eax, g.ebx] = [value, state];
-            part(3, &mut g)?;
+            crate::marks::hexagons_setup::game_part(3, &mut g)?;
         }
         g.edi = game_addr(VERTICES_RVA) as u32;
         g.eax = 0x100;
@@ -154,7 +151,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { hexagons_setup(r, &mut game_part) }?;
+    let left = unsafe { hexagons_setup(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

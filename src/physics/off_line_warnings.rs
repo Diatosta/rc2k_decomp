@@ -23,7 +23,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_read, game_write, rva};
-use crate::physics::sound_cues::{LISTED, Part, cue_entry};
+use crate::physics::sound_cues::{LISTED, cue_entry};
 use rc2k_core::physics::progress::{
     LAST_CHECKPOINT, OFF_LINE_CUE, TURNED_CUE, Warnings, cue_due, off_line, spread,
 };
@@ -61,7 +61,7 @@ fn store(w: &Warnings) {
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::progress::{Warnings, off_line, cue_due}`.
-pub fn off_line_warnings_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn off_line_warnings_in(r: &mut Regs) -> Result<(), Refused> {
     if g(0x71A080) != 0 || g(0x71A07C) != 0 {
         return Ok(());
     }
@@ -94,7 +94,7 @@ pub fn off_line_warnings_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
         if let Some(next) = cue_due(r.eax, g(time)) {
             p(time, next);
             r.ebx = cue;
-            part(LISTED, r)?;
+            crate::physics::sound_cues::game_part(LISTED, r)?;
         }
     }
     Ok(())

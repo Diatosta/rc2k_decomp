@@ -13,7 +13,7 @@ use crate::race::skidmarks::*;
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     {
-        let after = unsafe { draw_skidmarks_if_on(r, &mut |e| draw_skidmarks(e, &mut skid_part)) }?;
+        let after = unsafe { draw_skidmarks_if_on(r, &mut |e| draw_skidmarks(e)) }?;
         let esp = r.esp;
         *r = after;
         r.esp = esp;

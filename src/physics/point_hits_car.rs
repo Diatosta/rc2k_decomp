@@ -24,13 +24,12 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::math::turn_scratch_xz::scratch;
 use crate::physics::flow::{a, base, g, p, x87_run};
 use crate::physics::turn_by_heading::turn_by_heading;
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::rounded;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::contacts;
 
 /// `dword_6D3624`: the kind of contact being looked at.
@@ -114,19 +113,6 @@ pub unsafe fn point_hits_car(point: u32, object: u32) -> bool {
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::carry(unsafe { point_hits_car(r.esi, r.ebp) }))
-}
-
-/// What it writes (and `turn_by_heading`'s scratch point).
-pub fn regions() -> Vec<Region> {
-    vec![
-        (a(0x614110), 4),
-        (a(0x6D3B4C), 0x38),
-        (a(0x6D3090), 12),
-        (a(0x71A1FC), 0x14),
-        (a(0x6D3108), 4),
-        (a(0x71A1CC), 4),
-        scratch(),
-    ]
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

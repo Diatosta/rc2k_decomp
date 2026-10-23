@@ -18,20 +18,20 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::install::installer::{
-    CLOSE_SEARCH, FILE_COUNT, FILE_CURSOR, FILES, FIND_FIRST, FIND_NEXT, Part, RESOLVE_PATH, a,
+    CLOSE_SEARCH, FILE_COUNT, FILE_CURSOR, FILES, FIND_FIRST, FIND_NEXT, RESOLVE_PATH, a,
     append_byte, at, fatal, g, p, str_append,
 };
 use rc2k_core::install::script;
 
 const FIND_NAME: usize = 0x4E05A8 + 0x2C; // FindFileData.cFileName
 
-pub fn list_files(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn list_files(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
-    part(at(RESOLVE_PATH), &mut r)?;
+    crate::install::installer::game_part(at(RESOLVE_PATH), &mut r)?;
     r.edx = r.eax;
-    part(at(FIND_FIRST), &mut r)?;
+    crate::install::installer::game_part(at(FIND_FIRST), &mut r)?;
     if r.carry() {
-        part(at(CLOSE_SEARCH), &mut r)?;
+        crate::install::installer::game_part(at(CLOSE_SEARCH), &mut r)?;
         return Ok(*entry);
     }
     loop {
@@ -47,19 +47,17 @@ pub fn list_files(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         r.ebx = r.ebx.wrapping_sub(g(FILES));
         // Converted: `rc2k_core::install::script::room_left`.
         script::room_left(r.ebx, script::FILES_ROOM, script::FILES_FULL).map_err(fatal)?;
-        part(at(FIND_NEXT), &mut r)?;
+        crate::install::installer::game_part(at(FIND_NEXT), &mut r)?;
         if r.carry() {
             break;
         }
     }
-    part(at(CLOSE_SEARCH), &mut r)?;
+    crate::install::installer::game_part(at(CLOSE_SEARCH), &mut r)?;
     Ok(Regs { ..*entry })
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::race::viewer::regs_entry(r, &|r| {
-        list_files(r, &mut crate::install::installer::game_part)
-    })
+    crate::race::viewer::regs_entry(r, &|r| list_files(r))
 }

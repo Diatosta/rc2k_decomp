@@ -30,9 +30,6 @@ const PLACES_RVA: usize = rva(0x8BC1AE); // dword_8BC1AE .. dword_8BC1BA
 const CORNERS_RVA: usize = rva(0x89CF92); // flt_89CF92 .. flt_89CFBE: four of 12
 const FAR_ENOUGH: i32 = 0x4580_0000; // 4096.0
 
-/// A call by place: 1 `draw_fan`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The original's 0x4BF845 .. 0x4BF88D: the item's texture shift added to the places.
 unsafe fn shifted_places(s: u32, p: u32) {
     unsafe {
@@ -217,11 +214,7 @@ unsafe fn projected(b: u32, p: u32) {
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_square(
-    entry: &Regs,
-    shares: [[u8; 10]; 2],
-    part: Part,
-) -> Result<Regs, Refused> {
+pub unsafe fn draw_square(entry: &Regs, shares: [[u8; 10]; 2]) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         let b = game_addr(0) as u32;
@@ -241,7 +234,7 @@ pub unsafe fn draw_square(
         for n in 0..4 {
             game_write(VERTICES_RVA + 0x20 * n + 0x10, g.edx);
         }
-        part(1, &mut g)?;
+        crate::marks::draw_square::game_part(1, &mut g)?;
     }
     Ok(g)
 }

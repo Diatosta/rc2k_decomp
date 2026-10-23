@@ -14,9 +14,7 @@
 //! the game).
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
-use crate::race::car_starts::Part;
-use crate::service::harness::Region;
+use crate::framework::Regs;
 
 pub const BLOCKED: u32 = 13;
 pub const LOG: u32 = 14;
@@ -36,17 +34,13 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 r.edx = 1;
                 crate::logfile::log_write::log_write_regs(r);
             }
-            RESET_CAR => *r = crate::physics::reset_car::reset_car(r, &mut game_part)?,
-            ON_LINE => {
-                *r = crate::physics::reset_car_on_line::reset_car_on_line(r, &mut game_part)?
-            }
+            RESET_CAR => *r = crate::physics::reset_car::reset_car(r)?,
+            ON_LINE => *r = crate::physics::reset_car_on_line::reset_car_on_line(r)?,
             NEAREST_IN => *r = crate::race::start_place::nearest_checkpoint_in(r)?,
             FIND_GROUND => {
                 crate::physics::find_ground::find_ground()?;
             }
-            COUNT_PROBE => {
-                *r = crate::physics::count_ground_probe::count_ground_probe(r, &mut game_part)?
-            }
+            COUNT_PROBE => *r = crate::physics::count_ground_probe::count_ground_probe(r)?,
             _ => crate::race::car_starts::game_part(place, r)?,
         }
     }
@@ -56,9 +50,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// `dispatch_reset` without its hook (Rust callers; a refusal is the caller's).
 pub fn reset_entry(
     r: &mut Regs,
-    rust: unsafe fn(&Regs, Part) -> Result<Regs, Refused>,
+    rust: unsafe fn(&Regs) -> Result<Regs, Refused>,
 ) -> Result<(), Refused> {
-    let g = unsafe { rust(r, &mut game_part) }?;
+    let g = unsafe { rust(r) }?;
     *r = Regs {
         esp: r.esp,
         eflags: r.eflags,
@@ -68,11 +62,3 @@ pub fn reset_entry(
 }
 
 // ---- for the self-tests ----
-
-/// What the steps read and write: stream A's regions and the reset's two variables
-/// (`dword_614C4C`, `dword_614C50`).
-pub fn regions() -> Vec<Region> {
-    let mut r = crate::race::car_starts::regions();
-    r.push((game_addr(rva(0x614C4C)) as u32, 8));
-    r
-}

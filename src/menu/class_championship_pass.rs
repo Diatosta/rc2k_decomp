@@ -78,7 +78,7 @@ pub unsafe fn class_championship_pass(entry: &Regs, part: Part) -> Result<Regs, 
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::menu::show_class_championship_standings as page;
     if place == 2 {
-        *r = unsafe { page::show_class_championship_standings(r, &mut page::game_part) }?;
+        *r = unsafe { page::show_class_championship_standings(r) }?;
     }
     Ok(())
 }

@@ -10,7 +10,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::framework::Regs;
-use crate::screens::controller::{learn_axis, learn_part};
+use crate::screens::controller::learn_axis;
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
@@ -18,6 +18,6 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     if crate::screens::blanked("screens::learn_axis") {
         return Ok(());
     }
-    unsafe { learn_axis(r, &mut learn_part) }?;
+    unsafe { learn_axis(r) }?;
     Ok(())
 }

@@ -16,11 +16,7 @@ const ENTRIES: u32 = 0x9D3730; // g_depthEntries
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let done = unsafe {
-        draw_entries(r, DEPTH_COUNT_RVA, ENTRIES, &mut |e| {
-            draw_list_entry(e, &mut entry_part)
-        })
-    };
+    let done = unsafe { draw_entries(r, DEPTH_COUNT_RVA, ENTRIES, &mut |e| draw_list_entry(e)) };
     {
         let after = done?;
         let esp = r.esp;

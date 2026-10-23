@@ -24,7 +24,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, rva};
-use crate::race::viewer::{Part, get, put, regs_entry};
+use crate::race::viewer::{get, put, regs_entry};
 use crate::race::viewer_load_stage::{FONTS_BUILT, take_key};
 
 /// The calls by place, as IDA shows them.
@@ -42,7 +42,7 @@ pub const CALLEES: [usize; 10] = [
 const LOADED: usize = 0x5BECC0; // dword_5BECC0
 
 /// The Rust version: the registers it leaves (the entry's).
-pub fn viewer_tidy_stage(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn viewer_tidy_stage(entry: &Regs) -> Result<Regs, Refused> {
     // Converted: `rc2k_core::race::viewer_flow::{tidies, TIDY_FIRST, frees_fonts,
     // TIDY_AFTER}` (the fonts' switch read after the first steps, as the original).
     use rc2k_core::race::viewer_flow::{TIDY_AFTER, TIDY_FIRST, TidyStep, frees_fonts, tidies};
@@ -61,16 +61,16 @@ pub fn viewer_tidy_stage(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     if tidies(get(LOADED)) {
         put(LOADED, 0);
         for step in TIDY_FIRST {
-            part(place(step), &mut r)?;
+            crate::race::viewer_tidy_stage::game_part(place(step), &mut r)?;
         }
         if frees_fonts(get(FONTS_BUILT)) {
-            part(place(TidyStep::FreeFonts), &mut r)?;
+            crate::race::viewer_tidy_stage::game_part(place(TidyStep::FreeFonts), &mut r)?;
         }
         for step in TIDY_AFTER {
-            part(place(step), &mut r)?;
+            crate::race::viewer_tidy_stage::game_part(place(step), &mut r)?;
         }
     }
-    part(place(TidyStep::TakeKey), &mut r)?;
+    crate::race::viewer_tidy_stage::game_part(place(TidyStep::TakeKey), &mut r)?;
     Ok(*entry)
 }
 
@@ -83,7 +83,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             1 => *r = race_end::tidy_everything(r, &LoadVars::game(), &mut race_end::tidy_part)?,
             2 | 3 | 5 => crate::calls::call(rva(CALLEES[place as usize]), r),
             4 => {
-                sound_tables::clear_race_sound_objects(r, &mut sound_tables::object_part)?;
+                sound_tables::clear_race_sound_objects(r)?;
             }
             6 => crate::gfx::free_fonts::free_fonts(
                 game_addr(crate::gfx::glyph_tables::TABLES_LIST_RVA) as *mut _,
@@ -100,5 +100,5 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| viewer_tidy_stage(r, &mut game_part))
+    regs_entry(r, &|r| viewer_tidy_stage(r))
 }

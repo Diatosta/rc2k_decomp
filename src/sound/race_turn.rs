@@ -23,50 +23,43 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_read, rva};
-use crate::sound::turn_parts::{Part, STEP_CLOCK, turn_entry};
+use crate::sound::turn_parts::turn_entry;
 
 /// g_quitting.
 const QUITTING: usize = 0x51837C;
 /// dword_5124E4: 1 once the race's sounds are started.
 const STARTED: usize = 0x5124E4;
-/// The quit jump's chunk: its place for the Rust callers' part.
-pub const QUIT: u32 = 0x4154B5;
-/// With a turn due, in the original's order.
-const TURN: [u32; 6] = [0x40D75A, 0x40D7AB, 0x40ED13, 0x40E2A9, 0x40E611, 0x409BE0];
-const EFFECTS_CLOCK: u32 = 0x40F257;
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
 }
 
-/// The quit (the game is closing): in the game the original, as it is: its jump goes into
-/// `system::main_loop`'s Rust version, which sees its stack kept and leaves for `start`'s
-/// end (the Rust frames it jumps over are never returned to; the program ends). In the
-/// standalone, where there is no original to jump into, the program is ended the same
-/// way from here.
-pub fn quit_in_game(r: &mut Regs) {
-    let _ = r;
-    crate::standalone::leave_from_race();
-}
-
 // ---- Rust version ----
 
-pub fn race_turn_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn race_turn_in(r: &mut Regs) -> Result<(), Refused> {
     if g(QUITTING) == 1 {
-        let mut c = *r;
-        return part(QUIT, &mut c);
+        // The original's quit jump (into `system::main_loop`'s way out): the program
+        // ended as `start` ends it.
+        crate::standalone::leave_from_race();
     }
     if g(STARTED) != 1 {
         return Ok(());
     }
     let mut c = *r;
-    part(STEP_CLOCK, &mut c)?;
-    if !c.carry() {
-        for step in TURN {
-            part(step, &mut c)?;
-        }
+    // `step_race_clock` leaves no register, the carry set when no turn is due.
+    let due = crate::sound::turn_parts::step_clock();
+    c.set_carry(!due);
+    c.set_zero(false);
+    if due {
+        use crate::sound::*;
+        mark_car_voices::mark_car_voices_in(&mut c)?;
+        car_sounds_all::car_sounds_all_in(&mut c)?;
+        play_cue_queues::play_cue_queues_in(&mut c)?;
+        stage_sounds::stage_sounds_in(&mut c)?;
+        spot_sounds::spot_sounds_in(&mut c)?;
+        send_end_of_turn::send_end_of_turn_in(&mut c)?;
     }
-    part(EFFECTS_CLOCK, &mut c)
+    crate::input::step_effects_clock::step_effects_clock_in(&mut c)
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

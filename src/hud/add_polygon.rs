@@ -30,13 +30,10 @@ const WIDTH_RVA: usize = rva(0x4F494C); // g_screenWidth
 const HEIGHT_RVA: usize = rva(0x4F4950); // g_screenHeight
 const VIRTUAL_RVA: [usize; 2] = [rva(0x75C02C), rva(0x75C030)]; // flt_75C02C, flt_75C030
 
-/// A call by place: 1 `flush_batch`, 2 `set_batch_texture`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
 // Converted: `rc2k_core::hud::batch::{flushes, check_polygon, polygon_indices}`,
 // `rc2k_core::hud::quads::screen_scaled`
-pub unsafe fn add_polygon(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn add_polygon(entry: &Regs) -> Result<Regs, Refused> {
     use rc2k_core::hud::batch::{self, MOST_VERTICES};
     use rc2k_core::hud::quads::screen_scaled;
     let mut g = *entry;
@@ -64,11 +61,11 @@ pub unsafe fn add_polygon(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             if game_read::<u32>(VERTEX_COUNT_RVA) <= batch::FULL {
                 g.eax = texture;
             }
-            part(1, &mut g)?;
+            crate::hud::add_polygon::game_part(1, &mut g)?;
             game_write(SHOWN_TEXTURE_RVA, texture);
             game_write(BATCH_TEXTURE_RVA, texture);
             g.eax = texture;
-            part(2, &mut g)?;
+            crate::hud::add_polygon::game_part(2, &mut g)?;
         }
         let vc: u32 = game_read(VERTEX_COUNT_RVA);
         std::ptr::copy(
@@ -97,7 +94,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         *r = match place {
             1 => flush_batch::flush_batch(r, &mut flush_batch::game_part)?,
-            _ => set_batch_texture::set_batch_texture(r, &mut set_batch_texture::game_part)?,
+            _ => set_batch_texture::set_batch_texture(r)?,
         };
     }
     Ok(())
@@ -105,7 +102,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { add_polygon(r, &mut game_part) }?;
+    let left = unsafe { add_polygon(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

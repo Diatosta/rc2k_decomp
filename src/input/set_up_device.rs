@@ -26,11 +26,8 @@ use crate::framework::Regs;
 use crate::input::devices::{at, put};
 use crate::input::types::InputDevice;
 
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves (`popa`'s: the entry's).
-pub unsafe fn set_up_device(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn set_up_device(entry: &Regs) -> Result<Regs, Refused> {
     let (record, controls) = (entry.esi, entry.edi);
     unsafe {
         crate::system::zero_memory::zero_memory((record + 0x414) as *mut u8, 0xC8)?;
@@ -56,7 +53,7 @@ pub unsafe fn set_up_device(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             eax: kind,
             ..*entry
         };
-        part(0, &mut r)?;
+        crate::input::set_up_device::game_part(0, &mut r)?;
     }
     // Converted: `rc2k_core::input::devices::binding` over `DEVICE_BINDINGS`.
     for (key, word, to) in rc2k_core::input::devices::DEVICE_BINDINGS {
@@ -76,12 +73,12 @@ pub unsafe fn set_up_device(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// In the game: the acquiring through the game.
 /// In the game: `input::acquire_device`'s Rust version.
 pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    crate::input::acquire_device::acquire_device(r.esi, &mut crate::input::make_effect::game_part)
+    crate::input::acquire_device::acquire_device(r.esi)
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { set_up_device(r, &mut game_part) }?;
+    let left = unsafe { set_up_device(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

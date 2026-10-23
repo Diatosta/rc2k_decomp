@@ -55,7 +55,7 @@ pub fn quad(
 
 /// In the game: `draw_tinted_quad`'s Rust version for place 1.
 pub fn quad_part(r: &mut Regs) -> Result<(), Refused> {
-    use crate::scene::{draw_flat_quad, draw_tinted_quad};
-    *r = unsafe { draw_tinted_quad::draw_tinted_quad(r, &mut draw_flat_quad::game_part) }?;
+    use crate::scene::draw_tinted_quad;
+    *r = unsafe { draw_tinted_quad::draw_tinted_quad(r) }?;
     Ok(())
 }

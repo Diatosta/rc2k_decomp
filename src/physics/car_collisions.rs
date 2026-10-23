@@ -27,10 +27,10 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{EBX, Regs};
 use crate::physics::corner_hits_car::corner_hits_car;
-use crate::physics::flow::{a, g, guard, p};
+use crate::physics::flow::{a, g, p};
 use crate::scene::matrix::{multiply_matrices, set_place};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 
 const BLOCKS: usize = 0x71B3B8; // g_carBlocks (eight)
 const CARS: usize = 0x63DB90; // g_raceCars
@@ -57,7 +57,7 @@ pub unsafe fn car_collisions(entry: &Regs) -> Result<Left, Refused> {
     if (0..n).any(|k| k != g(CURRENT) && g(BLOCKS + 4 * k as usize) == 0) {
         return Err(BadInput("a null car block").into());
     }
-    guard(&regions(), || {
+    {
         p(0x6D3BB4, 0);
         for car in 0..n {
             if car == g(CURRENT) {
@@ -97,40 +97,11 @@ pub unsafe fn car_collisions(entry: &Regs) -> Result<Left, Refused> {
             }
         }
         Ok(Left::nothing().with(EBX, n))
-    })
+    }
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { car_collisions(r) }
-}
-
-/// Everything the collisions and their calls write.
-pub fn regions() -> Vec<Region> {
-    let mut all = vec![
-        (a(0x6D3090), 12),
-        (a(0x6D3B88), 0x6D3CE4 - 0x6D3B88),
-        (a(0x614B10), 12),
-        (a(0x71A20C), 4),
-        (a(0x71A170), 12),
-        (a(0x71A17C), 12),
-        (a(0x62400C), 4),
-        (a(0x5EA04C), 0x40),
-        (a(0x5EA10C), 0x40),
-        (a(0x6D1AD4), 4),
-        // `restore_saved_car`'s
-        (a(0x614738), 4),
-        (a(0x71A10C), 12),
-        (a(0x71A08C), 0x40),
-        (a(0x71ADC8), 0x1F0),
-    ];
-    all.extend(crate::physics::crash_contact::sound_regions());
-    for k in 0..g(CARS).clamp(1, 8) {
-        let block = g(BLOCKS + 4 * k as usize);
-        if block != 0 {
-            all.extend([(block + 0x198, 0x18), (block + 0x234, 4)]);
-        }
-    }
-    all
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

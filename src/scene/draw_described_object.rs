@@ -52,10 +52,7 @@ unsafe fn check_object(object: u32) -> Result<(), Refused> {
 }
 
 /// The Rust version. Parts: 1 `race::place_object_matrix`, 2 `scene::draw_scene_object`.
-pub unsafe fn draw_described_object(
-    r: &mut Regs,
-    part: crate::race::frame::Part,
-) -> Result<(), Refused> {
+pub unsafe fn draw_described_object(r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         let d = r.esi;
         let byte = |o: u32| ((d + o) as *const u8).read() as u32;
@@ -153,7 +150,7 @@ pub unsafe fn draw_described_object(
             }
         }
         game_write(rva(0x6365C8), 2u32);
-        part(1, r)?;
+        crate::scene::draw_described_object::described_part(1, r)?;
         game_write(rva(0x62DAF4), 2u32);
         r.ecx = game_read(OBJECT_RVA);
         let kind: u32 = game_read(rva(0x5CD27C) + 4 * r.ecx as usize);
@@ -162,7 +159,7 @@ pub unsafe fn draw_described_object(
         if r.eax != 0 {
             game_write(rva(0x62DAF4), 1u32);
         }
-        part(2, r)?;
+        crate::scene::draw_described_object::described_part(2, r)?;
         end();
         Ok(())
     }
@@ -182,6 +179,6 @@ pub fn described_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { draw_described_object(r, &mut described_part) }?;
+    unsafe { draw_described_object(r) }?;
     Ok(())
 }

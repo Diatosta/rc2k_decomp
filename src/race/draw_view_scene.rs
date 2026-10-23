@@ -56,9 +56,6 @@ const COVERED_RVA: usize = rva(0x71AF80); // unk_71AF80
 const CLEARED: [usize; 2] = [rva(0x635014), rva(0x635018)]; // dword_635014, dword_635018
 const LAMPS_RVA: usize = rva(0x63DB6C); // dword_63DB6C
 
-/// A call by place (`CALLEES`); place 0 with eax its tick number.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The steps after the tick numbered by the first: (tick, places).
 const GROUPS: [(u32, &[u32]); 7] = [
     (0x14, &[1, 2, 3, 4, 5, 6, 7]),
@@ -71,11 +68,11 @@ const GROUPS: [(u32, &[u32]); 7] = [
 ];
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_view_scene(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn draw_view_scene(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     unsafe {
         if game_read::<u32>(COVERED_RVA) != 0 {
-            part(23, &mut r)?;
+            crate::race::draw_view_scene::game_part(23, &mut r)?;
             return Ok(r);
         }
         for at in CLEARED {
@@ -83,9 +80,9 @@ pub unsafe fn draw_view_scene(entry: &Regs, part: Part) -> Result<Regs, Refused>
         }
         for (tick, places) in GROUPS {
             r.eax = tick;
-            part(0, &mut r)?;
+            crate::race::draw_view_scene::game_part(0, &mut r)?;
             for &place in places {
-                part(place, &mut r)?;
+                crate::race::draw_view_scene::game_part(place, &mut r)?;
                 if place == 8 {
                     game_write(LAMPS_RVA, 0u32);
                 }
@@ -99,10 +96,7 @@ pub unsafe fn draw_view_scene(entry: &Regs, part: Part) -> Result<Regs, Refused>
 /// game (their hooks).
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     match place {
-        0 => crate::sound::race_sound_tick::race_sound_tick_in(
-            r,
-            &mut crate::sound::turn_parts::game_part,
-        ),
+        0 => crate::sound::race_sound_tick::race_sound_tick_in(r),
         6 => unsafe { crate::race::flush_draw_batch::flush_draw_batch_in_game(r) },
         _ => {
             crate::calls::call(rva(CALLEES[place as usize]), r);
@@ -113,13 +107,13 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version with the game's calls: for Rust callers.
 pub unsafe fn draw_view_scene_in_game(r: &mut Regs) -> Result<(), Refused> {
-    *r = unsafe { draw_view_scene(r, &mut game_part) }?;
+    *r = unsafe { draw_view_scene(r) }?;
     Ok(())
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_view_scene(r, &mut game_part) }?;
+    let left = unsafe { draw_view_scene(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

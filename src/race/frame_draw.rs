@@ -1906,7 +1906,6 @@ pub const FOG_COLOUR_RVA: usize = rva(0x624000); // dword_624000
 /// registers it leaves. Refuses (before anything) what `fog_table` would.
 pub unsafe fn set_up_fog(
     entry: &crate::framework::Regs,
-    part: crate::race::frame::Part,
 ) -> Result<crate::framework::Regs, Refused> {
     unsafe {
         let length = game_read::<u32>(rva(0x63DC58)).wrapping_shl(3);
@@ -1914,7 +1913,7 @@ pub unsafe fn set_up_fog(
             return Err(BadInput("a fog table length of 0 or past 0x1000").into());
         }
         let mut r = *entry;
-        part(1, &mut r)?;
+        crate::race::frame_draw::fog_part(1, &mut r)?;
         // Converted: `rc2k_core::race::view::{fog_colour, device_fog_colour}`.
         r.ebx = rc2k_core::race::view::fog_colour(
             game_read(rva(0x6092CC)),
@@ -1924,7 +1923,7 @@ pub unsafe fn set_up_fog(
         game_write(FOG_COLOUR_RVA, r.ebx);
         let mut r = fog_table(&r)?;
         r.eax = rc2k_core::race::view::device_fog_colour(game_read(FOG_COLOUR_RVA));
-        part(2, &mut r)?;
+        crate::race::frame_draw::fog_part(2, &mut r)?;
         Ok(r)
     }
 }
@@ -2234,10 +2233,7 @@ pub const SKY_CALLEES: [(u32, usize); 4] =
 /// on the screen (`flt_6415D0` / `dword_6415C8` ..), `dword_6415C4` 1 when on the screen,
 /// `dword_6415DC` its size (256 less half its distance from the centre, at least 0).
 /// Gives the registers it leaves.
-pub unsafe fn draw_sky(
-    entry: &crate::framework::Regs,
-    part: crate::race::frame::Part,
-) -> Result<crate::framework::Regs, Refused> {
+pub unsafe fn draw_sky(entry: &crate::framework::Regs) -> Result<crate::framework::Regs, Refused> {
     use crate::math::x87_load::{sun_direction, sun_on_screen, sun_size, tbyte_to_int, to_tbyte};
     unsafe {
         let mut r = *entry;
@@ -2264,11 +2260,11 @@ pub unsafe fn draw_sky(
         ] {
             game_write(rva(a), v);
         }
-        part(1, &mut r)?;
+        crate::race::frame_draw::sky_part(1, &mut r)?;
         game_write(rva(0x62DAF4), 0u32);
-        part(2, &mut r)?;
-        part(3, &mut r)?;
-        part(4, &mut r)?;
+        crate::race::frame_draw::sky_part(2, &mut r)?;
+        crate::race::frame_draw::sky_part(3, &mut r)?;
+        crate::race::frame_draw::sky_part(4, &mut r)?;
         for a in [0x6365C8usize, 0x621510, 0x6415C4, 0x6415DC] {
             game_write(rva(a), 0u32);
         }
@@ -2390,7 +2386,6 @@ pub unsafe fn end_kept_reflections() {
 /// anything) as `check_slot_object`.
 pub unsafe fn draw_slot_object(
     entry: &crate::framework::Regs,
-    part: crate::race::frame::Part,
 ) -> Result<crate::framework::Regs, Refused> {
     use crate::scene::matrix;
     unsafe {
@@ -2443,7 +2438,7 @@ pub unsafe fn draw_slot_object(
         r.edi = ga(0x5EA24C) as u32;
         r.ebp = ga(0x5EA30C) as u32;
         start_kept_reflections().apply(&mut r);
-        part(1, &mut r)?;
+        crate::race::frame_draw::slot_part(1, &mut r)?;
         end_kept_reflections();
         Ok(r)
     }
@@ -2508,17 +2503,13 @@ pub unsafe fn draw_race_slots(
 /// buffer off (`g_polygonMode` 0, switches -1, 1, 0; `g_polygonDrawn` 1); the colour back
 /// to 0xFFFFFF. Every register kept (its callers return at once). Refuses what the clip
 /// refuses (after the entries are set: never seen with four vertices).
-pub unsafe fn draw_screen_quad(
-    entry: &crate::framework::Regs,
-    part: crate::race::frame::Part,
-) -> Result<(), Refused> {
-    unsafe { draw_screen_quad_regs(entry, part) }.map(|_| ())
+pub unsafe fn draw_screen_quad(entry: &crate::framework::Regs) -> Result<(), Refused> {
+    unsafe { draw_screen_quad_regs(entry) }.map(|_| ())
 }
 
 /// `draw_screen_quad`, giving the registers its parts leave (eax, ecx, edx, esi as above).
 pub unsafe fn draw_screen_quad_regs(
     entry: &crate::framework::Regs,
-    part: crate::race::frame::Part,
 ) -> Result<crate::framework::Regs, Refused> {
     unsafe {
         let mut r = *entry;
@@ -2571,15 +2562,15 @@ pub unsafe fn draw_screen_quad_regs(
             crate::scene::clip_polygon_to_screen::unclipped_regs(&mut r);
         }
         if game_read::<u32>(rva(0x6240F8)) >= 3 {
-            part(1, &mut r)?;
+            crate::race::frame_draw::quad_part(1, &mut r)?;
             game_write(rva(0x6240BC), u32::MAX);
             game_write(rva(0x63DAB4), 0u32);
             game_write(rva(0x6240E0), 1u32);
             game_write(rva(0x6240E4), 0u32);
-            part(2, &mut r)?;
+            crate::race::frame_draw::quad_part(2, &mut r)?;
             game_write(rva(0x63DAB4), 0u32);
             game_write(rva(0x624134), 1u32);
-            part(3, &mut r)?;
+            crate::race::frame_draw::quad_part(3, &mut r)?;
         }
         game_write(rva(0x6240CC), 0x00FF_FFFFu32);
         Ok(r)
@@ -2603,7 +2594,6 @@ pub fn quad_part(place: u32, r: &mut crate::framework::Regs) -> Result<(), Refus
 /// `draw_screen_quad`. Leaves the registers `draw_screen_quad` leaves.
 pub unsafe fn draw_view_tint(
     entry: &crate::framework::Regs,
-    part: crate::race::frame::Part,
 ) -> Result<crate::framework::Regs, Refused> {
     unsafe {
         let mut r = *entry;
@@ -2616,7 +2606,7 @@ pub unsafe fn draw_view_tint(
         game_write(rva(0x6240BC), u32::MAX);
         game_write(rva(0x6240E0), 1u32);
         game_write(rva(0x6240E4), 0u32);
-        draw_screen_quad_regs(&r, part)
+        draw_screen_quad_regs(&r)
     }
 }
 
@@ -3008,10 +2998,7 @@ pub unsafe fn place_object_matrix(entry: &crate::framework::Regs) -> crate::fram
 /// `dword_63501C` .., `dword_635038`, `dword_635054`, `g_objectNumber`; `dword_6365C8` 2,
 /// `place_object_matrix`, `g_lightKind` 0 and the drawing (part 6,
 /// `scene::draw_scene_object`). Every register kept (`pusha` .. `popa`).
-pub unsafe fn draw_flare(
-    entry: &crate::framework::Regs,
-    part: crate::race::frame::Part,
-) -> Result<(), Refused> {
+pub unsafe fn draw_flare(entry: &crate::framework::Regs) -> Result<(), Refused> {
     unsafe {
         let flare = entry.ebx;
         for (table, to) in [
@@ -3029,7 +3016,7 @@ pub unsafe fn draw_flare(
         game_write(rva(0x62DAF4), 0u32);
         // The `popa` and `pusha` between: the drawing gets the registers at entry.
         let mut r = *entry;
-        part(6, &mut r)
+        crate::race::frame_draw::entry_part(6, &mut r)
     }
 }
 
@@ -3037,10 +3024,7 @@ pub unsafe fn draw_flare(
 /// into `dword_63501C` .., its +4 x 8 the size, +8 the colour, object `dword_621508`;
 /// `dword_6365C8` 2, `place_object_matrix`, `g_lightKind` 0 and the drawing (part 6).
 /// Every register kept.
-pub unsafe fn draw_lamp_flare(
-    entry: &crate::framework::Regs,
-    part: crate::race::frame::Part,
-) -> Result<(), Refused> {
+pub unsafe fn draw_lamp_flare(entry: &crate::framework::Regs) -> Result<(), Refused> {
     unsafe {
         let lamp = entry.ebx;
         let edi = g(LAMPS).wrapping_add(lamp << 4);
@@ -3056,7 +3040,7 @@ pub unsafe fn draw_lamp_flare(
         game_write(rva(0x6365C8), 2u32);
         let mut r = place_object_matrix(entry);
         game_write(rva(0x62DAF4), 0u32);
-        part(6, &mut r)
+        crate::race::frame_draw::entry_part(6, &mut r)
     }
 }
 
@@ -3067,10 +3051,7 @@ pub unsafe fn draw_lamp_flare(
 /// 4), each by its low 24 bits; then `dword_6365C8` 0. Every register kept. Refuses (before
 /// anything) a word of 0x4000000 or more (the original would take it for a face far past
 /// the table).
-pub unsafe fn draw_list_entry(
-    entry: &crate::framework::Regs,
-    part: crate::race::frame::Part,
-) -> Result<(), Refused> {
+pub unsafe fn draw_list_entry(entry: &crate::framework::Regs) -> Result<(), Refused> {
     unsafe {
         let ebx = entry.ebx;
         let word = ebx & 0x7FFF_FFFF;
@@ -3101,15 +3082,15 @@ pub unsafe fn draw_list_entry(
                     r.ebx = word;
                     r.esi = face;
                     r.eax = kind as u32;
-                    part(place, &mut r)?;
+                    crate::race::frame_draw::entry_part(place, &mut r)?;
                     for a in [0x63E164usize, 0x63E168, 0x63E16C] {
                         game_write(rva(a), 0u32);
                     }
                 }
             }
-            1 => part(3, &mut r)?,
-            2 => part(5, &mut r)?,
-            _ => part(4, &mut r)?,
+            1 => crate::race::frame_draw::entry_part(3, &mut r)?,
+            2 => crate::race::frame_draw::entry_part(5, &mut r)?,
+            _ => crate::race::frame_draw::entry_part(4, &mut r)?,
         }
         game_write(rva(0x6365C8), 0u32);
         Ok(())
@@ -3120,19 +3101,11 @@ pub unsafe fn draw_list_entry(
 pub fn entry_part(place: u32, r: &mut crate::framework::Regs) -> Result<(), Refused> {
     unsafe {
         match place {
-            1 => crate::scene::draw_described_object::draw_described_object(
-                r,
-                &mut crate::scene::draw_described_object::described_part,
-            ),
-            2 => crate::race::course_faces::draw_tinted_face(
-                r,
-                &mut crate::race::course_faces::tinted_part,
-            ),
-            3 => draw_flare(r, &mut entry_part),
-            5 => {
-                crate::race::car_draw::draw_car_entry(r, &mut crate::race::car_draw::entry_car_part)
-            }
-            4 => draw_lamp_flare(r, &mut entry_part),
+            1 => crate::scene::draw_described_object::draw_described_object(r),
+            2 => crate::race::course_faces::draw_tinted_face(r),
+            3 => draw_flare(r),
+            5 => crate::race::car_draw::draw_car_entry(r),
+            4 => draw_lamp_flare(r),
             6 => crate::scene::draw_scene_object::draw_scene_object_in_game(r),
             // Place 0 is not used.
             _ => Ok(()),

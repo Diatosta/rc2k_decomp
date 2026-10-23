@@ -248,6 +248,22 @@ impl Regs {
     }
 }
 
+/// The carry and zero flags a function leaves, for Rust callers that still read them
+/// (conversion phase 3: a function whose callers hold registers returns these, and they
+/// go into the callers' `Regs` with `apply`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Flags {
+    pub carry: bool,
+    pub zero: bool,
+}
+
+impl Flags {
+    pub fn apply(self, r: &mut Regs) {
+        r.set_carry(self.carry);
+        r.set_zero(self.zero);
+    }
+}
+
 /// A hook's thunk (`hook_asm!(thunk, dispatch = dispatch)`): where `standalone.rs` sends a
 /// call of the hooked address. It saves the registers and flags as `Regs`, calls `dispatch`
 /// with them and returns with what `dispatch` left there (`epilogue = "..."`: instructions

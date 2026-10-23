@@ -27,7 +27,7 @@ use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::emitters::*;
 use crate::math::x87;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at as at_rva, state_entry};
+use crate::service::harness::state_entry;
 
 const POINTS_RVA: usize = rva(0x769312); // flt_769312: 3 floats by the car's model
 const MODELS: u32 = 34;
@@ -131,19 +131,6 @@ pub unsafe fn emit_particle_13(object: u32) -> Result<(), Refused> {
         put(0x60, x87::int_times(size, game_read(SIZE_K[2])));
     }
     Ok(())
-}
-
-/// The globals it may write.
-pub fn globals() -> Vec<Region> {
-    [
-        STRENGTH_RVA,
-        DRIFT_RANDOM_RVA,
-        SPIN_RANDOM_RVA,
-        RING_CURSOR_RVA,
-        RING_COUNT_RVA,
-    ]
-    .map(at_rva)
-    .to_vec()
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

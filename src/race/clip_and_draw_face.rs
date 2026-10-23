@@ -25,6 +25,6 @@ pub fn draw_part(_: u32, r: &mut Regs) -> Result<(), crate::errors::Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { clip_and_draw_face(r, &mut draw_part) }?;
+    unsafe { clip_and_draw_face(r) }?;
     Ok(())
 }

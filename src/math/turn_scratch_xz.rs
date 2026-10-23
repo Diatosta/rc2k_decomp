@@ -11,7 +11,6 @@
 //! registers above are the original's, for reference.
 
 use crate::framework::{game_addr, game_read, game_write, rva};
-use crate::service::harness::Region;
 
 pub const Z_RVA: usize = rva(0x5C5F4C); // dword_5C5F4C
 pub const X_RVA: usize = rva(0x5C5F50); // dword_5C5F50
@@ -59,8 +58,4 @@ pub unsafe fn turn_scratch_xz_plain(angle: u32) -> u32 {
         game_write(Z_RVA, z.to_bits());
     }
     entry
-}
-
-pub fn scratch() -> Region {
-    (game_addr(Z_RVA) as u32, 12)
 }

@@ -24,7 +24,7 @@ pub unsafe fn stop_race_sounds(entry: &Regs, part: Part) -> Result<Regs, crate::
 }
 
 fn game(_: u32, r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { reset_race_sounds(r, &SoundVars::game(), &mut sound_part) }.map(|_| ())
+    unsafe { reset_race_sounds(r, &SoundVars::game()) }.map(|_| ())
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).

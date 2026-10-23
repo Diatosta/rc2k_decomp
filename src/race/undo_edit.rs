@@ -18,12 +18,11 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::physics::flow::{a, guard};
+use crate::physics::flow::a;
 use crate::race::viewer::{
-    BLOCKS, CAMERAS, PLACES, TABLE_LEN, UNDO_BLOCKS, UNDO_CAMERAS, UNDO_PLACES, dword, get, put,
-    region, regs_entry, table,
+    BLOCKS, CAMERAS, PLACES, TABLE_LEN, UNDO_BLOCKS, UNDO_CAMERAS, UNDO_PLACES, get, put,
+    regs_entry, table,
 };
-use crate::service::harness::Region;
 
 /// The Rust version: the registers it leaves.
 pub fn undo_edit(entry: &Regs) -> Result<Regs, Refused> {
@@ -33,7 +32,7 @@ pub fn undo_edit(entry: &Regs) -> Result<Regs, Refused> {
     let Some(count) = undo_count(get(UNDO_BLOCKS)) else {
         return Ok(r);
     };
-    guard(&regions(), || {
+    {
         r.eax = count;
         put(BLOCKS, r.eax);
         let n = TABLE_LEN / 4;
@@ -49,18 +48,7 @@ pub fn undo_edit(entry: &Regs) -> Result<Regs, Refused> {
         put(UNDO_BLOCKS, 0);
         crate::race::reset_marks::reset_marks()?;
         Ok(r)
-    })
-}
-
-pub fn regions() -> Vec<Region> {
-    let mut all = crate::race::reset_marks::regions();
-    all.extend([
-        dword(BLOCKS),
-        dword(UNDO_BLOCKS),
-        region(PLACES, TABLE_LEN),
-        region(CAMERAS, TABLE_LEN),
-    ]);
-    all
+    }
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

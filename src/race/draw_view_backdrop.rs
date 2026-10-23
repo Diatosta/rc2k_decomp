@@ -11,10 +11,10 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::framework::Regs;
-use crate::race::frame_flush::{backdrop_part, draw_view_backdrop};
+use crate::race::frame_flush::draw_view_backdrop;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { draw_view_backdrop(r, &mut backdrop_part) }?;
+    unsafe { draw_view_backdrop(r) }?;
     Ok(())
 }

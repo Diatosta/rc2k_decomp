@@ -37,7 +37,7 @@ pub unsafe fn write_replay_frames(entry: &Regs) -> Result<(), Refused> {
         let v = written_view(unsafe { at.read() });
         unsafe { at.write(v) };
     }
-    unsafe { crate::race::replay::write_replay_block(entry, &mut crate::race::replay::game_part) }?;
+    unsafe { crate::race::replay::write_replay_block(entry) }?;
     p(0x9613A0, a(0x9613A4));
     p(0x5C252C, 0);
     Ok(())

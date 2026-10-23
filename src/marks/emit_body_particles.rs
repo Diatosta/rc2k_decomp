@@ -20,12 +20,12 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_read, game_write, rva};
-use crate::marks::emit_wheel_particles::{Table, emit, emitter_regions};
+use crate::marks::emit_wheel_particles::{Table, emit};
 use crate::marks::emitters::*;
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at as at_rva, capture, restore, state_entry};
+use crate::service::harness::state_entry;
 
 const SIZE_K_RVA: usize = rva(0x765174); // flt_765174
 const WHICH_RVA: usize = rva(0x935416); // dword_935416: the record's number
@@ -69,54 +69,12 @@ pub unsafe fn emit_body_particles(entry: &Regs) -> Result<Regs, Refused> {
     if g.edi == 0 || g.esi == 0 {
         return Err(BadInput("a null record or object").into());
     }
-    let written = regions(g.edi, g.esi);
-    let saved = capture(&written);
     let done = unsafe {
         prepare(&mut g);
         emit(Table::Body, at(g.edi + 0x1C), g.edi, g.esi)
     };
-    if let Err(e) = done {
-        restore(&written, &saved);
-        return Err(e);
-    }
+    done?;
     Ok(g)
-}
-
-/// The record's and the object's fields it writes, and its globals.
-fn own(record: u32, object: u32) -> Vec<Region> {
-    let mut r: Vec<Region> = [WHICH_RVA, CHANCE_RVA, CHANCE_RANDOM_RVA]
-        .map(at_rva)
-        .to_vec();
-    if record != 0 && object != 0 {
-        r.extend([
-            (object + 0x90, 4),
-            (record, 8),
-            (record + 0xC, 4),
-            (record + 0x1C, 12),
-        ]);
-    }
-    r
-}
-
-/// What it may write: its own and the emitters' (worked out on the record as the first
-/// part leaves it, put back at once).
-fn regions(record: u32, object: u32) -> Vec<Region> {
-    let mut r = own(record, object);
-    if record == 0 || object == 0 {
-        return r;
-    }
-    let saved = capture(&r);
-    unsafe {
-        let mut g = Regs {
-            edi: record,
-            esi: object,
-            ..Regs::default()
-        };
-        prepare(&mut g);
-        r.extend(emitter_regions(Table::Body, record));
-    }
-    restore(&own(record, object), &saved);
-    r
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

@@ -45,7 +45,7 @@ use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::view_matrix::cross_product;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 
 /// `dword_614B40`: the record the force goes to.
 pub const RECORD: usize = 0x614B40;
@@ -242,18 +242,6 @@ pub unsafe fn contact_force() -> Left {
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { contact_force() })
-}
-
-/// What it writes: its work (0x6D3078 .. 0x6D3210 holds every piece), `dword_62400C`,
-/// the record.
-pub fn regions() -> Vec<Region> {
-    let mut all = vec![(a(0x6D3078), 0x198), (a(0x62400C), 4)];
-    // The record the pointer names, when it names one (a pointer of 0 before the first
-    // contact: the standalone's first physics step).
-    if g(RECORD) != 0 {
-        all.push((g(RECORD), 0x18));
-    }
-    all
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

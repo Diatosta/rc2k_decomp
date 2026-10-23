@@ -39,12 +39,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::math::x87;
-use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::light_dot::{INPUTS_RVA, light_dot};
 use crate::scene::project_point::RECORDS_RVA;
-use crate::service::harness::{at, capture, restore};
 
 // ---- game data ----
 
@@ -134,13 +132,8 @@ unsafe fn table_place() -> Result<usize, BadInput> {
 unsafe fn lit(number: u32, mmx: bool) -> Result<u32, BadInput> {
     unsafe {
         // The checks first, on a copy of what they would write.
-        let regions = [(game_addr(INPUTS_RVA) as u32, 0x20), at(CHECKED_RVA)];
-        let before = capture(&regions);
         let place = set_normal(number).and_then(|()| table_place());
-        let Ok(place) = place else {
-            restore(&regions, &before);
-            return place.map(|_| 0);
-        };
+        let place = place?;
         let colour = plus(game_read(TABLE_RVA + place * 4), game_read(COLOUR_RVA), mmx);
         game_write(COLOUR_RVA, colour);
         Ok(colour)

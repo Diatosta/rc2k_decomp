@@ -24,7 +24,7 @@
 use crate::errors::Refused;
 use crate::framework::{EAX, ESI, Regs};
 use crate::physics::flow::{g, p};
-use crate::race::viewer::{Part, regs_entry};
+use crate::race::viewer::regs_entry;
 use crate::screens::harness::Left;
 
 pub const CURRENT: usize = 0x71B3F8; // g_currentCar
@@ -35,7 +35,7 @@ pub const RUNNING: usize = 0x71A234; // unk_71A234: the work car runs
 const CLOCKS: [usize; 2] = [0x719FE0, 0x719FEC];
 
 /// The Rust version: the registers it leaves.
-pub fn step_replay_cars(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn step_replay_cars(entry: &Regs) -> Result<Regs, Refused> {
     // Converted: `rc2k_core::race::viewer_flow::{check_replay_cars, car_block, car_runs,
     // RUN_STEPS, next_car}`.
     use rc2k_core::race::viewer_flow::{
@@ -43,16 +43,16 @@ pub fn step_replay_cars(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     };
     check_replay_cars(g(CARS))?;
     let mut r = *entry;
-    part(1, &mut r)?;
+    crate::race::step_replay_cars::game_part(1, &mut r)?;
     p(CURRENT, 0);
     loop {
         let mut c = r;
-        part(2, &mut c)?;
-        part(3, &mut c)?;
+        crate::race::step_replay_cars::game_part(2, &mut c)?;
+        crate::race::step_replay_cars::game_part(3, &mut c)?;
         c.eax = car_block(g(CURRENT));
         c.esi = g(BLOCKS_OF_CARS + 4 * c.eax as usize);
         p(WORK_BLOCK, c.esi);
-        part(4, &mut c)?;
+        crate::race::step_replay_cars::game_part(4, &mut c)?;
         if car_runs(g(RUNNING)) {
             for step in RUN_STEPS {
                 let place = match step {
@@ -63,13 +63,13 @@ pub fn step_replay_cars(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                     RunStep::ResetKey => 9,
                     RunStep::Physics => 10,
                 };
-                part(place, &mut c)?;
+                crate::race::step_replay_cars::game_part(place, &mut c)?;
             }
             for at in CLOCKS {
                 p(at, g(at).wrapping_add(1));
             }
         }
-        part(11, &mut c)?;
+        crate::race::step_replay_cars::game_part(11, &mut c)?;
         let (next, done) = next_car(g(CURRENT), g(CARS));
         p(CURRENT, next);
         r.eax = next;
@@ -77,7 +77,7 @@ pub fn step_replay_cars(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             break;
         }
     }
-    part(12, &mut r)?;
+    crate::race::step_replay_cars::game_part(12, &mut r)?;
     Ok(r)
 }
 
@@ -102,7 +102,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             }
             7 => steer_inputs::steer_inputs(r).apply(r),
             8 => pedal_inputs::pedal_inputs().apply(r),
-            9 => *r = reset_request::reset_request(r, &mut crate::physics::reset_parts::game_part)?,
+            9 => *r = reset_request::reset_request(r)?,
             10 => crate::physics::car_physics_step::car_physics_step(r)?.apply(r),
             11 => store_car::store_car()?.apply(r),
             _ => {
@@ -120,5 +120,5 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| step_replay_cars(r, &mut game_part))
+    regs_entry(r, &|r| step_replay_cars(r))
 }

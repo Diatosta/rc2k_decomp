@@ -52,12 +52,9 @@ impl Vars {
     }
 }
 
-/// A command's call, by its place in `CALLEES`, with the registers the original has there.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// Converted: `rc2k_core::audio::commands::decode` and `next_place`; the registers carry
 /// over from one command to the next as the original's do.
-pub fn take_commands(entry: &Regs, v: &Vars, part: Part) -> Result<(), Refused> {
+pub fn take_commands(entry: &Regs, v: &Vars) -> Result<(), Refused> {
     use rc2k_core::audio::commands::{Command, decode, next_place};
     let mut r = *entry;
     unsafe {
@@ -77,7 +74,7 @@ pub fn take_commands(entry: &Regs, v: &Vars, part: Part) -> Result<(), Refused> 
             match command {
                 Command::Start(sound) => {
                     r.eax = sound as u32;
-                    part(0, &mut r)?;
+                    crate::audio::take_commands::game_part(0, &mut r)?;
                 }
                 Command::Room(room) => {
                     r.eax = room;
@@ -86,21 +83,21 @@ pub fn take_commands(entry: &Regs, v: &Vars, part: Part) -> Result<(), Refused> 
                 Command::Load(list) => {
                     r.eax = list;
                     write(v.list, list);
-                    part(1, &mut r)?;
+                    crate::audio::take_commands::game_part(1, &mut r)?;
                 }
                 Command::Free => {
-                    part(2, &mut r)?;
+                    crate::audio::take_commands::game_part(2, &mut r)?;
                     write(v.list, 0);
                 }
                 Command::Mode(mode) => {
                     r.eax = mode;
-                    part(3, &mut r)?;
+                    crate::audio::take_commands::game_part(3, &mut r)?;
                 }
-                Command::Six => part(4, &mut r)?,
-                Command::StopAll => part(5, &mut r)?,
+                Command::Six => crate::audio::take_commands::game_part(4, &mut r)?,
+                Command::StopAll => crate::audio::take_commands::game_part(5, &mut r)?,
                 Command::Volume(volume) => {
                     r.eax = volume;
-                    part(6, &mut r)?;
+                    crate::audio::take_commands::game_part(6, &mut r)?;
                 }
                 Command::Stream {
                     path,
@@ -108,7 +105,7 @@ pub fn take_commands(entry: &Regs, v: &Vars, part: Part) -> Result<(), Refused> 
                     action,
                 } => {
                     (r.eax, r.ecx, r.edx) = (path, volume, action);
-                    part(7, &mut r)?;
+                    crate::audio::take_commands::game_part(7, &mut r)?;
                 }
                 Command::Music {
                     tune,
@@ -117,7 +114,7 @@ pub fn take_commands(entry: &Regs, v: &Vars, part: Part) -> Result<(), Refused> 
                     action,
                 } => {
                     (r.eax, r.ebx, r.ecx, r.edx) = (tune, next, volume, action);
-                    part(8, &mut r)?;
+                    crate::audio::take_commands::game_part(8, &mut r)?;
                 }
                 Command::EndOfTurn | Command::Other(_) => {}
             }
@@ -148,7 +145,6 @@ pub fn game_part(which: u32, r: &mut Regs) -> Result<(), Refused> {
             2 => crate::audio::free_voices::free_voices(
                 &World::game(),
                 &crate::audio::free_voices::game_vars(),
-                &mut crate::audio::free_voices::game_part,
             )?,
             3 => {
                 let mut c = *r;

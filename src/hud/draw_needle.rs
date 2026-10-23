@@ -43,9 +43,6 @@ const TURN_K_RVA: [usize; 2] = [rva(0x75C010), rva(0x75C014)];
 const CORNERS_RVA: [usize; 4] = [rva(0x75C2A8), rva(0x75C2AC), rva(0x75C2B0), rva(0x75C2B4)];
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 
-/// A call by place (see the header), with its x87 values (st(0) first).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs, &[[u8; 10]]) -> Result<(), Refused>;
-
 /// `fld v [; fsub less]; fdiv over; fadd plus; fmul k0; fmul k1; fistp`.
 fn turn_of(v: u32, less: Option<u32>, over: u32, plus: u32, k: [u32; 2]) -> u32 {
     let (a, mut out) = ([v, less.unwrap_or(0), over, plus, k[0], k[1]], 0u32);
@@ -65,7 +62,7 @@ fn turn_of(v: u32, less: Option<u32>, over: u32, plus: u32, k: [u32; 2]) -> u32 
 
 /// The Rust version (see the header): the registers it leaves.
 // Converted: `rc2k_core::hud::disc::{needle_turn, needle_edx, needle_corners}`
-pub unsafe fn draw_needle(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn draw_needle(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         use rc2k_core::hud::disc::{needle_corners, needle_edx, needle_turn};
@@ -89,10 +86,10 @@ pub unsafe fn draw_needle(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             .enumerate()
         {
             g.edi = game_addr(VERTICES_RVA) as u32 + 0x20 * n as u32;
-            part(1, &mut g, &[extended(y), extended(x)])?;
+            crate::hud::draw_needle::game_part(1, &mut g, &[extended(y), extended(x)])?;
         }
         game_write(POLYGON_COUNT_RVA, 4u32);
-        part(2, &mut g, &[])?;
+        crate::hud::draw_needle::game_part(2, &mut g, &[])?;
     }
     Ok(g)
 }
@@ -103,7 +100,7 @@ pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused
     unsafe {
         *r = match place {
             1 => tv::turned_vertex(r, [v[0], v[1]].map(rc2k_core::math::extended::to_f64))?,
-            _ => ap::add_polygon(r, &mut ap::game_part)?,
+            _ => ap::add_polygon(r)?,
         };
     }
     Ok(())
@@ -111,13 +108,13 @@ pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused
 
 /// In the game, for the needles' set-ups: this function's Rust version.
 pub fn game_part_needle(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    *r = unsafe { draw_needle(r, &mut game_part) }?;
+    *r = unsafe { draw_needle(r) }?;
     Ok(())
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_needle(r, &mut game_part) }?;
+    let left = unsafe { draw_needle(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

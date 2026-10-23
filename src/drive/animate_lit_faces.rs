@@ -39,10 +39,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, ECX, EDX, ESI, Regs, game_addr, game_read, game_write, rva};
-use crate::physics::ground::Ground;
+use crate::framework::{EAX, EBX, ECX, EDX, ESI, Regs, game_read, game_write, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, restore, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::drive::lit_faces::{
     COUNTDOWN_OBJECT, FaceBytes, RISE_TOP, align, blink, count_down, fall_turn, pace, rise,
 };
@@ -100,33 +99,6 @@ fn list(k: u32) -> usize {
     LIST_RVA + 4 * k as usize
 }
 
-/// The faces' records it may change (all those listed now).
-unsafe fn face_regions() -> Vec<Region> {
-    unsafe {
-        let count = game_read::<u32>(COUNT_RVA).min(MOST);
-        let faces: u32 = game_read(FACES_RVA);
-        (0..count)
-            .map(|k| (faces.wrapping_add(game_read::<u32>(list(k)) << 6), 0x40))
-            .collect()
-    }
-}
-
-/// Everything it writes.
-pub fn regions() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let mut r = Ground::game().regions();
-    r.extend([
-        (game_addr(LIST_RVA) as u32, 4 * MOST as usize),
-        (game_addr(COUNT_RVA) as u32, 4),
-        (a(0x62400C), 4),
-        (a(0x6D302C), 0x18),
-        (a(0x5C5F4C), 0x0C),
-        (a(0x620470), 4),
-    ]);
-    r.extend(unsafe { face_regions() });
-    r
-}
-
 /// The refusals, worked out before anything is written.
 unsafe fn refusal() -> Option<&'static str> {
     unsafe {
@@ -153,13 +125,8 @@ pub unsafe fn animate_at(r: &mut Regs) -> Result<(), Refused> {
         if game_read::<u32>(COUNT_RVA) == 0 {
             return Ok(());
         }
-        let all = regions();
-        let saved = capture(&all);
-        let result = animate_faces(r);
-        if result.is_err() {
-            restore(&all, &saved);
-        }
-        result
+
+        animate_faces(r)
     }
 }
 

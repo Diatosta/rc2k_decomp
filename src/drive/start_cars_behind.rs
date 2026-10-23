@@ -38,10 +38,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::math::x87;
 use crate::race::car_starts::Part;
-use crate::service::harness::{Region, capture, restore};
 use rc2k_core::drive::pace_cars::{
     ahead_of_lead, ease_jump, ease_step, first_starts, gap_start, gaps, passed, push_apart,
     wanted_gap,
@@ -93,20 +92,6 @@ fn refusal() -> Option<&'static str> {
     None
 }
 
-/// The memory put back on a refusal mid-way (and compared by the test).
-pub fn regions() -> Vec<Region> {
-    let a = |x: u32| game_addr(rva(x as usize)) as u32;
-    let mut r = vec![
-        (a(0x70F3EC), 8 * 0xFE0),
-        (a(0x719FD8), 0xFE0),
-        (a(0x6051A0), 0x40),
-        (a(CURRENT), 4),
-        (a(0x6365E4), 0xC),
-    ];
-    r.extend(crate::race::start_place::place_regions());
-    r
-}
-
 /// One car moved: its slot `from_slot` emptied into the other's (`shift`), a new car at
 /// start `start` with `dist` checkpoints on.
 fn put_car(
@@ -136,16 +121,11 @@ pub unsafe fn start_cars_behind(entry: &Regs, part: Part) -> Result<Regs, Refuse
     if let Some(why) = refusal() {
         return Err(BadInput(why).into());
     }
-    let all = regions();
-    let saved = capture(&all);
     let mut r = *entry;
     let result = unsafe { run(&mut r, part) };
     match result {
         Ok(()) => Ok(r),
-        Err(e) => {
-            restore(&all, &saved);
-            Err(e)
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -318,12 +298,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         match place {
             LOAD => crate::drive::load_car::load_car()?.apply(r),
             STORE => crate::drive::store_car::store_car()?.apply(r),
-            START => {
-                *r = crate::drive::start_car_on_line::start_car_on_line(
-                    r,
-                    &mut crate::race::car_starts::game_part,
-                )?
-            }
+            START => *r = crate::drive::start_car_on_line::start_car_on_line(r)?,
             TAKEN => crate::drive::checkpoint_taken::checkpoint_taken(r).apply(r),
             CLEAR => crate::drive::clear_start_state::clear_start_state(),
             BEHIND => crate::drive::note_gap_behind::note_gap_behind(r.esi).apply(r),

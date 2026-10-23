@@ -16,17 +16,17 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::install::installer::{Part, QUITTING, at, cmp, g, rd, wd};
+use crate::install::installer::{QUITTING, at, cmp, g, rd, wd};
 use crate::race::viewer::regs_entry;
 use rc2k_core::install::pages;
 
 const RUN_PAGE: usize = 0x4144CF; // install::run_page
 
-pub fn run_pages(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn run_pages(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     loop {
         r.edi = rd(r.esi);
-        part(at(RUN_PAGE), &mut r)?;
+        crate::install::installer::game_part(at(RUN_PAGE), &mut r)?;
         let answer = r.eax;
         cmp(&mut r, answer, 1);
         // Converted: `rc2k_core::install::pages` (`resets_highlight`, `next_entry_at`).
@@ -50,7 +50,5 @@ pub fn run_pages(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| {
-        run_pages(r, &mut crate::install::installer::game_part)
-    })
+    regs_entry(r, &|r| run_pages(r))
 }

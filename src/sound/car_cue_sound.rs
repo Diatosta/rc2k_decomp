@@ -21,12 +21,12 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::Regs;
 use crate::sound::sample_settings::{record, sample_settings};
-use crate::sound::turn_parts::{PLACED, Part, turn_entry};
+use crate::sound::turn_parts::turn_entry;
 
 // ---- Rust version ----
 
 /// Converted: `rc2k_core::sound::cars::one_off`.
-pub fn car_cue_sound_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn car_cue_sound_in(r: &mut Regs) -> Result<(), Refused> {
     use rc2k_core::sound::cars::{OneOff, from_int, one_off};
     if r.ebx == 0 || r.esi == 0 {
         return Err(BadInput("no object or no request").into());
@@ -56,7 +56,7 @@ pub fn car_cue_sound_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
         OneOff::Nothing | OneOff::Quiet { .. } => Ok(()),
         OneOff::Stop { volume, rate } => {
             (c.ecx, c.edx) = (volume, rate);
-            part(crate::sound::turn_parts::STOP, &mut c)
+            crate::sound::turn_parts::stop(&c)
         }
         OneOff::Play { volume, rate } => {
             (c.ecx, c.edx) = (volume, rate);
@@ -68,7 +68,7 @@ pub fn car_cue_sound_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
                     q.add(3 + k as usize).write_unaligned(c.eax);
                 }
             }
-            part(PLACED, &mut c)
+            crate::sound::turn_parts::placed(&c)
         }
     }
 }

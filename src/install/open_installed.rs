@@ -14,23 +14,23 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::install::installer::{INSTALLED, INSTALLING, NORMALISE, Part, SET_CD, a, at, p};
+use crate::install::installer::{INSTALLED, INSTALLING, NORMALISE, SET_CD, a, at, p};
 use crate::race::viewer::regs_entry;
 
 const SOURCE_PATH: usize = 0x51BB8D; // g_installSource
 
-pub fn open_installed(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn open_installed(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = Regs {
         esi: a(SOURCE_PATH),
         edx: a(INSTALLED),
         ..*entry
     };
-    part(at(NORMALISE), &mut r)?;
+    crate::install::installer::game_part(at(NORMALISE), &mut r)?;
     if r.carry() {
         return Ok(*entry);
     }
     r.edx = a(INSTALLED);
-    part(at(SET_CD), &mut r)?;
+    crate::install::installer::game_part(at(SET_CD), &mut r)?;
     if r.carry() {
         return Ok(*entry);
     }
@@ -41,7 +41,5 @@ pub fn open_installed(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| {
-        open_installed(r, &mut crate::install::installer::game_part)
-    })
+    regs_entry(r, &|r| open_installed(r))
 }

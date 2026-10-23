@@ -30,12 +30,9 @@ const BLOCKS_RVA: usize = rva(0x71B3B8); // g_carBlocks
 const RECORDS_RVA: usize = rva(0x71B3D8); // g_carRecords
 const ROWS_RVA: usize = rva(0x5C90D8); // dword_5C90D8 ..: rows of 0x134
 const SETTINGS_RVA: usize = rva(0x5C2F84); // asc_5C2F84
-/// A call by place: 1 `init_marks`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
 // Converted: `rc2k_core::marks::race::{check_cars, kind_row, car_fields}`
-pub unsafe fn init_mark_step(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn init_mark_step(entry: &Regs) -> Result<Regs, Refused> {
     use rc2k_core::marks::race;
     let mut g = *entry;
     unsafe {
@@ -57,7 +54,7 @@ pub unsafe fn init_mark_step(entry: &Regs, part: Part) -> Result<Regs, Refused> 
         }
         g.ecx = count;
         g.esi = game_addr(SETTINGS_RVA) as u32;
-        part(1, &mut g)?;
+        crate::marks::init_mark_step::game_part(1, &mut g)?;
     }
     Ok(g)
 }
@@ -65,13 +62,13 @@ pub unsafe fn init_mark_step(entry: &Regs, part: Part) -> Result<Regs, Refused> 
 /// In the game: `init_marks`' Rust version.
 pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::marks::init_marks as im;
-    *r = unsafe { im::init_marks(r, &mut im::game_part) }?;
+    *r = unsafe { im::init_marks(r) }?;
     Ok(())
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { init_mark_step(r, &mut game_part) }?;
+    let left = unsafe { init_mark_step(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

@@ -8,8 +8,9 @@
 //!
 //! A refused input (`BadInput`) ends the program, saying which function refused and why
 //! (2026-10-23); a fatal error is raised from Rust. An address in no table goes to the
-//! game, logged once: the standalone's fault handler routes it to a platform hook or ends
-//! with "not ported".
+//! game, logged once: a platform hook's Rust side, SDL's and the empty functions are run
+//! here (`platform::by_address`, `standalone::answers`); anything else reaches the
+//! standalone's fault handler, which ends with "not ported".
 
 use crate::errors::Refused;
 use crate::framework::{IMAGE_BASE, Regs, call_game, game_addr, log};
@@ -55,6 +56,10 @@ fn run(function: u32, r: &mut Regs, only_tables: bool) {
             unsafe { crate::fatal::raise::raise(error, r) };
         }
         None => {
+            let at = ral as usize;
+            if crate::platform::by_address(at, r) || crate::standalone::answers(at, r) {
+                return;
+            }
             if only_tables && first(ral) {
                 log(&format!(
                     "menu::table_calls: {ral:#x} is in no menu or draw list; the game's runs"

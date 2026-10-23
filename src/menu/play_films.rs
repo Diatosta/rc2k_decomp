@@ -147,17 +147,9 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
             // `nullsub_6`.
             0x44347E => {}
             0x415515 => in_game_unless(at, regs, |r| {
-                crate::scene::set_up_lit_engine::set_up_lit_engine_in(
-                    r,
-                    &mut crate::scene::set_up_lit_engine::lit_part,
-                )
+                crate::scene::set_up_lit_engine::set_up_lit_engine_in(r)
             }),
-            DEMONSTRATION => in_game_unless(at, regs, |r| {
-                crate::race::credits_race::credits_race_in(
-                    r,
-                    &mut crate::race::credits_race::credits_part,
-                )
-            }),
+            DEMONSTRATION => in_game_unless(at, regs, crate::race::credits_race::credits_race_in),
             SWAP_MISSING_EXTENSION => in_game_unless(at, regs, |r| {
                 crate::files::swap_missing_extension::swap_missing_extension(r.eax as *mut u8)?;
                 Ok(())

@@ -10,10 +10,9 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::physics::flow::{a, g, p};
+use crate::physics::flow::{g, p};
 use crate::physics::reset_parts::{COUNT_PROBE, game_part};
 use crate::race::car_starts::Part;
-use crate::service::harness::Region;
 
 /// `g_groundFound`.
 pub const FOUND: usize = 0x639830;
@@ -42,19 +41,4 @@ pub fn carry_entry(r: &mut Regs, rust: Check) -> Result<(), Refused> {
     *r = left;
     r.esp = esp;
     Ok(())
-}
-
-/// What the tests set and compare besides `reset_parts::regions()`.
-pub fn test_regions() -> Vec<Region> {
-    vec![
-        (a(0x5CCC74), 8),
-        (a(0x639824), 0x10),
-        (a(0x620470), 4),
-        (a(0x608C3C), 12),
-        (a(0x71A65C), 0x48),
-        (a(0x71AEC8), 12),
-        (a(0x71A0A0), 4),
-        (a(0x719FE0), 4),
-        crate::math::turn_scratch_xz::scratch(),
-    ]
 }

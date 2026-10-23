@@ -24,9 +24,7 @@ use crate::service::harness::state_entry;
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     let resume = game_addr(RESUME_RVA) as u32;
-    Ok(left_of(&unsafe {
-        load_splines(r, resume, &mut crate::race::level_init::game_part)
-    }?))
+    Ok(left_of(&unsafe { load_splines(r, resume) }?))
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

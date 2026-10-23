@@ -30,8 +30,7 @@ use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::math::x87::mul;
 use crate::physics::contact_force::{RECORD, contact_force};
-use crate::physics::crossed_edge::regions;
-use crate::physics::flow::{a, copy3, g, guard, p};
+use crate::physics::flow::{a, copy3, g, p};
 use crate::physics::scene_point_hits_car::SCENE_POINTS;
 use crate::physics::touch_face::FACES;
 use crate::physics::wall_edge_contact::edge_normal;
@@ -129,11 +128,11 @@ pub fn check_probe() -> Result<(), Refused> {
 /// The Rust version.
 pub unsafe fn crossed_edge_contact(entry: &Regs) -> Result<Left, Refused> {
     check_probe()?;
-    guard(&regions(), || {
+    {
         let mut r = *entry;
         steps(&mut r)?;
         Ok(left_of(&r))
-    })
+    }
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

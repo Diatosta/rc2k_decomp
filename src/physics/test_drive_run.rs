@@ -27,9 +27,9 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{EAX, EBX, ECX, EDX, Regs};
-use crate::physics::flow::{a, base, c0, g, guard, p, x87_run};
+use crate::physics::flow::{a, base, c0, g, p, x87_run};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 
 const DRIVE: usize = 0x71A190; // g_carDriveSpeed
 const GEAR: usize = 0x71A1AC; // g_carGear
@@ -120,16 +120,9 @@ fn steps(entry: &Regs) -> Result<Left, Refused> {
         .with(EDX, edx))
 }
 
-/// What the run and its calls write: the work car, the physics' variables, the tables.
-pub fn regions() -> Vec<Region> {
-    let mut all = crate::physics::car_physics_step::step_regions();
-    all.push((a(0x5CB960), 0x5CC1A0 - 0x5CB960));
-    all
-}
-
 /// The Rust version; everything written put back when it refuses.
 pub unsafe fn test_drive_run(entry: &Regs) -> Result<Left, Refused> {
-    guard(&regions(), || steps(entry))
+    steps(entry)
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

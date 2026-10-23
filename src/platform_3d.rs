@@ -790,18 +790,24 @@ unsafe fn make_texture(
     }
 }
 
-unsafe fn allocate_textures(r: &Regs) -> Result<(), FatalError> {
+unsafe fn allocate_textures(
+    video: u32,
+    system: u32,
+    sizes: u32,
+    kind: u32,
+    mips: u32,
+) -> Result<(), FatalError> {
     unsafe {
-        let width = size_of(r.ecx & 0xFF).ok_or(fatal(0x80A1_8641))?;
-        let height = if r.ecx & 0x1000 != 0 {
-            size_of((r.ecx >> 8) & 0xFF).ok_or(fatal(0x80A1_8642))?
+        let width = size_of(sizes & 0xFF).ok_or(fatal(0x80A1_8641))?;
+        let height = if sizes & 0x1000 != 0 {
+            size_of((sizes >> 8) & 0xFF).ok_or(fatal(0x80A1_8642))?
         } else {
             width
         };
-        let description: u32 = game_read(KINDS_RVA + (r.edx as usize & 0xFF) * 4);
-        game_write(ALPHA_KIND_RVA, (r.edx == 3) as u32);
+        let description: u32 = game_read(KINDS_RVA + (kind as usize & 0xFF) * 4);
+        game_write(ALPHA_KIND_RVA, (kind == 3) as u32);
         let levels = if game_read::<u32>(MIPS_RVA) == 1 {
-            r.ebp
+            mips
         } else {
             0
         }
@@ -811,11 +817,11 @@ unsafe fn allocate_textures(r: &Regs) -> Result<(), FatalError> {
         }
         game_write(FIRST_VIDEO_RVA, game_read::<u32>(VIDEO_COUNT_RVA));
         game_write(FIRST_SYSTEM_RVA, game_read::<u32>(SYSTEM_COUNT_RVA));
-        for _ in 0..r.eax {
+        for _ in 0..video {
             make_texture(1, description, width, height, levels)?;
         }
         let alpha: u32 = game_read(ALPHA_KIND_RVA);
-        for _ in 0..r.ebx {
+        for _ in 0..system {
             let number = make_texture(0, description, width, height, levels)?;
             let at = record_at(0, number);
             let mut record = at.read_unaligned();
@@ -827,21 +833,37 @@ unsafe fn allocate_textures(r: &Regs) -> Result<(), FatalError> {
 }
 
 extern "C" fn allocate(r: &mut Regs) {
-    ALLOCATE.count_call();
-    flush();
-    let reports: u32 = unsafe { game_read(REPORTS_RVA) };
-    unsafe { game_write(REPORTS_RVA, 0u32) };
-    let done = unsafe { allocate_textures(r) };
-    unsafe { game_write(REPORTS_RVA, reports) };
-    match done {
-        Ok(()) => unsafe {
-            r.eax = game_read(FIRST_VIDEO_RVA);
-            r.ebx = game_read(FIRST_SYSTEM_RVA);
+    match allocate_textures_now(r.eax, r.ebx, r.ecx, r.edx, r.ebp) {
+        Ok((video, system)) => {
+            (r.eax, r.ebx) = (video, system);
             r.set_carry(false);
-        },
+        }
         Err(e) => unsafe {
             crate::fatal::raise::refused(&ALLOCATE, crate::errors::Refused::Fatal(e), r)
         },
+    }
+}
+
+/// `gfx::allocate_textures`: `video` textures more in the video pool and `system` in the
+/// system one, of the sizes (`sizes`: the width's number in the low byte, with 0x1000 the
+/// height's in the next), pixel kind (`kind`) and, with mipmaps on, `mips` levels more;
+/// the first new video and system textures' numbers.
+pub fn allocate_textures_now(
+    video: u32,
+    system: u32,
+    sizes: u32,
+    kind: u32,
+    mips: u32,
+) -> Result<(u32, u32), FatalError> {
+    ALLOCATE.count_call();
+    flush();
+    unsafe {
+        let reports: u32 = game_read(REPORTS_RVA);
+        game_write(REPORTS_RVA, 0u32);
+        let done = allocate_textures(video, system, sizes, kind, mips);
+        game_write(REPORTS_RVA, reports);
+        done?;
+        Ok((game_read(FIRST_VIDEO_RVA), game_read(FIRST_SYSTEM_RVA)))
     }
 }
 
@@ -1069,6 +1091,25 @@ extern "C" fn clear(r: &mut Regs) {
     let c = |v: i32| v.max(0) as usize;
     note(Noted::Clear([c(left), c(top), c(right), c(bottom)]));
     r.eax = 0;
+}
+
+/// `platform::by_address` for the 3D hooks.
+pub fn by_address(at: usize, r: &mut Regs) -> bool {
+    let hooks: [(&RawHook, extern "C" fn(&mut Regs)); 6] = [
+        (&ALLOCATE, allocate),
+        (&RELEASE, release),
+        (&LOAD, load),
+        (&BEGIN, begin),
+        (&END, end),
+        (&CLEAR, clear),
+    ];
+    match hooks.iter().find(|(hook, _)| hook.rva() == rva(at)) {
+        Some(&(_, dispatch)) => {
+            dispatch(r);
+            true
+        }
+        None => false,
+    }
 }
 
 pub static HOOKS: &[&dyn GameHook] = &[&ALLOCATE, &RELEASE, &LOAD, &BEGIN, &END, &CLEAR];

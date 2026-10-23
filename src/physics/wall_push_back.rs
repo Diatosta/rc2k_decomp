@@ -22,9 +22,9 @@ use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::math::x87_run::compare_80;
 use crate::physics::contact_force::{RECORD, contact_force};
-use crate::physics::flow::{a, copy3, fill3, g, guard, negate, p};
+use crate::physics::flow::{a, copy3, fill3, g, negate, p};
 use crate::physics::vector_length::vector_length;
-use crate::physics::wall_contacts::{WALL_RECORD, WORK, regions};
+use crate::physics::wall_contacts::{WALL_RECORD, WORK};
 use crate::race::norms::normalise_work_vector;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
@@ -54,11 +54,11 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version.
 pub unsafe fn wall_push_back(entry: &Regs) -> Result<Left, Refused> {
-    guard(&regions(), || {
+    {
         let mut r = *entry;
         steps(&mut r)?;
         Ok(left_of(&r))
-    })
+    }
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

@@ -14,21 +14,21 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, rva};
-use crate::input::effects::{Part, RECORD_1, RECORD_2, START_DEVICE, effects_entry};
+use crate::input::effects::{RECORD_1, RECORD_2, START_DEVICE, effects_entry};
 
 /// Both records through `place` (the two functions' body).
-pub fn both_records(r: &mut Regs, place: u32, part: Part) -> Result<(), Refused> {
+pub fn both_records(r: &mut Regs, place: u32) -> Result<(), Refused> {
     let mut g = *r;
     for record in [RECORD_1, RECORD_2] {
         g.esi = game_addr(rva(record)) as u32;
-        part(place, &mut g)?;
+        crate::input::effects::game_part(place, &mut g)?;
     }
     Ok(())
 }
 
 /// The Rust version.
-pub fn start_effects(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    both_records(r, START_DEVICE, part)
+pub fn start_effects(r: &mut Regs) -> Result<(), Refused> {
+    both_records(r, START_DEVICE)
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

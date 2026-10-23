@@ -197,10 +197,7 @@ const PIXEL_TABLES: [usize; 2] = [rva(0x844E58), rva(0x864E58)];
 /// made counted into eax and the list freed (`memory::free_list`, 7). Leaves eax that
 /// count, ebx the list, the rest as the last step. Refuses as its steps do, mid-way (the
 /// work block is on the list, which the original's run frees with its own).
-pub unsafe fn make_masks(
-    entry: &Regs,
-    part: crate::race::level_init::Part,
-) -> Result<Regs, Refused> {
+pub unsafe fn make_masks(entry: &Regs) -> Result<Regs, Refused> {
     use crate::marks::corners::CORNERS_RVA;
     use crate::marks::rings::CORNERS_RVA as RING_CORNERS_RVA;
     let mut g = *entry;
@@ -208,31 +205,31 @@ pub unsafe fn make_masks(
     unsafe {
         g.eax = WORK_LEN;
         g.ebx = a(LIST_RVA);
-        part(0, &mut g)?;
+        crate::marks::masks::game_part(0, &mut g)?;
         game_write(WORK_RVA, g.eax);
-        part(1, &mut g)?;
-        part(2, &mut g)?;
-        part(3, &mut g)?;
+        crate::marks::masks::game_part(1, &mut g)?;
+        crate::marks::masks::game_part(2, &mut g)?;
+        crate::marks::masks::game_part(3, &mut g)?;
         for n in 0..2 {
             g.ebp = a(SHAPES[n]);
             g.esi = a(RING_ANGLES[n]);
             game_write(RING_CORNERS_RVA, a(CORNERS_RVA[n]));
-            part(4, &mut g)?;
+            crate::marks::masks::game_part(4, &mut g)?;
         }
         for n in 0..2 {
             g.ebp = a(SHAPES[n]);
             g.esi = a(MASKS[n]);
-            part(5, &mut g)?;
+            crate::marks::masks::game_part(5, &mut g)?;
         }
         for n in 0..2 {
             g.ebp = a(SHAPES[n]);
             g.esi = a(PIXEL_TABLES[n]);
             g.edi = a(CORNERS_RVA[n]);
-            part(6, &mut g)?;
+            crate::marks::masks::game_part(6, &mut g)?;
         }
         g.eax = game_read::<u32>(CURSOR_RVA).wrapping_sub(game_read(WORK_RVA)) >> 3;
         g.ebx = a(LIST_RVA);
-        part(7, &mut g)?;
+        crate::marks::masks::game_part(7, &mut g)?;
     }
     Ok(g)
 }

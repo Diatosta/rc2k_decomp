@@ -37,15 +37,12 @@ const CORNER_RVA: usize = rva(0x92052A); // dword_92052A: 0x11
 const SIZE_RVA: usize = rva(0x9205B2); // dword_9205B2: 0x11
 const PARTS: u32 = 0x11;
 
-/// A call by place (1 `draw_flare_part`), with its two values (st(0) first).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs, &[[u8; 10]]) -> Result<(), Refused>;
-
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_lens_flare(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn draw_lens_flare(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         let settings: u32 = game_read(SETTINGS_RVA);
@@ -84,7 +81,7 @@ pub unsafe fn draw_lens_flare(entry: &Regs, part: Part) -> Result<Regs, Refused>
                 esi: 0xFF_FFFF,
                 ..g
             };
-            part(1, &mut p, &[x, y])?;
+            crate::marks::draw_lens_flare::game_part(1, &mut p, &[x, y])?;
         }
         g.esi = 0;
     }
@@ -94,13 +91,13 @@ pub unsafe fn draw_lens_flare(entry: &Regs, part: Part) -> Result<Regs, Refused>
 /// In the game: `draw_flare_part`'s Rust version.
 pub fn game_part(_place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused> {
     use crate::marks::draw_flare_part as fp;
-    unsafe { fp::draw_flare_part(r, [v[0], v[1]], &mut fp::game_part) }?;
+    unsafe { fp::draw_flare_part(r, [v[0], v[1]]) }?;
     Ok(())
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_lens_flare(r, &mut game_part) }?;
+    let left = unsafe { draw_lens_flare(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

@@ -20,11 +20,10 @@
 use crate::errors::Refused;
 use crate::framework::{Regs, game_read, game_write, rva};
 use crate::math::x87;
-use crate::physics::fill_race_slot::regions;
 use crate::physics::fill_slot_on_bit::fill_slot_on_bit_in;
 use crate::physics::test_car_word::test_word;
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, restore, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::parts::{self, DROP_TESTS, Hit, HitTest};
 
 pub fn g(x: usize) -> u32 {
@@ -77,15 +76,10 @@ pub fn drop_hit_parts_in(r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version.
 pub unsafe fn drop_hit_parts(entry: &Regs) -> Result<Left, Refused> {
-    let all = regions();
-    let saved = capture(&all);
     let mut r = *entry;
     match drop_hit_parts_in(&mut r) {
         Ok(()) => Ok(crate::race::stage_prefs::left_of(&r)),
-        Err(e) => {
-            restore(&all, &saved);
-            Err(e)
-        }
+        Err(e) => Err(e),
     }
 }
 

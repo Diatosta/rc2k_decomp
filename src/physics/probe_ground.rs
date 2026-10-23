@@ -47,28 +47,12 @@ use crate::physics::ground::*;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, restore, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::ground;
 
 pub const MOST_POINTS: u32 = 0x40;
 const COUNT: u32 = 0x71A238; // dword_71A238
 const NOISE: u32 = 0xA2AAE4; // g_noiseBytes, 0x1000
-
-/// Everything it may write.
-pub fn regions(g: &Ground) -> Vec<Region> {
-    let mut r = g.regions();
-    r.extend([
-        (g.a(0x6D1E14), (0x6D2C14 - 0x6D1E14) as usize),
-        (g.a(0x6D3044), 0x24),
-        (g.a(0x6D3628), 0xC),
-        (g.a(0x6D3B84), 4),
-        (g.a(0x62400C), 4),
-        (g.a(0x620470), 4),
-        (g.a(0x71ADC8), 4 * MOST_POINTS as usize),
-        (g.a(0x71AEE8), 0x30),
-    ]);
-    r
-}
 
 /// The Rust core; `r` as the original leaves it.
 // Converted: `rc2k_core::physics::ground::{wheel_lifted, noise_cell, bump_noise}` (the
@@ -82,13 +66,8 @@ pub unsafe fn probe_ground_at(g: &Ground, r: &mut Regs) -> Result<(), Refused> {
         if n > MOST_POINTS {
             return Err(BadInput("more than 0x40 probe points (the lists' room)").into());
         }
-        let regions = regions(g);
-        let saved = capture(&regions);
-        let result = probe_points(g, r, n);
-        if result.is_err() {
-            restore(&regions, &saved);
-        }
-        result
+
+        probe_points(g, r, n)
     }
 }
 

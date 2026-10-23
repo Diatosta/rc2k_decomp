@@ -92,10 +92,10 @@ fn rust_of(place: u32) -> Option<Rust> {
 
 pub fn call(place: u32, r: &mut Regs) -> Result<(), Refused> {
     match rust_of(place) {
-        Some(rust) => crate::race::loadlevel::or_in_game(place as usize, r, |r| {
+        Some(rust) => {
             *r = rust(r, &mut game_part)?;
             Ok(())
-        }),
+        }
         None => Err(not_known(place)),
     }
 }

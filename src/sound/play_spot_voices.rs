@@ -24,16 +24,15 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_read, rva};
 use crate::math::x87::from_int;
-use crate::physics::flow::guard;
 use crate::sound::sample_duration::sample_duration;
 use crate::sound::sample_settings::{OWN, RECORDS, RECORDS_RVA, sample_settings};
 use crate::sound::spot_voices::{VOICE_COUNT, set, voice, voice_regions, vw};
-use crate::sound::turn_parts::{CLOCK, PLACED, Part, STOP, common_regions, turn_entry};
+use crate::sound::turn_parts::{CLOCK, common_regions, turn_entry};
 use rc2k_core::sound::spot_voices::{Played, REQUEST_FROM, end_time, going_on, played, time_up};
 
 // ---- Rust version ----
 
-pub fn play_spot_voices_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn play_spot_voices_in(r: &mut Regs) -> Result<(), Refused> {
     if r.esi == 0 {
         return Err(BadInput("no request").into());
     }
@@ -41,7 +40,7 @@ pub fn play_spot_voices_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     let put = |n: usize, v: u32| unsafe { q.add(n).write_unaligned(v) };
     let mut all = voice_regions();
     all.extend(common_regions());
-    guard(&all, || {
+    (|| -> Result<_, crate::errors::Refused> {
         let mut c = *r;
         let clock: u32 = unsafe { game_read(rva(CLOCK)) };
         for n in 0..VOICE_COUNT {
@@ -79,17 +78,17 @@ pub fn play_spot_voices_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
                 c.eax = vw(v, from);
                 put(to, c.eax);
             }
-            part(PLACED, &mut c)?;
+            crate::sound::turn_parts::placed(&c)?;
             c.eax = clock;
             if time_up(clock, vw(v, 0x34)) {
                 c.eax = vw(v, 0x14);
                 put(0, c.eax);
-                part(STOP, &mut c)?;
+                crate::sound::turn_parts::stop(&c)?;
                 set(v, 0x28, 0);
             }
         }
         Ok(())
-    })
+    })()
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

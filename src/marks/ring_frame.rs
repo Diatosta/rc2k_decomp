@@ -27,11 +27,8 @@ const DROPS_RVA: usize = rva(0x8BC50D); // dword_8BC50D
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (1, 0x1C), (1, 0x1B)];
 
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn ring_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn ring_frame(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         let s: u32 = game_read(SETTINGS_RVA);
@@ -41,21 +38,21 @@ pub unsafe fn ring_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         for (value, state) in STATES {
             g.eax = value;
             g.ebx = state;
-            part(1, &mut g)?;
+            crate::marks::ring_frame::game_part(1, &mut g)?;
         }
         g.eax = game_read(TEXTURE_RVA);
-        part(2, &mut g)?;
-        part(3, &mut g)?;
+        crate::marks::ring_frame::game_part(2, &mut g)?;
+        crate::marks::ring_frame::game_part(3, &mut g)?;
         g.esi = game_read(SETTINGS_RVA);
         g.eax = ((g.esi + 0x7C) as *const u32).read_unaligned() & 0xFF_FFFF;
         game_write(TINT_RVA, g.eax);
         g.eax = game_read(DROPS_RVA);
         game_write(CHOICE_RVA, g.eax);
-        part(4, &mut g)?;
+        crate::marks::ring_frame::game_part(4, &mut g)?;
         g.eax = 2;
         g.ebx = 0x14;
-        part(1, &mut g)?;
-        part(5, &mut g)?;
+        crate::marks::ring_frame::game_part(1, &mut g)?;
+        crate::marks::ring_frame::game_part(5, &mut g)?;
     }
     Ok(g)
 }
@@ -87,7 +84,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { ring_frame(r, &mut game_part) }?;
+    let left = unsafe { ring_frame(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

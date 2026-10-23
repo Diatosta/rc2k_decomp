@@ -20,12 +20,12 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::race::viewer::{Part, regs_entry};
+use crate::race::viewer::regs_entry;
 
 /// The Rust version: the registers the screen leaves.
-pub fn replay_slot_loop(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn replay_slot_loop(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
-    part(if r.eax != 0 { 1 } else { 2 }, &mut r)?;
+    crate::menu::replay_slot_loop::game_part(if r.eax != 0 { 1 } else { 2 }, &mut r)?;
     Ok(r)
 }
 
@@ -45,5 +45,5 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| replay_slot_loop(r, &mut game_part))
+    regs_entry(r, &|r| replay_slot_loop(r))
 }

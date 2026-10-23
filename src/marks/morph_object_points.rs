@@ -29,7 +29,7 @@ use crate::scene::objects::{
     FIRST_POINT_RVA, POINT_COUNTS_RVA, POINTS_ROOM_RVA, POINTS_RVA, SLOTS,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, restore, state_entry};
+use crate::service::harness::{Region, at, state_entry};
 
 const CAR_LEN: u32 = 0x4C8;
 const BLOCK: u32 = 0x29C;
@@ -138,13 +138,8 @@ pub unsafe fn morph_object_points(entry: &Regs) -> Result<Regs, Refused> {
     if let Some(why) = unsafe { refusal(settings) } {
         return Err(BadInput(why).into());
     }
-    let written = regions(settings);
-    let saved = capture(&written);
-    let done = unsafe { run(entry, settings) };
-    if done.is_err() {
-        restore(&written, &saved);
-    }
-    done
+
+    unsafe { run(entry, settings) }
 }
 
 unsafe fn run(entry: &Regs, settings: u32) -> Result<Regs, Refused> {

@@ -23,7 +23,7 @@ use crate::race::frame_draw::*;
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     {
-        let after = unsafe { draw_slot_object(r, &mut slot_part) }?;
+        let after = unsafe { draw_slot_object(r) }?;
         let esp = r.esp;
         *r = after;
         r.esp = esp;

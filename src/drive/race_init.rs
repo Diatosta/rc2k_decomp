@@ -70,9 +70,7 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
     p(INDENT, g(INDENT).wrapping_sub(race_steps::LOG_INDENT));
     log(0x4DC56F);
     indented(r, &mut |r| {
-        *r = unsafe {
-            crate::race::car_starts::start_cars(r, &mut crate::race::car_starts::game_part)
-        }?;
+        *r = unsafe { crate::race::car_starts::start_cars(r) }?;
         Ok(())
     })?;
     log(0x4DC58B);

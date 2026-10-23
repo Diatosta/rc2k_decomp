@@ -132,34 +132,23 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<bool, Refused> {
                 crate::audio::free_voices::free_voices(
                     &World::game(),
                     &crate::audio::free_voices::game_vars(),
-                    &mut crate::audio::free_voices::game_part,
                 )?;
                 false
             }
-            4 => crate::audio::mixer_set_up::close_way(
-                mode(),
-                &mut crate::audio::restore::game_part,
-            )?,
+            4 => crate::audio::mixer_set_up::close_way(mode())?,
             5 => {
                 sd::release_primary(
                     game_addr(PRIMARY_RVA) as u32,
                     game_addr(sd::VOLUME_KEPT_RVA) as u32,
-                    &mut sd::game_part,
                 )?;
                 false
             }
             6 => sd::reopen_sound(
                 game_addr(SOUND_MODE_RVA) as u32,
                 game_addr(sd::OPENED_MODE_RVA) as u32,
-                &mut sd::game_part,
             )?,
-            7 => !crate::audio::primary::make_primary(
-                &crate::audio::primary::PrimaryVars::game(),
-                &mut sd::game_part,
-            )?,
-            8 => {
-                crate::audio::mixer_set_up::open_way(mode(), &mut crate::audio::restore::game_part)?
-            }
+            7 => !crate::audio::primary::make_primary(&crate::audio::primary::PrimaryVars::game())?,
+            8 => crate::audio::mixer_set_up::open_way(mode())?,
             9 => {
                 crate::system::sleep::sleep(r.eax);
                 false

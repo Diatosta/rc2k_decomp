@@ -46,9 +46,6 @@ const COSINES_RVA: usize = rva(0xA24AE4); // g_cosines
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
 const UV_WORDS: [(u32, u32); 4] = [(0, 2), (4, 6), (0xC, 0xE), (8, 0xA)];
 
-/// A call by place: 1 `draw_fan`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// A 16-bit difference made positive (`sub bp, ..; jns; neg bp`), the high half 0.
 fn abs16(a: u32, b: u32) -> u32 {
     let d = (a as u16).wrapping_sub(b as u16);
@@ -56,11 +53,7 @@ fn abs16(a: u32, b: u32) -> u32 {
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_flare_part(
-    entry: &Regs,
-    centre: [[u8; 10]; 2],
-    part: Part,
-) -> Result<Regs, Refused> {
+pub unsafe fn draw_flare_part(entry: &Regs, centre: [[u8; 10]; 2]) -> Result<Regs, Refused> {
     let mut g = *entry;
     if g.eax >= CORNERS {
         return Err(BadInput("a flare corner past g_marksCorners").into());
@@ -121,7 +114,7 @@ pub unsafe fn draw_flare_part(
         if g.carry() {
             return Ok(g);
         }
-        part(1, &mut g)?;
+        crate::marks::draw_flare_part::game_part(1, &mut g)?;
     }
     Ok(g)
 }

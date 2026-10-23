@@ -37,9 +37,6 @@ const TURN_RVA: [usize; 3] = [rva(0x75C05C), rva(0x75C028), rva(0x75C024)];
 const SCRATCH_RVA: usize = rva(0x75C060); // dword_75C060
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 
-/// A call by place: 1 `add_triangle`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// `fld a; fchs; fmul b; fmul c; fistp`.
 fn negated_times_times_to_int(a: u32, b: u32, c: u32) -> u32 {
     let (v, mut out) = ([a, b, c], 0u32);
@@ -52,7 +49,7 @@ fn negated_times_times_to_int(a: u32, b: u32, c: u32) -> u32 {
 
 /// The Rust version (see the header): the registers it leaves.
 // Converted: `rc2k_core::hud::disc::{ring_angles, disc_triangle}`
-pub unsafe fn draw_disc(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn draw_disc(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         use rc2k_core::hud::disc::{disc_triangle, ring_angles};
@@ -83,7 +80,7 @@ pub unsafe fn draw_disc(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                 r.ecx = e;
                 r = disc_vertex(&r)?;
             }
-            part(1, &mut r)?;
+            crate::hud::add_triangle::game_part_triangle(1, &mut r)?;
         }
         [g.ebx, g.ecx, g.edx] = [SEGMENTS; 3];
     }
@@ -92,7 +89,7 @@ pub unsafe fn draw_disc(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_disc(r, &mut crate::hud::add_triangle::game_part_triangle) }?;
+    let left = unsafe { draw_disc(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

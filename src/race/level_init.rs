@@ -85,19 +85,14 @@ fn read(g: &Regs, path: u32, buffer: u32, count: u32, part: Part) -> Result<(), 
 
 /// `race::allocate_course_memory` (0x41F8C4). Leaves eax the end of the memory and ebx the
 /// list, the rest as `memory::allocate` leaves them.
-pub unsafe fn allocate_course_memory(
-    entry: &Regs,
-    v: &Vars,
-    list: u32,
-    part: Part,
-) -> Result<Regs, Refused> {
+pub unsafe fn allocate_course_memory(entry: &Regs, v: &Vars, list: u32) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         put(v.first_part, FIRST_PART);
         g.eax = FIRST_PART + INFO_PART;
         g.ebx = list;
         put(v.list_total, get(v.list_total).wrapping_add(g.eax));
-        part(0, &mut g)?;
+        crate::race::level_init::game_part(0, &mut g)?;
         put(v.course_memory, g.eax);
         g.eax = g.eax.wrapping_add(FIRST_PART);
         put(v.course_info, g.eax);

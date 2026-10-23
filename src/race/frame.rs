@@ -234,7 +234,6 @@ pub const TYRE_VARIABLES: [usize; 9] = [
 pub unsafe fn tyre_change_at(
     entry: &crate::framework::Regs,
     v: &[u32],
-    part: Part,
 ) -> Result<crate::framework::Regs, Refused> {
     let get = |k: usize| unsafe { (v[k] as *const u32).read_unaligned() };
     let put = |k: usize, x: u32| unsafe { (v[k] as *mut u32).write_unaligned(x) };
@@ -245,7 +244,7 @@ pub unsafe fn tyre_change_at(
     if r.eax != 0x1E && get(5) == 0 && get(4) >= 0x12C {
         r.eax = 0;
         r.esi = 0;
-        part(1, &mut r)?;
+        crate::race::frame::tyre_part(1, &mut r)?;
         put(5, 1);
     }
     if get(5) != 1 {
@@ -253,7 +252,7 @@ pub unsafe fn tyre_change_at(
     }
     r.eax = 1;
     r.esi = 0;
-    part(1, &mut r)?;
+    crate::race::frame::tyre_part(1, &mut r)?;
     if r.eax == 0 {
         return Ok(r);
     }

@@ -22,7 +22,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::Regs;
 use crate::install::installer::{
-    COLOURS, FONTS, LAYOUT, MEASURE_STRING, MEASURE_TEXT, Part, TEXT, a, append_byte,
+    COLOURS, FONTS, LAYOUT, MEASURE_STRING, MEASURE_TEXT, TEXT, a, append_byte,
     append_string_by_id, at, g, rb, rd, rw, wb, wd,
 };
 use crate::install::lay_out_pieces::PIECE;
@@ -33,7 +33,7 @@ fn font_of(index: u32) -> u32 {
     rd(a(FONTS) + 4 * index)
 }
 
-pub fn measure_pieces(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn measure_pieces(entry: &Regs) -> Result<Regs, Refused> {
     let count = g(LAYOUT);
     if count == 0 {
         return Err(BadInput("a page of no pieces").into());
@@ -57,7 +57,7 @@ pub fn measure_pieces(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                 let font = rb(a(COLOURS) + pieces::measure_colour_at(font_kind)) as u32;
                 r.eax = rw(esi + 2) as u32;
                 r.ebx = font_of(font);
-                part(at(MEASURE_STRING), &mut r)?;
+                crate::install::installer::game_part(at(MEASURE_STRING), &mut r)?;
             }
             way => {
                 r.eax = r.eax & !0xFF | (marks & 0xF) as u32;
@@ -76,14 +76,14 @@ pub fn measure_pieces(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                         let action = rd(r.edi + 0xC);
                         if action != 0 {
                             r.eax = rd(r.edi + 8);
-                            part(action, &mut r)?;
+                            crate::install::installer::game_part(action, &mut r)?;
                         }
                         append_byte(&mut r, 0);
                         let kind = rb(r.edi + 1) as u32;
                         let font = rb(a(COLOURS) + pieces::measure_colour_at(kind)) as u32;
                         r.ebx = a(TEXT);
                         r.eax = font_of(font);
-                        part(at(MEASURE_TEXT), &mut r)?;
+                        crate::install::installer::game_part(at(MEASURE_TEXT), &mut r)?;
                     }
                     Way::Action => {
                         r.edi = rd(esi + 4);
@@ -109,7 +109,5 @@ pub fn measure_pieces(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| {
-        measure_pieces(r, &mut crate::install::installer::game_part)
-    })
+    regs_entry(r, &|r| measure_pieces(r))
 }

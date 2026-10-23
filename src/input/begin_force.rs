@@ -57,7 +57,7 @@ pub fn dword_property(data: u32) -> u32 {
 }
 
 /// The Rust version (see the header).
-pub fn begin_force(record: u32, part: crate::input::make_effect::Part) -> Result<(), Refused> {
+pub fn begin_force(record: u32) -> Result<(), Refused> {
     let entry = entry_of(record);
     if at(entry, field!(Controller, force_feedback)) != 1 {
         return Ok(());
@@ -97,7 +97,7 @@ pub fn begin_force(record: u32, part: crate::input::make_effect::Part) -> Result
             edi: record.wrapping_add(EFFECTS_AT + n * EFFECT_LEN),
             ..Regs::default()
         };
-        crate::input::make_effect::make_effect(&r, part)?;
+        crate::input::make_effect::make_effect(&r)?;
     }
     put(record, field!(InputDevice, effects_on), 1);
     Ok(())
@@ -105,6 +105,6 @@ pub fn begin_force(record: u32, part: crate::input::make_effect::Part) -> Result
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    begin_force(r.esi, &mut crate::input::make_effect::game_part)?;
+    begin_force(r.esi)?;
     Ok(())
 }

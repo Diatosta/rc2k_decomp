@@ -21,14 +21,14 @@ use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::physics::flow::a;
 use crate::race::viewer::{
-    PICTURE_RATE, PICTURE_TIME, PICTURES_STARTED, PICTURES_STARTED_2, Part, RECORDING, get, put,
+    PICTURE_RATE, PICTURE_TIME, PICTURES_STARTED, PICTURES_STARTED_2, RECORDING, get, put,
     regs_entry,
 };
 
 const FOLDER: usize = 0x5C2CD8; // "rpl"
 
 /// The Rust version.
-pub fn start_frame_pictures(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn start_frame_pictures(entry: &Regs) -> Result<Regs, Refused> {
     // Converted: `rc2k_core::race::viewer::{picture_rate, picture_time}`.
     use rc2k_core::race::viewer::{picture_rate, picture_time};
     let rate = picture_rate(get(PICTURE_RATE));
@@ -39,7 +39,7 @@ pub fn start_frame_pictures(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     r.eax = picture_time(r.eax, rate);
     put(PICTURE_TIME, r.eax);
     r.edx = a(FOLDER);
-    part(1, &mut r)?;
+    crate::race::start_frame_pictures::game_part(1, &mut r)?;
     put(RECORDING, 1);
     put(PICTURES_STARTED, 0);
     put(PICTURES_STARTED_2, 0);
@@ -60,5 +60,5 @@ pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| start_frame_pictures(r, &mut game_part))
+    regs_entry(r, &|r| start_frame_pictures(r))
 }

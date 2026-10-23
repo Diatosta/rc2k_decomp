@@ -43,11 +43,6 @@ const MIXER_WAY: usize = 0x40BC05;
 const ENVIRONMENT_RVA: usize = rva(0x6D1DD4); // dword_6D1DD4
 const ENVIRONMENT_KEPT_RVA: usize = rva(0x506C80); // dword_506C80
 
-/// Its callees: 0 `is_playing` (the zero flag: not playing), 1 the EAX room, 2
-/// `commit_3d`, 3 frequency, 4 volume, 5 pan, 6 place, 7 rewind, 8 play, 9 stop, 10 the
-/// A3D way, 11 the mixer's way; esi the voice for 0 and 3 .. 9.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 #[derive(Clone, Copy)]
 pub struct Vars {
     pub a3d: u32,
@@ -82,16 +77,16 @@ impl Vars {
 
 /// Converted: the own-buffers way is `rc2k_core::audio::voices::update_buffers`, each of
 /// its steps a callee here (esi the voice); the A3D and mixer ways stay the game's chunks.
-pub unsafe fn update_voices(v: &Vars, part: Part) -> Result<(), Refused> {
+pub unsafe fn update_voices(v: &Vars) -> Result<(), Refused> {
     use rc2k_core::audio::voices::{Lists, Room, Step, update_buffers};
     unsafe {
         if read(v.a3d) == 1 {
-            return part(10, &mut Regs::default());
+            return crate::audio::update_voices::game_part(10, &mut Regs::default());
         }
         let mode = read(v.mode);
         if mode & crate::audio::make_buffer::MODE_OWN_BUFFERS == 0 {
             if mode & MODE_MIXER != 0 {
-                part(11, &mut Regs::default())?;
+                crate::audio::update_voices::game_part(11, &mut Regs::default())?;
             }
             return Ok(());
         }
@@ -135,7 +130,7 @@ pub unsafe fn update_voices(v: &Vars, part: Part) -> Result<(), Refused> {
                 esi: at,
                 ..Regs::default()
             };
-            part(which, &mut r)?;
+            crate::audio::update_voices::game_part(which, &mut r)?;
             Ok(which != 0 || !crate::audio::buffer_play::zero(&r))
         });
         store(&l, &room);

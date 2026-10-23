@@ -15,11 +15,11 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::install::installer::{BLIT_GLYPH, Part, at, rd};
+use crate::install::installer::{BLIT_GLYPH, at, rd};
 use crate::race::viewer::regs_entry;
 use rc2k_core::install::layout;
 
-pub fn blit_glyph_list(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn blit_glyph_list(entry: &Regs) -> Result<Regs, Refused> {
     let (x, y) = (entry.ecx, entry.edx);
     // Converted: `rc2k_core::install::layout` (`list_records`, `list_place`).
     for (offset, left) in layout::list_records(entry.eax)? {
@@ -34,7 +34,7 @@ pub fn blit_glyph_list(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             ebp: left,
             ..*entry
         };
-        part(at(BLIT_GLYPH), &mut r)?;
+        crate::install::installer::game_part(at(BLIT_GLYPH), &mut r)?;
     }
     Ok(*entry)
 }
@@ -42,7 +42,5 @@ pub fn blit_glyph_list(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| {
-        blit_glyph_list(r, &mut crate::install::installer::game_part)
-    })
+    regs_entry(r, &|r| blit_glyph_list(r))
 }

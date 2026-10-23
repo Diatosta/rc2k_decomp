@@ -25,17 +25,16 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::emit_body_particles::emit_body_particles;
-use crate::marks::emit_wheel_particles::{WRITTEN, emit_wheel_particles};
+use crate::marks::emit_wheel_particles::emit_wheel_particles;
 use crate::marks::emitters::*;
-use crate::marks::setup::SEED_RVA;
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at as at_rva, capture, restore, state_entry};
+use crate::service::harness::state_entry;
 
 /// flt_9354EE .. flt_935506: the places' factors and bases.
 const K: [usize; 7] = [
@@ -57,8 +56,6 @@ const SIDE_B_RVA: usize = rva(0x93543A);
 const BODY_SIDES_RVA: usize = rva(0x93550A);
 /// The wheel records, then the body's.
 const RECORDS: [u32; 5] = [0xD4, 0x11C, 0x164, 0x1AC, 0x1F4];
-const RECORD_LEN: u32 = 0x48;
-
 /// Writes a float at an address.
 unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
@@ -70,13 +67,8 @@ pub unsafe fn emit_car_particles(entry: &Regs) -> Result<Regs, Refused> {
     if o == 0 || unsafe { at(o + 0x24) } == 0 {
         return Err(BadInput("a null car object or matrix").into());
     }
-    let written = regions(o);
-    let saved = capture(&written);
-    let done = unsafe { run(entry) };
-    if done.is_err() {
-        restore(&written, &saved);
-    }
-    done
+
+    unsafe { run(entry) }
 }
 
 unsafe fn run(entry: &Regs) -> Result<Regs, Refused> {
@@ -138,73 +130,6 @@ unsafe fn run(entry: &Regs) -> Result<Regs, Refused> {
         g = emit_body_particles(&g)?;
     }
     Ok(g)
-}
-
-/// The globals it and its emitters may write.
-pub fn globals() -> Vec<Region> {
-    let mut r: Vec<Region> = WRITTEN.map(at_rva).to_vec();
-    r.extend(
-        [
-            rva(0x935526),
-            FLAGS_RVA,
-            RATE_RVA,
-            SEED_RVA,
-            RING_CURSOR_RVA,
-            RING_COUNT_RVA,
-            LOOKS_RVA[0],
-            LOOKS_RVA[1],
-        ]
-        .map(at_rva),
-    );
-    for a in [SIDE_A_RVA, SIDE_B_RVA, SIDES_RVA] {
-        r.push((game_addr(a) as u32, 12));
-    }
-    r
-}
-
-/// At most how many ring entries the car's records take (their flags' bound).
-pub unsafe fn entry_bound(o: u32) -> u32 {
-    unsafe {
-        RECORDS
-            .iter()
-            .map(|&rec| {
-                let flags = [0x20, 0x24, 0x2C, 0x30]
-                    .map(|f| at(o + rec + f))
-                    .into_iter()
-                    .max();
-                (flags.unwrap_or(0) >> 6)
-                    .saturating_mul(8)
-                    .saturating_add(2)
-            })
-            .fold(0u32, |a, b| a.saturating_add(b))
-            .min(MOST_TAKEN + 1)
-    }
-}
-
-/// What it may write: the globals, the object's +0x90 and records, and as many ring
-/// entries as the records' flags allow at most.
-fn regions(o: u32) -> Vec<Region> {
-    let mut r = globals();
-    if o == 0 {
-        return r;
-    }
-    r.push((o + 0x90, 4));
-    r.push((
-        o + RECORDS[0],
-        (RECORDS[4] + RECORD_LEN - RECORDS[0]) as usize,
-    ));
-    unsafe {
-        let most = entry_bound(o);
-        let mut e: u32 = game_read(RING_CURSOR_RVA);
-        for _ in 0..most {
-            if e == 0 {
-                break;
-            }
-            e = at(e);
-            r.push((e, ENTRY_LEN));
-        }
-    }
-    r
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

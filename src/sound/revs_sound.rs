@@ -25,7 +25,7 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::game_addr;
 use crate::framework::{Regs, rva};
 use crate::physics::flow::{base, x87_run};
-use crate::sound::turn_parts::{PLACED, Part, STOP, turn_entry};
+use crate::sound::turn_parts::turn_entry;
 use rc2k_core::sound::engine::{computers, revs_sound_number, revs_stopped};
 
 /// unk_516230: the computer's cars' set.
@@ -33,7 +33,7 @@ const COMPUTERS: usize = 0x516230;
 
 // ---- Rust version ----
 
-pub fn revs_sound_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn revs_sound_in(c: &mut Regs) -> Result<(), Refused> {
     if c.ebx == 0 || c.esi == 0 {
         return Err(BadInput("no object or no request").into());
     }
@@ -54,7 +54,7 @@ pub fn revs_sound_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
     c.eax = revs_sound_number(object, unsafe { (c.ebp as *const u32).read_unaligned() });
     unsafe { q.write_unaligned(c.eax) };
     if revs_stopped(w(0x10C)) {
-        return part(STOP, c);
+        return crate::sound::turn_parts::stop(c);
     }
     x87_run!(
         "fld dword ptr [{bx} + 0x100]",
@@ -93,7 +93,7 @@ pub fn revs_sound_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
         "fstp dword ptr [{si} + 0x14]";
         bx = c.ebx, si = c.esi
     );
-    part(PLACED, c)
+    crate::sound::turn_parts::placed(c)
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

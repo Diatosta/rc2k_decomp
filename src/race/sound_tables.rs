@@ -5,8 +5,6 @@
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, rva};
 
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 unsafe fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
 }
@@ -141,24 +139,24 @@ pub const COMMAND_4: u32 = 4;
 
 /// `race::restart_race_sounds` (0x40D34A): the commands waited for, the race's sounds
 /// reset (`race::reset_race_sounds`), let play; `dword_5124E4` 1. Every register kept.
-pub unsafe fn restart_race_sounds(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn restart_race_sounds(entry: &Regs) -> Result<Regs, Refused> {
     let g = *entry;
     let mut r = g;
-    part(WAIT, &mut r)?;
-    part(RESET, &mut r)?;
-    part(LET_PLAY, &mut r)?;
+    crate::race::sound_tables::sound_part(WAIT, &mut r)?;
+    crate::race::sound_tables::sound_part(RESET, &mut r)?;
+    crate::race::sound_tables::sound_part(LET_PLAY, &mut r)?;
     unsafe { crate::framework::game_write(rva(0x5124E4), 1u32) };
     Ok(g)
 }
 
 /// `race::silence_race_sounds` (0x40D366): the race's sounds reset, command 4, the
 /// commands waited for. Every register kept.
-pub unsafe fn silence_race_sounds(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn silence_race_sounds(entry: &Regs) -> Result<Regs, Refused> {
     let g = *entry;
     let mut r = g;
-    part(RESET, &mut r)?;
-    part(COMMAND_4, &mut r)?;
-    part(WAIT, &mut r)?;
+    crate::race::sound_tables::sound_part(RESET, &mut r)?;
+    crate::race::sound_tables::sound_part(COMMAND_4, &mut r)?;
+    crate::race::sound_tables::sound_part(WAIT, &mut r)?;
     Ok(g)
 }
 
@@ -170,13 +168,7 @@ pub fn sound_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         match place {
             WAIT => wait_for_commands(&mut Game(sent(r))),
-            RESET => {
-                *r = reset_race_sounds(
-                    r,
-                    &SoundVars::game(),
-                    &mut crate::race::race_end::sound_part,
-                )?
-            }
+            RESET => *r = reset_race_sounds(r, &SoundVars::game())?,
             LET_PLAY => crate::sound::let_sounds_play::let_sounds_play(),
             _ => send_command(&Queue::game(), 4, sent(r)),
         }
@@ -258,11 +250,7 @@ fn wr(a: usize, v: u32) {
 /// +0x2C and 24 fields reset; `dword_5BEBE8` 0; `restart_race_sounds`. Every register
 /// kept. Refuses, before anything, a chosen car past 7 (the original reads past the
 /// table) or an object missing.
-pub unsafe fn set_up_race_sound_objects(
-    entry: &Regs,
-    v: &ObjectVars,
-    part: Part,
-) -> Result<Regs, Refused> {
+pub unsafe fn set_up_race_sound_objects(entry: &Regs, v: &ObjectVars) -> Result<Regs, Refused> {
     let g = *entry;
     unsafe {
         let one = rd(0x52A910) == 1;
@@ -277,7 +265,7 @@ pub unsafe fn set_up_race_sound_objects(
         // object_mark}`; the tables through `prepare_sound_tables_plain`.
         use rc2k_core::race::sound_objects::{object_mark, sound_objects, sound_players};
         let mut r = g;
-        part(PREPARE, &mut r)?;
+        crate::race::sound_tables::object_part(PREPARE, &mut r)?;
         let players = sound_players(rd(0x75ACE0));
         wr(0x514F78, players);
         let (count, arcade) = sound_objects(players, rd(0x75ACD8));
@@ -322,17 +310,17 @@ pub unsafe fn set_up_race_sound_objects(
             edi: last + 0x2C + 0x68,
             ..g
         };
-        part(RESTART, &mut r)?;
+        crate::race::sound_tables::object_part(RESTART, &mut r)?;
     }
     Ok(g)
 }
 
 /// `race::clear_race_sound_objects` (0x415C6D): `silence_race_sounds`; `dword_514F78`,
 /// `dword_514F7C`, `dword_514F8C` 0. Every register kept.
-pub unsafe fn clear_race_sound_objects(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn clear_race_sound_objects(entry: &Regs) -> Result<Regs, Refused> {
     let g = *entry;
     let mut r = g;
-    part(SILENCE, &mut r)?;
+    crate::race::sound_tables::object_part(SILENCE, &mut r)?;
     for a in [0x514F78, 0x514F7C, 0x514F8C] {
         wr(a, 0);
     }
@@ -344,8 +332,8 @@ pub fn object_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         match place {
             PREPARE => prepare_sound_tables_plain(&TableVars::game()),
-            RESTART => *r = restart_race_sounds(r, &mut sound_part)?,
-            SILENCE => *r = silence_race_sounds(r, &mut sound_part)?,
+            RESTART => *r = restart_race_sounds(r)?,
+            SILENCE => *r = silence_race_sounds(r)?,
             _ => sound_part(place, r)?,
         }
     }

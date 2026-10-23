@@ -24,11 +24,11 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::math::x87::from_int;
-use crate::physics::flow::{a, g, guard, p};
-use crate::physics::queue_notice::{Contacts, queue_notice};
+use crate::physics::flow::{g, p};
+use crate::physics::queue_notice::queue_notice;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::damage_notices::{LEVELS, damage_notices as damage_notices_core};
 
 /// `flt_75B36C`: the threshold being compared.
@@ -58,20 +58,13 @@ fn steps(r: &mut Regs) -> Result<(), Refused> {
     result
 }
 
-/// What it writes: the levels, the threshold, the queue.
-fn regions() -> Vec<Region> {
-    let mut all = vec![(a(0x71A340), 0x8C), (a(LIMIT), 4)];
-    all.extend(Contacts::game().regions());
-    all
-}
-
 /// The Rust version.
 pub unsafe fn damage_notices(entry: &Regs) -> Result<Left, Refused> {
-    guard(&regions(), || {
+    {
         let mut r = *entry;
         steps(&mut r)?;
         Ok(left_of(&r))
-    })
+    }
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

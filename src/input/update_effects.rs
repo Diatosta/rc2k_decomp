@@ -26,7 +26,7 @@
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, rva};
 use crate::input::devices::at;
-use crate::input::effects::{CAR, HAS_EFFECTS, Part, effects_entry};
+use crate::input::effects::{CAR, HAS_EFFECTS, effects_entry};
 
 /// g_playerCarA, g_playerCarB, g_onePlayer, g_raceSoundObjectCount (four dwords).
 const CARS: usize = 0x514F70;
@@ -69,7 +69,7 @@ fn rd(at: u32) -> u32 {
 /// The Rust version on the variables in `v`.
 /// Converted: `rc2k_core::input::effects::loads` (the way worked out before any call:
 /// nothing a call changes decides it).
-pub fn update_effects_with(r: &mut Regs, v: &Vars, part: Part) -> Result<(), Refused> {
+pub fn update_effects_with(r: &mut Regs, v: &Vars) -> Result<(), Refused> {
     use rc2k_core::input::effects::{Players, loads};
     if rd(v.cars + 0xC) == 0 {
         return Ok(());
@@ -87,14 +87,14 @@ pub fn update_effects_with(r: &mut Regs, v: &Vars, part: Part) -> Result<(), Ref
         r.ebx = load.view;
         r.edi = rd(v.objects + 4 * load.car);
         if load.update {
-            part(CAR, r)?;
+            crate::input::effects::game_part(CAR, r)?;
         }
     }
     Ok(())
 }
 
-pub fn update_effects(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    update_effects_with(r, &Vars::game(), part)
+pub fn update_effects(r: &mut Regs) -> Result<(), Refused> {
+    update_effects_with(r, &Vars::game())
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

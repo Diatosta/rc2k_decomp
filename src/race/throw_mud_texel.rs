@@ -21,7 +21,6 @@
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::next_random::{STATE_RVA as RANDOM_RVA, next_random};
-use crate::physics::flow::guard;
 use crate::race::muddy_texel::{STRENGTH_RVA, muddy_texel, texture_and_mud};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
@@ -45,25 +44,27 @@ pub fn throw_regions() -> Vec<Region> {
 pub unsafe fn throw_mud_texel(entry: &Regs) -> Result<Regs, Refused> {
     // Converted: `rc2k_core::race::mud::{LAST_THROWN, extra_throw}`.
     let (n, _) = texture_and_mud()?;
-    guard(&throw_regions(), || unsafe {
-        let mut r = Regs { ebx: n, ..*entry };
-        let count_at = THROWN_RVA + 4 * n as usize;
-        let count: u32 = game_read(count_at);
-        if count >= LAST_THROWN {
-            return Ok(r);
+    (|| -> Result<_, crate::errors::Refused> {
+        unsafe {
+            let mut r = Regs { ebx: n, ..*entry };
+            let count_at = THROWN_RVA + 4 * n as usize;
+            let count: u32 = game_read(count_at);
+            if count >= LAST_THROWN {
+                return Ok(r);
+            }
+            game_write(count_at, count + 1);
+            r.eax = count;
+            r = muddy_texel(&r)?;
+            r.ebx = n;
+            let (sum, carried) = rc2k_core::race::mud::extra_throw(game_read(EXTRA_SUM_RVA));
+            game_write(EXTRA_SUM_RVA, sum);
+            if !carried {
+                return Ok(r);
+            }
+            r.eax = next_random();
+            muddy_texel(&r)
         }
-        game_write(count_at, count + 1);
-        r.eax = count;
-        r = muddy_texel(&r)?;
-        r.ebx = n;
-        let (sum, carried) = rc2k_core::race::mud::extra_throw(game_read(EXTRA_SUM_RVA));
-        game_write(EXTRA_SUM_RVA, sum);
-        if !carried {
-            return Ok(r);
-        }
-        r.eax = next_random();
-        muddy_texel(&r)
-    })
+    })()
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

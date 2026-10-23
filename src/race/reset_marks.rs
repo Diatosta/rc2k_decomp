@@ -16,16 +16,13 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::drive::read_replay_frame::regions as read_regions;
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::physics::flow::guard;
-use crate::race::viewer::{BLOCK, BLOCKS, MARK_IN, MARK_OUT, dword, get, put, regs_entry};
-use crate::service::harness::Region;
+use crate::race::viewer::{BLOCK, BLOCKS, MARK_IN, MARK_OUT, get, put, regs_entry};
 
 /// The Rust version.
 pub fn reset_marks() -> Result<(), Refused> {
-    guard(&regions(), || {
+    {
         // Converted: `rc2k_core::race::viewer::reset_marks`.
         let (block, mark_in, mark_out) =
             rc2k_core::race::viewer::reset_marks(get(BLOCK), get(BLOCKS));
@@ -34,13 +31,7 @@ pub fn reset_marks() -> Result<(), Refused> {
         put(MARK_OUT, mark_out);
         unsafe { crate::drive::read_replay_frame_0::read_replay_frame_0(get(BLOCK)) }?;
         Ok(())
-    })
-}
-
-pub fn regions() -> Vec<Region> {
-    let mut all = read_regions();
-    all.extend([dword(MARK_IN), dword(MARK_OUT)]);
-    all
+    }
 }
 
 fn rust(r: &Regs) -> Result<Regs, Refused> {

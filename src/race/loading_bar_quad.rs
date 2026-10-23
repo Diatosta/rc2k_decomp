@@ -23,11 +23,8 @@ pub const SHARE_RVA: usize = rva(0x623700); // dword_623700: the share loaded, 0
 const SWITCH_RVA: usize = rva(0x6240C4); // dword_6240C4
 const SCREEN_RVA: [usize; 2] = [rva(0x4F494C), rva(0x4F4950)];
 
-/// A call by place: 1 `draw_screen_quad`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn loading_bar_quad(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn loading_bar_quad(entry: &Regs) -> Result<Regs, Refused> {
     // Converted: `rc2k_core::race::loading::loading_bar`.
     use rc2k_core::race::loading::{BAR_COLOUR, loading_bar};
     let mut g = *entry;
@@ -43,19 +40,19 @@ pub unsafe fn loading_bar_quad(entry: &Regs, part: Part) -> Result<Regs, Refused
         q(0x2C, g.eax);
         [g.ebx, g.ecx, g.edx] = [0x64, 0x258, bar.rest];
         game_write(SWITCH_RVA, 0xFFFF_FFFFu32);
-        part(1, &mut g)?;
+        crate::race::loading_bar_quad::game_part(1, &mut g)?;
     }
     Ok(g)
 }
 
 /// In the game: `draw_screen_quad`'s Rust version.
 pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { crate::race::frame_draw::draw_screen_quad(r, &mut crate::race::frame_draw::quad_part) }
+    unsafe { crate::race::frame_draw::draw_screen_quad(r) }
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { loading_bar_quad(r, &mut game_part) }?;
+    let left = unsafe { loading_bar_quad(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

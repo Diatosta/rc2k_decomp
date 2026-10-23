@@ -31,7 +31,6 @@ use crate::framework::{EAX, ESI, Regs};
 use crate::physics::flow::{g, p};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, restore};
 use rc2k_core::drive::race_steps;
 
 const B: usize = 0x70F3EC; // g_carBlockStore
@@ -56,10 +55,7 @@ fn car_step(r: &mut Regs) -> Result<(), Refused> {
             r.eax = c.eax;
             crate::drive::steer_inputs::steer_inputs(r).apply(r);
             crate::drive::pedal_inputs::pedal_inputs().apply(r);
-            *r = crate::drive::reset_request::reset_request(
-                r,
-                &mut crate::physics::reset_parts::game_part,
-            )?;
+            *r = crate::drive::reset_request::reset_request(r)?;
             crate::physics::car_physics_step::car_physics_step(r)?.apply(r);
             crate::net::race_step::race_step(r, &mut crate::net::game_part)?;
         }
@@ -113,15 +109,10 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
 /// The Rust version.
 pub unsafe fn replay_step(entry: &Regs) -> Result<Left, Refused> {
     race_steps::check_cars(g(CARS))?;
-    let all = crate::drive::race_cars_step::cars_regions();
-    let saved = capture(&all);
     let mut r = *entry;
     match steps(&mut r) {
         Ok(()) => Ok(left_of(&r)),
-        Err(e) => {
-            restore(&all, &saved);
-            Err(e)
-        }
+        Err(e) => Err(e),
     }
 }
 

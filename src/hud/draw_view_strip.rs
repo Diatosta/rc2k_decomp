@@ -119,7 +119,7 @@ pub unsafe fn draw_view_strip(entry: &Regs, part: Part) -> Result<Regs, Refused>
 
 pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::scene::draw_flat_quad as fq;
-    *r = unsafe { fq::draw_flat_quad(r, &mut fq::game_part) }?;
+    *r = unsafe { fq::draw_flat_quad(r) }?;
     Ok(())
 }
 

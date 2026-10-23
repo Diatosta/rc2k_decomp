@@ -27,8 +27,9 @@
 
 use crate::errors::Refused;
 use crate::framework::{
-    CALL_REDIRECT, GameHook, LOG_PATH, Regs, game_addr, game_read, game_write, log, rva,
+    CALL_REDIRECT, GameHook, LOG_PATH, Regs, game_addr, game_ptr, game_read, game_write, log, rva,
 };
+use crate::install::outside::Game as Outside;
 use crate::registry::ALL;
 use std::path::Path;
 use std::sync::OnceLock;
@@ -366,6 +367,17 @@ const SDL_DOES: [(usize, &str); 5] = [
     (0x410509, "system::drain_messages"),
 ];
 
+/// For Rust callers that name by its address a function the fault handler answers
+/// without the game (`menu::table_calls`): SDL's (carry clear) and the lone `retn`s, done
+/// here directly (conversion phase 3, 2026-10-23). `at` is the address as IDA shows it.
+pub fn answers(at: usize, r: &mut Regs) -> bool {
+    if SDL_DOES.iter().any(|w| w.0 == at) {
+        r.set_carry(false);
+        return true;
+    }
+    LONE_RETN.contains(&at)
+}
+
 unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {
     const CONTINUE_EXECUTION: i32 = -1;
     const CONTINUE_SEARCH: i32 = 0;
@@ -478,15 +490,19 @@ fn rust(name: &str) {
     log(&format!("standalone: start calls {name}"));
 }
 
-/// `start`'s call of a Rust version that still takes registers (`entry`): a refusal ends
-/// the program, a fatal error is raised.
+/// `start`'s call of a Rust version that still takes registers (its `entry`; conversion
+/// phase 3 makes them natural one by one).
 unsafe fn run_entry(name: &str, entry: fn(&mut Regs) -> Result<(), Refused>, r: &mut Regs) {
     rust(name);
-    match entry(r) {
-        Ok(()) => {}
-        Err(Refused::Fatal(error)) => unsafe { crate::fatal::raise::raise(error, r) },
-        Err(Refused::BadInput(why)) => finish(&format!("{name} refused: {}", why.0), 1),
+    if let Err(e) = entry(r) {
+        unsafe { refused(name, e, r) };
     }
+}
+
+/// A Rust version's refusal in `start`: a refused input ends the program, a fatal error is
+/// raised.
+unsafe fn refused(name: &str, e: Refused, r: &Regs) {
+    unsafe { crate::fatal::raise::refused_in(name, e, r) };
 }
 
 unsafe fn stand_in(what: &str, address: usize, value: u32) {
@@ -515,21 +531,21 @@ unsafe fn start() {
         rust("math::stir_random");
         crate::math::stir_random::stir_random(r.eax);
         // `system::set_exception_filter` (0x410D4C) sets nothing in the standalone.
-        run_entry(
-            "system::test_processor",
-            crate::system::test_processor::entry,
-            &mut r,
-        );
+        rust("system::test_processor");
+        if let Err(e) =
+            crate::system::test_processor::test_processor(&crate::system::test_processor::Real)
+        {
+            refused("system::test_processor", e, &r);
+        }
         rust("system::read_keyboard_type");
         crate::system::read_keyboard_type::read_keyboard_type();
         rust("system::read_windows_version");
         crate::system::read_windows_version::read_windows_version();
         CoInitialize(std::ptr::null());
-        run_entry(
-            "memory::open_own_heap",
-            crate::memory::open_own_heap::entry,
-            &mut r,
-        );
+        rust("memory::open_own_heap");
+        if let Err(e) = crate::memory::open_own_heap::open_own_heap() {
+            refused("memory::open_own_heap", e, &r);
+        }
         rust("system::set_error_mode");
         crate::system::set_error_mode::set_error_mode();
         rust("settings::read_settings");
@@ -538,11 +554,10 @@ unsafe fn start() {
         }
         rust("settings::apply_feature_switches");
         crate::settings::apply_feature_switches::apply_feature_switches();
-        run_entry(
-            "logfile::start_log",
-            crate::logfile::start_log::entry,
-            &mut r,
-        );
+        rust("logfile::start_log");
+        if let Err(why) = crate::logfile::start_log::start_log() {
+            refused("logfile::start_log", why.into(), &r);
+        }
         // The folders the game saves into but never makes (`notes`: `sub_413A97` makes
         // them only from the installer's script): made here when missing, in the game's
         // folder, as the path templates at 0x5296FB .. 0x52974B name them; not in the
@@ -571,53 +586,91 @@ unsafe fn start() {
         if game_read::<u32>(rva(0x5183EC)) != 1 {
             finish("fatal error 0x900010FF, FPU is required", 1);
         }
+        rust("system::read_command_line");
+        if let Err(why) = crate::system::read_command_line::read_own_command_line(&r) {
+            refused("system::read_command_line", why.into(), &r);
+        }
+        rust("install::check_clio_disc");
+        if let Err(e) = crate::install::check_clio_disc::check_clio_disc(&mut Outside) {
+            refused("install::check_clio_disc", e, &r);
+        }
+        rust("install::check_at_start");
+        let no_audio = game_ptr(crate::install::check_at_start::NO_AUDIO_RVA);
+        if let Err(e) = crate::install::check_at_start::check_at_start(&mut Outside, no_audio) {
+            refused("install::check_at_start", e, &r);
+        }
+        rust("system::check_developer_machine");
+        crate::system::check_developer_machine::check_developer_machine();
         run_entry(
-            "system::read_command_line",
-            crate::system::read_command_line::entry,
+            "install::read_languages",
+            crate::install::read_languages::entry,
             &mut r,
         );
-        for address in [0x416653, 0x416477] {
-            call(address, &mut r);
-        }
         run_entry(
-            "system::check_developer_machine",
-            crate::system::check_developer_machine::entry,
+            "install::read_record",
+            crate::install::read_record::entry,
             &mut r,
         );
-        for address in [0x413908, 0x4110C9] {
-            call(address, &mut r);
-        }
         // `strings::load_language` (0x40331F): Rust, its hook gone (it keeps every register).
         rust("strings::load_language");
         let compile = &mut || crate::strings::compile_lexicon::compile_lexicon();
-        match crate::strings::load_language::load_language(compile) {
-            Ok(()) => {}
-            Err(Refused::Fatal(error)) => crate::fatal::raise::raise(error, &r),
-            Err(Refused::BadInput(why)) => {
-                finish(&format!("strings::load_language refused: {}", why.0), 1)
-            }
+        if let Err(e) = crate::strings::load_language::load_language(compile) {
+            refused("strings::load_language", e, &r);
         }
-        call(0x411239, &mut r);
+        run_entry(
+            "system::load_game_data",
+            crate::system::load_game_data::entry,
+            &mut r,
+        );
         rust("system::find_running_game");
         if crate::system::find_running_game::find_running_game() {
             finish("the game is running already (0x4103BE)", 0);
         }
-        for address in [0x4103DE, 0x404981, 0x404270, 0x4043DA, 0x404401, 0x41848E] {
-            call(address, &mut r);
+        // `system::open_window` (0x4103DE) and `gfx::probe_exclusive_mode` (0x404981):
+        // SDL's (`SDL_DOES`).
+        rust("gfx::find_3d_cards");
+        crate::gfx::find_3d_cards::find_3d_cards();
+        rust("gfx::list_primary_modes");
+        if let Err(e) = crate::gfx::list_primary_modes::list_primary_modes() {
+            refused("gfx::list_primary_modes", e, &r);
         }
+        rust("gfx::list_secondary_modes");
+        if let Err(e) = crate::gfx::list_secondary_modes::list_secondary_modes() {
+            refused("gfx::list_secondary_modes", e, &r);
+        }
+        run_entry("net::set_up", crate::net::set_up::entry, &mut r);
         rust("system::set_priority_class");
         crate::system::set_priority_class::set_priority_class(0x80);
-        call(0x410B84, &mut r);
-        call(0x409C1E, &mut r);
+        run_entry(
+            "threading::start_threads",
+            crate::threading::start_threads::entry,
+            &mut r,
+        );
+        run_entry(
+            "sound::wait_for_commands",
+            crate::sound::wait_for_commands::entry,
+            &mut r,
+        );
         rust("system::sleep");
         crate::system::sleep::sleep(1000);
         call(0x404481, &mut r);
         if r.carry() {
             finish("fatal error 0x90201101, no screen mode (0x404481)", 1);
         }
-        for address in [0x40608F, 0x405DB4, 0x405580, 0x407062, 0x40F9DE] {
-            call(address, &mut r);
+        rust("gfx::allocate_picture_buffer");
+        if let Err(e) = crate::gfx::allocate_picture_buffer::allocate_picture_buffer() {
+            refused("gfx::allocate_picture_buffer", e, &r);
         }
+        rust("gfx::set_component_format");
+        if let Err(e) = crate::gfx::set_component_format::set_component_format() {
+            refused("gfx::set_component_format", e, &r);
+        }
+        rust("gfx::fill_thirds_table");
+        crate::gfx::fill_thirds_table::fill_thirds_table();
+        rust("gfx::install_converters");
+        crate::gfx::install_converters::install_converters();
+        // `sound::open_cd_audio` (0x40F9DE): cut out of this build (`pusha; jmp` to its
+        // end), so not called.
         // What the window's procedure and the key thread tell the main loop (the films
         // play since 2026-10-19: `film.rs`).
         stand_in("the window is the active one", 0x518374, 1);
@@ -627,18 +680,22 @@ unsafe fn start() {
             1,
         );
         stand_in("the key thread runs", 0x518998, 1);
-        call(0x415383, &mut r);
-        for address in [0x4184D6, 0x404CD6, 0x40FA8B] {
-            call(address, &mut r);
-        }
+        run_entry("system::main_loop", crate::system::main_loop::entry, &mut r);
+        run_entry("net::shut_down", crate::net::shut_down::entry, &mut r);
+        // `gfx::release_screens` (0x404CD6), `sound::close_cd_audio` (0x40FA8B): SDL's
+        // (`SDL_DOES`).
         rust("gfx::free_picture_buffer");
         if let Err(why) = crate::gfx::free_picture_buffer::free_picture_buffer() {
             finish(&format!("gfx::free_picture_buffer refused: {}", why.0), 1);
         }
-        call(0x410509, &mut r);
+        // `system::drain_messages` (0x410509): SDL's (`SDL_DOES`).
         rust("system::set_priority_class");
         crate::system::set_priority_class::set_priority_class(0x20);
-        call(0x412FA2, &mut r);
+        run_entry(
+            "install::run_after_exit",
+            crate::install::run_after_exit::entry,
+            &mut r,
+        );
         rust("system::restore_error_mode");
         crate::system::restore_error_mode::restore_error_mode();
         rust("memory::free_own_heap");

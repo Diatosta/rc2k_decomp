@@ -19,8 +19,7 @@
 //!      try's calls); no flags read (the caller returns)
 //!
 //! Caller: `sub_43B635` (0x43B8DB).
-//! Refuses (before anything) a probe count of 0 or past 0x40; what its calls refuse
-//! (everything written put back, the faces touched included).
+//! Refuses (before anything) a probe count of 0 or past 0x40; what its calls refuse.
 //! Shadow mode: the Rust version with `g_logEnabled` 0 (its log lines not written
 //! twice), then the original; `regions()` and the faces touched compared.
 //! Self-test (in a race; skipped otherwise; `g_logEnabled` 0 for it): the original and
@@ -33,31 +32,29 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::physics::face_contact::{Touched, put_back_faces};
 use crate::physics::flow::{a, g, p};
 use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::{extended, rounded};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, restore};
 use rc2k_core::physics::clear_place;
 
 // g_logEnabled
 const PORKY: usize = 0x4DBAFB; // aPorky
 
 /// One try's calls (0x43BE4D .. 0x43BE61).
-fn try_place(r: &mut Regs, touched: &mut Touched) -> Result<(), Refused> {
+fn try_place(r: &mut Regs) -> Result<(), Refused> {
     unsafe { crate::physics::probe_ground::probe_ground(r) }?;
     crate::physics::crossed_edge::check()?;
     crate::physics::crossed_edge::steps(r)?;
     crate::physics::wall_contacts::check()?;
     crate::physics::wall_contacts::steps(r)?;
     unsafe { crate::physics::car_collisions::car_collisions(r) }?.apply(r);
-    crate::physics::face_contacts_around::steps(r, touched)
+    crate::physics::face_contacts_around::steps(r)
 }
 
 /// The steps, not guarded.
 // Converted: `rc2k_core::physics::clear_place` (the tries' contacts are the hooks').
-pub fn steps(r: &mut Regs, touched: &mut Touched) -> Result<(), Refused> {
+pub fn steps(r: &mut Regs) -> Result<(), Refused> {
     p(0x614C28, clear_place::TRY_MARK);
     let factor = extended(g(0x613FDC));
     unsafe { crate::physics::scale_vector::scale_vector(a(0x71A170), factor) };
@@ -77,15 +74,13 @@ pub fn steps(r: &mut Regs, touched: &mut Touched) -> Result<(), Refused> {
             p(place, g(place).wrapping_add(r.eax));
         }
         r.eax = m.step;
-        try_place(r, touched)?;
+        try_place(r)?;
         r.ebp = n;
         Ok::<_, Refused>(g(0x614738) == 0)
     })?;
     if found.is_none() {
         r.ebp = clear_place::TRIES_END;
-        *r = unsafe {
-            crate::physics::reset_car::reset_car(r, &mut crate::physics::reset_parts::game_part)
-        }?;
+        *r = unsafe { crate::physics::reset_car::reset_car(r) }?;
         return Ok(());
     }
     unsafe { crate::physics::lowest_body_point::lowest_body_point(r) }?;
@@ -108,41 +103,13 @@ pub fn steps(r: &mut Regs, touched: &mut Touched) -> Result<(), Refused> {
 /// The Rust version.
 pub unsafe fn find_clear_place(entry: &Regs) -> Result<Left, Refused> {
     crate::physics::wall_contacts::check()?;
-    let all = regions();
-    let saved = capture(&all);
-    let (mut r, mut touched) = (*entry, Touched::new());
-    match steps(&mut r, &mut touched) {
-        Ok(()) => Ok(left_of(&r)),
-        Err(e) => {
-            restore(&all, &saved);
-            put_back_faces(&touched);
-            Err(e)
-        }
-    }
+    let mut r = *entry;
+    steps(&mut r)?;
+    Ok(left_of(&r))
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { find_clear_place(r) }
-}
-
-/// Everything it and its calls write but the faces.
-pub fn regions() -> Vec<Region> {
-    let mut all = crate::physics::face_contact::regions();
-    all.extend(crate::physics::crossed_edge::regions());
-    all.extend(crate::physics::car_collisions::regions());
-    all.extend(crate::physics::probe_ground::regions(
-        &crate::physics::ground::Ground::game(),
-    ));
-    all.extend(crate::physics::limit_motion::regions());
-    all.extend(crate::physics::reset_parts::regions());
-    all.extend([
-        (a(0x614C28), 4),
-        (a(0x614118), 4),
-        (a(0x614738), 8),
-        (a(0x6D3068), 12),
-        (a(0x71A10C), 12),
-    ]);
-    all
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).

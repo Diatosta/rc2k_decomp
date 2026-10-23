@@ -807,8 +807,8 @@ pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused
     let p = [v[0], v[1], v[2]];
     let left = unsafe {
         match place {
-            3 => sub::draw_subcell_sprite(r, p, &mut sub::game_part)?,
-            _ => cell::draw_cell_sprite(r, p, &mut cell::game_part)?,
+            3 => sub::draw_subcell_sprite(r, p)?,
+            _ => cell::draw_cell_sprite(r, p)?,
         }
     };
     *r = Regs { esp: r.esp, ..left };

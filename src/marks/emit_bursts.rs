@@ -26,12 +26,12 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::emitters::*;
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at as at_rva, state_entry};
+use crate::service::harness::state_entry;
 
 const FLAGS2_RVA: usize = rva(0x939BAA); // g_marksWheelFlags2: the wheel's +0x24 kept
 const DIRECTION_RVA: usize = rva(0x935688); // flt_935688 .. flt_935690
@@ -254,36 +254,6 @@ pub unsafe fn emit_bursts_with(set: &BurstSet, wheel: u32, object: u32) -> Resul
         }
     }
     Ok(())
-}
-
-/// What it may write: the globals, the entries it would take, the wheel unchanged.
-pub fn regions(set: &BurstSet, wheel: u32) -> Vec<Region> {
-    let mut r: Vec<Region> = [
-        FLAGS2_RVA,
-        PICK_RVA,
-        SCRATCH_RVA,
-        RING_CURSOR_RVA,
-        RING_COUNT_RVA,
-        rva(0x923004), // g_marksSpreadRandom
-    ]
-    .map(at_rva)
-    .to_vec();
-    r.push((game_addr(DIRECTION_RVA) as u32, 12));
-    for h in &set.halves {
-        r.extend([h.strength, h.rate_random, h.count_random, h.entry_random].map(at_rva));
-    }
-    if wheel != 0 {
-        let n: u32 = unsafe { counts(set, wheel) }.iter().sum();
-        let mut e: u32 = unsafe { game_read(RING_CURSOR_RVA) };
-        for _ in 0..n {
-            if e == 0 {
-                break;
-            }
-            e = unsafe { at(e) };
-            r.push((e, ENTRY_LEN));
-        }
-    }
-    r
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

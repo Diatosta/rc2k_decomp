@@ -107,25 +107,25 @@ pub unsafe fn set_up_primary_mixer(v: &MixerVars, part: Part) -> Result<bool, Re
 
 /// `audio::open_way`: the voices' own buffers: `clear_channels` (6); the mixer:
 /// `set_up_primary_mixer` (11); neither: the carry. Returns the carry.
-pub fn open_way(mode: u32, part: Part) -> Result<bool, Refused> {
+pub fn open_way(mode: u32) -> Result<bool, Refused> {
     // Converted: `rc2k_core::audio::device::way`.
     use rc2k_core::audio::device::{Way, way};
     match way(mode) {
         // A jump into it: the carry is the one it leaves.
-        Some(Way::OwnBuffers) => part(6, 0, 0),
-        Some(Way::Mixer) => part(11, 0, 0),
+        Some(Way::OwnBuffers) => crate::audio::restore::game_part(6, 0, 0),
+        Some(Way::Mixer) => crate::audio::restore::game_part(11, 0, 0),
         None => Ok(true),
     }
 }
 
 /// `audio::close_way`: as `open_way`, with `close_primary_mixer` (10) for the mixer.
-pub fn close_way(mode: u32, part: Part) -> Result<bool, Refused> {
+pub fn close_way(mode: u32) -> Result<bool, Refused> {
     // Converted: `rc2k_core::audio::device::way`.
     use rc2k_core::audio::device::{Way, way};
     match way(mode) {
         // A jump into it: the carry is the one it leaves.
-        Some(Way::OwnBuffers) => part(6, 0, 0),
-        Some(Way::Mixer) => part(10, 0, 0),
+        Some(Way::OwnBuffers) => crate::audio::restore::game_part(6, 0, 0),
+        Some(Way::Mixer) => crate::audio::restore::game_part(10, 0, 0),
         None => Ok(true),
     }
 }

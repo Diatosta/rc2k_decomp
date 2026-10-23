@@ -8,10 +8,10 @@
 //! whose call goes to a stand-in, the switches each way.
 
 use crate::framework::Regs;
-use crate::race::skid_laying::{lay_part, lay_skidmarks_if_on};
+use crate::race::skid_laying::lay_skidmarks_if_on;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { lay_skidmarks_if_on(r, &mut lay_part) }?;
+    unsafe { lay_skidmarks_if_on(r) }?;
     Ok(())
 }

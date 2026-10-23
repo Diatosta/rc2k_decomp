@@ -58,16 +58,15 @@ impl ThreadVars {
     }
 }
 
-/// A call (place, the registers there) -> its carry; place 6 leaves the tick in eax.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<bool, Refused>;
-
 /// Runs to the `ExitThread` (place 18), which in the game does not come back.
-pub unsafe fn audio_thread(entry: &Regs, v: &ThreadVars, part: Part) -> Result<(), Refused> {
+pub unsafe fn audio_thread(entry: &Regs, v: &ThreadVars) -> Result<(), Refused> {
     unsafe {
         let mut c = *entry;
         c.esi = v.slot;
         let running = (v.slot + 0xC) as *mut u8;
-        let mut call = |place: u32, c: &mut Regs| -> Result<bool, Refused> { part(place, c) };
+        let call = |place: u32, c: &mut Regs| -> Result<bool, Refused> {
+            crate::audio::thread::game_part(place, c)
+        };
         let started = running.read() != 1
             && {
                 running.write(1);
@@ -191,27 +190,16 @@ fn turn_part(place: u32, r: &mut Regs) -> Result<bool, Refused> {
                 false
             }
             10 => {
-                take_commands::take_commands(
-                    r,
-                    &take_commands::Vars::game(),
-                    &mut take_commands::game_part,
-                )?;
+                take_commands::take_commands(r, &take_commands::Vars::game())?;
                 false
             }
             11 => {
-                update_voices::update_voices(
-                    &update_voices::Vars::game(),
-                    &mut update_voices::game_part,
-                )?;
+                update_voices::update_voices(&update_voices::Vars::game())?;
                 crate::audio::stray_voices::check();
                 false
             }
             12 => {
-                close_all::close_all(
-                    r,
-                    game_addr(voices::SOUND_MODE_RVA) as u32,
-                    &mut close_all::game_part,
-                )?;
+                close_all::close_all(r, game_addr(voices::SOUND_MODE_RVA) as u32)?;
                 false
             }
             13 => {
@@ -219,7 +207,7 @@ fn turn_part(place: u32, r: &mut Regs) -> Result<bool, Refused> {
                 false
             }
             15 => {
-                restore::restore_lost(&restore::RestoreVars::game(), &mut restore::game_part)?;
+                restore::restore_lost(&restore::RestoreVars::game())?;
                 false
             }
             16 => {
@@ -238,6 +226,6 @@ fn turn_part(place: u32, r: &mut Regs) -> Result<bool, Refused> {
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let entry = *r;
-    unsafe { audio_thread(&entry, &ThreadVars::game(), &mut game_part) }?;
+    unsafe { audio_thread(&entry, &ThreadVars::game()) }?;
     Ok(())
 }

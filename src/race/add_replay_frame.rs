@@ -21,7 +21,7 @@ use crate::race::replay::*;
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     {
-        let g = unsafe { add_replay_frame(r, &mut game_part) }?;
+        let g = unsafe { add_replay_frame(r) }?;
         *r = Regs { esp: r.esp, ..g }
     }
     Ok(())

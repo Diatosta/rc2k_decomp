@@ -21,27 +21,27 @@ use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::install::installer::{
     BASE_B, CHOOSE_LANGUAGE, GAME_DIR, GIVEN_LANGUAGE, GIVEN_MODE, INSTALLED, LOAD_LANGUAGE,
-    MEDIA_MODE, NORMALISE, Part, SET_CD, TYPED, a, at, g, p,
+    MEDIA_MODE, NORMALISE, SET_CD, TYPED, a, at, g, p,
 };
 
 const INSTALL_FILES: usize = 0x4130CD;
 
-pub fn install_from_command(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn install_from_command(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     r.edx = a(GAME_DIR);
-    part(at(SET_CD), &mut r)?;
+    crate::install::installer::game_part(at(SET_CD), &mut r)?;
     if r.carry() {
         return Ok(*entry);
     }
     r.esi = a(BASE_B);
     r.edx = a(GAME_DIR);
-    part(at(NORMALISE), &mut r)?;
+    crate::install::installer::game_part(at(NORMALISE), &mut r)?;
     if r.carry() {
         return Ok(*entry);
     }
     r.esi = a(INSTALLED);
     r.edx = a(TYPED);
-    part(at(NORMALISE), &mut r)?;
+    crate::install::installer::game_part(at(NORMALISE), &mut r)?;
     // A given media mode (above 0) is taken, held to 3, and only then a given language
     // (above 0): a mode of 0 or less goes straight to the install. eax as the original has
     // it at each call.
@@ -51,18 +51,16 @@ pub fn install_from_command(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         p(MEDIA_MODE, r.eax);
         r.eax = g(GIVEN_LANGUAGE);
         if (r.eax as i32) > 0 {
-            part(at(CHOOSE_LANGUAGE), &mut r)?;
-            part(at(LOAD_LANGUAGE), &mut r)?;
+            crate::install::installer::game_part(at(CHOOSE_LANGUAGE), &mut r)?;
+            crate::install::installer::game_part(at(LOAD_LANGUAGE), &mut r)?;
         }
     }
-    part(at(INSTALL_FILES), &mut r)?;
+    crate::install::installer::game_part(at(INSTALL_FILES), &mut r)?;
     Ok(Regs { ..*entry })
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::race::viewer::regs_entry(r, &|r| {
-        install_from_command(r, &mut crate::install::installer::game_part)
-    })
+    crate::race::viewer::regs_entry(r, &|r| install_from_command(r))
 }

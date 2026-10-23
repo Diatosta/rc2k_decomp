@@ -17,7 +17,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_read, rva};
-use crate::physics::sound_cues::{CUE_LAST, Part, cue_entry};
+use crate::physics::sound_cues::{CUE_LAST, cue_entry};
 use rc2k_core::physics::listed_cars::listed_entry;
 
 fn g(x: usize) -> u32 {
@@ -26,11 +26,11 @@ fn g(x: usize) -> u32 {
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::listed_cars::listed_entry`.
-pub fn cue_listed_car_sound_last_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn cue_listed_car_sound_last_in(r: &mut Regs) -> Result<(), Refused> {
     let (entry, listed) = listed_entry(g(0x71B3F8), |car| g(0x641680 + 4 * car as usize))?;
     r.eax = entry;
     if listed {
-        part(CUE_LAST, r)?;
+        crate::physics::sound_cues::game_part(CUE_LAST, r)?;
     }
     Ok(())
 }

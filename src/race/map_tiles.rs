@@ -13,10 +13,10 @@
 //! and the self-test was the hook's.
 
 use crate::framework::Regs;
-use crate::race::map_scroll::{map_tiles, tiles_part};
+use crate::race::map_scroll::map_tiles;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let _ = unsafe { map_tiles(r, &mut tiles_part) };
+    let _ = unsafe { map_tiles(r) };
     Ok(())
 }

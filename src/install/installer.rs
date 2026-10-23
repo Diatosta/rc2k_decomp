@@ -302,9 +302,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         match ida {
             // the installer's own (this module's neighbours)
-            0x412F34 => {
-                i::install_from_command::install_from_command(r, &mut game_part).map(|_| ())?
-            }
+            0x412F34 => i::install_from_command::install_from_command(r).map(|_| ())?,
             0x4130CD => {
                 INSTALL_TRACE.store(true, std::sync::atomic::Ordering::Relaxed);
                 let done = i::install_files::install_files(r, &mut game_part);
@@ -317,7 +315,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             }
             0x4134DF => {
                 INSTALL_TRACE.store(true, std::sync::atomic::Ordering::Relaxed);
-                let done = i::uninstall::uninstall(r, &mut game_part);
+                let done = i::uninstall::uninstall(r);
                 INSTALL_TRACE.store(false, std::sync::atomic::Ordering::Relaxed);
                 crate::framework::log(&format!(
                     "install: the uninstall ended: {:?}",
@@ -325,35 +323,34 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 ));
                 done.map(|_| ())?
             }
-            0x413629 => *r = i::open_installed::open_installed(r, &mut game_part)?,
-            0x41365D => i::run_script::run_script(r, &mut game_part).map(|_| ())?,
-            0x41371C => i::list_folder_tree::list_folder_tree(r, &mut game_part).map(|_| ())?,
-            0x413876 => i::list_folder::list_folder(r, &mut game_part).map(|_| ())?,
-            0x4138B2 => i::list_files::list_files(r, &mut game_part).map(|_| ())?,
+            0x413629 => *r = i::open_installed::open_installed(r)?,
+            0x41365D => i::run_script::run_script(r).map(|_| ())?,
+            0x41371C => i::list_folder_tree::list_folder_tree(r).map(|_| ())?,
+            0x413876 => i::list_folder::list_folder(r).map(|_| ())?,
+            0x4138B2 => i::list_files::list_files(r).map(|_| ())?,
             0x413650 => *r = i::ask_registration::ask_registration(r),
             0x41370C => *r = i::script_name::script_name(r)?,
-            0x4139DA => *r = i::copy_counted::copy_counted(r, &mut game_part)?,
+            0x4139DA => *r = i::copy_counted::copy_counted(r)?,
             0x413A6C => *r = i::check_folder_name::check_folder_name(r),
-            0x413A97 => *r = i::make_folders::make_folders(r, &mut game_part)?,
-            0x413B0B => i::check_installed_version::check_installed_version(r, &mut game_part)
-                .map(|_| ())?,
-            0x413C27 => *r = i::list_drives::list_drives(r, &mut game_part)?,
+            0x413A97 => *r = i::make_folders::make_folders(r)?,
+            0x413B0B => i::check_installed_version::check_installed_version(r).map(|_| ())?,
+            0x413C27 => *r = i::list_drives::list_drives(r)?,
             0x413DC5 => *r = i::write_registry::write_registry(r, &mut game_api)?,
-            0x414199 => *r = i::language_page::language_page(r, &mut game_part)?,
+            0x414199 => *r = i::language_page::language_page(r)?,
             0x4141EF => *r = i::mark_main_page::mark_main_page(r),
             0x41422B => *r = i::mode_page::mode_page(r),
             0x41425E => *r = i::drive_page::drive_page(r),
             0x4142C7 => *r = i::room_page::room_page(r),
             0x4142DA => *r = i::ignore_room::ignore_room(r),
-            0x4142F5 => *r = i::folder_page::folder_page(r, &mut game_part)?,
+            0x4142F5 => *r = i::folder_page::folder_page(r)?,
             0x41432F => *r = i::dxsetup_page::dxsetup_page(r),
             0x414347 => *r = i::finish_page::finish_page(r),
-            0x414490 => *r = i::close_installer::close_installer(r, &mut game_part)?,
+            0x414490 => *r = i::close_installer::close_installer(r)?,
             0x414363 => i::open_installer::open_installer(r, &mut game_part).map(|_| ())?,
-            0x4144AA => *r = i::run_pages::run_pages(r, &mut game_part)?,
+            0x4144AA => *r = i::run_pages::run_pages(r)?,
             0x4144CF => *r = i::run_page::run_page(r, &mut game_part)?,
             0x4146E4 => *r = i::page_key::page_key(r, &mut game_part)?,
-            0x4147FE => *r = i::item_enter::item_enter(r, &mut game_part)?,
+            0x4147FE => *r = i::item_enter::item_enter(r)?,
             0x414784 => *r = i::key_up::key_up(r)?,
             0x414794 => *r = i::key_down::key_down(r)?,
             0x4147A4 => *r = i::key_left::key_left(r)?,
@@ -367,16 +364,16 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             0x4148B7 => *r = i::value_by_number::value_by_number(r)?,
             0x4148D6 => *r = i::start_edit::start_edit(r),
             0x4148F7 => *r = i::edit_key::edit_key(r)?,
-            0x414A28 => *r = i::item_link::item_link(r, &mut game_part)?,
-            0x414A4B => *r = i::item_action::item_action(r, &mut game_part)?,
+            0x414A28 => *r = i::item_link::item_link(r)?,
+            0x414A4B => *r = i::item_action::item_action(r)?,
             0x414B53 => *r = i::mark_page::mark_page(r),
             0x414C7E => *r = i::lay_out_pieces::lay_out_pieces(r)?,
-            0x414DF5 => *r = i::measure_pieces::measure_pieces(r, &mut game_part)?,
+            0x414DF5 => *r = i::measure_pieces::measure_pieces(r)?,
             0x414ED1 => *r = i::place_pieces::place_pieces(r)?,
             0x414F11 => *r = i::place_row::place_row(r)?,
-            0x415058 => *r = i::draw_pieces::draw_pieces(r, &mut game_part)?,
-            0x41525D => *r = i::show_backdrop::show_backdrop(r, &mut game_part)?,
-            0x415273 => *r = i::backdrop_frame::backdrop_frame(r, &mut game_part)?,
+            0x415058 => *r = i::draw_pieces::draw_pieces(r)?,
+            0x41525D => *r = i::show_backdrop::show_backdrop(r)?,
+            0x415273 => *r = i::backdrop_frame::backdrop_frame(r)?,
             0x415304 => {
                 append_byte(r, b'\n');
                 append_byte(r, 0);
@@ -384,10 +381,10 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             0x41530F => *r = i::next_edit::next_edit(r),
             0x41534E => *r = i::folder_key::folder_key(r),
             0x419030 => *r = i::register_lobby::register_lobby(r, &mut game_part, &mut game_api)?,
-            0x41675B => i::install_clio::install_clio(r, &mut game_part).map(|_| ())?,
+            0x41675B => i::install_clio::install_clio(r).map(|_| ())?,
             0x4190E9 => *r = i::unregister_lobby::unregister_lobby(r, &mut game_api)?,
-            0x402370 => *r = i::draw_string_list::draw_string_list(r, &mut game_part)?,
-            0x402628 => *r = i::blit_glyph_list::blit_glyph_list(r, &mut game_part)?,
+            0x402370 => *r = i::draw_string_list::draw_string_list(r)?,
+            0x402628 => *r = i::blit_glyph_list::blit_glyph_list(r)?,
             0x40317D => *r = crate::files::drive_free_space_kb::free_space_regs(r, &mut game_api),
             0x411186 => *r = i::write_record::write_record(r, &mut game_part)?,
             // the game's, Rust
@@ -462,24 +459,14 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 r.eax = r.eax & !0xFF | key as u32;
                 logic(r, key as u32);
             }
-            LIST_TAKE_KEY => {
-                *r = crate::menu::list_take_key::list_take_key(
-                    r,
-                    &mut crate::menu::list_take_key::game_part,
-                )?
-            }
+            LIST_TAKE_KEY => *r = crate::menu::list_take_key::list_take_key(r)?,
             LIST_STEP => *r = crate::menu::list_step::list_step(r),
             LIST_CLEAR_MARKS => crate::menu::list_clear_marks::list_clear_marks(r.edi),
             LIST_UNUSABLE => {
                 let unusable = crate::menu::list_item_unusable::list_item_unusable(r.edi);
                 r.set_carry(unusable);
             }
-            SCREENSHOT => {
-                *r = crate::gfx::take_screenshot::take_screenshot(
-                    r,
-                    &mut crate::gfx::take_screenshot::game_part,
-                )?
-            }
+            SCREENSHOT => crate::gfx::take_screenshot::take_screenshot()?,
             KEY_TO_CHAR => r.eax = crate::input::key_to_char::key_to_char(r.eax)?,
             DRAW_TEXT => draw_text(r)?,
             DRAW_STRING => draw_string(r)?,

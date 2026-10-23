@@ -12,11 +12,11 @@
 //! and the self-test was the hook's.
 
 use crate::framework::Regs;
-use crate::race::replay_patches::{game_part, restore_replay_patches};
+use crate::race::replay_patches::restore_replay_patches;
 use crate::race::viewer::regs_entry;
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| restore_replay_patches(r, &mut game_part))
+    regs_entry(r, &|r| restore_replay_patches(r))
 }

@@ -19,13 +19,13 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::Regs;
 use crate::sound::spot_voices::{VOICE_COUNT, voice};
-use crate::sound::turn_parts::{Part, STOP, turn_entry};
+use crate::sound::turn_parts::turn_entry;
 
 // ---- Rust version ----
 
 /// Converted: `rc2k_core::sound::spot_voices::free_unheard`; each stop sent with the
 /// registers the original has there (the request's sound written first).
-pub fn free_spot_voices_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn free_spot_voices_in(r: &mut Regs) -> Result<(), Refused> {
     use crate::sound::spot_voices::{load_voices, store_voices};
     if r.esi == 0 {
         return Err(BadInput("no request").into());
@@ -35,7 +35,7 @@ pub fn free_spot_voices_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     let done = rc2k_core::sound::spot_voices::free_unheard::<Refused>(&mut voices, |n, sound| {
         (c.ebx, c.ecx, c.eax) = (voice(n as u32), VOICE_COUNT - n as u32, sound);
         unsafe { (c.esi as *mut u32).write_unaligned(sound) };
-        part(STOP, &mut c)
+        crate::sound::turn_parts::stop(&c)
     });
     store_voices(&voices);
     done

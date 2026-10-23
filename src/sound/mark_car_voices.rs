@@ -19,7 +19,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_read, rva};
-use crate::sound::turn_parts::{COUNT, OBJECTS, Part, turn_entry};
+use crate::sound::turn_parts::{COUNT, OBJECTS, turn_entry};
 
 /// dword_514F8C: 1 while the cars' voices are to be marked.
 const MARKING: usize = 0x514F8C;
@@ -48,7 +48,7 @@ fn pairs() -> Result<Vec<(u32, u32)>, BadInput> {
 }
 
 /// Converted: `rc2k_core::sound::cars::voice_mark`.
-pub fn mark_car_voices_in(_: &mut Regs, _: Part) -> Result<(), Refused> {
+pub fn mark_car_voices_in(_: &mut Regs) -> Result<(), Refused> {
     if g(MARKING) != 1 {
         return Ok(());
     }

@@ -313,25 +313,12 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         match place {
             1 => {
-                return crate::sound::race_sound_tick::race_sound_tick_in(
-                    r,
-                    &mut crate::sound::turn_parts::game_part,
-                );
+                return crate::sound::race_sound_tick::race_sound_tick_in(r);
             }
-            9 => *r = crate::race::mud_frame::mud_frame(r, &mut crate::race::mud_frame::game_part)?,
+            9 => *r = crate::race::mud_frame::mud_frame(r)?,
             16 => crate::race::draw_view_scene::draw_view_scene_in_game(r)?,
-            18 => {
-                *r = crate::race::draw_view_overlays::draw_view_overlays(
-                    r,
-                    &mut crate::race::draw_view_overlays::game_part,
-                )?
-            }
-            19 => {
-                *r = crate::race::draw_mirror_view::draw_mirror_view(
-                    r,
-                    &mut crate::race::draw_mirror_view::game_part,
-                )?
-            }
+            18 => *r = crate::race::draw_view_overlays::draw_view_overlays(r)?,
+            19 => *r = crate::race::draw_mirror_view::draw_mirror_view(r)?,
             _ => crate::calls::call(rva(CALLEES[place as usize]), r),
         }
     }

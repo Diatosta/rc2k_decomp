@@ -1,6 +1,5 @@
 //! The lobby's calls in the game, by place (the callee's IDA address): the Rust versions
-//! (each through `race::loadlevel::or_in_game`, so a case one refuses goes to its hook and
-//! from there to its original); the screens' frames, the screen modes, the window's
+//! (a refusal is the caller's); the screens' frames, the screen modes, the window's
 //! messages, the car and stage screens, the music and the race sounds' set-up through the
 //! game (their hooks); DirectPlay's `Send` and the received messages' lock as `net::game_part`
 //! has them.
@@ -8,7 +7,6 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::net::lobby::*;
-use crate::race::loadlevel::or_in_game;
 use crate::text::draw_text::{GameCanvas, Outcome};
 use crate::text::font::Font;
 
@@ -27,7 +25,6 @@ fn emit(r: &mut Regs, bytes: &[u8]) {
 
 pub fn call(place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::logfile::{log_hex8::log_hex8, log_int::log_int, log_write::log_write};
-    let at = place as usize;
     unsafe {
         match place {
             // The log: each stub's level in edx, as the game's stubs leave it.
@@ -64,12 +61,11 @@ pub fn call(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 r.ebx as *mut u8,
                 r.ecx,
             )?,
-            ZERO_MEMORY => or_in_game(at, r, |r| {
+            ZERO_MEMORY => {
                 crate::system::zero_memory::zero_memory(r.ebx as *mut u8, r.ecx)?;
                 r.set_carry(false);
                 r.set_zero(r.ecx & 3 == 0);
-                Ok(())
-            })?,
+            }
             NEXT_RANDOM => {
                 r.eax = crate::math::next_random::next_random();
                 r.set_zero(r.eax == 0);
@@ -113,7 +109,7 @@ pub fn call(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 r.set_zero(true);
                 r.set_carry(false);
             }
-            DRAW_KEEP => or_in_game(at, r, |r| {
+            DRAW_KEEP => {
                 let font = r.eax as *mut Font;
                 let mut copy = font.read_unaligned();
                 let too_wide = crate::text::draw_text_keep_regs::draw_text_keep_regs(
@@ -128,9 +124,8 @@ pub fn call(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 }
                 r.set_carry(too_wide);
                 r.set_zero(!too_wide);
-                Ok(())
-            })?,
-            MEASURE_TEXT => or_in_game(at, r, |r| {
+            }
+            MEASURE_TEXT => {
                 let m = crate::text::measure_text::measure_text_at(
                     r.eax as *mut Font,
                     r.ebx as *const u8,
@@ -140,9 +135,8 @@ pub fn call(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 (r.eax, r.ebx, r.ecx, r.edx) = (0, m.lines, m.width, m.outcome.y as u32);
                 r.set_carry(m.outcome.too_wide);
                 r.set_zero(!m.outcome.too_wide);
-                Ok(())
-            })?,
-            MEASURE_STRING => or_in_game(at, r, |r| {
+            }
+            MEASURE_STRING => {
                 let m = crate::text::measure_string_by_id::measure_string_by_id_at(
                     r.eax,
                     r.ebx as *mut Font,
@@ -152,9 +146,8 @@ pub fn call(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 (r.eax, r.ebx, r.ecx, r.edx) = (0, m.lines, m.width, m.outcome.y as u32);
                 r.set_carry(m.outcome.too_wide);
                 r.set_zero(!m.outcome.too_wide);
-                Ok(())
-            })?,
-            DRAW_STRING => or_in_game(at, r, |r| {
+            }
+            DRAW_STRING => {
                 let out = crate::text::draw_string_by_id::draw_string_by_id_at(
                     r.eax,
                     r.ebx as *mut Font,
@@ -163,9 +156,8 @@ pub fn call(place: u32, r: &mut Regs) -> Result<(), Refused> {
                     &mut GameCanvas,
                 )?;
                 drawn(r, &out);
-                Ok(())
-            })?,
-            DRAW_TEXT => or_in_game(at, r, |r| {
+            }
+            DRAW_TEXT => {
                 let out = crate::text::draw_text::draw_text_at(
                     r.eax as *mut Font,
                     r.ebx as *const u8,
@@ -174,46 +166,42 @@ pub fn call(place: u32, r: &mut Regs) -> Result<(), Refused> {
                     &mut GameCanvas,
                 )?;
                 drawn(r, &out);
-                Ok(())
-            })?,
-            DRAW_TIME => or_in_game(at, r, |r| {
-                *r = crate::text::draw_time_text::draw_time_text(r, &mut call)?;
-                Ok(())
-            })?,
-            ALLOCATE => or_in_game(at, r, |r| {
+            }
+            DRAW_TIME => {
+                *r = crate::text::draw_time_text::draw_time_text(r)?;
+            }
+            ALLOCATE => {
                 r.eax = crate::memory::allocate::allocate(r.ebx as *mut _, r.eax)? as u32;
                 r.set_carry(false);
-                Ok(())
-            })?,
+            }
             MAYBE_LEXICON => crate::strings::maybe_compile_lexicon::maybe_compile_lexicon()?,
             SET_RACE_MODE => crate::race::race_shell::set_race_screen_mode(
                 &{ *r },
                 &mut crate::race::race_shell::game_screen_mode,
             ),
             RESTORE_WINDOW => crate::system::restore_window::restore_window(),
-            PICTURE_AS_SURFACE => or_in_game(at, r, |_| {
+            PICTURE_AS_SURFACE => {
+                let _ = r;
                 crate::gfx::picture_as_surface::picture_as_surface()?;
-                Ok(())
-            })?,
-            COPY_PICTURE => or_in_game(at, r, |_| {
+            }
+            COPY_PICTURE => {
+                let _ = r;
                 crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
                     &mut crate::gfx::copy_picture_to_surface::GameSurface,
                 )?;
-                Ok(())
-            })?,
-            CONVERT_PICTURE => or_in_game(at, r, |_| {
+            }
+            CONVERT_PICTURE => {
+                let _ = r;
                 crate::gfx::convert_picture::convert_picture_now()?;
-                Ok(())
-            })?,
-            LOAD_PICTURE => or_in_game(at, r, |r| {
+            }
+            LOAD_PICTURE => {
                 let read = crate::gfx::load_picture::load_picture(r.eax as *mut u8)?;
                 r.set_carry(!read);
-                Ok(())
-            })?,
+            }
             DRAW_HLINE => {
                 crate::gfx::rect::draw_hline(r.ecx as i32, r.edx as i32, r.ebx as i32, r.eax, r.esi)
             }
-            BLIT => or_in_game(at, r, |r| {
+            BLIT => {
                 let exit = crate::gfx::blit_glyph::blit_glyph_on_surface(
                     r.eax,
                     r.esi as *const u8,
@@ -222,42 +210,26 @@ pub fn call(place: u32, r: &mut Regs) -> Result<(), Refused> {
                     r.ebx as *const u32,
                 )?;
                 (r.eax, r.ebx, r.ecx, r.edx) = (exit.eax, exit.ebx, exit.ecx, exit.edx);
-                Ok(())
-            })?,
-            SCREENSHOT => {
-                *r = crate::gfx::take_screenshot::take_screenshot(
-                    r,
-                    &mut crate::gfx::take_screenshot::game_part,
-                )?
             }
-            KEY_TO_CHAR => or_in_game(at, r, |r| {
+            SCREENSHOT => crate::gfx::take_screenshot::take_screenshot()?,
+            KEY_TO_CHAR => {
                 r.eax = crate::input::key_to_char::key_to_char(r.eax)?;
                 r.set_carry(r.eax as u8 == 0);
                 r.set_zero(r.eax as u8 == 1);
-                Ok(())
-            })?,
+            }
             TAKE_KEY => crate::race::viewer_load_stage::take_key(r),
             STOP_MUSIC => crate::sound::stop_music::stop_music_in_game(r),
             SLEEP => crate::system::sleep::sleep(r.eax),
             TICK => r.eax = crate::system::tick_count::tick_count(),
             PARSE_NUMBER => r.eax = crate::settings::parse_number::parse_number(r.eax as *const u8),
-            LIST_TAKE_KEY => {
-                *r = crate::menu::list_take_key::list_take_key(
-                    r,
-                    &mut crate::menu::list_take_key::game_part,
-                )?
-            }
+            LIST_TAKE_KEY => *r = crate::menu::list_take_key::list_take_key(r)?,
             CLEAR_RACE_SOUNDS => {
                 use crate::race::sound_tables;
-                *r = sound_tables::clear_race_sound_objects(r, &mut sound_tables::object_part)?;
+                *r = sound_tables::clear_race_sound_objects(r)?;
             }
             SET_UP_RACE_SOUNDS => {
                 use crate::race::sound_tables;
-                sound_tables::set_up_race_sound_objects(
-                    r,
-                    &sound_tables::ObjectVars::game(),
-                    &mut sound_tables::object_part,
-                )?;
+                sound_tables::set_up_race_sound_objects(r, &sound_tables::ObjectVars::game())?;
             }
             SET_UP_ENGINE => crate::scene::set_up_engine::set_up_engine_in_game(r),
             FRONT_END_SCENE => {

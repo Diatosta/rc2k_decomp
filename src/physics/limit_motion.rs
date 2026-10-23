@@ -31,7 +31,6 @@ use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::rounded;
 use crate::screens::harness::Left;
 use crate::service::floats::floats_entry;
-use crate::service::harness::Region;
 use rc2k_core::physics::limits::Moving;
 use std::cmp::Ordering;
 
@@ -182,17 +181,6 @@ pub unsafe fn limit_motion() -> Left {
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(limit_motion_plain())
-}
-
-pub fn regions() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    vec![
-        (a(0x71A15C), 0x10),
-        (a(0x71A170), 0x18),
-        (a(0x613E70), 8),
-        (a(0x623FBC), 4),
-        (a(0x62400C), 4),
-    ]
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

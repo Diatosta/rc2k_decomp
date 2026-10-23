@@ -25,11 +25,8 @@ const CLASS_RVA: usize = rva(0x7558F4); // dword_7558F4
 const COUNT_RVA: usize = rva(0x7556B4); // dword_7556B4
 // g_eventMode
 
-/// A call by place: 1 the page.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn show_class_stage_results(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn show_class_stage_results(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         g.eax = game_read(rva(0x7559AC)); // seconds
@@ -42,7 +39,7 @@ pub unsafe fn show_class_stage_results(entry: &Regs, part: Part) -> Result<Regs,
         game_write(COUNT_RVA, count);
         let g = crate::menu::first_page_stage::first_page_stage(&found)?;
         let mut r = crate::menu::stage_range_caption::stage_range_caption(&g)?;
-        part(1, &mut r)?;
+        crate::menu::show_class_stage_results::game_part(1, &mut r)?;
     }
     Ok(*entry)
 }
@@ -57,7 +54,7 @@ pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { show_class_stage_results(r, &mut game_part) }?;
+    let left = unsafe { show_class_stage_results(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

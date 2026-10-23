@@ -8,79 +8,23 @@
 //! failing, fatal errors 0x80208511 / 0x80208512, raised there), `sub_404A31` with eax
 //! 0x1000 (DirectDraw's `EnumDisplayModes` with `sub_404A56`, which puts the modes in the
 //! table), `gfx::mark_3d_modes` with eax 0x1000 if `dword_5AB4AC` (a 3D primary card) is
-//! 1, then `sub_404935` (DirectDraw closed). The DirectDraw calls are the platform's, through the game; in the standalone program
-//! they do nothing (its screen modes are its platform's: `standalone.rs`). One caller,
-//! `start` (0x401098). Manual patch with a private copy (0x27 bytes, the four calls
-//! relocated): a call starts at +3. Shadow mode runs the original alone (DirectDraw is
-//! opened once). Self-test: a copy whose variables are the test's and whose four calls go
-//! to stand-ins noting eax, against the Rust version, both switches.
+//! 1, then `sub_404935` (DirectDraw closed). DirectDraw is the platform's: in the standalone
+//! the modes are every size the game knows in both pixel kinds (`standalone_modes`), and
+//! the opening and closing nothing. One caller, `start` (0x401098), which calls it directly
+//! (2026-10-23).
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::gfx::mark_3d_modes::{ModeVars, mark_3d_modes};
-
-// ---- game data ----
+use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::gfx::mark_3d_modes::mark_3d_modes;
 
 pub const PRIMARY: u32 = 0x1000;
+pub const PRIMARY_3D_RVA: usize = rva(0x5AB4AC); // dword_5AB4AC: a 3D primary card
 
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-/// Where the variables are (the game's, or a test's).
-#[derive(Clone, Copy)]
-pub struct CardVars {
-    /// dword_5AB4AC: a 3D primary card
-    pub primary_3d: u32,
-    /// dword_5AB4B0: a 3D secondary card
-    pub secondary_3d: u32,
-    /// unk_5AB4B4: the secondary card's GUID
-    pub secondary_guid: u32,
-}
-
-impl CardVars {
-    pub fn game() -> Self {
-        let a = |x: usize| game_addr(rva(x)) as u32;
-        Self {
-            primary_3d: a(0x5AB4AC),
-            secondary_3d: a(0x5AB4B0),
-            secondary_guid: a(0x5AB4B4),
-        }
-    }
-}
-
-// ---- Rust version ----
-
-pub unsafe fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
-}
-
-/// Each call with the entry's registers and eax as given (the callees keep them all).
-pub fn call(entry: &Regs, place: u32, eax: u32, part: Part) -> Result<(), Refused> {
-    part(place, &mut Regs { eax, ..*entry })
-}
-
-pub unsafe fn list_primary_modes(entry: &Regs, v: &CardVars, part: Part) -> Result<(), Refused> {
-    call(entry, 0, 0, part)?;
-    call(entry, 1, PRIMARY, part)?;
-    if unsafe { get(v.primary_3d) } == 1 {
-        call(entry, 2, PRIMARY, part)?;
-    }
-    call(entry, 3, PRIMARY, part)
-}
-
-/// In the game: DirectDraw through the game, the marking from the Rust version; in the
-/// standalone program DirectDraw does nothing.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    if place == 2 {
-        return unsafe {
-            mark_3d_modes(
-                r,
-                &ModeVars::game(),
-                &mut crate::gfx::mark_3d_modes::game_part,
-            )
-        };
-    }
-    if place == 1 {
-        unsafe { standalone_modes(r.eax) };
+/// The Rust version (see the header).
+pub fn list_primary_modes() -> Result<(), Refused> {
+    unsafe { standalone_modes(PRIMARY) };
+    if unsafe { game_read::<u32>(PRIMARY_3D_RVA) } == 1 {
+        mark_3d_modes(PRIMARY)?;
     }
     Ok(())
 }
@@ -115,11 +59,4 @@ pub unsafe fn standalone_modes(card: u32) {
             }
         }
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    unsafe { list_primary_modes(&entry, &CardVars::game(), &mut game_part) }?;
-    Ok(())
 }

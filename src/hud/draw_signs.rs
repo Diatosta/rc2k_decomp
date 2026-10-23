@@ -23,9 +23,6 @@ use crate::hud::draw_marker::RECTS_RVA;
 const WIDTHS_RVA: usize = rva(0x75BF80); // dword_75BF80: 8
 pub const FLAT_RVA: usize = rva(0x6D1502); // dword_6D1502
 
-/// A call by place: 1 `add_sprite`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The row: `y`, or 0x20 higher with `dword_6D1502` 0.
 pub fn row(y: u32) -> u32 {
     row_by(y, 0x20)
@@ -38,8 +35,8 @@ pub fn row_by(y: u32, lift: u32) -> u32 {
 
 /// The Rust version (see the header): the registers it leaves.
 // Converted: `rc2k_core::hud::signs` (through `signs_with`)
-pub unsafe fn draw_signs(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    unsafe { signs_with(entry, 0xA4, 0xB4, 0, 0x36, 0x20, part) }
+pub unsafe fn draw_signs(entry: &Regs) -> Result<Regs, Refused> {
+    unsafe { signs_with(entry, 0xA4, 0xB4, 0, 0x36, 0x20) }
 }
 
 /// Four signs from the record's `first` .. on, the places from its `start` field plus
@@ -52,7 +49,6 @@ pub unsafe fn signs_with(
     shift: u32,
     y: u32,
     lift: u32,
-    part: Part,
 ) -> Result<Regs, Refused> {
     use rc2k_core::hud::signs;
     let mut g = *entry;
@@ -74,7 +70,7 @@ pub unsafe fn signs_with(
                 esi: game_addr(RECTS_RVA) as u32 + g.eax,
                 ..g
             };
-            part(1, &mut r)?;
+            crate::hud::draw_signs::game_part(1, &mut r)?;
             g.ecx = r.ecx;
             g.esi = r.esi;
         }
@@ -89,7 +85,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_signs(r, &mut game_part) }?;
+    let left = unsafe { draw_signs(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

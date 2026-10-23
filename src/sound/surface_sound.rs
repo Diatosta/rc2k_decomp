@@ -24,12 +24,12 @@ use crate::framework::Regs;
 use crate::math::x87::from_int;
 use crate::physics::flow::{base, x87_run};
 use crate::sound::sample_settings::{OWN, record, sample_settings};
-use crate::sound::turn_parts::{PLACED, Part, STOP, turn_entry};
+use crate::sound::turn_parts::turn_entry;
 use rc2k_core::sound::surfaces;
 
 // ---- Rust version ----
 
-pub fn surface_sound_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn surface_sound_in(c: &mut Regs) -> Result<(), Refused> {
     if c.ebx == 0 || c.ebp == 0 || c.esi == 0 {
         return Err(BadInput("no object, set or request").into());
     }
@@ -55,7 +55,7 @@ pub fn surface_sound_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
             q.write_unaligned(old);
         }
         c.eax = old;
-        part(STOP, c)?;
+        crate::sound::turn_parts::stop(c)?;
         c.eax = w(slot);
     }
     unsafe { q.write_unaligned(c.eax) };
@@ -71,7 +71,7 @@ pub fn surface_sound_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
         c.eax = w(0x2C + 4 * k as u32);
         unsafe { q.add(3 + k).write_unaligned(c.eax) };
     }
-    part(PLACED, c)
+    crate::sound::turn_parts::placed(c)
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

@@ -63,7 +63,7 @@ pub unsafe fn pong_score(entry: &Regs, mut part: Part) -> Result<Regs, Refused> 
 /// In the game: `pong_digit`'s Rust version.
 pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::marks::pong_digit as pd;
-    *r = unsafe { pd::pong_digit(r, &mut pd::game_part) }?;
+    *r = unsafe { pd::pong_digit(r) }?;
     Ok(())
 }
 

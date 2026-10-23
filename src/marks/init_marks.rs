@@ -20,7 +20,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
-use crate::race::level_init::Part;
 
 const KIND_AT: u32 = 0x26A8; // the settings' kind
 const LIVE_AT: u32 = 0x18; // the settings' dword set to 1
@@ -41,7 +40,7 @@ const STEPS: u32 = 15;
 
 /// The Rust version (see the header). Places 1 .. 15 the steps (7 `nullsub_26`), 16
 /// `nullsub_1`.
-pub unsafe fn init_marks(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn init_marks(entry: &Regs) -> Result<Regs, Refused> {
     use crate::marks::lines::SETTINGS_RVA;
     let mut g = *entry;
     unsafe {
@@ -56,17 +55,17 @@ pub unsafe fn init_marks(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         game_write(CLOCK_STARTED_RVA, 0u32);
         for step in 1..STEPS {
             g.eax = step;
-            part(NUMBERED, &mut g)?;
-            part(step, &mut g)?;
+            crate::marks::init_marks::game_part(NUMBERED, &mut g)?;
+            crate::marks::init_marks::game_part(step, &mut g)?;
         }
         g.eax = STEPS;
-        part(NUMBERED, &mut g)?;
+        crate::marks::init_marks::game_part(NUMBERED, &mut g)?;
         g.esi = game_read(SETTINGS_RVA);
         ((g.esi + LIVE_AT) as *mut u32).write_unaligned(1);
         for r in ONES_RVA {
             game_write(r, 1u32);
         }
-        part(STEPS, &mut g)?;
+        crate::marks::init_marks::game_part(STEPS, &mut g)?;
         game_write(CLEARED_RVA, 0u32);
         let less: u32 = game_read(LESS_RVA);
         for (n, side) in [SCREEN_WIDTH_RVA, SCREEN_HEIGHT_RVA]
@@ -90,13 +89,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::marks::*;
     unsafe {
         let left = match place {
-            1 => edges::load_kind_data(r, &mut edges::kind_part)?,
+            1 => edges::load_kind_data(r)?,
             2 => setup::make_wave_tables(r)?,
-            3 => profiles::make_profiles(
-                r,
-                game_addr(profiles::RESUME_RVA) as u32,
-                &mut blocks::game_part,
-            )?,
+            3 => profiles::make_profiles(r, game_addr(profiles::RESUME_RVA) as u32)?,
             4 => setup::seed_noise(r),
             5 => setup::make_noise_curve(r)?,
             6 => blocks::allocate_places(r, &mut blocks::game_part)?,
@@ -106,7 +101,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             11 => setup::clear_slots(r),
             12 => set_up_surface::set_up_surface(r, &mut set_up_surface::game_part)?,
             13 => blocks::allocate_ring(r, &mut blocks::game_part)?,
-            14 => lines::set_up_blocks(r, &mut lines::game_part)?,
+            14 => lines::set_up_blocks(r)?,
             15 => setup::tick_clock(r),
             // `nullsub_26`, `nullsub_1`.
             _ => return Ok(()),
@@ -123,7 +118,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     {
-        let left = unsafe { init_marks(r, &mut game_part) }?;
+        let left = unsafe { init_marks(r) }?;
         *r = Regs {
             esp: r.esp,
             eflags: r.eflags,

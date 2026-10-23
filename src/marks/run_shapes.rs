@@ -28,7 +28,7 @@ use crate::marks::shape_points::turn_all_shapes;
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, restore, state_entry};
+use crate::service::harness::{Region, at, state_entry};
 
 const CLOCK_RVA: usize = rva(0x613830); // g_sceneClock
 const NEXT_RVA: usize = rva(0x844E30); // dword_844E30
@@ -68,13 +68,8 @@ pub unsafe fn run_shapes(entry: &Regs) -> Result<Regs, Refused> {
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    let written = regions();
-    let saved = capture(&written);
-    let done = unsafe { run(entry, settings) };
-    if done.is_err() {
-        restore(&written, &saved);
-    }
-    done
+
+    unsafe { run(entry, settings) }
 }
 
 unsafe fn run(entry: &Regs, settings: u32) -> Result<Regs, Refused> {

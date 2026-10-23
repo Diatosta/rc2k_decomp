@@ -16,13 +16,10 @@ use crate::audio::voices::{read, write};
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr};
 
-/// Its calls in order, each with the registers it gets.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-pub fn close_all(r: &Regs, mode: u32, part: Part) -> Result<(), Refused> {
+pub fn close_all(r: &Regs, mode: u32) -> Result<(), Refused> {
     for place in 0..5 {
         let mut c = *r;
-        part(place, &mut c)?;
+        crate::audio::close_all::game_part(place, &mut c)?;
     }
     unsafe { write(mode, 0) };
     let _ = read;
@@ -41,23 +38,17 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             1 => crate::audio::free_voices::free_voices(
                 &World::game(),
                 &crate::audio::free_voices::game_vars(),
-                &mut crate::audio::free_voices::game_part,
             )?,
             2 => {
-                crate::audio::mixer_set_up::close_way(
-                    crate::framework::game_read(SOUND_MODE_RVA),
-                    &mut crate::audio::restore::game_part,
-                )?;
+                crate::audio::mixer_set_up::close_way(crate::framework::game_read(SOUND_MODE_RVA))?;
             }
             3 => release_primary(
                 game_addr(PRIMARY_RVA) as u32,
                 game_addr(VOLUME_KEPT_RVA) as u32,
-                &mut crate::audio::sound_device::game_part,
             )?,
             _ => close_sound(
                 game_addr(crate::audio::make_buffer::DIRECT_SOUND_RVA) as u32,
                 game_addr(WINDOW_RVA) as u32,
-                &mut crate::audio::sound_device::game_part,
             )?,
         }
     }

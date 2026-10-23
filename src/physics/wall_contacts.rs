@@ -27,13 +27,11 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::physics::contact_force;
-use crate::physics::flow::{a, g, guard, p};
+use crate::physics::flow::{g, p};
 use crate::physics::touch_face::FACES;
-use crate::race::norms::norm_regions;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::walls;
 
 /// `g_workVector`.
@@ -123,41 +121,15 @@ pub fn check() -> Result<(), Refused> {
 /// The Rust version.
 pub unsafe fn wall_contacts(entry: &Regs) -> Result<Left, Refused> {
     check()?;
-    guard(&regions(), || {
+    {
         let mut r = *entry;
         steps(&mut r)?;
         Ok(left_of(&r))
-    })
+    }
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { wall_contacts(r) }
-}
-
-/// Everything the three wall hooks and their calls write.
-pub fn regions() -> Vec<Region> {
-    let mut all = contact_force::regions();
-    all.extend(norm_regions());
-    all.extend(crate::physics::feel_ground::regions());
-    all.extend(crate::physics::crash_contact::sound_regions());
-    all.extend([
-        (a(WALL_RECORD), 0x18),
-        (a(contact_force::RECORD), 4),
-        (a(0x6141AC), 0x20), // the edge's ends .. dword_6141C8
-        (a(0x6D3170), 0x10),
-        (a(0x6D3214), 4),
-        (a(0x6D3038), 4),
-        (a(0x62400C), 4),
-        (a(0x71A1FC), 0x14),
-        (a(0x71A1CC), 4),
-        crate::math::turn_scratch_xz::scratch(),
-        // `restore_saved_car`'s
-        (a(0x614738), 4),
-        (a(0x71A10C), 12),
-        (a(0x71A08C), 0x40),
-        (a(0x71ADC8), 0x100),
-    ]);
-    all
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

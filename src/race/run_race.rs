@@ -24,7 +24,7 @@ use crate::race::race_end::*;
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let indent = game_addr(rva(0x4E00A0)) as u32; // g_logIndent
     {
-        let g = unsafe { run_race(r, indent, &mut race_part) }?;
+        let g = unsafe { run_race(r, indent) }?;
         *r = Regs {
             esp: r.esp,
             eflags: r.eflags,

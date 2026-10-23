@@ -45,15 +45,12 @@ const ACTIVE_RVA: usize = rva(0x518378); // dword_518378
 const QUITTING_RVA: usize = rva(0x51837C); // g_quitting
 const TICK_MS: u32 = 20;
 
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 fn g(a: usize) -> u32 {
     unsafe { game_read(a) }
 }
 
 /// The thread's work up to its `ExitThread` (see the header).
-pub unsafe fn input_thread(part: Part) -> Result<(), Refused> {
+pub unsafe fn input_thread() -> Result<(), Refused> {
     let slot = game_addr(SLOT_RVA) as u32;
     let flag = (slot + 0xC) as *mut u8;
     let mut r = Regs {
@@ -66,17 +63,17 @@ pub unsafe fn input_thread(part: Part) -> Result<(), Refused> {
         }
         unsafe { *flag = 1 };
         r.eax = game_addr(START_TEXT_RVA) as u32;
-        part(0, &mut r)?;
+        crate::input::input_thread::game_part(0, &mut r)?;
         r.eax = 0;
-        part(1, &mut r)?;
+        crate::input::input_thread::game_part(1, &mut r)?;
         if r.eax != 1 {
             break 'work;
         }
         for place in [2, 3, 4] {
-            part(place, &mut r)?;
+            crate::input::input_thread::game_part(place, &mut r)?;
         }
         r.eax = 2;
-        part(5, &mut r)?;
+        crate::input::input_thread::game_part(5, &mut r)?;
         let mut last = crate::system::tick_count::tick_count();
         unsafe { game_write(LAST_TICK_RVA, last) };
         loop {
@@ -102,8 +99,8 @@ pub unsafe fn input_thread(part: Part) -> Result<(), Refused> {
             }
             unsafe { game_write(LAST_TICK_RVA, last) };
             let ticked = (|| {
-                part(6, &mut r)?;
-                part(7, &mut r)?;
+                crate::input::input_thread::game_part(6, &mut r)?;
+                crate::input::input_thread::game_part(7, &mut r)?;
                 unsafe { crate::input::input_tick::input_tick_in_game() }
             })();
             ticked?;
@@ -119,13 +116,13 @@ pub unsafe fn input_thread(part: Part) -> Result<(), Refused> {
         unsafe { crate::input::release_device::release_device_in_game(game_addr(record) as u32) }?;
     }
     for place in [8, 9, 10] {
-        part(place, &mut r)?;
+        crate::input::input_thread::game_part(place, &mut r)?;
     }
     r.eax = game_addr(QUIT_TEXT_RVA) as u32;
-    part(0, &mut r)?;
+    crate::input::input_thread::game_part(0, &mut r)?;
     r.esi = slot;
     r.eax = 0;
-    part(5, &mut r)?;
+    crate::input::input_thread::game_part(5, &mut r)?;
     unsafe { *flag = 0 };
     Ok(())
 }
@@ -169,6 +166,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { input_thread(&mut game_part) }?;
+    unsafe { input_thread() }?;
     unsafe { windows_sys::Win32::System::Threading::ExitThread(0) }
 }

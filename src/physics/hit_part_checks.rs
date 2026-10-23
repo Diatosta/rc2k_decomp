@@ -16,12 +16,11 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::Regs;
 use crate::physics::drop_hit_parts::{drop_hit_parts_in, g, p};
-use crate::physics::fill_race_slot::regions as slot_regions;
 use crate::physics::sound_hit_parts::sound_hit_parts_in;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, restore, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::parts::parts_left;
 
 /// The steps on `r`.
@@ -36,28 +35,12 @@ pub fn hit_part_checks_in(r: &mut Regs) -> Result<(), Refused> {
     sound_hit_parts_in(r)
 }
 
-fn regions() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let mut r = slot_regions();
-    r.extend([(a(0x71A25C), 4), (a(0x71A2D0), 0x10), (a(0x71A32C), 0x10)]);
-    let o = g(0x512A10 + 4 * (g(0x71B3F8) & 7) as usize);
-    if o != 0 {
-        r.extend([(o + 0x10, 4), (o + 0x214, 0x14)]);
-    }
-    r
-}
-
 /// The Rust version.
 pub unsafe fn hit_part_checks(entry: &Regs) -> Result<Left, Refused> {
-    let all = regions();
-    let saved = capture(&all);
     let mut r = *entry;
     match hit_part_checks_in(&mut r) {
         Ok(()) => Ok(crate::race::stage_prefs::left_of(&r)),
-        Err(e) => {
-            restore(&all, &saved);
-            Err(e)
-        }
+        Err(e) => Err(e),
     }
 }
 

@@ -29,16 +29,9 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::physics::flow::guard;
-use crate::sound::car_slot_sounds::SLOT;
 use crate::sound::sample_settings::OWN;
-use crate::sound::turn_parts::{
-    CLOCK, PLAY, Part, RANDOM, REQUEST, SCRATCH, common_regions, turn_entry,
-};
+use crate::sound::turn_parts::{CLOCK, REQUEST, SCRATCH, turn_entry};
 
-/// The stage sounds' variables, `dword_51659C` .. `dword_5165E8`.
-const VARS: usize = 0x51659C;
-const VARS_LEN: usize = 0x50;
 const ONE_OFFS: [(usize, u32); 3] = [(0x51659C, 0x1AB), (0x5165A0, 0x1AC), (0x5165A4, 0x1AD)];
 const ARM: usize = 0x5165A8;
 const PLACE: usize = 0x5165AC;
@@ -64,10 +57,8 @@ fn p(x: usize, v: u32) {
 
 // ---- Rust version ----
 
-pub fn stage_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    let mut all = common_regions();
-    all.push((game_addr(rva(VARS)) as u32, VARS_LEN));
-    guard(&all, || {
+pub fn stage_sounds_in(r: &mut Regs) -> Result<(), Refused> {
+    {
         let mut c = Regs {
             esi: game_addr(rva(REQUEST)) as u32,
             ..*r
@@ -78,7 +69,7 @@ pub fn stage_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
             if g(flag) == 1 {
                 p(flag, 0);
                 (c.eax, c.ebx, c.edx, c.ecx, c.edi, c.ebp) = (sound, OWN, OWN, 0, 0, MINUS_ONE);
-                part(PLAY, &mut c)?;
+                crate::sound::turn_parts::play(&c)?;
             }
         }
         // Converted: `rc2k_core::sound::stage::wait_turn`.
@@ -110,7 +101,7 @@ pub fn stage_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
                 p(REQUEST + 0xC + 4 * k, c.eax);
             }
             c.ebp = game_addr(rva(TIMED_SLOT)) as u32;
-            part(SLOT, &mut c)?;
+            crate::sound::play_timed_slot::play_timed_slot_in(&mut c)?;
         }
         (c.eax, c.ebx, c.edx, c.ecx, c.edi, c.ebp) = (
             0x1C5,
@@ -120,15 +111,15 @@ pub fn stage_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
             ONE,
             MINUS_ONE,
         );
-        part(PLAY, &mut c)?;
+        crate::sound::turn_parts::play(&c)?;
         (c.eax, c.ebx, c.edx, c.ecx, c.edi, c.ebp) = (0x1C6, g(VOLUME_B), OWN, 0, ONE, 0);
-        part(PLAY, &mut c)?;
+        crate::sound::turn_parts::play(&c)?;
         for (flag, sound) in RANDOMS {
             if g(flag) != 1 {
                 continue;
             }
             p(flag, 0);
-            part(RANDOM, &mut c)?;
+            c.eax = unsafe { crate::math::next_random::next_random() };
             // Converted: `rc2k_core::sound::stage::random`.
             let n = c.eax;
             let r = rc2k_core::sound::stage::random(n, g(MIX_RATE));
@@ -139,10 +130,10 @@ pub fn stage_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
             // The scratch dword holds the last float.
             p(SCRATCH, c.edi);
             (c.ebp, c.eax) = (ONE, sound);
-            part(PLAY, &mut c)?;
+            crate::sound::turn_parts::play(&c)?;
         }
         Ok(())
-    })
+    }
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

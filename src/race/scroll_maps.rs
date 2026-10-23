@@ -10,10 +10,10 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::framework::Regs;
-use crate::race::map_scroll::{scroll_maps, scroll_part};
+use crate::race::map_scroll::scroll_maps;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { scroll_maps(r, &mut scroll_part) }?;
+    unsafe { scroll_maps(r) }?;
     Ok(())
 }

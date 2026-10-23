@@ -25,10 +25,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, ECX, EDX, ESI, Regs, game_addr, game_read, game_write, rva};
-use crate::physics::ground::Ground;
+use crate::framework::{EAX, EBX, ECX, EDX, ESI, Regs, game_read, game_write, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::walls::WheelsOff;
 
 fn g(x: u32) -> u32 {
@@ -79,20 +78,6 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     let mut gr = *r;
     unsafe { feel_ground(&mut gr) }?;
     Ok(left_of(&gr))
-}
-
-/// Everything it writes.
-pub fn regions() -> Vec<Region> {
-    let a = |x: u32| game_addr(rva(x as usize)) as u32;
-    let mut r = crate::physics::probe_ground::regions(&Ground::game());
-    r.extend([
-        (a(0x71A6C8), 4),
-        (a(0x6D3068), 12),
-        (a(0x71A220), 0x10),
-        (a(0x71A1C0), 4),
-        (a(0x6141DC), 4),
-    ]);
-    r
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

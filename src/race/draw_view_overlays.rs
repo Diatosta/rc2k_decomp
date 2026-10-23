@@ -38,33 +38,30 @@ pub const CALLEES: [usize; 10] = [
 const COVERED_RVA: usize = rva(0x71AF80); // unk_71AF80
 const OWN_CAR_SWITCH_RVA: usize = rva(0x621900); // dword_621900
 
-/// A call by place (`CALLEES`).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_view_overlays(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn draw_view_overlays(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     unsafe {
         if game_read::<u32>(COVERED_RVA) != 0 {
             return Ok(r);
         }
-        part(0, &mut r)?;
+        crate::race::draw_view_overlays::game_part(0, &mut r)?;
         r.eax = 3;
         r.ebx = 3;
-        part(1, &mut r)?;
-        part(2, &mut r)?;
-        part(0, &mut r)?;
+        crate::race::draw_view_overlays::game_part(1, &mut r)?;
+        crate::race::draw_view_overlays::game_part(2, &mut r)?;
+        crate::race::draw_view_overlays::game_part(0, &mut r)?;
         r.eax = 0xE;
         for place in [3, 4, 5, 6] {
-            part(place, &mut r)?;
+            crate::race::draw_view_overlays::game_part(place, &mut r)?;
         }
         let kept: u32 = game_read(OWN_CAR_SWITCH_RVA);
         game_write(OWN_CAR_SWITCH_RVA, 0u32);
-        let drawn = part(7, &mut r);
+        let drawn = crate::race::draw_view_overlays::game_part(7, &mut r);
         game_write(OWN_CAR_SWITCH_RVA, kept);
         drawn?;
         for place in [8, 9, 6] {
-            part(place, &mut r)?;
+            crate::race::draw_view_overlays::game_part(place, &mut r)?;
         }
     }
     Ok(r)
@@ -74,10 +71,7 @@ pub unsafe fn draw_view_overlays(entry: &Regs, part: Part) -> Result<Regs, Refus
 /// game (their hooks).
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     match place {
-        3 => crate::sound::race_sound_tick::race_sound_tick_in(
-            r,
-            &mut crate::sound::turn_parts::game_part,
-        ),
+        3 => crate::sound::race_sound_tick::race_sound_tick_in(r),
         9 => unsafe { crate::race::flush_draw_batch::flush_draw_batch_in_game(r) },
         _ => {
             crate::calls::call(rva(CALLEES[place as usize]), r);
@@ -88,7 +82,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_view_overlays(r, &mut game_part) }?;
+    let left = unsafe { draw_view_overlays(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

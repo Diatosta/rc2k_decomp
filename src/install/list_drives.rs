@@ -23,8 +23,7 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::install::installer::{
-    DRIVE_COUNT, DRIVE_LETTERS, DRIVE_TYPE, DRIVES, FIRST_DRIVE, FREE_SPACE, Part, a, at, g, p, wb,
-    wd,
+    DRIVE_COUNT, DRIVE_LETTERS, DRIVE_TYPE, DRIVES, FIRST_DRIVE, FREE_SPACE, a, at, g, p, wb, wd,
 };
 use crate::race::viewer::regs_entry;
 use rc2k_core::install::drives::{self, DriveMenu};
@@ -34,19 +33,19 @@ const MENU_16: usize = 0x51D8B0; // off_51D8B0
 const MENU_MORE: usize = 0x51D9E8; // off_51D9E8
 const CHOSEN_MENU: usize = 0x51D5F8; // off_51D5F8
 
-pub fn list_drives(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn list_drives(entry: &Regs) -> Result<Regs, Refused> {
     let drives = a(DRIVES);
     // Register for register: ecx the letter, eax given it at each probe, ebx the last slot.
     let mut r = *entry;
     r.ecx = g(FIRST_DRIVE);
     loop {
         r.eax = r.ecx;
-        part(at(DRIVE_TYPE), &mut r)?;
+        crate::install::installer::game_part(at(DRIVE_TYPE), &mut r)?;
         // Converted: `rc2k_core::install::drives` (`offered`, `LISTED`, `free`, `text`,
         // `menu`, `items`).
         if drives::offered(r.eax) {
             r.eax = r.ecx;
-            part(at(FREE_SPACE), &mut r)?;
+            crate::install::installer::game_part(at(FREE_SPACE), &mut r)?;
             if !r.carry() {
                 r.ebx = drives + 8 * r.ecx.wrapping_sub(b'a' as u32);
                 wd(r.ebx, g_at(r.ebx).wrapping_add(1));
@@ -100,7 +99,5 @@ fn g_at(at: u32) -> u32 {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| {
-        list_drives(r, &mut crate::install::installer::game_part)
-    })
+    regs_entry(r, &|r| list_drives(r))
 }

@@ -149,7 +149,7 @@ pub unsafe fn take_mouse_clicks(entry: &Regs) -> Regs {
 /// `screenshot_if_key`'s call of `gfx::take_screenshot`.
 pub type Screenshot<'a> = &'a mut dyn FnMut();
 
-/// `gfx::screenshot_if_key` (0x43B573): `gfx::take_screenshot` while key 0x52 is down
+/// `gfx::screenshot_if_key` (0x43B573): `gfx::take_screenshot` while key 0x52 (Numpad 0) is down
 /// (in `g_keysNow`). Every register preserved.
 pub unsafe fn screenshot_if_key(shot: Screenshot) {
     // Converted: `rc2k_core::input::frame::screenshot_wanted`.
@@ -201,14 +201,11 @@ pub fn game_check() {
     unsafe { screenshot_if_key(&mut game_screenshot) };
 }
 
-/// In the game: `gfx::take_screenshot`'s Rust version (what it refuses through its hook).
+/// In the game: `gfx::take_screenshot`'s Rust version.
 pub fn game_screenshot() {
-    let mut r = Regs::default();
-    let _ = crate::race::loadlevel::or_in_game(0x407897, &mut r, |r| {
-        use crate::gfx::take_screenshot::{game_part, take_screenshot};
-        *r = take_screenshot(r, &mut game_part)?;
-        Ok(())
-    });
+    if let Err(e) = crate::gfx::take_screenshot::take_screenshot() {
+        unsafe { crate::fatal::raise::refused_in("gfx::take_screenshot", e, &Regs::default()) };
+    }
 }
 
 // ---- for the self-tests ----

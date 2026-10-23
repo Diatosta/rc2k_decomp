@@ -35,12 +35,9 @@ const WIDTH_RVA: usize = rva(0x4F49A0); // g_surface.width
 const LOCK_RVA: usize = rva(0x41AA4B); // the platform's texture lock
 const UNLOCK_RVA: usize = rva(0x41AB02); // the platform's texture unlock
 
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
 // Converted: `rc2k_core::marks::masks::{swapped, check_width, texture_pixels}`
-pub unsafe fn swap_mask(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn swap_mask(entry: &Regs) -> Result<Regs, Refused> {
     use rc2k_core::marks::masks;
     let mut g = *entry;
     unsafe {
@@ -59,7 +56,7 @@ pub unsafe fn swap_mask(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         g.eax = game_read(if second { BMASK_RVA } else { MASK_RVA });
         game_write(CHOSEN_RVA, g.eax);
         g.eax = game_read(SLOT_RVA);
-        part(1, &mut g)?;
+        crate::marks::swap_mask::game_part(1, &mut g)?;
         // The width is the locked texture's (`g_surface` while it is locked), not the
         // screen's: checked here (2026-10-18: checked before the lock, it refused every
         // frame). A row wider than the mask's would read past its block: unlocked, put
@@ -70,7 +67,7 @@ pub unsafe fn swap_mask(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                 eax: game_read(SLOT_RVA),
                 ..g
             };
-            part(3, &mut u)?;
+            crate::marks::swap_mask::game_part(3, &mut u)?;
             game_write(SEEN_RVA, kept[0]);
             game_write(CHOSEN_RVA, kept[1]);
             return Err(e.into());
@@ -81,16 +78,16 @@ pub unsafe fn swap_mask(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             g.esi = game_read(CHOSEN_RVA);
             g.eax = ((g.esi + 4 * g.ebp) as *const u32).read_unaligned();
             g.edx = row + masks::TEXTURE_ROW_AT;
-            part(2, &mut g)?;
+            crate::marks::swap_mask::game_part(2, &mut g)?;
             g.edx = row;
         }
         // The loops' counters, read back for their last tests.
         g.ecx = width.max(1);
         g.edx = masks::TEXTURE_ROWS;
         g.eax = game_read(SLOT_RVA);
-        part(3, &mut g)?;
+        crate::marks::swap_mask::game_part(3, &mut g)?;
         g.eax = game_read(FORGET_RVA);
-        part(4, &mut g)?;
+        crate::marks::swap_mask::game_part(4, &mut g)?;
     }
     Ok(g)
 }
@@ -114,7 +111,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { swap_mask(r, &mut game_part) }?;
+    let left = unsafe { swap_mask(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

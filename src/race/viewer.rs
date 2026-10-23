@@ -16,7 +16,6 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::physics::flow::{a, g, p};
-use crate::service::harness::Region;
 
 /// A call by place.
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
@@ -113,15 +112,6 @@ pub unsafe fn table(x: usize, dwords: usize) -> &'static mut [u32] {
     let at = a(x) as *mut u32;
     debug_assert!(at.is_aligned());
     unsafe { std::slice::from_raw_parts_mut(at, dwords) }
-}
-
-/// A region of IDA address `x`, `len` bytes.
-pub fn region(x: usize, len: usize) -> Region {
-    (a(x), len)
-}
-
-pub fn dword(x: usize) -> Region {
-    region(x, 4)
 }
 
 // ---- for the hooks: shadow comparison of a Rust version that returns the registers ----

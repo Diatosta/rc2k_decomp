@@ -17,34 +17,20 @@
 
 use crate::drive::animate_lit_faces::animate_lit_faces;
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, ECX, EDX, ESI, Regs, game_addr, rva};
+use crate::framework::{EAX, EBX, ECX, EDX, ESI, Regs};
 use crate::physics::move_slots::move_slots;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, restore, state_entry};
-
-/// Everything the two write.
-pub fn regions() -> Vec<Region> {
-    let mut r = crate::drive::animate_lit_faces::regions();
-    r.extend(crate::physics::move_slot::regions());
-    r.push((game_addr(rva(0x71BAC8)) as u32, 0x3C8));
-    r
-}
+use crate::service::harness::state_entry;
 
 /// The Rust version: `r` as the original leaves it.
 pub unsafe fn animate_stage(r: &mut Regs) -> Result<(), Refused> {
     unsafe {
-        let all = regions();
-        let saved = capture(&all);
-        let result = (|| {
+        (|| {
             animate_lit_faces(r)?;
             let left = move_slots(r)?;
             left.apply(r);
             Ok(())
-        })();
-        if result.is_err() {
-            restore(&all, &saved);
-        }
-        result
+        })()
     }
 }
 

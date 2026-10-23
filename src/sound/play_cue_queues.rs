@@ -16,9 +16,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_read, rva};
-use crate::sound::turn_parts::{COUNT, OBJECTS, Part, turn_entry};
+use crate::sound::turn_parts::{COUNT, OBJECTS, turn_entry};
 
-const QUEUE: u32 = 0x40ED4A;
 /// dword_514F70, dword_514F74: the two players' cars; dword_514F78: 1 with one player.
 const FIRST: usize = 0x514F70;
 const SECOND: usize = 0x514F74;
@@ -30,7 +29,7 @@ fn g(x: usize) -> u32 {
 
 // ---- Rust version ----
 
-pub fn play_cue_queues_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn play_cue_queues_in(r: &mut Regs) -> Result<(), Refused> {
     if g(COUNT) == 0 {
         return Ok(());
     }
@@ -44,7 +43,7 @@ pub fn play_cue_queues_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     for n in cars {
         c.eax = n;
         c.ebx = object(n);
-        part(QUEUE, &mut c)?;
+        crate::sound::play_cue_queue::play_cue_queue_in(&mut c)?;
     }
     Ok(())
 }

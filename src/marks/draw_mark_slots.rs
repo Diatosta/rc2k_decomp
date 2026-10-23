@@ -61,9 +61,6 @@ const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices: TLVertex[4]
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
 const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
 
-/// A call by place: 1 `add_mark_slot` (eax, esi), 2 `set_texture` (eax), 3 `draw_fan`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
@@ -88,7 +85,7 @@ unsafe fn refusal() -> Option<&'static str> {
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_mark_slots(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn draw_mark_slots(entry: &Regs) -> Result<Regs, Refused> {
     if let Some(why) = unsafe { refusal() } {
         return Err(BadInput(why).into());
     }
@@ -99,10 +96,10 @@ pub unsafe fn draw_mark_slots(entry: &Regs, part: Part) -> Result<Regs, Refused>
         if get(settings + 0x8C) != 0 {
             g.esi = game_addr(PLACE_RVA) as u32;
             g.eax = get(settings + 0x64);
-            part(1, &mut g)?;
+            crate::marks::draw_mark_slots::game_part(1, &mut g)?;
         }
         g.eax = game_read(TEXTURE_RVA);
-        part(2, &mut g)?;
+        crate::marks::draw_mark_slots::game_part(2, &mut g)?;
         for k in (0..DRAWN).rev() {
             g.ebp = k * SLOT_LEN;
             let s = slot(k);
@@ -173,7 +170,7 @@ pub unsafe fn draw_mark_slots(entry: &Regs, part: Part) -> Result<Regs, Refused>
                 game_write(vertex + 8, depth);
                 game_write(vertex + 0xC, rhw);
             }
-            part(3, &mut g)?;
+            crate::marks::draw_mark_slots::game_part(3, &mut g)?;
         }
     }
     Ok(g)
@@ -194,7 +191,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     {
-        let left = unsafe { draw_mark_slots(r, &mut game_part) }?;
+        let left = unsafe { draw_mark_slots(r) }?;
         *r = Regs {
             esp: r.esp,
             eflags: r.eflags,

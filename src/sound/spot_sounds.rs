@@ -17,23 +17,24 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, rva};
-use crate::sound::turn_parts::{Part, REQUEST, turn_entry};
-
-const STEPS: [u32; 8] = [
-    0x40E642, 0x40E6F4, 0x40E733, 0x40E7CA, 0x40E97D, 0x40EAF3, 0x40EB44, 0x40EB9E,
-];
+use crate::sound::turn_parts::{REQUEST, turn_entry};
 
 // ---- Rust version ----
 
-pub fn spot_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn spot_sounds_in(r: &mut Regs) -> Result<(), Refused> {
     let mut c = Regs {
         esi: game_addr(rva(REQUEST)) as u32,
         ..*r
     };
-    for step in STEPS {
-        part(step, &mut c)?;
-    }
-    Ok(())
+    use crate::sound::*;
+    match_spot_voices::match_spot_voices_in(&mut c)?;
+    free_spot_voices::free_spot_voices_in(&mut c)?;
+    spot_voice_distances::spot_voice_distances_in(&mut c)?;
+    merge_spot_voices_all::merge_spot_voices_all_in(&mut c)?;
+    thin_spot_voices_all::thin_spot_voices_all_in(&mut c)?;
+    exclusive_spot_voices::exclusive_spot_voices_in(&mut c)?;
+    repeat_spot_voices::repeat_spot_voices_in(&mut c)?;
+    play_spot_voices::play_spot_voices_in(&mut c)
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

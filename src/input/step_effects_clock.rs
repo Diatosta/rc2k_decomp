@@ -20,7 +20,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_read, game_write, rva};
-use crate::sound::turn_parts::{EFFECTS, Part, TICK, turn_entry};
+use crate::sound::turn_parts::turn_entry;
 
 /// dword_518084 the last time, dword_518088 the rate, dword_51808C the steps counted.
 const LAST: usize = 0x518084;
@@ -37,10 +37,10 @@ fn p(x: usize, v: u32) {
 
 // ---- Rust version ----
 
-pub fn step_effects_clock_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn step_effects_clock_in(r: &mut Regs) -> Result<(), Refused> {
     let mut c = *r;
     c.ebx = g(LAST);
-    part(TICK, &mut c)?;
+    c.eax = crate::system::tick_count::tick_count();
     c.eax = c.eax.wrapping_sub(c.ebx);
     if (c.eax.wrapping_sub(0x28) as i32) < 0 {
         return Ok(());
@@ -55,7 +55,7 @@ pub fn step_effects_clock_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     // `fild` / `fstp`: `as f32` at every precision.
     p(RATE, (c.eax as i32 as f32).to_bits());
     p(STEPS, g(STEPS).wrapping_add(1));
-    part(EFFECTS, &mut c)
+    crate::input::update_effects::update_effects(&mut c)
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

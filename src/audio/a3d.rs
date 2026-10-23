@@ -114,14 +114,10 @@ pub unsafe fn open_a3d2(v: &A3dVars, create: Create) -> Result<bool, Refused> {
 }
 
 /// `audio::close_a3d2`: its interface released, `release_a3d` (place 9), A3D off.
-pub unsafe fn close_a3d2(
-    interface: u32,
-    use_a3d: u32,
-    part: crate::audio::sound_device::Part,
-) -> Result<(), Refused> {
+pub unsafe fn close_a3d2(interface: u32, use_a3d: u32) -> Result<(), Refused> {
     unsafe {
         release(interface);
-        part(9, 0)?;
+        crate::audio::sound_device::game_part(9, 0)?;
         write(use_a3d, 0);
     }
     Ok(())

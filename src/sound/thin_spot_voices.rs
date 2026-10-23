@@ -22,12 +22,12 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::sound::spot_voices::voice;
-use crate::sound::turn_parts::{Part, RANDOM, turn_entry};
+use crate::sound::turn_parts::turn_entry;
 
 // ---- Rust version ----
 
 /// Converted: `rc2k_core::sound::spot_voices::thin` and `thin_choose`.
-pub fn thin_spot_voices_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn thin_spot_voices_in(c: &mut Regs) -> Result<(), Refused> {
     use crate::sound::spot_voices::{load_voices, pick_regs, store_picks, store_voices};
     use rc2k_core::sound::spot_voices as core;
     let mut voices = load_voices();
@@ -42,7 +42,7 @@ pub fn thin_spot_voices_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
         return Ok(());
     };
     (c.ebx, c.edx) = (voice(nearest as u32), voice(next as u32));
-    part(RANDOM, c)?;
+    c.eax = unsafe { crate::math::next_random::next_random() };
     core::thin_choose(&mut voices, &picks, c.eax);
     store_voices(&voices);
     c.eax = (c.eax & 1) ^ 1;

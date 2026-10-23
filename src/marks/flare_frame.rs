@@ -20,22 +20,19 @@ use crate::marks::setup::SETTINGS_RVA;
 
 const TEXTURE_RVA: usize = rva(0x5D1E10); // dword_5D1E10
 
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn flare_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn flare_frame(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         if game_read::<u32>(SETTINGS_RVA) == 0 {
             return Err(BadInput("no marks settings").into());
         }
         g.eax = game_read(TEXTURE_RVA);
-        part(1, &mut g)?;
-        part(2, &mut g)?;
+        crate::marks::flare_frame::game_part(1, &mut g)?;
+        crate::marks::flare_frame::game_part(2, &mut g)?;
         g.esi = game_read(SETTINGS_RVA);
         if ((g.esi + 0x2754) as *const u32).read_unaligned() != 0 {
-            part(3, &mut g)?;
+            crate::marks::flare_frame::game_part(3, &mut g)?;
         }
     }
     Ok(g)
@@ -49,7 +46,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             2 => crate::scene::depth_test_off::depth_test_off(r),
             _ => {
                 use crate::marks::draw_lens_flare as flare;
-                let left = flare::draw_lens_flare(r, &mut flare::game_part)?;
+                let left = flare::draw_lens_flare(r)?;
                 *r = Regs { esp: r.esp, ..left };
             }
         }
@@ -59,7 +56,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { flare_frame(r, &mut game_part) }?;
+    let left = unsafe { flare_frame(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

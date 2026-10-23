@@ -12,98 +12,26 @@
 //! surface is SDL's window: `standalone.rs` would need a lock of its own for this to clear
 //! it), so nothing is written. Refuses (before anything) a height of 0: the original's
 //! `dec edx; jnz` would clear 2^32 rows. Six callers (the screen mode's set-up, the films,
-//! the menus). Shadow mode runs the original alone (the lock is made once). Self-test: a
-//! copy whose six variables are the test's and whose lock and unlock go to stand-ins (the
-//! lock failing or not), on a buffer of the test's, against the Rust version.
+//! the menus), by address (`net::lobby`'s `CLEAR_FRONT`, the typed tables).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{Regs, game_read, rva};
 
-// ---- game data ----
+const FRONT_RVA: usize = rva(0x4F32B4); // g_frontSurface
+const HEIGHT_RVA: usize = rva(0x4F4950); // g_screenHeight
 
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-/// Where the variables are (the game's, or a test's).
-#[derive(Clone, Copy)]
-pub struct FrontVars {
-    /// g_frontSurface
-    pub front: u32,
-    /// dword_4F3424: the locked memory
-    pub memory: u32,
-    /// dword_4F3410: the pitch
-    pub pitch: u32,
-    /// g_screenRowBytes
-    pub row_bytes: u32,
-    /// g_screenHeight
-    pub height: u32,
-    /// g_screenRowDwords
-    pub row_dwords: u32,
-}
-
-impl FrontVars {
-    pub fn game() -> Self {
-        let a = |x: usize| game_addr(rva(x)) as u32;
-        Self {
-            front: a(0x4F32B4),
-            memory: a(0x4F3424),
-            pitch: a(0x4F3410),
-            row_bytes: a(0x4F495C),
-            height: a(0x4F4950),
-            row_dwords: a(0x4F4960),
-        }
-    }
-}
-
-// ---- Rust version ----
-
-unsafe fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
-}
-
-/// The rows cleared: `rows` of `dwords` zero dwords from `memory`, each row's start `gap`
-/// bytes after the last one's end.
-pub unsafe fn clear_rows(memory: u32, dwords: u32, gap: u32, rows: u32) {
-    let mut at = memory;
-    for _ in 0..rows {
-        for k in 0..dwords {
-            unsafe { (at.wrapping_add(4 * k) as *mut u32).write_unaligned(0) };
-        }
-        at = at.wrapping_add(4 * dwords).wrapping_add(gap);
-    }
-}
-
-pub unsafe fn clear_front_surface(entry: &Regs, v: &FrontVars, part: Part) -> Result<(), Refused> {
+/// The Rust version (see the header): in the standalone the lock fails, so only the
+/// checks are made.
+pub fn clear_front_surface() -> Result<(), Refused> {
     unsafe {
-        if get(v.front) == 0 {
-            return Ok(());
-        }
-        let rows = get(v.height);
-        if rows == 0 {
+        if game_read::<u32>(FRONT_RVA) != 0 && game_read::<u32>(HEIGHT_RVA) == 0 {
             return Err(BadInput("a screen height of 0 (2^32 rows)").into());
         }
-        let mut r = *entry;
-        part(0, &mut r)?;
-        if r.carry() {
-            return Ok(());
-        }
-        let gap = get(v.pitch).wrapping_sub(get(v.row_bytes));
-        clear_rows(get(v.memory), get(v.row_dwords), gap, rows);
-        let mut r = *entry;
-        part(1, &mut r)?;
-        Ok(())
     }
-}
-
-/// In the game: the lock and unlock through the game (DirectDraw). In the standalone
-/// program the lock fails.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    r.set_carry(place == 0);
     Ok(())
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    unsafe { clear_front_surface(&entry, &FrontVars::game(), &mut game_part) }?;
-    Ok(())
+/// The Rust version where the typed tables run it (a refusal is the caller's).
+pub fn entry(_: &mut Regs) -> Result<(), Refused> {
+    clear_front_surface()
 }

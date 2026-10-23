@@ -15,15 +15,15 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::install::installer::{NEXT_EDIT, PATH_PROBLEM, Part, at, cmp, g, p, rb, wb};
+use crate::install::installer::{NEXT_EDIT, PATH_PROBLEM, at, cmp, g, p, rb, wb};
 use crate::race::viewer::regs_entry;
 use rc2k_core::install::pages;
 
-pub fn folder_page(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn folder_page(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     if r.ebx == 0 {
         r.ebx = 0;
-        part(at(NEXT_EDIT), &mut r)?;
+        crate::install::installer::game_part(at(NEXT_EDIT), &mut r)?;
     }
     if (entry.ebx as i32) < 0 {
         p(PATH_PROBLEM, 0);
@@ -48,7 +48,5 @@ pub fn folder_page(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| {
-        folder_page(r, &mut crate::install::installer::game_part)
-    })
+    regs_entry(r, &|r| folder_page(r))
 }

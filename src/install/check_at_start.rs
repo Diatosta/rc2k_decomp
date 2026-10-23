@@ -17,25 +17,21 @@
 //!   ends the search with `g_runningFromCd` (0x529DB0) = 1. If there is none: "Update
 //!   cannot find RC CD-ROM" in the log and the fatal error.
 //!
-//! One caller, `start`. This is not the copy protection's CD check (that one is in the
+//! One caller, `start`, which calls it directly (2026-10-23). This is not the copy protection's CD check (that one is in the
 //! main loop and `nop`ped out in this build).
 //! Refuses a scratch path that is not a text when the source cannot be put there.
-//! Self-test: a redirected copy in worlds of the test's (`install/check_test.rs`); the
-//! copy's jump to the fatal stub lands back in the test.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::install::outside::{Game, Outside};
+use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::install::outside::Outside;
 use crate::install::read_registry::{SOURCE_RVA, STATUS_RVA};
 use crate::install::runs_from_source::SCRATCH_PATH_RVA;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
 
 // ---- game data ----
 
 pub const INSTALLING_RVA: usize = rva(0x51B9E0); // g_installing
 pub const RECORD_RVA: usize = rva(0x5295C0); // "var\ral.zog"
-const NO_AUDIO_RVA: usize = rva(0x4F82B4); // g_noAudio
+pub const NO_AUDIO_RVA: usize = rva(0x4F82B4); // g_noAudio
 const DATA_FILE_RVA: usize = rva(0x4F66C8); // "files\d\gfx\jade.bun"
 const PROGRAM_RVA: usize = rva(0x51BE40); // "ral.exe" (in ".\ral.exe")
 const VERSION_RVA: usize = rva(0x4E0000); // "$VER: Rally 5.30 (4.8.2000)"
@@ -137,26 +133,4 @@ pub unsafe fn check_at_start(outside: &mut dyn Outside, no_audio: *mut u32) -> R
         }
         .into())
     }
-}
-
-fn regions() -> Vec<Region> {
-    vec![
-        at(RUNNING_FROM_CD_RVA),
-        (game_addr(SCRATCH_PATH_RVA) as u32, PATH_ROOM),
-        (game_addr(PATCH_TEXT_RVA) as u32, 0x40),
-        (game_addr(SCRIPT_ENTRY_RVA + 0x18) as u32, 0x14),
-        (game_addr(STATUS_RVA) as u32, 0x100),
-    ]
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { check_at_start(&mut Game, game_addr(NO_AUDIO_RVA) as *mut u32) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let mut regions = regions();
-    regions.push(at(NO_AUDIO_RVA));
-    state_entry(r, &rust)
 }

@@ -41,9 +41,6 @@ const CELLS_RVA: usize = rva(0x935766); // g_marksCellPlaces: 0x41 of 16 bytes
 const CELLS: u32 = 0x41;
 const ANGLES: u32 = 0x1000;
 
-/// A call by place: 1 `draw_fan`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The original's 0x4CB796 .. 0x4CB81A: the place turned by the view.
 unsafe fn turn(b: u32, p: &[[u8; 10]; 3]) {
     unsafe {
@@ -191,11 +188,7 @@ unsafe fn square(b: u32, k: u32, s: u32) -> u32 {
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_cell_sprite(
-    entry: &Regs,
-    place: [[u8; 10]; 3],
-    part: Part,
-) -> Result<Regs, Refused> {
+pub unsafe fn draw_cell_sprite(entry: &Regs, place: [[u8; 10]; 3]) -> Result<Regs, Refused> {
     let mut g = *entry;
     if g.eax >= CELLS {
         return Err(BadInput("a mark cell past g_marksCellPlaces").into());
@@ -244,7 +237,7 @@ pub unsafe fn draw_cell_sprite(
         if g.carry() {
             return Ok(g);
         }
-        part(1, &mut g)?;
+        crate::marks::draw_cell_sprite::game_part(1, &mut g)?;
         game_write(VERTEX_COUNT_RVA, 4u32);
     }
     Ok(g)

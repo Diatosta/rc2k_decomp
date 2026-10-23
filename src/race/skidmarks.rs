@@ -144,10 +144,7 @@ pub static SKIDS_CLIPPED: std::sync::atomic::AtomicBool = std::sync::atomic::Ato
 /// and to the screen and drawn in black in mode 3 without the depth test (parts 1 .. 3).
 /// Gives the registers it leaves. Refuses what the scene's functions refuse (mid-way; not
 /// met with four vertices).
-pub unsafe fn draw_skidmarks(
-    entry: &Regs,
-    part: crate::race::frame::Part,
-) -> Result<Regs, Refused> {
+pub unsafe fn draw_skidmarks(entry: &Regs) -> Result<Regs, Refused> {
     unsafe {
         let mut r = *entry;
         let mut views = u32::MAX;
@@ -230,14 +227,14 @@ pub unsafe fn draw_skidmarks(
             }
             if game_read::<u32>(rva(0x6240F8)) >= 3 {
                 game_write(rva(0x6240CC), 0u32);
-                part(1, &mut inner)?;
+                crate::race::skidmarks::skid_part(1, &mut inner)?;
                 game_write(rva(0x63DAB4), 3u32);
                 game_write(rva(0x6240E0), 0u32);
                 game_write(rva(0x6240E4), 1u32);
-                part(2, &mut inner)?;
+                crate::race::skidmarks::skid_part(2, &mut inner)?;
                 game_write(rva(0x63DAB4), 0u32);
                 game_write(rva(0x624134), 1u32);
-                part(3, &mut inner)?;
+                crate::race::skidmarks::skid_part(3, &mut inner)?;
             }
             game_write(rva(0x6240CC), 0x00FF_FFFFu32);
         }

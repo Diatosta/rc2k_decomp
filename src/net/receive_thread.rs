@@ -34,8 +34,6 @@ const WAIT: u32 = 1000;
 /// (eax, ebx -> the zero flag), 2 `net::take_messages`, 3 the posted call (eax its address), 4
 /// `ExitThread(0)` (its thunk, 0x4D5D10).
 const CALLEES: [usize; 3] = [0x401439, 0x411063, 0x4194CC];
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// Where the variables are (the game's, or a test's).
 #[derive(Clone, Copy)]
 pub struct ReceiveVars {
@@ -90,7 +88,7 @@ unsafe fn set(at: u32, value: u32) {
 }
 
 /// Runs to the `ExitThread` (place 4), which in the game does not come back.
-pub unsafe fn receive_thread(entry: &Regs, v: &ReceiveVars, part: Part) -> Result<(), Refused> {
+pub unsafe fn receive_thread(entry: &Regs, v: &ReceiveVars) -> Result<(), Refused> {
     unsafe {
         let mut c = Regs {
             esi: v.slot,
@@ -99,7 +97,7 @@ pub unsafe fn receive_thread(entry: &Regs, v: &ReceiveVars, part: Part) -> Resul
         let running = (v.slot + 0xC) as *mut u8;
         if running.read_volatile() != 1 {
             running.write_volatile(1);
-            part(
+            crate::net::receive_thread::game_part(
                 0,
                 &mut Regs {
                     eax: game_addr(START_TEXT_RVA) as u32,
@@ -110,18 +108,18 @@ pub unsafe fn receive_thread(entry: &Regs, v: &ReceiveVars, part: Part) -> Resul
                 loop {
                     c.eax = get(v.event);
                     c.ebx = WAIT;
-                    part(1, &mut c)?;
+                    crate::net::receive_thread::game_part(1, &mut c)?;
                     if c.eflags & ZERO_FLAG == 0 {
                         set(v.receiving, 1);
                         if get(v.session) == 1 {
-                            part(2, &mut c)?;
+                            crate::net::receive_thread::game_part(2, &mut c)?;
                         }
                     }
                     set(v.receiving, 0);
                     if get(v.posting) == 1 {
                         c.eax = AtomicU32::from_ptr(v.posted as *mut u32).swap(0, Ordering::SeqCst);
                         if c.eax != 0 {
-                            part(3, &mut c)?;
+                            crate::net::receive_thread::game_part(3, &mut c)?;
                             set(v.result, c.eax);
                             set(v.answered, 1);
                         }
@@ -133,7 +131,7 @@ pub unsafe fn receive_thread(entry: &Regs, v: &ReceiveVars, part: Part) -> Resul
             }
         }
         set(v.done, 1);
-        part(
+        crate::net::receive_thread::game_part(
             0,
             &mut Regs {
                 eax: game_addr(QUIT_TEXT_RVA) as u32,
@@ -142,7 +140,7 @@ pub unsafe fn receive_thread(entry: &Regs, v: &ReceiveVars, part: Part) -> Resul
         )?;
         c.esi = v.slot;
         running.write_volatile(0);
-        part(4, &mut c)?;
+        crate::net::receive_thread::game_part(4, &mut c)?;
     }
     Ok(())
 }
@@ -173,6 +171,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let entry = *r;
-    unsafe { receive_thread(&entry, &ReceiveVars::game(), &mut game_part) }?;
+    unsafe { receive_thread(&entry, &ReceiveVars::game()) }?;
     Ok(())
 }

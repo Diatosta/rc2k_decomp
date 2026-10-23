@@ -15,12 +15,12 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::input::effects::{Part, effects_entry};
+use crate::input::effects::effects_entry;
 use crate::input::start_device_effects::all_six;
 
 /// The Rust version.
-pub fn stop_device_effects(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    all_six(r, 4, part)
+pub fn stop_device_effects(r: &mut Regs) -> Result<(), Refused> {
+    all_six(r, 4)
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

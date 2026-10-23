@@ -31,7 +31,7 @@
 use crate::errors::Refused;
 use crate::framework::{Regs, rva};
 use crate::physics::flow::a;
-use crate::race::viewer::{OPEN, Part, gb, get, put, regs_entry};
+use crate::race::viewer::{OPEN, gb, get, put, regs_entry};
 
 /// The calls by place, as IDA shows them.
 pub const CALLEES: [usize; 17] = [
@@ -68,11 +68,11 @@ const SETTINGS: [(usize, usize); 6] = [
 ];
 
 /// The Rust version: the registers it leaves (the entry's).
-pub fn viewer_load_stage(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn viewer_load_stage(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     if get(OPEN) == 1 {
         for place in 1..=6 {
-            part(place, &mut r)?;
+            crate::race::viewer_load_stage::game_part(place, &mut r)?;
         }
         for (to, from) in SETTINGS {
             r.eax = get(from);
@@ -89,21 +89,21 @@ pub fn viewer_load_stage(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             eax: a(DOOR_TEXT),
             ..r
         };
-        part(7, &mut s)?;
+        crate::race::viewer_load_stage::game_part(7, &mut s)?;
         let mut s = r;
-        part(8, &mut s)?;
-        part(9, &mut r)?;
-        part(10, &mut r)?;
+        crate::race::viewer_load_stage::game_part(8, &mut s)?;
+        crate::race::viewer_load_stage::game_part(9, &mut r)?;
+        crate::race::viewer_load_stage::game_part(10, &mut r)?;
         if get(FONT_PALETTES) == 0 {
-            part(11, &mut r)?;
+            crate::race::viewer_load_stage::game_part(11, &mut r)?;
             put(FONTS_BUILT, 1);
         }
         for place in 12..=15 {
-            part(place, &mut r)?;
+            crate::race::viewer_load_stage::game_part(place, &mut r)?;
         }
         put(LOADED, 1);
     }
-    part(16, &mut r)?;
+    crate::race::viewer_load_stage::game_part(16, &mut r)?;
     Ok(*entry)
 }
 
@@ -121,11 +121,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             7 => crate::logfile::log_write::log_write(r.eax as *const u8, false, 1),
             8 => crate::logfile::log_int::log_int(r.eax as i32, true, 1),
             9 => {
-                sound_tables::set_up_race_sound_objects(
-                    r,
-                    &sound_tables::ObjectVars::game(),
-                    &mut sound_tables::object_part,
-                )?;
+                sound_tables::set_up_race_sound_objects(r, &sound_tables::ObjectVars::game())?;
             }
             11 => {
                 crate::gfx::build_fonts::build_fonts(&{ *r }, &mut crate::gfx::glyph_tables::Game)?
@@ -137,11 +133,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 r.set_carry(false);
             }
             14 => {
-                race_end::reset_race_sounds(
-                    r,
-                    &race_end::SoundVars::game(),
-                    &mut race_end::sound_part,
-                )?;
+                race_end::reset_race_sounds(r, &race_end::SoundVars::game())?;
             }
             15 => crate::race::viewer_palettes::viewer_palettes(),
             _ => take_key(r),
@@ -166,5 +158,5 @@ pub fn log_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| viewer_load_stage(r, &mut game_part))
+    regs_entry(r, &|r| viewer_load_stage(r))
 }

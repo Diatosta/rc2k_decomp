@@ -122,7 +122,7 @@ const ENVIRONMENT_RVA: usize = rva(0x6D1DD4); // g_eaxEnvironment
 /// voices' +0 0x1888FFFF and +0x14 -2; `dword_5165EC`, `dword_518054` 0, the EAX
 /// environment 1.0; command 2 with eax 3; `dword_5124E4` 0. Every register kept.
 /// Refuses, before anything, a sound object missing (the original writes through 0).
-pub unsafe fn reset_race_sounds(entry: &Regs, v: &SoundVars, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn reset_race_sounds(entry: &Regs, v: &SoundVars) -> Result<Regs, Refused> {
     let g = *entry;
     unsafe {
         let objects: Vec<u32> = (0..8)
@@ -132,11 +132,11 @@ pub unsafe fn reset_race_sounds(entry: &Regs, v: &SoundVars, part: Part) -> Resu
             return Err(crate::errors::BadInput("a race sound object missing").into());
         }
         let mut r = g;
-        part(WAIT, &mut r)?;
-        part(COMMAND_7, &mut r)?;
-        part(WAIT, &mut r)?;
-        part(HOLD_BACK, &mut r)?;
-        part(CLOCK, &mut r)?;
+        crate::race::race_end::sound_part(WAIT, &mut r)?;
+        crate::race::race_end::sound_part(COMMAND_7, &mut r)?;
+        crate::race::race_end::sound_part(WAIT, &mut r)?;
+        crate::race::race_end::sound_part(HOLD_BACK, &mut r)?;
+        crate::race::race_end::sound_part(CLOCK, &mut r)?;
         for &o in &objects {
             for (off, v) in OBJECT_VALUES {
                 ((o + off) as *mut u32).write_unaligned(v);
@@ -157,7 +157,7 @@ pub unsafe fn reset_race_sounds(entry: &Regs, v: &SoundVars, part: Part) -> Resu
         r.eax = 3;
         r.ebx = first + 0x50 * 0x48;
         r.ecx = 0;
-        part(COMMAND_2, &mut r)?;
+        crate::race::race_end::sound_part(COMMAND_2, &mut r)?;
         game_write(rva(0x5124E4), 0u32);
     }
     Ok(g)
@@ -205,27 +205,8 @@ pub fn sound_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 // ---- the tidying ----
 
-use crate::race::loadlevel::{LoadVars, or_in_game};
+use crate::race::loadlevel::LoadVars;
 
-/// The tidying's calls by place, as IDA shows them.
-pub const TIDY_CALLEES: [usize; 16] = [
-    0,        // 0 (not used)
-    0x449ECA, // 1 race::free_mud
-    0x4433A7, // 2 race::render3d_tidy
-    0x4D146D, // 3 marks::tidy_marks (the main session's)
-    0x41B2BC, // 4 race::free_game_fonts
-    0x41B907, // 5 race::free_game_map
-    0x44E79F, // 6 race::release_stage_textures
-    0x41F94D, // 7 race::free_course_list_2
-    0x41F924, // 8 race::free_course_memory
-    0x44346B, // 9 race::objects_tidy
-    0x40142B, // 10 logfile::log_write_l1_nl
-    0x4013DE, // 11 logfile::log_newline_l1
-    0x409425, // 12 race::release_controls
-    0x436B69, // 13 race::tidy_game_mode
-    0x444940, // 14 race::tidy_stage
-    0x45D28E, // 15 race::stop_race_sounds
-];
 const TIDY_LOG: u32 = 10;
 const TIDY_NEWLINE: u32 = 11;
 /// "LOADLEVEL_TIDY : tidymud" .. "finis".
@@ -335,10 +316,10 @@ pub unsafe fn tidy_everything(entry: &Regs, v: &LoadVars, part: Part) -> Result<
     Ok(s.g)
 }
 
-/// The tidying's calls in the game: the Rust versions (each through `or_in_game`).
+/// The tidying's calls in the game: the Rust versions.
 pub fn tidy_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     match place {
-        1..=9 | 12..=15 => or_in_game(TIDY_CALLEES[place as usize], r, |r| tidy_step(place, r)),
+        1..=9 | 12..=15 => tidy_step(place, r),
         _ => tidy_step(place, r),
     }
 }
@@ -376,7 +357,7 @@ fn tidy_step(place: u32, r: &mut Regs) -> Result<(), Refused> {
             12 => crate::race::race_shell::release_controls(),
             13 => {}
             14 => *r = tidy_stage(r, &LoadVars::game(), &mut tidy_part)?,
-            _ => *r = reset_race_sounds(r, &SoundVars::game(), &mut sound_part)?,
+            _ => *r = reset_race_sounds(r, &SoundVars::game())?,
         }
     }
     Ok(())
@@ -419,32 +400,32 @@ pub const RACE_CALLEES: [usize; 12] = [
 /// the replay's header and file, `dword_63DB84` 0, the race run (`sub_444CEE`), the
 /// replay closed, everything tidied, the settings out. Leaves the registers as the last
 /// step. `indent` is `g_logIndent`'s address.
-pub unsafe fn run_race(entry: &Regs, indent: u32, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn run_race(entry: &Regs, indent: u32) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         game_write(rva(0x60101C), 1u32);
         (indent as *mut u32).write_unaligned(0);
         if game_read::<u32>(rva(0x75AFF4)) == 0 && game_read::<u32>(rva(0x75ACD8)) == 2 {
-            part(1, &mut g)?;
+            crate::race::race_end::race_part(1, &mut g)?;
             game_write(rva(0x60519C), g.eax);
         }
         game_write(rva(0x621514), 0u32);
         game_write(rva(0x5C5CE0), 1u32);
-        part(2, &mut g)?;
-        part(3, &mut g)?;
+        crate::race::race_end::race_part(2, &mut g)?;
+        crate::race::race_end::race_part(3, &mut g)?;
         game_write(rva(0x6238AC), 1u32);
         for place in 4..=7 {
-            part(place, &mut g)?;
+            crate::race::race_end::race_part(place, &mut g)?;
         }
         game_write(rva(0x63DB84), 0u32);
         for place in 8..=11 {
-            part(place, &mut g)?;
+            crate::race::race_end::race_part(place, &mut g)?;
         }
     }
     Ok(g)
 }
 
-/// The race's calls in the game: the Rust versions (each through `or_in_game`), the
+/// The race's calls in the game: the Rust versions, the
 /// race's run the game's.
 pub fn race_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     match place {
@@ -456,7 +437,7 @@ pub fn race_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             crate::calls::call(rva(RACE_CALLEES[8]), r);
             Ok(())
         }
-        _ => or_in_game(RACE_CALLEES[place as usize], r, |r| race_step(place, r)),
+        _ => race_step(place, r),
     }
 }
 
@@ -480,8 +461,8 @@ fn race_step(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 &mut crate::race::stage_loading::game_part,
             )?,
             6 => record_replay_header(r, &mut replay_log_part)?,
-            7 => crate::race::replay::open_replay(r, &mut crate::race::replay::game_part)?,
-            9 => crate::race::replay::close_replay(r, &mut crate::race::replay::game_part)?,
+            7 => crate::race::replay::open_replay(r)?,
+            9 => crate::race::replay::close_replay(r)?,
             10 => tidy_everything(r, &LoadVars::game(), &mut tidy_part)?,
             _ => crate::race::settings_copy::copy_settings_out(
                 r,
@@ -496,10 +477,10 @@ fn race_step(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// `race::release_textures` (0x443396): `race::release_stage_textures`,
 /// `scene::reset_texture_tables`. Leaves the registers as they do.
-pub unsafe fn release_textures(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn release_textures(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
-    part(1, &mut g)?;
-    part(2, &mut g)?;
+    crate::race::race_end::release_part(1, &mut g)?;
+    crate::race::race_end::release_part(2, &mut g)?;
     Ok(g)
 }
 
@@ -519,53 +500,54 @@ pub fn release_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// `race::start_race` (0x4278B7): `dword_621870` 0, `race::run_race`. Leaves the
 /// registers as it does.
-pub unsafe fn start_race(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn start_race(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe { game_write(rva(0x621870), 0u32) };
-    part(1, &mut g)?;
+    crate::race::race_end::start_part(1, &mut g)?;
     Ok(g)
 }
 
 pub fn start_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
     let indent = game_addr(rva(0x4E00A0)) as u32; // g_logIndent
-    or_in_game(0x443F0B, r, |r| {
-        *r = unsafe { run_race(r, indent, &mut race_part) }?;
+    {
+        *r = unsafe { run_race(r, indent) }?;
         Ok(())
-    })
+    }
 }
 
 /// `race::race_from_menu` (0x485570): `race::render3d_tidy`, `race::objects_tidy`,
 /// `nullsub_6`, `race::release_textures`, `race::start_race`. Leaves the registers as
 /// the last.
-pub unsafe fn race_from_menu(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn race_from_menu(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     for place in [1, 2, 3, 4] {
-        part(place, &mut g)?;
+        crate::race::race_end::menu_part(place, &mut g)?;
     }
     Ok(g)
 }
 
 pub fn menu_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::race::stage_free::{OBJECT_POINTS, POINT_RECORDS, free};
-    let address = [0, 0x4433A7, 0x44346B, 0x443396, 0x4278B7][place as usize];
-    or_in_game(address, r, |r| unsafe {
-        match place {
-            1 | 2 => {
-                let g = free(
-                    r,
-                    if place == 1 {
-                        &POINT_RECORDS
-                    } else {
-                        &OBJECT_POINTS
-                    },
-                )?;
-                r.eax = g.eax;
-                r.ebx = g.ebx;
-                r.set_carry(false);
+    {
+        unsafe {
+            match place {
+                1 | 2 => {
+                    let g = free(
+                        r,
+                        if place == 1 {
+                            &POINT_RECORDS
+                        } else {
+                            &OBJECT_POINTS
+                        },
+                    )?;
+                    r.eax = g.eax;
+                    r.ebx = g.ebx;
+                    r.set_carry(false);
+                }
+                3 => *r = release_textures(r)?,
+                _ => *r = start_race(r)?,
             }
-            3 => *r = release_textures(r, &mut release_part)?,
-            _ => *r = start_race(r, &mut start_part)?,
+            Ok(())
         }
-        Ok(())
-    })
+    }
 }

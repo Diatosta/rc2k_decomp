@@ -74,8 +74,7 @@ pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused
             2 => crate::scene::set_texture::set_texture_in_game(r),
             _ => {
                 use crate::marks::draw_turned_sprite as sprite;
-                let left =
-                    sprite::draw_turned_sprite(r, [v[0], v[1], v[2]], &mut sprite::game_part)?;
+                let left = sprite::draw_turned_sprite(r, [v[0], v[1], v[2]])?;
                 *r = Regs { esp: r.esp, ..left };
             }
         }

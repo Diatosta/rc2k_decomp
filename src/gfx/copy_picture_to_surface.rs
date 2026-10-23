@@ -28,8 +28,6 @@ const LOCKED_RVA: usize = rva(0x4F3870); // dword_4F3870: 1 while the surface is
 const ROWS_RVA: usize = rva(0x4F49A4); // dword_4F49A4
 const ROW_DWORDS_RVA: usize = rva(0x4F49B4); // dword_4F49B4
 const ROW_GAP_RVA: usize = rva(0x4F49C4); // dword_4F49C4: surface bytes after a row's pixels
-const LOCK_SURFACE: usize = rva(0x4058AD); // gfx::lock_surface
-const UNLOCK_SURFACE: usize = rva(0x405949); // gfx::unlock_surface
 
 // ---- Rust version ----
 
@@ -55,13 +53,11 @@ impl PictureSurface for GameSurface {
         unsafe { game_read::<u32>(LOCKED_RVA) != 0 }
     }
     fn lock(&mut self) -> bool {
-        let mut g = Regs::default();
-        crate::calls::call(LOCK_SURFACE, &mut g);
-        !g.carry()
+        // `cmp g_surfaceLocked, 1`'s carry clear: locked.
+        crate::platform::lock_surface() >= 1
     }
     fn unlock(&mut self) {
-        let mut g = Regs::default();
-        crate::calls::call(UNLOCK_SURFACE, &mut g);
+        crate::platform::unlock_surface();
     }
     fn picture(&self) -> *const u8 {
         picture()

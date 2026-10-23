@@ -20,18 +20,11 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, game_read, rva};
-use crate::physics::flow::guard;
-use crate::sound::turn_parts::{OBJECTS, Part, REQUEST, turn_entry, turn_regions};
-
-const ENGINE: u32 = 0x40D8E2;
-/// After the factors, in the original's order.
-const SOUNDS: [u32; 8] = [
-    0x40DD19, 0x40DD96, 0x40DE09, 0x40DE9B, 0x40E0F6, 0x40E182, 0x40E1E5, 0x40E24F,
-];
+use crate::sound::turn_parts::{OBJECTS, REQUEST, turn_entry};
 
 // ---- Rust version ----
 
-pub fn car_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn car_sounds_in(r: &mut Regs) -> Result<(), Refused> {
     if r.eax > 7 {
         return Err(BadInput("a car's sound object past 7").into());
     }
@@ -39,13 +32,13 @@ pub fn car_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     if object == 0 {
         return Err(BadInput("a null sound object").into());
     }
-    guard(&turn_regions(), || {
+    {
         let mut c = Regs {
             ebx: object,
             esi: game_addr(rva(REQUEST)) as u32,
             ..*r
         };
-        part(ENGINE, &mut c)?;
+        crate::sound::car_engine_state::car_engine_state_in(&mut c)?;
         unsafe {
             let (o, q) = (c.ebx as *const u32, c.esi as *mut u32);
             let pitch = o.add(0x13C / 4).read_unaligned();
@@ -53,11 +46,16 @@ pub fn car_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
             c.eax = o.add(0x140 / 4).read_unaligned();
             q.add(9).write_unaligned(c.eax);
         }
-        for place in SOUNDS {
-            part(place, &mut c)?;
-        }
-        Ok(())
-    })
+        use crate::sound::*;
+        revs_sound::revs_sound_in(&mut c)?;
+        throttle_sound::throttle_sound_in(&mut c)?;
+        speed_sound::speed_sound_in(&mut c)?;
+        surface_sounds::surface_sounds_in(&mut c)?;
+        car_slot_sounds::car_slot_sounds_in(&mut c)?;
+        car_hit_sound::car_hit_sound_in(&mut c)?;
+        car_cue_sound::car_cue_sound_in(&mut c)?;
+        car_gear_sounds::car_gear_sounds_in(&mut c)
+    }
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

@@ -60,7 +60,6 @@ use crate::logfile::log_write::log_write;
 use crate::logfile::write_line::LOG_LEVEL_RVA;
 use crate::memory::MemoryList;
 use crate::memory::take_from_list::{rewind_list, take_from_list};
-use crate::service::harness::{Region, at, capture, restore};
 
 // ---- game data ----
 
@@ -395,73 +394,8 @@ pub unsafe fn build_glyphs(template: *const u8, list: *mut MemoryList) -> Result
     }
 }
 
-/// The builder's own variables.
-fn variables() -> Vec<Region> {
-    [
-        BUILDER_FLAGS_RVA,
-        TEMPLATE_RVA,
-        NUMBER_RVA,
-        BACKDROP_RVA,
-        TRANSPARENT_RVA,
-        SHEET_TABLE_RVA,
-        SHEET_TABLE_SIZE_RVA,
-        TABLE_LIST_RVA,
-        TABLE_RVA,
-        TABLE_SIZE_RVA,
-        GLYPH_COUNT_RVA,
-        GLYPH_BYTES_RVA,
-        PIXEL_SIZE_RVA,
-        ALPHA_LOADED_RVA,
-    ]
-    .map(at)
-    .to_vec()
-}
-
-/// What a build changes that the other version must find as it was: the variables, the two
-/// lists and the table as far as it is built.
-struct Before {
-    regions: Vec<Region>,
-    saved: Vec<u8>,
-}
-
-impl Before {
-    /// `with_table`: the table so far is a caller's, just begun or being built, and is
-    /// kept too. A self-test builds in memory of its own, and what the variables name
-    /// then may be a table whose memory has been given back (a stage's font).
-    unsafe fn capture(list: *mut MemoryList, with_table: bool) -> Self {
-        let mut regions = variables();
-        regions.extend([
-            (game_addr(rva(0x5195AC)) as u32, 4),
-            (game_addr(rva(0x5195B8)) as u32, 0x14),
-            (game_addr(WORK_MEMORY_RVA) as u32, 16),
-        ]);
-        if !list.is_null() {
-            regions.push((list as u32, 16));
-        }
-        let (table, held): (u32, u32) =
-            unsafe { (game_read(TABLE_RVA), game_read(TABLE_SIZE_RVA)) };
-        if with_table && table != 0 && held != 0 && held < 0x1000_0000 {
-            regions.push((table, held as usize));
-        }
-        Self {
-            saved: capture(&regions),
-            regions,
-        }
-    }
-
-    fn restore(&self) {
-        restore(&self.regions, &self.saved);
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let (template, list) = (r.eax as *const u8, r.ebx as *mut MemoryList);
-    let before = unsafe { Before::capture(list, true) };
-    let mine = unsafe { build_glyphs(template, list) };
-    if let Err(e) = mine {
-        before.restore();
-        return Err(e);
-    }
-    Ok(())
+    unsafe { build_glyphs(template, list) }
 }

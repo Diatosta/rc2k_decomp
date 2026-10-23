@@ -34,7 +34,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::physics::flow::{base, c0, guard, x87_run};
+use crate::physics::flow::{base, c0, x87_run};
 use crate::race::muddy_texel::texture_and_mud;
 use crate::race::splash_mud::{LAST_SPLASHED, SPLASHED_RVA, splash_mud, splash_regions};
 use crate::race::throw_mud_texel::{LAST_THROWN, THROWN_RVA, throw_mud_texel, throw_regions};
@@ -84,7 +84,7 @@ fn take_units(at: usize, units: usize) {
 pub unsafe fn update_mud_texture(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let (n, _) = texture_and_mud()?;
     let k = 4 * n as usize;
-    let all = [
+    let _all = [
         &throw_regions()[..],
         &splash_regions()[..],
         &[
@@ -95,77 +95,79 @@ pub unsafe fn update_mud_texture(entry: &Regs, part: Part) -> Result<Regs, Refus
         ],
     ]
     .concat();
-    guard(&all, || unsafe {
-        let mut r = *entry;
-        r.eax = game_read::<u32>(FIRST_SLOT_RVA).wrapping_add(n);
-        part(0, &mut r)?;
-        game_write(
-            CHANGES_RVA,
-            game_read::<u32>(CHANGES_RVA).wrapping_add(0x1_0000),
-        );
-        r.eax = game_read::<u32>(FIRST_TEXTURE_RVA).wrapping_add(n);
-        game_write(LOCKED_RVA, r.eax);
-        if r.eax == 0 {
-            return Ok(r);
-        }
-        part(1, &mut r)?;
-        if r.carry() {
-            return Ok(r);
-        }
-        // The throws.
-        r.ebx = n;
-        let throws = whole_units(THROWS_IN_RVA + k, THROWS_RVA);
-        let count: u32 = game_read(THROWN_RVA + k);
-        r.eax = count;
-        if count <= LAST_THROWN {
-            r.eax = (count & 0xFFFF).wrapping_add(throws as u32);
-            if (r.eax.wrapping_sub(0x100_0000) as i32) >= 0 {
-                r.eax = r.eax.wrapping_sub(0x100_0000);
-                game_write(THROWS_RVA, (throws as u32).wrapping_sub(r.eax));
+    (|| -> Result<_, crate::errors::Refused> {
+        unsafe {
+            let mut r = *entry;
+            r.eax = game_read::<u32>(FIRST_SLOT_RVA).wrapping_add(n);
+            part(0, &mut r)?;
+            game_write(
+                CHANGES_RVA,
+                game_read::<u32>(CHANGES_RVA).wrapping_add(0x1_0000),
+            );
+            r.eax = game_read::<u32>(FIRST_TEXTURE_RVA).wrapping_add(n);
+            game_write(LOCKED_RVA, r.eax);
+            if r.eax == 0 {
+                return Ok(r);
             }
-            take_units(THROWS_IN_RVA + k, THROWS_RVA);
-            let throws: i32 = game_read(THROWS_RVA);
-            if throws > 0 {
-                let mut ebp = 0u32;
-                loop {
-                    r = throw_mud_texel(&Regs { ebp, ..r })?;
-                    ebp = ebp.wrapping_add(1);
-                    r.ebp = ebp;
-                    if ebp == game_read::<u32>(THROWS_RVA) {
-                        break;
+            part(1, &mut r)?;
+            if r.carry() {
+                return Ok(r);
+            }
+            // The throws.
+            r.ebx = n;
+            let throws = whole_units(THROWS_IN_RVA + k, THROWS_RVA);
+            let count: u32 = game_read(THROWN_RVA + k);
+            r.eax = count;
+            if count <= LAST_THROWN {
+                r.eax = (count & 0xFFFF).wrapping_add(throws as u32);
+                if (r.eax.wrapping_sub(0x100_0000) as i32) >= 0 {
+                    r.eax = r.eax.wrapping_sub(0x100_0000);
+                    game_write(THROWS_RVA, (throws as u32).wrapping_sub(r.eax));
+                }
+                take_units(THROWS_IN_RVA + k, THROWS_RVA);
+                let throws: i32 = game_read(THROWS_RVA);
+                if throws > 0 {
+                    let mut ebp = 0u32;
+                    loop {
+                        r = throw_mud_texel(&Regs { ebp, ..r })?;
+                        ebp = ebp.wrapping_add(1);
+                        r.ebp = ebp;
+                        if ebp == game_read::<u32>(THROWS_RVA) {
+                            break;
+                        }
                     }
                 }
             }
-        }
-        // The splashes.
-        r.ebx = n;
-        whole_units(SPLASHES_IN_RVA + k, SPLASHES_RVA);
-        r.eax = game_read(SPLASHED_RVA + k);
-        if r.eax < LAST_SPLASHED {
-            take_units(SPLASHES_IN_RVA + k, SPLASHES_RVA);
-            let splashes: i32 = game_read(SPLASHES_RVA);
-            if splashes > 0 {
-                let mut ebp = 0u32;
-                r.ebp = ebp;
-                loop {
-                    r.ebx = n;
-                    r.eax = game_read(SPLASHED_RVA + k);
-                    if r.eax >= LAST_SPLASHED {
-                        break;
-                    }
-                    r = splash_mud(&Regs { ebp, ..r })?;
-                    ebp = ebp.wrapping_add(1);
+            // The splashes.
+            r.ebx = n;
+            whole_units(SPLASHES_IN_RVA + k, SPLASHES_RVA);
+            r.eax = game_read(SPLASHED_RVA + k);
+            if r.eax < LAST_SPLASHED {
+                take_units(SPLASHES_IN_RVA + k, SPLASHES_RVA);
+                let splashes: i32 = game_read(SPLASHES_RVA);
+                if splashes > 0 {
+                    let mut ebp = 0u32;
                     r.ebp = ebp;
-                    if ebp == game_read::<u32>(SPLASHES_RVA) {
-                        break;
+                    loop {
+                        r.ebx = n;
+                        r.eax = game_read(SPLASHED_RVA + k);
+                        if r.eax >= LAST_SPLASHED {
+                            break;
+                        }
+                        r = splash_mud(&Regs { ebp, ..r })?;
+                        ebp = ebp.wrapping_add(1);
+                        r.ebp = ebp;
+                        if ebp == game_read::<u32>(SPLASHES_RVA) {
+                            break;
+                        }
                     }
                 }
             }
+            r.eax = game_read(LOCKED_RVA);
+            part(2, &mut r)?;
+            Ok(r)
         }
-        r.eax = game_read(LOCKED_RVA);
-        part(2, &mut r)?;
-        Ok(r)
-    })
+    })()
 }
 
 /// In the game: the forgetting's Rust version, the platform's lock and unlock through the

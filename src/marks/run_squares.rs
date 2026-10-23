@@ -124,8 +124,8 @@ pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused
     use crate::marks::{draw_square, squares_setup};
     unsafe {
         match place {
-            1 => *r = squares_setup::squares_setup(r, &mut squares_setup::game_part)?,
-            2 => *r = draw_square::draw_square(r, [v[0], v[1]], &mut draw_square::game_part)?,
+            1 => *r = squares_setup::squares_setup(r)?,
+            2 => *r = draw_square::draw_square(r, [v[0], v[1]])?,
             _ => crate::scene::depth_buffer_on::depth_buffer(r, true),
         }
     }

@@ -23,7 +23,6 @@ use crate::errors::Refused;
 use crate::framework::{Regs, game_read, game_write, rva};
 use crate::math::x87_run::{ext_div2, int_80};
 use crate::physics::reset_parts::{NEAREST_IN, reset_entry};
-use crate::race::car_starts::Part;
 use rc2k_core::physics::progress;
 
 fn g(x: usize) -> u32 {
@@ -39,7 +38,7 @@ const DISTANCE: usize = 0x614C68; // g_nearestCheckpointDistance
 
 /// The Rust version, the calls through `part` (places 17 and 8).
 // Converted: `rc2k_core::physics::progress::{near_window, search_all}`.
-pub unsafe fn find_car_checkpoint(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn find_car_checkpoint(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     p(0x639824, g(0x71A10C));
     r.eax = g(0x71A114);
@@ -49,14 +48,14 @@ pub unsafe fn find_car_checkpoint(entry: &Regs, part: Part) -> Result<Regs, Refu
         return Ok(r);
     }
     (r.ecx, r.edx) = progress::near_window(g(0x71A070));
-    part(NEAREST_IN, &mut r)?;
+    crate::physics::reset_parts::game_part(NEAREST_IN, &mut r)?;
     p(0x62400C, r.edi);
     p(
         DISTANCE,
         ext_div2(int_80(r.edi as i32, false), g(0x5C5D98), 0x3F80_0000),
     );
     if progress::search_all(r.edi) {
-        part(8, &mut r)?;
+        crate::physics::reset_parts::game_part(8, &mut r)?;
     } else {
         r.eax = r.ebp;
     }

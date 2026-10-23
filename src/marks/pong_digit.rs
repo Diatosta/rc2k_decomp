@@ -18,19 +18,16 @@ use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write};
 use crate::marks::pong;
 
-/// A call by place: 1 `pong_cell`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
 // Converted: `rc2k_core::marks::pong::{pattern, cells}`
-pub unsafe fn pong_digit(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn pong_digit(entry: &Regs) -> Result<Regs, Refused> {
     use rc2k_core::marks::pong as core;
     let mut r = *entry;
     r.eax = game_addr(pong::PATTERNS_RVA) as u32 + core::pattern(entry.eax)?;
     for (col, row) in core::cells() {
         r.ebx = col;
         r.ecx = row;
-        part(1, &mut r)?;
+        crate::marks::pong_digit::game_part(1, &mut r)?;
     }
     unsafe {
         let at: u32 = game_read(pong::DIGIT_AT[0]);
@@ -42,13 +39,13 @@ pub unsafe fn pong_digit(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// In the game: `pong_cell`'s Rust version.
 pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::marks::pong_cell as pc;
-    *r = unsafe { pc::pong_cell(r, &mut pc::game_part) }?;
+    *r = unsafe { pc::pong_cell(r) }?;
     Ok(())
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { pong_digit(r, &mut game_part) }?;
+    let left = unsafe { pong_digit(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

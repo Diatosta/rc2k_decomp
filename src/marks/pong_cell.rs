@@ -27,12 +27,9 @@ use rc2k_core::math::extended::from_f64;
 const STEP_RVA: [usize; 2] = [rva(0x7691FA), rva(0x7691FE)]; // flt_7691FA, flt_7691FE
 const SIZE_RVA: [usize; 2] = [rva(0x769202), rva(0x769206)]; // flt_769202, flt_769206
 
-/// A call by place: 1 `draw_pong_box`, with its four values (st(0) first).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs, &[[u8; 10]]) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
 // Converted: `rc2k_core::marks::pong::cell_place`
-pub unsafe fn pong_cell(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn pong_cell(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         if (g.eax as *const u8).read() != 0 {
@@ -46,7 +43,7 @@ pub unsafe fn pong_cell(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                 from_f64(x),
             ];
             let mut r = g;
-            part(1, &mut r, &values)?;
+            crate::marks::pong_cell::game_part(1, &mut r, &values)?;
         }
     }
     g.eax = g.eax.wrapping_add(1);
@@ -56,13 +53,13 @@ pub unsafe fn pong_cell(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// In the game: `draw_pong_box`'s Rust version.
 pub fn game_part(_place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused> {
     use crate::marks::draw_pong_box as pb;
-    unsafe { pb::draw_pong_box(r, [v[0], v[1], v[2], v[3]], &mut pb::game_part) }?;
+    unsafe { pb::draw_pong_box(r, [v[0], v[1], v[2], v[3]]) }?;
     Ok(())
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { pong_cell(r, &mut game_part) }?;
+    let left = unsafe { pong_cell(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

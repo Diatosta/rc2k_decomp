@@ -53,9 +53,6 @@ const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
 const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
 
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 fn addr(r: usize) -> u32 {
     game_addr(r) as u32
 }
@@ -287,7 +284,7 @@ unsafe fn plane_projected(b: u32) {
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_plane(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn draw_plane(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         let s: u32 = game_read(SETTINGS_RVA);
@@ -322,13 +319,13 @@ pub unsafe fn draw_plane(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         if corner >= 0x100 {
             return Err(BadInput("a plane corner past g_marksCorners").into());
         }
-        part(1, &mut g)?;
+        crate::marks::draw_plane::game_part(1, &mut g)?;
         for state in [0x11, 0x12] {
             [g.eax, g.ebx] = [2, state];
-            part(2, &mut g)?;
+            crate::marks::draw_plane::game_part(2, &mut g)?;
         }
         g.eax = game_read(TEXTURE_RVA);
-        part(3, &mut g)?;
+        crate::marks::draw_plane::game_part(3, &mut g)?;
         plane_corners(b);
         g.eax = addr(MARK_CORNERS_RVA) + corner * 0x80;
         let word = |off: u32| ((g.eax + off) as *const u16).read_unaligned() as u32;
@@ -378,8 +375,8 @@ pub unsafe fn draw_plane(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                 x87::reciprocal_times(depth, game_read(RHW_K_RVA + 4 * n)),
             );
         }
-        part(4, &mut g)?;
-        part(5, &mut g)?;
+        crate::marks::draw_plane::game_part(4, &mut g)?;
+        crate::marks::draw_plane::game_part(5, &mut g)?;
     }
     Ok(g)
 }
@@ -403,7 +400,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_plane(r, &mut game_part) }?;
+    let left = unsafe { draw_plane(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

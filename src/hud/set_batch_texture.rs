@@ -19,18 +19,15 @@ use crate::hud::batch::SHOWN_TEXTURE_RVA;
 
 const SLOTS_RVA: usize = rva(0x5D1AE8); // g_kindFirstSlots
 
-/// A call by place: 1 `set_texture`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
 // Converted: `rc2k_core::hud::batch::texture_slot`
-pub unsafe fn set_batch_texture(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn set_batch_texture(entry: &Regs) -> Result<Regs, Refused> {
     let n = rc2k_core::hud::batch::texture_slot(unsafe { game_read(SHOWN_TEXTURE_RVA) })?;
     let mut r = Regs {
         eax: unsafe { game_read(SLOTS_RVA + 4 * n) },
         ..*entry
     };
-    part(1, &mut r)?;
+    crate::hud::set_batch_texture::game_part(1, &mut r)?;
     Ok(*entry)
 }
 
@@ -42,7 +39,7 @@ pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { set_batch_texture(r, &mut game_part) }?;
+    let left = unsafe { set_batch_texture(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

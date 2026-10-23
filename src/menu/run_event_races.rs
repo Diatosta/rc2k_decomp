@@ -238,7 +238,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             }
             _ => {
                 use crate::menu::reload_front_end as f;
-                *r = f::reload_front_end(r, &mut f::game_part)?
+                *r = f::reload_front_end(r)?
             }
         }
     }

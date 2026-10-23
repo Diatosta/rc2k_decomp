@@ -19,7 +19,6 @@ use crate::physics::edge_side::{EdgePlaces, edge_side_at};
 use crate::physics::find_course_record::{RecordPlaces, find_course_record_at};
 use crate::physics::plane_height::{Plane, plane_height_at};
 use crate::screens::harness::Left;
-use crate::service::harness::Region;
 use rc2k_core::physics::ground_search::{self, FaceTest};
 
 /// The game's ranges the search uses (IDA addresses, end exclusive): the course tables
@@ -101,15 +100,6 @@ impl Ground {
             records: self.a(RECORDS),
             count: unsafe { self.get(RECORD_COUNT) },
         }
-    }
-
-    /// What the search may write: the face variables, the product, the work variables.
-    pub fn regions(&self) -> Vec<Region> {
-        vec![
-            (self.a(0x5CCC60), 0x1C),
-            (self.a(0x620460), 8),
-            (self.a(0x6396FC), (0x63989C - 0x6396FC) as usize),
-        ]
     }
 
     unsafe fn point(&self, index: u32) -> u32 {

@@ -213,7 +213,7 @@ pub unsafe fn set_up_car_points(
 /// `dword_621844`; with cars, each car's three kinds (its `known_kind`, `car_kind_11`,
 /// `car_kind_10` of its block's +0x24) at slots 0x50 + 0x14 * n, +11, +10; the objects
 /// loaded; each car's points set up. Refuses more than the eight cars' blocks. Leaves the registers as the last call does.
-pub unsafe fn set_object_kinds(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn set_object_kinds(entry: &Regs) -> Result<Regs, Refused> {
     // Converted: `rc2k_core::race::stage_objects::{FIXED_KINDS, DEFAULT_SLOTS, CAR_KINDS,
     // car_slot, check_object_cars}` (each car's slots one step on from the first's, as the
     // original counts edi).
@@ -223,7 +223,7 @@ pub unsafe fn set_object_kinds(entry: &Regs, part: Part) -> Result<Regs, Refused
     };
     let mut g = *entry;
     unsafe {
-        part(6, &mut g)?;
+        crate::race::objects::game_part(6, &mut g)?;
         game_write(FIXED_KINDS_RVA, FIXED_KINDS);
         let kinds = game_addr(SLOT_KINDS_RVA) as u32;
         for n in DEFAULT_SLOTS {
@@ -249,19 +249,19 @@ pub unsafe fn set_object_kinds(entry: &Regs, part: Part) -> Result<Regs, Refused
                     CarKind::Table10 => 9,
                 };
                 g.eax = get(g.esi + 0x24);
-                part(place, &mut g)?;
+                crate::race::objects::game_part(place, &mut g)?;
                 put(kinds + 4 * (g.edi + slot), g.eax);
             }
             g.edi += CAR_SLOT_STEP;
         }
         g.ebx = cars;
-        part(10, &mut g)?;
+        crate::race::objects::game_part(10, &mut g)?;
         g.esi = FIRST_CAR_SLOT;
         for n in 0..cars {
             g.ebx = n;
             g.edi = game_read(CAR_BLOCKS_RVA + 4 * n as usize);
             let mut r = g;
-            part(11, &mut r)?;
+            crate::race::objects::game_part(11, &mut r)?;
             g.esi += CAR_SLOT_STEP;
         }
         g.ebx = cars;
@@ -309,7 +309,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             9 => r.eax = car_table(KIND_10_TABLE_RVA, r.eax),
             10 => crate::scene::load_front_end_objects::load_front_end_objects_in_game(r)?,
             11 => *r = set_up_car_points(r, &CarPointVars::game(), &mut game_part)?,
-            _ => *r = set_object_kinds(r, &mut game_part)?,
+            _ => *r = set_object_kinds(r)?,
         }
     }
     Ok(())

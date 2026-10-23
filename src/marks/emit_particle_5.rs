@@ -27,11 +27,10 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::emitters::*;
 use crate::marks::jitter_point::jitter_point;
-use crate::marks::setup::SEED_RVA;
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at as at_rva, state_entry};
+use crate::service::harness::state_entry;
 
 const STRENGTH_RVA: usize = rva(0x93555E); // g_marksStrength
 const SIGN_RVA: usize = rva(0x935432); // g_marksSign: -1 or 1
@@ -181,25 +180,6 @@ pub unsafe fn emit_particle_5_with(
         put(0x68, car);
     }
     Ok(())
-}
-
-/// What it may write: the globals and, when one is to be taken, the next entry.
-pub fn regions(set: &JitterSet) -> Vec<Region> {
-    let mut r: Vec<Region> = [
-        STRENGTH_RVA,
-        SIGN_RVA,
-        set.place_random,
-        SEED_RVA,
-        RING_CURSOR_RVA,
-        RING_COUNT_RVA,
-    ]
-    .map(at_rva)
-    .to_vec();
-    r.push((crate::framework::game_addr(SIDES_RVA) as u32, 8));
-    if let Some(e) = unsafe { next_entry() } {
-        r.push((e, ENTRY_LEN));
-    }
-    r
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

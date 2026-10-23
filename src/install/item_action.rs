@@ -13,16 +13,16 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::install::installer::{Part, cmp, rd};
+use crate::install::installer::{cmp, rd};
 use crate::race::viewer::regs_entry;
 
-pub fn item_action(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn item_action(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     let action = rd(r.esi + 8);
     cmp(&mut r, action, 1);
     // Converted: `rc2k_core::install::items::has_action`.
     if rc2k_core::install::items::has_action(action) {
-        part(action, &mut r)?;
+        crate::install::installer::game_part(action, &mut r)?;
     }
     Ok(r)
 }
@@ -30,7 +30,5 @@ pub fn item_action(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| {
-        item_action(r, &mut crate::install::installer::game_part)
-    })
+    regs_entry(r, &|r| item_action(r))
 }

@@ -18,6 +18,6 @@ use crate::race::course_faces::*;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { draw_back_face(r, &mut |_, r| draw_face(r, &mut face_part)) }?;
+    unsafe { draw_back_face(r, &mut |_, r| draw_face(r)) }?;
     Ok(())
 }

@@ -8,10 +8,10 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::framework::Regs;
-use crate::race::frame_views::{draw_screen_tint, tinted_quad_part};
+use crate::race::frame_views::draw_screen_tint;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { draw_screen_tint(r, &mut tinted_quad_part) }?;
+    unsafe { draw_screen_tint(r) }?;
     Ok(())
 }

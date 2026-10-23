@@ -14,12 +14,12 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::input::effects::{Part, STOP_DEVICE, effects_entry};
+use crate::input::effects::{STOP_DEVICE, effects_entry};
 use crate::input::start_effects::both_records;
 
 /// The Rust version.
-pub fn stop_effects(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    both_records(r, STOP_DEVICE, part)
+pub fn stop_effects(r: &mut Regs) -> Result<(), Refused> {
+    both_records(r, STOP_DEVICE)
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

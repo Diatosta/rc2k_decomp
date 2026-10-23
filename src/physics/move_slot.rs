@@ -41,7 +41,7 @@ use crate::scene::matrix::multiply_matrices;
 use crate::scene::matrix3::rounded;
 use crate::scene::view_matrix::{square_matrix, unit_vector};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 
 pub const SLOT_LEN: u32 = 0x78;
 fn a(x: u32) -> u32 {
@@ -184,21 +184,6 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
         .with(EDX, g.edx)
         .with(EDI, g.edi)
         .with(EBP, g.ebp))
-}
-
-/// Everything it writes in the game (besides the slot and the two dwords after it).
-pub fn regions() -> Vec<Region> {
-    let mut r = Ground::game().regions();
-    r.extend([
-        (a(0x71BE90), 12),
-        (a(0x5C78F8), 0x10),
-        (a(0x5C6FD0), 0x80),
-        (a(0x5C7098), 0x24),
-        (a(0x5EA10C), 0x40),
-        (a(0x62400C), 4),
-        (a(0x620470), 4),
-    ]);
-    r
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

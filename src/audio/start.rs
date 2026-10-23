@@ -166,7 +166,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<bool, Refused> {
                 crate::audio::a3d::close_a3d2(
                     game_addr(crate::audio::a3d::A3D2_INTERFACE_RVA) as u32,
                     game_addr(crate::audio::voices::A3D_RVA) as u32,
-                    &mut sd::game_part,
                 )?;
                 false
             }
@@ -179,16 +178,11 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<bool, Refused> {
             3 => !sd::read_caps(
                 game_addr(crate::audio::make_buffer::DIRECT_SOUND_RVA) as u32,
                 game_addr(sd::CAPS_RVA) as u32,
-                &mut sd::game_part,
             )?,
-            4 => !crate::audio::primary::make_primary(
-                &crate::audio::primary::PrimaryVars::game(),
-                &mut sd::game_part,
-            )?,
-            5 => crate::audio::mixer_set_up::open_way(
-                crate::framework::game_read(crate::audio::voices::SOUND_MODE_RVA),
-                &mut crate::audio::restore::game_part,
-            )?,
+            4 => !crate::audio::primary::make_primary(&crate::audio::primary::PrimaryVars::game())?,
+            5 => crate::audio::mixer_set_up::open_way(crate::framework::game_read(
+                crate::audio::voices::SOUND_MODE_RVA,
+            ))?,
             6 => !crate::audio::make_buffer::make_buffer(
                 r.esi,
                 r.ebx,
@@ -210,15 +204,13 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<bool, Refused> {
                 crate::audio::release_voice::release_voice_in_game(r.esi);
                 false
             }
-            10 => crate::audio::mixer_set_up::close_way(
-                crate::framework::game_read(crate::audio::voices::SOUND_MODE_RVA),
-                &mut crate::audio::restore::game_part,
-            )?,
+            10 => crate::audio::mixer_set_up::close_way(crate::framework::game_read(
+                crate::audio::voices::SOUND_MODE_RVA,
+            ))?,
             11 => {
                 sd::release_primary(
                     game_addr(crate::audio::voices::PRIMARY_RVA) as u32,
                     game_addr(sd::VOLUME_KEPT_RVA) as u32,
-                    &mut sd::game_part,
                 )?;
                 false
             }
@@ -233,7 +225,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<bool, Refused> {
                 sd::close_sound(
                     game_addr(crate::audio::make_buffer::DIRECT_SOUND_RVA) as u32,
                     game_addr(sd::WINDOW_RVA) as u32,
-                    &mut sd::game_part,
                 )?;
                 false
             }

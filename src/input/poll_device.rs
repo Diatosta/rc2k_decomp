@@ -25,15 +25,12 @@ use crate::framework::{Regs, game_addr, game_read};
 use crate::input::devices::{STATE_LEN, STATE_RVA, at, com_call, put};
 use crate::input::types::InputDevice;
 
-/// A call by place (see the header): eax the device, and for 1 the result back in eax.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 fn state(n: u32) -> u32 {
     unsafe { game_read(STATE_RVA + 4 * n as usize) }
 }
 
 /// The Rust version (see the header): the registers it leaves (`popa`'s: the entry's).
-pub unsafe fn poll_device(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn poll_device(entry: &Regs) -> Result<Regs, Refused> {
     let record = entry.esi;
     let device = at(record, field!(InputDevice, device));
     if at(record, field!(InputDevice, acquired)) != 1 || device == 0 {
@@ -43,15 +40,15 @@ pub unsafe fn poll_device(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         eax: device,
         ..*entry
     };
-    part(0, &mut r)?;
+    crate::input::poll_device::game_part(0, &mut r)?;
     r.eax = device;
-    part(1, &mut r)?;
+    crate::input::poll_device::game_part(1, &mut r)?;
     // The `rep movsd` of a failed read moves esi on by 0x50 as well: what follows reads
     // and writes the record from there (sic) until the `popa`.
     let mut record = record;
     if r.eax != 0 {
         r.eax = device;
-        part(2, &mut r)?;
+        crate::input::poll_device::game_part(2, &mut r)?;
         unsafe {
             std::ptr::copy(
                 record as *const u8,
@@ -96,7 +93,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { poll_device(r, &mut game_part) }?;
+    let left = unsafe { poll_device(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

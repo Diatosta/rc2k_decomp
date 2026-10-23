@@ -134,7 +134,7 @@ pub unsafe fn draw_stage_bar(entry: &Regs, part: Part) -> Result<Regs, Refused> 
 
 pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::hud::add_solid_quad as sq;
-    *r = unsafe { sq::add_solid_quad(r, &mut crate::hud::add_triangle::game_part_quad) }?;
+    *r = unsafe { sq::add_solid_quad(r) }?;
     Ok(())
 }
 

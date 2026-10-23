@@ -17,14 +17,13 @@
 //! and the self-test was the hook's.
 
 use crate::framework::{Regs, game_addr};
-use crate::marks::blocks::game_part;
 use crate::marks::profiles::*;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let resume = game_addr(RESUME_RVA) as u32;
     {
-        let left = unsafe { make_profiles(r, resume, &mut game_part) }?;
+        let left = unsafe { make_profiles(r, resume) }?;
         *r = Regs {
             esp: r.esp,
             eflags: r.eflags,

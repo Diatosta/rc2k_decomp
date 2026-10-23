@@ -18,7 +18,7 @@ use crate::race::frame_draw::*;
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     {
-        let after = unsafe { set_up_fog(r, &mut fog_part) }?;
+        let after = unsafe { set_up_fog(r) }?;
         let esp = r.esp;
         *r = after;
         r.esp = esp;

@@ -32,9 +32,9 @@ use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::math::x87::{loaded, mul};
 use crate::math::x87_run::neg_rounded;
-use crate::physics::contact_force::{self, RECORD, contact_force};
+use crate::physics::contact_force::{RECORD, contact_force};
 use crate::physics::dot_product::dot_product;
-use crate::physics::flow::{a, base, copy3, fill3, g, guard, hold_high, p, x87_run};
+use crate::physics::flow::{a, base, copy3, fill3, g, hold_high, p, x87_run};
 use crate::physics::lowest_body_point::lowest_body_point;
 use crate::physics::place_sound_e5::place_sound_e5;
 use crate::physics::sound_cue_e5::sound_cue_e5;
@@ -43,7 +43,7 @@ use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::contacts;
 
 /// Force record 21 (`g_forceRecords` + 0x2A0).
@@ -144,50 +144,15 @@ fn steps(r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version.
 pub unsafe fn crash_contact(entry: &Regs) -> Result<Left, Refused> {
-    guard(&regions(), || {
+    {
         let mut r = *entry;
         steps(&mut r)?;
         Ok(left_of(&r))
-    })
+    }
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { crash_contact(r) }
-}
-
-/// The current car's sound object's words the sounds write, when there is one.
-pub fn sound_regions() -> Vec<Region> {
-    use crate::physics::car_sounds::listed;
-    // The sound object is written only while the current car (or for `place_sound_e1_other`
-    // the car `dword_6D3CD4`) is listed. An unlisted car's object pointer may be stale: put
-    // back over freed memory, its bytes overwrote Rust's heap in between (2026-10-18, the
-    // shadow throttle's map, a crash in `crossed_edge`'s test).
-    let written = [g(0x71B3F8), g(0x6D3CD4)]
-        .into_iter()
-        .any(|car| listed(car) == Ok(true));
-    if !written {
-        return vec![(a(0x6D1AEC), 4)];
-    }
-    match crate::physics::car_sounds::object() {
-        Ok(o) => vec![(o + 0x10, 4), (o + 0x238, 0x30), (a(0x6D1AEC), 4)],
-        Err(_) => vec![],
-    }
-}
-
-fn regions() -> Vec<Region> {
-    // `contact_force`'s, but for the record: this one points it at record 21 (`FORCE`,
-    // listed below) before the call, so the pointer's old target is not written.
-    let mut all: Vec<Region> = contact_force::regions().into_iter().take(2).collect();
-    all.extend([
-        (a(0x6D3068), 12),
-        (a(0x71AA00), 0x14),
-        (a(FORCE), 0x18),
-        (a(0x6D3014), 0x10),
-        (a(0x71A160), 4),
-        (a(RECORD), 4),
-    ]);
-    all.extend(sound_regions());
-    all
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

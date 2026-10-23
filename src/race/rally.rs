@@ -4,8 +4,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, rva};
 
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 fn at(a: usize) -> u32 {
     game_addr(rva(a)) as u32
 }
@@ -62,7 +60,7 @@ pub unsafe fn rally_times_places() -> Option<(u32, u32)> {
 /// and 0x40 bytes from +0x5C at +0x10; each logged (the count, "GB_Timed", the sixteen
 /// "CTs", "GB_Shaun", the name, the sixteen again, rules). Every register kept. Refuses,
 /// before anything, a null pointer on the way (the original reads through it).
-pub unsafe fn copy_rally_times(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn copy_rally_times(entry: &Regs) -> Result<Regs, Refused> {
     let g = entry;
     unsafe {
         let Some((mut esi, mut edi)) = rally_times_places() else {
@@ -86,9 +84,9 @@ pub unsafe fn copy_rally_times(entry: &Regs, part: Part) -> Result<Regs, Refused
                 edi,
                 ..*g
             };
-            let mut log = |place: u32, value: u32| -> Result<(), Refused> {
+            let log = |place: u32, value: u32| -> Result<(), Refused> {
                 let mut r = Regs { eax: value, ..regs };
-                part(place, &mut r)
+                crate::race::rally::log_part(place, &mut r)
             };
             let word = |n: usize| at(WORDS[n]);
             log(WRITE_NL, word(0))?;

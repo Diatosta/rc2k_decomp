@@ -20,21 +20,19 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_read, game_write, rva};
-use crate::sound::turn_parts::{Part, turn_entry};
+use crate::sound::turn_parts::turn_entry;
 
 /// g_sceneClock, dword_5CC3B0 the last tick, dword_5CC3B8 the ticks counted.
 const CLOCK: usize = 0x613830;
 const LAST: usize = 0x5CC3B0;
 const TICKS: usize = 0x5CC3B8;
-pub const TURN_IF: u32 = 0x421BCF;
-
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
 }
 
 // ---- Rust version ----
 
-pub fn race_sound_tick_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn race_sound_tick_in(r: &mut Regs) -> Result<(), Refused> {
     r.eax = g(CLOCK).wrapping_sub(g(LAST));
     // Converted: `rc2k_core::sound::turn::tick_due`.
     if !rc2k_core::sound::turn::tick_due(g(CLOCK), g(LAST)) {
@@ -42,7 +40,7 @@ pub fn race_sound_tick_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     }
     r.eax = g(CLOCK);
     unsafe { game_write(rva(LAST), r.eax) };
-    part(TURN_IF, r)?;
+    crate::sound::race_turn_if::race_turn_if_in(r)?;
     unsafe { game_write(rva(TICKS), g(TICKS).wrapping_add(1)) };
     Ok(())
 }

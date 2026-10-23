@@ -76,10 +76,7 @@ pub unsafe fn show_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// the game (their hooks).
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     match place {
-        1 => crate::sound::race_sound_tick::race_sound_tick_in(
-            r,
-            &mut crate::sound::turn_parts::game_part,
-        ),
+        1 => crate::sound::race_sound_tick::race_sound_tick_in(r),
         7 => {
             let flags = r.eflags;
             *r = Regs {

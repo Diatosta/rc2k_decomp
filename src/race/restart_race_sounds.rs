@@ -19,6 +19,6 @@ use crate::race::sound_tables::*;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { restart_race_sounds(r, &mut sound_part) }?;
+    unsafe { restart_race_sounds(r) }?;
     Ok(())
 }

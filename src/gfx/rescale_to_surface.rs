@@ -39,7 +39,7 @@ const COLUMNS_LEFT: usize = 0x18;
 const ROWS_LEFT: usize = 0x1C;
 const COMPONENTS: usize = 0x20;
 /// `g_surface` (0x4F4998), twelve dwords, and the fields used here.
-const SURFACE_RVA: usize = rva(0x4F4998);
+pub const SURFACE_RVA: usize = rva(0x4F4998);
 const WIDTH: usize = 0x08;
 const HEIGHT: usize = 0x0C;
 const BITS: usize = 0x10;

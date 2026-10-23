@@ -22,8 +22,7 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::math::x87_run::{abs_compare, ext_times};
-use crate::physics::car_collisions::regions;
-use crate::physics::flow::{a, base, g, guard, p, x87_run};
+use crate::physics::flow::{a, base, g, p, x87_run};
 use crate::scene::matrix3::extended;
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
@@ -47,14 +46,14 @@ pub fn corner_inside() -> bool {
 
 /// The Rust version.
 pub unsafe fn corner_hits_car(entry: &Regs) -> Result<Left, Refused> {
-    guard(&regions(), || {
+    (|| -> Result<_, crate::errors::Refused> {
         if !corner_inside() {
             return Ok(Left::nothing());
         }
         p(0x6D3BB4, 1);
         unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
         unsafe { crate::physics::bump_cars::bump_cars(entry.edi) }
-    })
+    })()
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

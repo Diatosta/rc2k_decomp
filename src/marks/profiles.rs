@@ -109,11 +109,7 @@ unsafe fn make_tables() {
 /// `allocate_links` (place 2) and `reset_settings_blocks` (place 3). Refuses a mark
 /// that is neither 0 nor `resume` (the original jumps to it). `resume` is `loc_4C3EA6` in
 /// the game, its place in a test's copy.
-pub unsafe fn make_profiles(
-    entry: &Regs,
-    resume: u32,
-    part: crate::race::level_init::Part,
-) -> Result<Regs, Refused> {
+pub unsafe fn make_profiles(entry: &Regs, resume: u32) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         let done: u32 = game_read(DONE_RVA);
@@ -141,8 +137,8 @@ pub unsafe fn make_profiles(
         g.esi = from + CORNERS_LEN as u32;
         g.edi = to + CORNERS_LEN as u32;
         g.ecx = 0;
-        part(2, &mut g)?;
-        part(3, &mut g)?;
+        crate::marks::blocks::game_part(2, &mut g)?;
+        crate::marks::blocks::game_part(3, &mut g)?;
     }
     Ok(g)
 }

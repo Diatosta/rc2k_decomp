@@ -9,7 +9,6 @@ use crate::framework::{IMAGE_BASE, Regs};
 #[rustfmt::skip]
 pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
     match at.wrapping_add(IMAGE_BASE) {
-        0x401135 => Some(crate::logfile::start_log::entry(r)), // logfile::start_log
         0x40132C => Some(crate::logfile::write_line::entry(r)), // logfile::write_line
         0x4013CB => Some(crate::logfile::log_write::entry(r)), // logfile::log_write
         0x4013DE => Some({ crate::logfile::log_write::log_newline_l1(); Ok(()) }), // logfile::log_newline_l1
@@ -47,11 +46,6 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x402628 => Some(crate::install::blit_glyph_list::entry(r)), // install::blit_glyph_list
         0x402735 => Some(crate::race::seal_block::entry(r)), // race::seal_block
         0x402848 => Some(crate::race::permute_bits::entry(r)), // race::permute_bits
-        0x40298A => Some(crate::memory::open_own_heap::entry(r)), // memory::open_own_heap
-        0x404270 => Some(crate::gfx::find_3d_cards::entry(r)), // gfx::find_3d_cards
-        0x4043DA => Some(crate::gfx::list_primary_modes::entry(r)), // gfx::list_primary_modes
-        0x404401 => Some(crate::gfx::list_secondary_modes::entry(r)), // gfx::list_secondary_modes
-        0x40442C => Some(crate::gfx::mark_3d_modes::entry(r)), // gfx::mark_3d_modes
         0x4045D6 => Some(crate::gfx::screen_mode_choices::entry(r)), // gfx::screen_mode_choices
         0x404805 => Some(crate::gfx::keep_race_screen_mode::entry(r)), // gfx::keep_race_screen_mode
         0x404830 => Some(crate::race::set_race_screen_mode::entry(r)), // race::set_race_screen_mode
@@ -62,7 +56,6 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x40540C => Some(crate::gfx::key_texture_colours::entry(r)), // gfx::key_texture_colours
         0x405443 => Some(crate::gfx::alpha_from_kept::entry(r)), // gfx::alpha_from_kept
         0x40545F => Some(crate::gfx::halve_texture::entry(r)), // gfx::halve_texture
-        0x405580 => Some(crate::gfx::fill_thirds_table::entry(r)), // gfx::fill_thirds_table
         0x4055A2 => Some(crate::gfx::grade_texture::entry(r)), // gfx::grade_texture
         0x40579A => Some(crate::gfx::clear_back_surface::entry(r)), // gfx::clear_back_surface
         0x40586A => Some(crate::gfx::fill_row_table::entry(r)), // gfx::fill_row_table
@@ -70,11 +63,9 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x405BB6 => Some(crate::gfx::describe_format::entry(r)), // gfx::describe_format
         0x405C8A => Some(crate::gfx::components_to_pixel::entry(r)), // gfx::components_to_pixel
         0x405CFA => Some(crate::gfx::pixel_to_components::entry(r)), // gfx::pixel_to_components
-        0x405DB4 => Some(crate::gfx::set_component_format::entry(r)), // gfx::set_component_format
         0x405DDE => Some(crate::gfx::palette_to_dwords::entry(r)), // gfx::palette_to_dwords
         0x405F0A => Some(crate::gfx::blend_palette::entry(r)), // gfx::blend_palette
         0x405FE7 => Some(crate::gfx::picture_as_surface::entry(r)), // gfx::picture_as_surface
-        0x40608F => Some(crate::gfx::allocate_picture_buffer::entry(r)), // gfx::allocate_picture_buffer
         0x4060D1 => Some(crate::gfx::clear_picture::entry(r)), // gfx::clear_picture
         0x4060E3 => Some(crate::gfx::copy_picture_to_surface::entry(r)), // gfx::copy_picture_to_surface
         0x406126 => Some(crate::gfx::convert_picture::entry(r)), // gfx::convert_picture
@@ -89,7 +80,6 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x406869 => Some(crate::gfx::fill_rect::entry(r)), // gfx::fill_rect
         0x406988 => Some(crate::gfx::set_clip::entry(r)), // gfx::set_clip
         0x4069B2 => Some(crate::gfx::blit_glyph::entry(r)), // gfx::blit_glyph
-        0x407062 => Some(crate::gfx::install_converters::entry(r)), // gfx::install_converters
         0x40750D => Some(crate::gfx::components_to_4444_rows::entry(r)), // gfx::components_to_4444_rows
         0x407540 => Some(crate::gfx::copy_pixel_rows::entry(r)), // gfx::copy_pixel_rows
         0x4075F3 => Some(crate::gfx::load_jade::entry(r)), // gfx::load_jade
@@ -224,12 +214,9 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x40F80E => Some(crate::sound::play_music::entry(r)), // sound::play_music
         0x40F826 => Some(crate::sound::stop_music::entry(r)), // sound::stop_music
         0x40F83E => Some(crate::sound::set_music_volume::entry(r)), // sound::set_music_volume
-        0x40F9DE => Some(crate::sound::open_cd_audio::entry(r)), // sound::open_cd_audio
         0x40FCAA => Some(crate::sound::stop_cd_audio::entry(r)), // sound::stop_cd_audio
         0x40FCC8 => Some(crate::sound::stop_cd_track::entry(r)), // sound::stop_cd_track
-        0x410684 => Some(crate::system::read_command_line::entry(r)), // system::read_command_line
         0x4107B8 => Some(crate::system::next_argument::entry(r)), // system::next_argument
-        0x410883 => Some(crate::system::test_processor::entry(r)), // system::test_processor
         0x410B84 => Some(crate::threading::start_threads::entry(r)), // threading::start_threads
         0x410BF9 => Some(crate::threading::request_quit::entry(r)), // threading::request_quit
         0x410C17 => Some(crate::threading::shutdown_thread::entry(r)), // threading::shutdown_thread
@@ -334,10 +321,7 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x415FC2 => Some(crate::race::roll_credits::entry(r)), // race::roll_credits
         0x4161BA => Some(crate::race::credit_line::entry(r)), // race::credit_line
         0x4161CD => Some(crate::menu::play_films::entry(r)), // menu::play_films
-        0x416292 => Some(crate::system::check_developer_machine::entry(r)), // system::check_developer_machine
-        0x416477 => Some(crate::install::check_at_start::entry(r)), // install::check_at_start
         0x4165F1 => Some(crate::menu::build_notice::entry(r)), // menu::build_notice
-        0x416653 => Some(crate::install::check_clio_disc::entry(r)), // install::check_clio_disc
         0x41675B => Some(crate::install::install_clio::entry(r)), // install::install_clio
         0x4168CF => Some(crate::net::settings_loop::entry(r)), // net::settings_loop
         0x4169E2 => Some(crate::net::settings_frame::entry(r)), // net::settings_frame

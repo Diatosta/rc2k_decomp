@@ -40,7 +40,7 @@ pub unsafe fn icons_2(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// In the game: `draw_icon`'s Rust version.
 pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::hud::draw_icon as di;
-    *r = unsafe { di::draw_icon(r, &mut crate::hud::add_quad::game_part) }?;
+    *r = unsafe { di::draw_icon(r) }?;
     Ok(())
 }
 

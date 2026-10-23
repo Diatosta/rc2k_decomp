@@ -130,7 +130,7 @@ unsafe fn cars_refuse() -> Result<(), Refused> {
 /// gets a point (part 1: `race::add_skid_point`, esi the slot); else the slot -1. Gives eax
 /// the last car's bit and ecx the count. Refuses (before anything) a car without its
 /// block.
-pub unsafe fn lay_skidmarks(r: &mut Regs, part: crate::race::frame::Part) -> Result<(), Refused> {
+pub unsafe fn lay_skidmarks(r: &mut Regs) -> Result<(), Refused> {
     use crate::race::skidmarks::int_80;
     unsafe {
         cars_refuse()?;
@@ -185,7 +185,7 @@ pub unsafe fn lay_skidmarks(r: &mut Regs, part: crate::race::frame::Part) -> Res
                     eax: r.eax,
                     ..*r
                 };
-                part(1, &mut p)?;
+                crate::race::skid_laying::skid_point_part(1, &mut p)?;
             }
         }
         r.ecx = count;
@@ -195,14 +195,11 @@ pub unsafe fn lay_skidmarks(r: &mut Regs, part: crate::race::frame::Part) -> Res
 
 /// `race::lay_skidmarks_if_on` (0x4585F3): `lay_skidmarks` (part 1) unless `dword_6235E8`
 /// or `dword_6416BC` is set.
-pub unsafe fn lay_skidmarks_if_on(
-    r: &mut Regs,
-    part: crate::race::frame::Part,
-) -> Result<(), Refused> {
+pub unsafe fn lay_skidmarks_if_on(r: &mut Regs) -> Result<(), Refused> {
     if k(0x6235E8) != 0 || k(0x6416BC) != 0 {
         return Ok(());
     }
-    part(1, r)
+    crate::race::skid_laying::lay_part(1, r)
 }
 
 /// The parts in the game.
@@ -212,5 +209,5 @@ pub fn skid_point_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
 }
 
 pub fn lay_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { lay_skidmarks(r, &mut skid_point_part) }
+    unsafe { lay_skidmarks(r) }
 }

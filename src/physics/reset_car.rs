@@ -27,7 +27,6 @@
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::physics::reset_parts::{BLOCKED, LOG, ON_LINE, reset_entry};
-use crate::race::car_starts::Part;
 use rc2k_core::physics::line_places::{RESET_TRIES, reset_offsets};
 
 const LINE_PLACE: usize = rva(0x6365E4); // dword_6365E4
@@ -46,12 +45,12 @@ fn p(a: usize, v: u32) {
 }
 
 /// One try: the candidate set; true when a block says CF.
-fn blocked(r: &mut Regs, part: Part) -> Result<bool, Refused> {
+fn blocked(r: &mut Regs) -> Result<bool, Refused> {
     r.eax = g(LINE_PLACE).wrapping_add(g(OFFSET));
     p(CANDIDATE, r.eax);
     for b in BLOCKS {
         r.esi = game_addr(rva(b)) as u32;
-        part(BLOCKED, r)?;
+        crate::physics::reset_parts::game_part(BLOCKED, r)?;
         if r.carry() {
             return Ok(true);
         }
@@ -61,7 +60,7 @@ fn blocked(r: &mut Regs, part: Part) -> Result<bool, Refused> {
 
 /// The Rust version, the calls through `part` (places 13, 14, 6, 16).
 // Converted: `rc2k_core::physics::line_places::reset_offsets`.
-pub unsafe fn reset_car(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn reset_car(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     r.eax = g(rva(0x71A06C));
     p(LINE_PLACE, r.eax);
@@ -70,7 +69,7 @@ pub unsafe fn reset_car(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         let mut free = false;
         for offset in reset_offsets() {
             p(OFFSET, offset);
-            if !blocked(&mut r, part)? {
+            if !blocked(&mut r)? {
                 free = true;
                 break;
             }
@@ -79,15 +78,15 @@ pub unsafe fn reset_car(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             p(OFFSET, RESET_TRIES);
             let mut l = r;
             l.eax = game_addr(NOWHERE_TEXT) as u32;
-            part(LOG, &mut l)?;
+            crate::physics::reset_parts::game_part(LOG, &mut l)?;
             p(STUCK, g(STUCK).wrapping_sub(100));
             return Ok(r);
         }
         r.eax = g(CANDIDATE);
         p(LINE_PLACE, r.eax);
     }
-    part(6, &mut r)?;
-    part(ON_LINE, &mut r)?;
+    crate::physics::reset_parts::game_part(6, &mut r)?;
+    crate::physics::reset_parts::game_part(ON_LINE, &mut r)?;
     p(rva(0x71AF84), 10);
     Ok(r)
 }

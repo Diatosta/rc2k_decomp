@@ -55,7 +55,6 @@ use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::menu::player::player_at;
 use crate::menu::standings::{bytes, table};
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, restore};
 use rc2k_core::menu::{bests, standings};
 
 pub const LEVEL_RVA: usize = rva(0x7587EC); // dword_7587EC
@@ -358,17 +357,11 @@ pub fn remove_shown_car(then: &mut dyn FnMut() -> Result<(), Refused>) -> Result
     if shown >= end {
         return Err(BadInput("a shown car past the list").into());
     }
-    let list = [(
-        game_addr(SHOWN_LIST_RVA) as u32,
-        4 * SHOWN_LIST_LEN as usize,
-    )];
-    let saved = capture(&list);
     // Converted: `rc2k_core::menu::standings::remove_at`.
     let mut cars: [u32; SHOWN_LIST_LEN as usize] = unsafe { game_read(SHOWN_LIST_RVA) };
     standings::remove_at(&mut cars, shown as usize, end as usize);
     unsafe { game_write(SHOWN_LIST_RVA, cars) };
-    // A refusal of the numbers' (a list without its end, a null car) leaves nothing written.
-    then().inspect_err(|_| restore(&list, &saved))
+    then()
 }
 
 /// `menu::secret_car_list`: what it leaves.

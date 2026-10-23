@@ -13,10 +13,10 @@
 //! same: test view blocks, each switch on and off, the mirror each way.
 
 use crate::framework::Regs;
-use crate::race::frame_views::{forget_view_textures, view_textures_part};
+use crate::race::frame_views::forget_view_textures;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { forget_view_textures(r, &mut view_textures_part) }?;
+    unsafe { forget_view_textures(r) }?;
     Ok(())
 }

@@ -39,24 +39,21 @@ const STATES: [(u32, u32); 7] = [
     (1, 0x1B),
 ];
 
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn squares_setup(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    unsafe { setup_with(entry, PLACES_RVA, part) }
+pub unsafe fn squares_setup(entry: &Regs) -> Result<Regs, Refused> {
+    unsafe { setup_with(entry, PLACES_RVA) }
 }
 
 /// The set-up with the texture places at `places` (`marks::pong_setup` has its own).
-pub unsafe fn setup_with(entry: &Regs, places: usize, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn setup_with(entry: &Regs, places: usize) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
-        part(1, &mut g)?;
+        crate::marks::squares_setup::game_part(1, &mut g)?;
         g.eax = game_read(TEXTURE_RVA);
-        part(2, &mut g)?;
+        crate::marks::squares_setup::game_part(2, &mut g)?;
         for (value, state) in STATES {
             [g.eax, g.ebx] = [value, state];
-            part(3, &mut g)?;
+            crate::marks::squares_setup::game_part(3, &mut g)?;
         }
         g.edi = game_addr(VERTICES_RVA) as u32;
         g.eax = 0x100;
@@ -100,7 +97,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { squares_setup(r, &mut game_part) }?;
+    let left = unsafe { squares_setup(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

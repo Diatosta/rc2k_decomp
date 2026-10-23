@@ -23,7 +23,7 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::install::installer::{MAKE_DIR, Part, SET_CD, at, rb, rw, wb};
+use crate::install::installer::{MAKE_DIR, SET_CD, at, rb, rw, wb};
 
 const LIMIT: u32 = 0x400;
 
@@ -35,7 +35,7 @@ const PAST_END: crate::errors::BadInput =
 /// leaves (the entry's) with the flags of its end: carry set when a folder could not be
 /// gone into or made (the failing call's flags), else the end's `cmp byte ptr [esi+1], 0`
 /// (zero, carry clear).
-pub fn make_folders(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn make_folders(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     let failed = |r: &Regs| -> Result<Regs, Refused> {
         Ok(Regs {
@@ -50,7 +50,7 @@ pub fn make_folders(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         // xor cl, cl; xchg cl, [esi+1]
         r.ecx = (r.ecx & !0xFF) | rb(r.esi + 1) as u32;
         wb(r.esi + 1, 0);
-        part(at(SET_CD), &mut r)?;
+        crate::install::installer::game_part(at(SET_CD), &mut r)?;
         wb(r.esi + 1, r.ecx as u8);
         if r.carry() {
             return failed(&r);
@@ -74,7 +74,7 @@ pub fn make_folders(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             }
         }
         wb(r.esi, 0);
-        part(at(SET_CD), &mut r)?;
+        crate::install::installer::game_part(at(SET_CD), &mut r)?;
         wb(r.esi, b'\\');
         if r.carry() {
             return failed(&r);
@@ -95,19 +95,19 @@ pub fn make_folders(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             }
         }
         wb(r.esi, 0);
-        part(at(SET_CD), &mut r)?;
+        crate::install::installer::game_part(at(SET_CD), &mut r)?;
         wb(r.esi, b'\\');
         if !r.carry() {
             continue;
         }
         wb(r.esi, 0);
-        part(at(MAKE_DIR), &mut r)?;
+        crate::install::installer::game_part(at(MAKE_DIR), &mut r)?;
         wb(r.esi, b'\\');
         if r.carry() {
             return failed(&r);
         }
         wb(r.esi, 0);
-        part(at(SET_CD), &mut r)?;
+        crate::install::installer::game_part(at(SET_CD), &mut r)?;
         wb(r.esi, b'\\');
         if r.carry() {
             return failed(&r);
@@ -122,7 +122,5 @@ pub fn make_folders(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::race::viewer::regs_entry(r, &|r| {
-        make_folders(r, &mut crate::install::installer::game_part)
-    })
+    crate::race::viewer::regs_entry(r, &|r| make_folders(r))
 }

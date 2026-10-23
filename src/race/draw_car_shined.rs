@@ -18,6 +18,6 @@ use crate::race::car_draw::*;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { draw_car_shined(r, &mut shined_part) }?;
+    unsafe { draw_car_shined(r) }?;
     Ok(())
 }

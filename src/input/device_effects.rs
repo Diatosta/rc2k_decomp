@@ -30,9 +30,6 @@ pub const CONTROLLERS: u32 = 16;
 const EFFECTS: u32 = 0x3C;
 const EFFECT_LEN: u32 = 0xA4;
 
-/// A call by place: 0 an effect's function (`[edi]`, the registers as the header says).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The controller entry's dword at `offset` for the record's controller, or the refusal.
 pub fn controller(record: u32, offset: usize) -> Result<u32, Refused> {
     let n = at(record, field!(InputDevice, controller));
@@ -43,7 +40,7 @@ pub fn controller(record: u32, offset: usize) -> Result<u32, Refused> {
 }
 
 /// The Rust version (see the header): the registers it leaves (`popa`'s: the entry's).
-pub unsafe fn device_effects(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn device_effects(entry: &Regs) -> Result<Regs, Refused> {
     let record = entry.esi;
     if at(record, field!(InputDevice, effects_on)) != 1
         || at(record, field!(InputDevice, device)) == 0
@@ -73,7 +70,7 @@ pub unsafe fn device_effects(entry: &Regs, part: Part) -> Result<Regs, Refused> 
             edi: effect,
             ..*entry
         };
-        part(0, &mut r)?;
+        crate::input::device_effects::game_part(0, &mut r)?;
     }
     Ok(*entry)
 }
@@ -87,7 +84,7 @@ pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { device_effects(r, &mut game_part) }?;
+    let left = unsafe { device_effects(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

@@ -95,7 +95,7 @@ pub fn race_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     if place == 5 {
         use crate::sound::race_sound_tick::race_sound_tick_in;
-        return race_sound_tick_in(r, &mut crate::sound::turn_parts::game_part);
+        return race_sound_tick_in(r);
     }
     if place == 3 {
         use crate::race::draw_race_scene::{draw_race_scene, game_part};

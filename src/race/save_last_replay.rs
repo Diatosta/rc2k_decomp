@@ -19,24 +19,24 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::race::viewer::{LAST_RACE, Part, regs_entry};
+use crate::race::viewer::{LAST_RACE, regs_entry};
 
 /// The Rust version: the registers and flags it leaves.
-pub fn save_last_replay(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn save_last_replay(entry: &Regs) -> Result<Regs, Refused> {
     let mut out = *entry;
     let mut r = Regs {
         ebx: LAST_RACE,
         ..*entry
     };
-    part(1, &mut r)?;
+    crate::race::save_last_replay::game_part(1, &mut r)?;
     if r.carry() {
         out.eflags = r.eflags;
         return Ok(out);
     }
     r.ebx = r.eax;
-    part(2, &mut r)?;
+    crate::race::save_last_replay::game_part(2, &mut r)?;
     let flags = r.eflags;
-    part(3, &mut r)?;
+    crate::race::save_last_replay::game_part(3, &mut r)?;
     out.eflags = flags;
     Ok(out)
 }
@@ -47,7 +47,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     *r = match place {
         1 => o::open_viewed_replay(r, &mut o::game_part)?,
         2 => s::save_viewed_replay(r, &mut s::game_part)?,
-        _ => c::close_viewed_replay(r, &mut c::game_part)?,
+        _ => c::close_viewed_replay(r)?,
     };
     Ok(())
 }
@@ -55,5 +55,5 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| save_last_replay(r, &mut game_part))
+    regs_entry(r, &|r| save_last_replay(r))
 }

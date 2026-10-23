@@ -22,12 +22,9 @@ use crate::hud::batch::{BATCH_TEXTURE_RVA, INDEX_COUNT_RVA, VERTEX_COUNT_RVA};
 
 pub const RECORD_RVA: usize = rva(0x6D13FE); // unk_6D13FE
 
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
 // Converted: `rc2k_core::hud::batch::{Layout, NO_TEXTURE}`
-pub unsafe fn draw_hud(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn draw_hud(entry: &Regs) -> Result<Regs, Refused> {
     use rc2k_core::hud::batch;
     let mut g = *entry;
     unsafe {
@@ -42,8 +39,8 @@ pub unsafe fn draw_hud(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             batch::Layout::One => 2,
             batch::Layout::Two => 3,
         };
-        part(layout, &mut g)?;
-        part(4, &mut g)?;
+        crate::hud::draw_hud::game_part(layout, &mut g)?;
+        crate::hud::draw_hud::game_part(4, &mut g)?;
     }
     Ok(g)
 }
@@ -64,7 +61,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_hud(r, &mut game_part) }?;
+    let left = unsafe { draw_hud(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

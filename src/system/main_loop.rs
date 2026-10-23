@@ -183,11 +183,9 @@ fn in_game(call: Call) -> Result<(), Refused> {
             Call::Sub4075F3 => game(0x4075F3, 0),
             Call::Sub4165F1 => game(0x4165F1, 0),
             Call::RunsFromSource => game(0x412DA3, 0),
-            Call::Installer => crate::install::run_installer::run_installer(
-                &Regs::default(),
-                &mut crate::install::installer::game_part,
-            )
-            .map(|_| ())?,
+            Call::Installer => {
+                crate::install::run_installer::run_installer(&Regs::default()).map(|_| ())?
+            }
             Call::Sub40FCAA => game(0x40FCAA, 0),
             // Its answer is not read.
             Call::IsCdDrive(drive) => {
@@ -195,13 +193,11 @@ fn in_game(call: Call) -> Result<(), Refused> {
             }
             // `net::lobby_launched_game`'s Rust version (a case it refuses through its hook).
             Call::Sub418DF4 => {
-                crate::race::loadlevel::or_in_game(0x418DF4, &mut Regs::default(), |r| {
-                    *r = crate::net::lobby_launched_game::lobby_launched_game(
-                        r,
-                        &mut crate::net::lobby::game_part,
-                    )?;
-                    Ok(())
-                })?
+                let r = &mut Regs::default();
+                *r = crate::net::lobby_launched_game::lobby_launched_game(
+                    r,
+                    &mut crate::net::lobby::game_part,
+                )?;
             }
             Call::RunFrontEnd => game(0x47486C, 0),
             Call::Sub40F826 => game(0x40F826, 0),

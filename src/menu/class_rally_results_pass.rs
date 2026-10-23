@@ -77,7 +77,7 @@ pub unsafe fn class_rally_results_pass(entry: &Regs, part: Part) -> Result<Regs,
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::menu::show_class_rally_results as page;
     if place == 2 {
-        *r = unsafe { page::show_class_rally_results(r, &mut page::game_part) }?;
+        *r = unsafe { page::show_class_rally_results(r) }?;
     }
     Ok(())
 }

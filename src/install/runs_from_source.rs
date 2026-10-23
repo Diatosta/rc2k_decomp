@@ -14,7 +14,6 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::install::outside::{Game, Outside};
 use crate::install::read_registry::{SOURCE_RVA, STATUS_RVA};
-use crate::service::harness::{Region, capture, restore};
 use crate::strings::same_text::compare_texts;
 use std::cmp::Ordering;
 
@@ -48,10 +47,6 @@ pub unsafe fn runs_from_source(outside: &mut dyn Outside) -> Result<bool, BadInp
     Ok(unsafe { source_against_directory(outside) }? == Some(Ordering::Equal))
 }
 
-fn regions() -> [Region; 1] {
-    [(game_addr(SCRATCH_PATH_RVA) as u32, 0x100)]
-}
-
 /// (zero, carry) as the original leaves them.
 fn flags(found: Option<Ordering>) -> (bool, bool) {
     (
@@ -62,15 +57,7 @@ fn flags(found: Option<Ordering>) -> (bool, bool) {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let regions = regions();
-    let before = capture(&regions);
-    let mine = match unsafe { source_against_directory(&mut Game) } {
-        Ok(mine) => flags(mine),
-        Err(e) => {
-            restore(&regions, &before);
-            return Err(Refused::from(e));
-        }
-    };
+    let mine = flags(unsafe { source_against_directory(&mut Game) }.map_err(Refused::from)?);
     r.set_zero(mine.0);
     r.set_carry(mine.1);
     Ok(())

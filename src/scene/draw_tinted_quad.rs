@@ -23,7 +23,6 @@
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
-use crate::scene::draw_flat_quad::{Part, game_part};
 
 const DRAWN_RVA: usize = rva(0x624134); // g_polygonDrawn
 const VERTEX_RVA: usize = rva(0x623E40); // dword_623E40: four of 0x20
@@ -48,7 +47,7 @@ fn set(r: usize, v: u32) {
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_tinted_quad(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn draw_tinted_quad(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         set(DRAWN_RVA, 0);
@@ -103,18 +102,18 @@ pub unsafe fn draw_tinted_quad(entry: &Regs, part: Part) -> Result<Regs, Refused
         set(LIST_RVA + 16, 0);
         set(NEXT_ENTRY_RVA, 4);
         [g.eax, g.ecx] = [0xFF, 4];
-        part(2, &mut g)?;
+        crate::scene::draw_flat_quad::game_part(2, &mut g)?;
         if game_read::<u32>(COUNT_RVA) >= 3 {
-            part(3, &mut g)?;
+            crate::scene::draw_flat_quad::game_part(3, &mut g)?;
             set(MODE_RVA, 3);
             set(TEXTURES_RVA[0], 0xFFFF_FFFF);
             set(TEXTURES_RVA[1], 0xFFFF_FFFF);
             set(SIDES_RVA[0], 0);
             set(SIDES_RVA[1], 1);
-            part(4, &mut g)?;
+            crate::scene::draw_flat_quad::game_part(4, &mut g)?;
             set(MODE_RVA, 0);
             set(DRAWN_RVA, 1);
-            part(5, &mut g)?;
+            crate::scene::draw_flat_quad::game_part(5, &mut g)?;
         }
         set(COLOUR_RVA, 0xFF_FFFF);
     }
@@ -123,7 +122,7 @@ pub unsafe fn draw_tinted_quad(entry: &Regs, part: Part) -> Result<Regs, Refused
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_tinted_quad(r, &mut game_part) }?;
+    let left = unsafe { draw_tinted_quad(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

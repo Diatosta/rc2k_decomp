@@ -30,9 +30,6 @@ const SCRATCH_RVA: usize = rva(0x75C060); // dword_75C060
 const UV_SCALE_RVA: usize = rva(0x75C00C); // flt_75C00C
 const RECT: u32 = 0x5C;
 
-/// A call by place: 1 `add_scaled_sprite`, with its two scales (st(0) first).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs, &[[u8; 10]]) -> Result<(), Refused>;
-
 /// `fild i; fdiv k`, kept extended (`quads::int_over`: exact at the game's double
 /// precision).
 pub fn int_over_80(i: u32, k: u32) -> [u8; 10] {
@@ -46,7 +43,7 @@ pub fn taken_off(v: [u8; 10]) -> u32 {
 
 /// The two markers at rows `rows` (see the header).
 // Converted: `rc2k_core::hud::quads::{marker_x, int_over}`
-pub unsafe fn markers_with(entry: &Regs, rows: [u32; 2], part: Part) -> Result<Regs, Refused> {
+pub unsafe fn markers_with(entry: &Regs, rows: [u32; 2]) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         let get = |o: u32| ((entry.ebp + o) as *const u32).read_unaligned();
@@ -69,7 +66,7 @@ pub unsafe fn markers_with(entry: &Regs, rows: [u32; 2], part: Part) -> Result<R
             let st1 = int_over_80(0x78, k);
             game_write(SCRATCH_RVA, 0x100u32);
             let st0 = int_over_80(0x100, k);
-            part(1, &mut g, &[st0, st1])?;
+            crate::hud::draw_markers_1::game_part(1, &mut g, &[st0, st1])?;
             // the two scales taken off into dword_75C060 (st(0), then st(1))
             game_write(SCRATCH_RVA, taken_off(st1));
         }
@@ -79,26 +76,20 @@ pub unsafe fn markers_with(entry: &Regs, rows: [u32; 2], part: Part) -> Result<R
 
 /// The Rust version (see the header): the registers it leaves.
 // Converted: `rc2k_core::hud::quads::{marker_x, int_over}` (through `markers_with`)
-pub unsafe fn draw_markers_1(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    unsafe { markers_with(entry, [1, 0xE], part) }
+pub unsafe fn draw_markers_1(entry: &Regs) -> Result<Regs, Refused> {
+    unsafe { markers_with(entry, [1, 0xE]) }
 }
 
 /// In the game: `add_scaled_sprite`'s Rust version.
 pub fn game_part(_place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused> {
     use crate::hud::add_scaled_sprite as s;
-    *r = unsafe {
-        s::add_scaled_sprite(
-            r,
-            [v[0], v[1]],
-            &mut crate::hud::add_triangle::game_part_quad,
-        )
-    }?;
+    *r = unsafe { s::add_scaled_sprite(r, [v[0], v[1]]) }?;
     Ok(())
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_markers_1(r, &mut game_part) }?;
+    let left = unsafe { draw_markers_1(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

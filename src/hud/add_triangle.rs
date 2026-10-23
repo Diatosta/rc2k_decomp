@@ -15,39 +15,36 @@ use crate::errors::Refused;
 use crate::framework::{Regs, game_write};
 use crate::hud::batch::POLYGON_COUNT_RVA;
 
-/// A call by place: 1 `add_polygon`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn add_triangle(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn add_triangle(entry: &Regs) -> Result<Regs, Refused> {
     unsafe { game_write(POLYGON_COUNT_RVA, 3u32) };
     let mut r = *entry;
-    part(1, &mut r)?;
+    crate::hud::add_quad::game_part(1, &mut r)?;
     Ok(*entry)
 }
 
 /// In the game, for the quads' callers: `add_quad`'s Rust version.
 pub fn game_part_quad(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::hud::add_quad as aq;
-    *r = unsafe { aq::add_quad(r, &mut aq::game_part) }?;
+    *r = unsafe { aq::add_quad(r) }?;
     Ok(())
 }
 
 /// In the game, for `draw_disc`: this function's Rust version.
 pub fn game_part_triangle(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    *r = unsafe { add_triangle(r, &mut crate::hud::add_quad::game_part) }?;
+    *r = unsafe { add_triangle(r) }?;
     Ok(())
 }
 
 /// In the game, for the dials' set-ups: `draw_disc`'s Rust version.
 pub fn game_part_disc(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    *r = unsafe { crate::hud::draw_disc::draw_disc(r, &mut game_part_triangle) }?;
+    *r = unsafe { crate::hud::draw_disc::draw_disc(r) }?;
     Ok(())
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { add_triangle(r, &mut crate::hud::add_quad::game_part) }?;
+    let left = unsafe { add_triangle(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

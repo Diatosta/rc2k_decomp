@@ -345,14 +345,11 @@ pub unsafe fn copy_block_points(entry: &Regs) -> Result<Regs, Refused> {
 /// block's copy (ebx its +0x4C, ebp it). Refuses as `measure_starting_sums`, before
 /// anything is taken.
 // Converted: `rc2k_core::marks::lines::{measured, block_at}`
-pub unsafe fn set_up_blocks(
-    entry: &Regs,
-    part: crate::race::level_init::Part,
-) -> Result<Regs, Refused> {
+pub unsafe fn set_up_blocks(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         measured(game_read(SETTINGS_RVA), true)?;
-        part(1, &mut g)?;
+        crate::marks::lines::game_part(1, &mut g)?;
         let settings: u32 = game_read(SETTINGS_RVA);
         g.ebp = settings;
         let count = get(settings + 0x5C) as i32;
@@ -367,10 +364,10 @@ pub unsafe fn set_up_blocks(
             g.eax = game_read::<u32>(POINT_COUNTS_RVA + 4 * g.esi as usize).wrapping_mul(12);
             g.ebx = block + 0x4C;
             let mut taken = g;
-            part(0, &mut taken)?;
+            crate::marks::lines::game_part(0, &mut taken)?;
             game_write(TAKEN_RVA, taken.eax);
             put(block + 0x8C, taken.eax);
-            part(2, &mut g)?;
+            crate::marks::lines::game_part(2, &mut g)?;
             for n in 0..8 {
                 let v = x87::loaded(game_read(BLOCK_START_RVA + 4 * n));
                 put(block + 0x90 + 4 * n as u32, v);

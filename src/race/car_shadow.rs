@@ -544,10 +544,7 @@ pub static SCREEN_CLIPPED: std::sync::atomic::AtomicBool =
 /// (not read: its caller calls it inside `pusha`). Refuses what the projection and the
 /// clips refuse (after the work is set; not met with a hull's few vertices) and a hull
 /// list past 0x40.
-pub unsafe fn shadow_on_face(
-    entry: &Regs,
-    part: crate::race::frame::Part,
-) -> Result<Regs, Refused> {
+pub unsafe fn shadow_on_face(entry: &Regs) -> Result<Regs, Refused> {
     unsafe {
         let count: u32 = game_read(rva(0x641A9C));
         if count > 0x40 {
@@ -613,7 +610,7 @@ pub unsafe fn shadow_on_face(
         game_write(rva(0x6240E0), 0u32);
         game_write(rva(0x6240E4), 1u32);
         game_write(rva(0x63DAB4), 5u32);
-        part(1, &mut r)?;
+        crate::race::car_shadow::face_part(1, &mut r)?;
         game_write(rva(0x624134), 1u32);
         Ok(r)
     }

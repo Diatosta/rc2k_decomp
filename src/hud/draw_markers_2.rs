@@ -14,17 +14,17 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::hud::draw_markers_1::{Part, game_part, markers_with};
+use crate::hud::draw_markers_1::markers_with;
 
 /// The Rust version (see the header): the registers it leaves.
 // Converted: `rc2k_core::hud::quads::{marker_x, int_over}` (through `markers_with`)
-pub unsafe fn draw_markers_2(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    unsafe { markers_with(entry, [0x11F, 0x12C], part) }
+pub unsafe fn draw_markers_2(entry: &Regs) -> Result<Regs, Refused> {
+    unsafe { markers_with(entry, [0x11F, 0x12C]) }
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_markers_2(r, &mut game_part) }?;
+    let left = unsafe { draw_markers_2(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

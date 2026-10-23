@@ -27,7 +27,6 @@ use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::gfx::fade_colour::fade_colour;
 use crate::math::next_random::{STATE_RVA as RANDOM_RVA, next_random};
-use crate::physics::flow::guard;
 use crate::race::mud::COLOURS_RVA;
 use crate::race::mud_texel::mud_texel;
 use crate::race::muddy_texel::{strength_at, texture_and_mud};
@@ -57,53 +56,55 @@ pub unsafe fn splash_mud(entry: &Regs) -> Result<Regs, Refused> {
         MUD_TOP, SPLASH_SIDE, muddy, splash_lands, splash_pattern, splash_place, strength_row,
     };
     let (n, mud) = texture_and_mud()?;
-    guard(&splash_regions(), || unsafe {
-        let mut r = Regs { ebx: n, ..*entry };
-        let count_at = SPLASHED_RVA + 4 * n as usize;
-        game_write(count_at, game_read::<u32>(count_at).wrapping_add(1));
-        (r.ecx, r.edx) = splash_place(next_random());
-        r.esi = strength_at(mud, n, r.ecx, r.edx);
-        r.ebx = u32::from(*(r.esi as *const u8));
-        // The address's making leaves eax its last part, (y / 2) x 128.
-        r.eax = strength_row(r.edx);
-        let lands = splash_lands(r.ebx, || {
-            r.eax = next_random() & 0xFF;
-            r.eax
-        });
-        if !lands {
-            return Ok(r);
-        }
-        r.eax = splash_pattern(next_random());
-        r.esi = (game_addr(COLOURS_RVA) as u32).wrapping_add(r.eax);
-        game_write(ROW_RVA, 0u32);
-        for row in 0..SPLASH_SIDE {
-            game_write(COLUMN_RVA, 0u32);
-            for column in 0..SPLASH_SIDE {
-                r.eax = mud_texel(r.eax, r.ecx, r.edx);
-                if muddy(r.eax) {
-                    let colour = (r.esi as *const u32).read_unaligned();
-                    let faded = fade_colour(&Regs {
-                        ebx: r.eax,
-                        ecx: colour,
-                        ebp: colour >> 24,
-                        ..r
-                    });
-                    r.ebx = faded.ebx;
-                    r.eax = put_mud_texel(&Regs {
-                        eax: faded.eax | MUD_TOP,
-                        ..r
-                    })?;
-                }
-                r.esi = r.esi.wrapping_add(4);
-                r.ecx = r.ecx.wrapping_add(1);
-                game_write(COLUMN_RVA, column + 1);
+    (|| -> Result<_, crate::errors::Refused> {
+        unsafe {
+            let mut r = Regs { ebx: n, ..*entry };
+            let count_at = SPLASHED_RVA + 4 * n as usize;
+            game_write(count_at, game_read::<u32>(count_at).wrapping_add(1));
+            (r.ecx, r.edx) = splash_place(next_random());
+            r.esi = strength_at(mud, n, r.ecx, r.edx);
+            r.ebx = u32::from(*(r.esi as *const u8));
+            // The address's making leaves eax its last part, (y / 2) x 128.
+            r.eax = strength_row(r.edx);
+            let lands = splash_lands(r.ebx, || {
+                r.eax = next_random() & 0xFF;
+                r.eax
+            });
+            if !lands {
+                return Ok(r);
             }
-            r.ecx = r.ecx.wrapping_sub(4);
-            r.edx = r.edx.wrapping_add(1);
-            game_write(ROW_RVA, row + 1);
+            r.eax = splash_pattern(next_random());
+            r.esi = (game_addr(COLOURS_RVA) as u32).wrapping_add(r.eax);
+            game_write(ROW_RVA, 0u32);
+            for row in 0..SPLASH_SIDE {
+                game_write(COLUMN_RVA, 0u32);
+                for column in 0..SPLASH_SIDE {
+                    r.eax = mud_texel(r.eax, r.ecx, r.edx);
+                    if muddy(r.eax) {
+                        let colour = (r.esi as *const u32).read_unaligned();
+                        let faded = fade_colour(&Regs {
+                            ebx: r.eax,
+                            ecx: colour,
+                            ebp: colour >> 24,
+                            ..r
+                        });
+                        r.ebx = faded.ebx;
+                        r.eax = put_mud_texel(&Regs {
+                            eax: faded.eax | MUD_TOP,
+                            ..r
+                        })?;
+                    }
+                    r.esi = r.esi.wrapping_add(4);
+                    r.ecx = r.ecx.wrapping_add(1);
+                    game_write(COLUMN_RVA, column + 1);
+                }
+                r.ecx = r.ecx.wrapping_sub(4);
+                r.edx = r.edx.wrapping_add(1);
+                game_write(ROW_RVA, row + 1);
+            }
+            Ok(r)
         }
-        Ok(r)
-    })
+    })()
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

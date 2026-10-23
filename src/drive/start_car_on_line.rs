@@ -26,7 +26,6 @@
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
-use crate::race::car_starts::{Part, game_part};
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::drive::start_places;
@@ -42,7 +41,7 @@ fn p(x: u32, v: u32) {
 /// The Rust core, the two calls through `part` (places 6 and 9).
 // Converted: `rc2k_core::drive::start_places` (the share in plain floats; the motion's
 // turn stays x87).
-pub unsafe fn start_car_on_line(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn start_car_on_line(entry: &Regs) -> Result<Regs, Refused> {
     unsafe {
         let start = g(0x6051A0);
         start_places::check_start(start)?;
@@ -64,8 +63,8 @@ pub unsafe fn start_car_on_line(entry: &Regs, part: Part) -> Result<Regs, Refuse
         .to_bits();
         p(0x6051AC, share);
         p(0x71A650, share);
-        part(6, &mut r)?;
-        part(9, &mut r)?;
+        crate::race::car_starts::game_part(6, &mut r)?;
+        crate::race::car_starts::game_part(9, &mut r)?;
         p(0x71A17C, 0);
         p(0x71A180, 0);
         p(0x71A184, x87::loaded(g(0x6051B0)));
@@ -87,7 +86,7 @@ pub unsafe fn start_car_on_line(entry: &Regs, part: Part) -> Result<Regs, Refuse
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let g = unsafe { start_car_on_line(r, &mut game_part) }?;
+    let g = unsafe { start_car_on_line(r) }?;
     *r = Regs {
         esp: r.esp,
         eflags: r.eflags,

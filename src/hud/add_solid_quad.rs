@@ -16,23 +16,20 @@ use crate::errors::Refused;
 use crate::framework::{Regs, game_write};
 use crate::hud::add_quad::QUAD_RVA;
 
-/// A call by place: 1 `add_quad`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
 // Converted: `rc2k_core::hud::quads::SOLID_PLACES`
-pub unsafe fn add_solid_quad(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn add_solid_quad(entry: &Regs) -> Result<Regs, Refused> {
     for (n, v) in rc2k_core::hud::quads::SOLID_PLACES {
         unsafe { game_write(QUAD_RVA + 4 * n, v) };
     }
     let mut g = *entry;
-    part(1, &mut g)?;
+    crate::hud::add_triangle::game_part_quad(1, &mut g)?;
     Ok(g)
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { add_solid_quad(r, &mut crate::hud::add_triangle::game_part_quad) }?;
+    let left = unsafe { add_solid_quad(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

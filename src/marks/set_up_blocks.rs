@@ -21,7 +21,7 @@ use crate::marks::lines::*;
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     {
-        let left = unsafe { set_up_blocks(r, &mut game_part) }?;
+        let left = unsafe { set_up_blocks(r) }?;
         *r = Regs {
             esp: r.esp,
             eflags: r.eflags,

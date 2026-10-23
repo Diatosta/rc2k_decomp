@@ -29,13 +29,6 @@ const NO_MAP: FatalError = FatalError {
     message: "",
 };
 
-/// A callee by place, with the registers it gets and leaves (and its carry):
-/// 0 `records::find_record` (edi the table, ebx the section, eax the index: edi the
-/// record), 1 `gfx::load_picture_with_overlay` (eax the path, ebx the overlay), 2
-/// `gfx::convert_picture`, 3 `gfx::picture_as_surface`, 4 `gfx::blit_glyph` (eax the
-/// sprite, esi the table, ecx and edx 0).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 unsafe fn dword(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
 }
@@ -46,7 +39,7 @@ unsafe fn dword(at: u32) -> u32 {
 /// `off_7598AE[+0x3C]`; `ukmap.png` loaded with it (the carry: fatal error 0x80712345),
 /// converted, `g_pictureFlags` = `g_screenModeFlags` & 0xFFF, made the surface, sprite 0xA0
 /// at (0, 0). Refuses a choice without its tables (the original reads through null).
-pub unsafe fn draw_stage_map(entry: &Regs, part: Part) -> Result<(), Refused> {
+pub unsafe fn draw_stage_map(entry: &Regs) -> Result<(), Refused> {
     let mut g = *entry;
     unsafe {
         let mode: u32 = game_read(MODE_RVA);
@@ -61,7 +54,7 @@ pub unsafe fn draw_stage_map(entry: &Regs, part: Part) -> Result<(), Refused> {
                 g.edi = game_addr(RECORD_TABLE_RVA) as u32;
                 g.ebx = game_read(SECTION_RVA);
                 g.eax = game_read(INDEX_RVA);
-                part(0, &mut g)?;
+                crate::menu::stage_choice::game_part(0, &mut g)?;
                 g.edi
             }
             _ => {
@@ -75,19 +68,19 @@ pub unsafe fn draw_stage_map(entry: &Regs, part: Part) -> Result<(), Refused> {
         };
         g.ebx = dword(game_addr(PALETTES_RVA) as u32 + dword(g.edi + 0x3C).wrapping_mul(4));
         g.eax = game_addr(MAP_PATH_RVA) as u32;
-        part(1, &mut g)?;
+        crate::menu::stage_choice::game_part(1, &mut g)?;
         if g.carry() {
             return Err(NO_MAP.into());
         }
-        part(2, &mut g)?;
+        crate::menu::stage_choice::game_part(2, &mut g)?;
         g.eax = game_read::<u32>(SCREEN_MODE_FLAGS_RVA) & 0xFFF;
         game_write(PICTURE_FLAGS_RVA, g.eax);
-        part(3, &mut g)?;
+        crate::menu::stage_choice::game_part(3, &mut g)?;
         g.eax = MAP_SPRITE;
         g.esi = game_read(SPRITE_TABLE_RVA);
         g.ecx = 0;
         g.edx = 0;
-        part(4, &mut g)?;
+        crate::menu::stage_choice::game_part(4, &mut g)?;
     }
     Ok(())
 }
@@ -121,7 +114,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 }
 
 pub unsafe fn draw_stage_map_in_game() -> Result<(), Refused> {
-    unsafe { draw_stage_map(&Regs::default(), &mut game_part) }
+    unsafe { draw_stage_map(&Regs::default()) }
 }
 
 /// How a setting draws the map: the Rust version in the game, a counter in the tests.

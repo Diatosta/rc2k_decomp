@@ -27,17 +27,14 @@ const BLOCK_RVA: [usize; 2] = [rva(0x710394), rva(0x711374)]; // the car blocks'
 const CLEARED_RVA: [usize; 2] = [rva(0x6D1486), rva(0x6D1496)];
 const ON_RVA: [usize; 2] = [rva(0x63E168), rva(0x63E16C)];
 
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn overlay_pass(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn overlay_pass(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         g.eax = game_read(PLAYERS_RVA);
         game_write(PLAYERS_COPY_RVA, g.eax);
-        part(1, &mut g)?;
-        part(2, &mut g)?;
+        crate::hud::overlay_pass::game_part(1, &mut g)?;
+        crate::hud::overlay_pass::game_part(2, &mut g)?;
         let kept: [u32; 2] = FLAGS_RVA.map(|r| game_read(r));
         if game_read::<u32>(MODE_RVA) == 2 {
             for n in 0..2 {
@@ -47,19 +44,19 @@ pub unsafe fn overlay_pass(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                 }
             }
         }
-        let done = part(3, &mut g);
+        let done = crate::hud::overlay_pass::game_part(3, &mut g);
         game_write(FLAGS_RVA[1], kept[1]);
         game_write(FLAGS_RVA[0], kept[0]);
         done?;
-        part(4, &mut g)?;
+        crate::hud::overlay_pass::game_part(4, &mut g)?;
         crate::scene::full_view_window::full_view_window().apply(&mut g);
         [g.eax, g.ebx] = [3, 3];
-        part(5, &mut g)?;
+        crate::hud::overlay_pass::game_part(5, &mut g)?;
         game_write(ON_RVA[0], 1u32);
         game_write(ON_RVA[1], 1u32);
-        part(6, &mut g)?;
-        part(1, &mut g)?;
-        part(7, &mut g)?;
+        crate::hud::overlay_pass::game_part(6, &mut g)?;
+        crate::hud::overlay_pass::game_part(1, &mut g)?;
+        crate::hud::overlay_pass::game_part(7, &mut g)?;
     }
     Ok(g)
 }
@@ -70,11 +67,11 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         match place {
             1 => crate::scene::depth_buffer_on::depth_buffer(r, false),
-            2 => *r = overlay_states::overlay_states(r, &mut overlay_states::game_part)?,
-            3 => *r = draw_hud::draw_hud(r, &mut draw_hud::game_part)?,
+            2 => *r = overlay_states::overlay_states(r)?,
+            3 => *r = draw_hud::draw_hud(r)?,
             4 => crate::scene::depth_buffer_on::depth_buffer(r, true),
             5 => overlay_states::game_part(place, r)?,
-            6 => *r = draw_view_strips::draw_view_strips(r, &mut draw_view_strips::game_part)?,
+            6 => *r = draw_view_strips::draw_view_strips(r)?,
             _ => crate::scene::set_filters::set_filters(r),
         }
     }
@@ -83,7 +80,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { overlay_pass(r, &mut game_part) }?;
+    let left = unsafe { overlay_pass(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

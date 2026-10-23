@@ -31,11 +31,9 @@ const PICTURES_RVA: usize = rva(0x5D7968); // g_kindPictures
 const PREF_LISTS: usize = 0x60A57C;
 const CARS_RVA: usize = rva(0x63DB90); // g_raceCars
 const CAR_KINDS_RVA: usize = rva(0x623858); // g_raceCarKinds
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// `race::set_all_plates` (see the header); part 0 the system textures' reload, 1 the
 /// slots'.
-pub unsafe fn set_all_plates(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn set_all_plates(entry: &Regs) -> Result<Regs, Refused> {
     // Converted: `rc2k_core::race::stage_objects::{check_picture_cars, PREF_PIECES,
     // FIXED_PICTURES, car_pictures}`.
     use rc2k_core::race::stage_objects::{
@@ -74,8 +72,8 @@ pub unsafe fn set_all_plates(entry: &Regs, part: Part) -> Result<Regs, Refused> 
             }
             g.ecx = cars;
         }
-        part(0, &mut g)?;
-        part(1, &mut g)?;
+        crate::race::set_all_plates::game_part(0, &mut g)?;
+        crate::race::set_all_plates::game_part(1, &mut g)?;
     }
     Ok(g)
 }
@@ -94,7 +92,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     {
-        let g = unsafe { set_all_plates(r, &mut game_part) }?;
+        let g = unsafe { set_all_plates(r) }?;
         *r = Regs {
             esp: r.esp,
             eflags: r.eflags,

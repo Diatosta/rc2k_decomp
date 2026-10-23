@@ -15,7 +15,7 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::net::lobby::{DRAW_KEEP, Part};
+use crate::net::lobby::DRAW_KEEP;
 
 /// The font's fixed width.
 const WIDTH: u32 = 0x1C;
@@ -29,7 +29,7 @@ fn write32(at: u32, v: u32) {
 }
 
 /// The Rust version: the registers it leaves (the entry's).
-pub fn draw_time_text(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn draw_time_text(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     r.edi = 0;
     r.ebp = 11;
@@ -43,7 +43,7 @@ pub fn draw_time_text(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         let kept = read32(r.ebx + 1);
         write32(r.ebx + 1, r.edi);
         r.edi = kept;
-        part(DRAW_KEEP, &mut r)?;
+        crate::net::lobby_calls::call(DRAW_KEEP, &mut r)?;
         let zero = read32(r.ebx + 1);
         write32(r.ebx + 1, r.edi);
         r.edi = zero;

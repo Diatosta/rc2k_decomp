@@ -23,7 +23,7 @@ use crate::screens::harness::Left;
 use crate::service::harness::state_entry;
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    let g = unsafe { set_up_mode_1_cars(r, &mut cars_part) }?;
+    let g = unsafe { set_up_mode_1_cars(r) }?;
     Ok(left_changed(r, &g))
 }
 

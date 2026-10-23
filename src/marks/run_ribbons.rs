@@ -351,7 +351,7 @@ pub unsafe fn run_ribbons(entry: &Regs, mut part: Part) -> Result<Regs, Refused>
 /// In the game: `draw_ribbon`'s Rust version.
 pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::marks::draw_ribbon as ribbon;
-    let left = unsafe { ribbon::draw_ribbon(r, &mut ribbon::game_part) }?;
+    let left = unsafe { ribbon::draw_ribbon(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

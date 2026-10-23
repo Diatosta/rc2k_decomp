@@ -300,7 +300,7 @@ pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused
             }
             _ => {
                 use crate::marks::draw_streak as streak;
-                let left = streak::draw_streak(r, [v[0], v[1], v[2]], &mut streak::game_part)?;
+                let left = streak::draw_streak(r, [v[0], v[1], v[2]])?;
                 *r = Regs { esp: r.esp, ..left };
             }
         }

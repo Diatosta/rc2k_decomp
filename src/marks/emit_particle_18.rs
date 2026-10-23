@@ -24,11 +24,10 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::emitters::*;
 use crate::marks::jitter_point::jitter_point;
-use crate::marks::setup::SEED_RVA;
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at as at_rva, state_entry};
+use crate::service::harness::state_entry;
 
 const COUNT_RVA: usize = rva(0x9356C0); // dword_9356C0
 const SIZE_K_RVA: usize = rva(0x7651D0); // flt_7651D0
@@ -110,31 +109,6 @@ pub unsafe fn emit_particle_18(record: u32, object: u32) -> Result<(), Refused> 
         }
     }
     Ok(())
-}
-
-/// What it may write: the globals and the entries it would take.
-pub fn regions(record: u32) -> Vec<Region> {
-    let mut r: Vec<Region> = [
-        FLAGS_RVA,
-        COUNT_RVA,
-        SEED_RVA,
-        RING_CURSOR_RVA,
-        RING_COUNT_RVA,
-    ]
-    .map(at_rva)
-    .to_vec();
-    if record == 0 {
-        return r;
-    }
-    let mut e: u32 = unsafe { game_read(RING_CURSOR_RVA) };
-    for _ in 0..unsafe { made(record) } {
-        if e == 0 {
-            break;
-        }
-        e = unsafe { at(e) };
-        r.push((e, ENTRY_LEN));
-    }
-    r
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

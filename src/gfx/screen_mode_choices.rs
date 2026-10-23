@@ -41,8 +41,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, rva};
-use crate::race::viewer::{Part, get, put, regs_entry};
+use crate::framework::{Flags, Regs, game_addr, rva};
+use crate::race::viewer::{get, put};
 use crate::system::find_entry_with_bits::find_entry_with_bits;
 use crate::system::next_entry::next_entry;
 use rc2k_core::gfx::mode_choices as mc;
@@ -61,13 +61,6 @@ const PRIMARY_CARD: usize = 0x5AB4AC; // g_primary3dCard
 const SECONDARY_CARD: usize = 0x5AB4B0; // g_secondary3dCard
 use crate::gfx::keep_race_screen_mode::RACE_MODE;
 use crate::gfx::try_screen_mode::{MODE_COUNT, MODE_TABLE};
-
-/// The calls by place, as IDA shows them.
-const CALLEES: [usize; 3] = [
-    0x404AED, // 0 gfx::try_screen_mode
-    0x404805, // 1 gfx::keep_race_screen_mode
-    0x404823, // 2 gfx::set_menu_screen_mode
-];
 
 fn field(offset: usize) -> u32 {
     get(RECORD + offset)
@@ -119,13 +112,15 @@ fn modes_of(kind: u32) -> Option<Vec<u32>> {
     Some(modes)
 }
 
-/// The Rust version: the registers and flags it leaves.
-pub fn screen_mode_choices(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+/// The Rust version: with `try_choice` (eax not 0) the choice tried, else the list made
+/// again; the flags it leaves (see the header).
+pub fn screen_mode_choices(try_choice: bool) -> Result<Flags, Refused> {
     // Converted: `rc2k_core::gfx::mode_choices`.
-    let mut out = *entry;
-    let failed = |mut out: Regs| {
-        out.set_carry(true);
-        Ok(out)
+    let failed = || {
+        Ok(Flags {
+            carry: true,
+            zero: false,
+        })
     };
     let made = field(0) == 1;
     // The way taken and what decides it, before anything is written.
@@ -134,7 +129,7 @@ pub fn screen_mode_choices(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     } else {
         mc::kind_of_race(get(RACE_MODE), get(KIND_BITS))
     };
-    let rebuilding = !made || entry.eax == 0;
+    let rebuilding = !made || !try_choice;
     let modes = if rebuilding { modes_of(kind) } else { None };
     if let Some(modes) = &modes
         && modes.len() as u32 > mc::ROOM
@@ -147,57 +142,49 @@ pub fn screen_mode_choices(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             return Err(BadInput("a size's place far past the choices' list").into());
         }
         let current = read(game_addr(rva(LIST)) as u32 + 16 * field(8) + 0xC);
-        if entry.eax != 0 {
+        if try_choice {
             // The choice tried.
             let (third, place) = (field(0xC), field(8));
             if !mc::can_try(kind, place, field(0x24), third) {
-                return failed(out);
+                return failed();
             }
             let mode = mc::tried_mode(
                 get(KIND_BITS + 4 * kind as usize),
                 read(game_addr(rva(LIST)) as u32 + 16 * place + 0xC),
                 get(THIRD_BITS + 4 * third as usize),
             );
-            let mut r = Regs {
-                eax: mode,
-                ebx: third,
-                esi: game_addr(rva(RECORD)) as u32,
-                ebp: current,
-                ..*entry
-            };
-            part(0, &mut r)?;
-            let mut worked = !r.carry();
+            let tried = crate::gfx::try_screen_mode::try_screen_mode(mode)?;
+            let worked = !tried.carry && mc::kept(field(0x10), get(TEXTURE_FIGURE));
             if worked {
-                r.ebx = field(0x10);
-                worked = mc::kept(r.ebx, get(TEXTURE_FIGURE));
+                crate::gfx::keep_race_screen_mode::keep_race_screen_mode(mode)?;
             }
-            if worked {
-                part(1, &mut r)?;
-            }
-            part(2, &mut r)?;
+            crate::platform::set_menu_mode_now();
             if !worked {
-                return failed(out);
+                return failed();
             }
-            out.set_carry(false);
-            out.set_zero(r.eax == 0);
-            return Ok(out);
+            // The eax the three calls leave: the mode (they keep it).
+            return Ok(Flags {
+                carry: false,
+                zero: mode == 0,
+            });
         }
-        return rebuild(entry, current, modes);
+        return rebuild(current, modes);
     }
     set(4, kind);
     set(0x14, get(PRIMARY_CARD));
     set(0x18, get(SECONDARY_CARD));
-    rebuild(entry, get(RACE_MODE), modes)
+    rebuild(get(RACE_MODE), modes)
 }
 
 /// The list made again (`loc_40468A` on), `current` the mode kept in ebp.
-fn rebuild(entry: &Regs, current: u32, modes: Option<Vec<u32>>) -> Result<Regs, Refused> {
-    let mut out = *entry;
+fn rebuild(current: u32, modes: Option<Vec<u32>>) -> Result<Flags, Refused> {
     set(0x1C, 0);
     set(0x24, 0);
     let Some(modes) = modes else {
-        out.set_carry(true);
-        return Ok(out);
+        return Ok(Flags {
+            carry: true,
+            zero: false,
+        });
     };
     let mut listed = Vec::new();
     for (n, &at) in modes.iter().enumerate() {
@@ -231,25 +218,24 @@ fn rebuild(entry: &Regs, current: u32, modes: Option<Vec<u32>>) -> Result<Regs, 
     let figure = mc::figure(field(0x10), field(0x20));
     set(0x10, figure);
     set(0, 1);
-    out.set_carry(false);
-    out.set_zero(figure == 0);
-    Ok(out)
+    Ok(Flags {
+        carry: false,
+        zero: figure == 0,
+    })
 }
 
-/// In both programs: the trial and the race's mode by their Rust versions, the menus' mode
-/// through its hook.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::gfx::{keep_race_screen_mode as keep, try_screen_mode as trial};
-    match place {
-        0 => *r = trial::try_screen_mode(r, &mut trial::game_part)?,
-        1 => *r = keep::keep_race_screen_mode(r, &mut keep::game_part)?,
-        _ => crate::calls::call(rva(CALLEES[2]), r),
-    }
+/// The Rust version where the typed tables run it (a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), Refused> {
+    apply(screen_mode_choices(r.eax != 0)?, r);
     Ok(())
 }
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| screen_mode_choices(r, &mut game_part))
+/// The flags into a caller's registers: with the carry set, the caller's zero flag stays
+/// (`stc` before the `popa`).
+pub fn apply(flags: Flags, r: &mut Regs) {
+    if flags.carry {
+        r.set_carry(true);
+    } else {
+        flags.apply(r);
+    }
 }

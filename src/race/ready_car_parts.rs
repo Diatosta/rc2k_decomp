@@ -11,10 +11,10 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::framework::Regs;
-use crate::race::car_parts::{parts_part, ready_car_parts};
+use crate::race::car_parts::ready_car_parts;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { ready_car_parts(r, &mut parts_part) }?;
+    unsafe { ready_car_parts(r) }?;
     Ok(())
 }

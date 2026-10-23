@@ -19,14 +19,10 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::drive::read_replay_frame::regions as read_regions;
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::physics::flow::{a, guard};
-use crate::race::viewer::{
-    AT_END, BLOCK, BLOCKS, FRAME, OPEN, PLAY_END, dword, get, put, regs_entry,
-};
-use crate::service::harness::Region;
+use crate::physics::flow::a;
+use crate::race::viewer::{AT_END, BLOCK, BLOCKS, FRAME, OPEN, PLAY_END, get, put, regs_entry};
 
 /// The Rust version: the registers and flags it leaves.
 pub fn step_viewed_replay(entry: &Regs) -> Result<Regs, Refused> {
@@ -62,9 +58,8 @@ pub fn step_viewed_replay(entry: &Regs) -> Result<Regs, Refused> {
         Step::On { block, frame, read } => {
             r.ebx = frame;
             if read {
-                let failed = guard(&regions(), || unsafe {
-                    crate::drive::read_replay_frame::read_replay_frame(block, 0)
-                })?;
+                let failed =
+                    { unsafe { crate::drive::read_replay_frame::read_replay_frame(block, 0) } }?;
                 if failed {
                     stop(&mut r, true);
                     return Ok(r);
@@ -79,12 +74,6 @@ pub fn step_viewed_replay(entry: &Regs) -> Result<Regs, Refused> {
     r.set_carry(false);
     r.set_zero(get(FRAME) == 0);
     Ok(r)
-}
-
-fn regions() -> Vec<Region> {
-    let mut all = read_regions();
-    all.push(dword(AT_END));
-    all
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

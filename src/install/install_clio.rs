@@ -22,8 +22,8 @@ use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::install::installer::{
     COPY_COUNTED, DIR_COUNT, DIRS, FILE_COUNT, FILES, GAME_DIR, INSTALLED, INSTALLING,
-    MAKE_FOLDERS, NORMALISE, PATH_A, PATH_B, Part, RUN_SCRIPT, SET_CD, SLEEP, TAKE_KEY, a,
-    append_byte, at, g, p, str_append, str_append_indexed,
+    MAKE_FOLDERS, NORMALISE, PATH_A, PATH_B, RUN_SCRIPT, SET_CD, SLEEP, TAKE_KEY, a, append_byte,
+    at, g, p, str_append, str_append_indexed,
 };
 
 const LOCK: usize = 0x4058AD;
@@ -56,47 +56,47 @@ enum Stop {
 }
 
 /// The Rust version, register for register as the original.
-pub fn install_clio(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn install_clio(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
-    part(at(LOCK), &mut r)?;
+    crate::install::installer::game_part(at(LOCK), &mut r)?;
     if !r.carry() {
-        part(at(COPY_PICTURE), &mut r)?;
+        crate::install::installer::game_part(at(COPY_PICTURE), &mut r)?;
         r.eax = 0xBE;
         r.ebx = a(FONT_BE);
         r.ecx = 0x1A9;
         r.edx = 0x113;
-        part(at(DRAW_STRING), &mut r)?;
-        part(at(UNLOCK), &mut r)?;
-        part(at(SHOW), &mut r)?;
+        crate::install::installer::game_part(at(DRAW_STRING), &mut r)?;
+        crate::install::installer::game_part(at(UNLOCK), &mut r)?;
+        crate::install::installer::game_part(at(SHOW), &mut r)?;
         r.eax = 1000;
-        part(at(SLEEP), &mut r)?;
+        crate::install::installer::game_part(at(SLEEP), &mut r)?;
     }
     let stop = (|| -> Result<Stop, Refused> {
         r.esi = a(PATH_A);
         r.edx = a(GAME_DIR);
-        part(at(NORMALISE), &mut r)?;
+        crate::install::installer::game_part(at(NORMALISE), &mut r)?;
         if r.carry() {
             return Ok(Stop::Straight);
         }
         r.esi = a(PATH_B);
         r.edx = a(INSTALLED);
-        part(at(NORMALISE), &mut r)?;
+        crate::install::installer::game_part(at(NORMALISE), &mut r)?;
         if r.carry() {
             return Ok(Stop::Straight);
         }
         r.edx = a(GAME_DIR);
-        part(at(SET_CD), &mut r)?;
+        crate::install::installer::game_part(at(SET_CD), &mut r)?;
         if r.carry() {
             return Ok(Stop::Straight);
         }
         r.ebx = a(SCRIPT);
-        part(at(RUN_SCRIPT), &mut r)?;
+        crate::install::installer::game_part(at(RUN_SCRIPT), &mut r)?;
         if g(DIR_COUNT) != 0 {
             r.ebp = 0;
             loop {
                 r.edx = a(PATH_B);
                 append_both(INSTALLED, PATH_B, DIRS, &mut r);
-                part(at(MAKE_FOLDERS), &mut r)?;
+                crate::install::installer::game_part(at(MAKE_FOLDERS), &mut r)?;
                 if r.carry() {
                     return Ok(Stop::SetBack);
                 }
@@ -106,7 +106,7 @@ pub fn install_clio(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                 }
             }
             r.edx = a(GAME_DIR);
-            part(at(SET_CD), &mut r)?;
+            crate::install::installer::game_part(at(SET_CD), &mut r)?;
         }
         if g(FILE_COUNT) != 0 {
             r.ebp = 0;
@@ -115,11 +115,11 @@ pub fn install_clio(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                 append_both(GAME_DIR, PATH_A, FILES, &mut r);
                 r.edi = a(PATH_B);
                 append_both(INSTALLED, PATH_B, FILES, &mut r);
-                part(at(COPY_COUNTED), &mut r)?;
+                crate::install::installer::game_part(at(COPY_COUNTED), &mut r)?;
                 if r.carry() {
                     return Ok(Stop::SetBack);
                 }
-                part(at(TAKE_KEY), &mut r)?;
+                crate::install::installer::game_part(at(TAKE_KEY), &mut r)?;
                 if r.eax as u8 == 1 {
                     return Ok(Stop::SetBack);
                 }
@@ -133,20 +133,18 @@ pub fn install_clio(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     })()?;
     if let Stop::SetBack = stop {
         r.edx = a(INSTALLED);
-        part(at(SET_CD), &mut r)?;
+        crate::install::installer::game_part(at(SET_CD), &mut r)?;
     }
     p(INSTALLING, 0);
     p(UPDATING, 0);
     p(FROM_COMMAND, 0);
     r.eax = 1000;
-    part(at(SLEEP), &mut r)?;
+    crate::install::installer::game_part(at(SLEEP), &mut r)?;
     Ok(*entry)
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::race::viewer::regs_entry(r, &|r| {
-        install_clio(r, &mut crate::install::installer::game_part)
-    })
+    crate::race::viewer::regs_entry(r, &|r| install_clio(r))
 }

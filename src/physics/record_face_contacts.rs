@@ -20,7 +20,7 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::physics::face_contact::{self, Touched};
+use crate::physics::face_contact;
 use crate::physics::flow::g;
 use rc2k_core::physics::ground_search;
 
@@ -38,13 +38,13 @@ pub fn record_faces(n: u32) -> (u32, u32) {
 
 /// The steps, not guarded.
 // Converted: `rc2k_core::physics::ground_search::each_face`.
-pub fn steps(r: &mut Regs, touched: &mut Touched) -> Result<(), Refused> {
+pub fn steps(r: &mut Regs) -> Result<(), Refused> {
     let (first, last) = record_faces(r.ebx);
     let record = (r.ebx << 5).wrapping_add(g(RECORDS));
     r.esi = record;
     r.ebx = ground_search::each_face(first, last, g(0x5CCD1C), |face| {
         r.ebx = face;
-        face_contact::steps(r, touched)?;
+        face_contact::steps(r)?;
         r.esi = record;
         Ok::<_, Refused>(())
     })?;

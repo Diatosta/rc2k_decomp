@@ -14,18 +14,15 @@
 //! error. Otherwise the installer's script is set up (as in `check_at_start`, with
 //! string 0x1038), the car's name `aRenaultClioSpo` is put in capitals up to its `(`,
 //! where a line feed ends it, and `off_51DD48` becomes `sub_41675B`.
-//! One caller, `start`.
-//! Self-test: a redirected copy in worlds of the test's.
+//! One caller, `start`, which calls it directly (2026-10-23).
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::install::check_at_start::{INSTALLING_RVA, RECORD_RVA, set_script_entry};
 use crate::install::check_test::MEDIA_MODE_RVA;
-use crate::install::outside::{Game, Outside};
+use crate::install::outside::Outside;
 use crate::install::read_registry::{SOURCE_RVA, STATUS_RVA};
 use crate::install::runs_from_source::runs_from_source;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 // ---- game data ----
 
@@ -93,14 +90,4 @@ pub unsafe fn check_clio_disc(outside: &mut dyn Outside) -> Result<(), Refused> 
         game_write(STEP_RVA, game_addr(CLIO_STEP_RVA) as u32);
         Ok(())
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { check_clio_disc(&mut Game) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

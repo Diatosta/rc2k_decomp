@@ -25,7 +25,6 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::race::noted_calls::Part;
 
 pub const SET_UP: u32 = 0;
 pub const LOG_WRITE: u32 = 3;
@@ -55,12 +54,12 @@ fn p(x: usize, v: u32) {
 }
 
 /// The steps on `r`.
-pub fn credits_race_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn credits_race_in(r: &mut Regs) -> Result<(), Refused> {
     for (at, v) in FIRST {
         p(at, v);
     }
     for place in 0..3 {
-        part(place, r)?;
+        crate::race::credits_race::credits_part(place, r)?;
     }
     p(IN_CREDITS, 1);
     let g = |x: usize| unsafe { game_read::<u32>(rva(x)) };
@@ -72,15 +71,15 @@ pub fn credits_race_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
         (LOG_INT_NL, g(CAR_KINDS)),
     ] {
         let mut c = Regs { eax, ..*r };
-        part(place, &mut c)?;
+        crate::race::credits_race::credits_part(place, &mut c)?;
     }
-    part(6, r)?;
+    crate::race::credits_race::credits_part(6, r)?;
     r.eax = 0;
-    part(ROLL, r)?;
+    crate::race::credits_race::credits_part(ROLL, r)?;
     p(AFTER_CREDITS, 0);
-    part(8, r)?;
+    crate::race::credits_race::credits_part(8, r)?;
     p(IN_CREDITS, 0);
-    part(9, r)
+    crate::race::credits_race::credits_part(9, r)
 }
 
 /// The calls in the game: the set-up and the logs Rust, the rest at their hooks.
@@ -100,7 +99,7 @@ pub fn credits_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let mut g = *r;
-    match credits_race_in(&mut g, &mut credits_part) {
+    match credits_race_in(&mut g) {
         Ok(()) => {
             *r = Regs {
                 esp: r.esp,

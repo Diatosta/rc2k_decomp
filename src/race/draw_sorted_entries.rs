@@ -16,11 +16,7 @@ const ENTRIES: u32 = 0x9DB730; // g_sortEntries
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let done = unsafe {
-        draw_entries(r, SORT_COUNT_RVA, ENTRIES, &mut |e| {
-            draw_list_entry(e, &mut entry_part)
-        })
-    };
+    let done = unsafe { draw_entries(r, SORT_COUNT_RVA, ENTRIES, &mut |e| draw_list_entry(e)) };
     {
         let after = done?;
         let esp = r.esp;

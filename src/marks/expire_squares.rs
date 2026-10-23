@@ -19,7 +19,7 @@ use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
+use crate::service::harness::state_entry;
 
 pub const ITEMS_RVA: usize = rva(0x89E18A); // g_marksSquareItems
 pub const ITEMS: u32 = 0x800;
@@ -60,14 +60,6 @@ pub unsafe fn expire_squares(entry: &Regs) -> Regs {
         g.ebp = base + ITEMS * ITEM_LEN;
     }
     g
-}
-
-pub fn regions() -> Vec<Region> {
-    vec![
-        (game_addr(ITEMS_RVA) as u32, (ITEMS * ITEM_LEN) as usize),
-        at(PLACE_RVA[0]),
-        at(PLACE_RVA[1]),
-    ]
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

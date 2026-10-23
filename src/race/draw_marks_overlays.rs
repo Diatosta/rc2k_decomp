@@ -14,10 +14,10 @@
 //! and the self-test was the hook's.
 
 use crate::framework::Regs;
-use crate::race::frame_views::{draw_marks_overlays, overlays_part};
+use crate::race::frame_views::draw_marks_overlays;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { draw_marks_overlays(r, &mut overlays_part) }?;
+    unsafe { draw_marks_overlays(r) }?;
     Ok(())
 }

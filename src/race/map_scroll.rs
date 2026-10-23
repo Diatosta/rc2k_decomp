@@ -26,7 +26,7 @@ const MAP_Y: u32 = CAR + 0xAE4;
 /// `race::map_tiles` (0x45B663): the map picture's slot `dword_5D0E00` (+ `g_currentCar`
 /// unless `dword_52A910`) drawn from tile (corner x >> 4, corner y >> 4) (part 1:
 /// `sub_45B68F`, ecx / edx the tile, eax the slot).
-pub unsafe fn map_tiles(r: &mut Regs, part: crate::race::frame::Part) -> Result<(), Refused> {
+pub unsafe fn map_tiles(r: &mut Regs) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::map::{first_tile, picture_slot}`.
     use rc2k_core::race::map::{first_tile, picture_slot};
     r.ecx = first_tile(k(CORNER_X));
@@ -38,7 +38,7 @@ pub unsafe fn map_tiles(r: &mut Regs, part: crate::race::frame::Part) -> Result<
         one_view,
         if one_view { 0 } else { k(0x71B3F8) },
     );
-    part(1, r)
+    crate::race::map_scroll::tiles_part(1, r)
 }
 
 /// What `scroll_map` reads through the course: refused before anything.
@@ -111,7 +111,7 @@ pub unsafe fn scroll_map(r: &mut Regs, part: crate::race::frame::Part) -> Result
 /// the scroll): with `dword_52A910` the third view car only (`race::load_car_c` /
 /// `store_car_c`), else the first and, unless `dword_63DB98` is 1, the second. Refuses
 /// (before anything) a view car without its block, or what `scroll_map` refuses.
-pub unsafe fn scroll_maps(r: &mut Regs, part: crate::race::frame::Part) -> Result<(), Refused> {
+pub unsafe fn scroll_maps(r: &mut Regs) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::map::scrolled_views`.
     use crate::race::frame::{VIEW_CARS, load_view_car, store_view_car};
     unsafe {
@@ -130,7 +130,7 @@ pub unsafe fn scroll_maps(r: &mut Regs, part: crate::race::frame::Part) -> Resul
         scroll_refuses()?;
         for &v in views {
             load_view_car(v)?.apply(r);
-            part(1, r)?;
+            crate::race::map_scroll::scroll_part(1, r)?;
             store_view_car(v)?.apply(r);
         }
         Ok(())
@@ -140,7 +140,7 @@ pub unsafe fn scroll_maps(r: &mut Regs, part: crate::race::frame::Part) -> Resul
 /// The parts in the game: `scroll_map` with `map_tiles` with the tiles' blit
 /// (`sub_45B68F` -> `race::blit_map_tiles`).
 pub fn scroll_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { scroll_map(r, &mut |_, r| map_tiles(r, &mut tiles_part)) }
+    unsafe { scroll_map(r, &mut |_, r| map_tiles(r)) }
 }
 
 /// `map_tiles`' part in the game: `sub_45B68F` -> `race::blit_map_tiles` (the tiles'

@@ -438,7 +438,7 @@ pub fn game_call(callee: usize, r: &mut Regs) -> Result<(), Refused> {
             }
             WAIT_OR_KEY => {
                 use crate::system::wait_or_key as f;
-                *r = keep_esp(r, f::wait_or_key(r, &mut f::game_part)?)
+                *r = keep_esp(r, f::wait_or_key(r)?)
             }
             STREAM_PLAYING => {
                 let (zero, carry) = crate::sound::stream_playing::stream_playing();

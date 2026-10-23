@@ -15,14 +15,7 @@ use crate::framework::Regs;
 use crate::race::level_init::*;
 
 fn rust(r: &Regs, v: &Vars) -> Result<Regs, crate::errors::Refused> {
-    unsafe {
-        allocate_course_memory(
-            r,
-            v,
-            crate::framework::game_addr(COURSE_LIST_RVA) as u32,
-            &mut game_part,
-        )
-    }
+    unsafe { allocate_course_memory(r, v, crate::framework::game_addr(COURSE_LIST_RVA) as u32) }
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).

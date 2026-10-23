@@ -19,6 +19,6 @@ use crate::race::course_faces::*;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { draw_face_sides(r, &mut sides_part) }?;
+    unsafe { draw_face_sides(r) }?;
     Ok(())
 }

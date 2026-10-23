@@ -24,7 +24,7 @@ use crate::marks::{
 };
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, restore, state_entry};
+use crate::service::harness::{Region, state_entry};
 
 /// What its first five steps write (the last two put back their own).
 fn early_regions() -> Vec<Region> {
@@ -49,20 +49,15 @@ pub unsafe fn view_frame(entry: &Regs) -> Result<Regs, Refused> {
     if unsafe { game_read::<u32>(SETTINGS_RVA) } == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    let written = early_regions();
-    let saved = capture(&written);
-    let done = unsafe {
+
+    unsafe {
         keep_vectors::keep_vectors();
         crate::marks::kept_turns::turn_kept_vectors();
         scale_kept_vectors::scale_kept_vectors();
         view_step::view_step();
         let g = aim_vector::aim_vector(entry);
         shapes_frame::shapes_frame(&g).and_then(|g| run_splines::run_splines(&g))
-    };
-    if done.is_err() {
-        restore(&written, &saved);
     }
-    done
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

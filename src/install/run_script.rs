@@ -27,13 +27,13 @@ use crate::bridge::Raw;
 use crate::errors::{BadInput, Refused};
 use crate::framework::Regs;
 use crate::install::installer::{
-    LIST_FILES, LIST_FOLDER, LIST_FOLDER_TREE, MEDIA_MODE, Part, a, at, fatal, gb, rb, wb,
+    LIST_FILES, LIST_FOLDER, LIST_FOLDER_TREE, MEDIA_MODE, a, at, fatal, gb, rb, wb,
 };
 use rc2k_core::install::script::{self, Op};
 
 const NAME_BUF: usize = 0x95EAF8; // byte_95EAF8
 
-pub fn run_script(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn run_script(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     let mut esi = a(NAME_BUF);
     wb(esi, 0);
@@ -55,7 +55,7 @@ pub fn run_script(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                 r = crate::install::script_name::script_name(&r)?;
                 esi = r.esi;
                 r.eax = a(NAME_BUF);
-                part(at(LIST_FOLDER), &mut r)?;
+                crate::install::installer::game_part(at(LIST_FOLDER), &mut r)?;
                 wb(esi, b'\\');
                 wb(esi + 1, 0);
                 esi += 1;
@@ -75,7 +75,7 @@ pub fn run_script(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                 r.esi = esi;
                 r = crate::install::script_name::script_name(&r)?;
                 r.eax = a(NAME_BUF);
-                part(
+                crate::install::installer::game_part(
                     at(if al == 3 {
                         LIST_FILES
                     } else {
@@ -111,7 +111,5 @@ pub fn run_script(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::race::viewer::regs_entry(r, &|r| {
-        run_script(r, &mut crate::install::installer::game_part)
-    })
+    crate::race::viewer::regs_entry(r, &|r| run_script(r))
 }

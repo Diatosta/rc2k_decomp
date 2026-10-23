@@ -38,11 +38,8 @@ const FAR_RVA: usize = rva(0x606294); // dword_606294
 const MIRROR_FAR_RVA: usize = rva(0x5C5E2C); // flt_5C5E2C
 const GRID_REACH_RVA: usize = rva(0x60A87C); // g_gridReach
 
-/// A call by place (`CALLEES`).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_mirror_view(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn draw_mirror_view(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     unsafe {
         let g = |a: usize| game_read::<u32>(a);
@@ -55,15 +52,15 @@ pub unsafe fn draw_mirror_view(entry: &Regs, part: Part) -> Result<Regs, Refused
         game_write(FAR_RVA, r.eax);
         game_write(GRID_REACH_RVA, 2u32);
         let drawn = (|| {
-            part(0, &mut r)?;
+            crate::race::draw_mirror_view::game_part(0, &mut r)?;
             game_write(VIEW_VALUE_RVA, g(VIEW_VALUE_KEPT_RVA));
-            part(1, &mut r)?;
-            part(2, &mut r)
+            crate::race::draw_mirror_view::game_part(1, &mut r)?;
+            crate::race::draw_mirror_view::game_part(2, &mut r)
         })();
         game_write(GRID_REACH_RVA, saved.1);
         game_write(FAR_RVA, saved.0);
         drawn?;
-        part(3, &mut r)?;
+        crate::race::draw_mirror_view::game_part(3, &mut r)?;
     }
     Ok(r)
 }
@@ -80,7 +77,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_mirror_view(r, &mut game_part) }?;
+    let left = unsafe { draw_mirror_view(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

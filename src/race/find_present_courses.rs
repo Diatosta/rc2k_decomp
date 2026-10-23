@@ -21,28 +21,16 @@
 use crate::errors::Refused;
 use crate::files::read_whole_file::{BYTES_READ_RVA, read_whole_file};
 use crate::framework::{EAX, EBX, ECX, EDI, EDX, ESI, Regs, game_addr, game_read, game_write, rva};
-use crate::race::course_data::{CDAT_DIGITS, set_cdat_number};
-use crate::race::level_init::{NUMBER_PLACES, set_course_number};
+use crate::race::course_data::set_cdat_number;
+use crate::race::level_init::set_course_number;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, restore, state_entry};
+use crate::service::harness::state_entry;
 
 const FLAGS_RVA: usize = rva(0x621518); // dword_621518, 100 flags
 const BUFFER_RVA: usize = rva(0x623FB8); // dword_623FB8
 /// `srclvls\level01\cdat00c`, `files\levels\level01\cdat00c.sq`.
 const PATHS_RVA: [usize; 2] = [rva(0x60B02B), rva(0x60B07A)];
 use rc2k_core::race::stage_objects::COURSES;
-
-fn regions() -> Vec<Region> {
-    let a = |x: usize, len: usize| (game_addr(x) as u32, len);
-    let mut all: Vec<Region> = NUMBER_PLACES.iter().map(|&p| a(rva(p), 2)).collect();
-    all.extend(CDAT_DIGITS.iter().map(|&p| a(p, 2)));
-    all.extend([
-        a(FLAGS_RVA, 4 * COURSES as usize),
-        a(BUFFER_RVA, 4),
-        a(BYTES_READ_RVA, 4),
-    ]);
-    all
-}
 
 unsafe fn steps(entry: &Regs) -> Result<Regs, Refused> {
     // Converted: `rc2k_core::race::stage_objects::{COURSES, course_present, PROBE_BYTES}`.
@@ -75,8 +63,6 @@ unsafe fn steps(entry: &Regs) -> Result<Regs, Refused> {
 
 /// The Rust version (nothing written when it refuses).
 pub fn find_present_courses(entry: &Regs) -> Result<Left, Refused> {
-    let all = regions();
-    let saved = capture(&all);
     match unsafe { steps(entry) } {
         Ok(g) => Ok(Left::nothing()
             .with(EAX, g.eax)
@@ -85,10 +71,7 @@ pub fn find_present_courses(entry: &Regs) -> Result<Left, Refused> {
             .with(EDX, g.edx)
             .with(ESI, g.esi)
             .with(EDI, g.edi)),
-        Err(e) => {
-            restore(&all, &saved);
-            Err(e)
-        }
+        Err(e) => Err(e),
     }
 }
 

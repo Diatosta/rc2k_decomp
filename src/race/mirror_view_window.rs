@@ -10,10 +10,10 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::framework::Regs;
-use crate::race::frame_views::{mirror_part, mirror_view_window};
+use crate::race::frame_views::mirror_view_window;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { mirror_view_window(r, &mut mirror_part) }?;
+    unsafe { mirror_view_window(r) }?;
     Ok(())
 }

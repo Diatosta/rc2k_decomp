@@ -47,7 +47,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, ECX, EDI, EDX, ESI, Regs, game_addr, rva};
+use crate::framework::{EAX, EBX, ECX, EDI, EDX, ESI, Regs};
 use crate::math::x87::loaded;
 use crate::physics as ph;
 use crate::physics::flow::{a, base, g, hold_high, hold_low, negate, p, x87_run};
@@ -55,7 +55,6 @@ use crate::physics::reset_parts::game_part;
 use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::rounded;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, restore};
 
 /// A callee that changes the registers it is given, of which its hook reports `regs`.
 fn keep(r: &mut Regs, regs: &[u8], f: unsafe fn(&mut Regs)) {
@@ -221,11 +220,11 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
     }
     unsafe {
         ph::feel_ground::feel_ground(r)?;
-        *r = ph::reset_when_stuck::reset_when_stuck(r, &mut game_part)?;
+        *r = ph::reset_when_stuck::reset_when_stuck(r)?;
         ph::engine_sound::engine_sound()?.apply(r);
         r.eax = ph::spin_wheels::spin_wheels();
         ph::track_checkpoints::track_checkpoints_in(r, &mut ph::track_checkpoints::game_part)?;
-        ph::pace_notes_step::pace_notes_step_in(r, &mut ph::queue_pace_note::pace_part)?;
+        ph::pace_notes_step::pace_notes_step_in(r)?;
     }
     keep(r, &[EAX], ph::count_down_notice::count_down_notice);
     unsafe { ph::turn_wheel_angles::turn_wheel_angles() }.apply(r);
@@ -256,34 +255,17 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
     keep(r, &[ECX, EBX], ph::hold_spin_on_ground::hold_spin_on_ground);
     unsafe {
         ph::drop_broken_parts::drop_broken_parts(r)?.apply(r);
-        *r = ph::car_lighting::car_lighting(r, &mut game_part)?;
+        *r = ph::car_lighting::car_lighting(r)?;
         ph::sum_forces::sum_forces();
     }
     keep(r, &[EDX], ph::blend_wheel_load::blend_wheel_load);
     unsafe { ph::share_engine_sound::share_engine_sound() }?.apply(r);
     keep(r, &[EAX], ph::note_time_mark::note_time_mark);
     unsafe {
-        *r = ph::false_start::false_start(r, &mut game_part)?;
+        *r = ph::false_start::false_start(r)?;
         ph::value_notice::value_notice();
     }
     Ok(())
-}
-
-/// The work car and the physics' variables (put back on a refusal; compared by the
-/// self-test with the callees' own regions).
-pub fn step_regions() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    vec![
-        (a(0x719FD8), 0xFE0),
-        (a(0x613800), 0x1800), // 0x613800 .. 0x615000
-        (a(0x620400), 0x3E00), // 0x620400 .. 0x624200
-        (a(0x6D1A00), 0x2300), // 0x6D1A00 .. 0x6D3D00
-        (a(0x608B00), 0x200),
-        (a(0x6396F0), 0x1B0),
-        (a(0x5C5F40), 0x30),
-        (a(0x5EA000), 0x500),
-        (a(0x75B340), 0x600),
-    ]
 }
 
 /// The Rust version.
@@ -291,15 +273,10 @@ pub unsafe fn car_physics_step(entry: &Regs) -> Result<Left, Refused> {
     if g(0x71B3F8) > 7 {
         return Err(BadInput("a current car past 7 (dword_641680's room)").into());
     }
-    let all = step_regions();
-    let saved = capture(&all);
     let mut r = *entry;
     match steps(&mut r) {
         Ok(()) => Ok(left_of(&r)),
-        Err(e) => {
-            restore(&all, &saved);
-            Err(e)
-        }
+        Err(e) => Err(e),
     }
 }
 

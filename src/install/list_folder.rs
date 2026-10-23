@@ -16,13 +16,13 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::install::installer::{
-    DIR_COUNT, DIR_CURSOR, DIR_SCAN, DIRS, Part, RESOLVE_PATH, at, fatal, g, p, str_append,
+    DIR_COUNT, DIR_CURSOR, DIR_SCAN, DIRS, RESOLVE_PATH, at, fatal, g, p, str_append,
 };
 use rc2k_core::install::script;
 
-pub fn list_folder(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn list_folder(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
-    part(at(RESOLVE_PATH), &mut r)?;
+    crate::install::installer::game_part(at(RESOLVE_PATH), &mut r)?;
     r.ebx = g(DIR_CURSOR);
     str_append(&mut r);
     crate::install::installer::append_byte(&mut r, 0);
@@ -42,7 +42,5 @@ pub fn list_folder(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::race::viewer::regs_entry(r, &|r| {
-        list_folder(r, &mut crate::install::installer::game_part)
-    })
+    crate::race::viewer::regs_entry(r, &|r| list_folder(r))
 }

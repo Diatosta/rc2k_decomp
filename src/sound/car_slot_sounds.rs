@@ -20,15 +20,12 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::Regs;
-use crate::physics::flow::guard;
-use crate::sound::turn_parts::{OBJECT_LEN, Part, turn_entry, turn_regions};
+use crate::sound::turn_parts::turn_entry;
 use rc2k_core::sound::engine::{computers, placed_slots};
-
-pub const SLOT: u32 = 0x40E59E;
 
 // ---- Rust version ----
 
-pub fn car_slot_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn car_slot_sounds_in(r: &mut Regs) -> Result<(), Refused> {
     if r.ebx == 0 || r.esi == 0 {
         return Err(BadInput("no object or no request").into());
     }
@@ -39,9 +36,7 @@ pub fn car_slot_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
         return Ok(());
     }
     let q = r.esi as *mut u32;
-    let mut all = turn_regions();
-    all.push((o, OBJECT_LEN));
-    guard(&all, || {
+    {
         let mut c = *r;
         let place = |c: &mut Regs, from: u32| {
             for k in 0..3 {
@@ -52,12 +47,12 @@ pub fn car_slot_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
         place(&mut c, 0x2C);
         for at in placed_slots(w(0xC) == 0) {
             c.ebp = o + at;
-            part(SLOT, &mut c)?;
+            crate::sound::play_timed_slot::play_timed_slot_in(&mut c)?;
         }
         place(&mut c, 0x214);
         c.ebp = o + 0x220;
-        part(SLOT, &mut c)
-    })
+        crate::sound::play_timed_slot::play_timed_slot_in(&mut c)
+    }
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

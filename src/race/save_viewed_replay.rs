@@ -180,10 +180,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 r.eax = eax;
                 r.set_carry(carry);
             }
-            6 => {
-                *r =
-                    crate::race::replay::write_replay_chunk(r, &mut crate::race::replay::game_part)?
-            }
+            6 => *r = crate::race::replay::write_replay_chunk(r)?,
             _ => {
                 let ok = handle::close(r.eax);
                 r.eax = ok as u32;

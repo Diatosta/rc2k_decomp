@@ -793,7 +793,7 @@ unsafe fn run(film: &mut Film, r: &mut Regs) -> u32 {
     }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
+pub(crate) extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
     unsafe {
         if game_read::<u32>(NO_FMV_RVA) != 0 {

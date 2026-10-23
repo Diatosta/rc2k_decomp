@@ -16,13 +16,10 @@ use crate::framework::{Regs, game_read, game_write, rva};
 
 const PLATFORM_RVA: usize = rva(0x4058AD); // gfx::lock_surface
 
-/// A call by place: 1 the platform's.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers (and flags) it leaves.
-pub unsafe fn lock_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn lock_frame(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
-    part(1, &mut g)?;
+    crate::scene::lock_frame::game_part(1, &mut g)?;
     unsafe {
         game_write(rva(0x5C5FB4), game_read::<u32>(rva(0x4F4988)));
         g.eax = game_read(rva(0x4F4984));
@@ -39,7 +36,7 @@ pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { lock_frame(r, &mut game_part) }?;
+    let left = unsafe { lock_frame(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

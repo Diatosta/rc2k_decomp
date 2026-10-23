@@ -20,13 +20,13 @@
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, rva};
 use crate::sound::spot_voices::{MOST_KIND, REPEATS, VOICE_COUNT, voice, vw};
-use crate::sound::turn_parts::{BELOW, Part, turn_entry};
+use crate::sound::turn_parts::turn_entry;
 
 // ---- Rust version ----
 
 /// Converted: `rc2k_core::sound::spot_voices::repeat`; each random number asked with the
 /// registers the original has there.
-pub fn repeat_spot_voices_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn repeat_spot_voices_in(r: &mut Regs) -> Result<(), Refused> {
     use crate::sound::spot_voices::{load_voices, store_voices};
     use rc2k_core::sound::spot_voices::{Repeats, repeat};
     let table = game_addr(rva(REPEATS)) as u32;
@@ -40,7 +40,7 @@ pub fn repeat_spot_voices_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
         c.ecx = VOICE_COUNT - n as u32;
         c.edx = table + (voices_kind(n) - 1) * 8;
         c.eax = range;
-        part(BELOW, &mut c)?;
+        c.eax = unsafe { crate::math::random_below::random_below(c.eax) }?;
         Ok(c.eax)
     });
     done?;

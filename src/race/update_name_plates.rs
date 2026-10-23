@@ -10,10 +10,10 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::framework::Regs;
-use crate::race::name_plates::{update_name_plates, update_part};
+use crate::race::name_plates::update_name_plates;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { update_name_plates(r, &mut update_part) }?;
+    unsafe { update_name_plates(r) }?;
     Ok(())
 }

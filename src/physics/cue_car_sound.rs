@@ -19,7 +19,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_read, rva};
-use crate::physics::sound_cues::{Part, QUEUE, cue_entry};
+use crate::physics::sound_cues::{QUEUE, cue_entry};
 use rc2k_core::physics::listed_cars::{CuePlace, QUEUE_OFFSET, cue_object};
 
 fn g(x: usize) -> u32 {
@@ -28,7 +28,7 @@ fn g(x: usize) -> u32 {
 
 /// The steps on `r` (its registers kept).
 // Converted: `rc2k_core::physics::listed_cars::cue_object`.
-pub fn cue_car_sound_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn cue_car_sound_in(r: &mut Regs) -> Result<(), Refused> {
     let Some(o) = cue_object(
         r.eax,
         |which| g(0x514F70 + 4 * which as usize),
@@ -42,7 +42,7 @@ pub fn cue_car_sound_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     c.eax = CuePlace::First as u32;
     c.esi = o;
     c.edi = o + QUEUE_OFFSET;
-    part(QUEUE, &mut c)
+    crate::physics::sound_cues::game_part(QUEUE, &mut c)
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

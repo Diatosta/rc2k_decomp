@@ -18,9 +18,6 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, rva};
-use crate::sound::turn_parts::{Part, turn_entry};
-
-const SET_UP: u32 = 0x44E7A5;
 /// `scene::set_up_textures` in the game.
 fn set_up_in_game(r: &mut Regs) -> Result<(), Refused> {
     unsafe {
@@ -39,17 +36,11 @@ fn set_up_in_game(r: &mut Regs) -> Result<(), Refused> {
 
 // ---- Rust version ----
 
-pub fn textures_alloc_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    part(SET_UP, r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
+/// The Rust version where the typed tables run it (a refusal is the caller's): the
+/// registers and flags as `set_up_textures` leaves them, esp the caller's.
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, textures_alloc_game)
-}
-
-fn textures_alloc_game(r: &mut Regs, _: Part) -> Result<(), Refused> {
-    let entry = *r;
-    textures_alloc_in(r, &mut |_, r| set_up_in_game(r)).inspect_err(|_| *r = entry)
+    let mut g = *r;
+    set_up_in_game(&mut g)?;
+    *r = Regs { esp: r.esp, ..g };
+    Ok(())
 }

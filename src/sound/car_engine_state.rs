@@ -49,7 +49,7 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_read, game_write, rva};
 use crate::math::x87::from_int;
 use crate::physics::flow::{base, x87_run};
-use crate::sound::turn_parts::{CLOCK, Part, SCRATCH};
+use crate::sound::turn_parts::{CLOCK, SCRATCH};
 use rc2k_core::sound::engine::{Left, Words, extrapolation, over_256, readings, state};
 
 /// off_514F90: the sound kinds, 36 pointers.
@@ -85,7 +85,7 @@ impl Words for Object {
     }
 }
 
-pub fn car_engine_state_in(c: &mut Regs, _: Part) -> Result<(), Refused> {
+pub fn car_engine_state_in(c: &mut Regs) -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::engine` (`extrapolation`, `readings`, `state`,
     // `over_256`); the floats are the original's x87 still.
     let o = c.ebx;
@@ -180,6 +180,6 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     crate::sound::turn_parts::turn_entry(r, car_engine_state_in)
 }
 
-fn refuse_null(_: &mut Regs, _: Part) -> Result<(), Refused> {
+fn refuse_null(_: &mut Regs) -> Result<(), Refused> {
     Err(BadInput("a null sound object").into())
 }

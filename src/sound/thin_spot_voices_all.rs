@@ -15,19 +15,16 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::sound::turn_parts::{Part, turn_entry};
-
-/// `sound::thin_spot_voices`.
-const EACH: u32 = 0x40E9F8;
+use crate::sound::turn_parts::turn_entry;
 
 // ---- Rust version ----
 
-pub fn thin_spot_voices_all_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn thin_spot_voices_all_in(r: &mut Regs) -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::spot_voices::THINNED_SOUNDS`.
     let mut c = *r;
     for sound in rc2k_core::sound::spot_voices::THINNED_SOUNDS {
         c.eax = sound;
-        part(EACH, &mut c)?;
+        crate::sound::thin_spot_voices::thin_spot_voices_in(&mut c)?;
     }
     Ok(())
 }

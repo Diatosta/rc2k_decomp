@@ -29,7 +29,7 @@ use crate::errors::Refused;
 use crate::framework::{EDX, Regs, game_addr, rva};
 use crate::physics::cells::{get, get_list, put_changed, put_list_changed};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::notices::NoticeQueue;
 
 /// The variables' addresses: the game's, or a test's.
@@ -52,15 +52,6 @@ impl Contacts {
             eaxs: a(0x71A4D4),
             ebxs: a(0x71A554),
         }
-    }
-
-    pub fn regions(&self) -> Vec<Region> {
-        vec![
-            (self.count, 4),
-            (self.esis, 0x80),
-            (self.eaxs, 0x80),
-            (self.ebxs, 0x80),
-        ]
     }
 
     /// The queue at these places.

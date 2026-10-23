@@ -19,7 +19,6 @@
 use crate::errors::Refused;
 use crate::framework::{Regs, game_read, game_write, rva};
 use crate::physics::reset_parts::{RESET_CAR, reset_entry};
-use crate::race::car_starts::Part;
 use rc2k_core::physics::start::stuck_tick;
 
 const MODE: usize = rva(0x71A234); // g_car + 0x25C
@@ -27,7 +26,7 @@ const STUCK: usize = rva(0x71A1C0); // g_car + 0x1E8
 
 /// The Rust version, `reset_car` through `part` (place 15).
 // Converted: `rc2k_core::physics::start::stuck_tick`.
-pub unsafe fn reset_when_stuck(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn reset_when_stuck(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     unsafe {
         let mode: u32 = game_read(MODE);
@@ -39,7 +38,7 @@ pub unsafe fn reset_when_stuck(entry: &Regs, part: Part) -> Result<Regs, Refused
         let reset = stuck_tick(mode, &mut stuck);
         game_write(STUCK, stuck);
         if reset {
-            part(RESET_CAR, &mut r)?;
+            crate::physics::reset_parts::game_part(RESET_CAR, &mut r)?;
         }
     }
     Ok(r)

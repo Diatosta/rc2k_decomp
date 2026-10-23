@@ -18,12 +18,11 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::Regs;
-use crate::sound::turn_parts::Part;
 
 // ---- Rust version ----
 
 /// Converted: `rc2k_core::sound::cars::drop_cue`.
-pub fn drop_cue_in(c: &mut Regs, _: Part) -> Result<(), Refused> {
+pub fn drop_cue_in(c: &mut Regs) -> Result<(), Refused> {
     use rc2k_core::sound::cars::{CueQueue, Dropped, drop_cue};
     let q = c.edi as *mut [u32; 0x84];
     if q.is_null() {

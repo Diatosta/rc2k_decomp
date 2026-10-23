@@ -26,41 +26,38 @@ use crate::scene::matrix3::extended;
 
 const CHEAT: u32 = 0x8000;
 
-/// A call by place (see the header), with its x87 values (st(0) first).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs, &[[u8; 10]]) -> Result<(), Refused>;
-
 fn box_values(place: [usize; 2], size: [usize; 2]) -> [[u8; 10]; 4] {
     unsafe { [size[1], size[0], place[1], place[0]].map(|r| extended(game_read(r))) }
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn run_pong(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn run_pong(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         if game_read::<u32>(pong::CHEATS_RVA) & CHEAT == 0 || game_read::<u32>(pong::SHOWN_RVA) == 0
         {
             return Ok(g);
         }
-        part(1, &mut g, &[])?;
+        crate::marks::run_pong::game_part(1, &mut g, &[])?;
         g = move_pong_bat(&g);
         let steps = game_read::<i32>(pong::STEPS_RVA);
         for _ in 0..steps.max(0) {
             g = move_pong_ball(&g);
         }
-        part(2, &mut g, &box_values(pong::BALL, pong::BALL_SIZE))?;
-        part(2, &mut g, &box_values(pong::BAT, pong::BAT_SIZE))?;
-        part(3, &mut g, &[])?;
+        crate::marks::run_pong::game_part(2, &mut g, &box_values(pong::BALL, pong::BALL_SIZE))?;
+        crate::marks::run_pong::game_part(2, &mut g, &box_values(pong::BAT, pong::BAT_SIZE))?;
+        crate::marks::run_pong::game_part(3, &mut g, &[])?;
     }
     Ok(g)
 }
 
 /// In the game: the calls' Rust versions.
 pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused> {
-    use crate::marks::{draw_pong_box as pb, pong_score as ps, pong_setup, squares_setup};
+    use crate::marks::{draw_pong_box as pb, pong_score as ps, pong_setup};
     unsafe {
         *r = match place {
-            1 => pong_setup::pong_setup(r, &mut squares_setup::game_part)?,
-            2 => pb::draw_pong_box(r, [v[0], v[1], v[2], v[3]], &mut pb::game_part)?,
+            1 => pong_setup::pong_setup(r)?,
+            2 => pb::draw_pong_box(r, [v[0], v[1], v[2], v[3]])?,
             _ => ps::pong_score(r, &mut ps::game_part)?,
         };
     }
@@ -69,7 +66,7 @@ pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { run_pong(r, &mut game_part) }?;
+    let left = unsafe { run_pong(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

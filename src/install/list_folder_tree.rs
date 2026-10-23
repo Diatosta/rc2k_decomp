@@ -21,7 +21,7 @@ use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::install::installer::{
     CLOSE_SEARCH, DIR_COUNT, DIR_CURSOR, DIR_SCAN, DIRS, FILE_COUNT, FILE_CURSOR, FILES,
-    FIND_FIRST, FIND_NEXT, Part, RESOLVE_PATH, a, append_byte, at, fatal, g, p, rb, str_append, wb,
+    FIND_FIRST, FIND_NEXT, RESOLVE_PATH, a, append_byte, at, fatal, g, p, rb, str_append, wb,
 };
 
 const SEARCH_BASE: usize = 0x94E8B0; // byte_94E8B0
@@ -38,12 +38,12 @@ fn same_name(a1: u32, a2: u32) -> bool {
     unsafe { crate::strings::same_text::same_text(a1 as *const u8, a2 as *const u8) }
 }
 
-pub fn list_folder_tree(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn list_folder_tree(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     let saved_skip = g(SKIP_MASK);
     p(SKIP_MASK, 0);
     let result = (|| -> Result<(), Refused> {
-        part(at(RESOLVE_PATH), &mut r)?;
+        crate::install::installer::game_part(at(RESOLVE_PATH), &mut r)?;
         if rb(r.eax) != 0 {
             r.ebx = g(DIR_CURSOR);
             str_append(&mut r);
@@ -66,7 +66,7 @@ pub fn list_folder_tree(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             str_append(&mut r);
             append_byte(&mut r, 0);
             r.eax = base;
-            part(at(FIND_FIRST), &mut r)?;
+            crate::install::installer::game_part(at(FIND_FIRST), &mut r)?;
             if !r.carry() {
                 loop {
                     let is_dir = g(FIND_ATTRS) & 0x10 != 0;
@@ -107,13 +107,13 @@ pub fn list_folder_tree(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                             return Err(fatal(0x80AF_2202));
                         }
                     }
-                    part(at(FIND_NEXT), &mut r)?;
+                    crate::install::installer::game_part(at(FIND_NEXT), &mut r)?;
                     if r.carry() {
                         break;
                     }
                 }
             }
-            part(at(CLOSE_SEARCH), &mut r)?;
+            crate::install::installer::game_part(at(CLOSE_SEARCH), &mut r)?;
             // dequeue the next folder from the scan pointer
             r.eax = g(DIR_SCAN);
             if r.eax >= g(DIR_CURSOR) {
@@ -137,7 +137,5 @@ pub fn list_folder_tree(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::race::viewer::regs_entry(r, &|r| {
-        list_folder_tree(r, &mut crate::install::installer::game_part)
-    })
+    crate::race::viewer::regs_entry(r, &|r| list_folder_tree(r))
 }

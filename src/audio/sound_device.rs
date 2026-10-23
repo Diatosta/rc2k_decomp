@@ -58,7 +58,6 @@ pub fn game_part(place: u32, eax: u32) -> Result<bool, Refused> {
             16 => close_sound(
                 game_addr(crate::audio::make_buffer::DIRECT_SOUND_RVA) as u32,
                 game_addr(WINDOW_RVA) as u32,
-                &mut game_part,
             )?,
             17 => {
                 return open_sound(
@@ -76,7 +75,6 @@ pub fn game_part(place: u32, eax: u32) -> Result<bool, Refused> {
                     listener,
                     game_addr(HAS_FPU_RVA) as u32,
                     game_addr(NO_LISTENER_RVA) as u32,
-                    &mut game_part,
                 )
                 .map(|ok| !ok);
             }
@@ -87,13 +85,13 @@ pub fn game_part(place: u32, eax: u32) -> Result<bool, Refused> {
 
 /// `audio::release_primary`: unless A3D or no primary buffer: stopped, its kept volume put
 /// back (unless 1, then 1), the listener released, the buffer released and forgotten.
-pub unsafe fn release_primary(primary: u32, kept: u32, part: Part) -> Result<(), Refused> {
+pub unsafe fn release_primary(primary: u32, kept: u32) -> Result<(), Refused> {
     unsafe {
         let p = read(primary);
         if crate::audio::buffer_settings::a3d() || p == 0 {
             return Ok(());
         }
-        part(7, 0)?;
+        crate::audio::sound_device::game_part(7, 0)?;
         // Converted: `rc2k_core::audio::device::kept_volume`.
         use rc2k_core::audio::device::{NO_KEPT_VOLUME, kept_volume};
         if let Some(volume) = kept_volume(read(kept)) {
@@ -104,7 +102,7 @@ pub unsafe fn release_primary(primary: u32, kept: u32, part: Part) -> Result<(),
             );
             write(kept, NO_KEPT_VOLUME);
         }
-        part(8, 0)?;
+        crate::audio::sound_device::game_part(8, 0)?;
         crate::audio::com::call(read(primary), crate::audio::com::RELEASE);
         write(primary, 0);
     }
@@ -113,7 +111,7 @@ pub unsafe fn release_primary(primary: u32, kept: u32, part: Part) -> Result<(),
 
 /// `audio::read_caps`: `GetCaps` into `caps` (zeroed, its size 0x60), logged. False for
 /// the carry (it failed; nothing logged).
-pub unsafe fn read_caps(direct_sound: u32, caps: u32, part: Part) -> Result<bool, Refused> {
+pub unsafe fn read_caps(direct_sound: u32, caps: u32) -> Result<bool, Refused> {
     unsafe {
         let ds = read(direct_sound);
         if ds == 0 {
@@ -135,11 +133,11 @@ pub unsafe fn read_caps(direct_sound: u32, caps: u32, part: Part) -> Result<bool
                         CapsText::MaxHardware => MAX_HW_TEXT,
                         CapsText::Max3d => MAX_3D_TEXT,
                     };
-                    part(0, game_addr(at) as u32)?
+                    crate::audio::sound_device::game_part(0, game_addr(at) as u32)?
                 }
-                CapsLog::Hex(n) => part(2, field(n))?,
-                CapsLog::Int(n) => part(4, field(n))?,
-                CapsLog::IntLine(n) => part(5, field(n))?,
+                CapsLog::Hex(n) => crate::audio::sound_device::game_part(2, field(n))?,
+                CapsLog::Int(n) => crate::audio::sound_device::game_part(4, field(n))?,
+                CapsLog::IntLine(n) => crate::audio::sound_device::game_part(5, field(n))?,
             };
         }
         Ok(true)
@@ -160,21 +158,21 @@ pub unsafe fn release_a3d(object: u32, ready: u32) {
 
 /// `audio::close_sound`: DirectSound's cooperative level 1 (normal), released, forgotten,
 /// then `release_a3d`. Refuses A3D (0x40CAD9).
-pub unsafe fn close_sound(direct_sound: u32, window: u32, part: Part) -> Result<(), Refused> {
+pub unsafe fn close_sound(direct_sound: u32, window: u32) -> Result<(), Refused> {
     if crate::audio::buffer_settings::a3d() {
         return Err(BadInput("A3D (0x40CAD9)").into());
     }
     unsafe {
         let ds = read(direct_sound);
         if ds != 0 {
-            part(1, game_addr(CLOSE_TEXT) as u32)?;
+            crate::audio::sound_device::game_part(1, game_addr(CLOSE_TEXT) as u32)?;
             let level: unsafe extern "system" fn(u32, u32, u32) -> i32 =
                 std::mem::transmute(crate::audio::com::method(ds, SET_COOPERATIVE_LEVEL));
             level(ds, read(window), 1);
             crate::audio::com::call(read(direct_sound), crate::audio::com::RELEASE);
             write(direct_sound, 0);
         }
-        part(9, 0)?;
+        crate::audio::sound_device::game_part(9, 0)?;
     }
     Ok(())
 }
@@ -274,14 +272,14 @@ pub unsafe fn open_sound(
 /// `audio::reopen_sound`: when the mode's 0xF000 bits differ from those DirectSound was
 /// opened with: `close_sound` (16) and `open_sound` (17, eax 0). Returns the carry (that
 /// of `open_sound`, when it ran).
-pub unsafe fn reopen_sound(mode: u32, opened: u32, part: Part) -> Result<bool, Refused> {
+pub unsafe fn reopen_sound(mode: u32, opened: u32) -> Result<bool, Refused> {
     unsafe {
         // Converted: `rc2k_core::audio::device::needs_reopen`.
         if !rc2k_core::audio::device::needs_reopen(read(mode), read(opened)) {
             return Ok(false);
         }
-        part(16, 0)?;
-        part(17, 0)
+        crate::audio::sound_device::game_part(16, 0)?;
+        crate::audio::sound_device::game_part(17, 0)
     }
 }
 

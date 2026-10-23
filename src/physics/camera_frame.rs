@@ -21,7 +21,7 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::physics::camera_ground::carry_entry;
-use crate::physics::flow::{base, g, guard, hold_high, hold_low, negate, p, x87_run};
+use crate::physics::flow::{base, g, hold_high, hold_low, negate, p, x87_run};
 use crate::race::car_starts::Part;
 
 // Converted: `rc2k_core::physics::camera_view::shakes` (the x87 steps stay).
@@ -61,11 +61,11 @@ fn steps(r: &mut Regs, part: Part) -> Result<(), Refused> {
 
 /// The Rust version, the probes through `part`.
 pub unsafe fn camera_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    guard(&crate::physics::update_camera::camera_regions(), || {
+    {
         let mut r = *entry;
         steps(&mut r, part)?;
         Ok(r)
-    })
+    }
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

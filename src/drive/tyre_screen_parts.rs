@@ -19,13 +19,12 @@ use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::physics::flow::{a, g, p};
-use crate::race::car_starts::Part;
 use rc2k_core::drive::tyre_screen::fixed_parts;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     {
-        let g = unsafe { tyre_screen_parts(r, &mut game_part) }?;
+        let g = unsafe { tyre_screen_parts(r) }?;
         let esp = r.esp;
         *r = Regs {
             eflags: r.eflags,
@@ -47,7 +46,7 @@ fn set(at: usize, v: [u32; 4]) {
 
 /// The Rust version, the quads through `part`.
 // Converted: `rc2k_core::drive::tyre_screen::fixed_parts`.
-pub unsafe fn tyre_screen_parts(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn tyre_screen_parts(entry: &Regs) -> Result<Regs, Refused> {
     let mut q = Regs {
         eax: a(UV),
         ebx: a(RECT),
@@ -58,7 +57,7 @@ pub unsafe fn tyre_screen_parts(entry: &Regs, part: Part) -> Result<Regs, Refuse
     for (uv, rect) in fixed_parts(four(0x5BEBD0), four(0x5BEAE0), g(0x5BEBEC) != 0) {
         set(UV, uv);
         set(RECT, rect);
-        part(QUAD, &mut q)?;
+        crate::drive::tyre_parts::game_part(QUAD, &mut q)?;
     }
     Ok(*entry)
 }

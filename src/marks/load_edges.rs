@@ -23,7 +23,7 @@ use crate::marks::edges::*;
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let resume = game_addr(RESUME_RVA) as u32;
     {
-        let left = unsafe { load_edges(r, resume, &mut game_part) }?;
+        let left = unsafe { load_edges(r, resume) }?;
         *r = Regs {
             esp: r.esp,
             eflags: r.eflags,

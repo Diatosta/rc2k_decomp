@@ -34,22 +34,18 @@ const CLEARED_RVA: usize = rva(0x91FFBA); // dword_91FFBA
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
-/// A call by place: 1 the texture, 2 the depth buffer on, 3 the depth test off, 4 a render
-/// state (eax the value, ebx the state).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn begin_quads(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn begin_quads(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         g.eax = game_read(TEXTURE_RVA);
-        part(1, &mut g)?;
-        part(2, &mut g)?;
-        part(3, &mut g)?;
+        crate::marks::begin_quads::game_part(1, &mut g)?;
+        crate::marks::begin_quads::game_part(2, &mut g)?;
+        crate::marks::begin_quads::game_part(3, &mut g)?;
         for (value, state) in STATES {
             g.eax = value;
             g.ebx = state;
-            part(4, &mut g)?;
+            crate::marks::begin_quads::game_part(4, &mut g)?;
         }
         g.edi = game_addr(VERTICES_RVA) as u32;
         let colour: u32 = game_read(COLOUR_RVA);
@@ -90,7 +86,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     {
-        let left = unsafe { begin_quads(r, &mut game_part) }?;
+        let left = unsafe { begin_quads(r) }?;
         *r = Regs {
             esp: r.esp,
             eflags: r.eflags,

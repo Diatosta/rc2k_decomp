@@ -36,9 +36,6 @@ const SWITCH_RVA: usize = rva(0x8BC405); // dword_8BC405
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
 
-/// A call by place: 1 `draw_fan`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The original's 0x4C1DCD .. 0x4C1F11: the point scaled and turned, and the last place.
 unsafe fn turn(b: u32, p: &[[u8; 10]; 3]) {
     unsafe {
@@ -229,7 +226,7 @@ unsafe fn project(b: u32) {
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_streak(entry: &Regs, place: [[u8; 10]; 3], part: Part) -> Result<Regs, Refused> {
+pub unsafe fn draw_streak(entry: &Regs, place: [[u8; 10]; 3]) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         if game_read::<u32>(crate::marks::setup::SETTINGS_RVA) == 0 {
@@ -251,7 +248,7 @@ pub unsafe fn draw_streak(entry: &Regs, place: [[u8; 10]; 3], part: Part) -> Res
         if g.carry() {
             return Ok(g);
         }
-        part(1, &mut g)?;
+        crate::marks::draw_streak::game_part(1, &mut g)?;
         game_write(COUNT_RVA, 4u32);
     }
     Ok(g)

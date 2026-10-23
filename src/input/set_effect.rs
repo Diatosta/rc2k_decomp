@@ -22,7 +22,7 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::input::devices::{at, put};
-use crate::input::effects::{EFFECT_LEN, EFFECTS, HAS_EFFECTS, Part, REQUEST, effects_entry};
+use crate::input::effects::{EFFECT_LEN, EFFECTS, HAS_EFFECTS, REQUEST, effects_entry};
 
 /// The Rust version: `race_on` is `dword_518090`.
 /// Converted: `rc2k_core::input::effects::wanted` and `request`.
@@ -38,12 +38,10 @@ pub fn set_effect(r: &Regs, race_on: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-fn in_game(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    part(crate::input::effects::SET_EFFECT, r)
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    effects_entry(r, in_game)
+    effects_entry(r, |r| {
+        crate::input::effects::game_part(crate::input::effects::SET_EFFECT, r)
+    })
 }

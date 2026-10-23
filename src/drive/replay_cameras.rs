@@ -23,9 +23,9 @@
 
 use crate::errors::Refused;
 use crate::framework::{EAX, ESI, Regs};
-use crate::physics::flow::{a, g, guard, p};
+use crate::physics::flow::{a, g, p};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::drive::replay_views::{WishStep, wish_step};
 
 const B: usize = 0x70F3EC; // g_carBlockStore
@@ -86,26 +86,9 @@ fn steps(entry: &Regs) -> Result<Left, Refused> {
         .with(ESI, r.esi))
 }
 
-/// What it writes.
-pub fn regions() -> Vec<Region> {
-    vec![
-        (a(0x6EF7D0), 8),
-        (a(0x719FD0), 8),
-        (a(B + 0x220), 4),
-        (a(B + 0x684), 0x14),
-        (a(B + NEXT + 0x220), 4),
-        (a(B + NEXT + 0x684), 0x14),
-        (a(0x63DB74), 0x18),
-        (
-            crate::framework::game_addr(crate::math::next_random::STATE_RVA) as u32,
-            4,
-        ),
-    ]
-}
-
 /// The Rust version.
 pub unsafe fn replay_cameras(entry: &Regs) -> Result<Left, Refused> {
-    guard(&regions(), || steps(entry))
+    steps(entry)
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

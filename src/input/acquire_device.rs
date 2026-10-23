@@ -215,7 +215,7 @@ fn properties(record: u32) {
 }
 
 /// The Rust version (see the header).
-pub fn acquire_device(record: u32, part: crate::input::make_effect::Part) -> Result<(), Refused> {
+pub fn acquire_device(record: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::input::acquire::acquire`.
     let entry = entry_of(record);
     match acquire(
@@ -262,7 +262,7 @@ pub fn acquire_device(record: u32, part: crate::input::make_effect::Part) -> Res
     }
     properties(record);
     if at(entry, field!(C, force_feedback)) == 1 {
-        crate::input::begin_force::begin_force(record, part)?;
+        crate::input::begin_force::begin_force(record)?;
     }
     method(device, slot::ACQUIRE, &[]);
     crate::input::clear_device_readings::clear_device_readings(record);
@@ -272,6 +272,6 @@ pub fn acquire_device(record: u32, part: crate::input::make_effect::Part) -> Res
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    acquire_device(r.esi, &mut crate::input::make_effect::game_part)?;
+    acquire_device(r.esi)?;
     Ok(())
 }

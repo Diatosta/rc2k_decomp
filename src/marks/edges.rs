@@ -35,11 +35,7 @@ fn clamped(kind: u32) -> u32 {
 /// shape tilt the kind's float times 0.0175; then `make_masks` (1), `set_up_hexagons` (2),
 /// `set_up_squares` (3), `nullsub_17` (4). Leaves the registers as the last step. Refuses a mark neither 0
 /// nor `resume`, before writing; a picture that is not read, after the path is written.
-pub unsafe fn load_edges(
-    entry: &Regs,
-    resume: u32,
-    part: crate::race::level_init::Part,
-) -> Result<Regs, Refused> {
+pub unsafe fn load_edges(entry: &Regs, resume: u32) -> Result<Regs, Refused> {
     use crate::gfx::picture::{HEIGHT_RVA, PICTURE_RVA, ROW_BYTES_RVA, WIDTH_RVA};
     let mut g = *entry;
     unsafe {
@@ -79,7 +75,7 @@ pub unsafe fn load_edges(
         game_write(HEIGHT_RVA, 0x80u32);
         game_write(ROW_BYTES_RVA, 0xFFFF_FFFEu32);
         g.eax = path;
-        let read = part(0, &mut g);
+        let read = crate::marks::edges::game_part(0, &mut g);
         game_write(WIDTH_RVA, sizes[0]);
         game_write(HEIGHT_RVA, sizes[1]);
         game_write(ROW_BYTES_RVA, sizes[2]);
@@ -97,10 +93,10 @@ pub unsafe fn load_edges(
         g.eax = kind;
         let float: u32 = game_read(KIND_FLOATS_RVA + 4 * kind as usize);
         game_write(TILT_RVA, x87::mul(float, game_read(TILT_SCALE_RVA)));
-        part(1, &mut g)?;
-        part(2, &mut g)?;
-        part(3, &mut g)?;
-        part(4, &mut g)?;
+        crate::marks::edges::game_part(1, &mut g)?;
+        crate::marks::edges::game_part(2, &mut g)?;
+        crate::marks::edges::game_part(3, &mut g)?;
+        crate::marks::edges::game_part(4, &mut g)?;
     }
     Ok(g)
 }
@@ -124,10 +120,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 }
                 r.set_carry(false);
             }
-            1 => keep(
-                r,
-                crate::marks::masks::make_masks(r, &mut crate::marks::masks::game_part)?,
-            ),
+            1 => keep(r, crate::marks::masks::make_masks(r)?),
             2 => {
                 let resume = game_addr(crate::marks::shapes::HEXAGONS.resume) as u32;
                 keep(r, crate::marks::shapes::set_up_hexagons(r, resume)?)
@@ -148,21 +141,18 @@ const KIND_AT: u32 = 0x26A8; // the settings' kind
 /// `marks::load_kind_data` (0x4C1235), `init_marks`' step 1: `g_marksKind` the settings'
 /// +0x26A8; `nullsub_1` (place 0, eax 0x3E9), `load_edges` (1), `nullsub_1` (eax 0x3EA),
 /// `load_splines` (2). Leaves the registers as `load_splines`. Refuses as its steps do.
-pub unsafe fn load_kind_data(
-    entry: &Regs,
-    part: crate::race::level_init::Part,
-) -> Result<Regs, Refused> {
+pub unsafe fn load_kind_data(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         g.esi = game_read(crate::marks::lines::SETTINGS_RVA);
         g.eax = ((g.esi + KIND_AT) as *const u32).read_unaligned();
         game_write(crate::marks::kind_values::KIND_RVA, g.eax);
         g.eax = 0x3E9;
-        part(0, &mut g)?;
-        part(1, &mut g)?;
+        crate::marks::edges::kind_part(0, &mut g)?;
+        crate::marks::edges::kind_part(1, &mut g)?;
         g.eax = 0x3EA;
-        part(0, &mut g)?;
-        part(2, &mut g)?;
+        crate::marks::edges::kind_part(0, &mut g)?;
+        crate::marks::edges::kind_part(2, &mut g)?;
     }
     Ok(g)
 }
@@ -179,20 +169,10 @@ pub fn kind_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         };
         match place {
             0 => {}
-            1 => keep(
-                r,
-                load_edges(r, game_addr(RESUME_RVA) as u32, &mut game_part)?,
-            ),
+            1 => keep(r, load_edges(r, game_addr(RESUME_RVA) as u32)?),
             _ => {
                 let resume = game_addr(crate::marks::splines::RESUME_RVA) as u32;
-                keep(
-                    r,
-                    crate::marks::splines::load_splines(
-                        r,
-                        resume,
-                        &mut crate::race::level_init::game_part,
-                    )?,
-                )
+                keep(r, crate::marks::splines::load_splines(r, resume)?)
             }
         }
     }

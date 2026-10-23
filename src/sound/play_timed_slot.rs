@@ -27,12 +27,12 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_read, rva};
 use crate::sound::sample_duration::sample_duration;
 use crate::sound::sample_settings::sample_settings;
-use crate::sound::turn_parts::{CLOCK, PLACED, Part, turn_entry};
+use crate::sound::turn_parts::{CLOCK, turn_entry};
 
 // ---- Rust version ----
 
 /// Converted: `rc2k_core::sound::cars::slot_turn`.
-pub fn play_timed_slot_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn play_timed_slot_in(r: &mut Regs) -> Result<(), Refused> {
     use rc2k_core::sound::cars::{SlotTurn, TimedSlot, from_int, slot_turn};
     let (slot, request) = (r.ebp as *mut [u32; 6], r.esi as *mut u32);
     if slot.is_null() || request.is_null() {
@@ -63,7 +63,7 @@ pub fn play_timed_slot_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
                 request.add(1).write_unaligned(from_int(rate as i32));
             }
             (r.eax, r.ecx, r.edx) = (ends, volume, rate);
-            part(PLACED, r)
+            crate::sound::turn_parts::placed(r)
         }
     }
 }

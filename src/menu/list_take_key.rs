@@ -21,21 +21,19 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::race::viewer::{
-    FRAME_CLOCK, LAST_KEY, MOVE_CLOCK, Part, REPEATS, gb, get, left_of, pb, put,
-};
+use crate::race::viewer::{FRAME_CLOCK, LAST_KEY, MOVE_CLOCK, REPEATS, gb, get, left_of, pb, put};
 use crate::screens::harness::Left;
 use crate::service::harness::state_entry;
 
 /// The Rust version: the registers it leaves (the flags of `test al, al`).
-pub fn list_take_key(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn list_take_key(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     r.eax = 0;
-    part(1, &mut r)?;
+    crate::menu::list_take_key::game_part(1, &mut r)?;
     let key = r.eax as u8;
     if key == 0 {
         let mut s = Regs { eax: 1, ..r };
-        part(2, &mut s)?;
+        crate::menu::list_take_key::game_part(2, &mut s)?;
     } else {
         // Converted: `rc2k_core::menu::list_menu::repeats`.
         let again = key == gb(LAST_KEY);
@@ -68,7 +66,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&list_take_key(r, &mut game_part)?))
+    Ok(left_of(&list_take_key(r)?))
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

@@ -186,10 +186,8 @@ pub fn game_part(callee: usize, r: &mut Regs) -> Result<(), Refused> {
         SEND_COMMAND_8 => crate::sound::plain_sender::send_in_game(8, r),
         PLAY_MENU_SOUND => crate::sound::play_menu_sound::play_menu_sound_in_game(r),
         SCREEN_MODE_CHOICES => {
-            *r = crate::gfx::screen_mode_choices::screen_mode_choices(
-                r,
-                &mut crate::gfx::screen_mode_choices::game_part,
-            )?
+            use crate::gfx::screen_mode_choices::{apply, screen_mode_choices};
+            apply(screen_mode_choices(r.eax != 0)?, r);
         }
         APPLY_AUDIO => {
             *r = unsafe {

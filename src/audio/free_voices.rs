@@ -23,10 +23,6 @@ use crate::framework::game_addr;
 
 // ---- Rust version ----
 
-/// What it calls: 0 `release_eax`, 1 `release_voice_manager`, 2 `release_voice` (the voice),
-/// 3 `clear_channels`, 4 the samples' memory.
-pub type Part<'a> = &'a mut dyn FnMut(u32, u32) -> Result<(), Refused>;
-
 /// Where its variables are: `World` and these.
 #[derive(Clone, Copy)]
 pub struct Vars {
@@ -36,30 +32,33 @@ pub struct Vars {
     pub commit: u32,
 }
 
-pub unsafe fn free_voices(w: &World, v: &Vars, part: Part) -> Result<(), Refused> {
+pub unsafe fn free_voices(w: &World, v: &Vars) -> Result<(), Refused> {
     unsafe {
         let count = read(v.voice_count);
         if count > VOICES {
             return Err(BadInput("more than 0x200 voices").into());
         }
         if count != 0 {
-            part(0, 0)?;
-            part(1, 0)?;
+            crate::audio::free_voices::game_part(0, 0)?;
+            crate::audio::free_voices::game_part(1, 0)?;
             for n in 0..count {
-                part(2, v.voices + n * std::mem::size_of::<Voice>() as u32)?;
+                crate::audio::free_voices::game_part(
+                    2,
+                    v.voices + n * std::mem::size_of::<Voice>() as u32,
+                )?;
             }
             write(v.voice_count, 0);
         }
         for n in 0..SAMPLES {
             sample(w, n).first_voice = 0;
         }
-        part(3, 0)?;
+        crate::audio::free_voices::game_part(3, 0)?;
         write(v.lost, 0);
         write(v.commit, 0);
         write(w.channels_used, 0);
         write(w.playing, 0);
         write(w.stopping, 0);
-        part(4, 0)
+        crate::audio::free_voices::game_part(4, 0)
     }
 }
 

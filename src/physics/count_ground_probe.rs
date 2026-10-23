@@ -21,7 +21,6 @@
 use crate::errors::Refused;
 use crate::framework::{Regs, game_read, game_write, rva};
 use crate::physics::reset_parts::{FIND_GROUND, reset_entry};
-use crate::race::car_starts::Part;
 use rc2k_core::physics::walls::ProbeCounts;
 
 fn g(x: usize) -> u32 {
@@ -34,7 +33,7 @@ fn p(x: usize, v: u32) {
 
 /// The Rust version, `find_ground` through `part` (place 18).
 // Converted: `rc2k_core::physics::walls::ProbeCounts`.
-pub unsafe fn count_ground_probe(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn count_ground_probe(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     let mut counts = ProbeCounts {
         tries: g(0x608C3C),
@@ -44,7 +43,7 @@ pub unsafe fn count_ground_probe(entry: &Regs, part: Part) -> Result<Regs, Refus
     p(0x620470, 0x40);
     counts.tried();
     p(0x608C3C, counts.tries);
-    part(FIND_GROUND, &mut r)?;
+    crate::physics::reset_parts::game_part(FIND_GROUND, &mut r)?;
     let found = g(0x639830) != 0;
     if found {
         // the original's `mov eax, dword_5CCC78` for its compare

@@ -14,17 +14,17 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::hud::draw_signs::{Part, game_part, signs_with};
+use crate::hud::draw_signs::signs_with;
 
 /// The Rust version (see the header): the registers it leaves.
 // Converted: `rc2k_core::hud::signs` (through `signs_with`)
-pub unsafe fn draw_signs_2b(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    unsafe { signs_with(entry, 0xB8, 0xC8, 0, 0x143, 0x10, part) }
+pub unsafe fn draw_signs_2b(entry: &Regs) -> Result<Regs, Refused> {
+    unsafe { signs_with(entry, 0xB8, 0xC8, 0, 0x143, 0x10) }
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_signs_2b(r, &mut game_part) }?;
+    let left = unsafe { draw_signs_2b(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

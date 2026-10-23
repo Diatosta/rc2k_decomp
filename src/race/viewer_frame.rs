@@ -159,16 +159,11 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::race::*;
     unsafe {
         match place {
-            1 => {
-                *r = crate::gfx::clear_back_surface::clear_back_surface(
-                    r,
-                    &mut crate::gfx::clear_back_surface::game_part,
-                )?
-            }
+            1 => crate::gfx::clear_back_surface::clear_back_surface()?,
             3 => crate::drive::replay_frame_marks::replay_frame_marks(),
-            4 => *r = show_replay_still::show_replay_still(r, &mut show_replay_still::game_part)?,
-            6 => *r = viewer_snapshot::viewer_snapshot(r, &mut viewer_snapshot::game_part)?,
-            9 => *r = draw_viewer_item::draw_viewer_item(r, &mut draw_viewer_item::game_part)?,
+            4 => *r = show_replay_still::show_replay_still(r)?,
+            6 => viewer_snapshot::viewer_snapshot()?,
+            9 => *r = draw_viewer_item::draw_viewer_item(r)?,
             10 => {
                 *r =
                     crate::drive::tyre_quad::tyre_quad(r, &mut crate::drive::tyre_parts::game_part)?

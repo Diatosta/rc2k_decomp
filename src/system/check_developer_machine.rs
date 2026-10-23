@@ -6,13 +6,10 @@
 //! `dword_529D94` = 0; the computer's name is asked for into the text buffer
 //! (`GetComputerNameA`, through `sub_410848`; if that fails the buffer is looked at as it
 //! is); if its first six characters are "andrew" in any case, `dword_529D94` = 1.
-//! (`race::tyre_change_gauge` reads it.) One caller, `start`.
-//! Shadow mode asks twice. Self-test: a redirected copy whose name comes from the test.
+//! (`race::tyre_change_gauge` reads it.) One caller, `start`, which calls it directly
+//! (2026-10-23); the registers above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, EBX, Regs, game_write, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::{game_write, rva};
 use crate::strings::text_from_ids::text;
 use windows_sys::Win32::System::WindowsProgramming::GetComputerNameA;
 
@@ -27,38 +24,16 @@ pub unsafe fn computer_name(to: *mut u8) -> bool {
     unsafe { GetComputerNameA(to, &mut room) != 0 }
 }
 
-/// `name` writes the computer's name at the place it is given, if it can. Returns the
-/// low word the original leaves in eax.
-pub unsafe fn check_developer_machine(name: &mut dyn FnMut(*mut u8)) -> u16 {
+/// The Rust version (see the header).
+pub fn check_developer_machine() {
     unsafe {
         game_write(DEVELOPER_RVA, 0u32);
-        name(text());
+        computer_name(text());
         // Converted: `rc2k_core::system::machine::developer`.
-        let (yes, last) =
+        let (yes, _) =
             rc2k_core::system::machine::developer((text() as *const [u8; 6]).read_unaligned());
         if yes {
             game_write(DEVELOPER_RVA, 1u32);
         }
-        last
     }
-}
-
-fn left(r: &Regs, last: u16) -> Left {
-    Left::nothing()
-        .with(EBX, text() as u32)
-        .with(EAX, r.eax & 0xFFFF_0000 | last as u32)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let last = unsafe {
-        check_developer_machine(&mut |to| {
-            computer_name(to);
-        })
-    };
-    Ok(left(r, last))
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

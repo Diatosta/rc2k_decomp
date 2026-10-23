@@ -8,12 +8,12 @@
 //! for reference.
 
 use crate::framework::Regs;
-use crate::menu::replay_items::{game_part, replay_item_a};
+use crate::menu::replay_items::replay_item_a;
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { replay_item_a(r, &mut game_part) }?;
+    let left = unsafe { replay_item_a(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

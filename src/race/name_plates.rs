@@ -46,10 +46,10 @@ unsafe fn clear_rows(mut edi: u32, rows: u32) -> u32 {
 /// `race::draw_name_plate` (0x45B695): slot eax's surface: three lines' height cleared, text
 /// ebx drawn three times in the name font (box 0x168 wide) at x 4, -0x74, -0xEC and y 0, a
 /// line, two lines (a long name wrapped over the plate's three rows). Every register kept.
-pub unsafe fn draw_name_plate(entry: &Regs, part: crate::race::frame::Part) -> Result<(), Refused> {
+pub unsafe fn draw_name_plate(entry: &Regs) -> Result<(), Refused> {
     unsafe {
         let mut r = *entry;
-        part(1, &mut r)?;
+        crate::race::name_plates::plate_part(1, &mut r)?;
         if r.carry() {
             return Ok(());
         }
@@ -70,20 +70,17 @@ pub unsafe fn draw_name_plate(entry: &Regs, part: crate::race::frame::Part) -> R
                 edx: y,
                 ..last
             };
-            part(3, &mut t)?;
+            crate::race::name_plates::plate_part(3, &mut t)?;
             last = t;
         }
         let mut u = Regs { eax: slot, ..last };
-        part(2, &mut u)
+        crate::race::name_plates::plate_part(2, &mut u)
     }
 }
 
 /// `race::draw_plate_by_id` (0x41B2D4): string id ebx into the text buffer (`text`, with its
 /// NUL) and drawn on slot eax's plate (part 1: `draw_name_plate`). Every register kept.
-pub unsafe fn draw_plate_by_id(
-    entry: &Regs,
-    part: crate::race::frame::Part,
-) -> Result<(), Refused> {
+pub unsafe fn draw_plate_by_id(entry: &Regs) -> Result<(), Refused> {
     unsafe {
         let mut cursor = ga(TEXT) as *mut u8;
         crate::strings::append_string_by_id::append_string_by_id(entry.ebx, &mut |p, n| {
@@ -91,7 +88,7 @@ pub unsafe fn draw_plate_by_id(
             cursor = cursor.add(n);
         });
         cursor.write(0);
-        part(
+        crate::race::name_plates::by_id_part(
             1,
             &mut Regs {
                 ebx: ga(TEXT),
@@ -104,10 +101,10 @@ pub unsafe fn draw_plate_by_id(
 /// `race::draw_time_plate` (0x45B70A): slot eax's surface below the name's three lines: two
 /// lines and three rows cleared, the texts at `dword_6D1838` and `dword_6D1844` in the time
 /// font (box 0x80 wide) at x 4, y three and four lines. Every register kept.
-pub unsafe fn draw_time_plate(entry: &Regs, part: crate::race::frame::Part) -> Result<(), Refused> {
+pub unsafe fn draw_time_plate(entry: &Regs) -> Result<(), Refused> {
     unsafe {
         let mut r = *entry;
-        part(1, &mut r)?;
+        crate::race::name_plates::plate_part(1, &mut r)?;
         if r.carry() {
             return Ok(());
         }
@@ -129,11 +126,11 @@ pub unsafe fn draw_time_plate(entry: &Regs, part: crate::race::frame::Part) -> R
                 edx: y,
                 ..last
             };
-            part(3, &mut t)?;
+            crate::race::name_plates::plate_part(3, &mut t)?;
             last = t;
         }
         let mut u = Regs { eax: slot, ..last };
-        part(2, &mut u)
+        crate::race::name_plates::plate_part(2, &mut u)
     }
 }
 
@@ -144,10 +141,7 @@ pub unsafe fn draw_time_plate(entry: &Regs, part: crate::race::frame::Part) -> R
 /// a name asked for at its car's +0x71C: drawn by string id below 0x10000 (part 2) or as a
 /// text pointer (part 3), into +0x724, +0x71C 0, +0x720 and +0x728 1. Refuses (before
 /// anything) a null view block.
-pub unsafe fn update_name_plates(
-    r: &mut Regs,
-    part: crate::race::frame::Part,
-) -> Result<(), Refused> {
+pub unsafe fn update_name_plates(r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         let blocks = [k(0x63DBB0), k(0x63DBB4)];
         if blocks.contains(&0) {
@@ -160,7 +154,7 @@ pub unsafe fn update_name_plates(
         let kept = [0x6D1850, 0x6D1854, 0x6D185C, 0x6D1860].map(k);
         if times_changed(now, kept) {
             r.eax = k(0x5D0DF8);
-            part(1, r)?;
+            crate::race::name_plates::update_part(1, r)?;
             for (from, to) in [
                 (0x6D1838u32, 0x6D1850u32),
                 (0x6D183C, 0x6D1854),
@@ -184,7 +178,7 @@ pub unsafe fn update_name_plates(
                 NameAsk::Id(_) => 2,
                 NameAsk::Text(_) => 3,
             };
-            part(place, r)?;
+            crate::race::name_plates::update_part(place, r)?;
             r.esi = b;
             field(b, 0x724).write_unaligned(r.ebx);
             field(b, 0x71C).write_unaligned(0);
@@ -231,14 +225,14 @@ pub fn plate_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 pub fn update_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         match place {
-            1 => draw_time_plate(r, &mut plate_part),
-            2 => draw_plate_by_id(r, &mut by_id_part),
-            _ => draw_name_plate(r, &mut plate_part),
+            1 => draw_time_plate(r),
+            2 => draw_plate_by_id(r),
+            _ => draw_name_plate(r),
         }
     }
 }
 
 /// `draw_plate_by_id`'s part in the game: `race::draw_name_plate`.
 pub fn by_id_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { draw_name_plate(r, &mut plate_part) }
+    unsafe { draw_name_plate(r) }
 }

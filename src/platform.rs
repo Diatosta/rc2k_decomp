@@ -215,11 +215,9 @@ extern "C" fn choose(r: &mut Regs) {
         ));
     }
     // The graphics options' choices made, as the original ends (`loc_4045CA`): the list
-    // the options page shows its resolution from.
-    let made = crate::gfx::screen_mode_choices::screen_mode_choices(
-        r,
-        &mut crate::gfx::screen_mode_choices::game_part,
-    );
+    // the options page shows its resolution from (not made yet at the start, so made
+    // whatever eax holds).
+    let made = crate::gfx::screen_mode_choices::screen_mode_choices(false);
     if let Err(e) = made {
         log(&format!(
             "platform: the screen mode choices are not made: {e:?}"
@@ -339,15 +337,20 @@ unsafe fn set_screen_mode(mode: u32) -> Result<(), String> {
     }
 }
 
-extern "C" fn set_mode(r: &mut Regs) {
+/// `gfx::set_screen_mode`: the screen in `mode`; false (and logged) if it cannot be.
+pub fn set_mode_now(mode: u32) -> bool {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
     SET_MODE.count_call();
-    let done = unsafe { set_screen_mode(r.eax) };
+    let done = unsafe { set_screen_mode(mode) };
     if let Err(why) = &done {
-        log(&format!("platform: screen mode {:#x}: {why}", r.eax));
+        log(&format!("platform: screen mode {mode:#x}: {why}"));
     }
-    r.set_carry(done.is_err());
+    done.is_ok()
+}
+
+extern "C" fn set_mode(r: &mut Regs) {
+    r.set_carry(!set_mode_now(r.eax));
 }
 
 // ---- gfx::set_menu_screen_mode (0x404823) ----
@@ -361,8 +364,9 @@ static MENU_MODE: RawHook = RawHook::new(
 );
 hook_asm!(menu_mode_thunk, dispatch = menu_mode);
 
-/// `gfx::set_screen_mode` with the menus' mode; every register kept, the flags its.
-extern "C" fn menu_mode(r: &mut Regs) {
+/// `gfx::set_menu_screen_mode`: `gfx::set_screen_mode` with the menus' mode; false (and
+/// logged) if it cannot be.
+pub fn set_menu_mode_now() -> bool {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
     MENU_MODE.count_call();
@@ -371,7 +375,12 @@ extern "C" fn menu_mode(r: &mut Regs) {
     if let Err(why) = &done {
         log(&format!("platform: screen mode {mode:#x}: {why}"));
     }
-    r.set_carry(done.is_err());
+    done.is_ok()
+}
+
+/// Every register kept, the flags its.
+extern "C" fn menu_mode(r: &mut Regs) {
+    r.set_carry(!set_menu_mode_now());
 }
 
 // ---- gfx::lock_surface (0x4058AD), gfx::unlock_surface (0x405949) ----
@@ -392,6 +401,12 @@ fn compared_with_one(r: &mut Regs, locked: u32) {
 }
 
 extern "C" fn lock(r: &mut Regs) {
+    compared_with_one(r, lock_surface());
+}
+
+/// `gfx::lock_surface`: the surface locked for drawing (unless quitting or there is no
+/// screen); `g_surfaceLocked` after it (1: locked).
+pub fn lock_surface() -> u32 {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
     LOCK.count_call();
@@ -419,7 +434,7 @@ extern "C" fn lock(r: &mut Regs) {
             }
             let _ = set_clip(surface as *const [u32; 4]);
         }
-        compared_with_one(r, game_read(LOCKED_RVA));
+        game_read(LOCKED_RVA)
     }
 }
 
@@ -433,16 +448,25 @@ static UNLOCK: RawHook = RawHook::new(
 hook_asm!(unlock_thunk, dispatch = unlock);
 
 extern "C" fn unlock(r: &mut Regs) {
+    match unlock_surface() {
+        1 => {
+            r.set_carry(false);
+            r.set_zero(true);
+        }
+        locked => compared_with_one(r, locked),
+    }
+}
+
+/// `gfx::unlock_surface`: the surface unlocked if it was locked; `g_surfaceLocked` before
+/// it (1: it was).
+pub fn unlock_surface() -> u32 {
     UNLOCK.count_call();
     unsafe {
         let locked: u32 = game_read(LOCKED_RVA);
         if locked == 1 {
             game_write(LOCKED_RVA, 0u32);
-            r.set_carry(false);
-            r.set_zero(true);
-        } else {
-            compared_with_one(r, locked);
         }
+        locked
     }
 }
 
@@ -705,13 +729,18 @@ unsafe fn show_frame(screen: &Screen) -> Result<(), &'static str> {
 }
 
 extern "C" fn show(r: &mut Regs) {
+    r.set_carry(!show_frame_now());
+}
+
+/// `gfx::show_frame`: the frame drawn shown (at most some sixty a second); false while
+/// quitting (nothing shown).
+pub fn show_frame_now() -> bool {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
     SHOW.count_call();
     unsafe {
         if quitting() {
-            r.set_carry(true);
-            return;
+            return false;
         }
         if let Ok(screen) = SCREEN.lock()
             && let Some(screen) = screen.as_ref()
@@ -746,8 +775,8 @@ extern "C" fn show(r: &mut Regs) {
         if since < 16 {
             SDL_Delay((16 - since) as u32);
         }
-        r.set_carry(false);
     }
+    true
 }
 
 // ---- system::pump_messages (0x410535), screens::run_frame (0x405A71) ----
@@ -762,9 +791,14 @@ static PUMP: RawHook = RawHook::new(
 hook_asm!(pump_thunk, dispatch = pump_messages);
 
 extern "C" fn pump_messages(r: &mut Regs) {
+    pump_messages_now();
+    r.set_carry(false);
+}
+
+/// `system::pump_messages`: the window's events (SDL's).
+pub fn pump_messages_now() {
     PUMP.count_call();
     pump();
-    r.set_carry(false);
 }
 
 static RUN_FRAME_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -796,6 +830,30 @@ extern "C" fn run_frame(r: &mut Regs) {
     crate::menu::table_calls::call_any(frame as u32, r);
     if !r.carry() {
         r.set_zero(r.eax == 0);
+    }
+}
+
+/// For Rust callers that name a platform hook's function by its address
+/// (`menu::table_calls`): its Rust side run directly, not through the fault handler and
+/// the thunk (conversion phase 3, 2026-10-23). `at` is the address as IDA shows it.
+pub fn by_address(at: usize, r: &mut Regs) -> bool {
+    let hooks: [(&RawHook, extern "C" fn(&mut Regs)); 9] = [
+        (&CHOOSE, choose),
+        (&SET_MODE, set_mode),
+        (&MENU_MODE, menu_mode),
+        (&LOCK, lock),
+        (&UNLOCK, unlock),
+        (&SHOW, show),
+        (&PUMP, pump_messages),
+        (&RUN_FRAME, run_frame),
+        (&crate::film::HOOK, crate::film::dispatch),
+    ];
+    match hooks.iter().find(|(hook, _)| hook.rva() == rva(at)) {
+        Some(&(_, dispatch)) => {
+            dispatch(r);
+            true
+        }
+        None => crate::platform_3d::by_address(at, r),
     }
 }
 

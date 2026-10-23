@@ -20,12 +20,11 @@
 //! The line ends at a word of no length that starts where the reading stands.
 //! One caller, `start`. Refuses a word for `-i` of 0x100 bytes or more.
 //! The `-v` part cannot be run in a test: it was looked at by the owner.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! `start` calls it directly (2026-10-23); the registers above are the original's, for
+//! reference.
 
 use crate::errors::BadInput;
 use crate::framework::{Regs, game_addr, game_write, rva};
-use crate::service::harness::{Region, at, capture, restore};
 use windows_sys::Win32::System::Environment::GetCommandLineA;
 use windows_sys::Win32::UI::WindowsAndMessaging::MessageBoxA;
 
@@ -39,7 +38,6 @@ const SWITCH_I_RVA: usize = rva(0x51B9D0); // dword_51B9D0
 const SWITCH_I_TOO_RVA: usize = rva(0x51BA04); // dword_51BA04
 const I_FIRST_RVA: usize = rva(0x95E6F8); // byte_95E6F8
 const I_SECOND_RVA: usize = rva(0x95E7F8); // byte_95E7F8
-const I_WORD_ROOM: usize = 0x100;
 const I_THIRD_RVA: usize = rva(0x51BA08); // dword_51BA08
 const I_FOURTH_RVA: usize = rva(0x51BA0C); // dword_51BA0C
 const IGNORE_SECONDARY_RVA: usize = rva(0x5AB954); // dword_5AB954
@@ -125,39 +123,12 @@ pub unsafe fn read_command_line(line: *const u8) -> Result<Asked, BadInput> {
     }
 }
 
-fn regions() -> Vec<Region> {
-    let mut regions: Vec<Region> = [
-        PROGRAM_RVA,
-        PROGRAM_LEN_RVA,
-        SWITCH_U_RVA,
-        INSTALLING_RVA,
-        SWITCH_I_RVA,
-        SWITCH_I_TOO_RVA,
-        I_THIRD_RVA,
-        I_FOURTH_RVA,
-        IGNORE_SECONDARY_RVA,
-        IGNORE_PRIMARY_RVA,
-        NO_AUDIO_RVA,
-    ]
-    .map(at)
-    .to_vec();
-    regions.push((game_addr(I_FIRST_RVA) as u32, I_WORD_ROOM));
-    regions.push((game_addr(I_SECOND_RVA) as u32, I_WORD_ROOM));
-    regions
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let line = unsafe { GetCommandLineA() };
-    let regions = regions();
-    let before = capture(&regions);
-    let mine = unsafe { read_command_line(line) };
-    match mine {
-        Ok(Asked::Nothing) => {}
-        Ok(Asked::Version) => unsafe { show_version_and_leave(r) },
-        Err(e) => {
-            restore(&regions, &before);
-            return Err(e.into());
+/// The Rust version on the program's own command line (`GetCommandLineA`); `-v` shows the
+/// version and leaves through `start`'s exit path with `regs`.
+pub unsafe fn read_own_command_line(regs: &Regs) -> Result<(), BadInput> {
+    unsafe {
+        if read_command_line(GetCommandLineA())? == Asked::Version {
+            show_version_and_leave(regs);
         }
     }
     Ok(())

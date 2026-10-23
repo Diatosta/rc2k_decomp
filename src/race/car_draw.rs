@@ -155,7 +155,7 @@ fn with_bit(value: u32, bit: u32) -> u32 {
 /// `car_part_matrix`, part 1); then `race::clear_car_marks`. Refuses (before anything) what
 /// `scene::draw_scene_object` would for the car's objects: in a race (`g_inRace`) car
 /// `dword_60627C` (below eight) without its block.
-pub unsafe fn draw_car(r: &mut Regs, part: crate::race::frame::Part) -> Result<(), Refused> {
+pub unsafe fn draw_car(r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         let n: u32 = game_read(rva(0x60627C));
         if game_read::<u32>(rva(0x5C5CEC)) != 0
@@ -335,7 +335,7 @@ pub unsafe fn draw_car(r: &mut Regs, part: crate::race::frame::Part) -> Result<(
         w(0x6214FC, k(0x60627C).wrapping_mul(0x14).wrapping_add(0x50));
         car_body_matrix(r);
         crate::race::frame_draw::start_kept_reflections().apply(r);
-        part(1, r)?;
+        crate::race::car_draw::car_part(1, r)?;
         crate::race::frame_draw::end_kept_reflections();
         w(0x62DAF8, 1);
         if below(k(0x6415A4), 0x3C_0000) {
@@ -343,7 +343,7 @@ pub unsafe fn draw_car(r: &mut Regs, part: crate::race::frame::Part) -> Result<(
                 w(0x6214FC, k(0x6214FC).wrapping_add(1));
                 if k(0x635028) & bit != 0 {
                     car_part_matrix(r, matrix);
-                    part(1, r)?;
+                    crate::race::car_draw::car_part(1, r)?;
                 }
             }
         }
@@ -418,7 +418,7 @@ unsafe fn near_size() -> u32 {
 /// `race::draw_car_shined` (0x461669): `g_shine` for the car (0x3FCE0 less `dword_623D80`,
 /// held to 0 .. 0x40000, times `dword_60AD0C`, >> 18), the car drawn (part 1:
 /// `race::draw_car`), `g_shine` put back.
-pub unsafe fn draw_car_shined(r: &mut Regs, part: crate::race::frame::Part) -> Result<(), Refused> {
+pub unsafe fn draw_car_shined(r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         let shine: u32 = game_read(rva(0x5CCE74));
         let mut eax = 0x3_FCE0u32.wrapping_sub(game_read(rva(0x623D80)));
@@ -432,7 +432,7 @@ pub unsafe fn draw_car_shined(r: &mut Regs, part: crate::race::frame::Part) -> R
         r.edx = (product >> 32) as u32;
         r.eax = (product as u32) >> 18;
         game_write(rva(0x5CCE74), r.eax);
-        let done = part(1, r);
+        let done = crate::race::car_draw::shined_part(1, r);
         game_write(rva(0x5CCE74), shine);
         done
     }
@@ -443,7 +443,7 @@ pub unsafe fn draw_car_shined(r: &mut Regs, part: crate::race::frame::Part) -> R
 /// `dword_6415A4`; drawn (part 1: `race::draw_car_shined`, counted in `dword_641594`) unless
 /// behind (depth + 0x40000 below 0) or aside (|x| - 0x80000 not below the depth), counted in
 /// `dword_641598`. Refuses (before anything) a car without its block.
-pub unsafe fn draw_car_entry(r: &mut Regs, part: crate::race::frame::Part) -> Result<(), Refused> {
+pub unsafe fn draw_car_entry(r: &mut Regs) -> Result<(), Refused> {
     use crate::math::x87_load::tbyte_to_int;
     use crate::race::skidmarks::int_80;
     unsafe {
@@ -495,7 +495,7 @@ pub unsafe fn draw_car_entry(r: &mut Regs, part: crate::race::frame::Part) -> Re
             rva(0x641594),
             game_read::<u32>(rva(0x641594)).wrapping_add(1),
         );
-        part(1, r)
+        crate::race::car_draw::entry_car_part(1, r)
     }
 }
 
@@ -508,10 +508,10 @@ pub fn car_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// `draw_car_shined`'s part: `race::draw_car`.
 pub fn shined_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { draw_car(r, &mut car_part) }
+    unsafe { draw_car(r) }
 }
 
 /// `draw_car_entry`'s part: `race::draw_car_shined`.
 pub fn entry_car_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { draw_car_shined(r, &mut shined_part) }
+    unsafe { draw_car_shined(r) }
 }

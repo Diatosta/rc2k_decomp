@@ -23,15 +23,14 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::sound::spot_voices::{g, p, voice};
-use crate::sound::turn_parts::{Part, turn_entry};
+use crate::sound::turn_parts::turn_entry;
 
-pub const NEAREST_ON_SEGMENT: u32 = 0x4633DE;
 const ENDS: usize = 0x71C384;
 const RESULT: usize = 0x71C3A8;
 // ---- Rust version ----
 
 /// Converted: `rc2k_core::sound::spot_voices::merge` and `merge_between`.
-pub fn merge_spot_voices_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn merge_spot_voices_in(c: &mut Regs) -> Result<(), Refused> {
     use crate::sound::spot_voices::{load_voices, pick_regs, store_picks, store_voices};
     use rc2k_core::sound::spot_voices as core;
     let mut voices = load_voices();
@@ -53,7 +52,7 @@ pub fn merge_spot_voices_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
         p(ENDS + 24 + 4 * m, 0);
     }
     (c.eax, c.ebx) = (b[2], voice(next as u32));
-    part(NEAREST_ON_SEGMENT, c)?;
+    crate::math::nearest_on_segment::nearest_on_segment_in(c)?;
     let point = [0, 1, 2].map(|m| g(RESULT + 4 * m));
     core::merge_between(&mut voices, &picks, point);
     store_voices(&voices);

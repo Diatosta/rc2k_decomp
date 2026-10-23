@@ -41,7 +41,7 @@ pub unsafe fn classify_controller(eax: u32, ebx: u32, ecx: u32, edx: u32) {
 /// kept. Parts: 1 the clock (eax), 2 the prompt (eax id, ebx font, ecx x, edx y), 3
 /// `axis_moved` (eax in; carry, eax), 4 the controller's read (ecx, edx, eax, ebx), 5 the
 /// key (al). Refuses (before anything) a player without its record.
-pub unsafe fn learn_axis(entry: &Regs, part: crate::race::frame::Part) -> Result<(), Refused> {
+pub unsafe fn learn_axis(entry: &Regs) -> Result<(), Refused> {
     unsafe {
         if k(0x7551F4) != 1 {
             return Ok(());
@@ -52,7 +52,7 @@ pub unsafe fn learn_axis(entry: &Regs, part: crate::race::frame::Part) -> Result
         }
         let mut r = *entry;
         w(FOUND, 0);
-        part(1, &mut r)?;
+        crate::screens::controller::learn_part(1, &mut r)?;
         // Converted: `rc2k_core::screens::learning` (`timed_out`, `by_axis`, `pedal`,
         // `CANCEL_KEY`, `binding`).
         use rc2k_core::screens::learning as l;
@@ -71,7 +71,7 @@ pub unsafe fn learn_axis(entry: &Regs, part: crate::race::frame::Part) -> Result
             r.ecx = 0x1B8;
             r.edx = ((items + 0xC) as *const u32).read_unaligned();
             r.edi = items;
-            part(2, &mut r)?;
+            crate::screens::controller::learn_part(2, &mut r)?;
         }
         // The original's `mov eax, dword_75598C; mov edi, g_players[eax*4]`.
         r.eax = k(0x75598C);
@@ -81,7 +81,7 @@ pub unsafe fn learn_axis(entry: &Regs, part: crate::race::frame::Part) -> Result
         let control = k(0x7551FC);
         if l::by_axis(((player + 0x34) as *const u32).read_unaligned(), control) {
             r.eax = 1;
-            part(3, &mut r)?;
+            crate::screens::controller::learn_part(3, &mut r)?;
             if !r.carry() {
                 let (byte, found) = l::pedal(control);
                 field(byte).write(r.eax as u8);
@@ -91,11 +91,11 @@ pub unsafe fn learn_axis(entry: &Regs, part: crate::race::frame::Part) -> Result
                 take = false;
             }
         } else {
-            part(4, &mut r)?;
+            crate::screens::controller::learn_part(4, &mut r)?;
             classify_controller(r.eax, r.ebx, r.ecx, r.edx);
         }
         if take {
-            part(5, &mut r)?;
+            crate::screens::controller::learn_part(5, &mut r)?;
             if r.eax as u8 == l::CANCEL_KEY {
                 w(FOUND, 0);
                 w(0x7551F4, 0);

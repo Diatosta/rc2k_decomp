@@ -22,18 +22,17 @@
 use crate::errors::Refused;
 use crate::framework::{Regs, game_write, rva};
 use crate::physics::reset_parts::reset_entry;
-use crate::race::car_starts::Part;
 
 /// The Rust version, the calls through `part` (places 8, 6, 9).
-pub unsafe fn reset_car_on_line(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn reset_car_on_line(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
-        part(8, &mut g)?;
+        crate::physics::reset_parts::game_part(8, &mut g)?;
         for v in [0x71A070usize, 0x71A06C, 0x71A074, 0x6365E4, 0x6365EC] {
             game_write(rva(v), g.eax);
         }
-        part(6, &mut g)?;
-        part(9, &mut g)?;
+        crate::physics::reset_parts::game_part(6, &mut g)?;
+        crate::physics::reset_parts::game_part(9, &mut g)?;
         game_write(rva(0x71AF88), 8u32);
         game_write(rva(0x71AF8C), 8u32);
         game_write(rva(0x71AF84), 10u32);

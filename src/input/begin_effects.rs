@@ -17,26 +17,26 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, rva};
-use crate::input::effects::{LAST_TIME, Part, START, TICK, effects_entry};
+use crate::input::effects::{LAST_TIME, START, effects_entry};
 use crate::sound::turn_parts::COUNT;
 
 /// The Rust version on the variables at `count` and `last` (addresses).
-pub fn begin_effects_with(r: &mut Regs, count: u32, last: u32, part: Part) -> Result<(), Refused> {
+pub fn begin_effects_with(r: &mut Regs, count: u32, last: u32) -> Result<(), Refused> {
     let mut g = *r;
     unsafe {
         if (count as *const u32).read_volatile() != 0 {
-            part(START, &mut g)?;
+            crate::input::effects::game_part(START, &mut g)?;
         }
-        part(TICK, &mut g)?;
+        g.eax = crate::system::tick_count::tick_count();
         (last as *mut u32).write_volatile(g.eax);
     }
     Ok(())
 }
 
 /// The Rust version.
-pub fn begin_effects(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn begin_effects(r: &mut Regs) -> Result<(), Refused> {
     let a = |x: usize| game_addr(rva(x)) as u32;
-    begin_effects_with(r, a(COUNT), a(LAST_TIME), part)
+    begin_effects_with(r, a(COUNT), a(LAST_TIME))
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

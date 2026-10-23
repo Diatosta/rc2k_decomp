@@ -21,7 +21,7 @@ use crate::race::game_map::*;
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     {
-        let g = unsafe { load_game_map(r, &mut game_part) }?;
+        let g = unsafe { load_game_map(r) }?;
         r.eax = g.eax
     }
     Ok(())

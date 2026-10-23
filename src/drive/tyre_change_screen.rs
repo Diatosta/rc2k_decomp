@@ -14,12 +14,11 @@ use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::physics::flow::g;
-use crate::race::car_starts::Part;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     {
-        let g = unsafe { tyre_change_screen(r, &mut game_part) }?;
+        let g = unsafe { tyre_change_screen(r) }?;
         let esp = r.esp;
         *r = Regs {
             eflags: r.eflags,
@@ -32,7 +31,7 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
 
 /// The Rust version, the screen through `part`.
 // Converted: `rc2k_core::drive::race_ticks::tyre_change_shown`.
-pub unsafe fn tyre_change_screen(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn tyre_change_screen(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     if !rc2k_core::drive::race_ticks::tyre_change_shown(g(0x70F3EC + 0x26C)) {
         return Ok(r);
@@ -40,6 +39,6 @@ pub unsafe fn tyre_change_screen(entry: &Regs, part: Part) -> Result<Regs, Refus
     r.eax = g(0x6238A4);
     r.esi = 0;
     let mut s = r;
-    part(SCREEN, &mut s)?;
+    crate::drive::tyre_parts::game_part(SCREEN, &mut s)?;
     Ok(r)
 }

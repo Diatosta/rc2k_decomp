@@ -27,7 +27,7 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::Regs;
 use crate::physics::flow::{a, g, p};
 use crate::race::step_replay_cars::{CARS, CURRENT};
-use crate::race::viewer::{BLOCK, BLOCK_DATA, FRAME, Part, move_dwords, regs_entry};
+use crate::race::viewer::{BLOCK, BLOCK_DATA, FRAME, move_dwords, regs_entry};
 
 const STILL: usize = 0x601024; // dword_601024
 const STILL_2: usize = 0x6416BC; // dword_6416BC
@@ -41,7 +41,7 @@ const SWITCHES: [usize; 2] = [0x63DB74, 0x63DB78];
 const SCENE_SWITCH: usize = 0x6235E8; // dword_6235E8
 
 /// The Rust version: the registers it leaves.
-pub fn show_replay_still(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn show_replay_still(entry: &Regs) -> Result<Regs, Refused> {
     if !(1..=8).contains(&g(CARS)) {
         return Err(BadInput("a cars' count of 0 or past 8").into());
     }
@@ -55,34 +55,34 @@ pub fn show_replay_still(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         r.edi = a(REPLAY_FRAME) + 0x2810;
     };
     load_frame(&mut r);
-    part(1, &mut r)?;
-    part(2, &mut r)?;
+    crate::race::show_replay_still::game_part(1, &mut r)?;
+    crate::race::show_replay_still::game_part(2, &mut r)?;
     r.ecx = 0;
     while r.ecx != g(FRAME) {
         p(STEP_FRAME, r.ecx);
         p(STEP_BLOCK, g(BLOCK));
         let mut s = r;
-        part(3, &mut s)?;
+        crate::race::show_replay_still::game_part(3, &mut s)?;
         r.ecx += 1;
     }
     if g(FRAME) == 0 {
         p(STEP_FIRST, 1);
         let mut s = r;
-        part(3, &mut s)?;
+        crate::race::show_replay_still::game_part(3, &mut s)?;
         p(STEP_FIRST, 0);
         load_frame(&mut r);
-        part(1, &mut r)?;
+        crate::race::show_replay_still::game_part(1, &mut r)?;
     }
     p(CURRENT, 0);
     loop {
         let mut s = r;
-        part(4, &mut s)?;
+        crate::race::show_replay_still::game_part(4, &mut s)?;
         if !matches!(g(KIND), 0 | 2) {
             p(STEP_FIRST, 1);
-            part(5, &mut s)?;
+            crate::race::show_replay_still::game_part(5, &mut s)?;
             p(STEP_FIRST, 0);
         }
-        part(6, &mut s)?;
+        crate::race::show_replay_still::game_part(6, &mut s)?;
         p(CURRENT, g(CURRENT).wrapping_add(1));
         r.eax = g(CURRENT);
         if r.eax == g(CARS) {
@@ -95,7 +95,7 @@ pub fn show_replay_still(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     p(DRAWING, 1);
     let kept = g(SCENE_SWITCH);
     p(SCENE_SWITCH, 1);
-    part(7, &mut r)?;
+    crate::race::show_replay_still::game_part(7, &mut r)?;
     p(SCENE_SWITCH, kept);
     p(DRAWING, 0);
     p(STILL_2, 0);
@@ -110,12 +110,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         match place {
             1 => load_replay_cars::load_replay_cars().apply(r),
             2 => replay_cameras::replay_cameras(r)?.apply(r),
-            3 => {
-                *r = crate::race::step_replay_cars::step_replay_cars(
-                    r,
-                    &mut crate::race::step_replay_cars::game_part,
-                )?
-            }
+            3 => *r = crate::race::step_replay_cars::step_replay_cars(r)?,
             4 => load_car::load_car()?.apply(r),
             5 => {
                 *r = crate::physics::camera_frame::camera_frame(
@@ -138,5 +133,5 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| show_replay_still(r, &mut game_part))
+    regs_entry(r, &|r| show_replay_still(r))
 }

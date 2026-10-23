@@ -16,7 +16,6 @@ pub const FACE_COUNT_RVA: usize = rva(0x5CCD1C); // dword_5CCD1C
 pub const QUAD_RVA: usize = rva(0x63D9F8); // dword_63D9F8: -1 for faces of three points
 /// `face_normal`'s work: the three points (9 dwords) and the six differences.
 pub const NORMAL_WORK_RVA: usize = rva(0x6396A0);
-pub const NORMAL_WORK_LEN: usize = 15 * 4;
 const COURSE_MEMORY_RVA: usize = rva(0x5C6F94); // g_courseMemory
 const LAYOUT_RVA: usize = rva(0x5CCCB8); // dword_5CCCB8 .. : the layout's five
 const FIRST_COUNT_RVA: usize = rva(0x5CCD18); // dword_5CCD18: 0x20-byte records first
@@ -167,12 +166,3 @@ pub fn game_normal(a: u32, b: u32, c: u32) {
 }
 
 // ---- for the self-tests ----
-
-/// What the norms' functions write.
-pub fn norm_regions() -> Vec<crate::service::harness::Region> {
-    vec![
-        (game_addr(WORK_VECTOR_RVA) as u32, 12),
-        crate::service::harness::at(LENGTH_RVA),
-        (game_addr(NORMAL_WORK_RVA) as u32, NORMAL_WORK_LEN),
-    ]
-}

@@ -35,9 +35,6 @@ const FACING_RVA: usize = rva(0x814718); // flt_814718
 const SHARE_RVA: usize = rva(0x8BC1AA); // flt_8BC1AA
 const RUNNING_RVA: usize = rva(0x7652A0); // dword_7652A0
 
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 fn addr(r: usize) -> u32 {
     game_addr(r) as u32
 }
@@ -158,7 +155,7 @@ unsafe fn frame_facing(b: u32) {
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn squares_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn squares_frame(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         let s: u32 = game_read(SETTINGS_RVA);
@@ -187,12 +184,12 @@ pub unsafe fn squares_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         if game_read::<u32>(FACING_RVA) & 0x8000_0000 == 0 {
             return Ok(g);
         }
-        part(1, &mut g)?;
+        crate::marks::squares_frame::game_part(1, &mut g)?;
         g.eax = x87::mul_to_int(game_read(RATE_RVA), game_read(SHARE_RVA)) as u32;
         if g.eax == 0 {
             return Ok(g);
         }
-        part(2, &mut g)?;
+        crate::marks::squares_frame::game_part(2, &mut g)?;
         g.esi = game_read(SETTINGS_RVA);
         if ((g.esi + 0x2744) as *const u32).read_unaligned() == 0 {
             return Ok(g);
@@ -210,7 +207,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::marks::{run_pong, run_squares};
     unsafe {
         *r = match place {
-            1 => run_pong::run_pong(r, &mut run_pong::game_part)?,
+            1 => run_pong::run_pong(r)?,
             _ => run_squares::run_squares(r, &mut run_squares::game_part)?,
         };
     }
@@ -219,7 +216,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { squares_frame(r, &mut game_part) }?;
+    let left = unsafe { squares_frame(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

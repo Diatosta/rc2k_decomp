@@ -29,7 +29,7 @@ use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::scene::vector3::STATUS_RVA;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, restore, state_entry};
+use crate::service::harness::{Region, at, state_entry};
 
 const SPLINES: u32 = 8;
 const SWITCH_RVA: usize = rva(0x7695CA); // dword_7695CA
@@ -87,13 +87,8 @@ pub unsafe fn place_spline(entry: &Regs) -> Result<Regs, Refused> {
     if entry.eax >= SPLINES {
         return Err(BadInput("a spline number of 8 or more").into());
     }
-    let written = regions(entry.eax);
-    let saved = capture(&written);
-    let done = unsafe { run(entry, settings) };
-    if done.is_err() {
-        restore(&written, &saved);
-    }
-    done
+
+    unsafe { run(entry, settings) }
 }
 
 unsafe fn run(entry: &Regs, settings: u32) -> Result<Regs, Refused> {

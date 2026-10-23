@@ -13,8 +13,7 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::physics::flow::{g, guard, p};
-use crate::physics::test_drive_run::regions;
+use crate::physics::flow::{g, p};
 use crate::screens::harness::Left;
 use crate::service::harness::state_entry;
 
@@ -24,7 +23,7 @@ const KEPT: [usize; 6] = [0x71A190, 0x71A194, 0x71A184, 0x71A1AC, 0x71A1B0, 0x71
 
 /// The Rust version.
 pub unsafe fn test_drive(entry: &Regs) -> Result<Left, Refused> {
-    guard(&regions(), || {
+    {
         let mut r = *entry;
         unsafe {
             crate::physics::load_car_specs::load_car_specs()?.apply(&mut r);
@@ -38,7 +37,7 @@ pub unsafe fn test_drive(entry: &Regs) -> Result<Left, Refused> {
             p(*x, v);
         }
         Ok(crate::race::stage_prefs::left_of(&r))
-    })
+    }
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

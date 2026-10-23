@@ -19,25 +19,22 @@ use crate::errors::Refused;
 use crate::framework::Regs;
 use rc2k_core::system::time::{time_up, wait_end};
 
-/// A call by place: 1 `system::tick_count`, 2 `system::sleep` (eax), 3 `input::take_key`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
-pub fn wait_or_key(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn wait_or_key(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     g.ebx = g.eax;
-    part(1, &mut g)?;
+    crate::system::wait_or_key::game_part(1, &mut g)?;
     // Converted: `rc2k_core::system::time::{wait_end, time_up}`.
     g.ebx = wait_end(g.eax, g.ebx);
     loop {
         g.eax = 10;
-        part(2, &mut g)?;
+        crate::system::wait_or_key::game_part(2, &mut g)?;
         g.eax = 0;
-        part(3, &mut g)?;
+        crate::system::wait_or_key::game_part(3, &mut g)?;
         if g.eflags & 0x40 == 0 {
             break;
         }
-        part(1, &mut g)?;
+        crate::system::wait_or_key::game_part(1, &mut g)?;
         if time_up(g.eax, g.ebx) {
             g.eax = 0;
             break;
@@ -66,7 +63,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     // The game's parts never fail.
-    if let Ok(left) = wait_or_key(r, &mut game_part) {
+    if let Ok(left) = wait_or_key(r) {
         *r = Regs { esp: r.esp, ..left };
     }
     Ok(())

@@ -76,10 +76,6 @@ pub unsafe fn set_texture_levels(entry: &Regs) -> Result<Regs, Refused> {
     Ok(g)
 }
 
-/// `init_texture_levels`' calls by place: 0 `scene::reset_texture_tables`, 1 and 2 the
-/// log's (eax the text; the number with a line's end), 3 `input::update`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 const COUNT_TEXT_RVA: usize = rva(0x4DB7B9); // "NUM DIFFERENT CARS/OBJECTS/TEXTURE SETS "
 
 /// `scene::init_texture_levels` (0x424001), see the header: `g_raceCars` held to 1 .. 8
@@ -90,7 +86,7 @@ const COUNT_TEXT_RVA: usize = rva(0x4DB7B9); // "NUM DIFFERENT CARS/OBJECTS/TEXT
 /// `dword_5DC978` + 4, or + 1 for slots 0x40 .. 0x6F); the fixed runs, two loops at slot 0xDC (the system level of six,
 /// the video level of two), and with `dword_621514` three more. Leaves ebx past the last
 /// run, eax, ecx, edx 0, ebp 0x63, esi past the prefs, edi the last kind's wanted picture.
-pub unsafe fn init_texture_levels(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn init_texture_levels(entry: &Regs) -> Result<Regs, Refused> {
     // Converted: `rc2k_core::scene::texture_levels::{held_cars, set_levels}`.
     use crate::scene::textures::slice;
     use rc2k_core::scene::texture_levels::{KindSlots, held_cars, set_levels};
@@ -98,16 +94,16 @@ pub unsafe fn init_texture_levels(entry: &Regs, part: Part) -> Result<Regs, Refu
     unsafe {
         let cars = held_cars(game_read(CARS_RVA));
         game_write(CARS_RVA, cars);
-        part(0, &mut g)?;
+        crate::scene::texture_levels::game_part(0, &mut g)?;
         let mut r = Regs {
             eax: game_addr(COUNT_TEXT_RVA) as u32,
             ..g
         };
-        part(1, &mut r)?;
+        crate::scene::texture_levels::game_part(1, &mut r)?;
         let mut r = Regs { eax: cars, ..g };
-        part(2, &mut r)?;
+        crate::scene::texture_levels::game_part(2, &mut r)?;
         game_write(OTHER_LEVELS_RVA, 0u32);
-        part(3, &mut g)?;
+        crate::scene::texture_levels::game_part(3, &mut g)?;
         let kinds: Vec<(KindSlots, Vec<u32>)> = BLOCKS
             .iter()
             .map(|&(_, prefs, first, count, tag, level, other_level, step)| {

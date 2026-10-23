@@ -17,19 +17,19 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, rva};
-use crate::marks::squares_setup::{Part, game_part, setup_with};
+use crate::marks::squares_setup::setup_with;
 
 const PLACES_RVA: usize = rva(0x769222); // dword_769222 .. dword_76922E
 // g_polygonVertices
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn pong_setup(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    unsafe { setup_with(entry, PLACES_RVA, part) }
+pub unsafe fn pong_setup(entry: &Regs) -> Result<Regs, Refused> {
+    unsafe { setup_with(entry, PLACES_RVA) }
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { pong_setup(r, &mut game_part) }?;
+    let left = unsafe { pong_setup(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

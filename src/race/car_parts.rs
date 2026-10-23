@@ -141,10 +141,7 @@ pub unsafe fn car_part_matrices(car: u32) -> Result<(), Refused> {
 /// (+0x740 .. +0x8BF) and the body's turn times the car's (`flt_5EA3CC`) at +0x8C0. Refuses
 /// (before anything) no race cars (the original's loop would run away), more than eight, or
 /// one without its block.
-pub unsafe fn ready_car_parts(
-    r: &mut crate::framework::Regs,
-    part: crate::race::frame::Part,
-) -> Result<(), Refused> {
+pub unsafe fn ready_car_parts(r: &mut crate::framework::Regs) -> Result<(), Refused> {
     unsafe {
         // Converted: `rc2k_core::race::car_parts::{check_part_cars, parts_shown,
         // KEPT_MATRICES}`.
@@ -161,7 +158,7 @@ pub unsafe fn ready_car_parts(
             r.esi = car;
             if parts_shown(((car + 0x25C) as *const u32).read_unaligned()) {
                 let mut p = *r;
-                part(1, &mut p)?;
+                crate::race::car_parts::parts_part(1, &mut p)?;
                 for (i, from) in [
                     0x6417E0u32,
                     0x641820,

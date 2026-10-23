@@ -16,11 +16,11 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::sound::spot_voices::{load_voices, store_voices};
-use crate::sound::turn_parts::{Part, turn_entry};
+use crate::sound::turn_parts::turn_entry;
 
 // ---- Rust version ----
 
-pub fn exclusive_spot_voices_in(_: &mut Regs, _: Part) -> Result<(), Refused> {
+pub fn exclusive_spot_voices_in(_: &mut Regs) -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::spot_voices::keep_exclusive`.
     let mut voices = load_voices();
     rc2k_core::sound::spot_voices::keep_exclusive(&mut voices);

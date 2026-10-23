@@ -12,13 +12,10 @@ use crate::framework::{Regs, rva};
 
 const PLATFORM_RVA: usize = rva(0x4057D1); // gfx::show_frame
 
-/// A call by place: 1 the platform's.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers (and flags) it leaves.
-pub unsafe fn present_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn present_frame(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
-    part(1, &mut g)?;
+    crate::scene::present_frame::game_part(1, &mut g)?;
     Ok(g)
 }
 
@@ -30,7 +27,7 @@ pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { present_frame(r, &mut game_part) }?;
+    let left = unsafe { present_frame(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

@@ -42,17 +42,21 @@ pub unsafe fn raise(error: FatalError, regs: &Regs) {
 /// it. If that ever happens where the original would have carried on, the Rust version is
 /// wrong.
 pub unsafe fn refused(hook: &RawHook, reason: impl Into<Refused>, r: &mut Regs) {
+    unsafe { refused_in(hook.name(), reason, r) };
+}
+
+/// `refused` for the Rust version named `name`, called by Rust code that has nowhere to
+/// hand the refusal on to.
+pub unsafe fn refused_in(name: &str, reason: impl Into<Refused>, r: &Regs) {
     let error = match reason.into() {
         Refused::BadInput(why) => {
-            crate::standalone::finish(&format!("{} refused: {}", hook.name(), why.0), 1)
+            crate::standalone::finish(&format!("{name} refused: {}", why.0), 1)
         }
         Refused::Fatal(error) => error,
     };
     log(&format!(
-        "{}: the Rust version raises fatal error {:#x} {:?}",
-        hook.name(),
-        error.code,
-        error.message
+        "{name}: the Rust version raises fatal error {:#x} {:?}",
+        error.code, error.message
     ));
     unsafe { raise(error, r) };
 }

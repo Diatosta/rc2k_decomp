@@ -18,6 +18,6 @@ use crate::race::frame_draw::*;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { draw_lamp_flare(r, &mut entry_part) }?;
+    unsafe { draw_lamp_flare(r) }?;
     Ok(())
 }

@@ -27,12 +27,10 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_read, game_write, rva};
-use crate::physics::flow::{base, guard, x87_run};
-use crate::service::harness::Region;
-use crate::sound::turn_parts::{OBJECT_LEN, Part, turn_entry, turn_regions};
+use crate::physics::flow::{base, x87_run};
+use crate::sound::turn_parts::turn_entry;
 use rc2k_core::sound::surfaces;
 
-const SURFACE_SOUND: u32 = 0x40E068;
 /// flt_51638C, flt_516394: the two differences whose signs pick the wheel.
 const ACROSS: usize = 0x51638C;
 const ALONG: usize = 0x516394;
@@ -59,7 +57,7 @@ fn wheel(c: &mut Regs) {
 }
 
 /// The surface of the wheel picked, its set (ebp) and `sound::surface_sound`.
-fn one(c: &mut Regs, second: usize, part: Part) -> Result<(), Refused> {
+fn one(c: &mut Regs, second: usize) -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::surfaces` (`wheel`, `quieter`, `set_pair`).
     wheel(c);
     c.eax = unsafe { ((c.eax + 0x10) as *const u32).read_unaligned() };
@@ -89,16 +87,16 @@ fn one(c: &mut Regs, second: usize, part: Part) -> Result<(), Refused> {
     }
     c.eax = surfaces::set_pair(c.eax, |n| g(SETS_OF + 4 * n as usize)).map_err(BadInput::from)?;
     c.ebp = g(SETS + 4 * second + 8 * c.eax as usize);
-    part(SURFACE_SOUND, c)
+    crate::sound::surface_sound::surface_sound_in(c)
 }
 
-pub fn surface_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn surface_sounds_in(r: &mut Regs) -> Result<(), Refused> {
     if r.ebx == 0 || r.esi == 0 {
         return Err(BadInput("no object or no request").into());
     }
     let mut c = *r;
     let (bx, b) = (c.ebx, base());
-    guard(&turn_regions_with(bx), || {
+    {
         x87_run!(
             ".byte 0xD9, 0xEE",
             "fsub dword ptr [{bx} + 0x4C]",
@@ -141,7 +139,7 @@ pub fn surface_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
             "fstp dword ptr [{b} + 0x116398]";
             bx = bx, b = b
         );
-        one(&mut c, 0, part)?;
+        one(&mut c, 0)?;
         x87_run!(
             ".byte 0xD9, 0xEE",
             "fsub dword ptr [{bx} + 0x50]",
@@ -169,15 +167,8 @@ pub fn surface_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
             "fstp dword ptr [{b} + 0x116398]";
             bx = bx, b = b
         );
-        one(&mut c, 1, part)
-    })
-}
-
-/// `turn_regions` and the object (which may not be one of the eight).
-fn turn_regions_with(o: u32) -> Vec<Region> {
-    let mut all = turn_regions();
-    all.push((o, OBJECT_LEN));
-    all
+        one(&mut c, 1)
+    }
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

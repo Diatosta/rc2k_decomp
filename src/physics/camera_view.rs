@@ -7,8 +7,7 @@
 //! `view_test_floats` (`rc2k_core::physics::camera_view`). What the variables are (the
 //! camera's mode, place, turns, a view's figures) is a reading.
 
-use crate::physics::flow::{a, base, g, p, x87_run};
-use crate::service::harness::Region;
+use crate::physics::flow::{base, g, p, x87_run};
 use rc2k_core::physics::camera_view as view;
 
 /// `off_606320`: the camera modes' records (0x34).
@@ -56,25 +55,4 @@ pub fn share_done_plain(record: u32) -> u32 {
 /// esi as the original leaves it, through the core's `mode_index`.
 pub fn record_plain() -> u32 {
     g(MODES + 4 * view::mode_index(g(0x71A65C)) as usize)
-}
-
-/// Everything the seven write, and what they read that the tests set.
-pub fn view_regions() -> Vec<Region> {
-    vec![
-        (a(0x62400C), 4),
-        (a(0x605260), 4),
-        (a(0x606288), 0x10), // 0x606288 .. 0x606294
-        (a(0x60631C), 4),
-        (a(0x606678), 0xD0),  // 0x606678 .. 0x606748
-        (a(0x608B20), 0x100), // 0x608B20 .. 0x608C20
-        (a(0x71A65C), 0x48),
-        (a(0x719FE0), 4),
-        (a(0x71A998), 12),
-        (a(0x6EF7CC), 4),
-        (a(0x6238A4), 4),
-        (a(0x637638), 12),
-        (a(0x6416E8), 12),
-        (a(0x71A08C), 0x40),
-        crate::math::turn_scratch_xz::scratch(),
-    ]
 }

@@ -19,10 +19,7 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::sound::queue::{END_OF_TURN, Queue, send_command, sent};
-use crate::sound::turn_parts::{Part, turn_entry};
-
-/// `sound::send_command`: its place, and the command it is called with here.
-pub const SEND: u32 = 0x409C45;
+use crate::sound::turn_parts::turn_entry;
 
 /// Command 0xA with the registers of `r`, in the game.
 pub fn send_end_of_turn_in_game(r: &Regs) {
@@ -31,8 +28,9 @@ pub fn send_end_of_turn_in_game(r: &Regs) {
 
 // ---- Rust version ----
 
-pub fn send_end_of_turn_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    part(SEND, r)
+pub fn send_end_of_turn_in(r: &mut Regs) -> Result<(), Refused> {
+    send_end_of_turn_in_game(r);
+    Ok(())
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

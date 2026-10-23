@@ -255,20 +255,20 @@ unsafe fn brake_value(n: usize) -> u32 {
 /// `auto_set_up_car` of every car of the race (`pusha` / `popa` round each), then
 /// `set_player_car_kinds`. Refuses, with `dword_52A910` set, no cars or more than 8
 /// (the original's `jnz` runs on), before anything.
-pub unsafe fn set_up_mode_0_cars(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn set_up_mode_0_cars(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         // Converted: `rc2k_core::race::cars::{every_car_set_up, held_brake}`.
         let cars: u32 = game_read(CARS_RVA);
         let all =
             rc2k_core::race::cars::every_car_set_up(game_read::<u32>(ALL_AUTO_RVA) != 0, cars)?;
-        part(14, &mut g)?;
+        crate::race::race_cars::cars_part(14, &mut g)?;
         if !all {
-            part(15, &mut g)?;
-            part(16, &mut g)?;
+            crate::race::race_cars::cars_part(15, &mut g)?;
+            crate::race::race_cars::cars_part(16, &mut g)?;
             for n in 0..2 {
                 g.esi = game_addr(block(n)) as u32;
-                part(17, &mut g)?;
+                crate::race::race_cars::cars_part(17, &mut g)?;
             }
             for n in 0..2 {
                 game_write(block(n) + 0x3C, brake_value(n));
@@ -277,10 +277,10 @@ pub unsafe fn set_up_mode_0_cars(entry: &Regs, part: Part) -> Result<Regs, Refus
             for n in 0..cars {
                 let mut c = Regs { ecx: n, ..g };
                 c.esi = game_read(CAR_BLOCKS_RVA + 4 * n as usize);
-                part(17, &mut c)?;
+                crate::race::race_cars::cars_part(17, &mut c)?;
             }
             g.ecx = cars;
-            part(16, &mut g)?;
+            crate::race::race_cars::cars_part(16, &mut g)?;
         }
     }
     Ok(g)
@@ -289,12 +289,12 @@ pub unsafe fn set_up_mode_0_cars(entry: &Regs, part: Part) -> Result<Regs, Refus
 /// `race::set_up_mode_1_cars` (0x43645B): `reset_car_blocks`, `drop_absent_player`,
 /// `set_player_car_kinds`; the two players' +0x88 from `dword_75B004` / `dword_75B008`.
 /// Leaves eax the second, the rest as the steps.
-pub unsafe fn set_up_mode_1_cars(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn set_up_mode_1_cars(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
-        part(14, &mut g)?;
-        part(15, &mut g)?;
-        part(16, &mut g)?;
+        crate::race::race_cars::cars_part(14, &mut g)?;
+        crate::race::race_cars::cars_part(15, &mut g)?;
+        crate::race::race_cars::cars_part(16, &mut g)?;
         for (n, &from) in MODE_1_VALUES_RVA.iter().enumerate() {
             g.eax = game_read(from);
             game_write(block(n) + 0x88, g.eax);
@@ -305,15 +305,15 @@ pub unsafe fn set_up_mode_1_cars(entry: &Regs, part: Part) -> Result<Regs, Refus
 
 /// `race::set_up_mode_4_cars` (0x43647F): `g_raceCars`, `dword_63DB94`, `dword_63DB98`
 /// 1; `reset_car_blocks`, `drop_absent_player`, `set_player_car_kinds`.
-pub unsafe fn set_up_mode_4_cars(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn set_up_mode_4_cars(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         game_write(CARS_RVA, 1u32);
         game_write(PLAYERS_RVA, 1u32);
         game_write(PLAYERS_2_RVA, 1u32);
-        part(14, &mut g)?;
-        part(15, &mut g)?;
-        part(16, &mut g)?;
+        crate::race::race_cars::cars_part(14, &mut g)?;
+        crate::race::race_cars::cars_part(15, &mut g)?;
+        crate::race::race_cars::cars_part(16, &mut g)?;
     }
     Ok(g)
 }
@@ -333,10 +333,10 @@ pub fn cars_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             1 => *r = read_stage_car_numbers(r)?,
             2 => *r = set_car_times(r, &mut cars_part)?,
             3 => *r = set_up_mode_2_cars(r, &mut cars_part)?,
-            4 => *r = set_up_mode_1_cars(r, &mut cars_part)?,
+            4 => *r = set_up_mode_1_cars(r)?,
             5 => *r = set_up_race_cars(r)?,
-            6 => *r = set_up_mode_0_cars(r, &mut cars_part)?,
-            7 => *r = set_up_mode_4_cars(r, &mut cars_part)?,
+            6 => *r = set_up_mode_0_cars(r)?,
+            7 => *r = set_up_mode_4_cars(r)?,
             8 => clear_race_tables(),
             19 => *r = choose_arcade_opponents(r, &mut cars_part)?,
             _ => r.eax = crate::scene::next_noise::next_noise(),

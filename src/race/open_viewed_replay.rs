@@ -187,18 +187,8 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 let failed = crate::drive::read_replay_frame_0::read_replay_frame_0(r.eax)?;
                 r.set_carry(failed);
             }
-            6 => {
-                *r = crate::race::close_viewed_replay::close_viewed_replay(
-                    r,
-                    &mut crate::race::close_viewed_replay::game_part,
-                )?
-            }
-            _ => {
-                *r = crate::race::replay_patches::apply_replay_patches(
-                    r,
-                    &mut crate::race::replay_patches::game_part,
-                )?
-            }
+            6 => *r = crate::race::close_viewed_replay::close_viewed_replay(r)?,
+            _ => *r = crate::race::replay_patches::apply_replay_patches(r)?,
         }
     }
     Ok(())

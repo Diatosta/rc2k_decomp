@@ -8,9 +8,8 @@
 //! against ten times kept per split). This file: the shared names and the test.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, restore};
 
 pub const MODE: usize = 0x62389C; // dword_62389C
 pub const TIME: usize = 0x71A060; // g_car + 0x88
@@ -30,40 +29,15 @@ pub fn p(x: usize, v: u32) {
     unsafe { game_write(rva(x), v) }
 }
 
-/// What the steps write, saved before a step and put back when it refuses.
-pub fn written() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    vec![
-        (a(0x719FD8), 0xFE0),
-        (a(0x6043F8), 4),
-        (a(0x75B02C), 0xE0),
-        (a(0x6D1838), 0x14),
-        (a(TEXT), 0x40),
-        (a(0x601D68), 0x168),
-        (a(0x601ED0), 0x168),
-        (a(0x602038), 0x168),
-        (a(0x6021A0), 0x16C),
-        (a(0x614170), 4),
-        (a(0x51659C), 12),
-        (a(0x601C68), 0x100),
-        (a(0x6D1AEC), 4),
-    ]
-}
-
 /// Runs `step` on a copy of `entry`; on a refusal what was written is put back (the
 /// text the strings may have run past 0x40 into is not).
 pub fn guarded(
     entry: &Regs,
     step: &dyn Fn(&mut Regs) -> Result<(), Refused>,
 ) -> Result<Left, Refused> {
-    let all = written();
-    let saved = capture(&all);
     let mut r = *entry;
     match step(&mut r) {
         Ok(()) => Ok(crate::race::stage_prefs::left_of(&r)),
-        Err(e) => {
-            restore(&all, &saved);
-            Err(e)
-        }
+        Err(e) => Err(e),
     }
 }

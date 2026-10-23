@@ -25,7 +25,7 @@ use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::physics::flow::{a, g, p};
 use crate::race::viewer::{
-    BLOCK, CAMERA_EDIT, CAMERAS, CHOICE, FRAME_CLOCK, MOVE_CLOCK, Part, gb, regs_entry,
+    BLOCK, CAMERA_EDIT, CAMERAS, CHOICE, FRAME_CLOCK, MOVE_CLOCK, gb, regs_entry,
 };
 
 const SWITCH_A: usize = 0x5C2C70; // off_5C2C70: by camera byte 2 or 3
@@ -38,7 +38,7 @@ fn camera_byte(byte: usize) -> u32 {
 }
 
 /// The Rust version: the registers it leaves (the entry's).
-pub fn draw_viewer_item(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn draw_viewer_item(entry: &Regs) -> Result<Regs, Refused> {
     let item = entry.esi;
     let byte = |n: u32| unsafe { ((item + n) as *const u8).read() };
     let word = |at: u32| unsafe { (at as *const u32).read_unaligned() };
@@ -78,7 +78,7 @@ pub fn draw_viewer_item(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         edi: place,
         ..*entry
     };
-    part(1, &mut r)?;
+    crate::race::draw_viewer_item::game_part(1, &mut r)?;
     Ok(*entry)
 }
 
@@ -92,5 +92,5 @@ pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| draw_viewer_item(r, &mut game_part))
+    regs_entry(r, &|r| draw_viewer_item(r))
 }

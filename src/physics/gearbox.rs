@@ -9,14 +9,13 @@
 //! run time (0 in the file); the tests set them.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::math::x87;
 use crate::physics::gear_bit::gear_bit;
 use crate::physics::gearing::{
     GearPlaces, revs_from_speed_at, revs_from_wheels_at, wheels_from_revs_at,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, restore};
 use std::cmp::Ordering;
 
 pub const GEAR: usize = 0x71A1AC; // g_carGear
@@ -96,33 +95,15 @@ pub fn ratio(gear: u32) -> Result<u32, Refused> {
     Ok(g(RATIOS.wrapping_add(4 * gear as usize)))
 }
 
-/// What the gearbox writes (the work car, its copy of +8, the start gear's three, the
-/// scratch).
-pub fn regions() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    vec![
-        (a(0x719FD8), 0xFE0),
-        (a(0x6140EC), 8),
-        (a(0x61413C), 12),
-        (a(SCRATCH), 4),
-        (a(0x614C40), 4),
-    ]
-}
-
 /// Runs `step` with every register model start `entry`; on a refusal what was written is
 /// put back. Returns all the registers as left.
 pub fn guarded(
     entry: &Regs,
     step: &dyn Fn(&mut Regs) -> Result<(), Refused>,
 ) -> Result<Left, Refused> {
-    let all = regions();
-    let saved = capture(&all);
     let mut r = *entry;
     match step(&mut r) {
         Ok(()) => Ok(crate::race::stage_prefs::left_of(&r)),
-        Err(e) => {
-            restore(&all, &saved);
-            Err(e)
-        }
+        Err(e) => Err(e),
     }
 }

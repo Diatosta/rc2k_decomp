@@ -23,11 +23,11 @@
 //! traps there). One caller, `start` (0x40101A); in the game this never gets a call (the
 //! hook DLL is loaded later); the standalone program needs it (it used a stand-in for
 //! `g_hasFpu`).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! `start` calls it directly (2026-10-23); the registers above are the original's, for
+//! reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use core::arch::x86::{__cpuid, _rdtsc};
 use rc2k_core::system::processor::{Var, test};
 use windows_sys::Win32::System::SystemInformation::GetTickCount;
@@ -149,10 +149,4 @@ pub unsafe fn test_processor(p: &dyn Processor) -> Result<(), Refused> {
     };
     let get = |v: Var| unsafe { game_read::<u32>(place(v)) };
     test(p, &mut put, &get).map_err(|e| BadInput::from(e).into())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { test_processor(&Real) }?;
-    Ok(())
 }

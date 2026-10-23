@@ -30,8 +30,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{EDI, ESI, Regs};
 use crate::math::x87::loaded;
-use crate::physics::car_collisions::regions;
-use crate::physics::flow::{a, base, fill3, g, guard, p, x87_run};
+use crate::physics::flow::{a, base, fill3, g, p, x87_run};
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::{extended, rounded};
@@ -182,7 +181,7 @@ pub unsafe fn bump_cars(edi: u32) -> Result<Left, Refused> {
     if edi == 0 || g(OTHER) == 0 {
         return Err(BadInput("a null car block").into());
     }
-    guard(&regions(), || steps(edi))
+    steps(edi)
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

@@ -28,12 +28,12 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, EDX, ESI, Regs, game_addr};
-use crate::math::next_random::{STATE_RVA, next_random};
-use crate::physics::flow::{a, c0, g, guard, p};
+use crate::framework::{EAX, EBX, EDX, ESI, Regs};
+use crate::math::next_random::next_random;
+use crate::physics::flow::{a, c0, g, p};
 use crate::physics::place_sound_object::place_sound_object;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::drive::lit_faces::{LIST_ROOM, Touch, fall_mark, lucky, touch};
 
 /// `g_courseFaces`: the pointer to the course's faces.
@@ -76,12 +76,12 @@ pub unsafe fn touch_face() -> Result<Left, Refused> {
     if count > LIST_ROOM {
         return Err(BadInput("g_litFaceCount past 0x100 (the list's room)").into());
     }
-    let all = [
+    let _all = [
         (a(LIT + 4 * count as usize), 4),
         (face, 0x40),
         (a(LIT_COUNT), 4),
     ];
-    let eax = guard(&all, || {
+    let eax = (|| -> Result<_, crate::errors::Refused> {
         p(LIT + 4 * count as usize, number);
         let kind = g(KIND);
         let eax = match touch(kind) {
@@ -106,28 +106,12 @@ pub unsafe fn touch_face() -> Result<Left, Refused> {
         unsafe { place_sound_object() }?;
         p(LIT_COUNT, count + 1);
         Ok(eax)
-    })?;
+    })()?;
     Ok(left.with(EAX, eax))
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { touch_face() }
-}
-
-pub fn regions() -> Vec<Region> {
-    let mut all = vec![(a(LIT), 0x404), (game_addr(STATE_RVA) as u32, 4)];
-    let face = (g(FACE) << 6).wrapping_add(g(FACES));
-    if g(FACES) != 0 {
-        all.push((face, 0x40));
-    }
-    // Only a listed car's object is written (`place_sound_object`); an unlisted car's
-    // pointer may be stale (see `crash_contact::sound_regions`).
-    let listed = crate::physics::car_sounds::listed(g(0x71B3F8)) == Ok(true);
-    if listed && let Ok(o) = crate::physics::car_sounds::object() {
-        all.extend([(o + 0x10, 4), (o + 0x238, 0x28)]);
-    }
-    all.push((a(0x6D1AEC), 4));
-    all
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

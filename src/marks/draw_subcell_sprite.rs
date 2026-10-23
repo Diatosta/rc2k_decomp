@@ -39,9 +39,6 @@ const VERTEX_COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
 const SUBCELLS_RVA: usize = rva(0x935B66); // g_marksSubcellPlaces: 0x410 of 16 bytes
 const SUBCELLS: u32 = 0x410;
 
-/// A call by place: 1 `draw_fan`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The original's 0x4CBF47 .. 0x4CBFCB: the place turned by the view.
 unsafe fn turn(b: u32, p: &[[u8; 10]; 3]) {
     unsafe {
@@ -147,11 +144,7 @@ unsafe fn square(b: u32) {
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_subcell_sprite(
-    entry: &Regs,
-    place: [[u8; 10]; 3],
-    part: Part,
-) -> Result<Regs, Refused> {
+pub unsafe fn draw_subcell_sprite(entry: &Regs, place: [[u8; 10]; 3]) -> Result<Regs, Refused> {
     let mut g = *entry;
     if g.eax >= SUBCELLS {
         return Err(BadInput("a mark subcell past g_marksSubcellPlaces").into());
@@ -196,7 +189,7 @@ pub unsafe fn draw_subcell_sprite(
         if g.carry() {
             return Ok(g);
         }
-        part(1, &mut g)?;
+        crate::marks::draw_subcell_sprite::game_part(1, &mut g)?;
         game_write(VERTEX_COUNT_RVA, 4u32);
     }
     Ok(g)

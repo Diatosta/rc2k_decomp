@@ -168,23 +168,18 @@ pub unsafe fn load_packed_game_map(path: u32) -> Result<(), Refused> {
     }
 }
 
-/// `race::load_game_map`'s calls into the picture readers, as places of `Part`: 0
-/// `files::file_exists` (eax the path; carry: not there), 1 `gfx::read_sheet`, 2
-/// `gfx::read_picture_file` (eax the path; carry: not read).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// `race::load_game_map` (0x41B480): the map (eax the picture's path, ebx the key's; see
 /// the header). Leaves eax `g_packedPath` when it reads the packed file, else every
 /// register preserved. A key not 8-bit is fatal error 0x80E48073. The key's list freed
 /// and `g_mapKeyPixels` 0 at the end; the picture limits and buffer put back.
-pub unsafe fn load_game_map(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn load_game_map(entry: &Regs) -> Result<Regs, Refused> {
     use crate::gfx::pcx::{HEIGHT_LIMIT_RVA, WIDTH_LIMIT_RVA};
     use crate::gfx::picture::{FLAGS_RVA, HEIGHT_RVA, PICTURE_RVA, ROW_BYTES_RVA, WIDTH_RVA};
     let mut g = *entry;
     unsafe {
         if game_read::<u32>(USE_PACKED_RVA) == 1 {
             let mut r = g;
-            part(0, &mut r)?;
+            crate::race::game_map::game_part(0, &mut r)?;
             if r.carry() {
                 let path = game_addr(PACKED_PATH_RVA) as *mut u8;
                 let cursor =
@@ -220,7 +215,7 @@ pub unsafe fn load_game_map(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                 eax: game_read(KEY_PATH_RVA),
                 ..g
             };
-            part(1, &mut r)?;
+            crate::race::game_map::game_part(1, &mut r)?;
             if r.carry() {
                 return Ok(());
             }
@@ -261,7 +256,7 @@ pub unsafe fn load_game_map(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                 eax: game_read(PICTURE_PATH_RVA),
                 ..g
             };
-            part(2, &mut r)?;
+            crate::race::game_map::game_part(2, &mut r)?;
             if r.carry() {
                 return Ok(());
             }

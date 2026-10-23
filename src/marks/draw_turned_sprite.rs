@@ -42,15 +42,8 @@ const SINES_RVA: usize = rva(0xA23AE4); // g_sines
 const COSINES_RVA: usize = rva(0xA24AE4); // g_cosines: 0x1000 entries
 const ANGLES: u32 = 0x1000;
 
-/// A call by place: 1 `draw_fan`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_turned_sprite(
-    entry: &Regs,
-    place: [[u8; 10]; 3],
-    part: Part,
-) -> Result<Regs, Refused> {
+pub unsafe fn draw_turned_sprite(entry: &Regs, place: [[u8; 10]; 3]) -> Result<Regs, Refused> {
     let mut g = *entry;
     if g.ebx >= ANGLES {
         return Err(BadInput("an angle past the sine tables").into());
@@ -98,7 +91,7 @@ pub unsafe fn draw_turned_sprite(
         if g.carry() {
             return Ok(g);
         }
-        part(1, &mut g)?;
+        crate::marks::draw_turned_sprite::game_part(1, &mut g)?;
         game_write(COUNT_RVA, 4u32);
     }
     Ok(g)

@@ -26,11 +26,8 @@ use crate::input::types::InputDevice;
 pub const COMMAND_RVA: usize = rva(0x4F7DE4); // g_inputCommand
 const TWO_DEVICES_RVA: usize = rva(0x4F68FC); // dword_4F68FC
 
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves (`popa`'s: the entry's).
-pub unsafe fn input_tick(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn input_tick(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     let command = unsafe {
         let at = game_addr(COMMAND_RVA) as *const std::sync::atomic::AtomicU32;
@@ -38,14 +35,14 @@ pub unsafe fn input_tick(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     };
     r.eax = command;
     if command != 0 {
-        part(0, &mut r)?;
+        crate::input::input_tick::game_part(0, &mut r)?;
         return Ok(*entry);
     }
     let records = RECORDS.map(|rva| game_addr(rva) as u32);
     for record in records {
         r.esi = record;
-        part(1, &mut r)?;
-        part(2, &mut r)?;
+        crate::input::input_tick::game_part(1, &mut r)?;
+        crate::input::input_tick::game_part(2, &mut r)?;
     }
     if unsafe { game_read::<u32>(TWO_DEVICES_RVA) } != 0 {
         // Converted: `rc2k_core::input::devices::merge_readings`.
@@ -64,24 +61,14 @@ pub unsafe fn input_tick(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         match place {
-            0 => {
-                *r = crate::input::device_command::device_command(
-                    r,
-                    &mut crate::input::device_command::game_part,
-                )?
-            }
+            0 => *r = crate::input::device_command::device_command(r)?,
             1 => {
                 *r = crate::input::read_device::read_device(
                     r,
                     &mut crate::input::read_device::game_part,
                 )?
             }
-            _ => {
-                *r = crate::input::device_effects::device_effects(
-                    r,
-                    &mut crate::input::device_effects::game_part,
-                )?
-            }
+            _ => *r = crate::input::device_effects::device_effects(r)?,
         }
     }
     Ok(())
@@ -89,12 +76,12 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version with the game's calls: for the standalone's input thread.
 pub unsafe fn input_tick_in_game() -> Result<(), Refused> {
-    unsafe { input_tick(&Regs::default(), &mut game_part) }.map(|_| ())
+    unsafe { input_tick(&Regs::default()) }.map(|_| ())
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { input_tick(r, &mut game_part) }?;
+    let left = unsafe { input_tick(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

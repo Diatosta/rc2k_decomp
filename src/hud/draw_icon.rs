@@ -26,12 +26,9 @@ pub const SCALE_RVA: usize = rva(0x75C06C); // dword_75C06C
 pub const SHIFT_RVA: usize = rva(0x75C070); // dword_75C070
 const SCRATCH_RVA: usize = rva(0x75C060); // dword_75C060
 
-/// A call by place: 1 `add_polygon`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
 // Converted: `rc2k_core::hud::icons`
-pub unsafe fn draw_icon(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn draw_icon(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         let e = g.ebp.wrapping_add(g.edi);
@@ -56,14 +53,14 @@ pub unsafe fn draw_icon(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         }
         game_write(POLYGON_COUNT_RVA, 4u32);
         let mut r = g;
-        part(1, &mut r)?;
+        crate::hud::add_quad::game_part(1, &mut r)?;
     }
     Ok(g)
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_icon(r, &mut crate::hud::add_quad::game_part) }?;
+    let left = unsafe { draw_icon(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

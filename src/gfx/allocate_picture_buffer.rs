@@ -11,7 +11,7 @@
 //! Self-test: a redirected copy whose three variables are the test's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::memory::MemoryList;
 use crate::memory::allocate::allocate;
 
@@ -24,24 +24,13 @@ const SPARE: u32 = 0xC80;
 
 // ---- Rust version ----
 
-/// `size`, `list` and `buffer` are the three variables' addresses.
-pub unsafe fn allocate_picture_buffer(
-    size: *mut u32,
-    list: *mut MemoryList,
-    buffer: *mut u32,
-) -> Result<(), Refused> {
-    unsafe {
-        size.write_unaligned(BUFFER_LEN);
-        let memory = allocate(list, BUFFER_LEN + SPARE)?;
-        buffer.write_unaligned(memory as u32);
-    }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+/// The Rust version (see the header).
+pub fn allocate_picture_buffer() -> Result<(), Refused> {
     let [size, list, buffer] = PLACES.map(|at| game_addr(rva(at)));
-    let done = unsafe { allocate_picture_buffer(size as _, list as _, buffer as _) };
-    done?;
+    unsafe {
+        (size as *mut u32).write_unaligned(BUFFER_LEN);
+        let memory = allocate(list as *mut MemoryList, BUFFER_LEN + SPARE)?;
+        (buffer as *mut u32).write_unaligned(memory as u32);
+    }
     Ok(())
 }

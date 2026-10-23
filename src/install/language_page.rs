@@ -19,13 +19,13 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::install::installer::{
-    CHOOSE_LANGUAGE, LANGUAGE_COUNT, LIST_ANSWER, LOAD_LANGUAGE, Part, SAME_VERSION, at, g, gb,
-    logic, rb, wb,
+    CHOOSE_LANGUAGE, LANGUAGE_COUNT, LIST_ANSWER, LOAD_LANGUAGE, SAME_VERSION, at, g, gb, logic,
+    rb, wb,
 };
 use crate::race::viewer::regs_entry;
 use rc2k_core::install::pages;
 
-pub fn language_page(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn language_page(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     if r.ebx == 0 {
         // The same version, or at most one language (unsigned): the item itself hidden
@@ -41,8 +41,8 @@ pub fn language_page(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     } else if (r.ebx as i32) < 0 {
         r.eax = gb(LIST_ANSWER) as u32;
         if r.eax != 0 {
-            part(at(CHOOSE_LANGUAGE), &mut r)?;
-            part(at(LOAD_LANGUAGE), &mut r)?;
+            crate::install::installer::game_part(at(CHOOSE_LANGUAGE), &mut r)?;
+            crate::install::installer::game_part(at(LOAD_LANGUAGE), &mut r)?;
         }
     }
     // hide the items past the languages
@@ -68,7 +68,5 @@ pub fn language_page(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| {
-        language_page(r, &mut crate::install::installer::game_part)
-    })
+    regs_entry(r, &|r| language_page(r))
 }

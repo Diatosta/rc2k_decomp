@@ -28,7 +28,7 @@ use crate::marks::splines::{MADE_RVA, PLACE_RVA};
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, restore, state_entry};
+use crate::service::harness::{Region, at, state_entry};
 
 const TICKS_RVA: usize = rva(0x764FD0); // g_marksFrameTicks
 const ANGLE_RVA: usize = rva(0x7695B6); // flt_7695B6
@@ -109,13 +109,8 @@ pub unsafe fn run_splines(entry: &Regs) -> Result<Regs, Refused> {
     if places > MOST_SPLINES {
         return Err(BadInput("more than 8 splines").into());
     }
-    let written = regions(settings);
-    let saved = capture(&written);
-    let done = unsafe { run(entry, settings, places) };
-    if done.is_err() {
-        restore(&written, &saved);
-    }
-    done
+
+    unsafe { run(entry, settings, places) }
 }
 
 unsafe fn run(entry: &Regs, settings: u32, places: i32) -> Result<Regs, Refused> {

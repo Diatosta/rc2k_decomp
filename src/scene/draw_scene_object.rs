@@ -106,10 +106,7 @@ pub unsafe fn draw_scene_object_in_game(r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         draw_scene_object(r, &mut |way, r| match way {
             Way::Shown => draw_shown_object(r, &mut |r| draw_object_in_game(r)).map(|_| ()),
-            Way::Described => crate::scene::draw_described_object::draw_described_object(
-                r,
-                &mut crate::scene::draw_described_object::described_part,
-            ),
+            Way::Described => crate::scene::draw_described_object::draw_described_object(r),
         })
     }
 }

@@ -19,7 +19,7 @@ use crate::race::car_shadow::*;
 
 /// The shadow on the faces, in the game.
 pub fn faces_in_game(r: &Regs) -> Result<Regs, crate::errors::Refused> {
-    unsafe { shadow_faces(r, &mut |e| shadow_on_face(e, &mut face_part).map(|_| ())) }
+    unsafe { shadow_faces(r, &mut |e| shadow_on_face(e).map(|_| ())) }
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).

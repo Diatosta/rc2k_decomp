@@ -17,16 +17,16 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::race::viewer::{HANDLE, OPEN, Part, get, put, regs_entry};
+use crate::race::viewer::{HANDLE, OPEN, get, put, regs_entry};
 
 /// The Rust version: the registers it leaves (the entry's).
-pub fn close_viewed_replay(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn close_viewed_replay(entry: &Regs) -> Result<Regs, Refused> {
     // Converted: `rc2k_core::race::viewer_flow::closes`.
     if rc2k_core::race::viewer_flow::closes(get(OPEN)) {
         let mut r = *entry;
-        part(1, &mut r)?;
+        crate::race::close_viewed_replay::game_part(1, &mut r)?;
         r.eax = get(HANDLE);
-        part(2, &mut r)?;
+        crate::race::close_viewed_replay::game_part(2, &mut r)?;
         put(OPEN, 0);
     }
     Ok(*entry)
@@ -35,10 +35,7 @@ pub fn close_viewed_replay(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// In the game: the Rust versions.
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     if place == 1 {
-        *r = crate::race::replay_patches::restore_replay_patches(
-            r,
-            &mut crate::race::replay_patches::game_part,
-        )?;
+        *r = crate::race::replay_patches::restore_replay_patches(r)?;
     } else {
         let closed = unsafe { crate::files::handle::close(r.eax) };
         r.set_carry(!closed);
@@ -49,5 +46,5 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| close_viewed_replay(r, &mut game_part))
+    regs_entry(r, &|r| close_viewed_replay(r))
 }

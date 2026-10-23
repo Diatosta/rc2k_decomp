@@ -118,7 +118,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             1 => cars_particles::cars_particles(r)?,
             2 => view_heading::view_heading(r),
             3 => view_motion::view_motion(r),
-            4 => begin_quads::begin_quads(r, &mut begin_quads::game_part)?,
+            4 => begin_quads::begin_quads(r)?,
             _ => {
                 crate::scene::depth_test_on::depth_test_on(r);
                 return Ok(());

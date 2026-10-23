@@ -9,14 +9,14 @@
 //! (`machinetype=`), the Windows version (`platform=`), the memory (`GlobalMemoryStatus`
 //! into `Buffer`, 0x4E0558) and the free space of the current drive in Kb (`sub_403175`
 //! and `sub_40317D` with no drive given, here as `free_space_kb`; kept in `dword_4E073A`).
-//! One caller, `start`.
+//! One caller, `start`, which calls it directly (2026-10-23).
 //! Shadow mode runs the original alone (the file can be deleted and begun once).
 //! Self-test, with the game running since it logs: a redirected copy that deletes
 //! nothing; both versions add a head to the log, and what each added is compared but for
 //! the two lines about memory, whose numbers move.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::logfile::date_text::write_date_text;
 use crate::logfile::log_hex8::log_hex8;
 use crate::logfile::log_int::log_int;
@@ -76,15 +76,15 @@ unsafe fn text(text: &[u8], newline: bool) {
     unsafe { log_write(text.as_ptr(), newline, 1) };
 }
 
-/// `delete` stands for the deleting of the log's file. Refuses, before doing anything, a
-/// start date the date's text refuses.
-pub unsafe fn start_log(delete: &mut dyn FnMut()) -> Result<(), BadInput> {
+/// The Rust version (see the header). Refuses, before doing anything, a start date the
+/// date's text refuses.
+pub unsafe fn start_log() -> Result<(), BadInput> {
     unsafe {
         if game_read::<u32>(LOG_LEVEL_RVA) == 0 {
             return Ok(());
         }
         crate::logfile::date_text::date_text()?;
-        delete();
+        DeleteFileA(game_addr(LOG_PATH_RVA) as *const u8);
         // Converted: `rc2k_core::files::log::head`; the values gathered (the date text,
         // the memory and the drive's numbers left in game memory as the original leaves
         // them), then each message logged as the original's call.
@@ -142,17 +142,4 @@ pub unsafe fn start_log(delete: &mut dyn FnMut()) -> Result<(), BadInput> {
         }
         Ok(())
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let done = unsafe {
-        start_log(&mut || {
-            DeleteFileA(game_addr(LOG_PATH_RVA) as *const u8);
-        })
-    };
-    if let Err(e) = done {
-        return Err(e.into());
-    }
-    Ok(())
 }

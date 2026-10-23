@@ -39,7 +39,7 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{EAX, EBX, ECX, EDI, EDX, ESI, Regs, game_addr, game_read, game_write, rva};
 use crate::physics::flip_cell_index::flip_cell_index;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, restore, state_entry};
+use crate::service::harness::state_entry;
 use std::cmp::Ordering;
 
 fn g(x: usize) -> u32 {
@@ -363,37 +363,11 @@ unsafe fn steps() -> Result<Left, Refused> {
 
 /// The Rust version: what was written is put back on a refusal.
 pub unsafe fn wheel_surfaces() -> Result<Left, Refused> {
-    let all = regions();
-    let saved = capture(&all);
-    let result = unsafe { steps() };
-    if result.is_err() {
-        restore(&all, &saved);
-    }
-    result
+    unsafe { steps() }
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { wheel_surfaces() }
-}
-
-fn regions() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    vec![
-        (a(0x62400C), 4),
-        (a(0x624040), 12),
-        (a(0x614710), 0x28),
-        (a(0x71A8F8), 0xA0),
-        (a(0x71A038), 4),
-        (a(0x71A230), 4),
-        (a(0x61411C), 8),
-        (a(0x614150), 0x14),
-        (a(0x614230), 4),
-        (a(0x614268), 4),
-        (a(0x614284), 0x50),
-        (a(0x6146C0), 0x50),
-        (a(0x614760), 8),
-        (a(0x623DA8), 8),
-    ]
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

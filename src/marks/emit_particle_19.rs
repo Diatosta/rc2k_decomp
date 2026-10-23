@@ -27,11 +27,10 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::emitters::*;
 use crate::marks::jitter_point::jitter_point;
-use crate::marks::setup::SEED_RVA;
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at as at_rva, state_entry};
+use crate::service::harness::state_entry;
 
 const LEVEL_RVA: usize = rva(0x93A1CE); // dword_93A1CE
 const MOTION_RVA: usize = rva(0x93A1C2); // dword_93A1C2 .. dword_93A1CA
@@ -169,24 +168,6 @@ pub unsafe fn emit_twin(set: &TwinSet, object: u32) -> Result<(), Refused> {
         put(0x68, car);
     }
     Ok(())
-}
-
-/// The globals it may write.
-pub fn globals(set: &TwinSet) -> Vec<Region> {
-    let mut r: Vec<Region> = [
-        LEVEL_RVA,
-        set.chance_random,
-        FLAGS_RVA,
-        SIZE_RVA,
-        set.spin_random,
-        SEED_RVA,
-        RING_CURSOR_RVA,
-        RING_COUNT_RVA,
-    ]
-    .map(at_rva)
-    .to_vec();
-    r.push((crate::framework::game_addr(MOTION_RVA) as u32, 12));
-    r
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

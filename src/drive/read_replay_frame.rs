@@ -24,7 +24,7 @@ use crate::errors::{FatalError, Refused};
 use crate::framework::Regs;
 use crate::physics::flow::{a, g, p};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::drive::replay_frames::{frame_fault, past_end};
 
 /// `dword_9613A4`: the frame read.
@@ -61,16 +61,6 @@ pub unsafe fn read_replay_frame(frame: u32, tenth: u32) -> Result<bool, Refused>
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::carry(unsafe { read_replay_frame(r.eax, r.ebx) }?))
-}
-
-/// What it writes.
-pub fn regions() -> Vec<Region> {
-    vec![
-        (a(FRAME), 0x2810),
-        (a(crate::drive::read_packed::PACKED), 0x400),
-        (a(0x5BEC90), 4),
-        (a(0x5C2530), 8),
-    ]
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

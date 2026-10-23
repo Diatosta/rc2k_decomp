@@ -16,23 +16,15 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::physics::allowed_gear::allowed_gear;
 use crate::physics::change_gear::change_gear;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, restore, state_entry};
-
-/// What the function and its calls write.
-fn regions() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    vec![(a(0x719FD8), 0xFE0), (a(0x614C40), 4)]
-}
+use crate::service::harness::state_entry;
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::gearbox::asked_gear`.
 pub unsafe fn take_asked_gear() -> Result<Left, Refused> {
-    let all = regions();
-    let saved = capture(&all);
     let run = || -> Result<Left, Refused> {
         unsafe {
             game_write(rva(0x71A210), 0u32);
@@ -43,11 +35,8 @@ pub unsafe fn take_asked_gear() -> Result<Left, Refused> {
             change_gear()
         }
     };
-    let result = run();
-    if result.is_err() {
-        restore(&all, &saved);
-    }
-    result
+
+    run()
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {

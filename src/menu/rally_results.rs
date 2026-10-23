@@ -20,11 +20,8 @@ use crate::framework::{Regs, game_read, game_write, rva};
 const FLAG_RVA: usize = rva(0x75AADC); // dword_75AADC
 const EVENT_MODE_RVA: usize = rva(0x7556D0); // g_eventMode
 
-/// A call by place: 1 `menu::show_overall_rally_results`, 2 `menu::class_rally_results_pass`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn rally_results(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn rally_results(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         game_write(FLAG_RVA, 1u32);
@@ -34,9 +31,9 @@ pub unsafe fn rally_results(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             g = crate::menu::sort_standings_by_total::sort_standings_by_total(&g)?;
             g = crate::menu::clear_standings_a::clear_standings_a(&g)?;
             g = crate::menu::number_all_a::number_all_a(&g)?;
-            part(1, &mut g)?;
+            crate::menu::rally_results::game_part(1, &mut g)?;
         } else {
-            part(2, &mut g)?;
+            crate::menu::rally_results::game_part(2, &mut g)?;
         }
         game_write(FLAG_RVA, 0u32);
     }
@@ -63,7 +60,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { rally_results(r, &mut game_part) }?;
+    let left = unsafe { rally_results(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

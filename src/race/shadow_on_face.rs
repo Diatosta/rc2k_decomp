@@ -22,6 +22,6 @@ use crate::race::car_shadow::*;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { shadow_on_face(r, &mut face_part) }?;
+    unsafe { shadow_on_face(r) }?;
     Ok(())
 }

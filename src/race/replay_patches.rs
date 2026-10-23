@@ -13,7 +13,7 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::race::viewer::{Part, get, move_dwords, put};
+use crate::race::viewer::{get, move_dwords, put};
 
 const IN_HEADER: usize = 0x719C54; // dword_719C54
 const IN_FORCE: usize = 0x5C2C94; // dword_5C2C94
@@ -23,7 +23,7 @@ const REPLAYS: usize = 0x719C58; // unk_719C58
 const APPLIED: usize = 0x71C72C; // g_patchesApplied
 
 /// `apply_replay_patches`.
-pub fn apply_replay_patches(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn apply_replay_patches(entry: &Regs) -> Result<Regs, Refused> {
     // Converted: `rc2k_core::race::viewer_flow::{patches_change, PATCH_DWORDS}`.
     use rc2k_core::race::viewer_flow::{PATCH_DWORDS, patches_change};
     if patches_change(get(IN_HEADER), get(IN_FORCE), false) {
@@ -37,13 +37,13 @@ pub fn apply_replay_patches(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             edi: crate::physics::flow::a(SWITCHES) + 0x34,
             ..*entry
         };
-        part(1, &mut r)?;
+        crate::race::replay_patches::game_part(1, &mut r)?;
     }
     Ok(*entry)
 }
 
 /// `restore_replay_patches`.
-pub fn restore_replay_patches(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn restore_replay_patches(entry: &Regs) -> Result<Regs, Refused> {
     // Converted: `rc2k_core::race::viewer_flow::{patches_change, PATCH_DWORDS}`.
     use rc2k_core::race::viewer_flow::{PATCH_DWORDS, patches_change};
     if patches_change(get(IN_HEADER), get(IN_FORCE), true) {
@@ -56,7 +56,7 @@ pub fn restore_replay_patches(entry: &Regs, part: Part) -> Result<Regs, Refused>
             edi: crate::physics::flow::a(SWITCHES) + 0x34,
             ..*entry
         };
-        part(1, &mut r)?;
+        crate::race::replay_patches::game_part(1, &mut r)?;
     }
     Ok(*entry)
 }

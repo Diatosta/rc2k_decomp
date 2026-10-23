@@ -31,9 +31,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::install::installer::{
-    COPY_PICTURE, FILL_RECT, FRAME_RECT, LOCK, Part, SHOW, UNLOCK, at,
-};
+use crate::install::installer::{COPY_PICTURE, FILL_RECT, FRAME_RECT, LOCK, SHOW, UNLOCK, at};
 
 const BLIT_GLYPH_LIST: usize = 0x402628; // install::blit_glyph_list
 const DRAW_STRING_LIST: usize = 0x402370; // install::draw_string_list
@@ -72,7 +70,7 @@ fn bar_width() -> Result<u32, Refused> {
 }
 
 /// `install::progress_frame`'s Rust version.
-pub fn progress_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn progress_frame(entry: &Regs) -> Result<Regs, Refused> {
     let width = bar_width()?;
     let mut r = *entry;
     for _ in 0..2 {
@@ -80,14 +78,14 @@ pub fn progress_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             eflags: r.eflags,
             ..*entry
         };
-        part(at(LOCK), &mut r)?;
+        crate::install::installer::game_part(at(LOCK), &mut r)?;
         if r.carry() {
             continue;
         }
         r.eax = 0;
         r.ebx = a(BAR_RVA);
         r.esi = a(PALETTE_RVA);
-        part(at(FILL_RECT), &mut r)?;
+        crate::install::installer::game_part(at(FILL_RECT), &mut r)?;
         let x = g(BAR_RVA);
         let kept_clip = g(CLIP_RIGHT_RVA);
         unsafe { game_write(CLIP_RIGHT_RVA, width.wrapping_add(x).wrapping_add(1)) };
@@ -96,7 +94,7 @@ pub fn progress_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         r.ecx = 0;
         r.edx = 0;
         r.esi = g(BAR_GLYPHS_RVA);
-        part(at(BLIT_GLYPH_LIST), &mut r)?;
+        crate::install::installer::game_part(at(BLIT_GLYPH_LIST), &mut r)?;
         unsafe { game_write(CLIP_RIGHT_RVA, kept_clip) };
         let mut text = crate::strings::append_percent::append_percent(width >> 2);
         text.push(0);
@@ -105,9 +103,9 @@ pub fn progress_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         r.ebx = a(TEXT_RVA);
         r.ecx = x.wrapping_add(0xC8);
         r.edx = g(BAR_RVA + 4).wrapping_add(2);
-        part(at(DRAW_TEXT), &mut r)?;
-        part(at(UNLOCK), &mut r)?;
-        part(at(SHOW), &mut r)?;
+        crate::install::installer::game_part(at(DRAW_TEXT), &mut r)?;
+        crate::install::installer::game_part(at(UNLOCK), &mut r)?;
+        crate::install::installer::game_part(at(SHOW), &mut r)?;
     }
     Ok(Regs {
         eflags: r.eflags,
@@ -116,31 +114,31 @@ pub fn progress_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 }
 
 /// `install::copying_frame`'s Rust version.
-pub fn copying_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn copying_frame(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
     for _ in 0..2 {
         r = Regs {
             eflags: r.eflags,
             ..*entry
         };
-        part(at(LOCK), &mut r)?;
+        crate::install::installer::game_part(at(LOCK), &mut r)?;
         if r.carry() {
             continue;
         }
-        part(at(COPY_PICTURE), &mut r)?;
+        crate::install::installer::game_part(at(COPY_PICTURE), &mut r)?;
         r.eax = 2;
         r.ebx = a(TEXTS_RVA);
         r.ecx = 0;
         r.edx = 0;
-        part(at(DRAW_STRING_LIST), &mut r)?;
+        crate::install::installer::game_part(at(DRAW_STRING_LIST), &mut r)?;
         r.eax = 0x2A;
         r.ebx = a(FRAME_RVA);
         r.ecx = 0;
         r.edx = 0;
         r.esi = a(PALETTE_RVA);
-        part(at(FRAME_RECT), &mut r)?;
-        part(at(UNLOCK), &mut r)?;
-        part(at(SHOW), &mut r)?;
+        crate::install::installer::game_part(at(FRAME_RECT), &mut r)?;
+        crate::install::installer::game_part(at(UNLOCK), &mut r)?;
+        crate::install::installer::game_part(at(SHOW), &mut r)?;
     }
     Ok(Regs {
         eflags: r.eflags,
@@ -152,9 +150,7 @@ pub mod progress {
     use super::*;
     /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
     pub fn entry(r: &mut Regs) -> Result<(), Refused> {
-        crate::race::viewer::regs_entry(r, &|r| {
-            progress_frame(r, &mut crate::install::installer::game_part)
-        })
+        crate::race::viewer::regs_entry(r, &|r| progress_frame(r))
     }
 }
 
@@ -162,8 +158,6 @@ pub mod copying {
     use super::*;
     /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
     pub fn entry(r: &mut Regs) -> Result<(), Refused> {
-        crate::race::viewer::regs_entry(r, &|r| {
-            copying_frame(r, &mut crate::install::installer::game_part)
-        })
+        crate::race::viewer::regs_entry(r, &|r| copying_frame(r))
     }
 }

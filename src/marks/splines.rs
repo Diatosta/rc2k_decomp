@@ -642,11 +642,7 @@ const MOST_OBJECTS: u32 = (0x2708 - 0x26BC) / 4;
 /// (eax the kind with none). Refuses a mark neither 0 nor `resume`, a kind of 0x22 or
 /// more, more than 19 objects, and what `make_spline` would refuse for any of them, before
 /// writing anything.
-pub unsafe fn load_splines(
-    entry: &Regs,
-    resume: u32,
-    part: crate::race::level_init::Part,
-) -> Result<Regs, Refused> {
+pub unsafe fn load_splines(entry: &Regs, resume: u32) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         let loaded: u32 = game_read(LOADED_RVA);
@@ -677,7 +673,7 @@ pub unsafe fn load_splines(
                 ecx: FILE_LEN,
                 ..g
             };
-            part(1, &mut r)?;
+            crate::race::level_init::game_part(1, &mut r)?;
             g.eax = game_addr(LOADED_RVA) as u32;
             game_write(LOADED_RVA, resume);
         }

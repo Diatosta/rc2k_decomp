@@ -83,18 +83,15 @@ pub fn fill_parameters(e: u32) {
     }
 }
 
-/// A call by place: 0 the effect's function (its address in `at`).
-pub type Part<'a> = &'a mut dyn FnMut(usize, &mut Regs) -> Result<(), Refused>;
-
 /// The Rust version (see the header).
-pub fn make_effect(entry: &Regs, part: Part) -> Result<(), Refused> {
+pub fn make_effect(entry: &Regs) -> Result<(), Refused> {
     let e = entry.edi;
     if at(e, field!(F, object)) != 0 {
         crate::input::effect_objects::release_effect(e);
     }
     fill_parameters(e);
     let mut r = Regs { eax: 1, ..*entry };
-    part(at(e, field!(F, change)) as usize, &mut r)?;
+    crate::input::make_effect::game_part(at(e, field!(F, change)) as usize, &mut r)?;
     if at(e, field!(F, found)) == 1 {
         method(
             at(entry.esi, field!(InputDevice, device)),
@@ -118,6 +115,6 @@ pub fn game_part(function: usize, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    make_effect(r, &mut game_part)?;
+    make_effect(r)?;
     Ok(())
 }

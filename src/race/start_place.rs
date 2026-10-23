@@ -13,7 +13,6 @@ use crate::race::best_line::{
     CHECK_COUNT_RVA, CHECK_FACES_RVA, FACES_RVA, MOST_CHECKS, POINTS_RVA, SCRATCH_RVA,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at};
 
 pub const FROM_X_RVA: usize = rva(0x639824); // dword_639824: the place measured from
 pub const FROM_Z_RVA: usize = rva(0x63982C); // dword_63982C
@@ -120,24 +119,6 @@ pub unsafe fn place_car_on_line(entry: &Regs) -> Result<Regs, Refused> {
             ..*entry
         })
     }
-}
-
-/// What `place_car_on_line` writes.
-pub fn place_regions() -> Vec<Region> {
-    [
-        PLACE_FACE_RVA,
-        PLACE_X_RVA,
-        PLACE_Y_RVA,
-        PLACE_Z_RVA,
-        PLACE_HEADING_RVA,
-        CAR_X_RVA,
-        CAR_Y_RVA,
-        CAR_Z_RVA,
-        CAR_HEADING_RVA,
-    ]
-    .iter()
-    .map(|&a| at(a))
-    .collect()
 }
 
 /// `race::distance_to_checkpoint` (0x44141D): with ecx a checkpoint (0 .. count - 1, by

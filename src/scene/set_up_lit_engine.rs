@@ -21,7 +21,6 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_write, rva};
-use crate::race::noted_calls::Part;
 
 pub const ENGINE: u32 = 0;
 pub const COURSES: u32 = 1;
@@ -38,14 +37,14 @@ const SETTINGS: [(usize, u32); 6] = [
 ];
 
 /// The steps (the registers kept).
-pub fn set_up_lit_engine_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn set_up_lit_engine_in(r: &mut Regs) -> Result<(), Refused> {
     let mut g = *r;
-    part(ENGINE, &mut g)?;
-    part(COURSES, &mut g)?;
+    crate::scene::set_up_lit_engine::lit_part(ENGINE, &mut g)?;
+    crate::scene::set_up_lit_engine::lit_part(COURSES, &mut g)?;
     for (at, v) in SETTINGS {
         unsafe { game_write(rva(at), v) };
     }
-    part(LIGHTS, &mut g)
+    crate::scene::set_up_lit_engine::lit_part(LIGHTS, &mut g)
 }
 
 /// The calls in the game: the Rust versions.
@@ -67,6 +66,6 @@ pub fn lit_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let mut g = *r;
-    set_up_lit_engine_in(&mut g, &mut lit_part)?;
+    set_up_lit_engine_in(&mut g)?;
     Ok(())
 }

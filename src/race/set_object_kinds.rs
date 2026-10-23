@@ -19,7 +19,7 @@ use crate::race::objects::*;
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     {
-        let g = unsafe { set_object_kinds(r, &mut game_part) }?;
+        let g = unsafe { set_object_kinds(r) }?;
         *r = Regs {
             esp: r.esp,
             eflags: r.eflags,

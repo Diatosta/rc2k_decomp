@@ -28,7 +28,7 @@ use crate::race::frame::*;
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     {
-        let after = unsafe { tyre_change_at(r, &tyre_variables(), &mut tyre_part) }?;
+        let after = unsafe { tyre_change_at(r, &tyre_variables()) }?;
         r.eax = after.eax;
         r.esi = after.esi;
     }

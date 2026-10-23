@@ -29,8 +29,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::physics::reset_parts::{FIND_GROUND, reset_entry};
-use crate::race::car_starts::Part;
-use crate::service::harness::{Region, capture, restore};
 use rc2k_core::physics::lighting;
 
 fn g(x: usize) -> u32 {
@@ -58,7 +56,7 @@ fn corners(r: &mut Regs) -> u32 {
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::lighting`.
-pub fn car_lighting_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn car_lighting_in(r: &mut Regs) -> Result<(), Refused> {
     p(0x639824, g(0x71A10C));
     p(0x63982C, g(0x71A114));
     p(0x5CCCA8, g(0x71A21C));
@@ -67,7 +65,7 @@ pub fn car_lighting_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     p(0x62DB00, 0);
     r.eax = g(0x71ADD8);
     p(0x5CCC78, r.eax);
-    part(FIND_GROUND, r)?;
+    crate::physics::reset_parts::game_part(FIND_GROUND, r)?;
     r.ebx = g(0x5CCC74);
     if r.ebx == u32::MAX {
         return Ok(());
@@ -140,30 +138,12 @@ pub fn car_lighting_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     Ok(())
 }
 
-/// What the function writes.
-fn written() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    vec![
-        (a(0x639800), 8),
-        (a(0x639824), 12),
-        (a(0x5CCC78), 4),
-        (a(0x5CCC90), 0x1C),
-        (a(0x62DAFC), 0x14),
-        (a(0x71A218), 8),
-    ]
-}
-
 /// The Rust version: what was written is put back on a refusal.
-pub unsafe fn car_lighting(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let all = written();
-    let saved = capture(&all);
+pub unsafe fn car_lighting(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
-    match car_lighting_in(&mut r, part) {
+    match car_lighting_in(&mut r) {
         Ok(()) => Ok(r),
-        Err(e) => {
-            restore(&all, &saved);
-            Err(e)
-        }
+        Err(e) => Err(e),
     }
 }
 

@@ -30,9 +30,6 @@ use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, rva};
 use rc2k_core::physics::pace_calls::{Code, code, find_group, text_place};
 
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 pub const LOG_WRITE: u32 = 0;
 pub const LOG_INT: u32 = 1;
 pub const LOG_INT_NL: u32 = 2;
@@ -53,7 +50,7 @@ fn g(x: usize) -> u32 {
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::pace_calls::{find_group, code, text_place}`.
-pub fn queue_pace_note_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn queue_pace_note_in(r: &mut Regs) -> Result<(), Refused> {
     let groups = g(GROUPS);
     let found = find_group(groups, r.edx, |n| g(GROUP_CHECKPOINTS + 4 * n as usize))?;
     if groups == 0 {
@@ -82,14 +79,14 @@ pub fn queue_pace_note_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
                     (LOG_INT_NL, r.esi),
                 ] {
                     let mut c = Regs { eax, ..*r };
-                    part(place, &mut c)?;
+                    crate::physics::queue_pace_note::pace_part(place, &mut c)?;
                 }
                 return Ok(());
             }
             Code::Call => {
                 let mut c = *r;
-                part(CUE, &mut c)?;
-                part(QUEUE, r)?;
+                crate::physics::queue_pace_note::pace_part(CUE, &mut c)?;
+                crate::physics::queue_pace_note::pace_part(QUEUE, r)?;
                 r.esi = r.esi.wrapping_add(1);
             }
         }
@@ -103,12 +100,9 @@ pub fn pace_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         match place {
             LOG_WRITE => log_write(r.eax as *const u8, false, 1),
             LOG_INT | LOG_INT_NL => log_int(r.eax as i32, place == LOG_INT_NL, 1),
-            CUE => crate::physics::cue_listed_car_sound_last::cue_listed_car_sound_last_in(
-                r,
-                &mut crate::physics::sound_cues::game_part,
-            )?,
+            CUE => crate::physics::cue_listed_car_sound_last::cue_listed_car_sound_last_in(r)?,
             QUEUE => crate::physics::queue_listed_event::queue_listed_event(r.ebx)?.apply(r),
-            PACE => queue_pace_note_in(r, &mut pace_part)?,
+            PACE => queue_pace_note_in(r)?,
             _ => crate::physics::expire_car_events::expire_car_events_at(
                 &crate::physics::queue_car_event::QueuePlaces::game(),
             )?
@@ -119,12 +113,9 @@ pub fn pace_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 }
 
 /// `dispatch_pace` without its hook (Rust callers; a refusal is the caller's).
-pub fn pace_entry(
-    r: &mut Regs,
-    rust: fn(&mut Regs, Part) -> Result<(), Refused>,
-) -> Result<(), Refused> {
+pub fn pace_entry(r: &mut Regs, rust: fn(&mut Regs) -> Result<(), Refused>) -> Result<(), Refused> {
     let mut g = *r;
-    rust(&mut g, &mut pace_part)?;
+    rust(&mut g)?;
     *r = Regs {
         esp: r.esp,
         eflags: r.eflags,

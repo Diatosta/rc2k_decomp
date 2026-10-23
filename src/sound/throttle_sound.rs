@@ -24,12 +24,12 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::Regs;
 use crate::physics::flow::{base, x87_run};
-use crate::sound::turn_parts::{PLACED, Part, STOP, turn_entry};
+use crate::sound::turn_parts::turn_entry;
 use rc2k_core::sound::engine::{computers, revs_stopped};
 
 // ---- Rust version ----
 
-pub fn throttle_sound_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn throttle_sound_in(c: &mut Regs) -> Result<(), Refused> {
     if c.ebx == 0 || c.esi == 0 {
         return Err(BadInput("no object or no request").into());
     }
@@ -50,7 +50,7 @@ pub fn throttle_sound_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
         .wrapping_add(unsafe { (c.ebp as *const u32).read_unaligned() });
     unsafe { q.write_unaligned(c.eax) };
     if revs_stopped(w(0x10C)) {
-        return part(STOP, c);
+        return crate::sound::turn_parts::stop(c);
     }
     x87_run!(
         "fld dword ptr [{bx} + 0x100]",
@@ -89,7 +89,7 @@ pub fn throttle_sound_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
         "fstp dword ptr [{si} + 0x14]";
         bx = c.ebx, si = c.esi
     );
-    part(PLACED, c)
+    crate::sound::turn_parts::placed(c)
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

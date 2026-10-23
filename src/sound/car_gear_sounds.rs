@@ -20,13 +20,11 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::Regs;
-use crate::physics::flow::guard;
-use crate::sound::car_slot_sounds::SLOT;
-use crate::sound::turn_parts::{OBJECT_LEN, Part, turn_entry, turn_regions};
+use crate::sound::turn_parts::turn_entry;
 
 // ---- Rust version ----
 
-pub fn car_gear_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+pub fn car_gear_sounds_in(r: &mut Regs) -> Result<(), Refused> {
     if r.ebx == 0 || r.esi == 0 {
         return Err(BadInput("no object or no request").into());
     }
@@ -34,9 +32,7 @@ pub fn car_gear_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     if unsafe { ((o + 0x10C) as *const u32).read_unaligned() } == 3 {
         return Ok(());
     }
-    let mut all = turn_regions();
-    all.push((o, OBJECT_LEN));
-    guard(&all, || {
+    {
         // Converted: `rc2k_core::sound::engine::{place_behind, gear_pitch}` (exact at every
         // precision: one rounding each).
         use rc2k_core::sound::engine::{gear_pitch, place_behind};
@@ -51,17 +47,17 @@ pub fn car_gear_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
         }
         for at in [0x1C4, 0x1DC] {
             c.ebp = o + at;
-            part(SLOT, &mut c)?;
+            crate::sound::play_timed_slot::play_timed_slot_in(&mut c)?;
         }
         let factor = (c.esi + 0x20) as *mut u32;
         let kept = unsafe { factor.read_unaligned() };
         let pitch = gear_pitch(float(c.esi + 0x20), float(c.ebx + 0x210));
         unsafe { (factor as *mut f32).write_unaligned(pitch) };
         c.ebp = o + 0x1F8;
-        part(SLOT, &mut c)?;
+        crate::sound::play_timed_slot::play_timed_slot_in(&mut c)?;
         unsafe { factor.write_unaligned(kept) };
         Ok(())
-    })
+    }
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
