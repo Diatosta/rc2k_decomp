@@ -26,33 +26,22 @@
 //! Self-test (in a race; skipped otherwise; `g_logEnabled` 0 for it): the original and
 //! the Rust version on the stage (everything written saved and put back), the car where
 //! it is and moved onto object faces (so tries fail and the search goes on).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::physics::face_contact::{
-    Touched, face_bytes, faces_region, move_car_onto, object_faces, put_back_faces,
-};
+use crate::framework::Regs;
+use crate::physics::face_contact::{Touched, put_back_faces};
 use crate::physics::flow::{a, g, p};
 use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::{extended, rounded};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, restore};
+use crate::service::harness::{Region, capture, restore};
 use rc2k_core::physics::clear_place;
-use std::sync::atomic::AtomicUsize;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::find_clear_place", rva(0x43BDD1), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const LOG_ENABLED: usize = 0x4E0094; // g_logEnabled
+// g_logEnabled
 const PORKY: usize = 0x4DBAFB; // aPorky
 
 /// One try's calls (0x43BE4D .. 0x43BE61).
@@ -156,80 +145,7 @@ pub fn regions() -> Vec<Region> {
     all
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    if !crate::framework::shadow() {
-        crate::service::harness::dispatch_state(&HOOK, r, call_original, &[], &rust);
-        return;
-    }
-    HOOK.count_call();
-    if let Err(e) = crate::physics::wall_contacts::check() {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-        return;
-    }
-    let all = regions();
-    let before = capture(&all);
-    let logging = g(LOG_ENABLED);
-    p(LOG_ENABLED, 0);
-    let (mut mine_regs, mut touched) = (*r, Touched::new());
-    let result = steps(&mut mine_regs, &mut touched);
-    p(LOG_ENABLED, logging);
-    if let Err(e) = result {
-        restore(&all, &before);
-        put_back_faces(&touched);
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-        return;
-    }
-    let left = left_of(&mine_regs);
-    let mine = (capture(&all), face_bytes(&touched));
-    restore(&all, &before);
-    put_back_faces(&touched);
-    let mut o = *r;
-    unsafe { call_original(&mut o) };
-    let theirs = (capture(&all), face_bytes(&touched));
-    if theirs != mine || !left.matches(r, &o) {
-        crate::screens::harness::mismatch_unless_disturbed(&HOOK, || {
-            format!(
-                "regions or faces differ: {}; regs_ok={}",
-                theirs != mine,
-                left.matches(r, &o)
-            )
-        });
-    }
-    let esp = r.esp;
-    *r = o;
-    r.esp = esp;
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = crate::framework::SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if !crate::physics::move_slot::in_race() || !(1..=0x40).contains(&g(0x71A238)) {
-        return t.skip("not in a race (no stage)");
-    }
-    let mut all = regions();
-    all.extend([faces_region(), (a(LOG_ENABLED), 4), (a(0x71B400), 4)]);
-    let saved = capture(&all);
-    let mut moves = vec![None];
-    moves.extend(object_faces(4).into_iter().map(Some));
-    for moved in moves {
-        let set = || {
-            restore(&all, &saved);
-            p(LOG_ENABLED, 0);
-            if let Some(k) = moved {
-                move_car_onto(k);
-            }
-        };
-        check_state(
-            &mut t,
-            &format!("car moved onto {moved:?}"),
-            call_original,
-            Regs::SENTINEL,
-            &set,
-            &all,
-            &rust,
-        );
-    }
-    restore(&all, &saved);
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::service::harness::state_entry(r, &rust)
 }

@@ -13,26 +13,17 @@
 //! refuse on any of the nine cells (also on cells past the one found).
 //! Self-test: a copy of the original (its calls to copies) on the test's ground, records
 //! for six cells, the test's points with last faces -1 and two real ones; found counted.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::physics::ground::*;
 use crate::physics::search_record_faces::{TEST_RECORDS, set_records};
 use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::ground_search", rva(0x441E2F), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 /// The Rust version: the carry (the registers are kept).
 pub unsafe fn ground_search() -> Result<bool, Refused> {
@@ -42,10 +33,6 @@ pub unsafe fn ground_search() -> Result<bool, Refused> {
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(Left::carry(unsafe { ground_search() }?))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &Ground::game().regions(), &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
@@ -74,41 +61,4 @@ pub fn test_ground(seed: u32) -> TestGround {
         }
     }
     test
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let test = test_ground(2);
-    let copies = match test.copies() {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let g = test.ground();
-    let mut found = 0;
-    for (n, &(x, z)) in test_points().iter().enumerate() {
-        for last in [u32::MAX, 5, 9] {
-            let prepare = || unsafe {
-                test.clear_work();
-                test.set_point(x, z, 0x80, n % 2 == 0);
-                g.put(0x5CCC78, last);
-            };
-            if check_case(
-                &mut t,
-                &format!("last face {last:#x}, point ({x:#x}, {z:#x})"),
-                copies.ground_search.addr(),
-                &test,
-                Regs::SENTINEL,
-                &prepare,
-                &|g, r| unsafe { ground_search_at(g, r) },
-                true,
-            ) {
-                found += 1;
-            }
-        }
-    }
-    t.check(found > 0, || "no case found the point".into());
-    drop(copies);
-    t.finish()
 }

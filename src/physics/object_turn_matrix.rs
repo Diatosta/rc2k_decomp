@@ -14,32 +14,18 @@
 //! Refuses (before anything) an object past 0xFF.
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back): angles by lot, the x turn 0 and not, scales, under three precisions.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
-use crate::math::x87_run::{TEST_CONTROL_WORDS, ext_div2, int_80, with_control_word};
+use crate::math::x87_run::{ext_div2, int_80};
 use crate::scene::matrix::{multiply_matrices, set_turn_x, set_turn_y};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::object_turn_matrix",
-    rva(0x45E2D2),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, state_entry};
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
@@ -129,51 +115,8 @@ pub fn regions() -> Vec<Region> {
     ]
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut all = regions();
-    all.extend([(a(0x6D321C), 4), (a(0x635038), 16)]);
-    let saved = capture(&all);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 0..6u32 {
-                check_state(
-                    &mut t,
-                    &format!("control word {word:#x}, seed {seed}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &|| {
-                        p(0x6D321C, seed * 9);
-                        p(0x635038, 4 + seed * 5);
-                        p(0x63503C, seed.wrapping_mul(0x2345_6789));
-                        p(
-                            0x635040,
-                            if seed % 2 == 0 {
-                                0
-                            } else {
-                                seed.wrapping_mul(0x1111_1111)
-                            },
-                        );
-                        p(0x635044, seed.wrapping_mul(0x0F0F_0F0F));
-                    },
-                    &all,
-                    &rust,
-                );
-            }
-        });
-    }
-    restore(&all, &saved);
-    t.finish()
 }

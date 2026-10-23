@@ -14,35 +14,17 @@
 //! Refuses (before anything) a checkpoint below 0 or past 0x1418, or no faces or points.
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back) with test faces and points: checkpoints at, before and past the last.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    EAX, EBX, ECX, EDX, ESI, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm,
-    rva,
-};
+use crate::framework::{EAX, EBX, ECX, EDX, ESI, Regs, game_read, game_write, rva};
 use crate::math::turn_point_xz::turn_point_xz;
-use crate::math::turn_scratch_xz::scratch;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::progress::checkpoint_ahead;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::checkpoint_offset",
-    rva(0x4415E7),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
@@ -102,75 +84,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { checkpoint_offset() }
 }
 
-fn regions() -> Vec<Region> {
-    vec![(game_addr(rva(OFFSET)) as u32, 8), scratch()]
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // Two faces of 0x40 bytes, four points of 12.
-    let mut faces = vec![0u32; 32];
-    let mut points = vec![0u32; 12];
-    let (fa, pa) = (faces.as_mut_ptr() as u32, points.as_mut_ptr() as u32);
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let mut all = regions();
-    all.extend([
-        (a(CHECKPOINT), 4),
-        (a(COUNT), 4),
-        (a(ANGLES), 16),
-        (a(CHECK_FACES), 16),
-        (a(FACES), 8),
-        (a(0x71A10C), 12),
-    ]);
-    let saved = capture(&all);
-    for (n, (c, count)) in [(0u32, 5u32), (1, 5), (3, 5), (4, 5), (2, 3), (0, 0)]
-        .into_iter()
-        .enumerate()
-    {
-        let n = n as u32;
-        let set = || unsafe {
-            for k in 0..32u32 {
-                ((fa + 4 * k) as *mut u32).write(0x7700_0000 | k);
-            }
-            ((fa + 4) as *mut u32).write(1);
-            ((fa + 0x44) as *mut u32).write(3);
-            for k in 0..12u32 {
-                ((pa + 4 * k) as *mut u32).write(k.wrapping_mul(0x1_2345) ^ (n << 20));
-            }
-            p(FACES, fa);
-            p(POINTS, pa);
-            p(CHECKPOINT, c);
-            p(COUNT, count);
-            for k in 0..4 {
-                p(ANGLES + 4 * k, (k as u32 + n).wrapping_mul(0x3456_789B));
-                p(CHECK_FACES + 4 * k, (k as u32 + n) % 2);
-            }
-            p(0x71A10C, 0x0123_4567u32.wrapping_mul(n + 1));
-            p(0x71A114, 0x0765_4321u32.wrapping_mul(n + 3));
-        };
-        check_state(
-            &mut t,
-            &format!("checkpoint {c}, count {count}"),
-            call_original,
-            Regs::SENTINEL,
-            &set,
-            &all,
-            &rust,
-        );
-    }
-    restore(&all, &saved);
-    drop((faces, points));
-    t.finish()
 }

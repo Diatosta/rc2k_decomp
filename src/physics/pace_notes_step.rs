@@ -19,25 +19,15 @@
 //! sounds and car events). Self-test: a copy whose two calls go to stand-ins that note
 //! them, against the Rust version with the same, on the game's variables (put back): each
 //! gate, speeds forward and back, checkpoints about the count and the last called.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::physics::queue_pace_note::{EXPIRE, PACE, Part, both, copy_of, dispatch_pace};
-use crate::service::harness::{capture, restore};
+use crate::framework::{Regs, game_read, game_write, rva};
+use crate::physics::queue_pace_note::{EXPIRE, PACE, Part, pace_entry};
 use rc2k_core::physics::pace_calls::{call_target, calling, calls};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::pace_notes_step", rva(0x4417EC), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The gates: (variable, the value it must have); the last is "1000 or more".
 const ZERO: [usize; 7] = [
@@ -89,84 +79,8 @@ pub fn pace_notes_step_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     part(EXPIRE, r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_pace(&HOOK, r, call_original, pace_notes_step_in);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy_of(
-        0x4417EC,
-        0xC7,
-        &[0x83, 0x3D, 0x80, 0xA0, 0x71, 0x00, 0x00],
-        &[0xB1, 0xC1],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let a = |x: usize| (game_addr(rva(x)) as u32, 4);
-    let mut all: Vec<_> = ZERO.iter().map(|&v| a(v)).collect();
-    all.extend(
-        [ONE, TIME, SPEED, AHEAD, CHECKPOINT, LAST_CALLED, COUNT]
-            .iter()
-            .map(|&v| a(v)),
-    );
-    let saved = capture(&all);
-    let f = |x: f32| x.to_bits();
-    // (closed gate, speed, checkpoint, last called, count)
-    let mut cases = vec![];
-    for gate in 0..10u32 {
-        cases.push((gate, f(40.0), 10u32, 8u32, 50u32));
-    }
-    for speed in [0.0f32, 4.0, 12.0, 20.0, 63.9, -9.0, 200.0] {
-        for (cp, last, count) in [
-            (10u32, 8u32, 50u32),
-            (10, 10, 50),
-            (10, 30, 50),
-            (48, 47, 50),
-            (49, 2, 50),
-            (0, 0xFFFF_FFF0, 50),
-            (30, 2, 50),
-        ] {
-            cases.push((10, f(speed), cp, last, count));
-        }
-    }
-    for (gate, speed, cp, last, count) in cases {
-        let fill = || {
-            restore(&all, &saved);
-            for (n, &v) in ZERO.iter().enumerate() {
-                p(v, (gate == n as u32) as u32);
-            }
-            p(ONE, if gate == 7 { 2 } else { 1 });
-            p(
-                TIME,
-                if gate == 8 {
-                    999
-                } else if gate == 9 {
-                    1000
-                } else {
-                    5000
-                },
-            );
-            p(SPEED, speed);
-            p(CHECKPOINT, cp);
-            p(LAST_CALLED, last);
-            p(COUNT, count);
-            p(AHEAD, 0xAAAA_AAAA);
-        };
-        both(
-            &mut t,
-            &format!("gate {gate}, speed {speed:#x}, checkpoint {cp}, last {last:#x}"),
-            &copy,
-            Regs::SENTINEL,
-            &fill,
-            &all,
-            pace_notes_step_in,
-        );
-    }
-    restore(&all, &saved);
-    drop(copy);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    pace_entry(r, pace_notes_step_in)
 }

@@ -30,31 +30,17 @@
 //! (what was written by then is put back).
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back) with test faces, under three precisions.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    EAX, EBX, ECX, EDI, EDX, ESI, RawHook, Regs, SelfTest, game_addr, game_read, game_write,
-    hook_asm, rva,
-};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
+use crate::framework::{EAX, EBX, ECX, EDI, EDX, ESI, Regs, game_addr, game_read, game_write, rva};
 use crate::physics::flip_cell_index::flip_cell_index;
-use crate::scene::matrix3::test_floats;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
+use crate::service::harness::{Region, capture, restore, state_entry};
 use std::cmp::Ordering;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::wheel_surfaces", rva(0x43D59A), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
@@ -410,100 +396,8 @@ fn regions() -> Vec<Region> {
     ]
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut faces = vec![0u8; 0x40 * 6];
-    let fa = faces.as_mut_ptr() as u32;
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let mut all = regions();
-    all.extend([
-        (a(0x71ADC8), 0x14),
-        (a(0x5CCCBC), 4),
-        (a(0x6D2914), 0x14),
-        (a(0x6D2A14), 0x14),
-        (a(0x6D2B14), 0x14),
-        (a(0x71A004), 4),
-        (a(0x71A00C), 4),
-        (a(0x71A258), 4),
-        (fa, 0x40 * 6),
-        (a(0x979F30 + 0xF0 * 0x40), 0x100),
-    ]);
-    let saved = capture(&all);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 0..6u32 {
-                let set = || unsafe {
-                    for k in 0..(0x40 * 6u32) {
-                        ((fa + k) as *mut u8)
-                            .write((k.wrapping_mul(29) ^ seed.wrapping_mul(13)) as u8);
-                    }
-                    // Four test textures (0xF0 ..): surfaces 0 .. 15, kinds 0 .. 3.
-                    let tex = a(0x979F30 + 0xF0 * 0x40);
-                    for k in 0..0x100u32 {
-                        ((tex + k) as *mut u8).write((k.wrapping_mul(7) ^ seed) as u8);
-                    }
-                    for tx in 0..4u32 {
-                        for k in 0..12u32 {
-                            ((tex + 0x40 * tx + 0x10 + k) as *mut u8)
-                                .write(((k + tx + seed) % 16) as u8);
-                        }
-                        ((tex + 0x40 * tx + 0x2C) as *mut u8).write(tx as u8);
-                    }
-                    for face in 0..6u32 {
-                        let f = fa + 0x40 * face;
-                        // Flags with and without 0x1000.
-                        ((f + 1) as *mut u8).write(0xF0 + (face + seed) as u8 % 4);
-                        ((f + 0x21) as *mut u8).write(0xF0 + (face * 3 + seed) as u8 % 4);
-                        ((f + 2) as *mut u16).write_unaligned(if (face + seed) % 3 == 0 {
-                            0x1000
-                        } else {
-                            0
-                        });
-                    }
-                    p(0x5CCCBC, fa);
-                    let mut fl = [0u32; 10];
-                    test_floats(seed * 5 + 3, &mut fl);
-                    for c in 0..5usize {
-                        p(0x71ADC8 + 4 * c, (c as u32 + seed) % 6);
-                        p(0x6D2914 + 4 * c, (c as u32 + seed) % 2);
-                        p(
-                            0x6D2A14 + 4 * c,
-                            (f32::from_bits(fl[c]).abs() % 1.0).to_bits(),
-                        );
-                        p(
-                            0x6D2B14 + 4 * c,
-                            (f32::from_bits(fl[5 + c]).abs() % 1.0).to_bits(),
-                        );
-                    }
-                    p(0x71A004, seed % 6);
-                    p(0x71A00C, 100 + seed);
-                    p(0x71A258, (seed as f32 * 0.2).to_bits());
-                };
-                check_state(
-                    &mut t,
-                    &format!("control word {word:#x}, seed {seed}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &set,
-                    &all,
-                    &rust,
-                );
-            }
-        });
-    }
-    restore(&all, &saved);
-    drop(faces);
-    t.finish()
 }

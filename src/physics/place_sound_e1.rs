@@ -10,29 +10,18 @@
 //! written.
 //! Self-test: `physics/car_sounds.rs` (`test_sound`): the original and the Rust version on
 //! the game's variables (saved and put back) with a test object, exact at double precision.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::physics::car_sounds::{
-    cue_plain, dispatch_placed, g, listed, object, place, put, test_sound,
-};
+use crate::framework::{Regs, rva};
+use crate::physics::car_sounds::{cue_plain, g, listed, object, place, placed_entry, put};
 use crate::physics::sound_band_1::TWIN;
 use crate::physics::sound_bands::{band_value, band_value_plain};
 use crate::screens::harness::Left;
 use rc2k_core::physics::sound_places::{FIRST, SOUND_E1};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::place_sound_e1", rva(0x45CEF9), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The Rust version (the exact one, for `physics::wall_push_back` and
 /// `physics::wall_edge_contact`).
@@ -89,10 +78,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { place_sound_e1_plain() }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_placed(&HOOK, r, call_original, &[], &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    test_sound(&HOOK, call_original, &rust, &|_| {}, &[])
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    placed_entry(r, &rust)
 }

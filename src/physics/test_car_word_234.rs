@@ -8,28 +8,14 @@
 //!
 //! Caller: `sub_43B635` (0x43B96B), every physics step.
 //! Self-test: a copy of the original (the word the test's) on 0, 1, -1, 0x80000000.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_read, hook_asm, rva};
-use crate::physics::flag_result::{FlagResult, dispatch_flags};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::test_car_word_234",
-    rva(0x43FDD5),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_read, rva};
+use crate::physics::flag_result::{FlagResult, flags_entry};
 
 const WORD_RVA: usize = rva(0x71A20C); // g_car + 0x234
 
@@ -53,41 +39,8 @@ fn rust(r: &Regs) -> Result<FlagResult, Refused> {
     Ok(unsafe { test_car_word_234(r.eax) })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_flags(&HOOK, r, call_original, &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut cell = vec![0u32; 1];
-    let w = cell.as_mut_ptr();
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x43FDD5,
-            len: 0xA,
-            entry: &[0x83, 0x3D, 0x0C, 0xA2, 0x71, 0x00, 0x00],
-            calls: &[],
-            jumps_out: &[],
-        },
-        &|_| None,
-        &[(0x71A20C, w as u32)],
-        1,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    for v in [0u32, 1, u32::MAX, 0x8000_0000] {
-        unsafe { w.write_volatile(v) };
-        let mut ro = Regs::SENTINEL;
-        unsafe { call_game(&mut ro, copy.addr()) };
-        let mine = test_word(unsafe { w.read_volatile() }, Regs::SENTINEL.eax);
-        let ok =
-            mine.matches(&Regs::SENTINEL, &ro) && crate::audio::buffer_play::zero(&ro) == (v == 0);
-        t.check(ok, || format!("word {v:#x}: the registers or flags differ"));
-    }
-    drop((copy, cell));
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    flags_entry(r, &rust)
 }

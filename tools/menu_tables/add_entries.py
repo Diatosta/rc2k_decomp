@@ -50,6 +50,15 @@ TWINS = {
     'dispatch_reader': ('reader_entry', [0], False),
     'dispatch_marker': ('marker_entry', [0], True),
     'dispatch_turn_floats': ('turn_entry', [0], False),
+    'dispatch_flags': ('flags_entry', [0], False),
+    'dispatch_reset': ('reset_entry', [0], False),
+    'dispatch_cue': ('cue_entry', [0], False),
+    'dispatch_pace': ('pace_entry', [0], False),
+    'dispatch_carry': ('carry_entry', [0], False),
+    'dispatch_placed': ('placed_entry', [1], False),
+    'dispatch_faces': ('faces_entry', [0], False),
+    'dispatch_engine': ('engine_entry', [2], False),
+    'dispatch_gearing': ('gearing_entry', [0], False),
 }
 # dispatchers of the same name in two modules: by the module the file takes it from
 BY_MODULE = {

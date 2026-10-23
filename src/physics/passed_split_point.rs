@@ -19,33 +19,17 @@
 //! split past 0x40, a checkpoint past 0x1418, no faces or points.
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back) with test faces and points: near and far, angles about the quarter turn.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{
-    EAX, EBX, ECX, ESI, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{EAX, EBX, ECX, ESI, Regs, game_addr, game_read, game_write, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
+use crate::service::harness::{Region, state_entry};
 use rc2k_core::physics::progress;
 use std::cmp::Ordering;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::passed_split_point",
-    rva(0x44165E),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
@@ -182,78 +166,8 @@ pub fn regions() -> Vec<Region> {
     vec![(a(0x639824), 12), (a(0x62400C), 4), (a(0x614CFC), 12)]
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut faces = vec![0u32; 32];
-    let mut points = vec![0u32; 12];
-    let (fa, pa) = (faces.as_mut_ptr() as u32, points.as_mut_ptr() as u32);
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let mut all = regions();
-    all.extend([
-        (a(0x64BB18), 4),
-        (a(0x71A068), 4),
-        (a(0x71A10C), 12),
-        (a(0x601030), 0x20),
-        (a(0x9E3738), 0x20),
-        (a(0x9ED808), 0x20),
-        (a(0x5CCD1C), 4),
-        (a(0x5CCCBC), 8),
-        (a(0x614C70), 4),
-    ]);
-    let saved = capture(&all);
-    for seed in 0..12u32 {
-        let set = || unsafe {
-            p(0x64BB18, (seed == 11) as u32);
-            p(0x71A068, seed % 4);
-            for k in 0..8usize {
-                p(0x601030 + 4 * k, k as u32 + 1);
-                p(0x9E3738 + 4 * k, k as u32 % 2);
-                p(
-                    0x9ED808 + 4 * k,
-                    (k as u32 + seed).wrapping_mul(0x2900_0000),
-                );
-            }
-            p(0x5CCD1C, 2);
-            p(0x5CCCBC, fa);
-            p(0x5CCCC0, pa);
-            for k in 0..32u32 {
-                ((fa + 4 * k) as *mut u32).write(0x7700_0000 | k);
-            }
-            ((fa + 4) as *mut u32).write(1);
-            ((fa + 0x44) as *mut u32).write(2);
-            for k in 0..12u32 {
-                ((pa + 4 * k) as *mut u32).write(k.wrapping_mul(0x0003_1415) ^ (seed << 16));
-            }
-            p(0x71A10C, seed.wrapping_mul(0x0002_7183));
-            p(0x71A114, (seed + 7).wrapping_mul(0x0001_4142));
-            p(
-                0x614C70,
-                if seed % 3 == 0 { 1.0f32 } else { 1.0e6 }.to_bits(),
-            );
-        };
-        check_state(
-            &mut t,
-            &format!("seed {seed}"),
-            call_original,
-            Regs::SENTINEL,
-            &set,
-            &all,
-            &rust,
-        );
-    }
-    restore(&all, &saved);
-    drop((faces, points));
-    t.finish()
 }

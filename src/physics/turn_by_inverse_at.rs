@@ -11,32 +11,18 @@
 //! Caller: `physics::apply_torque` (into the car's frame).
 //! Self-test: the original on a test block (matrix by lot) and point by lot, against
 //! the Rust core, under three precisions.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest};
 use crate::math::x87_run::{DOUBLE, TEST_CONTROL_WORDS, with_control_word};
 use crate::physics::turn_by_car_matrix::{turn_point_by, turn_point_by_plain};
 use crate::scene::matrix3::test_floats;
 use crate::screens::harness::Left;
 use crate::service::floats::{FLOAT, close};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::turn_by_inverse_at",
-    rva(0x45FC55),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// Where a car block's inverse matrix is.
 pub const INVERSE_OFFSET: u32 = 0x9CC;
@@ -54,23 +40,6 @@ pub unsafe fn turn_by_inverse_at_plain(v: u32, car: u32) {
 fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { turn_by_inverse_at_plain(r.esi, r.edi) };
     Ok(Left::nothing())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    // The point compared as floats: at the game's extended stretches (0x037F) the last bit
-    // may differ (a drift, as `scale_vector`'s).
-    let floats = crate::service::floats::Floats {
-        memory: &[((r.esi, 12), crate::service::floats::FLOAT)],
-        regs: &[],
-    };
-    crate::service::floats::dispatch_state_floats(
-        &HOOK,
-        r,
-        call_original,
-        &[(r.esi, 12)],
-        &floats,
-        &rust,
-    );
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
@@ -140,8 +109,4 @@ pub fn test_turn_at(
     }
     drop((block, point));
     t.finish()
-}
-
-fn self_test() -> (usize, usize) {
-    test_turn_at(&HOOK, call_original, INVERSE_OFFSET)
 }

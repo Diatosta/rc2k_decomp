@@ -11,27 +11,17 @@
 //! Refuses what `probe_ground` refuses (nothing written).
 //! Self-test: a copy of the original (its call to a copy of `probe_ground` on the test's
 //! ground) against the Rust core, `probe_ground`'s cases.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, ECX, EDI, EDX, ESI, RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::{EAX, EBX, ECX, EDI, EDX, ESI, Regs};
 use crate::physics::ground::*;
-use crate::physics::ground_search::test_ground;
-use crate::physics::probe_ground::{prepare_probe, probe_ground_at, regions};
+use crate::physics::probe_ground::probe_ground_at;
 use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::probe_and_keep", rva(0x45DC12), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 /// The Rust core; `r` as the original leaves it.
 pub unsafe fn probe_and_keep_at(g: &Ground, r: &mut Regs) -> Result<(), Refused> {
@@ -69,55 +59,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
         .with(EDI, g.edi))
 }
 
-fn all_regions() -> Vec<crate::service::harness::Region> {
-    let g = Ground::game();
-    let mut r = regions(&g);
-    r.extend([(g.a(0x6D2C14), 0x300), (g.a(0x6D2F14), 0x100)]);
-    r
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &all_regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let test = test_ground(1);
-    let copies = match test.copies() {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let fg = copies.find_ground.addr();
-    let probe = match test.copy(PROBE_GROUND, &|a| (a == 0x441E29).then_some(fg)) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let p = probe.addr();
-    let copy = match test.copy(PROBE_AND_KEEP, &|a| (a == 0x45D305).then_some(p)) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    for (case, count) in [0u32, 1, 4, 6, 9].into_iter().enumerate() {
-        let seed = case as u32 * 0x9E37_79B9 + 5;
-        check_case(
-            &mut t,
-            &format!("case {case}, count {count}"),
-            copy.addr(),
-            &test,
-            Regs::SENTINEL,
-            &|| prepare_probe(&test, seed, count, case % 2 == 0),
-            &|g, r| unsafe { probe_and_keep_at(g, r) }.map(|()| false),
-            false,
-        );
-    }
-    drop((copy, probe, copies));
-    t.finish()
 }

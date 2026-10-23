@@ -19,32 +19,17 @@
 //! mid-way (it puts back what it wrote; `dword_71A6C8` is the original's to write again).
 //! Self-test: in a race only: a copy of the original (its calls the game's) against the
 //! Rust version on the game's own state with the work car's switches by lot; all put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    EAX, EBX, ECX, EDX, ESI, RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write,
-    hook_asm, rva,
-};
+use crate::framework::{EAX, EBX, ECX, EDX, ESI, Regs, game_addr, game_read, game_write, rva};
 use crate::physics::ground::Ground;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state, restore, state_entry};
+use crate::service::harness::{Region, state_entry};
 use rc2k_core::physics::walls::WheelsOff;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("physics::feel_ground", rva(0x43F1A8), thunk, &ORIGINAL)
-    .private_copy(0xCA)
-    .relocate_calls(&[0, 5, 0xA])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 fn g(x: u32) -> u32 {
     unsafe { game_read(rva(x as usize)) }
@@ -110,71 +95,8 @@ pub fn regions() -> Vec<Region> {
     r
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if !crate::physics::move_slot::in_race() || g(0x71A238) == 0 || g(0x71A238) > 0x40 {
-        return t.skip("not in a race (no stage, or no probe points)");
-    }
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x43F1A8,
-            len: 0xCA,
-            entry: &[0xE8, 0xD3, 0xFF, 0xFF, 0xFF],
-            calls: &[0, 5, 0xA],
-            jumps_out: &[],
-        },
-        &|_| None,
-        &[],
-        0,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let inputs = [0x71A65C, 0x71A5D8, 0x71A5DC, 0x71A5E0, 0x71A5E4, 0x71A018];
-    let mut all = regions();
-    all.extend(
-        inputs
-            .iter()
-            .map(|&v| (game_addr(rva(v as usize)) as u32, 4)),
-    );
-    let saved = capture(&all);
-    for seed in 0..8u32 {
-        p(0x71A65C, seed % 4);
-        for (k, v) in [0x71A5D8u32, 0x71A5DC, 0x71A5E0, 0x71A5E4]
-            .into_iter()
-            .enumerate()
-        {
-            p(v, u32::from((seed >> k) & 1 == 1));
-        }
-        p(0x71A018, seed % 2);
-        let input = capture(&all);
-        let mut ro = Regs::SENTINEL;
-        unsafe { call_game(&mut ro, copy.addr()) };
-        let theirs = capture(&all);
-        restore(&all, &input);
-        let mut gr = Regs::SENTINEL;
-        let mine = unsafe { feel_ground(&mut gr) };
-        let state = capture(&all);
-        restore(&all, &saved);
-        let regs_ok = mine.is_ok() && left_of(&gr).matches(&Regs::SENTINEL, &ro);
-        t.check(regs_ok && theirs == state, || {
-            let first = theirs.iter().zip(&state).position(|(a, b)| a != b);
-            format!("seed {seed}: regs_ok={regs_ok} {mine:?}, first difference at byte {first:?}")
-        });
-    }
-    drop(copy);
-    t.finish()
 }

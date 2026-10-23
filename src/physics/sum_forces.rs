@@ -10,27 +10,17 @@
 //! Caller: `sub_43B635` (0x43B995), every physics step.
 //! Self-test: `physics/copy_hooks_test.rs` (`test_moves_floats`: a copy on test
 //! variables against the converted version), 8 fillings, exact at double precision.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, game_addr, game_read, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::math::x87_run::sum_over;
-use crate::physics::copy_hooks_test::test_moves_floats;
 use crate::screens::harness::Left;
-use crate::service::floats::{FLOAT, Floats, dispatch_state_floats, floats_entry};
+use crate::service::floats::floats_entry;
 use rc2k_core::physics::motion::sum_forces as sum_forces_core;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::sum_forces", rva(0x43BBCB), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The thirteen read, the five written.
 const VARIABLES: [usize; 18] = [
@@ -88,49 +78,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let v = game();
-    let floats = Floats {
-        memory: &[((v[13], 0x14), FLOAT)],
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &[(v[13], 0x14)], &floats, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-fn fill(seed: u32, out: &mut [u32]) {
-    for (k, o) in out.iter_mut().enumerate() {
-        *o = (seed * 31 + k as u32 * 17) % 400;
-        *o = (*o as f32 / 7.0 - 25.0).to_bits();
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    test_moves_floats(
-        &HOOK,
-        0x43BBCB,
-        0x9D,
-        &[0xD9, 0x05, 0x50, 0x42, 0x61, 0x00],
-        &VARIABLES,
-        18,
-        8,
-        &fill,
-        &|v, _| {
-            unsafe { sum_at_plain(v) };
-            Left::nothing()
-        },
-        &[
-            (13, FLOAT),
-            (14, FLOAT),
-            (15, FLOAT),
-            (16, FLOAT),
-            (17, FLOAT),
-        ],
-        &[],
-    )
 }

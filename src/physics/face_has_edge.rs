@@ -10,26 +10,15 @@
 //! bytes: hooked by a private copy and a hand-made patch.
 //! Self-test: a copy of the original on a test face, every pair of corners and some
 //! that are not.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, hook_asm, rva};
-use crate::physics::flag_result::{FlagResult, dispatch_flags};
+use crate::framework::Regs;
+use crate::physics::flag_result::{FlagResult, flags_entry};
 use rc2k_core::physics::faces::has_edge;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("physics::face_has_edge", rva(0x45DA72), thunk, &ORIGINAL)
-    .private_copy(0x2C)
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 unsafe fn corners(face: u32) -> [u32; 4] {
     let at = |o: u32| unsafe { ((face + o) as *const u32).read_unaligned() };
@@ -53,53 +42,8 @@ fn rust(r: &Regs) -> Result<FlagResult, Refused> {
     Ok(unsafe { face_has_edge(r) })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_flags(&HOOK, r, call_original, &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x45DA72,
-            len: 0x2C,
-            entry: &[0x3B, 0x46, 0x04, 0x75, 0x05],
-            calls: &[],
-            jumps_out: &[],
-        },
-        &|_| None,
-        &[],
-        0,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let face = [0xAAAA_AAAAu32, 11, 22, 33, 44];
-    let f = face.as_ptr() as u32;
-    let values = [11u32, 22, 33, 44, 55];
-    for &a in &values {
-        for &b in &values {
-            let before = Regs {
-                eax: a,
-                ebx: b,
-                esi: f,
-                ..Regs::SENTINEL
-            };
-            let mut ro = before;
-            unsafe { call_game(&mut ro, copy.addr()) };
-            let mine = unsafe { face_has_edge(&before) };
-            t.check(mine.matches(&before, &ro), || {
-                format!(
-                    "edge ({a}, {b}): original CF {}, rust {}",
-                    ro.carry(),
-                    mine.carry
-                )
-            });
-        }
-    }
-    drop(copy);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    flags_entry(r, &rust)
 }

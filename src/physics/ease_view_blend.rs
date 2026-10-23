@@ -11,31 +11,18 @@
 //! Caller: `sub_437A53`.
 //! Self-test: `physics/camera_view.rs` (`view_test_floats`), modes and times by lot,
 //! exact at double precision.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, ESI, RawHook, Regs, hook_asm, rva};
-use crate::physics::camera_view::{
-    rd, record, record_plain, share_done, share_done_plain, view_regions, view_test_floats,
-};
-use crate::physics::flow::{a, base, g, p, x87_run};
+use crate::framework::{EAX, ESI, Regs};
+use crate::physics::camera_view::{rd, record, record_plain, share_done, share_done_plain};
+use crate::physics::flow::{base, g, p, x87_run};
 use crate::screens::harness::Left;
-use crate::service::floats::{
-    FLOAT, Floats, ROUNDED, Tolerance, dispatch_state_floats, floats_entry,
-};
+use crate::service::floats::floats_entry;
 use rc2k_core::physics::camera_view::ease_blend;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::ease_view_blend", rva(0x4385EB), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The Rust version (the exact one, for `physics::update_camera`).
 pub unsafe fn ease_view_blend(_: &Regs) -> Left {
@@ -97,34 +84,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { ease_view_blend_plain(r) })
 }
 
-/// The float places and what they are held to at extended precision.
-const FLOATS: [(usize, usize, Tolerance); 3] = [
-    (0x605260, 4, FLOAT),
-    (0x71A6A0, 4, FLOAT),
-    (0x608B38, 4, ROUNDED),
-];
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let memory = FLOATS.map(|(x, len, tl)| ((a(x), len), tl));
-    let floats = Floats {
-        memory: &memory,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &view_regions(), &floats, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    view_test_floats(
-        &HOOK,
-        "physics::ease_view_blend",
-        call_original,
-        &rust,
-        &FLOATS,
-    )
 }

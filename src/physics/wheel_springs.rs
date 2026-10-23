@@ -25,40 +25,21 @@
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back), against the converted version: heights by lot across the spring's range, last
 //! squeezes, the factors, exact at double precision.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    EAX, EBX, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{EAX, EBX, Regs, game_read, game_write, rva};
 use crate::math::x87;
 use crate::math::x87_run::{ext_div2, int_80, neg_mul2, neg_rounded, sub_mul, wheel_int};
-use crate::scene::matrix3::{extended, test_floats};
+use crate::scene::matrix3::extended;
 use crate::screens::harness::Left;
-use crate::service::floats::{
-    FLOAT, Floats, ROUNDED, Tolerance, at_test_precisions, check_state_floats,
-    dispatch_state_floats, floats_entry,
-};
-use crate::service::harness::{Region, capture, restore};
+use crate::service::floats::floats_entry;
 use rc2k_core::physics::springs::{SpringFactors, spring, wheel_place};
 use rc2k_core::physics::x87::{loaded, negated};
 use std::cmp::Ordering;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::wheel_springs", rva(0x43ECD4), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-fn a(x: usize) -> u32 {
-    game_addr(rva(x)) as u32
-}
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
@@ -234,107 +215,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { wheel_springs_plain() })
 }
 
-/// The float places and what they are held to at extended precision.
-fn floats() -> Vec<(Region, Tolerance)> {
-    vec![
-        ((a(SQUEEZE), 0x20), FLOAT),
-        ((a(DAMPING), 0x10), FLOAT),
-        ((a(FORCE), 0x10), FLOAT),
-        ((a(0x71A8E8), 0x10), ROUNDED),
-        ((a(0x614830), 0x1A0), FLOAT),
-    ]
-}
-
-fn regions() -> Vec<Region> {
-    vec![
-        (a(SQUEEZE), 0x20),
-        (a(0x623FB8), 4),
-        (a(0x62400C), 4),
-        (a(DAMPING), 0x10),
-        (a(FORCE), 0x10),
-        (a(0x71A8E8), 0x10),
-        (a(0x614830), 0x1A0),
-    ]
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let memory = floats();
-    let floats = Floats {
-        memory: &memory,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // The factors the test sets (each one float).
-    const FACTORS: [usize; 9] = [
-        0x614BF8, 0x613F90, 0x614774, 0x614C00, 0x614BEC, 0x70FFF4, 0x614BF4, 0x613EC0, 0x613F8C,
-    ];
-    let mut all = regions();
-    all.push((a(HEIGHTS), 0x10));
-    all.extend(FACTORS.iter().map(|&f| (a(f), 4)));
-    all.extend([
-        (a(0x71AAC8), 0x10),
-        (a(0x71ABC8), 0x10),
-        (a(0x71ACC8), 0x10),
-    ]);
-    all.push((a(0x6141D4), 8));
-    let saved = capture(&all);
-    let memory = floats();
-    let tolerant = Floats {
-        memory: &memory,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, fl| {
-        {
-            for seed in 1..=10u32 {
-                let set = || {
-                    let mut f = [0u32; 32];
-                    test_floats(seed * 23 + 1, &mut f);
-                    // Heights about the spring's range: -0x18000 .. 0x8000 (with the
-                    // range factor 1, squeezes -0.5 .. 1.5).
-                    for k in 0..4u32 {
-                        let h = (seed.wrapping_mul(0x9E37) ^ k.wrapping_mul(0x3C6E)) % 0x20000;
-                        p(HEIGHTS + 4 * k as usize, h.wrapping_sub(0x18000));
-                    }
-                    p(0x614BF8, if seed == 3 { 0 } else { 1.0f32.to_bits() });
-                    for (n, &fa) in FACTORS.iter().enumerate().skip(1) {
-                        p(fa, f[n]);
-                    }
-                    for (n, &v) in f.iter().enumerate().skip(9).take(4) {
-                        p(SQUEEZE + 4 * (n - 9), v);
-                    }
-                    for (n, &v) in f.iter().enumerate().skip(13).take(12) {
-                        let row = (n - 13) / 4;
-                        p([0x71AAC8, 0x71ABC8, 0x71ACC8][row] + 4 * ((n - 13) % 4), v);
-                    }
-                    p(0x6141D4, f[25]);
-                    p(0x6141D8, f[26]);
-                };
-                check_state_floats(
-                    &mut t,
-                    "physics::wheel_springs",
-                    &format!("control word {word:#x}, seed {seed}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &set,
-                    &all,
-                    fl,
-                    &rust,
-                );
-            }
-        }
-    });
-    restore(&all, &saved);
-    t.finish()
 }

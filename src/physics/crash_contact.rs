@@ -23,11 +23,15 @@
 //! back) with test faces (`g_courseFaces` pointed at them for the test): depths, the
 //! contact's figures and the matrices by lot, both paths, the current car not listed
 //! (no sound), under three precisions.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::math::x87::{loaded, mul};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, neg_rounded, with_control_word};
+use crate::math::x87_run::neg_rounded;
 use crate::physics::contact_force::{self, RECORD, contact_force};
 use crate::physics::dot_product::dot_product;
 use crate::physics::flow::{a, base, copy3, fill3, g, guard, hold_high, p, x87_run};
@@ -39,21 +43,8 @@ use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::{extended, rounded, test_floats};
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
+use crate::service::harness::{Region, state_entry};
 use rc2k_core::physics::contacts;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::crash_contact", rva(0x45EDB5), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// Force record 21 (`g_forceRecords` + 0x2A0).
 const FORCE: usize = 0x614A10;
@@ -199,10 +190,6 @@ fn regions() -> Vec<Region> {
     all
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
@@ -276,41 +263,4 @@ pub fn set_test_inputs(seed: u32, low: i32, faces: u32) {
         crate::physics::car_sounds::LISTED + 4 * car as usize,
         u32::MAX,
     );
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut all = regions();
-    all.extend(test_inputs());
-    let saved = capture(&all);
-    let mut faces = [0u32; 0x80];
-    let fs = faces.as_mut_ptr() as u32;
-    all.push((fs, 0x200));
-    let mut long = 0;
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 0..16u32 {
-                let low = [-0x400i32, 0, -0x1000, 0x100][(seed % 4) as usize];
-                let set = || set_test_inputs(seed, low, fs);
-                check_state(
-                    &mut t,
-                    &format!("control word {word:#x}, seed {seed}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &set,
-                    &all,
-                    &rust,
-                );
-                set();
-                let _ = unsafe { crash_contact(&Regs::SENTINEL) };
-                long += (g(0x71AA0C) == 1) as u32;
-            }
-        });
-    }
-    t.check(long > 0, || "the long path not taken".into());
-    all.pop();
-    restore(&all, &saved);
-    t.finish()
 }

@@ -13,27 +13,18 @@
 //! Caller: `sub_43B635` (0x43B714), every physics step.
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back): maps, places and ranges by lot.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87_run::{ext_div2, int_80};
 use crate::race::frame_draw::sample_noise;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::ground::{noise_level, rough_floor};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::surface_noise", rva(0x43BC68), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
@@ -88,56 +79,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { surface_noise(r) })
 }
 
-fn regions() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    vec![
-        (a(0x71A8D8), 12),
-        (a(0x62400C), 4),
-        (a(0x71A258), 4),
-        (a(0x637620), 0x18),
-    ]
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let mut all = regions();
-    all.extend([(a(0x71A67C), 12), (a(0x609344), 12), (a(0x60AD10), 16)]);
-    // The two maps (64 x 64 bytes at 0xA2AB34 and 0xA2AB04) are the game's, read only.
-    let saved = capture(&all);
-    for seed in 0..8u32 {
-        let set = || {
-            p(0x71A67C, seed.wrapping_mul(0x1357_9BDF));
-            p(0x71A684, seed.wrapping_mul(0x2468_ACE1));
-            p(0x609344, seed * 10);
-            p(0x609348, 200 + seed * 40);
-            p(0x60934C, seed % 2);
-            p(0x60AD10, 20 + seed);
-            p(0x60AD18, if seed == 3 { 300 } else { 5 });
-            p(0x60AD1C, 150 + seed * 30);
-        };
-        check_state(
-            &mut t,
-            &format!("seed {seed}"),
-            call_original,
-            Regs::SENTINEL,
-            &set,
-            &all,
-            &rust,
-        );
-    }
-    restore(&all, &saved);
-    t.finish()
 }

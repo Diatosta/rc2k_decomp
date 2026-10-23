@@ -12,31 +12,19 @@
 //! Self-test: a copy of the original (its six floats the test's, its call to
 //! `clamped_asin` going to that one's test copy) on turn matrices and matrices by lot,
 //! under three precisions.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
-use crate::math::x87_run::{
-    TEST_CONTROL_WORDS, neg_rounded, over_cos_80, patan, with_control_word,
-};
+use crate::framework::{Regs, game_addr, rva};
+use crate::math::x87_run::{neg_rounded, over_cos_80, patan};
 use crate::physics::clamped_asin::clamped_asin_at;
-use crate::redirect::RedirectedCopy;
-use crate::scene::matrix3::{extended, rounded, test_floats};
+use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::matrix_angles", rva(0x4212C3), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, state_entry};
 
 const TURNED_RVA: usize = rva(0x5C70E0); // flt_5C70E0, E4, E8
 const ANGLES_RVA: usize = rva(0x5C70D4); // flt_5C70D4 (pitch), D8 (heading), DC (roll)
@@ -114,156 +102,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(
-        &HOOK,
-        r,
-        call_original,
-        &AnglePlaces::game().regions(),
-        &rust,
-    );
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-/// Test memory for this function and its callers: a matrix, the places, three ints
-/// (`car_angles`') and two switches (`update_car_angles`'), with the copies of
-/// `clamped_asin` and this function made on them.
-pub struct AngleTest {
-    _cells: Vec<u32>,
-    pub m: u32,
-    pub places: AnglePlaces,
-    pub ints: u32,
-    pub switches: u32,
-    /// This function's copy (its call to the copy of `clamped_asin`).
-    pub entry: usize,
-    _copies: Vec<RedirectedCopy>,
-}
-
-impl AngleTest {
-    pub fn new() -> Result<Self, String> {
-        let mut cells = vec![0u32; 16 + 3 + 3 + 2 + 3 + 2];
-        let m = cells.as_mut_ptr() as u32;
-        let places = AnglePlaces {
-            turned: m + 0x40,
-            angles: m + 0x4C,
-            scratch: m + 0x58,
-            limit: m + 0x5C,
-        };
-        let inner = crate::physics::clamped_asin::test_copy(places.scratch, places.limit)?;
-        let target = inner.addr();
-        let own = crate::audio::test_copy::make(
-            &HOOK,
-            &crate::audio::test_copy::Copy {
-                address: 0x4212C3,
-                len: 0x9A,
-                entry: &[0xD9, 0xE8, 0xD9, 0xEE, 0xD9, 0xEE],
-                calls: &[6, 0x37, 0x54, 0x67, 0x8E],
-                jumps_out: &[],
-            },
-            &|r| (r == rva(0x42120B)).then_some(target),
-            &[
-                (0x5C70E0, places.turned),
-                (0x5C70E4, places.turned + 4),
-                (0x5C70E8, places.turned + 8),
-                (0x5C70D4, places.angles),
-                (0x5C70D8, places.angles + 4),
-                (0x5C70DC, places.angles + 8),
-            ],
-            17,
-        )?;
-        Ok(Self {
-            entry: own.addr(),
-            _cells: cells,
-            m,
-            places,
-            ints: m + 0x60,
-            switches: m + 0x6C,
-            _copies: vec![own, inner],
-        })
-    }
-
-    /// The matrix by `seed` (a turn by three angles when even, floats by lot when odd),
-    /// the limit 1.0, everything else 0xAA.
-    pub fn fill(&self, seed: u32) {
-        let mut f = [0u32; 16];
-        if seed & 1 == 0 {
-            let (a, b, c) = (
-                seed as f32 * 0.37,
-                seed as f32 * 0.11 - 0.5,
-                seed as f32 * 0.23,
-            );
-            let (sa, ca) = a.sin_cos();
-            let (sb, cb) = b.sin_cos();
-            let (sc, cc) = c.sin_cos();
-            let rows = [
-                [ca * cc + sa * sb * sc, -ca * sc + sa * sb * cc, sa * cb],
-                [cb * sc, cb * cc, -sb],
-                [-sa * cc + ca * sb * sc, sa * sc + ca * sb * cc, ca * cb],
-            ];
-            for (r, row) in rows.iter().enumerate() {
-                for (k, v) in row.iter().enumerate() {
-                    f[4 * r + k] = v.to_bits();
-                }
-            }
-            for (k, v) in f.iter_mut().enumerate().skip(12) {
-                *v = (k as f32 - seed as f32).to_bits();
-            }
-        } else {
-            test_floats(seed * 3 + 7, &mut f);
-        }
-        unsafe {
-            (self.m as *mut [u32; 16]).write(f);
-            for k in 0..8u32 {
-                put(self.places.turned + 4 * k, 0xAAAA_AAAA);
-            }
-            put(self.places.limit, 0x3F80_0000);
-            for k in 0..5u32 {
-                put(self.ints + 4 * k, 0xAAAA_AAAA);
-            }
-        }
-    }
-
-    /// All of the test memory.
-    pub fn all(&self) -> [Region; 1] {
-        [(self.m, 4 * self._cells.len())]
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let test = match AngleTest::new() {
-        Ok(x) => x,
-        Err(why) => return t.skip(&why),
-    };
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 0..12u32 {
-                test.fill(seed);
-                let before = Regs {
-                    esi: test.m,
-                    ..Regs::SENTINEL
-                };
-                let mut ro = before;
-                unsafe { call_game(&mut ro, test.entry) };
-                let theirs = capture(&test.all());
-                test.fill(seed);
-                unsafe { matrix_angles_at(test.m, &test.places) };
-                let mine = capture(&test.all());
-                let regs_ok = ro.preserved_except(&before, 0);
-                t.check(regs_ok && theirs == mine, || {
-                    let first = theirs.iter().zip(&mine).position(|(a, b)| a != b);
-                    format!("control word {word:#x}, seed {seed}: regs_ok={regs_ok}, first difference at byte {first:?}")
-                });
-            }
-        });
-    }
-    drop(test);
-    t.finish()
 }

@@ -15,9 +15,13 @@
 //! Self-test: a copy of the original (its two scratch vectors the test's, its three calls
 //! kept) on a test record and car block, against the converted version: exact at double
 //! precision, within `SUM` at extended.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::math::x87_run::neg_product2_plus;
 use crate::physics::apply_force::BLOCK_LEN;
 use crate::physics::turn_by_inverse_at::turn_by_inverse_at;
@@ -25,24 +29,8 @@ use crate::physics::turn_by_matrix_at::turn_by_matrix_at;
 use crate::scene::vector3::{read_floats, write_floats};
 use crate::scene::view_matrix::cross_product;
 use crate::screens::harness::Left;
-use crate::service::floats::{
-    Agreement, Floats, SUM, Tolerance, at_test_precisions, compare_memory, dispatch_state_floats,
-    floats_entry,
-};
-use crate::service::harness::{Region, capture};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::apply_torque", rva(0x45FB82), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::floats::floats_entry;
+use crate::service::harness::Region;
 
 const WORK_RVA: usize = rva(0x6D30B4); // dword_6D30B4
 const CROSS_RVA: usize = rva(0x614274); // flt_614274
@@ -103,16 +91,6 @@ pub unsafe fn apply_torque_at_plain(rec: u32, car: u32, work: u32, cross: u32) {
     }
 }
 
-/// The float places it writes on the car at `car`, the work vector at `work`, the cross
-/// product at `cross`.
-fn floats(car: u32, work: u32, cross: u32) -> [(Region, Tolerance); 3] {
-    [
-        ((work, 12), SUM),
-        ((cross, 12), SUM),
-        ((car + SPIN_OFFSET, 12), SUM),
-    ]
-}
-
 /// The Rust version (the exact one, for `physics::apply_torques`).
 pub unsafe fn apply_torque(rec: u32, car: u32) {
     unsafe {
@@ -146,47 +124,10 @@ pub fn regions(car: u32) -> Vec<Region> {
     ]
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let memory = floats(
-        r.edi,
-        game_addr(WORK_RVA) as u32,
-        game_addr(CROSS_RVA) as u32,
-    );
-    let floats = Floats {
-        memory: &memory,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &regions(r.edi), &floats, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-/// A copy of the original whose work vector and cross product are at `work`, `cross`.
-pub fn test_copy(work: u32, cross: u32) -> Result<crate::redirect::RedirectedCopy, String> {
-    crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x45FB82,
-            len: 0xD3,
-            entry: &[0x60, 0x60, 0x50, 0x8B, 0x87, 0x84, 0x01, 0x00, 0x00],
-            calls: &[0x2B, 0x3C, 0xA8],
-            jumps_out: &[],
-        },
-        &|_| None,
-        &[
-            (0x6D30B4, work),
-            (0x6D30B8, work + 4),
-            (0x6D30BC, work + 8),
-            (0x614274, cross),
-            (0x614278, cross + 4),
-            (0x61427C, cross + 8),
-        ],
-        18,
-    )
 }
 
 /// Fills a test car block (its spin and both matrices) and record by `seed`.
@@ -220,49 +161,4 @@ pub fn fill(rec: u32, car: u32, seed: u32) {
             put(car + 0xB4 + 4 * k, (k as f32 - seed as f32).to_bits());
         }
     }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut cells = vec![0u32; (BLOCK_LEN as usize) / 4 + 8 + 6];
-    let car = cells.as_mut_ptr() as u32;
-    let rec = car + BLOCK_LEN;
-    let work = rec + 0x20;
-    let cross = work + 12;
-    let copy = match test_copy(work, cross) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let all = [(car, 4 * cells.len())];
-    let memory = floats(car, work, cross);
-    let tolerant = Floats {
-        memory: &memory,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, fl| {
-        for seed in 1..=6u32 {
-            fill(rec, car, seed);
-            let before = Regs {
-                esi: rec,
-                edi: car,
-                ..Regs::SENTINEL
-            };
-            let mut ro = before;
-            unsafe { call_game(&mut ro, copy.addr()) };
-            let theirs = capture(&all);
-            fill(rec, car, seed);
-            unsafe { apply_torque_at_plain(rec, car, work, cross) };
-            let mine = capture(&all);
-            let regs_ok = ro.preserved_except(&before, 0);
-            let agreement = compare_memory(&all, &theirs, &mine, fl);
-            t.check(regs_ok && agreement != Agreement::Differ, || {
-                let first = theirs.iter().zip(&mine).position(|(a, b)| a != b);
-                format!("control word {word:#x}, seed {seed}: regs_ok={regs_ok}, first difference at byte {first:?}")
-            });
-        }
-    });
-    drop((copy, cells));
-    t.finish()
 }

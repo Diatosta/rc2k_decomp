@@ -9,28 +9,18 @@
 //! Caller: `sub_43B635` (0x43B99A), every physics step.
 //! Self-test: `physics/copy_hooks_test.rs` (`test_moves_floats`: a copy on test
 //! variables against the converted version), 16 cases, exact at double precision.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EDX, RawHook, Regs, game_addr, game_read, hook_asm, rva};
+use crate::framework::{EDX, Regs, game_addr, game_read, rva};
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, toward_one};
-use crate::physics::copy_hooks_test::test_moves_floats;
 use crate::screens::harness::Left;
-use crate::service::floats::{FLOAT, Floats, dispatch_state_floats, floats_entry};
+use crate::service::floats::floats_entry;
 use rc2k_core::physics::motion::{LoadBlend, blend_load};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::blend_wheel_load", rva(0x440F70), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The figure, its three signs, the scratch, then the eight slots.
 const VARIABLES: [usize; 13] = [
@@ -117,59 +107,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing().with(EDX, g.edx))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let v = game();
-    let floats = Floats {
-        memory: &[((v[4], 4), FLOAT), ((v[5], 0x20), FLOAT)],
-        regs: &[],
-    };
-    dispatch_state_floats(
-        &HOOK,
-        r,
-        call_original,
-        &[(v[4], 4), (v[5], 0x20)],
-        &floats,
-        &rust,
-    );
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-fn fill(seed: u32, out: &mut [u32]) {
-    let f = |x: f32| x.to_bits();
-    out[0] = f([0.0f32, 5.0, 50.0, -3.0, 1000.0, f32::NAN, 12.0, 0.5][(seed % 8) as usize]);
-    for (k, o) in out.iter_mut().enumerate().take(4).skip(1) {
-        *o = f(if (seed >> (k - 1)) & 1 == 0 {
-            1.5
-        } else {
-            -2.5
-        });
-    }
-    out[4] = 0xAAAA_AAAA;
-    for (k, o) in out.iter_mut().enumerate().take(13).skip(5) {
-        *o = f((k as f32 - 5.0) / 9.0);
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    test_moves_floats(
-        &HOOK,
-        0x440F70,
-        0xD6,
-        &[0xD9, 0x05, 0x08, 0xA2, 0x71, 0x00],
-        &VARIABLES,
-        14,
-        16,
-        &fill,
-        &|v, r| {
-            unsafe { blend_at_plain(v, r) };
-            Left::nothing().with(EDX, r.edx)
-        },
-        &[4, 5, 6, 7, 8, 9, 10, 11, 12].map(|k| (k, FLOAT)),
-        &[],
-    )
 }

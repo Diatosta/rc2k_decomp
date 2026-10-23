@@ -14,32 +14,17 @@
 //! (`physics/reset_parts.rs`).
 //! Self-test: a copy whose calls go to the stand-ins (places 17 and 8), against the Rust
 //! version with the same: no checkpoints, distances below and above 0xA0000.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::math::x87_run::{ext_div2, int_80};
-use crate::physics::reset_parts::{NEAREST_IN, both_with, copy_of, dispatch_reset, regions};
-use crate::race::car_starts::{Case, Part, prepare};
-use crate::service::harness::{Region, capture, restore};
+use crate::physics::reset_parts::{NEAREST_IN, reset_entry};
+use crate::race::car_starts::Part;
 use rc2k_core::physics::progress;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::find_car_checkpoint",
-    rva(0x44139D),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
@@ -78,72 +63,8 @@ pub unsafe fn find_car_checkpoint(entry: &Regs, part: Part) -> Result<Regs, Refu
     Ok(r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_reset(&HOOK, r, call_original, find_car_checkpoint);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy_of(
-        0x44139D,
-        0x5B,
-        &[0xA1, 0x0C, 0xA1, 0x71, 0x00],
-        &[0x27, 0x55],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let extra: [Region; 4] = [
-        (a(0x639824), 12),
-        (a(0x62400C), 4),
-        (a(DISTANCE), 4),
-        (a(COUNT), 4),
-    ];
-    let mut all = regions();
-    all.extend_from_slice(&extra);
-    let saved = capture(&all);
-    for (count, edi) in [
-        (0u32, 5u32),
-        (40, 0x9_FFFF),
-        (40, 0xA_0000),
-        (40, 0xA_0001),
-        (40, u32::MAX),
-    ] {
-        let fill = || {
-            prepare(
-                &Case {
-                    mode: 2,
-                    no_place: 0,
-                    side: 0,
-                    cars_2: 1,
-                    current: 1,
-                    cars: 4,
-                },
-                edi ^ count,
-            );
-            p(COUNT, count);
-            p(0x71A070, 7);
-        };
-        let entry = Regs {
-            edi,
-            ebp: 0x1234,
-            ..Regs::SENTINEL
-        };
-        both_with(
-            &mut t,
-            &format!("count {count}, distance {edi:#x}"),
-            &copy,
-            0,
-            entry,
-            &fill,
-            find_car_checkpoint,
-            &extra,
-        );
-    }
-    restore(&all, &saved);
-    drop(copy);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    reset_entry(r, find_car_checkpoint)
 }

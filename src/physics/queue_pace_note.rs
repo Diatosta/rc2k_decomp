@@ -21,29 +21,18 @@
 //! Shadow mode runs the original alone (sound cues and car events must not be queued
 //! twice). Self-test: a copy whose calls go to stand-ins that note them, against the Rust
 //! version with the same, on groups of the test's in the game's tables (put back).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva, shadow,
-};
+use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_read, rva, shadow};
 use crate::install::stand_ins::{set_handler, stand_in};
 use crate::redirect::RedirectedCopy;
-use crate::service::harness::{Region, capture, restore};
+use crate::service::harness::{Region, capture};
 use rc2k_core::physics::pace_calls::{Code, code, find_group, text_place};
 use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::queue_pace_note", rva(0x4418B3), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// A call by place (see the header).
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
@@ -164,8 +153,25 @@ pub fn dispatch_pace(
     }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_pace(&HOOK, r, call_original, queue_pace_note_in);
+/// `dispatch_pace` without its hook (Rust callers; a refusal is the caller's).
+pub fn pace_entry(
+    r: &mut Regs,
+    rust: fn(&mut Regs, Part) -> Result<(), Refused>,
+) -> Result<(), Refused> {
+    let mut g = *r;
+    rust(&mut g, &mut pace_part)?;
+    *r = Regs {
+        esp: r.esp,
+        eflags: r.eflags,
+        ..g
+    };
+    Ok(())
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    pace_entry(r, queue_pace_note_in)
 }
 
 // ---- for the self-tests ----
@@ -235,63 +241,4 @@ pub fn both(
             theirs.0, theirs.1, mine.0, mine.1
         )
     });
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy_of(
-        0x4418B3,
-        0x9A,
-        &[0x83, 0x3D, 0x14, 0x5E, 0x61, 0x00, 0x00],
-        &[0x40, 0x4D, 0x56, 0x63, 0x6C, 0x79, 0x82, 0x8B, 0x91],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let all = [(a(0x615E10), 0xA008)];
-    let saved = capture(&all);
-    // Five groups at checkpoints 3, 7, 7, 12, 20; texts with codes of each kind.
-    let texts: [&[u8]; 5] = [
-        &[0x05, 0x1F, 0x20, 0x29, 0x00],
-        &[0x53, 0x01, 0x00],
-        &[0x02, 0x00],
-        &[0x10, 0x54, 0x07, 0x00],
-        &[0x00],
-    ];
-    for groups in [0u32, 1, 3, 5] {
-        for edx in [3u32, 7, 12, 20, 21] {
-            let fill = || unsafe {
-                use crate::framework::game_write;
-                restore(&all, &saved);
-                game_write(rva(GROUPS), groups);
-                let mut at = 0x100u32;
-                for (n, (cp, text)) in [3u32, 7, 7, 12, 20].iter().zip(texts).enumerate() {
-                    game_write(rva(GROUP_CHECKPOINTS) + 4 * n, *cp);
-                    game_write(rva(GROUP_TEXTS) + 4 * n, at);
-                    for (k, &b) in text.iter().enumerate() {
-                        game_write::<u8>(rva(TEXT) + (at as usize) + k, b);
-                    }
-                    at += 0x20;
-                }
-            };
-            both(
-                &mut t,
-                &format!("groups {groups}, edx {edx}"),
-                &copy,
-                Regs {
-                    edx,
-                    ..Regs::SENTINEL
-                },
-                &fill,
-                &all,
-                queue_pace_note_in,
-            );
-        }
-    }
-    restore(&all, &saved);
-    drop(copy);
-    t.finish()
 }

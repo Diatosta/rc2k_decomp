@@ -12,33 +12,19 @@
 //! Self-test (in a race; skipped otherwise; `physics::face_contacts` shares it): the
 //! original and the Rust version on the stage (everything written saved and put back),
 //! the car where it is and moved onto object faces.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::{Regs, SelfTest};
 use crate::physics::face_contact::{
-    self, Touched, faces_region, guarded, in_race_test, move_car_onto, object_faces,
+    self, Touched, faces_region, guarded, move_car_onto, object_faces,
 };
 use crate::physics::flow::{g, p};
 use crate::screens::harness::{CallOriginal, Left};
 use crate::service::harness::check_state;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::face_contacts_around",
-    rva(0x45E196),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The steps, not guarded.
 // Converted: `rc2k_core::physics::ground_search::cells_around`.
@@ -62,10 +48,6 @@ pub unsafe fn face_contacts_around(entry: &Regs) -> Result<Left, Refused> {
     guarded(entry, steps)
 }
 
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { face_contacts_around(r) }
-}
-
 /// The regions both hooks' tests compare (the whole face array).
 pub fn test_regions() -> Vec<crate::service::harness::Region> {
     let mut all = face_contact::regions();
@@ -73,8 +55,10 @@ pub fn test_regions() -> Vec<crate::service::harness::Region> {
     all
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    crate::physics::face_contact::dispatch_faces(&HOOK, r, call_original, steps);
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::physics::face_contact::faces_entry(r, steps)
 }
 
 /// The test of this and of `face_contacts`: the original `call_original`, the car where
@@ -105,10 +89,4 @@ pub fn test(
             rust,
         );
     }
-}
-
-fn self_test() -> (usize, usize) {
-    in_race_test(&HOOK, &mut |t, put_back| {
-        test(t, put_back, call_original, &rust)
-    })
 }

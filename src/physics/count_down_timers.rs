@@ -11,31 +11,16 @@
 //! Callers: `sub_43B635` (0x43B70A) and `sub_421848` (the car specification's run).
 //! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables against the
 //! converted version), 48 cases; one compare and copy of floats: exact at any precision.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, RawHook, Regs, game_addr, hook_asm, rva};
-use crate::physics::copy_hooks_test::{lot, test_moves};
+use crate::framework::{EAX, Regs, game_addr, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::motion::{StepCounters, StepFacts, count_down};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::count_down_timers",
-    rva(0x43D4B5),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const VARIABLES: [usize; 16] = [
     0x71AF8C, 0x71AF88, 0x719FEC, 0x71A080, 0x71A07C, 0x71A078, 0x62389C, 0x71A270, 0x71A1AC,
@@ -103,55 +88,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing().with(EAX, g.eax))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let v = game();
-    let regions: Vec<_> = [0usize, 1, 9, 10, 11, 12, 14, 15]
-        .iter()
-        .map(|&k| (v[k], 4))
-        .collect();
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn fill(seed: u32, out: &mut [u32]) {
-    lot(seed, out);
-    for k in [0usize, 1, 11, 12, 15] {
-        out[k] = if (seed + k as u32).is_multiple_of(3) {
-            0
-        } else {
-            out[k] % 50
-        };
-    }
-    out[2] = [500u32, 1000, 5000][(seed % 3) as usize];
-    for (k, o) in out.iter_mut().enumerate().take(6).skip(3) {
-        *o = u32::from((seed >> k).is_multiple_of(5));
-    }
-    out[6] = seed % 3;
-    out[7] = if seed.is_multiple_of(4) { 0x1E } else { out[7] };
-    out[8] = [0u32, 1, u32::MAX][(seed / 3 % 3) as usize];
-    out[10] = [0u32, u32::MAX, 1, 2, 7][(seed % 5) as usize];
-    out[13] = (seed as f32 * 1.5).to_bits();
-    out[14] = 6.0f32.to_bits();
-}
-
-fn self_test() -> (usize, usize) {
-    test_moves(
-        &HOOK,
-        0x43D4B5,
-        0xE5,
-        &[0x83, 0x3D, 0x8C, 0xAF, 0x71, 0x00, 0x00],
-        &VARIABLES,
-        27,
-        48,
-        &fill,
-        &|v, r| {
-            unsafe { count_at(v, r) };
-            Left::nothing().with(EAX, r.eax)
-        },
-    )
 }

@@ -20,36 +20,21 @@
 //! Refuses (before anything) a drive kind past 3 (`flt_613FB8`'s size not worked out).
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back): kinds 0, 5, 0x16, 0x17, 0x21, 0x40, under three precisions.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    EAX, EBX, ESI, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{EAX, EBX, ESI, Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::screens::harness::Left;
-use crate::service::floats::{
-    FLOAT, Floats, ROUNDED, Tolerance, at_test_precisions, check_state_floats,
-    dispatch_state_floats, floats_entry,
-};
-use crate::service::harness::{Region, capture, restore};
+use crate::service::floats::floats_entry;
 use rc2k_core::physics::car_specs::{
     OWN_FIGURES_FROM, RECORD_LEN, SpecConstants, SpecRecord, check_drive, gear_count, record_of,
     specs,
 };
 use std::cmp::Ordering;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::load_car_specs", rva(0x421482), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const RECORDS: usize = 0x5C790C; // the kinds' records
 
@@ -297,82 +282,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { load_car_specs_plain() }
 }
 
-/// The float places: the shift points and figures, the top and +0x1E0, `flt_614104`, the
-/// whole figures (`fistp`), the weights, the drive's two.
-fn float_places() -> Vec<(Region, Tolerance)> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    vec![
-        ((a(0x5CB958), 0x24), FLOAT),
-        ((a(0x71A1B4), 8), FLOAT),
-        ((a(0x614104), 4), FLOAT),
-        ((a(0x614BAC), 8), FLOAT),
-        ((a(0x614BC0), 12), ROUNDED),
-        ((a(0x6140F8), 8), FLOAT),
-    ]
-}
-
-fn regions() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    vec![
-        (a(0x71A018), 4),
-        (a(0x5CB958), 0x24),
-        (a(0x71A1B4), 8),
-        (a(0x614104), 4),
-        (a(0x614B74), 0x58),
-        (a(0x614C10), 0xC),
-        (a(0x62400C), 4),
-        (a(0x61476C), 4),
-        (a(0x6140F8), 8),
-    ]
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let places = float_places();
-    let floats = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let mut all = regions();
-    all.push((a(0x719FFC), 4));
-    let saved = capture(&all);
-    let places = float_places();
-    let tolerant = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, floats| {
-        for kind in [0u32, 5, 0x16, 0x17, 0x21, 0x40] {
-            let drive = g(0x5C790C + 0xB0 * kind.min(0x21) as usize + 0x18);
-            if drive > 3 {
-                continue;
-            }
-            check_state_floats(
-                &mut t,
-                "physics::load_car_specs",
-                &format!("control word {word:#x}, kind {kind:#x}"),
-                call_original,
-                Regs::SENTINEL,
-                &|| p(0x719FFC, kind),
-                &all,
-                floats,
-                &rust,
-            );
-        }
-    });
-    restore(&all, &saved);
-    t.finish()
 }

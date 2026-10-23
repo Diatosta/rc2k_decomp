@@ -13,34 +13,17 @@
 //! Self-test (in a race; skipped otherwise): the original and the Rust version on the
 //! stage (everything written saved and put back): the records of the car's cell where it
 //! is and of object faces with the car moved onto them.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::physics::face_contact::{
-    self, Touched, faces_region, guarded, in_race_test, move_car_onto, object_faces,
-};
+use crate::framework::Regs;
+use crate::physics::face_contact::{self, Touched, guarded};
 use crate::physics::flow::g;
 use crate::screens::harness::Left;
-use crate::service::harness::check_state;
 use rc2k_core::physics::ground_search;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::record_face_contacts",
-    rva(0x45E2AA),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const RECORDS: usize = 0x5CCCB8; // g_courseRecords (a pointer)
 
@@ -74,12 +57,10 @@ pub unsafe fn record_face_contacts(entry: &Regs) -> Result<Left, Refused> {
     guarded(entry, steps)
 }
 
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { record_face_contacts(r) }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    crate::physics::face_contact::dispatch_faces(&HOOK, r, call_original, steps);
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::physics::face_contact::faces_entry(r, steps)
 }
 
 /// The record holding face `k`, if any.
@@ -87,42 +68,5 @@ pub fn record_of(k: u32) -> Option<u32> {
     (0..g(0x5CCD18).min(0x10_0000)).find(|&n| {
         let (first, last) = record_faces(n);
         first != u32::MAX && first <= k && k <= last
-    })
-}
-
-fn self_test() -> (usize, usize) {
-    in_race_test(&HOOK, &mut |t, put_back| {
-        let mut all = face_contact::regions();
-        all.push(faces_region());
-        let mut cases: Vec<(u32, Option<u32>)> = Vec::new();
-        for k in object_faces(12) {
-            if let Some(n) = record_of(k) {
-                cases.push((n, Some(k)));
-                cases.push((n, None));
-            }
-        }
-        for n in 0..8 {
-            cases.push((n, None));
-        }
-        for (n, moved) in cases {
-            let set = || {
-                put_back();
-                if let Some(k) = moved {
-                    move_car_onto(k);
-                }
-            };
-            check_state(
-                t,
-                &format!("record {n}, car moved onto {moved:?}"),
-                call_original,
-                Regs {
-                    ebx: n,
-                    ..Regs::SENTINEL
-                },
-                &set,
-                &all,
-                &rust,
-            );
-        }
     })
 }

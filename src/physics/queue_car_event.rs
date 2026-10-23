@@ -12,26 +12,16 @@
 //! Refuses (before anything) a count above 7 (the original writes past the queue).
 //! Self-test: a copy of the original (the clock and the car's fields the test's) against
 //! the core, counts 0 .. 7, and the refusal.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, ECX, RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
-use crate::physics::cells::{get, get_list, put, put_changed, put_list_changed};
+use crate::framework::{EAX, ECX, Regs, game_addr, rva};
+use crate::physics::cells::{get, get_list, put_changed, put_list_changed};
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, dispatch_state};
 use rc2k_core::physics::car_events::CarEvents;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::queue_car_event", rva(0x4419EB), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// Where the variables are: the clock, the times, the events, the count, +0xF9C, +0xFA0.
 #[derive(Clone, Copy)]
@@ -105,81 +95,7 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { queue_car_event(r.esi, r.ebx) }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let p = QueuePlaces::game();
-    // The times, the events, the count, +0xF9C and +0xFA0: all (until 2026-10-18 the count
-    // and four events were left out, so in shadow mode the Rust version's count stood and the
-    // original queued one further on).
-    let regions = [(p.times, (p.fa0 + 4 - p.times) as usize)];
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // The clock, 7 times, 7 events, the count, +0xF9C, +0xFA0.
-    let mut cells = vec![0u32; 1 + 7 + 7 + 3];
-    let base = cells.as_mut_ptr() as u32;
-    let p = QueuePlaces {
-        clock: base,
-        times: base + 4,
-        events: base + 0x20,
-        count: base + 0x3C,
-        f9c: base + 0x40,
-        fa0: base + 0x44,
-    };
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x4419EB,
-            len: 0x4C,
-            entry: &[0xA1, 0x30, 0x38, 0x61, 0x00],
-            calls: &[],
-            jumps_out: &[],
-        },
-        &|_| None,
-        &[
-            (0x613830, p.clock),
-            (0x71AF30, p.times),
-            (0x71AF50, p.events),
-            (0x71AF70, p.count),
-            (0x71AF74, p.f9c),
-            (0x71AF78, p.fa0),
-        ],
-        9,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let all = [(base, 4 * cells.len())];
-    for count in 0..=7u32 {
-        let fill = || unsafe {
-            for k in 0..18u32 {
-                put(base + 4 * k, 0x5A5A_0000 | k);
-            }
-            put(p.count, count);
-        };
-        let before = Regs {
-            esi: 0x40 + count,
-            ebx: 0x1234_0000 | count,
-            ..Regs::SENTINEL
-        };
-        fill();
-        let mut ro = before;
-        unsafe { call_game(&mut ro, copy.addr()) };
-        let theirs = capture(&all);
-        fill();
-        let left = unsafe { queue_car_event_at(&p, before.esi, before.ebx) };
-        let mine = capture(&all);
-        let regs_ok = left.is_ok_and(|l| l.matches(&before, &ro));
-        t.check(regs_ok && theirs == mine, || {
-            format!("count {count}: regs_ok={regs_ok}; the memory differs")
-        });
-    }
-    unsafe { put(p.count, 8) };
-    let refused = unsafe { queue_car_event_at(&p, 0, 0) }.is_err();
-    t.check(refused, || "count 8 not refused".into());
-    drop((copy, cells));
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::service::harness::state_entry(r, &rust)
 }

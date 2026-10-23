@@ -13,33 +13,19 @@
 //! Callers: `sub_43B635` (0x43B831, 0x43B8AA), every physics step.
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back): both switches, loads by lot and all 0, under three precisions.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::math::x87;
-use crate::math::x87_run::{TEST_CONTROL_WORDS, lever_share, one_less, with_control_word};
-use crate::physics::lever_push::{inputs, lever_push, regions as push_regions, set_inputs};
-use crate::scene::matrix3::test_floats;
+use crate::math::x87_run::{lever_share, one_less};
+use crate::physics::lever_push::lever_push;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
+use crate::service::harness::state_entry;
 use std::cmp::Ordering;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::lever_pushes", rva(0x43DDDF), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-fn a(x: usize) -> u32 {
-    game_addr(rva(x)) as u32
-}
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
@@ -94,72 +80,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { lever_pushes() })
 }
 
-fn regions() -> Vec<Region> {
-    let mut r = push_regions();
-    r.push((a(0x614B44), 12));
-    r.push((a(SHARE), 8));
-    r
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut all = inputs();
-    all.extend(regions());
-    all.extend([
-        (a(0x621884), 4),
-        (a(0x71A22C), 4),
-        (a(0x71A1E8), 16),
-        (a(0x71ACC8), 4),
-        (a(0x71ACD4), 4),
-    ]);
-    let saved = capture(&all);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for (switch, still) in [(1u32, 0u32), (0, 0), (1, 1), (2, 0)] {
-                for seed in 1..=6u32 {
-                    let set = || {
-                        set_inputs(seed);
-                        p(0x621884, switch);
-                        p(0x71A22C, still);
-                        let mut f = [0u32; 6];
-                        test_floats(seed * 7 + switch, &mut f);
-                        for (k, &x) in f.iter().take(4).enumerate() {
-                            // All four 0 in one case; minus ones in another.
-                            let v = match seed {
-                                1 => 0,
-                                2 => x | 0x8000_0000,
-                                _ => x,
-                            };
-                            p(0x71A1E8 + 4 * k, v);
-                        }
-                        p(0x71ACC8, f[4]);
-                        p(0x71ACD4, f[5]);
-                    };
-                    check_state(
-                        &mut t,
-                        &format!("control word {word:#x}, switches {switch}, {still}, seed {seed}"),
-                        call_original,
-                        Regs::SENTINEL,
-                        &set,
-                        &all,
-                        &rust,
-                    );
-                }
-            }
-        });
-    }
-    restore(&all, &saved);
-    t.finish()
 }

@@ -19,26 +19,16 @@
 //! Self-test: a copy whose calls go to the stand-ins (place 13's carry by a pattern),
 //! against the Rust version with the same: modes 2 and others, patterns free at once,
 //! after some tries, and never (the log line, a stand-in too); all put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::physics::reset_parts::{BLOCKED, LOG, ON_LINE, both, copy_of, dispatch_reset, regions};
-use crate::race::car_starts::{Case, Part, prepare};
-use crate::service::harness::{capture, restore};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::physics::reset_parts::{BLOCKED, LOG, ON_LINE, reset_entry};
+use crate::race::car_starts::Part;
 use rc2k_core::physics::line_places::{RESET_TRIES, reset_offsets};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::reset_car", rva(0x43EFEF), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const LINE_PLACE: usize = rva(0x6365E4); // dword_6365E4
 const OFFSET: usize = rva(0x614C4C); // dword_614C4C
@@ -102,63 +92,8 @@ pub unsafe fn reset_car(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     Ok(r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_reset(&HOOK, r, call_original, reset_car);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy_of(
-        0x43EFEF,
-        0xF0,
-        &[0xA1, 0x6C, 0xA0, 0x71, 0x00],
-        &[0x41, 0x4E, 0x5B, 0x80, 0x8D, 0x9A, 0xC3, 0xDB, 0xE0],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let all = regions();
-    let saved = capture(&all);
-    let patterns: [u64; 6] = [
-        0,
-        0b1,
-        0b1011,
-        0x5555_5555_5555_5555,
-        0xFFFF_FFFF_FFFF_FFF0,
-        u64::MAX,
-    ];
-    for mode in [2u32, 0, 3] {
-        for (n, pattern) in patterns.into_iter().enumerate() {
-            let seed = mode * 8 + n as u32;
-            let fill = || {
-                prepare(
-                    &Case {
-                        mode,
-                        no_place: 0,
-                        side: 0,
-                        cars_2: 1,
-                        current: seed % 4,
-                        cars: 4,
-                    },
-                    seed.wrapping_mul(0x2026_1017),
-                );
-                p(OFFSET, 0x5A5A_5A5A);
-                p(CANDIDATE, 0xA5A5_A5A5);
-            };
-            both(
-                &mut t,
-                &format!("mode {mode}, pattern {pattern:#x}"),
-                &copy,
-                pattern,
-                Regs::SENTINEL,
-                &fill,
-                reset_car,
-            );
-        }
-    }
-    restore(&all, &saved);
-    drop(copy);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    reset_entry(r, reset_car)
 }

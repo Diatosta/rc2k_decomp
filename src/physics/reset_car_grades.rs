@@ -13,28 +13,16 @@
 //! Self-test: a copy of the original on a test block (its two reads of the work copy
 //! made the test's) against the converted version, fillings by lot at the test
 //! precisions (exact at any).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    EAX, ECX, EDI, RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva,
-};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
+use crate::framework::{EAX, ECX, EDI, Regs, game_addr, game_read, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, dispatch_state, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::grades::{percentage, reset_writes};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::reset_car_grades", rva(0x440A22), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 pub const BLOCK_LEN: usize = 0xFE0;
 const ONE_RVA: usize = rva(0x5C5D38); // flt_5C5D38, 1.0
@@ -79,31 +67,10 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { reset_car_grades(r.esi) })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &[(r.esi, BLOCK_LEN)], &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-/// A copy of the original reading the two settings at `s0c`, `s08`.
-pub fn test_copy(s0c: u32, s08: u32) -> Result<crate::redirect::RedirectedCopy, String> {
-    crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x440A22,
-            len: 0x15A,
-            entry: &[0x8D, 0xBE, 0x9C, 0x02, 0x00, 0x00],
-            calls: &[],
-            jumps_out: &[],
-        },
-        &|_| None,
-        &[(0x71A00C, s0c), (0x71A008, s08)],
-        2,
-    )
 }
 
 /// Fills a test block by `seed` (the two settings at +0x34 and +0x30 small whole
@@ -118,42 +85,4 @@ pub fn fill_block(b: u32, seed: u32) {
         put(b + 0x34, (seed.wrapping_mul(37) % 300).wrapping_sub(20));
         put(b + 0x30, seed.wrapping_mul(91) % 256);
     }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut block = vec![0u32; BLOCK_LEN / 4];
-    let b = block.as_mut_ptr() as u32;
-    let copy = match test_copy(b + 0x34, b + 0x30) {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(&why),
-    };
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 1..=8u32 {
-                fill_block(b, seed);
-                let before = Regs {
-                    esi: b,
-                    ..Regs::SENTINEL
-                };
-                let mut ro = before;
-                unsafe { call_game(&mut ro, copy.addr()) };
-                let theirs = capture(&[(b, BLOCK_LEN)]);
-                fill_block(b, seed);
-                let left = unsafe { reset_grades_at(b, b + 0x34, b + 0x30) };
-                let mine = capture(&[(b, BLOCK_LEN)]);
-                let regs_ok = left.matches(&before, &ro);
-                t.check(regs_ok && theirs == mine, || {
-                    let first = theirs.iter().zip(&mine).position(|(x, y)| x != y);
-                    format!(
-                        "control word {word:#x}, seed {seed}: regs_ok={regs_ok}, first difference at byte {first:?}"
-                    )
-                });
-            }
-        });
-    }
-    drop((copy, block));
-    t.finish()
 }

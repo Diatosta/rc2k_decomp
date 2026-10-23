@@ -157,6 +157,11 @@ pub fn dispatch_placed(
     dispatch_state_floats(hook, r, call_original, &regions, &floats, rust);
 }
 
+/// `dispatch_placed` without its hook (Rust callers; a refusal is the caller's).
+pub fn placed_entry(r: &mut Regs, rust: crate::service::harness::Rust) -> Result<(), Refused> {
+    crate::service::harness::state_entry(r, rust)
+}
+
 /// What a test sets and the functions write: the test object, the tables, the places,
 /// the view matrix, the band inputs.
 pub fn test_regions(object: u32) -> Vec<Region> {

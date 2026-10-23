@@ -28,33 +28,21 @@
 //! 0x75B340 .. 0x75B6AC (filled from the game's, then the figures, switches and random by
 //! lot), against the converted version: exact at double precision, the grades within
 //! `FLOAT` at extended.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, ECX, ESI, RawHook, Regs, SelfTest, call_game, hook_asm, rva};
+use crate::framework::{EAX, ECX, ESI, Regs};
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, ext_times, mul3, one_less_products, ramp, square};
 use crate::physics::mirror::{Mirror, Spec};
 use crate::scene::matrix3::rounded;
 use crate::screens::harness::Left;
-use crate::service::floats::{
-    Agreement, FLOAT, Floats, Tolerance, at_test_precisions, compare_memory, dispatch_state_floats,
-    floats_entry,
-};
-use crate::service::harness::{Region, capture};
+use crate::service::floats::{FLOAT, Tolerance, floats_entry};
+use crate::service::harness::Region;
 use rc2k_core::physics::handling::{At, Figures};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::rate_damage", rva(0x4AF1EC), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The mirrored ranges of the tests: the work copy and the grades' block.
 pub const RANGES: [(u32, u32); 2] = [(0x719FD8, 0x71AFB8), (0x75B340, 0x75B6AC)];
@@ -287,16 +275,6 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(rate_damage_plain_at(&Mirror::game()))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let m = Mirror::game();
-    let memory = floats(&m);
-    let floats = Floats {
-        memory: &memory,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &regions(&m), &floats, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
@@ -343,46 +321,4 @@ pub fn fill(m: &Mirror, seed: u32) {
             m.put(0x75B558 + 8, m.get(0x75B558));
         }
     }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let m = Mirror::of(&RANGES);
-    let copy = match m.copy(SPEC, &|_| None) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let all = m.regions();
-    let memory = floats(&m);
-    let tolerant = Floats {
-        memory: &memory,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, fl| {
-        for seed in 1..=10u32 {
-            let saved = capture(&all);
-            fill(&m, seed);
-            let input = capture(&all);
-            let mut ro = Regs::SENTINEL;
-            unsafe { call_game(&mut ro, copy.addr()) };
-            let theirs = capture(&all);
-            crate::service::harness::restore(&all, &input);
-            let left = rate_damage_plain_at(&m);
-            let mine = capture(&all);
-            let regs_ok = left.matches(&Regs::SENTINEL, &ro);
-            let agreement = compare_memory(&all, &theirs, &mine, fl);
-            t.check(regs_ok && agreement != Agreement::Differ, || {
-                let first = theirs.iter().zip(&mine).position(|(a, b)| a != b);
-                format!(
-                    "control word {word:#x}, seed {seed}: regs_ok={regs_ok} (original eax {:#x}), first difference at byte {first:?}",
-                    ro.eax
-                )
-            });
-            crate::service::harness::restore(&all, &saved);
-        }
-    });
-    drop(copy);
-    t.finish()
 }

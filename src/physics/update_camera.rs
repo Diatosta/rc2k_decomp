@@ -35,11 +35,15 @@
 //! Self-test (`camera_test`, in a race; skipped otherwise): the original and the Rust
 //! version on the stage (everything written saved and put back), the camera where it is,
 //! moved below the car, every mode and a switch under way.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest};
 use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
-use crate::physics::camera_ground::{Check, dispatch_carry};
+use crate::physics::camera_ground::{Check, carry_entry};
 use crate::physics::camera_view::{rd, record};
 use crate::physics::flow::{a, base, g, guard, hold_high, hold_low, p, x87_run};
 use crate::physics::touch_face::FACES;
@@ -48,29 +52,6 @@ use crate::scene::matrix3::rounded;
 use crate::screens::harness::CallOriginal;
 use crate::service::harness::{Region, capture, restore};
 use rc2k_core::physics::camera_view;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("physics::update_camera", rva(0x437A53), thunk, &ORIGINAL)
-    .private_copy(0x500)
-    .relocate_calls(&RELOCATED)
-    .manual_patch()
-    .self_test(self_test);
-
-/// The first chunk's calls and its near jumps into the second chunk (which stays in the
-/// game: entered from the copy, it returns from there).
-const RELOCATED: [usize; 18] = [
-    0x0, 0xFC, 0x109, 0x116, 0x123, 0x130, 0x13D, 0x14A, 0x157, 0x164, 0x171, 0x17E, 0x18B, 0x291,
-    0x2A2, 0x4C2, 0x4C7, 0x4CC,
-];
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const MODE: usize = 0x71A65C;
 const LIGHTS: usize = 0x5C906C; // g_lightRecords
@@ -370,8 +351,10 @@ pub unsafe fn update_camera(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_carry(&HOOK, r, call_original, update_camera);
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    carry_entry(r, update_camera)
 }
 
 /// The tests of the camera's step and its parents (in a race): the original and the Rust
@@ -437,8 +420,4 @@ pub fn camera_test(hook: &RawHook, call_original: CallOriginal, rust: Check) -> 
     }
     restore(&all, &saved);
     t.finish()
-}
-
-fn self_test() -> (usize, usize) {
-    camera_test(&HOOK, call_original, update_camera)
 }

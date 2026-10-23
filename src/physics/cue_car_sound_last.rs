@@ -12,33 +12,15 @@
 //! Shadow mode runs the original alone (`physics/sound_cues.rs`).
 //! Self-test: a copy whose call goes to a stand-in, against the Rust version: which 0, 1,
 //! 2, objects ready or not.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::physics::sound_cues::{Part, QUEUE, both, copy_of, dispatch_cue};
-use crate::service::harness::{capture, restore};
+use crate::framework::{Regs, game_read, rva};
+use crate::physics::sound_cues::{Part, QUEUE, cue_entry};
 use rc2k_core::physics::listed_cars::{CuePlace, QUEUE_OFFSET, cue_object};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::cue_car_sound_last",
-    rva(0x40ECBB),
-    thunk,
-    &ORIGINAL,
-)
-.private_copy(0x2C)
-.relocate_calls(&[0x25])
-.manual_patch()
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
@@ -63,52 +45,8 @@ pub fn cue_car_sound_last_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     part(QUEUE, &mut c)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_cue(&HOOK, r, call_original, cue_car_sound_last_in);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy_of(
-        0x40ECBB,
-        0x2C,
-        &[0x60, 0x83, 0xF8, 0x01, 0x77, 0x24],
-        &[0x25],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut object = vec![0u32; 0x20];
-    let o = object.as_mut_ptr() as u32;
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let all = [(o, 0x80), (a(0x512A10), 0x20)];
-    let saved = capture(&all);
-    for which in [0u32, 1, 2] {
-        for ready in [1u32, 0] {
-            let fill = || unsafe {
-                for k in 0..8usize {
-                    game_write(rva(0x512A10 + 4 * k), o);
-                }
-                ((o + 8) as *mut u32).write(ready);
-            };
-            both(
-                &mut t,
-                &format!("which {which}, ready {ready}"),
-                &copy,
-                Regs {
-                    eax: which,
-                    ebx: 0x50,
-                    ..Regs::SENTINEL
-                },
-                &fill,
-                &all,
-                cue_car_sound_last_in,
-            );
-        }
-    }
-    restore(&all, &saved);
-    drop((copy, object));
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    cue_entry(r, cue_car_sound_last_in)
 }

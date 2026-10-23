@@ -14,29 +14,20 @@
 //! Callers: `physics::manual_gearbox`, `physics::auto_gearbox`.
 //! Refuses what the calls refuse; what was written is put back.
 //! Self-test: `physics/gearbox.rs` (`test_gearbox`), gears made 0 first.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::math::x87;
 use crate::math::x87_run::sub_mul_add;
 use crate::physics::copy_car_word_8::copy_car_word_8;
 use crate::physics::gearbox::*;
 use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::gear_shifts as shifts;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::pick_start_gear", rva(0x43C8AC), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::gear_shifts::pick_start` (the engine's sums and compares
@@ -83,20 +74,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { pick_start_gear(r) }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    test_gearbox(&mut t, call_original, &rust, &|c| c.gear = 0);
-    t.finish()
 }

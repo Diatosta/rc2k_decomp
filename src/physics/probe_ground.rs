@@ -34,33 +34,21 @@
 //! `rotate_point` the game's hook) on the test's ground and work copy: counts 0, 1, 4,
 //! 6, places and turns by lot over the test's grid, the switch bits, under three
 //! precisions; the points found counted; the refusal.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, ECX, EDX, ESI, RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::{EAX, EBX, ECX, EDX, ESI, Regs, rva};
 use crate::math::x87;
-use crate::math::x87_run::{
-    TEST_CONTROL_WORDS, int_times_times_over_to_int, less_plus_less_product_80, with_control_word,
-};
+use crate::math::x87_run::{int_times_times_over_to_int, less_plus_less_product_80};
 use crate::physics::ground::*;
-use crate::physics::ground_search::test_ground;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state, restore, state_entry};
+use crate::service::harness::{Region, capture, restore, state_entry};
 use rc2k_core::physics::ground;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::probe_ground", rva(0x45D305), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 pub const MOST_POINTS: u32 = 0x40;
 const COUNT: u32 = 0x71A238; // dword_71A238
@@ -235,10 +223,6 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
         .with(ESI, g.esi))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(&Ground::game()), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
@@ -298,52 +282,4 @@ pub fn prepare_probe(test: &TestGround, seed: u32, count: u32, sse: bool) {
         g.put(0x71A038, small(next()));
         g.put(0x71A0A0, small(next()));
     }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let test = test_ground(2);
-    let copies = match test.copies() {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let fg = copies.find_ground.addr();
-    let copy = match test.copy(PROBE_GROUND, &|a| (a == 0x441E29).then_some(fg)) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let g = test.ground();
-    let mut found = 0u32;
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for (case, count) in [0u32, 1, 4, 6, 6, 4].into_iter().enumerate() {
-                let seed = case as u32 * 0x2545_F491 + word as u32;
-                let prepare = || prepare_probe(&test, seed, count, case % 2 == 1);
-                check_case(
-                    &mut t,
-                    &format!("control word {word:#x}, case {case}, count {count}"),
-                    copy.addr(),
-                    &test,
-                    Regs::SENTINEL,
-                    &prepare,
-                    &|g, r| unsafe { probe_ground_at(g, r) }.map(|()| false),
-                    false,
-                );
-                for b in 0..count.min(4) {
-                    found += unsafe { g.get(0x6D2714 + 4 * b) } & 1;
-                }
-            }
-        });
-    }
-    t.check(found > 0, || "no probe point found ground".into());
-    unsafe { g.put(COUNT, MOST_POINTS + 1) };
-    let before = capture(&test.regions());
-    let refused = unsafe { probe_ground_at(&g, &mut Regs { ..Regs::SENTINEL }) }.is_err();
-    t.check(refused && capture(&test.regions()) == before, || {
-        "a count of 0x41: not refused, or something written".into()
-    });
-    drop((copy, copies));
-    t.finish()
 }

@@ -13,27 +13,18 @@
 //!
 //! Callers: `sub_43907F` (seven).
 //! Self-test: `physics/camera_view.rs` (`view_test`), figures by lot, three precisions.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, ECX, EDX, ESI, RawHook, Regs, hook_asm, rva};
-use crate::physics::camera_view::{rd, view_regions, view_test_floats_regs};
+use crate::framework::{EAX, EBX, ECX, EDX, ESI, Regs};
+use crate::physics::camera_view::rd;
 use crate::physics::flow::{a, base, g, p, x87_run};
 use crate::screens::harness::Left;
-use crate::service::floats::{Floats, ROUNDED, Tolerance, dispatch_state_floats, floats_entry};
+use crate::service::floats::floats_entry;
 use rc2k_core::physics::camera_place::{SECOND_RECORD_MODE, add_offset, turned_offset};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::place_camera", rva(0x438E5A), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The turns: `math::turn_point_xz_ebx`, `_ecx` and `turn_point_xz`, exact or plain.
 type Turns = (
@@ -159,33 +150,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { place_camera_plain(r) })
 }
 
-/// The places from floats: the camera's place, the scratch (whole numbers), and the
-/// registers left with the last offset.
-const PLACES: [(usize, usize, Tolerance); 2] = [(0x71A67C, 12, ROUNDED), (0x62400C, 4, ROUNDED)];
-const REGS: [(u8, Tolerance); 3] = [(EAX, ROUNDED), (EBX, ROUNDED), (ECX, ROUNDED)];
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let memory: Vec<_> = PLACES.iter().map(|&(x, n, t)| ((a(x), n), t)).collect();
-    let floats = Floats {
-        memory: &memory,
-        regs: &REGS,
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &view_regions(), &floats, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    view_test_floats_regs(
-        &HOOK,
-        "physics::place_camera",
-        call_original,
-        &rust,
-        &PLACES,
-        &REGS,
-    )
 }

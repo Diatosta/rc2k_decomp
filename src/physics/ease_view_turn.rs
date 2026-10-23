@@ -9,27 +9,17 @@
 //! Caller: `sub_43907F`.
 //! Self-test: `physics/camera_view.rs` (`view_test_floats`), figures by lot, exact at
 //! double precision.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, RawHook, Regs, hook_asm, rva};
-use crate::physics::camera_view::{view_regions, view_test_floats};
-use crate::physics::flow::{a, base, g, p, x87_run};
+use crate::framework::{EAX, Regs};
+use crate::physics::flow::{base, g, p, x87_run};
 use crate::screens::harness::Left;
-use crate::service::floats::{Floats, ROUNDED, Tolerance, dispatch_state_floats, floats_entry};
+use crate::service::floats::floats_entry;
 use rc2k_core::physics::camera_view::ease_turns;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::ease_view_turn", rva(0x438B4F), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The Rust version (the exact one, for `physics::camera_avoid_ground`).
 pub unsafe fn ease_view_turn(_: &Regs) -> Left {
@@ -88,30 +78,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { ease_view_turn_plain(r) })
 }
 
-/// The whole numbers made from floats, held to `ROUNDED` at extended precision.
-const FLOATS: [(usize, usize, Tolerance); 2] = [(0x62400C, 4, ROUNDED), (0x71A688, 12, ROUNDED)];
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let memory = FLOATS.map(|(x, len, tl)| ((a(x), len), tl));
-    let floats = Floats {
-        memory: &memory,
-        regs: &[(EAX, ROUNDED)],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &view_regions(), &floats, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    view_test_floats(
-        &HOOK,
-        "physics::ease_view_turn",
-        call_original,
-        &rust,
-        &FLOATS,
-    )
 }

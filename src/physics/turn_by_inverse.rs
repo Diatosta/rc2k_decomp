@@ -8,24 +8,15 @@
 //! See `physics/turn_by_car_matrix.rs` (the core and the test). Callers (13): the cars'
 //! physics under `sub_4454D2`.
 //! Self-test: as `physics::turn_by_car_matrix`'s, on this function's copy.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, game_addr, hook_asm, rva};
-use crate::physics::turn_by_car_matrix::{test_turn, turn_point_by, turn_point_by_plain};
+use crate::framework::{Regs, game_addr, rva};
+use crate::physics::turn_by_car_matrix::{turn_point_by, turn_point_by_plain};
 use crate::screens::harness::Left;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::turn_by_inverse", rva(0x43F118), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 pub const INVERSE_RVA: usize = rva(0x71A9A4); // g_carInverseMatrix
 
@@ -44,34 +35,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    // The point compared as floats: at the game's extended stretches (0x037F) the last bit
-    // may differ (a drift, as `scale_vector`'s).
-    let floats = crate::service::floats::Floats {
-        memory: &[((r.esi, 12), crate::service::floats::FLOAT)],
-        regs: &[],
-    };
-    crate::service::floats::dispatch_state_floats(
-        &HOOK,
-        r,
-        call_original,
-        &[(r.esi, 12)],
-        &floats,
-        &rust,
-    );
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     crate::service::floats::floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    test_turn(
-        &HOOK,
-        0x43F118,
-        &[0xD9, 0x46, 0x08, 0xD9, 0x46, 0x04],
-        0x71A9A4,
-    )
 }

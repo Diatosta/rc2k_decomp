@@ -16,33 +16,18 @@
 //! Self-test: a copy whose cue goes to a stand-in, run on the game's variables (saved and
 //! put back), against the Rust version: distances, checkpoints, headings, counters about
 //! their times.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::physics::sound_cues::{LISTED, Part, both, copy_of, dispatch_cue};
-use crate::service::harness::{capture, restore};
+use crate::framework::{Regs, game_read, game_write, rva};
+use crate::physics::sound_cues::{LISTED, Part, cue_entry};
 use rc2k_core::physics::progress::{
     LAST_CHECKPOINT, OFF_LINE_CUE, TURNED_CUE, Warnings, cue_due, off_line, spread,
 };
 use rc2k_core::physics::x87::below as x87_below;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::off_line_warnings",
-    rva(0x44148F),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
@@ -115,63 +100,8 @@ pub fn off_line_warnings_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_cue(&HOOK, r, call_original, off_line_warnings_in);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy_of(
-        0x44148F,
-        0xEC,
-        &[0x83, 0x3D, 0x80, 0xA0, 0x71, 0x00, 0x00],
-        &[0xC5, 0xE6],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let all = [
-        (a(0x71A060), 0x30),
-        (a(0x71A248), 0x18),
-        (a(0x71A998), 4),
-        (a(0x614C68), 0x10),
-        (a(0x9ED808), 0x40),
-        (a(0x5BEC94), 4),
-    ];
-    let saved = capture(&all);
-    for seed in 0..16u32 {
-        let fill = || {
-            p(0x71A080, (seed == 15) as u32);
-            p(0x71A07C, 0);
-            p(0x71A070, seed % 8);
-            p(0x71A06C, (seed * 3) % 8);
-            p(0x614C68, (seed as f32 * 10.0).to_bits());
-            p(0x614C6C, 50.0f32.to_bits());
-            p(0x614C74, 0x1000_0000);
-            for k in 0..16usize {
-                p(0x9ED808 + 4 * k, (k as u32).wrapping_mul(0x0800_0000));
-            }
-            p(0x71A998, seed.wrapping_mul(0x1300_0000));
-            p(0x71A248, [0u32, 299, 300, 3300][(seed % 4) as usize]);
-            p(0x71A250, 300);
-            p(0x71A24C, [300u32, 0, 299, 301][(seed / 4 % 4) as usize]);
-            p(0x71A254, 300);
-            p(0x5BEC94, (seed == 7) as u32);
-        };
-        both(
-            &mut t,
-            &format!("seed {seed}"),
-            &copy,
-            Regs::SENTINEL,
-            &fill,
-            &all,
-            off_line_warnings_in,
-        );
-    }
-    restore(&all, &saved);
-    drop(copy);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    cue_entry(r, off_line_warnings_in)
 }

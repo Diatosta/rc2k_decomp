@@ -13,25 +13,16 @@
 //! the original alone (as its ground checks).
 //! Self-test (`update_camera::camera_test`, in a race; skipped otherwise; the carry not
 //! compared, as no caller reads it).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::physics::camera_ground::dispatch_carry;
+use crate::framework::Regs;
+use crate::physics::camera_ground::carry_entry;
 use crate::physics::flow::{base, g, guard, hold_high, hold_low, negate, p, x87_run};
 use crate::race::car_starts::Part;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::camera_frame", rva(0x44FF1B), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // Converted: `rc2k_core::physics::camera_view::shakes` (the x87 steps stay).
 fn steps(r: &mut Regs, part: Part) -> Result<(), Refused> {
@@ -77,10 +68,8 @@ pub unsafe fn camera_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_carry(&HOOK, r, call_original, camera_frame);
-}
-
-fn self_test() -> (usize, usize) {
-    crate::physics::update_camera::camera_test(&HOOK, call_original, camera_frame)
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    carry_entry(r, camera_frame)
 }

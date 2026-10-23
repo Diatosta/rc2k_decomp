@@ -11,26 +11,17 @@
 //! Refuses what `set_flag_5165a4` refuses.
 //! Self-test: a copy of the original (its variables the test's, its call to the twin's
 //! test copy on test cells) against the core, over each condition.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
-use crate::physics::listed_car_flags::{CURRENT_CAR, TABLE, set_flag_at, twin_copy};
+use crate::framework::{Regs, game_addr, rva};
+use crate::physics::listed_car_flags::{CURRENT_CAR, TABLE, set_flag_at};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::progress::{GO_NOTICE, GoFacts};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::start_go_notice", rva(0x436A4B), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The variables (IDA addresses) in the order the core takes them.
 const VARIABLES: [usize; 8] = [
@@ -86,85 +77,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { start_go_notice() }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let (v, twin) = game();
-    let regions: Vec<Region> = vec![(v[2], 4), (v[5], 4), (v[6], 4), (v[7], 4), (twin[2], 4)];
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // The 8 variables, then current, flag, 8 listed.
-    let mut cells = vec![0u32; 8 + 2 + 8];
-    let base = cells.as_mut_ptr() as u32;
-    let v: Vec<u32> = (0..8).map(|k| base + 4 * k).collect();
-    let twin = [base + 0x20, base + 0x28, base + 0x24];
-    let inner = match twin_copy(
-        &crate::physics::set_flag_5165a4::HOOK,
-        0x45D189,
-        0x5165A4,
-        twin[0],
-        twin[1],
-        twin[2],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let target = inner.addr();
-    let vars: Vec<(usize, u32)> = VARIABLES.iter().copied().zip(v.iter().copied()).collect();
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x436A4B,
-            len: 0x5C,
-            entry: &[0x83, 0x3D, 0x34, 0xA2, 0x71, 0x00, 0x01],
-            calls: &[0x2E],
-            jumps_out: &[],
-        },
-        &|r| (r == rva(0x45D189)).then_some(target),
-        &vars,
-        9,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let all = [(base, 4 * cells.len())];
-    // Case 0 runs; each other case breaks one condition.
-    for case in 0..7u32 {
-        let fill = || unsafe {
-            for k in 0..18u32 {
-                put(base + 4 * k, 0x5A5A_0000 | k);
-            }
-            put(v[0], if case == 1 { 2 } else { 1 });
-            put(v[1], if case == 2 { 5 } else { 0 });
-            put(v[2], if case == 3 { 1 } else { 0 });
-            put(v[3], if case == 4 { 1 } else { 0 });
-            put(v[4], if case == 5 { 0x0001_0000 } else { 0xFFFE_FFFF });
-            put(twin[0], case % 8);
-            if case == 6 {
-                put(twin[1] + 4 * (case % 8), u32::MAX);
-            }
-        };
-        fill();
-        let mut ro = Regs::SENTINEL;
-        unsafe { call_game(&mut ro, copy.addr()) };
-        let theirs = capture(&all);
-        fill();
-        let left = unsafe { start_go_notice_at(&v, twin) };
-        let mine = capture(&all);
-        let regs_ok = left.is_ok_and(|l| l.matches(&Regs::SENTINEL, &ro));
-        t.check(regs_ok && theirs == mine, || {
-            format!("case {case}: regs_ok={regs_ok}; the memory differs")
-        });
-    }
-    drop((copy, inner, cells));
-    t.finish()
 }

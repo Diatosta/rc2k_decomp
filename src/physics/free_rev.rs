@@ -13,28 +13,19 @@
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back), against the converted version: `physics::engine_torque`'s cases
 //! (`test_engine_floats`), exact at double precision.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
+use crate::framework::{Regs, game_addr};
 use crate::math::x87;
 use crate::physics::engine_torque::{
-    below, dispatch_engine, engine_torque, engine_torque_plain, g, p, regions, test_engine_floats,
+    below, engine_entry, engine_torque, engine_torque_plain, g, p,
 };
 use crate::screens::harness::Left;
 use rc2k_core::physics::engine::{FreeRev, free_rev as free_rev_core};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::free_rev", rva(0x43EA80), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// 0x43EA85 .. 0x43EAE7, as the original.
 unsafe fn run() {
@@ -123,22 +114,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { free_rev_plain() })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let mut regions = regions();
-    regions.push((game_addr(rva(0x71A1B0)) as u32, 4));
-    dispatch_engine(&HOOK, r, call_original, &regions, &FREE_REV_FLOATS, &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    test_engine_floats(
-        &mut t,
-        "physics::free_rev",
-        call_original,
-        &rust,
-        &FREE_REV_FLOATS,
-    );
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    engine_entry(r, &rust)
 }

@@ -17,32 +17,22 @@
 //! Callers: `physics::object_hits_car`, `physics::scene_point_hits_car` (both `jb`).
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back): points about the box by lot, every contact kind, under three precisions.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::math::turn_scratch_xz::scratch;
 use crate::math::x87::loaded;
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::physics::flow::{a, base, g, p, x87_run};
 use crate::physics::turn_by_heading::turn_by_heading;
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::{rounded, test_floats};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
+use crate::service::harness::{Region, state_entry};
 use rc2k_core::physics::contacts;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::point_hits_car", rva(0x45E800), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// `dword_6D3624`: the kind of contact being looked at.
 pub const KIND: usize = 0x6D3624;
@@ -140,10 +130,6 @@ pub fn regions() -> Vec<Region> {
     ]
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
@@ -186,62 +172,4 @@ pub fn set_inputs(seed: u32, kind: u32) {
     }
     p(0x71A208, (f32::from_bits(f[7]) % 3.0).to_bits());
     p(KIND, kind);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut all = regions();
-    all.extend(inputs());
-    let saved = capture(&all);
-    let mut point = [0u32; 3];
-    let mut object = [0u32; 0x10];
-    let (pt, ob) = (point.as_mut_ptr() as u32, object.as_mut_ptr() as u32);
-    all.push((pt, 12));
-    all.push((ob, 0x40));
-    let kinds = [10u32, 1, 5, 6, 0, 2, 9, 0xFF];
-    let (mut inside, mut outside) = (0, 0);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 0..24u32 {
-                let set = || {
-                    set_inputs(seed, kinds[(seed % 8) as usize]);
-                    let mut f = [0u32; 6];
-                    test_floats(seed * 7 + 1, &mut f);
-                    for k in 0..3 {
-                        let v = (f[k] as i32).wrapping_rem(0x18000) as u32;
-                        unsafe { ((pt + 4 * k as u32) as *mut u32).write(v) };
-                        let o = (f[k + 3] as i32).wrapping_rem(0x8000) as u32;
-                        unsafe { ((ob + 0x30 + 4 * k as u32) as *mut u32).write(o) };
-                    }
-                };
-                check_state(
-                    &mut t,
-                    &format!("control word {word:#x}, seed {seed}"),
-                    call_original,
-                    Regs {
-                        esi: pt,
-                        ebp: ob,
-                        ..Regs::SENTINEL
-                    },
-                    &set,
-                    &all,
-                    &rust,
-                );
-                set();
-                if unsafe { point_hits_car(pt, ob) } {
-                    inside += 1;
-                } else {
-                    outside += 1;
-                }
-            }
-        });
-    }
-    t.check(inside > 0 && outside > 0, || {
-        format!("both ways not taken: {inside} inside, {outside} outside")
-    });
-    all.truncate(all.len() - 2);
-    restore(&all, &saved);
-    t.finish()
 }

@@ -107,6 +107,21 @@ pub fn dispatch_cue(
     }
 }
 
+/// `dispatch_cue` without its hook (Rust callers; a refusal is the caller's).
+pub fn cue_entry(
+    r: &mut Regs,
+    rust: fn(&mut Regs, Part) -> Result<(), Refused>,
+) -> Result<(), Refused> {
+    let mut g = *r;
+    rust(&mut g, &mut game_part)?;
+    *r = Regs {
+        esp: r.esp,
+        eflags: r.eflags,
+        ..g
+    };
+    Ok(())
+}
+
 /// One test case: `fill` then the copy, `fill` then `rust` with the stand-ins; the calls,
 /// the registers and the memory compared.
 pub fn both(

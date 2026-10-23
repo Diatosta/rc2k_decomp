@@ -20,26 +20,17 @@
 //! Self-test: the original and the Rust version from the same state (the work car, the
 //! physics' variables and the tables saved and put back), the car as it is and with its
 //! drive force by lot, under three precisions.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, ECX, EDX, RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::{EAX, EBX, ECX, EDX, RawHook, Regs, SelfTest};
 use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::physics::flow::{a, base, c0, g, guard, p, x87_run};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::test_drive_run", rva(0x421848), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, capture, check_state, restore, state_entry};
 
 const DRIVE: usize = 0x71A190; // g_carDriveSpeed
 const GEAR: usize = 0x71A1AC; // g_carGear
@@ -146,10 +137,6 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { test_drive_run(r) }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
@@ -191,8 +178,4 @@ pub fn drive_test(
     }
     restore(&all, &saved);
     t.finish()
-}
-
-fn self_test() -> (usize, usize) {
-    drive_test(&HOOK, call_original, &rust)
 }

@@ -25,44 +25,21 @@
 //! Self-test (in a race; skipped otherwise): the original and the Rust version on the
 //! stage (`physics/update_camera.rs`, `camera_test`), the camera where it is, moved below
 //! the car and into the ground, every mode.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva};
+use crate::framework::Regs;
 use crate::physics::camera_clear_of_ground::camera_clear_of_ground;
-use crate::physics::camera_ground::dispatch_carry;
+use crate::physics::camera_ground::carry_entry;
 use crate::physics::camera_over_ground::camera_over_ground;
 use crate::physics::camera_view::{rd, record};
 use crate::physics::flow::{g, p};
 use crate::physics::touch_face::FACES;
 use crate::race::car_starts::Part;
 use rc2k_core::physics::camera_ground;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::camera_avoid_ground",
-    rva(0x43907F),
-    thunk,
-    &ORIGINAL,
-)
-.private_copy(0x291)
-.relocate_calls(&CALLS)
-.manual_patch()
-.self_test(self_test);
-
-/// Every call in the copy (all out of the function).
-const CALLS: [usize; 19] = [
-    0x0, 0x25, 0x55, 0xA4, 0xB1, 0xB6, 0x101, 0x10E, 0x113, 0x1A5, 0x1AA, 0x22E, 0x233, 0x24E,
-    0x25C, 0x261, 0x274, 0x282, 0x287,
-];
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const HEADING: usize = 0x71A688;
 const STEP: usize = 0x605264;
@@ -205,10 +182,8 @@ pub unsafe fn camera_avoid_ground(entry: &Regs, part: Part) -> Result<Regs, Refu
     Ok(r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_carry(&HOOK, r, call_original, camera_avoid_ground);
-}
-
-fn self_test() -> (usize, usize) {
-    crate::physics::update_camera::camera_test(&HOOK, call_original, camera_avoid_ground)
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    carry_entry(r, camera_avoid_ground)
 }

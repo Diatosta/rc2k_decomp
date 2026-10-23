@@ -8,30 +8,16 @@
 //! Caller: `sub_45E800` (0x45E8A9).
 //! Self-test: the original and the Rust version on the game's variables (the heading and
 //! the scratch point saved and put back) and a test point, under three precisions.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    EAX, ECX, EDX, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{EAX, ECX, EDX, Regs, game_read, rva};
 use crate::math::turn_float_point_xz::turn_float_point_xz;
-use crate::math::turn_scratch_xz::scratch;
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
-use crate::scene::matrix3::test_floats;
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::turn_by_heading", rva(0x43F136), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 const HEADING_RVA: usize = rva(0x71A998); // g_car + 0x9C0
 
@@ -52,50 +38,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { turn_by_heading(r.esi, r.ebx) })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &[(r.esi, 12), scratch()], &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut point = vec![0u32; 3];
-    let pt = point.as_mut_ptr() as u32;
-    let all = [(pt, 12), scratch(), (game_addr(HEADING_RVA) as u32, 4)];
-    let saved = capture(&all);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 1..=8u32 {
-                let set = || {
-                    let mut f = [0u32; 3];
-                    test_floats(seed * 31 + 7, &mut f);
-                    unsafe { (pt as *mut [u32; 3]).write(f) };
-                    unsafe { game_write(HEADING_RVA, seed.wrapping_mul(0x1357_9BDF)) };
-                };
-                check_state(
-                    &mut t,
-                    &format!("control word {word:#x}, seed {seed}"),
-                    call_original,
-                    Regs {
-                        esi: pt,
-                        ebx: (seed as f32 * 2.5).to_bits(),
-                        ..Regs::SENTINEL
-                    },
-                    &set,
-                    &all,
-                    &rust,
-                );
-            }
-        });
-    }
-    restore(&all, &saved);
-    drop(point);
-    t.finish()
 }

@@ -10,28 +10,17 @@
 //! Caller: `physics::race_timers`.
 //! Refuses (before anything) a split past 0x3F, and what `split_by_mode` refuses.
 //! Self-test: `physics/splits.rs` (`test_splits`).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::physics::split_by_mode::split_by_mode_in;
-use crate::physics::splits::{
-    CHECKS, COUNT, DONE, FIGURE, SPLIT, SPLITS, g, guarded, p, test_splits, written,
-};
+use crate::physics::splits::{CHECKS, COUNT, DONE, FIGURE, SPLIT, SPLITS, g, guarded, p};
 use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::progress::{FINISH_NOTICE, finished_at, split_due};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::take_split", rva(0x436900), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::progress::{split_due, finished_at}`.
@@ -68,20 +57,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { take_split(r) }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &written(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    test_splits(&mut t, call_original, &rust, &|_| true);
-    t.finish()
 }

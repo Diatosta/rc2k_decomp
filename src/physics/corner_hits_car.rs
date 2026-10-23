@@ -14,29 +14,20 @@
 //! Self-test: `physics/car_collisions.rs` (`test_bump`): the original and the Rust version
 //! on the game's variables (saved and put back) with test car blocks, corners inside and
 //! out, under three precisions.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva};
+use crate::framework::Regs;
 use crate::math::x87_run::{abs_compare, ext_times};
-use crate::physics::car_collisions::{regions, test_bump};
+use crate::physics::car_collisions::regions;
 use crate::physics::flow::{a, base, g, guard, p, x87_run};
 use crate::scene::matrix3::extended;
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::corner_hits_car", rva(0x45F703), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 /// Whether the corner is inside (`flt_6D3BC8` .. written either way).
 pub fn corner_inside() -> bool {
@@ -70,16 +61,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { corner_hits_car(r) }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    test_bump(&HOOK, call_original, &rust, true)
 }

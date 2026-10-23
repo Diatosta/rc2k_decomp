@@ -41,13 +41,14 @@
 //! Self-test (in a race; skipped otherwise): the original and the Rust version from the
 //! same state (everything the step writes saved and put back), the car where it is and
 //! moved into the ground, under three precisions.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    EAX, EBX, ECX, EDI, EDX, ESI, RawHook, Regs, SelfTest, game_addr, hook_asm, rva, shadow,
-};
+use crate::framework::{EAX, EBX, ECX, EDI, EDX, ESI, Regs, game_addr, rva};
 use crate::math::x87::loaded;
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::physics as ph;
 use crate::physics::flow::{a, base, g, hold_high, hold_low, negate, p, x87_run};
 use crate::physics::reset_parts::game_part;
@@ -55,35 +56,6 @@ use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::rounded;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::car_physics_step", rva(0x43B635), thunk, &ORIGINAL)
-        .private_copy(0x37F)
-        .relocate_calls(&CALLS)
-        .manual_patch()
-        .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-/// Every call in the copy (all out of the function).
-#[rustfmt::skip]
-const CALLS: [usize; 83] = [
-    0x0, 0x5, 0xA, 0xF, 0x14, 0x19, 0xBC, 0xC1, 0xC6, 0xCB, 0xD0, 0xD5, 0xDA, 0xDF, 0xE4,
-    0xE9, 0xEE, 0xF3, 0xF8, 0xFD, 0x16E, 0x173, 0x178, 0x17D, 0x182, 0x1D4, 0x1D9, 0x1DE,
-    0x1E3, 0x1E8, 0x1ED, 0x1F2, 0x1F7, 0x1FC, 0x201, 0x206, 0x211, 0x226, 0x22B, 0x230,
-    0x235, 0x23A, 0x23F, 0x244, 0x249, 0x24E, 0x253, 0x261, 0x266, 0x26B, 0x270, 0x275,
-    0x27A, 0x27F, 0x2A1, 0x2A6, 0x2BC, 0x2C1, 0x2C6, 0x2CB, 0x2D0, 0x2D5, 0x2DA, 0x2DF,
-    0x2E4, 0x2E9, 0x318, 0x31D, 0x322, 0x327, 0x32C, 0x331, 0x336, 0x34C, 0x351, 0x356,
-    0x35B, 0x360, 0x365, 0x36A, 0x36F, 0x374, 0x379,
-];
 
 /// A callee that changes the registers it is given, of which its hook reports `regs`.
 fn keep(r: &mut Regs, regs: &[u8], f: unsafe fn(&mut Regs)) {
@@ -331,18 +303,6 @@ pub unsafe fn car_physics_step(entry: &Regs) -> Result<Left, Refused> {
     }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { car_physics_step(r) } {
-        Ok(left) => left.apply(r),
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { car_physics_step(r) }?;
@@ -358,51 +318,4 @@ pub fn test_regions() -> Vec<Region> {
     all.extend(ph::damage_model::regions());
     all.push(ph::face_contact::faces_region());
     all
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if !ph::move_slot::in_race() || !(1..=0x40).contains(&g(0x71A238)) || g(0x71B3F8) > 7 {
-        return t.skip("not in a race (no stage)");
-    }
-    // Logging off for the two runs.
-    let mut all = test_regions();
-    all.push((game_addr(rva(0x4E0094)) as u32, 4));
-    let saved = capture(&all);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for case in 0..3u32 {
-                let set = || {
-                    restore(&all, &saved);
-                    p(0x4E0094, 0);
-                    if case == 1 {
-                        // Into the ground.
-                        p(0x71A110, g(0x71A110).wrapping_sub(0x2_0000));
-                    }
-                    if case == 2 {
-                        p(0x61414C, 1);
-                    }
-                };
-                set();
-                let mut ro = Regs::SENTINEL;
-                unsafe { call_original(&mut ro) };
-                let theirs = (left_of(&ro), capture(&all));
-                set();
-                let mine = unsafe { car_physics_step(&Regs::SENTINEL) };
-                let state = capture(&all);
-                let ok = mine.as_ref().is_ok_and(|l| *l == theirs.0) && state == theirs.1;
-                t.check(ok, || {
-                    let diff = theirs.1.iter().zip(&state).position(|(x, y)| x != y);
-                    format!(
-                        "control word {word:#x}, case {case}: original {:x?}; rust {:x?}; memory first differs at {diff:x?}",
-                        theirs.0, mine
-                    )
-                });
-            }
-        });
-    }
-    restore(&all, &saved);
-    t.finish()
 }

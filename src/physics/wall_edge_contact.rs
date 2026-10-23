@@ -22,38 +22,24 @@
 //! on the game's variables (saved and put back) with test faces and scene points
 //! (`g_courseFaces`, `g_scenePoints` pointed at them), every edge shared and none, under
 //! three precisions.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva};
+use crate::framework::Regs;
 use crate::math::turn_float_point_xz::turn_float_point_xz;
 use crate::math::x87::mul;
 use crate::physics::contact_force::{RECORD, contact_force};
 use crate::physics::flow::{a, base, copy3, g, guard, p, x87_run};
 use crate::physics::scene_point_hits_car::SCENE_POINTS;
 use crate::physics::touch_face::FACES;
-use crate::physics::wall_contacts::{WALL_RECORD, regions, test_walls};
+use crate::physics::wall_contacts::{WALL_RECORD, regions};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::walls;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::wall_edge_contact",
-    rva(0x45DA14),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 fn rd(x: u32) -> u32 {
     unsafe { (x as *const u32).read_unaligned() }
@@ -149,16 +135,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { wall_edge_contact(r) }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    test_walls(&HOOK, call_original, &rust)
 }

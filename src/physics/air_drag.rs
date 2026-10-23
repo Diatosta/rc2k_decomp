@@ -10,28 +10,18 @@
 //! Self-test: `physics/copy_hooks_test.rs` (`test_moves_floats`: a copy on test
 //! variables against the converted version), 8 fillings (signs, zeros, NaN), exact at
 //! double precision.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, game_addr, game_read, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::math::x87;
 use crate::math::x87_run::{abs_of, compare_full, square_times_over};
-use crate::physics::copy_hooks_test::test_moves_floats;
 use crate::screens::harness::Left;
-use crate::service::floats::{FLOAT, Floats, dispatch_state_floats, floats_entry};
+use crate::service::floats::floats_entry;
 use rc2k_core::physics::motion::air_drag as air_drag_core;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::air_drag", rva(0x43F2DA), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const VARIABLES: [usize; 6] = [0x71A17C, 0x71A180, 0x71A184, 0x614810, 0x614814, 0x614818];
 
@@ -90,49 +80,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let v = game();
-    let floats = Floats {
-        memory: &[((v[3], 12), FLOAT)],
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &[(v[3], 12)], &floats, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-fn fill(seed: u32, out: &mut [u32]) {
-    let motion = [
-        [3.0f32, -4.0, 25.0],
-        [0.0, -0.0, 1.0],
-        [-17.5, 2.25, f32::NAN],
-        [100.0, -100.0, 0.5],
-    ][(seed % 4) as usize];
-    for k in 0..3 {
-        out[k] = (motion[k] * (1.0 + seed as f32 / 10.0)).to_bits();
-        out[3 + k] = 0xAAAA_AAAA;
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    test_moves_floats(
-        &HOOK,
-        0x43F2DA,
-        0xBB,
-        &[0xD9, 0x05, 0x7C, 0xA1, 0x71, 0x00],
-        &VARIABLES,
-        15,
-        8,
-        &fill,
-        &|v, _| {
-            unsafe { drag_at_plain(v) };
-            Left::nothing()
-        },
-        &[(3, FLOAT), (4, FLOAT), (5, FLOAT)],
-        &[],
-    )
 }

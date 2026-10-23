@@ -10,27 +10,18 @@
 //!
 //! Caller: `sub_437A53`.
 //! Self-test: `physics/camera_view.rs` (`view_test_floats`), as `take_view_a`'s.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, RawHook, Regs, hook_asm, rva};
-use crate::physics::camera_view::{rd, view_regions, view_test_floats};
-use crate::physics::flow::{a, base, g, p, x87_run};
+use crate::framework::{EAX, EBX, Regs};
+use crate::physics::camera_view::rd;
+use crate::physics::flow::{base, g, p, x87_run};
 use crate::screens::harness::Left;
-use crate::service::floats::{FLOAT, Floats, dispatch_state_floats, floats_entry};
+use crate::service::floats::floats_entry;
 use rc2k_core::physics::camera_view::{view_place, view_turns};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::take_view_b", rva(0x438024), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The Rust version (the exact one, for `physics::update_camera`).
 pub unsafe fn take_view_b(entry: &Regs) -> Left {
@@ -94,26 +85,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { take_view_b_plain(r) })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let floats = Floats {
-        memory: &[((a(0x608BB0), 12), FLOAT)],
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &view_regions(), &floats, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    view_test_floats(
-        &HOOK,
-        "physics::take_view_b",
-        call_original,
-        &rust,
-        &[(0x608BB0, 12, FLOAT)],
-    )
 }

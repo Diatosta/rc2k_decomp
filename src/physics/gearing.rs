@@ -219,6 +219,14 @@ pub fn dispatch_gearing(
     dispatch_state_floats(hook, r, call_original, &regions, &floats, rust);
 }
 
+/// `dispatch_gearing` without its hook (Rust callers; a refusal is the caller's).
+pub fn gearing_entry(
+    r: &mut crate::framework::Regs,
+    rust: crate::service::harness::Rust,
+) -> Result<(), crate::errors::Refused> {
+    crate::service::harness::state_entry(r, rust)
+}
+
 /// For the self-tests: the captures of `regions` (the speeds first, then whole numbers)
 /// agree: the same at double precision, the speeds within `FLOAT` at the others.
 pub fn speeds_agree(

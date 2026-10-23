@@ -8,29 +8,16 @@
 //! Caller: `sub_43B635` (0x43B952), every physics step. It begins with a call: hooked by
 //! a private copy of its 0x10 bytes (the three calls relocated) and a hand-made patch.
 //! Self-test: `physics/damage_model.rs` (`damage_test`).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::physics::damage_model::{damage_test, regions};
+use crate::framework::Regs;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("physics::damage_step", rva(0x4AB5D6), thunk, &ORIGINAL)
-    .private_copy(0x10)
-    .relocate_calls(&[0x0, 0x5, 0xA])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 /// The Rust version.
 pub unsafe fn damage_step(entry: &Regs) -> Left {
@@ -45,16 +32,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { damage_step(r) })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    damage_test(&HOOK, call_original, &rust)
 }

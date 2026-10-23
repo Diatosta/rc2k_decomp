@@ -11,32 +11,18 @@
 //! Self-test: a copy of the original whose matrix is the test's (the car's is used all
 //! through a frame; its call to `scene::rotate_point` goes to that hook), against the
 //! Rust core on points and matrices by lot, under three precisions.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr};
 use crate::math::x87_run::{DOUBLE, TEST_CONTROL_WORDS, with_control_word};
 use crate::scene::matrix3::{extended, rounded, test_floats};
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
 use crate::service::floats::{FLOAT, close};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::turn_by_car_matrix",
-    rva(0x43F14E),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 pub use crate::race::stage_prefs::CRASH_MATRIX_RVA; // g_crashMatrix
 
@@ -80,23 +66,6 @@ pub unsafe fn turn_by_car_matrix_plain(v: u32) {
 fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { turn_by_car_matrix_plain(r.esi) };
     Ok(Left::nothing())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    // The point compared as floats: at the game's extended stretches (0x037F) the last bit
-    // may differ (a drift, as `scale_vector`'s).
-    let floats = crate::service::floats::Floats {
-        memory: &[((r.esi, 12), crate::service::floats::FLOAT)],
-        regs: &[],
-    };
-    crate::service::floats::dispatch_state_floats(
-        &HOOK,
-        r,
-        call_original,
-        &[(r.esi, 12)],
-        &floats,
-        &rust,
-    );
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
@@ -177,13 +146,4 @@ pub fn test_turn(hook: &RawHook, address: usize, entry: &[u8], variable: usize) 
     }
     drop((matrix, point));
     t.finish()
-}
-
-fn self_test() -> (usize, usize) {
-    test_turn(
-        &HOOK,
-        0x43F14E,
-        &[0xD9, 0x46, 0x08, 0xD9, 0x46, 0x04],
-        0x71A08C,
-    )
 }

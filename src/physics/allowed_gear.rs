@@ -13,27 +13,16 @@
 //! Self-test: a copy of the original (its two words the test's, its call to
 //! `gear_bit`'s test copy on a test dword) against the core: gears -1 .. 9, the words'
 //! settings, several bit patterns.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    EAX, RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva,
-};
+use crate::framework::{EAX, Regs, game_addr, game_read, rva};
 use crate::physics::gear_bit::bits_at;
 use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::allowed_gear", rva(0x4651B5), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -63,69 +52,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing().with(EAX, unsafe { allowed_gear(r.eax) }?))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &[], &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut cells = vec![0u32; 3];
-    let base = cells.as_mut_ptr() as u32;
-    let (locked, open, bits) = (base, base + 4, base + 8);
-    let inner = match crate::physics::gear_bit::test_copy(bits) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let target = inner.addr();
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x4651B5,
-            len: 0x31,
-            entry: &[0x53, 0x8B, 0x1D, 0x90, 0xA2, 0x71, 0x00],
-            calls: &[0x19],
-            jumps_out: &[],
-        },
-        &|r| (r == rva(0x43C5B7)).then_some(target),
-        &[(0x71A290, locked), (0x71A3CC, open)],
-        2,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let hundred: u32 = unsafe { game_read(rva(0x5C5D14)) };
-    for gear in [u32::MAX, 0, 1, 2, 3, 5, 7, 9] {
-        for (l, o) in [(0u32, 1u32), (hundred, 1), (0, 0), (5, 3)] {
-            for pattern in [0u32, 0x1FF, 0x0AA, 0x155] {
-                let set = || unsafe {
-                    (base as *mut [u32; 3]).write_volatile([l, o, pattern]);
-                };
-                set();
-                let before = Regs {
-                    eax: gear,
-                    ..Regs::SENTINEL
-                };
-                let mut ro = before;
-                unsafe { call_game(&mut ro, copy.addr()) };
-                set();
-                let mine = unsafe { allowed_gear_at(locked, open, bits, gear) };
-                let ok = mine
-                    .as_ref()
-                    .is_ok_and(|&e| Left::nothing().with(EAX, e).matches(&before, &ro));
-                t.check(ok, || {
-                    format!("gear {gear:#x}, words {l:#x} {o}, bits {pattern:#x}: original eax {:#x}; rust {mine:?}", ro.eax)
-                });
-            }
-        }
-    }
-    drop((copy, inner, cells));
-    t.finish()
 }

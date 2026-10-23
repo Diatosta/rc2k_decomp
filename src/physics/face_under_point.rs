@@ -24,25 +24,16 @@
 //! `face_shares`, `plane_height`) on the test's ground: every face of a grid laid out
 //! three ways against points in, on and out, masks 0 and 0x100, both SSE ways; the
 //! cases inside counted; the refusal.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::physics::ground::*;
 use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::face_under_point", rva(0x442006), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 /// The Rust version: `r` as the original leaves it, and the carry.
 pub unsafe fn face_under_point(r: &mut Regs) -> Result<bool, Refused> {
@@ -55,71 +46,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&g, carry))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &Ground::game().regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut test = TestGround::new(20, 25, 1);
-    let copies = match test.copies() {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let mut inside = 0;
-    for seed in [1u32, 2, 3] {
-        test.lay_out(seed);
-        for mask in [0u32, 0x100] {
-            for (n, &(x, z)) in test_points().iter().enumerate() {
-                for face in 0..20u32 {
-                    let sse = (n as u32 + face) % 2 == 1;
-                    let prepare = || {
-                        test.clear_work();
-                        test.set_point(x, z, mask, sse);
-                    };
-                    if check_case(
-                        &mut t,
-                        &format!(
-                            "seed {seed}, mask {mask:#x}, sse {sse}, face {face}, point ({x:#x}, {z:#x})"
-                        ),
-                        copies.face_under_point.addr(),
-                        &test,
-                        Regs {
-                            ebx: face,
-                            ..Regs::SENTINEL
-                        },
-                        &prepare,
-                        &|g, r| unsafe { face_under_point_at(g, r) },
-                        true,
-                    ) {
-                        inside += 1;
-                    }
-                }
-            }
-        }
-    }
-    t.check(inside > 0, || {
-        "no case found the point inside a face".into()
-    });
-    let refused = unsafe {
-        face_under_point_at(
-            &test.ground(),
-            &mut Regs {
-                ebx: 20,
-                ..Regs::SENTINEL
-            },
-        )
-    }
-    .is_err();
-    t.check(refused, || "face 20 of 20 not refused".into());
-    drop(copies);
-    t.finish()
 }

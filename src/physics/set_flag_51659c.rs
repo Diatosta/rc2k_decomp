@@ -7,25 +7,16 @@
 //! Caller: `sub_436833`.
 //! Refuses (before anything) a current car past 7.
 //! Self-test: `listed_car_flags::test_twin`.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, game_addr, hook_asm, rva};
-use crate::physics::listed_car_flags::{set_flag, test_twin};
+use crate::framework::Regs;
+use crate::physics::listed_car_flags::set_flag;
 use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::set_flag_51659c", rva(0x45D151), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 const FLAG: usize = 0x51659C; // dword_51659C
 
@@ -38,22 +29,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { set_flag_51659c() }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(
-        &HOOK,
-        r,
-        call_original,
-        &[(game_addr(rva(FLAG)) as u32, 4)],
-        &rust,
-    );
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    test_twin(&HOOK, 0x45D151, &[0xA1, 0xF8, 0xB3, 0x71, 0x00], FLAG)
 }

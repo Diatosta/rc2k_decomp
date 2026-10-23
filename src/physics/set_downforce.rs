@@ -10,31 +10,17 @@
 //! Self-test: a copy of the original on test variables (the two constants the game's),
 //! against the converted version, speeds and offsets by lot, the switch on and off,
 //! exact at double precision.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva};
-use crate::math::x87_run::{
-    TEST_CONTROL_WORDS, minus_one, square_times_plus_times, with_control_word,
-};
-use crate::physics::copy_hooks_test::check_floats_at;
-use crate::scene::matrix3::test_floats;
+use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::math::x87_run::{minus_one, square_times_plus_times};
 use crate::screens::harness::Left;
-use crate::service::floats::{FLOAT, Floats, dispatch_state_floats, floats_entry};
-use crate::service::harness::{Region, capture};
+use crate::service::floats::floats_entry;
 use rc2k_core::physics::drive_forces::downforce;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::set_downforce", rva(0x43F508), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The variables (IDA addresses): the switch, the speed, the offset, and the three
 /// written.
@@ -103,93 +89,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let v = game();
-    let floats = Floats {
-        memory: &[((v[3], 8), FLOAT)],
-        regs: &[],
-    };
-    dispatch_state_floats(
-        &HOOK,
-        r,
-        call_original,
-        &[(v[3], 4), (v[4], 4), (v[5], 4)],
-        &floats,
-        &rust,
-    );
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut cells = vec![0u32; 6];
-    let base = cells.as_mut_ptr() as u32;
-    let v: [u32; 6] = std::array::from_fn(|k| base + 4 * k as u32);
-    let variables: Vec<(usize, u32)> = VARIABLES.iter().zip(v).map(|(&g, t)| (g, t)).collect();
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x43F508,
-            len: 0x3C,
-            entry: &[0x83, 0x3D, 0x24, 0xA2, 0x71, 0x00, 0x00],
-            calls: &[],
-            jumps_out: &[],
-        },
-        &|_| None,
-        &variables,
-        6,
-    ) {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(&why),
-    };
-    let all: [Region; 1] = [(base, 24)];
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 1..=10u32 {
-                for switch in [0u32, 1] {
-                    let fill = || {
-                        let mut f = [0u32; 2];
-                        test_floats(seed * 7 + 1, &mut f);
-                        let c = [switch, f[0], f[1], 0xAAAA_AAAA, 0xAAAA_AAAA, 0xAAAA_AAAA];
-                        for (k, x) in c.into_iter().enumerate() {
-                            unsafe { (v[k] as *mut u32).write_volatile(x) };
-                        }
-                    };
-                    fill();
-                    let mut ro = Regs::SENTINEL;
-                    unsafe { call_game(&mut ro, copy.addr()) };
-                    let theirs = capture(&all);
-                    fill();
-                    unsafe { set_downforce_plain_at(&v) };
-                    let mine = capture(&all);
-                    let regs_ok = ro.preserved_except(&Regs::SENTINEL, 0);
-                    let floats = [((v[3], 8), FLOAT)];
-                    check_floats_at(
-                        &mut t,
-                        "physics::set_downforce",
-                        word,
-                        &all,
-                        &theirs,
-                        &mine,
-                        &floats,
-                        regs_ok,
-                        || {
-                            format!(
-                                "control word {word:#x}, seed {seed}, switch {switch}: regs_ok={regs_ok} original {theirs:x?}; rust {mine:x?}"
-                            )
-                        },
-                    );
-                }
-            }
-        });
-    }
-    drop((copy, cells));
-    t.finish()
 }

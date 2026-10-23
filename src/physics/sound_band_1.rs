@@ -6,25 +6,16 @@
 //!
 //! Caller: `sub_45CEF9`.
 //! Self-test: `sound_bands::test_twin`.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, game_addr, hook_asm, rva};
-use crate::physics::sound_bands::{SCRATCH, Twin, band_plain, test_twin};
+use crate::framework::Regs;
+use crate::physics::sound_bands::{Twin, band_plain};
 use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::sound_band_1", rva(0x45D067), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 pub const TWIN: Twin = (0x45D067, 0x6D3108, 0x6D1AE0, 1);
 
@@ -38,22 +29,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { sound_band_1_plain() })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(
-        &HOOK,
-        r,
-        call_original,
-        &[(game_addr(rva(SCRATCH)) as u32, 4)],
-        &rust,
-    );
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    test_twin(&HOOK, TWIN, &[0xD9, 0x05, 0x08, 0x31, 0x6D, 0x00])
 }

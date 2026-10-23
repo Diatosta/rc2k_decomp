@@ -8,27 +8,17 @@
 //! Callers: `sub_43B635` (0x43B827, 0x43B8A0), every physics step.
 //! Self-test: `physics/copy_hooks_test.rs` (`test_moves_floats`: a copy on test
 //! variables against the converted version), 8 fillings, exact at double precision.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, RawHook, Regs, game_addr, game_read, hook_asm, rva};
+use crate::framework::{EAX, Regs, game_addr, game_read, rva};
 use crate::math::x87_run::mul2_to_int;
-use crate::physics::copy_hooks_test::{lot, test_moves_floats};
 use crate::screens::harness::Left;
-use crate::service::floats::{Floats, ROUNDED, dispatch_state_floats, floats_entry};
+use crate::service::floats::floats_entry;
 use rc2k_core::physics::motion::move_place;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::move_car", rva(0x43CCB0), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The motion's three, the place's three, the scratch.
 const VARIABLES: [usize; 7] = [
@@ -92,47 +82,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing().with(EAX, unsafe { move_at_plain(&game()) }))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let v = game();
-    let floats = Floats {
-        memory: &[((v[3], 12), ROUNDED), ((v[6], 4), ROUNDED)],
-        regs: &[(EAX, ROUNDED)],
-    };
-    dispatch_state_floats(
-        &HOOK,
-        r,
-        call_original,
-        &[(v[3], 12), (v[6], 4)],
-        &floats,
-        &rust,
-    );
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-fn fill(seed: u32, out: &mut [u32]) {
-    lot(seed, out);
-    for (k, o) in out.iter_mut().take(3).enumerate() {
-        *o = (seed as f32 * 2.5 - 9.0 + k as f32).to_bits();
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    test_moves_floats(
-        &HOOK,
-        0x43CCB0,
-        0x6A,
-        &[0xD9, 0x05, 0x70, 0xA1, 0x71, 0x00],
-        &VARIABLES,
-        12,
-        8,
-        &fill,
-        &|v, _| Left::nothing().with(EAX, unsafe { move_at_plain(v) }),
-        &[(3, ROUNDED), (4, ROUNDED), (5, ROUNDED), (6, ROUNDED)],
-        &[(EAX, ROUNDED)],
-    )
 }

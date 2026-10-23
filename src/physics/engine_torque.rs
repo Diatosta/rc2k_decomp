@@ -13,11 +13,13 @@
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back), against the converted version: engine speeds across the curve and past it,
 //! exact at double precision (`test_engine_floats`).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    EBX, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{EBX, RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::math::x87_run::{
     TEST_CONTROL_WORDS, div_then_mul, lerp_table, trunc_mul_to_int, with_control_word,
@@ -30,19 +32,6 @@ use crate::service::floats::{
 use crate::service::harness::{Region, capture, check_state, restore};
 use rc2k_core::physics::engine::{Engine, engine_torque as engine_torque_core};
 use std::cmp::Ordering;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::engine_torque", rva(0x43CBBB), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 pub fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
@@ -164,8 +153,18 @@ pub fn dispatch_engine(
     dispatch_state_floats(hook, r, call_original, regions, &floats, rust);
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_engine(&HOOK, r, call_original, &regions(), &TORQUE_FLOATS, &rust);
+/// `dispatch_engine` without its hook (Rust callers; a refusal is the caller's).
+pub fn engine_entry(
+    r: &mut Regs,
+    rust: &dyn Fn(&Regs) -> Result<Left, Refused>,
+) -> Result<(), Refused> {
+    crate::service::harness::state_entry(r, rust)
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    engine_entry(r, &rust)
 }
 
 /// The inputs the engine tests set.
@@ -285,18 +284,4 @@ pub fn test_engine_floats(
         }
     });
     restore(&all, &saved);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    test_engine_floats(
-        &mut t,
-        "physics::engine_torque",
-        call_original,
-        &rust,
-        &TORQUE_FLOATS,
-    );
-    t.finish()
 }

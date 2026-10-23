@@ -20,37 +20,20 @@
 //! is not written here).
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back): the work car's figures by lot, gears, the clutch, under three precisions.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
+use crate::framework::{EAX, EBX, Regs};
 use crate::math::x87;
-use crate::math::x87_run::{
-    TEST_CONTROL_WORDS, abs_compare, abs_of, neg_rounded, with_control_word,
-};
+use crate::math::x87_run::{abs_compare, abs_of, neg_rounded};
 use crate::physics::flow::{a, base, c0, ease_zero, g, hold_high, hold_low, p, x87_run};
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
 use crate::scene::matrix3::extended;
-use crate::scene::matrix3::test_floats;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::drive_wheels_step",
-    rva(0x43DFB1),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 /// `fld v; fabs; fsub one; fchs; fstp to` (0x43DFB1, 0x43E00B): 1 less |v|.
 fn one_less_abs(v: usize, to: usize) {
@@ -529,138 +512,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing().with(EAX, eax).with(EBX, ebx))
 }
 
-/// What the function and its calls write.
-fn regions() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    vec![
-        (a(0x6140B0), 4),
-        (a(0x6140B4), 4),
-        (a(0x6140B8), 4),
-        (a(0x614134), 4),
-        (a(0x6141D4), 4),
-        (a(0x6141D8), 4),
-        (a(0x61422C), 4),
-        (a(0x614234), 4),
-        (a(0x614238), 4),
-        (a(0x61423C), 4),
-        (a(0x614240), 4),
-        (a(0x614244), 4),
-        (a(0x614248), 4),
-        (a(0x61424C), 4),
-        (a(0x614250), 4),
-        (a(0x614254), 4),
-        (a(0x614258), 4),
-        (a(0x61425C), 4),
-        (a(0x614264), 4),
-        (a(0x614750), 4),
-        (a(0x6148B0), 4),
-        (a(0x6148B8), 4),
-        (a(0x6148D0), 4),
-        (a(0x6148F0), 4),
-        (a(0x614910), 4),
-        (a(0x614930), 4),
-        (a(0x614958), 4),
-        (a(0x614978), 4),
-        (a(0x614998), 4),
-        (a(0x6149B8), 4),
-        (a(0x6149D0), 4),
-        (a(0x6149F0), 4),
-        (a(0x614C1C), 4),
-        (a(0x614C20), 4),
-        (a(0x62400C), 4),
-        (a(0x62401C), 4),
-        (a(0x624020), 4),
-        (a(0x71A158), 4),
-        (a(0x71A190), 4),
-        (a(0x71A194), 4),
-        (a(0x71A260), 4),
-        (a(0x71AF18), 4),
-        (a(0x71AF1C), 4),
-        (a(0x614168), 4),
-        (a(0x71A1B0), 4),
-        (a(0x614234), 8),
-        (a(0x6140F4), 4),
-        (a(0x614248), 8),
-        (a(0x61475C), 4),
-    ]
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-/// The work car's figures it reads (set by lot in the test).
-fn car_inputs() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    vec![
-        (a(0x719FEC), 4),
-        (a(0x71A018), 4),
-        (a(0x71A090), 4),
-        (a(0x71A0B0), 4),
-        (a(0x71A17C), 4),
-        (a(0x71A184), 4),
-        (a(0x71A1AC), 4),
-        (a(0x71A228), 4),
-        (a(0x71A25C), 4),
-        (a(0x71A3D0), 4),
-        (a(0x71A3D4), 4),
-        (a(0x71A3D8), 4),
-        (a(0x71A3DC), 4),
-        (a(0x71A610), 4),
-        (a(0x71A614), 4),
-        (a(0x71A618), 4),
-    ]
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut all = regions();
-    let inputs = car_inputs();
-    all.extend(inputs.iter().copied());
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    all.extend([(a(0x71A1AC), 4), (a(0x71A018), 4), (a(0x6140BC), 0x24)]);
-    let saved = capture(&all);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 0..10u32 {
-                let set = || {
-                    let mut f = vec![0u32; inputs.len()];
-                    test_floats(seed * 31 + 7, &mut f);
-                    for (k, &(at, _)) in inputs.iter().enumerate() {
-                        let v = (f32::from_bits(f[k]) % 4.0).to_bits();
-                        unsafe { (at as *mut u32).write_unaligned(v) };
-                    }
-                    p(0x71A1AC, [0u32, 1, 2, u32::MAX, 3][(seed % 5) as usize]);
-                    p(0x71A228, seed % 2);
-                    p(0x71A22C, (seed % 7 == 6) as u32);
-                    p(0x71A018, seed % 3 / 2);
-                    for (k, r) in [-4.0f32, 0.0, 3.5, 2.2, 1.5, 1.1, 0.9, 0.8, 0.7]
-                        .iter()
-                        .enumerate()
-                    {
-                        p(0x6140BC + 4 * k, r.to_bits());
-                    }
-                };
-                check_state(
-                    &mut t,
-                    &format!("control word {word:#x}, seed {seed}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &set,
-                    &all,
-                    &rust,
-                );
-            }
-        });
-    }
-    restore(&all, &saved);
-    t.finish()
 }

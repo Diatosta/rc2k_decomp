@@ -11,31 +11,16 @@
 //! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables against the
 //! converted version), 24 cases; compares and copies of floats only: exact at any
 //! precision.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EBX, ECX, RawHook, Regs, game_addr, hook_asm, rva};
-use crate::physics::copy_hooks_test::{lot, test_moves};
+use crate::framework::{EBX, ECX, Regs, game_addr, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::motion::hold_spin;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::hold_spin_on_ground",
-    rva(0x43BAA4),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The four wheels, the limit, x, z, the flag.
 const VARIABLES: [usize; 8] = [
@@ -83,44 +68,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing().with(ECX, g.ecx).with(EBX, g.ebx))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let v = game();
-    let regions: Vec<_> = [4usize, 5, 6, 7].iter().map(|&k| (v[k], 4)).collect();
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn fill(seed: u32, out: &mut [u32]) {
-    lot(seed, out);
-    for (k, o) in out.iter_mut().enumerate().take(4) {
-        if seed % 5 == k as u32 {
-            *o = 0;
-        }
-    }
-    let f = |x: f32| x.to_bits();
-    out[4] = f([2.0f32, 0.5, 0.0, f32::NAN][(seed % 4) as usize]);
-    out[5] = f([3.0f32, -3.0, 1.0, 2.0, -0.25, f32::NAN][(seed % 6) as usize]);
-    out[6] = f([-2.0f32, 0.5, 4.0][(seed % 3) as usize]);
-}
-
-fn self_test() -> (usize, usize) {
-    test_moves(
-        &HOOK,
-        0x43BAA4,
-        0x127,
-        &[0xB9, 0x00, 0x00, 0x00, 0x00],
-        &VARIABLES,
-        31,
-        24,
-        &fill,
-        &|v, r| {
-            unsafe { hold_at(v, r) };
-            Left::nothing().with(ECX, r.ecx).with(EBX, r.ebx)
-        },
-    )
 }

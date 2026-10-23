@@ -27,10 +27,14 @@
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back): the contact's figures and both matrices by lot, the extra part on and off, a
 //! test record, under three precisions.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, ECX, EDI, EDX, ESI, RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, compare_80, neg_rounded, with_control_word};
+use crate::framework::{EAX, EBX, ECX, EDI, EDX, ESI, Regs};
+use crate::math::x87_run::{compare_80, neg_rounded};
 use crate::physics::dot_product::dot_product;
 use crate::physics::flow::{a, base, copy3, fill3, g, hold_low, negate, p, x87_run};
 use crate::physics::multiply_parts::multiply_parts;
@@ -41,20 +45,7 @@ use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::{extended, rounded, test_floats};
 use crate::scene::view_matrix::cross_product;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::contact_force", rva(0x45F17E), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, state_entry};
 
 /// `dword_614B40`: the record the force goes to.
 pub const RECORD: usize = 0x614B40;
@@ -265,10 +256,6 @@ pub fn regions() -> Vec<Region> {
     all
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
@@ -297,45 +284,4 @@ pub fn set_inputs(seed: u32) {
             unsafe { ((at + 4 * n as u32) as *mut u32).write_unaligned(v) };
         }
     }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut record = [0xAAAA_AAAAu32; 6];
-    let mut all = inputs();
-    all.extend([(a(0x62400C), 4), (a(RECORD), 4), (a(0x614148), 8)]);
-    let saved = capture(&all);
-    let rec = record.as_mut_ptr() as u32;
-    all.push((rec, 0x18));
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 0..12u32 {
-                let set = || {
-                    set_inputs(seed);
-                    p(RECORD, rec);
-                    p(0x614148, [0u32, 3, 0, 1, u32::MAX][(seed % 5) as usize]);
-                    p(0x61414C, [4u32, 7, 1, 0xFFFF_FFFE][(seed % 4) as usize]);
-                    if seed % 6 == 5 {
-                        // Standing still: a slide of nothing (the zero test's other way).
-                        fill3(0x6D30A8, 0);
-                        fill3(0x6D30B4, 0);
-                    }
-                };
-                check_state(
-                    &mut t,
-                    &format!("control word {word:#x}, seed {seed}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &set,
-                    &all,
-                    &rust,
-                );
-            }
-        });
-    }
-    all.pop();
-    restore(&all, &saved);
-    t.finish()
 }

@@ -21,34 +21,22 @@
 //! Self-test: the original and the converted version on the game's variables (saved and
 //! put back) with a test object: exact at double precision; at extended the shares and
 //! voices within `FLOAT`, the place and the turned motion within `SUM`.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87_run::{ext_times, ints_diff_80};
 use crate::scene::matrix3::{extended, rounded, test_floats};
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::{read_floats, write_floats};
 use crate::screens::harness::Left;
-use crate::service::floats::{
-    FLOAT, Floats, SUM, Tolerance, at_test_precisions, check_state_floats, dispatch_state_floats,
-    floats_entry,
-};
-use crate::service::harness::{Region, capture, restore};
+use crate::service::floats::floats_entry;
+use crate::service::harness::Region;
 use rc2k_core::physics::sound_places as places;
 use rc2k_core::physics::x87::loaded;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::car_sound_state", rva(0x45CACE), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
@@ -232,36 +220,6 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { car_sound_state_plain() }
 }
 
-/// The float places: the shares kept, the voices' figures, the place and the motion.
-fn floats_of(o: u32) -> Vec<(Region, Tolerance)> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    vec![
-        ((a(0x71A264), 4), FLOAT),
-        ((o + 0x2C, 0x18), SUM),
-        ((o + 0x44, 0x50), FLOAT),
-    ]
-}
-
-fn regions() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let mut r = vec![(a(0x71A264), 12)];
-    let o = object();
-    if o != 0 {
-        r.push((o, 0xF0));
-    }
-    r
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let o = object();
-    let memory = if o == 0 { vec![] } else { floats_of(o) };
-    let floats = Floats {
-        memory: &memory,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
@@ -327,37 +285,4 @@ pub fn set_sound(o: u32, seed: u32) {
     );
     p(0x71A6C8, seed % 2);
     p(0x71A908, seed * 3);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut object = vec![0u32; 0x98];
-    let o = object.as_mut_ptr() as u32;
-    let all = test_regions(o);
-    let saved = capture(&all);
-    let memory = floats_of(o);
-    let tolerant = Floats {
-        memory: &memory,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, floats| {
-        for seed in 0..6u32 {
-            check_state_floats(
-                &mut t,
-                "physics::car_sound_state",
-                &format!("control word {word:#x}, seed {seed}"),
-                call_original,
-                Regs::SENTINEL,
-                &|| set_sound(o, seed),
-                &all,
-                floats,
-                &rust,
-            );
-        }
-    });
-    restore(&all, &saved);
-    drop(object);
-    t.finish()
 }

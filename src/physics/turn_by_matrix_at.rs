@@ -8,30 +8,15 @@
 //!
 //! Caller: `physics::apply_torque` (back into the world).
 //! Self-test: `physics::turn_by_inverse_at`'s, on this function and offset.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva};
+use crate::framework::Regs;
 use crate::physics::turn_by_car_matrix::{turn_point_by, turn_point_by_plain};
-use crate::physics::turn_by_inverse_at::test_turn_at;
 use crate::screens::harness::Left;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::turn_by_matrix_at",
-    rva(0x45FC73),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// Where a car block's matrix is.
 pub const MATRIX_OFFSET: u32 = 0xB4;
@@ -51,29 +36,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    // The point compared as floats: at the game's extended stretches (0x037F) the last bit
-    // may differ (a drift, as `scale_vector`'s).
-    let floats = crate::service::floats::Floats {
-        memory: &[((r.esi, 12), crate::service::floats::FLOAT)],
-        regs: &[],
-    };
-    crate::service::floats::dispatch_state_floats(
-        &HOOK,
-        r,
-        call_original,
-        &[(r.esi, 12)],
-        &floats,
-        &rust,
-    );
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     crate::service::floats::floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    test_turn_at(&HOOK, call_original, MATRIX_OFFSET)
 }

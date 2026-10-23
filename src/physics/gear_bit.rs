@@ -13,24 +13,15 @@
 //! Shadow mode: `physics/flag_result.rs`.
 //! Self-test: a copy of the original on a test dword, every gear from -1 to 30 with
 //! several bit patterns; the refusal.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
-use crate::physics::flag_result::{FlagResult, dispatch_flags};
+use crate::framework::{Regs, game_addr, rva};
+use crate::physics::flag_result::{FlagResult, flags_entry};
 use rc2k_core::physics::gearbox::GearBits;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::gear_bit", rva(0x43C5B7), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 pub const GEAR_BITS_RVA: usize = rva(0x71A40C); // g_carGearBits
 
@@ -61,61 +52,8 @@ fn rust(r: &Regs) -> Result<FlagResult, Refused> {
     unsafe { gear_bit(r.ecx) }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_flags(&HOOK, r, call_original, &rust);
-}
-
-/// A copy of the original reading its bits at `bits` (for this test and its callers').
-pub fn test_copy(bits: u32) -> Result<crate::redirect::RedirectedCopy, String> {
-    crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x43C5B7,
-            len: 0xB,
-            entry: &[0x8B, 0xC1, 0x40, 0x0F, 0xA3, 0x05, 0x0C, 0xA4, 0x71, 0x00],
-            calls: &[],
-            jumps_out: &[],
-        },
-        &|_| None,
-        &[(0x71A40C, bits)],
-        1,
-    )
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut word = Box::new(0u32);
-    let at = &mut *word as *mut u32;
-    let copy = match test_copy(at as u32) {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(&why),
-    };
-    for pattern in [0u32, u32::MAX, 0x5555_5555, 0x0000_01A6, 0x8000_0001] {
-        for gear in -1i32..=30 {
-            unsafe { at.write_volatile(pattern) };
-            let before = Regs {
-                ecx: gear as u32,
-                ..Regs::SENTINEL
-            };
-            let mut ro = before;
-            unsafe { call_game(&mut ro, copy.addr()) };
-            let mine = unsafe { gear_bit_at(at as u32, gear as u32) };
-            let ok = mine.as_ref().is_ok_and(|m| m.matches(&before, &ro));
-            t.check(ok, || {
-                format!(
-                    "bits {pattern:#x}, gear {gear}: original eax {:#x} carry {}; rust {mine:?}",
-                    ro.eax,
-                    ro.carry()
-                )
-            });
-        }
-    }
-    for gear in [31u32, 0x7FFF_FFFF, 0xFFFF_FFFE] {
-        let refused = unsafe { gear_bit_at(at as u32, gear) }.is_err();
-        t.check(refused, || format!("gear {gear:#x} not refused"));
-    }
-    drop(word);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    flags_entry(r, &rust)
 }

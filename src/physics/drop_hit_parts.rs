@@ -12,29 +12,20 @@
 //! Refuses what `fill_slot_on_bit` refuses; what was written is put back.
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back): words, timers and bits by lot.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::math::x87;
-use crate::physics::fill_race_slot::{inputs, regions, set_slots};
+use crate::physics::fill_race_slot::regions;
 use crate::physics::fill_slot_on_bit::fill_slot_on_bit_in;
 use crate::physics::test_car_word::test_word;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
+use crate::service::harness::{capture, restore, state_entry};
 use rc2k_core::physics::parts::{self, DROP_TESTS, Hit, HitTest};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::drop_hit_parts", rva(0x4410C8), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 pub fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
@@ -102,16 +93,6 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { drop_hit_parts(r) }
 }
 
-fn all_regions() -> Vec<Region> {
-    let mut r = regions();
-    r.push((game_addr(rva(0x71A2D0)) as u32, 0x10));
-    r
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &all_regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
@@ -128,41 +109,4 @@ pub fn set_hits(seed: u32) {
         p(0x71A32C + 4 * k, v.to_bits());
     }
     p(0x71A270, 0xFFFF_FFFF ^ (seed.wrapping_mul(0x24) & 0x1FE));
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut all = all_regions();
-    all.extend(inputs());
-    all.extend([
-        (game_addr(rva(0x719FE4)) as u32, 4),
-        (game_addr(rva(0x719FFC)) as u32, 4),
-        // `set_hits` writes these too (left changed until 2026-10-18).
-        (game_addr(rva(0x71A2D0)) as u32, 0x10),
-        (game_addr(rva(0x71A32C)) as u32, 0x10),
-        (game_addr(rva(0x71A270)) as u32, 4),
-    ]);
-    let saved = capture(&all);
-    for seed in 0..20u32 {
-        check_state(
-            &mut t,
-            &format!("seed {seed}"),
-            call_original,
-            Regs {
-                ebp: 0x1234,
-                ..Regs::SENTINEL
-            },
-            &|| {
-                set_slots(seed, Some(seed % 4));
-                p(0x71B3F8, seed % 8);
-                set_hits(seed);
-            },
-            &all,
-            &rust,
-        );
-    }
-    restore(&all, &saved);
-    t.finish()
 }

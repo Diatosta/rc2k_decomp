@@ -9,28 +9,18 @@
 //! Refuses what `sound_on_bit` refuses.
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back) with a test sound object.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
-use crate::physics::car_sounds::test_regions;
-use crate::physics::drop_hit_parts::{Timers, g, hit_tests, p, set_hits};
+use crate::framework::Regs;
+use crate::physics::drop_hit_parts::{Timers, g, hit_tests};
 use crate::physics::sound_on_bit::sound_on_bit;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::parts::{SOUND_TESTS, has_hit_sounds};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::sound_hit_parts", rva(0x4411EC), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const TIMERS: Timers = [0x71A32C, 0x71A330, 0x71A334, 0x71A338];
 
@@ -59,65 +49,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { sound_hit_parts(r) }
 }
 
-fn regions() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let mut r = vec![(a(0x71A32C), 0x10), (a(0x71A270), 4)];
-    let o = g(0x512A10 + 4 * (g(0x71B3F8) & 7) as usize);
-    if o != 0 {
-        r.extend([(o + 0x10, 4), (o + 0x214, 0x14)]);
-    }
-    r
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut object = vec![0u32; 0x98];
-    let o = object.as_mut_ptr() as u32;
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let mut all = test_regions(o);
-    all.extend([
-        (a(0x71A32C), 0x10),
-        (a(0x71A2D0), 0x10),
-        (a(0x71A270), 4),
-        (a(0x719FE4), 4),
-        (a(0x719FFC), 4),
-    ]);
-    let saved = capture(&all);
-    for seed in 0..20u32 {
-        check_state(
-            &mut t,
-            &format!("seed {seed}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| {
-                unsafe {
-                    for k in 0..0x98u32 {
-                        ((o + 4 * k) as *mut u32).write(0xA5A5_0000 | k);
-                    }
-                }
-                for k in 0..8usize {
-                    p(0x512A10 + 4 * k, o);
-                }
-                p(0x71B3F8, seed % 8);
-                set_hits(seed);
-            },
-            &all,
-            &rust,
-        );
-    }
-    restore(&all, &saved);
-    drop(object);
-    t.finish()
 }

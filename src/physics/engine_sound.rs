@@ -15,33 +15,22 @@
 //! Refuses (before anything) what the two calls refuse.
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back) with a test object, under three precisions.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    EAX, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{EAX, Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
-use crate::math::x87_run::{TEST_CONTROL_WORDS, ext_to_int, with_control_word};
-use crate::physics::car_sound_state::{car_sound_state, set_sound, test_regions};
+use crate::math::x87_run::ext_to_int;
+use crate::physics::car_sound_state::car_sound_state;
 use crate::physics::gear_change_sound::gear_change_sound;
 use crate::scene::matrix3::extended;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::engine::ease_revs;
 use rc2k_core::physics::x87::hold_low;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::engine_sound", rva(0x43DC72), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
@@ -112,83 +101,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { engine_sound() }
 }
 
-fn regions() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let mut r = vec![
-        (a(0x71AEE0), 4),
-        (a(0x71AA88), 4),
-        (a(0x71A26C), 4),
-        (a(0x62400C), 4),
-        (a(0x71A1BC), 4),
-        (a(0x71A264), 8),
-    ];
-    let o = g(0x512A10 + 4 * (g(0x71B3F8) & 7) as usize);
-    if o != 0 {
-        r.push((o, 0x1A0));
-    }
-    r
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut object = vec![0u32; 0x98];
-    let o = object.as_mut_ptr() as u32;
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let mut all = test_regions(o);
-    all.extend([
-        (a(0x71A184), 4),
-        (a(0x71A170), 12),
-        (a(0x71A1B0), 4),
-        (a(0x71A1F8), 4),
-        (a(0x71AEE0), 4),
-        (a(0x71AA88), 4),
-        (a(0x62400C), 4),
-        (a(0x6140F8), 4),
-        (a(0x71A210), 4),
-    ]);
-    let saved = capture(&all);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 0..6u32 {
-                check_state(
-                    &mut t,
-                    &format!("control word {word:#x}, seed {seed}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &|| {
-                        set_sound(o, seed);
-                        p(0x71A184, (seed as f32 * 7.5 - 10.0).to_bits());
-                        p(0x71A170, (seed as f32 * 1.5).to_bits());
-                        p(0x71A174, (seed as f32 * -0.5).to_bits());
-                        p(0x71A178, (seed as f32 * 2.5 + 1.0).to_bits());
-                        p(0x71A1B0, (500.0 + seed as f32 * 1700.0).to_bits());
-                        p(0x71A1F8, if seed % 2 == 0 { 0x100 } else { 0 });
-                        p(0x6140F8, 1500.0f32.to_bits());
-                        p(
-                            0x71A1BC,
-                            [100u32, 3000, 11_990, 20_000, 2000, 7000][seed as usize],
-                        );
-                        p(0x71A210, [1u32, u32::MAX, 0, 1, 2, 0][seed as usize]);
-                    },
-                    &all,
-                    &rust,
-                );
-            }
-        });
-    }
-    restore(&all, &saved);
-    drop(object);
-    t.finish()
 }

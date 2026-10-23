@@ -13,31 +13,22 @@
 //! Self-test: `physics/wall_contacts.rs` (`test_walls`): the original and the Rust version
 //! on the game's variables (saved and put back), speeds and figures by lot (standing
 //! still too), under three precisions.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva};
+use crate::framework::Regs;
 use crate::math::x87_run::compare_80;
 use crate::physics::contact_force::{RECORD, contact_force};
 use crate::physics::flow::{a, copy3, fill3, g, guard, negate, p};
 use crate::physics::vector_length::vector_length;
-use crate::physics::wall_contacts::{WALL_RECORD, WORK, regions, test_walls};
+use crate::physics::wall_contacts::{WALL_RECORD, WORK, regions};
 use crate::race::norms::normalise_work_vector;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::wall_push_back", rva(0x45D8FB), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 /// The steps, not guarded.
 pub fn steps(r: &mut Regs) -> Result<(), Refused> {
@@ -74,16 +65,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { wall_push_back(r) }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    test_walls(&HOOK, call_original, &rust)
 }

@@ -12,32 +12,17 @@
 //! Refuses (before anything) a count above 0x40 (the depths' room).
 //! Self-test: `physics/copy_hooks_test.rs` (`test_moves_floats`: a copy on test
 //! variables against the converted version), counts 0 .. 0x40; the refusal.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, rva};
+use crate::framework::{EAX, EBX, Regs, game_addr, game_read, rva};
 use crate::math::x87;
-use crate::physics::copy_hooks_test::{lot, test_moves_floats};
 use crate::screens::harness::Left;
-use crate::service::floats::{FLOAT, Floats, dispatch_state_floats, floats_entry};
+use crate::service::floats::floats_entry;
 use rc2k_core::physics::motion::{lowest_point, lowest_share};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::lowest_body_point",
-    rva(0x45D6DB),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The count, the lowest, its number, the share, then the 0x40 depths.
 fn variables() -> Vec<usize> {
@@ -117,56 +102,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing().with(EAX, g.eax).with(EBX, g.ebx))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let v = game();
-    let floats = Floats {
-        memory: &[((v[3], 4), FLOAT)],
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &[(v[1], 12)], &floats, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-fn fill(seed: u32, out: &mut [u32]) {
-    lot(seed, out);
-    out[0] = [0u32, 4, 5, 6, 12, 0x40][(seed % 6) as usize];
-    for o in out.iter_mut().skip(4) {
-        *o = (*o % 0x100_0000).wrapping_sub(0x40_0000);
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    let vars = variables();
-    let mut result = test_moves_floats(
-        &HOOK,
-        0x45D6DB,
-        0x5C,
-        &[0x83, 0x3D, 0x38, 0xA2, 0x71, 0x00, 0x04],
-        &vars,
-        10,
-        12,
-        &fill,
-        &|v, r| {
-            let _ = unsafe { lowest_at_plain(v, r) };
-            Left::nothing().with(EAX, r.eax).with(EBX, r.ebx)
-        },
-        &[(3, FLOAT)],
-        &[],
-    );
-    if let Some(mut t) = SelfTest::begin(&HOOK) {
-        let mut cells = vec![0u32; vars.len()];
-        cells[0] = 0x41;
-        let at: Vec<u32> = cells.iter().map(|c| c as *const u32 as u32).collect();
-        let refused = unsafe { lowest_at_plain(&at, &mut Regs::default()) }.is_err();
-        t.check(refused, || "a count of 0x41 not refused".into());
-        let (c, f) = t.finish();
-        result.0 += c;
-        result.1 += f;
-    }
-    result
 }

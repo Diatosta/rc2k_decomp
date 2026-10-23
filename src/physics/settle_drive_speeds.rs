@@ -13,37 +13,18 @@
 //! Self-test: a copy of the original (its variables the test's, its call to a copy of
 //! `revs_from_wheels` on the same) against the converted version: gears, the three
 //! switches, speeds by lot and near the step, exact at double precision.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::math::x87;
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
-use crate::physics::gearing::{
-    GearPlaces, TEST_GEARS, TestGearing, revs_from_wheels_at, revs_from_wheels_plain_at,
-    speeds_agree,
-};
+use crate::physics::gearing::{GearPlaces, revs_from_wheels_at, revs_from_wheels_plain_at};
 use crate::screens::harness::Left;
-use crate::service::floats::{FLOAT, Floats, dispatch_state_floats, floats_entry};
-use crate::service::harness::{Region, capture};
+use crate::service::floats::floats_entry;
 use rc2k_core::physics::gearing::settle_speed;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::settle_drive_speeds",
-    rva(0x43BF6F),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const FAST_STEP_RVA: usize = rva(0x613F3C); // flt_613F3C, 1.0
 const SLOW_STEP_RVA: usize = rva(0x613F40); // flt_613F40, 0.01
@@ -181,132 +162,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { settle_drive_speeds_plain_at(&GearPlaces::game(), &SettlePlaces::game()) }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let mut regions: Vec<Region> = GearPlaces::game().regions();
-    regions.push((SettlePlaces::game().scratch, 4));
-    let memory: Vec<_> = regions.iter().take(3).map(|&g| (g, FLOAT)).collect();
-    let floats = Floats {
-        memory: &memory,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &regions, &floats, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-/// Speeds the test puts in now and then: about the slow step, about 0, NaN.
-const EDGE_SPEEDS: [u32; 8] = [
-    0x3C23_D70A, // 0.01
-    0xBC23_D70A, // -0.01
-    0x3BA3_D70A, // 0.005
-    0xBF00_0000, // -0.5
-    0x0000_0000,
-    0x8000_0000,
-    0x7FC0_0000,
-    0x3F80_0001, // just over 1
-];
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let test = TestGearing::new();
-    let mut cells = vec![0u32; 4];
-    let base = cells.as_mut_ptr() as u32;
-    let s = SettlePlaces {
-        first: base,
-        second: base + 4,
-        fast: base + 8,
-        scratch: base + 12,
-    };
-    let revs = match crate::audio::test_copy::make(
-        &crate::physics::revs_from_wheels::HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x43C0C9,
-            len: 0x38,
-            entry: &[0x83, 0x3D, 0xAC, 0xA1, 0x71, 0x00, 0x00],
-            calls: &[],
-            jumps_out: &[],
-        },
-        &|_| None,
-        &test.variables(),
-        7,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let target = revs.addr();
-    let p = test.places;
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x43BF6F,
-            len: 0x15A,
-            entry: &[0x83, 0x3D, 0x20, 0xA2, 0x71, 0x00, 0x00],
-            calls: &[0x154],
-            jumps_out: &[],
-        },
-        &|r| (r == rva(0x43C0C9)).then_some(target),
-        &[
-            (0x71A220, s.first),
-            (0x71A1AC, p.gear),
-            (0x71A614, s.fast),
-            (0x62400C, s.scratch),
-            (0x71A190, p.drive_speed),
-            (0x71A224, s.second),
-            (0x71A194, p.drive_speed_2),
-        ],
-        30,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let mut regions = p.regions();
-    regions.push((p.gear, 4));
-    regions.push((base, 16));
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for gear in TEST_GEARS {
-                for switches in 0..8u32 {
-                    for seed in 1..=3u32 {
-                        let seed = seed + gear.wrapping_mul(7) + switches * 31;
-                        let fill = || unsafe {
-                            test.fill(gear, seed % 3, seed);
-                            if seed % 2 == 0 {
-                                put(p.drive_speed, EDGE_SPEEDS[(seed / 2 % 8) as usize]);
-                                put(p.drive_speed_2, EDGE_SPEEDS[(seed / 3 % 8) as usize]);
-                            }
-                            put(s.first, switches & 1);
-                            put(s.second, (switches >> 1) & 1);
-                            put(s.fast, (switches >> 2) & 1);
-                            put(s.scratch, 0xAAAA_AAAA);
-                        };
-                        fill();
-                        let mut ro = Regs::SENTINEL;
-                        unsafe { call_game(&mut ro, copy.addr()) };
-                        let theirs = capture(&regions);
-                        fill();
-                        let mine = unsafe { settle_drive_speeds_plain_at(&p, &s) };
-                        let state = capture(&regions);
-                        let regs_ok = mine.as_ref().is_ok_and(|l| l.matches(&Regs::SENTINEL, &ro));
-                        t.check(regs_ok && speeds_agree(&regions, &theirs, &state, word), || {
-                            format!(
-                                "control word {word:#x}, gear {gear:#x}, switches {switches}, seed {seed}: \
-                                 regs_ok={regs_ok} original {theirs:x?}; rust {state:x?}"
-                            )
-                        });
-                    }
-                }
-            }
-        });
-    }
-    unsafe { put(p.gear, 9) };
-    let refused = unsafe { settle_drive_speeds_plain_at(&p, &s) }.is_err();
-    t.check(refused, || "gear 9 not refused".into());
-    drop((copy, revs, test, cells));
-    t.finish()
 }

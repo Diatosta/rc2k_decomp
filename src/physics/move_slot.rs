@@ -26,12 +26,13 @@
 //! Self-test: in a race only (it uses the stage's ground): a copy of the original (its
 //! calls the game's) against the Rust version on test slots placed about the work car,
 //! with speeds and spins by lot; every game variable it writes saved and put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    EAX, EBP, EBX, ECX, EDI, EDX, RawHook, Regs, SelfTest, call_game, game_addr, game_read,
-    game_write, hook_asm, rva,
-};
+use crate::framework::{EAX, EBP, EBX, ECX, EDI, EDX, Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::math::x87_run::{abs_compare, abs_of, mul2_to_int, neg_mul, neg_product_plus};
 use crate::physics::axis_turn_matrix::axis_turn_matrix;
@@ -40,20 +41,7 @@ use crate::scene::matrix::multiply_matrices;
 use crate::scene::matrix3::rounded;
 use crate::scene::view_matrix::{square_matrix, unit_vector};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::move_slot", rva(0x462485), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, state_entry};
 
 pub const SLOT_LEN: u32 = 0x78;
 fn a(x: u32) -> u32 {
@@ -213,12 +201,6 @@ pub fn regions() -> Vec<Region> {
     r
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let mut regions = regions();
-    regions.push((r.esi, SLOT_LEN as usize + 8));
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
@@ -273,65 +255,4 @@ pub fn fill_slots(at_: u32, n: u32, seed: u32) {
 pub fn in_race() -> bool {
     let g = |a: usize| unsafe { game_read::<u32>(rva(a)) };
     g(0x5CCD1C) != 0 && g(0x5CCCBC) != 0 && g(0x5CCCB8) != 0 && g(0x5CCD18) != 0
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if !in_race() {
-        return t.skip("not in a race (no stage's faces)");
-    }
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x462485,
-            len: 0x24C,
-            entry: &[0xFF, 0x76, 0x04, 0x8F, 0x05, 0x90, 0xBE, 0x71, 0x00],
-            calls: &[0x1F, 0x37, 0x51, 0x5D, 0x73, 0x123, 0x200],
-            jumps_out: &[],
-        },
-        &|_| None,
-        &[],
-        0,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let mut cells = vec![0u32; (SLOT_LEN as usize + 8) / 4];
-    let s = cells.as_mut_ptr() as u32;
-    let mut all = regions();
-    all.push((s, SLOT_LEN as usize + 8));
-    let saved = capture(&all);
-    for seed in 1..=16u32 {
-        fill_slots(s, 1, seed);
-        let input = capture(&all);
-        let before = Regs {
-            esi: s,
-            ..Regs::SENTINEL
-        };
-        let mut ro = before;
-        unsafe { call_game(&mut ro, copy.addr()) };
-        let theirs = capture(&all);
-        restore(&all, &input);
-        let mut g = before;
-        let mine = unsafe { move_slot_at(&mut g) };
-        let state = capture(&all);
-        restore(&all, &saved);
-        let regs_ok = mine.is_ok()
-            && Left::nothing()
-                .with(EAX, g.eax)
-                .with(EBX, g.ebx)
-                .with(ECX, g.ecx)
-                .with(EDX, g.edx)
-                .with(EDI, g.edi)
-                .with(EBP, g.ebp)
-                .matches(&before, &ro);
-        t.check(regs_ok && theirs == state, || {
-            let first = theirs.iter().zip(&state).position(|(a, b)| a != b);
-            format!("seed {seed}: regs_ok={regs_ok} {mine:?}, first difference at byte {first:?}")
-        });
-    }
-    drop((copy, cells));
-    t.finish()
 }

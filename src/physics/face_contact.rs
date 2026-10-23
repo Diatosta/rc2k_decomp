@@ -28,9 +28,13 @@
 //! Self-test (in a race; skipped otherwise): the original and the Rust version on the
 //! stage's own faces (everything written saved and put back), the car where it is and
 //! moved onto each object face's point (so the paths inside are taken), both directions.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest};
 use crate::math::x87::int_hypot;
 use crate::math::x87_run::compare_80;
 use crate::physics::contact_force::{self, RECORD, contact_force};
@@ -42,21 +46,8 @@ use crate::race::norms::norm_regions;
 use crate::race::norms::normalise_work_vector;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::{CallOriginal, Left};
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{Region, capture, dispatch_state, restore};
 use rc2k_core::physics::face_contacts::{self as contacts, FaceObject, Inside};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::face_contact", rva(0x45E3BF), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const WORK: usize = 0x5C5F60; // g_workVector
 const OBJECT: usize = 0x6D321C; // dword_6D321C
@@ -260,17 +251,15 @@ pub unsafe fn face_contact(entry: &Regs) -> Result<Left, Refused> {
     guarded(entry, steps)
 }
 
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { face_contact(r) }
-}
-
 /// The stage's faces, for the tests.
 pub fn faces_region() -> Region {
     (g(FACES), 0x40 * g(0x5CCD1C).min(0x4_0000) as usize)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_faces(&HOOK, r, call_original, steps);
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    faces_entry(r, steps)
 }
 
 /// The faces' bytes now, in `touched`'s order.
@@ -336,6 +325,14 @@ pub fn dispatch_faces(
     r.esp = esp;
 }
 
+/// `dispatch_faces` without its hook (Rust callers; a refusal is the caller's).
+pub fn faces_entry(
+    r: &mut Regs,
+    steps: fn(&mut Regs, &mut Touched) -> Result<(), Refused>,
+) -> Result<(), Refused> {
+    crate::service::harness::state_entry(r, &|e| guarded(e, steps))
+}
+
 /// Up to `n` object faces (first byte 0xFF, object byte not 0x3B) of the stage.
 pub fn object_faces(n: usize) -> Vec<u32> {
     let (faces, count) = (g(FACES), g(0x5CCD1C));
@@ -380,38 +377,4 @@ pub fn in_race_test(
     case(&mut t, &put_back);
     put_back();
     t.finish()
-}
-
-fn self_test() -> (usize, usize) {
-    in_race_test(&HOOK, &mut |t, put_back| {
-        let mut all = regions();
-        all.push(faces_region());
-        let mut faces = object_faces(24);
-        faces.extend([0, 1, 2, 3]);
-        for (n, &k) in faces.iter().enumerate() {
-            for moved in [false, true] {
-                let set = || {
-                    put_back();
-                    if moved {
-                        move_car_onto(k);
-                    }
-                    if n % 2 == 1 {
-                        p(0x71B400, g(0x71B400) ^ 1);
-                    }
-                };
-                check_state(
-                    t,
-                    &format!("face {k}, moved {moved}"),
-                    call_original,
-                    Regs {
-                        ebx: k,
-                        ..Regs::SENTINEL
-                    },
-                    &set,
-                    &all,
-                    &rust,
-                );
-            }
-        }
-    })
 }

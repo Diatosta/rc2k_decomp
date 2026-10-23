@@ -8,30 +8,15 @@
 //!
 //! Caller: `sub_43B635` (0x43B89B), every physics step.
 //! Self-test: `physics/copy_hooks_test.rs`, 8 fillings, the switch on and off.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, game_addr, hook_asm, rva};
-use crate::physics::copy_hooks_test::{lot, test_moves};
+use crate::framework::{Regs, game_addr, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::keep_motion_vectors",
-    rva(0x43BD41),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 /// The switch, six from, six to (IDA addresses).
 const VARIABLES: [usize; 13] = [
@@ -67,33 +52,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let v = game();
-    dispatch_state(&HOOK, r, call_original, &[(v[7], 12), (v[10], 12)], &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    test_moves(
-        &HOOK,
-        0x43BD41,
-        0x4A,
-        &[0x83, 0x3D, 0x48, 0x41, 0x61, 0x00, 0x00],
-        &VARIABLES,
-        13,
-        8,
-        &|seed, out| {
-            lot(seed, out);
-            out[0] = seed % 2;
-        },
-        &|v, _| {
-            unsafe { core(v) };
-            Left::nothing()
-        },
-    )
 }

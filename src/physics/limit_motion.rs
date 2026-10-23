@@ -17,37 +17,23 @@
 //! Self-test: the original and the converted version on the game's variables (saved and
 //! put back): parts within, past and at the limits, lengths past the top; exact at double
 //! precision, within `FLOAT` at extended (no infinities: the original logs).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    ECX, ESI, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{ECX, ESI, Regs, game_addr, game_read, game_write, rva};
 use crate::logfile::log_float::log_float;
 use crate::logfile::log_write::log_write;
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::vector_length::vector_length;
-use crate::scene::matrix3::{rounded, test_floats};
+use crate::scene::matrix3::rounded;
 use crate::screens::harness::Left;
-use crate::service::floats::{
-    FLOAT, Floats, Tolerance, at_test_precisions, check_state_floats, dispatch_state_floats,
-    floats_entry,
-};
-use crate::service::harness::{Region, capture, restore};
+use crate::service::floats::floats_entry;
+use crate::service::harness::Region;
 use rc2k_core::physics::limits::Moving;
 use std::cmp::Ordering;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::limit_motion", rva(0x43F7AC), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
@@ -140,11 +126,6 @@ pub fn limit_motion_plain() -> Left {
     Left::nothing().with(ECX, out.exponent).with(ESI, esi)
 }
 
-/// The float places it writes, held to `FLOAT` at extended precision.
-fn floats() -> Vec<(Region, Tolerance)> {
-    regions().into_iter().map(|r| (r, FLOAT)).collect()
-}
-
 /// The Rust version (the exact one, for `physics::car_physics_step` and
 /// `physics::find_clear_place`).
 pub unsafe fn limit_motion() -> Left {
@@ -214,77 +195,8 @@ pub fn regions() -> Vec<Region> {
     ]
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let memory = floats();
-    let floats = Floats {
-        memory: &memory,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let mut all = regions();
-    all.push((a(0x614100), 4));
-    let saved = capture(&all);
-    let memory = floats();
-    let tolerant = Floats {
-        memory: &memory,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, fl| {
-        for seed in 0..8u32 {
-            check_state_floats(
-                &mut t,
-                "physics::limit_motion",
-                &format!("control word {word:#x}, seed {seed}"),
-                call_original,
-                Regs::SENTINEL,
-                &|| {
-                    let mut f = [0u32; 6];
-                    test_floats(seed * 9 + 4, &mut f);
-                    for (k, v) in f.iter().enumerate() {
-                        let x = f32::from_bits(*v) % 30.0;
-                        let at = if k < 3 {
-                            0x71A15C + 4 * k
-                        } else {
-                            0x71A170 + 4 * (k - 3)
-                        };
-                        p(at, x.to_bits());
-                    }
-                    if seed == 2 {
-                        p(0x71A174, 10.0f32.to_bits());
-                    }
-                    // The car frame copy too (scaled with the motion): not the stage's.
-                    for k in 0..3usize {
-                        p(
-                            0x71A17C + 4 * k,
-                            (1.5f32 + k as f32 + seed as f32).to_bits(),
-                        );
-                    }
-                    p(0x613E70, 5.0f32.to_bits());
-                    p(0x613E74, 10.0f32.to_bits());
-                    p(
-                        0x614100,
-                        if seed % 2 == 0 { 12.0f32 } else { 100.0 }.to_bits(),
-                    );
-                },
-                &all,
-                fl,
-                &rust,
-            );
-        }
-    });
-    restore(&all, &saved);
-    t.finish()
 }

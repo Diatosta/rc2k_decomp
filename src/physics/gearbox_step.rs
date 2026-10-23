@@ -12,29 +12,20 @@
 //! Callers: `sub_43CB14` (under `sub_43B635`), `sub_421848`.
 //! Refuses what the steps refuse; what was written is put back.
 //! Self-test: `physics/gearbox.rs` (`test_gearbox`), with gears asked for and not.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::math::x87;
 use crate::physics::auto_gearbox::auto_gearbox_in;
 use crate::physics::gearbox::*;
 use crate::physics::manual_gearbox::manual_gearbox_in;
 use crate::physics::take_asked_gear::take_asked_gear;
 use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::gearbox_step", rva(0x43C15C), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::gearbox::gearbox_turn`.
@@ -72,23 +63,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { gearbox_step(r) }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    test_gearbox(&mut t, call_original, &rust, &|_| {});
-    test_gearbox(&mut t, call_original, &rust, &|c| {
-        c.asked = (c.gear.wrapping_add(c.bits)) & 7
-    });
-    t.finish()
 }

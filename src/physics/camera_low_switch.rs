@@ -14,33 +14,17 @@
 //! Refuses what `count_ground_probe` refuses. Shadow mode runs the original alone.
 //! Self-test: a copy whose probe goes to a stand-in, against the Rust version with the
 //! same: every early way out, found or not, low or not.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::physics::camera_ground::{FOUND, both_carry, dispatch_carry, probe_at, test_regions};
+use crate::framework::Regs;
+use crate::physics::camera_ground::{carry_entry, probe_at};
 use crate::physics::flow::{c0, g, p};
-use crate::physics::reset_parts::copy_of;
 use crate::race::car_starts::Part;
-use crate::service::harness::{capture, restore};
 use rc2k_core::physics::camera_ground::{is_low, low_switch, low_switch_looks, over};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::camera_low_switch",
-    rva(0x438BF4),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The Rust version, the probe through `part`.
 // Converted: `rc2k_core::physics::camera_ground::{low_switch_looks, is_low, low_switch}`.
@@ -71,58 +55,8 @@ pub unsafe fn camera_low_switch(entry: &Regs, part: Part) -> Result<Regs, Refuse
     Ok(r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_carry(&HOOK, r, call_original, camera_low_switch);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy_of(
-        0x438BF4,
-        0xC6,
-        &[0xD9, 0x05, 0xA0, 0xA0, 0x71, 0x00],
-        &[0x5C],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut all = crate::physics::reset_parts::regions();
-    all.extend(test_regions());
-    let saved = capture(&all);
-    for case in 0..24u32 {
-        let fill = || {
-            restore(&all, &saved);
-            p(
-                0x71A0A0,
-                [0xBF80_0000u32, 0x3F80_0000, 0x8000_0000, 0x7FC0_0000][(case % 4) as usize],
-            );
-            p(0x71A66C, (case % 5 == 4) as u32);
-            p(0x71A65C, [0u32, 1, 2, 0][(case / 4 % 4) as usize]);
-            p(0x71A660, case);
-            p(0x71A67C, 0x1234_0000);
-            p(0x71A684, 0x0567_0000);
-            p(0x71AEC8, 0x77);
-            p(0x5CCC74, 0x99);
-            p(FOUND, (case / 2 % 2) ^ (case / 8 % 2));
-            p(0x639828, 0x1000);
-            p(
-                0x71A680,
-                [0x1000u32, 0x17FF, 0x1800, 0x0800, 0x8000_0000][(case % 5) as usize],
-            );
-            p(0x719FE0, 0xABCD + case);
-        };
-        both_carry(
-            &mut t,
-            &format!("case {case}"),
-            &copy,
-            Regs::SENTINEL,
-            &fill,
-            camera_low_switch,
-        );
-    }
-    restore(&all, &saved);
-    drop(copy);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    carry_entry(r, camera_low_switch)
 }

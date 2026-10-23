@@ -16,30 +16,18 @@
 //! Self-test: a copy of the original (its variables the test's; its calls to test copies
 //! of `wheels_from_revs`, `revs_from_wheels` and `gear_bit` on the same) against the core:
 //! gears and asked gears -1 .. 7, bit patterns, drive kinds, under three precisions.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    EAX, EBX, ECX, RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva,
-};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
+use crate::framework::{EAX, EBX, ECX, Regs, game_addr, rva};
 use crate::physics::gear_bit::gear_bit_at;
-use crate::physics::gearing::{GearPlaces, TestGearing, revs_from_wheels_at, wheels_from_revs_at};
+use crate::physics::gearing::{GearPlaces, revs_from_wheels_at, wheels_from_revs_at};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::gear_shifts::Change;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::change_gear", rva(0x43C20D), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The other places: the asked gear, the gear bits, the two words set.
 #[derive(Clone, Copy)]
@@ -130,120 +118,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { change_gear() }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let gp = GearPlaces::game();
-    let c = ChangePlaces::game();
-    let mut regions: Vec<Region> = gp.regions();
-    regions.extend([(gp.gear, 4), (c.changed, 8)]);
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let test = TestGearing::new();
-    let p = test.places;
-    let mut cells = vec![0u32; 4];
-    let base = cells.as_mut_ptr() as u32;
-    let c = ChangePlaces {
-        wanted: base,
-        bits: base + 4,
-        changed: base + 8,
-        changed_2: base + 12,
-    };
-    let make = |hook: &RawHook, address: usize, refs: usize| {
-        crate::audio::test_copy::make(
-            hook,
-            &crate::audio::test_copy::Copy {
-                address,
-                len: 0x38,
-                entry: &[0x83, 0x3D, 0xAC, 0xA1, 0x71, 0x00, 0x00],
-                calls: &[],
-                jumps_out: &[],
-            },
-            &|_| None,
-            &test.variables(),
-            refs,
-        )
-    };
-    let copies = (
-        make(&crate::physics::wheels_from_revs::HOOK, 0x43C124, 8),
-        make(&crate::physics::revs_from_wheels::HOOK, 0x43C0C9, 7),
-        crate::physics::gear_bit::test_copy(c.bits),
-    );
-    let (wheels, revs, bit) = match copies {
-        (Ok(a), Ok(b), Ok(d)) => (a, b, d),
-        (Err(why), _, _) | (_, Err(why), _) | (_, _, Err(why)) => return t.skip(&why),
-    };
-    let targets = (wheels.addr(), revs.addr(), bit.addr());
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x43C20D,
-            len: 0x9B,
-            entry: &[0xA1, 0xAC, 0xA1, 0x71, 0x00],
-            calls: &[0x2B, 0x4B, 0x52, 0x61],
-            jumps_out: &[],
-        },
-        &|r| {
-            if r == rva(0x43C124) {
-                Some(targets.0)
-            } else if r == rva(0x43C0C9) {
-                Some(targets.1)
-            } else if r == rva(0x43C5B7) {
-                Some(targets.2)
-            } else {
-                None
-            }
-        },
-        &[
-            (0x71A1AC, p.gear),
-            (0x614C40, c.wanted),
-            (0x71A210, c.changed),
-            (0x71A214, c.changed_2),
-        ],
-        16,
-    ) {
-        Ok(x) => x,
-        Err(why) => return t.skip(&why),
-    };
-    let mut regions = p.regions();
-    regions.push((p.gear, 4));
-    regions.push((base, 16));
-    let gears = [u32::MAX, 0, 1, 2, 7];
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for gear in gears {
-                for w in gears {
-                    for pattern in [0u32, 0x0AA, 0x1FF] {
-                        let seed = gear.wrapping_mul(5) ^ w.wrapping_mul(3) ^ pattern;
-                        let fill = || unsafe {
-                            test.fill(gear, seed % 2, seed);
-                            (base as *mut [u32; 4]).write([w, pattern, 0xAA, 0xBB]);
-                        };
-                        fill();
-                        let mut ro = Regs::SENTINEL;
-                        unsafe { call_game(&mut ro, copy.addr()) };
-                        let theirs = capture(&regions);
-                        fill();
-                        let left = unsafe { change_gear_at(&p, &c) };
-                        let mine = capture(&regions);
-                        let regs_ok = left.as_ref().is_ok_and(|l| l.matches(&Regs::SENTINEL, &ro));
-                        t.check(regs_ok && theirs == mine, || {
-                            format!("control word {word:#x}, gear {gear:#x} -> {w:#x}, bits {pattern:#x}: regs_ok={regs_ok} (eax {:#x} ebx {:#x} ecx {:#x}) original {theirs:x?}; rust {mine:x?}", ro.eax, ro.ebx, ro.ecx)
-                        });
-                    }
-                }
-            }
-        });
-    }
-    drop((copy, wheels, revs, bit, cells, test));
-    t.finish()
 }

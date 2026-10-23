@@ -59,6 +59,15 @@ pub fn dispatch_carry(
     }
 }
 
+/// `dispatch_carry` without its hook (Rust callers; a refusal is the caller's).
+pub fn carry_entry(r: &mut Regs, rust: Check) -> Result<(), Refused> {
+    let left = unsafe { rust(r, &mut game_part) }?;
+    let esp = r.esp;
+    *r = left;
+    r.esp = esp;
+    Ok(())
+}
+
 /// What the tests set and compare besides `reset_parts::regions()`.
 pub fn test_regions() -> Vec<Region> {
     vec![

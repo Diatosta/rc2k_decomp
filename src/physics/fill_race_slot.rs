@@ -16,30 +16,19 @@
 //! Refuses (before anything) a part past 0xFF, or no slot to take.
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back): empty slots and full ones, parts by lot, under three precisions.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::math::x87_run::{
-    TEST_CONTROL_WORDS, ext_to_int, int_80, int_mul_add, with_control_word,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::math::x87_run::{ext_to_int, int_80, int_mul_add};
 use crate::scene::matrix3::test_floats;
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
+use crate::service::harness::{Region, state_entry};
 use rc2k_core::physics::parts::{LAST_PART, choose_slot};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::fill_race_slot", rva(0x462263), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 pub const SLOTS: usize = 0x71BAC8; // g_raceSlots
 
@@ -136,10 +125,6 @@ pub fn regions() -> Vec<Region> {
     vec![(a(SLOTS), 8 * 0x78), (a(0x635004), 12), (a(0x71A270), 4)]
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
@@ -210,40 +195,4 @@ pub fn set_slots(seed: u32, empty: Option<u32>) {
     p(0x71ADD8, seed);
     p(0x719FE0, seed * 7);
     p(0x71BE8C, 6.0e-5f32.to_bits());
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut all = regions();
-    all.extend(inputs());
-    let saved = capture(&all);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for (seed, empty) in [
-                (1u32, Some(0u32)),
-                (2, Some(3)),
-                (3, Some(7)),
-                (4, None),
-                (5, None),
-            ] {
-                check_state(
-                    &mut t,
-                    &format!("control word {word:#x}, seed {seed}, empty from {empty:?}"),
-                    call_original,
-                    Regs {
-                        eax: seed * 13,
-                        ebp: 0x1234,
-                        ..Regs::SENTINEL
-                    },
-                    &|| set_slots(seed, empty),
-                    &all,
-                    &rust,
-                );
-            }
-        });
-    }
-    restore(&all, &saved);
-    t.finish()
 }

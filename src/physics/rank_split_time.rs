@@ -16,29 +16,18 @@
 //! Refuses a split or a split count past 0x40, a divisor of 0 or a quotient past a dword
 //! (the original's `div` would fault); what was written is put back.
 //! Self-test: `physics/splits.rs` (`test_splits`), mode 1.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::{Regs, rva};
 use crate::physics::fill_rival_table::fill_rival_table_in;
-use crate::physics::splits::{
-    COUNT, FIGURE, SPLIT, TEXT, TIME, g, guarded, p, test_splits, written,
-};
+use crate::physics::splits::{COUNT, FIGURE, SPLIT, TEXT, TIME, g, guarded, p};
 use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
+use crate::service::harness::state_entry;
 use crate::strings::append_string_by_id::append_string_by_id;
 use rc2k_core::physics::splits::{RIVALS, gap, rank, scaled_time, split_scale};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::rank_split_time", rva(0x436C4F), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// A name into `text` (eight blanks first), its first eight bytes into `to`.
 fn name(r: &mut Regs, id: u32, to: usize) {
@@ -129,20 +118,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { rank_split_time(r) }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &written(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    test_splits(&mut t, call_original, &rust, &|c| c.mode == 1);
-    t.finish()
 }

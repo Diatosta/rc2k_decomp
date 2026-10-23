@@ -15,24 +15,15 @@
 //! Shadow mode runs the original alone (`physics/sound_cues.rs`).
 //! Self-test: a copy whose `play_sound` goes to a stand-in, against the Rust version on a
 //! test queue: counts 0, 3, 15, 16, both ends, two cues.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, hook_asm, rva};
-use crate::physics::sound_cues::{PLAY, Part, both, copy_of, dispatch_cue};
+use crate::framework::{Regs, game_read, rva};
+use crate::physics::sound_cues::{PLAY, Part, cue_entry};
 use rc2k_core::physics::sound_queue::{ENTRY_DWORDS, Place, check_cue, place, sounds};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::queue_sound_cue", rva(0x40EE5C), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -90,57 +81,8 @@ pub fn queue_sound_cue_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_cue(&HOOK, r, call_original, queue_sound_cue_in);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy_of(
-        0x40EE5C,
-        0x7C,
-        &[0x55, 0x8B, 0x4F, 0x0C, 0x8D, 0x57, 0x10],
-        &[0x21],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    // The object (its base at +0), then its queue at +0x298 (0x220 bytes).
-    let mut cells = vec![0u32; (0x298 + 0x220) / 4];
-    let o = cells.as_mut_ptr() as u32;
-    let q = o + 0x298;
-    let all = [(o, 4 * cells.len())];
-    for count in [0u32, 3, 15, 16] {
-        for first in [0u32, 1] {
-            for cue in [0x50u32, 0x52] {
-                let fill = || unsafe {
-                    for k in 0..(cells.len() as u32) {
-                        put(o + 4 * k, 0x5A5A_0000 | k);
-                    }
-                    put(o, 0x1000);
-                    put(q + 4, count % 4);
-                    put(q + 0xC, count);
-                };
-                both(
-                    &mut t,
-                    &format!("count {count}, first {first}, cue {cue:#x}"),
-                    &copy,
-                    Regs {
-                        eax: first,
-                        ebx: cue,
-                        esi: o,
-                        edi: q,
-                        ..Regs::SENTINEL
-                    },
-                    &fill,
-                    &all,
-                    queue_sound_cue_in,
-                );
-            }
-        }
-    }
-    drop((copy, cells));
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    cue_entry(r, queue_sound_cue_in)
 }

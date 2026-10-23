@@ -6,27 +6,17 @@
 //!
 //! Caller: `sub_436790` (four calls).
 //! Self-test: `physics/copy_hooks_test.rs`, 8 fillings over both words' zero and not.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, game_addr, hook_asm, rva};
+use crate::framework::{Regs, game_addr, rva};
 use crate::physics::cells::{get, put_changed};
-use crate::physics::copy_hooks_test::{lot, test_moves};
 use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::start::CarStart;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::mark_car_started", rva(0x436AA7), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 fn game() -> Vec<u32> {
     VARIABLES
@@ -63,35 +53,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { mark_car_started() })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let v = game();
-    dispatch_state(&HOOK, r, call_original, &[(v[0], 4)], &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    test_moves(
-        &HOOK,
-        0x436AA7,
-        0x1D,
-        &[0x83, 0x3D, 0x78, 0xA0, 0x71, 0x00, 0x00],
-        &VARIABLES,
-        3,
-        8,
-        &|seed, out| {
-            lot(seed, out);
-            if seed & 1 != 0 {
-                out[0] = 0;
-            }
-            if seed & 2 != 0 {
-                out[1] = 0;
-            }
-        },
-        &|v, _| unsafe { core(v) },
-    )
 }

@@ -11,26 +11,16 @@
 //! (`physics/reset_parts.rs`).
 //! Self-test: a copy whose call goes to a stand-in (place 15), against the Rust version
 //! with the same: modes 0 .. 3 and counts about 700.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::physics::reset_parts::{RESET_CAR, both, copy_of, dispatch_reset, regions};
-use crate::race::car_starts::{Case, Part, prepare};
-use crate::service::harness::{capture, restore};
+use crate::framework::{Regs, game_read, game_write, rva};
+use crate::physics::reset_parts::{RESET_CAR, reset_entry};
+use crate::race::car_starts::Part;
 use rc2k_core::physics::start::stuck_tick;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::reset_when_stuck", rva(0x43EFBA), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const MODE: usize = rva(0x71A234); // g_car + 0x25C
 const STUCK: usize = rva(0x71A1C0); // g_car + 0x1E8
@@ -55,54 +45,8 @@ pub unsafe fn reset_when_stuck(entry: &Regs, part: Part) -> Result<Regs, Refused
     Ok(r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_reset(&HOOK, r, call_original, reset_when_stuck);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy_of(
-        0x43EFBA,
-        0x35,
-        &[0x83, 0x3D, 0x34, 0xA2, 0x71, 0x00, 0x02],
-        &[0x24],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let all = regions();
-    let saved = capture(&all);
-    for mode in 0..4u32 {
-        for stuck in [0u32, 698, 699, 700, 0xFFFF_FFFF] {
-            let fill = || unsafe {
-                prepare(
-                    &Case {
-                        mode: 2,
-                        no_place: 0,
-                        side: 0,
-                        cars_2: 1,
-                        current: mode,
-                        cars: 4,
-                    },
-                    (mode + stuck).wrapping_mul(0x2026_1017),
-                );
-                game_write(MODE, mode);
-                game_write(STUCK, stuck);
-            };
-            both(
-                &mut t,
-                &format!("mode {mode}, stuck {stuck:#x}"),
-                &copy,
-                0,
-                Regs::SENTINEL,
-                &fill,
-                reset_when_stuck,
-            );
-        }
-    }
-    restore(&all, &saved);
-    drop(copy);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    reset_entry(r, reset_when_stuck)
 }

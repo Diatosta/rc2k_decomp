@@ -14,33 +14,15 @@
 //! (`physics/reset_parts.rs`).
 //! Self-test: a copy whose calls go to the stand-ins, against the Rust version with the
 //! same, on stream A's cases; the work car and the start's variables put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_write, hook_asm, rva};
-use crate::physics::reset_parts::{both, copy_of, dispatch_reset, regions};
-use crate::race::car_starts::{Case, Part, prepare};
-use crate::service::harness::{capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::reset_car_on_line",
-    rva(0x43FB00),
-    thunk,
-    &ORIGINAL,
-)
-.private_copy(0x47)
-.relocate_calls(&[0, 0x1E, 0x23])
-.manual_patch()
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_write, rva};
+use crate::physics::reset_parts::reset_entry;
+use crate::race::car_starts::Part;
 
 /// The Rust version, the calls through `part` (places 8, 6, 9).
 pub unsafe fn reset_car_on_line(entry: &Regs, part: Part) -> Result<Regs, Refused> {
@@ -59,54 +41,8 @@ pub unsafe fn reset_car_on_line(entry: &Regs, part: Part) -> Result<Regs, Refuse
     Ok(g)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_reset(&HOOK, r, call_original, reset_car_on_line);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy_of(
-        0x43FB00,
-        0x47,
-        &[0xE8, 0x4A, 0x18, 0x00, 0x00],
-        &[0, 0x1E, 0x23],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let all = regions();
-    let saved = capture(&all);
-    for seed in 1..=4u32 {
-        let fill = || {
-            prepare(
-                &Case {
-                    mode: seed % 4,
-                    no_place: 0,
-                    side: 0,
-                    cars_2: 1,
-                    current: seed % 4,
-                    cars: 4,
-                },
-                seed.wrapping_mul(0x2026_1017),
-            )
-        };
-        let entry = Regs {
-            ebx: seed,
-            ..Regs::SENTINEL
-        };
-        both(
-            &mut t,
-            &format!("seed {seed}"),
-            &copy,
-            0,
-            entry,
-            &fill,
-            reset_car_on_line,
-        );
-    }
-    restore(&all, &saved);
-    drop(copy);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    reset_entry(r, reset_car_on_line)
 }

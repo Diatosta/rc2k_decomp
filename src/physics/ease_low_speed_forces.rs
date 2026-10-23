@@ -9,35 +9,18 @@
 //! Caller: `sub_43DFB1` (0x43E523).
 //! Self-test: a copy of the original (its four variables the test's) against the converted
 //! version, speeds by lot about the limit, exact at double precision.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::math::x87;
-use crate::math::x87_run::{TEST_CONTROL_WORDS, abs_compare, abs_div_add_mul, with_control_word};
-use crate::physics::copy_hooks_test::check_floats_at;
-use crate::scene::matrix3::test_floats;
+use crate::math::x87_run::{abs_compare, abs_div_add_mul};
 use crate::screens::harness::Left;
-use crate::service::floats::{FLOAT, Floats, dispatch_state_floats, floats_entry};
-use crate::service::harness::capture;
+use crate::service::floats::floats_entry;
 use rc2k_core::physics::drive_forces::{eased, low_speed_factor};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::ease_low_speed_forces",
-    rva(0x440CF3),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -104,98 +87,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let (factor, _, forces) = game();
-    let floats = Floats {
-        memory: &[((factor, 4), FLOAT), ((forces[0], 8), FLOAT)],
-        regs: &[],
-    };
-    dispatch_state_floats(
-        &HOOK,
-        r,
-        call_original,
-        &[(factor, 4), (forces[0], 8)],
-        &floats,
-        &rust,
-    );
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut cells = vec![0u32; 4];
-    let base = cells.as_mut_ptr() as u32;
-    let (factor, speed, forces) = (base, base + 4, [base + 8, base + 12]);
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x440CF3,
-            len: 0x63,
-            entry: &[0xD9, 0xE8, 0xD9, 0x1D, 0x5C, 0x47, 0x61, 0x00],
-            calls: &[],
-            jumps_out: &[],
-        },
-        &|_| None,
-        &[
-            (0x61475C, factor),
-            (0x71A184, speed),
-            (0x614248, forces[0]),
-            (0x61424C, forces[1]),
-        ],
-        10,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let all = [(base, 16)];
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 0..10u32 {
-                let fill = || {
-                    let mut f = [0u32; 3];
-                    test_floats(seed * 3 + 1, &mut f);
-                    let s = match seed {
-                        0 => 0x7FC0_0000,
-                        1 => 20.0f32.to_bits(),
-                        2 => (-19.5f32).to_bits(),
-                        _ => (f32::from_bits(f[0]) % 40.0).to_bits(),
-                    };
-                    unsafe { (base as *mut [u32; 4]).write([0xAAAA_AAAA, s, f[1], f[2]]) };
-                };
-                fill();
-                let mut ro = Regs::SENTINEL;
-                unsafe { call_game(&mut ro, copy.addr()) };
-                let theirs = capture(&all);
-                fill();
-                unsafe { ease_low_speed_forces_plain_at(factor, speed, forces) };
-                let mine = capture(&all);
-                let regs_ok = ro.preserved_except(&Regs::SENTINEL, 0);
-                let floats = [((factor, 4), FLOAT), ((forces[0], 8), FLOAT)];
-                check_floats_at(
-                    &mut t,
-                    "physics::ease_low_speed_forces",
-                    word,
-                    &all,
-                    &theirs,
-                    &mine,
-                    &floats,
-                    regs_ok,
-                    || {
-                        format!(
-                            "control word {word:#x}, seed {seed}: regs_ok={regs_ok} original {theirs:x?}; rust {mine:x?}"
-                        )
-                    },
-                );
-            }
-        });
-    }
-    drop((copy, cells));
-    t.finish()
 }

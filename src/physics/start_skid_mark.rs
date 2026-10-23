@@ -9,27 +9,17 @@
 //!
 //! Caller: `sub_43B635` (0x43B6FB), every physics step.
 //! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables), 12 cases.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, RawHook, Regs, game_addr, hook_asm, rva};
+use crate::framework::{EAX, Regs, game_addr, rva};
 use crate::physics::cells::{get, put_changed};
-use crate::physics::copy_hooks_test::{lot, test_moves};
 use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::ground::SkidStart;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::start_skid_mark", rva(0x43F272), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const VARIABLES: [usize; 11] = [
     0x71A5D8, 0x71A5DC, 0x71A5E0, 0x71A5E4, 0x71A664, 0x71A660, 0x71A66C, 0x71A674, 0x71A670,
@@ -84,46 +74,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing().with(EAX, g.eax))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let v = game();
-    let regions: Vec<_> = [4usize, 5, 6, 7, 8, 10]
-        .iter()
-        .map(|&k| (v[k], 4))
-        .collect();
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn fill(seed: u32, out: &mut [u32]) {
-    lot(seed, out);
-    for (k, o) in out.iter_mut().enumerate().take(4) {
-        if (seed >> k) & 1 == 0 {
-            *o = 0;
-        }
-    }
-    if seed.is_multiple_of(3) {
-        out[4] = 0;
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    test_moves(
-        &HOOK,
-        0x43F272,
-        0x68,
-        &[0x83, 0x3D, 0xD8, 0xA5, 0x71, 0x00, 0x00],
-        &VARIABLES,
-        12,
-        24,
-        &fill,
-        &|v, r| {
-            unsafe { start_at(v, r) };
-            Left::nothing().with(EAX, r.eax)
-        },
-    )
 }

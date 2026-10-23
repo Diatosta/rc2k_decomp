@@ -8,28 +8,19 @@
 //! Caller: `physics::set_handling` (0x43EB5D), first.
 //! Self-test: a copy of the original on a `physics::Mirror` (its calls to copies of the
 //! two, and theirs to copies of `reset_car_grades` and `rate_damage`), both branches.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{ESI, RawHook, Regs, SelfTest, call_game, hook_asm, rva};
+use crate::framework::{ESI, Regs};
 use crate::physics::mirror::{Mirror, Spec};
 use crate::physics::rate_current_car::OWN_SPEC as RATE_CURRENT;
-use crate::physics::rate_damage::{SPEC as RATE, fill, rate_damage_at};
+use crate::physics::rate_damage::{SPEC as RATE, rate_damage_at};
 use crate::physics::reset_car_grades::{BLOCK_LEN, reset_grades_at};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::grade_or_reset", rva(0x43BA8E), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, state_entry};
 
 pub const MODE: u32 = 0x71A234; // dword_71A234: 2 resets the grades
 pub const OWN_SPEC: Spec = (
@@ -82,10 +73,6 @@ pub fn regions(m: &Mirror) -> Vec<Region> {
     r
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(&Mirror::game()), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
@@ -107,36 +94,4 @@ pub fn copies(m: &Mirror) -> Result<(usize, Vec<crate::redirect::RedirectedCopy>
         _ => None,
     })?;
     Ok((own.addr(), vec![own, reset, grades, rate_current, rate]))
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let m = Mirror::of(&crate::physics::rate_damage::RANGES);
-    let (copy, keep) = match copies(&m) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let all = m.regions();
-    for seed in 1..=8u32 {
-        let saved = capture(&all);
-        fill(&m, seed);
-        unsafe { m.put(MODE, [2, 0, 1, 3][(seed % 4) as usize]) };
-        let input = capture(&all);
-        let mut ro = Regs::SENTINEL;
-        unsafe { call_game(&mut ro, copy) };
-        let theirs = capture(&all);
-        restore(&all, &input);
-        let left = unsafe { grade_or_reset_at(&m) };
-        let mine = capture(&all);
-        let regs_ok = left.matches(&Regs::SENTINEL, &ro);
-        t.check(regs_ok && theirs == mine, || {
-            let first = theirs.iter().zip(&mine).position(|(a, b)| a != b);
-            format!("seed {seed}: regs_ok={regs_ok}, first difference at byte {first:?}")
-        });
-        restore(&all, &saved);
-    }
-    drop(keep);
-    t.finish()
 }

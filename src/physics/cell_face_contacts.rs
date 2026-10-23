@@ -12,34 +12,16 @@
 //! Self-test (in a race; skipped otherwise): the original and the Rust version on the
 //! stage (everything written saved and put back): the nine cells about the car, where it
 //! is and moved onto object faces.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::physics::face_contact::{
-    self, Touched, faces_region, guarded, in_race_test, move_car_onto, object_faces,
-};
+use crate::framework::Regs;
+use crate::physics::face_contact::{Touched, guarded};
 use crate::physics::find_course_record::find_course_record;
-use crate::physics::flow::g;
 use crate::screens::harness::Left;
-use crate::service::harness::check_state;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::cell_face_contacts",
-    rva(0x45E291),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The steps, not guarded.
 // Converted: `rc2k_core::physics::ground_search::cell_key`.
@@ -58,47 +40,11 @@ pub unsafe fn cell_face_contacts(entry: &Regs) -> Result<Left, Refused> {
     guarded(entry, steps)
 }
 
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { cell_face_contacts(r) }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    crate::physics::face_contact::dispatch_faces(&HOOK, r, call_original, steps);
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::physics::face_contact::faces_entry(r, steps)
 }
 
 /// The nine cells' offsets, in `face_contacts_around`'s order.
 pub use rc2k_core::physics::ground_search::CELLS as AROUND;
-
-fn self_test() -> (usize, usize) {
-    in_race_test(&HOOK, &mut |t, put_back| {
-        let mut all = face_contact::regions();
-        all.push(faces_region());
-        let mut moves = vec![None];
-        moves.extend(object_faces(6).into_iter().map(Some));
-        for moved in moves {
-            for (n, &(dx, dz)) in AROUND.iter().enumerate() {
-                let set = || {
-                    put_back();
-                    if let Some(k) = moved {
-                        move_car_onto(k);
-                    }
-                };
-                set();
-                let (x, z) = (g(0x71A10C).wrapping_add(dx), g(0x71A114).wrapping_add(dz));
-                check_state(
-                    t,
-                    &format!("cell {n}, car moved onto {moved:?}"),
-                    call_original,
-                    Regs {
-                        eax: x,
-                        ecx: z,
-                        ..Regs::SENTINEL
-                    },
-                    &set,
-                    &all,
-                    &rust,
-                );
-            }
-        }
-    })
-}

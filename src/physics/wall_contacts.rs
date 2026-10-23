@@ -20,34 +20,21 @@
 //! Self-test (`test_walls`, in a race; skipped otherwise): the original and the Rust
 //! version on the stage's own faces (everything written saved and put back): probe
 //! lists of faces chosen by their wall bits, none met, a wall met, the 0xC00 fallback.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
+use crate::framework::Regs;
 use crate::physics::contact_force;
 use crate::physics::flow::{a, g, guard, p};
 use crate::physics::touch_face::FACES;
 use crate::race::norms::norm_regions;
 use crate::race::stage_prefs::left_of;
-use crate::scene::matrix3::test_floats;
-use crate::screens::harness::{CallOriginal, Left};
-use crate::service::harness::{
-    Region, Rust, capture, check_state, dispatch_state, restore, state_entry,
-};
+use crate::screens::harness::Left;
+use crate::service::harness::{Region, state_entry};
 use rc2k_core::physics::walls;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::wall_contacts", rva(0x45D7B6), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// `g_workVector`.
 pub const WORK: usize = 0x5C5F60;
@@ -173,171 +160,8 @@ pub fn regions() -> Vec<Region> {
     all
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-/// Faces of the stage by their wall bits (word +2 & 0xC00: 0, 0x400, 0x800, 0xC00), a
-/// few of each.
-fn faces_by_bits() -> [Vec<u32>; 4] {
-    let mut out: [Vec<u32>; 4] = Default::default();
-    for k in 0..g(0x5CCD1C) {
-        let bits = (word(k) >> 10 & 3) as usize;
-        if out[bits].len() < 6 {
-            out[bits].push(k);
-        }
-    }
-    out
-}
-
-/// The tests of the three wall hooks (`hook`, its `call_original` and Rust version).
-/// `wall_push_back` and `wall_edge_contact` run on test faces and points (any time);
-/// `wall_contacts`, whose every contact ends in `feel_ground`, on the stage in a race.
-pub fn test_walls(hook: &RawHook, call_original: CallOriginal, rust: Rust) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let whole = std::ptr::eq(hook, &HOOK);
-    if whole && (!crate::physics::move_slot::in_race() || !(1..=0x40).contains(&g(0x71A238))) {
-        return t.skip("not in a race (no stage)");
-    }
-    let car = crate::physics::car_sounds::CURRENT;
-    let mut all = regions();
-    all.extend(contact_force::inputs());
-    all.extend([
-        (a(car), 4),
-        (a(crate::physics::car_sounds::LISTED), 0x20),
-        (a(FACES), 4),
-        (a(crate::physics::scene_point_hits_car::SCENE_POINTS), 4),
-        (a(0x71A238), 4),
-        (a(0x6D2214), 0x300),
-        (a(0x6D2814), 0x100),
-        (a(0x71AAC8), 0x300),
-        (a(0x71A15C), 0x2C),
-        (a(0x71A208), 4),
-        (a(0x614148), 8),
-    ]);
-    let saved = capture(&all);
-    let mut faces = [0u32; 0x10 * 4];
-    let mut points = [0u32; 3 * 8];
-    let (fs, ps) = (faces.as_mut_ptr() as u32, points.as_mut_ptr() as u32);
-    if !whole {
-        all.extend([(fs, 0x100), (ps, 0x60)]);
-    }
-    let bits = if whole {
-        faces_by_bits()
-    } else {
-        Default::default()
-    };
-    let count = g(0x71A238);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 0..12u32 {
-                let set = || {
-                    restore(&all[..all.len() - if whole { 0 } else { 2 }], &saved);
-                    let mut f = vec![0u32; 0x400];
-                    test_floats(seed * 23 + 1, &mut f);
-                    if !whole {
-                        // The stage's own figures in a race; else by lot.
-                        contact_force::set_inputs(seed);
-                        p(0x614148, 0);
-                        let small = |v: u32| (f32::from_bits(v) % 8.0).to_bits();
-                        for k in 0..0xC0 {
-                            p(0x6D2214 + 4 * k, small(f[k]));
-                            p(0x71AAC8 + 4 * k, small(f[k + 0xC0]));
-                        }
-                        for k in 0..11 {
-                            p(0x71A15C + 4 * k, small(f[k + 0x180]));
-                        }
-                        p(0x71A208, small(f[0x18B]));
-                    }
-                    let c = seed % 8;
-                    p(car, c);
-                    p(
-                        crate::physics::car_sounds::LISTED + 4 * c as usize,
-                        u32::MAX,
-                    );
-                    if seed % 6 == 5 && !whole {
-                        // Standing still.
-                        for k in 0..3 {
-                            p(0x71A170 + 4 * k, 0);
-                        }
-                    }
-                    if whole {
-                        // Probe lists from the stage's faces: none met, a wall met, the
-                        // 0xC00 fallback.
-                        let pick = |b: usize, i: u32| {
-                            let v = &bits[b];
-                            if v.is_empty() {
-                                0
-                            } else {
-                                v[i as usize % v.len()]
-                            }
-                        };
-                        for k in 0..count {
-                            let (now, then) = match seed % 3 {
-                                0 => (pick(0, k), pick(0, k)),
-                                1 => (pick(1, k), if k == 3 { pick(2, k) } else { pick(1, k) }),
-                                _ => (pick(3, k), pick(3, k)),
-                            };
-                            p(0x71ADC8 + 4 * k as usize, now);
-                            p(0x6D2814 + 4 * k as usize, then);
-                        }
-                    } else {
-                        p(FACES, fs);
-                        p(crate::physics::scene_point_hits_car::SCENE_POINTS, ps);
-                        for k in 0..0x18 {
-                            unsafe {
-                                ((ps + 4 * k) as *mut u32).write(f[0x200 + k as usize] % 0x40000)
-                            };
-                        }
-                        // Two faces of corners 0 .. 7; the second shares an edge (by
-                        // seed) with the first, or none.
-                        let wall = [0u32, 1, 2, 3];
-                        let shared: [[u32; 4]; 5] = [
-                            [1, 0, 5, 6],
-                            [5, 2, 6, 0],
-                            [5, 6, 3, 2],
-                            [4, 7, 1, 3],
-                            [4, 5, 6, 7],
-                        ];
-                        let other = shared[(seed % 5) as usize];
-                        for k in 0..4u32 {
-                            unsafe {
-                                ((fs + 4 + 4 * k) as *mut u32).write(wall[k as usize]);
-                                ((fs + 0x44 + 4 * k) as *mut u32).write(other[k as usize]);
-                            }
-                        }
-                        p(0x6D3170, 0);
-                        p(0x6D3174, 1);
-                        p(0x6D3214, seed % 0x40);
-                    }
-                };
-                check_state(
-                    &mut t,
-                    &format!("control word {word:#x}, seed {seed}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &set,
-                    &all,
-                    rust,
-                );
-            }
-        });
-    }
-    if !whole {
-        all.truncate(all.len() - 2);
-    }
-    restore(&all, &saved);
-    t.finish()
-}
-
-fn self_test() -> (usize, usize) {
-    test_walls(&HOOK, call_original, &rust)
 }

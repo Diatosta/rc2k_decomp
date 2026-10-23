@@ -11,35 +11,19 @@
 //! Self-test: a copy of the original on test variables (its call to the
 //! `vector_length` hook kept) against the converted version, vectors by lot, exact at
 //! double precision.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
-use crate::physics::copy_hooks_test::check_floats_at;
+use crate::framework::{Regs, game_addr, rva};
 use crate::physics::vector_length::vector_length;
-use crate::scene::matrix3::{rounded, test_floats};
+use crate::scene::matrix3::rounded;
 use crate::scene::vector3::read_floats;
 use crate::screens::harness::Left;
-use crate::service::floats::{FLOAT, Floats, dispatch_state_floats, floats_entry};
+use crate::service::floats::floats_entry;
 use rc2k_core::physics::motion::motion_length;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::store_motion_length",
-    rva(0x43BD2D),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const MOTION_RVA: usize = rva(0x71A170); // dword_71A170: three floats
 const LENGTH_RVA: usize = rva(0x71A19C); // dword_71A19C
@@ -67,84 +51,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let out = (game_addr(LENGTH_RVA) as u32, 4);
-    let floats = Floats {
-        memory: &[(out, FLOAT)],
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &[out], &floats, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut cells = vec![0u32; 4];
-    let v = cells.as_mut_ptr();
-    let out = unsafe { v.add(3) };
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x43BD2D,
-            len: 0x14,
-            entry: &[0x56, 0x8D, 0x35, 0x70, 0xA1, 0x71, 0x00],
-            calls: &[7],
-            jumps_out: &[],
-        },
-        &|_| None,
-        &[(0x71A170, v as u32), (0x71A19C, out as u32)],
-        2,
-    ) {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(&why),
-    };
-    let fill = |seed: u32| {
-        let mut x = [0u32; 3];
-        test_floats(seed * 3 + 2, &mut x);
-        unsafe {
-            (v as *mut [u32; 3]).write(x);
-            out.write_volatile(0xAAAA_AAAA);
-        }
-    };
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 1..=12u32 {
-                fill(seed);
-                let mut ro = Regs::SENTINEL;
-                unsafe { call_game(&mut ro, copy.addr()) };
-                let theirs = unsafe { (v as *const [u32; 4]).read() };
-                fill(seed);
-                unsafe { store_length_plain(v as u32, out as u32) };
-                let mine = unsafe { (v as *const [u32; 4]).read() };
-                let regs_ok = ro.preserved_except(&Regs::SENTINEL, 0);
-                let bytes =
-                    |w: [u32; 4]| w.iter().flat_map(|d| d.to_le_bytes()).collect::<Vec<u8>>();
-                let floats = [((out as u32, 4), FLOAT)];
-                check_floats_at(
-                    &mut t,
-                    "physics::store_motion_length",
-                    word,
-                    &[(v as u32, 16)],
-                    &bytes(theirs),
-                    &bytes(mine),
-                    &floats,
-                    regs_ok,
-                    || {
-                        format!(
-                            "control word {word:#x}, seed {seed}: regs_ok={regs_ok} original {theirs:x?}; rust {mine:x?}"
-                        )
-                    },
-                );
-            }
-        });
-    }
-    drop((copy, cells));
-    t.finish()
 }

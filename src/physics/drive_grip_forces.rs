@@ -24,33 +24,18 @@
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back): drive kinds 0 / 1, speeds 0, small and large, the switches, under three
 //! precisions.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, EDX, RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
+use crate::framework::{EAX, EBX, EDX, Regs};
 use crate::math::x87;
-use crate::math::x87_run::{TEST_CONTROL_WORDS, abs_compare, mul_status, with_control_word};
+use crate::math::x87_run::{abs_compare, mul_status};
 use crate::physics::flow::{a, base, c3, ease_zero, g, hold_high, hold_low, negate, p, x87_run};
-use crate::scene::matrix3::test_floats;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::drive_grip_forces",
-    rva(0x43CD79),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 /// `edx` = the steer angle's table index (+0x64C >> 20).
 fn steer_index() -> u32 {
@@ -318,103 +303,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing().with(EAX, eax).with(EBX, ebx).with(EDX, edx))
 }
 
-fn regions() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    vec![
-        (a(0x614768), 4),
-        (a(0x71A1D8), 0x20),
-        (a(0x614260), 4),
-        (a(0x62400C), 4),
-        (a(0x62401C), 4),
-        (a(0x71A61C), 4),
-        (a(0x614164), 4),
-        (a(0x613E80), 4),
-        (a(0x5C5E48), 4),
-        (a(0x6149D0), 0x40),
-    ]
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let mut all = regions();
-    all.extend([
-        (a(0x71A158), 0x10),
-        (a(0x71A17C), 12),
-        (a(0x71A190), 4),
-        (a(0x71A1A0), 4),
-        (a(0x71A1CC), 4),
-        (a(0x71A018), 4),
-        (a(0x71A220), 4),
-        (a(0x71A22C), 4),
-        (a(0x71A25C), 4),
-        (a(0x71A440), 4),
-        (a(0x71A610), 0x18),
-        (a(0x71ACC8), 0x10),
-        (a(0x6142A8), 4),
-        (a(0x614B74), 8),
-        (a(0x614BA0), 4),
-        (a(0x614BF0), 4),
-    ]);
-    let saved = capture(&all);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 0..12u32 {
-                let set = || {
-                    let mut f = [0u32; 12];
-                    test_floats(seed * 17 + 5, &mut f);
-                    let small = |k: usize| (f32::from_bits(f[k]) % 20.0).to_bits();
-                    p(0x71A1CC, seed * 13);
-                    p(0x71A220, seed % 3 / 2);
-                    p(0x71A624, seed.wrapping_mul(0x1234_5678));
-                    p(0x71A184, if seed % 4 == 0 { 0 } else { small(0) });
-                    p(0x71A17C, small(1));
-                    p(0x71A190, small(2));
-                    p(0x71A158, small(3));
-                    p(0x71A160, small(4));
-                    p(0x71A1A0, small(5));
-                    p(0x71A018, seed % 2);
-                    p(0x71A22C, (seed % 5 == 4) as u32);
-                    p(0x71A25C, [0u32, 1, u32::MAX][(seed % 3) as usize]);
-                    p(0x71A440, if seed % 2 == 0 { 0x1000 } else { 0 });
-                    p(0x71A610, 100 + seed);
-                    p(0x71A614, seed % 2);
-                    p(0x71A618, 50 + seed);
-                    p(0x71A61C, 300 + seed * 7);
-                    p(0x71ACC8, (1.0 + seed as f32 * 0.1).to_bits());
-                    p(0x71ACD4, (1.5 + seed as f32 * 0.1).to_bits());
-                    p(0x6142A8, small(6));
-                    p(0x614B74, small(7));
-                    p(0x614B78, small(8));
-                    p(0x614BA0, (2.0 + seed as f32).to_bits());
-                    p(0x614BF0, small(9));
-                    p(0x5C5E48, small(10));
-                    p(0x71A1D8, small(11));
-                };
-                check_state(
-                    &mut t,
-                    &format!("control word {word:#x}, seed {seed}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &set,
-                    &all,
-                    &rust,
-                );
-            }
-        });
-    }
-    restore(&all, &saved);
-    t.finish()
 }

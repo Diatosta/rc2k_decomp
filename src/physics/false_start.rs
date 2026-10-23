@@ -16,27 +16,17 @@
 //! (`physics/reset_parts.rs`).
 //! Self-test: a copy whose call goes to the stand-ins, against the Rust version with the
 //! same: the set flag, gear, count and timer across their branches; all put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::physics::reset_parts::{both, copy_of, dispatch_reset, regions};
-use crate::race::car_starts::{Case, Part, prepare};
-use crate::service::harness::{capture, restore};
+use crate::framework::{Regs, game_read, game_write, rva};
+use crate::physics::reset_parts::reset_entry;
+use crate::race::car_starts::Part;
 use rc2k_core::physics::notices::Notice;
 use rc2k_core::physics::start::CarStart;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::false_start", rva(0x43B9B4), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const TIMER: usize = rva(0x719FEC); // g_car + 0x14
 const HELD: usize = rva(0x719FF0); // + 0x18
@@ -97,62 +87,8 @@ pub unsafe fn false_start(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     Ok(r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_reset(&HOOK, r, call_original, false_start);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy_of(
-        0x43B9B4,
-        0xDA,
-        &[0x83, 0x3D, 0xF0, 0x9F, 0x71, 0x00, 0x00],
-        &[0xD4],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let all = regions();
-    let saved = capture(&all);
-    let mut n = 0u32;
-    for held in [0u32, 1] {
-        for gear in [0u32, 2] {
-            for count in [0u32, 1, 2, 500] {
-                for timer in [0x31Fu32, 0x320, 0xFFFF_FFFB, 0x8000_0000] {
-                    n += 1;
-                    let fill = || {
-                        prepare(
-                            &Case {
-                                mode: n % 4,
-                                no_place: 0,
-                                side: 0,
-                                cars_2: 1,
-                                current: n % 4,
-                                cars: 4,
-                            },
-                            n.wrapping_mul(0x2026_1017),
-                        );
-                        p(HELD, held);
-                        p(GEAR, gear);
-                        p(COUNT, count);
-                        p(TIMER, timer);
-                    };
-                    both(
-                        &mut t,
-                        &format!("held {held}, gear {gear}, count {count}, timer {timer:#x}"),
-                        &copy,
-                        0,
-                        Regs::SENTINEL,
-                        &fill,
-                        false_start,
-                    );
-                }
-            }
-        }
-    }
-    restore(&all, &saved);
-    drop(copy);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    reset_entry(r, false_start)
 }

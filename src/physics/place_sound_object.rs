@@ -13,32 +13,18 @@
 //! written, an object past 0x100 or a kind past the 0x4B0 records.
 //! Self-test: `physics/car_sounds.rs` (`test_sound`): the original and the Rust version on
 //! the game's variables (saved and put back) with a test object, exact at double precision.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, game_addr, hook_asm, rva};
-use crate::physics::car_sounds::{cue_plain, dispatch_placed, g, listed, object, test_sound};
+use crate::framework::{Regs, game_addr, rva};
+use crate::physics::car_sounds::{cue_plain, g, listed, object, placed_entry};
 use crate::physics::sound_band_2::TWIN;
 use crate::physics::sound_bands::band_value_plain;
 use crate::screens::harness::Left;
 use rc2k_core::physics::sound_places::{FIRST, object_sound};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::place_sound_object",
-    rva(0x45CD60),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::sound_places::{object_sound, place}`.
@@ -74,28 +60,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { place_sound_object() }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_placed(&HOOK, r, call_original, &[], &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let kinds = (game_addr(rva(0x5CD27C)) as u32, 0x40);
-    test_sound(
-        &HOOK,
-        call_original,
-        &rust,
-        &|seed: u32| unsafe {
-            crate::framework::game_write(rva(0x6D321C), seed % 16);
-            for k in 0..16usize {
-                crate::framework::game_write(rva(0x5CD27C + 4 * k), (k as u32 * 7) % 0x40);
-            }
-            for k in 0..3 {
-                crate::framework::game_write(
-                    rva(0x6D3B4C + 4 * k),
-                    (seed + k as u32).wrapping_mul(0x0101_0101),
-                );
-            }
-        },
-        &[kinds],
-    )
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    placed_entry(r, &rust)
 }

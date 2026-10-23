@@ -22,31 +22,19 @@
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back) with test faces (`g_courseFaces` pointed at them for the test), every kind, the
 //! list empty, part full and full, the current car not listed (no sound).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    EAX, EBX, EDX, ESI, RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva,
-};
+use crate::framework::{EAX, EBX, EDX, ESI, Regs, game_addr};
 use crate::math::next_random::{STATE_RVA, next_random};
 use crate::physics::flow::{a, c0, g, guard, p};
 use crate::physics::place_sound_object::place_sound_object;
-use crate::scene::matrix3::test_floats;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
+use crate::service::harness::{Region, state_entry};
 use rc2k_core::drive::lit_faces::{LIST_ROOM, Touch, fall_mark, lucky, touch};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::touch_face", rva(0x45E9E0), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// `g_courseFaces`: the pointer to the course's faces.
 pub const FACES: usize = 0x5CCCBC;
@@ -142,72 +130,8 @@ pub fn regions() -> Vec<Region> {
     all
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let car = g(crate::physics::car_sounds::CURRENT) & 7;
-    let listed = crate::physics::car_sounds::LISTED + 4 * car as usize;
-    let mut all: Vec<Region> = vec![
-        (a(LIT), 0x404),
-        (game_addr(STATE_RVA) as u32, 4),
-        (a(FACE), 4),
-        (a(FACES), 4),
-        (a(KIND), 4),
-        (a(0x71A19C), 4),
-        (a(0x6D3B70), 8),
-        (a(crate::physics::car_sounds::CURRENT), 4),
-        (a(listed), 4),
-    ];
-    let saved = capture(&all);
-    let mut faces = [0u32; 0x10 * 8];
-    let fs = faces.as_mut_ptr() as u32;
-    all.push((fs, 0x200));
-    let kinds = [9u32, 1, 2, 3, 8, 4, 0xFF, 10, 5, 6, 7, 0];
-    for seed in 0..96u32 {
-        let set = || {
-            p(crate::physics::car_sounds::CURRENT, car);
-            p(listed, u32::MAX);
-            p(FACES, fs);
-            let mut f = [0u32; 0x84];
-            test_floats(seed * 3 + 1, &mut f);
-            for (k, v) in f.iter().enumerate().take(0x80) {
-                unsafe { ((fs + 4 * k as u32) as *mut u32).write(*v) };
-            }
-            let n = seed % 8;
-            p(FACE, n);
-            // Free most of the time.
-            if seed % 5 != 4 {
-                put(fs + 0x40 * n + 0x11, 0);
-            }
-            p(LIT_COUNT, [0u32, 7, 0xFF, 0x100, 0x30][(seed % 5) as usize]);
-            p(KIND, kinds[(seed % 12) as usize]);
-            p(0x71A19C, (f32::from_bits(f[0x80]) % 4.0).to_bits());
-            p(0x6D3B70, f[0x81]);
-            p(0x6D3B74, f[0x82] >> (seed % 4 * 4));
-            unsafe { game_write(STATE_RVA, f[0x83]) };
-        };
-        check_state(
-            &mut t,
-            &format!("seed {seed}"),
-            call_original,
-            Regs::SENTINEL,
-            &set,
-            &all,
-            &rust,
-        );
-    }
-    all.pop();
-    restore(&all, &saved);
-    t.finish()
 }
