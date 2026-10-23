@@ -22,9 +22,6 @@ use crate::text::draw_text::GameCanvas;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    if crate::screens::blanked("race::roll_credits") {
-        return Ok(());
-    }
     let rolled = unsafe { roll_credits(r.eax, &mut GameCanvas, &mut credits_tune) }?;
     r.set_carry(rolled.carry);
     r.set_zero(rolled.zero);

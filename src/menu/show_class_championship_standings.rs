@@ -38,7 +38,8 @@ pub unsafe fn show_class_championship_standings(entry: &Regs) -> Result<Regs, Re
         let count = held_figure(Page::ClassChampionship, count);
         game_write(COUNT_RVA, count);
         let g = crate::menu::first_page_stage::first_page_stage(&found)?;
-        let mut r = crate::menu::stage_range_caption::stage_range_caption(&g)?;
+        crate::menu::stage_range_caption::stage_range_caption();
+        let mut r = g;
         crate::menu::show_class_championship_standings::game_part(1, &mut r)?;
     }
     Ok(*entry)

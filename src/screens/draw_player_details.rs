@@ -31,9 +31,8 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::menu::player::{Player, player_at};
-use crate::screens::harness::Left;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -127,18 +126,4 @@ pub unsafe fn draw_player_page(layout: Layout, canvas: &mut dyn Canvas) -> Resul
         )?;
     }
     Ok(())
-}
-
-/// `dispatch_page` without its hook (typed tables).
-pub fn page_entry(name: &str, r: &mut Regs, layout: Layout) -> Result<(), Refused> {
-    crate::screens::harness::draw_entry(name, r, &|_, canvas| {
-        unsafe { draw_player_page(layout, canvas) }?;
-        Ok(Left::nothing())
-    })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    page_entry("screens::draw_player_details", r, FULL)
 }

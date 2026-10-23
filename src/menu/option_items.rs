@@ -32,13 +32,7 @@
 //! Hooks removed 2026-10-22 (typed tables): the menus run their `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::menu::parts::Part;
-
-const SEND_COMMAND_8: usize = 0x409BB4; // sound::send_command_8
-const PLAY_MENU_SOUND: usize = 0x40F059; // sound::play_menu_sound
-const SCREEN_MODE_CHOICES: usize = 0x4045D6; // gfx::screen_mode_choices
-const APPLY_AUDIO: usize = 0x470766; // menu::apply_audio_choices
+use crate::framework::{game_read, game_write, rva};
 
 /// After a volume step.
 #[derive(Clone, Copy)]
@@ -100,115 +94,56 @@ fn set(x: usize, v: i32) {
     unsafe { game_write(rva(x), v) }
 }
 
-impl Item {
-    /// Its one callee (IDA address), if any.
-    fn callee(&self) -> &'static [usize] {
-        match self.kind {
-            Kind::Volume {
-                then: Then::Send, ..
-            } => &[SEND_COMMAND_8],
-            Kind::Volume {
-                then: Then::Sound(_),
-                ..
-            } => &[PLAY_MENU_SOUND],
-            Kind::SwitchModes { .. } => &[SCREEN_MODE_CHOICES],
-            Kind::SwitchAudio | Kind::Quality { .. } => &[APPLY_AUDIO],
-            _ => &[],
-        }
-    }
-}
-
-/// The Rust version: the registers it leaves.
-pub fn option_item(entry: &Regs, item: Item, part: Part) -> Result<Regs, Refused> {
+/// The Rust version (see the header). What it leaves in registers is read by none of its
+/// callers (the item call sites have nothing live after the call; register liveness,
+/// 2026-10-23).
+pub fn option_item(item: Item) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::steps` (`flip`, `quality`, `volume`, `counter`,
     // `previous_mode`).
     use rc2k_core::menu::steps;
-    let mut r = *entry;
     let v = item.var;
+    let apply_audio = || unsafe { crate::menu::option_steps::apply_audio_choices() };
     match item.kind {
         Kind::Switch => set(v, steps::flip(get(v) as u32) as i32),
         Kind::SwitchCopy { other, flip } => {
             set(v, steps::flip(get(v) as u32) as i32);
-            r.eax = get(v) as u32;
             if flip {
                 set(other, steps::flip(get(other) as u32) as i32);
             } else {
-                set(other, r.eax as i32);
+                set(other, get(v));
             }
         }
         Kind::SwitchModes { other } => {
             set(v, steps::flip(get(v) as u32) as i32);
             set(other, steps::flip(get(other) as u32) as i32);
-            r.eax = 0;
-            part(0, &mut r)?;
+            // `gfx::screen_mode_choices` with eax 0; its flags are read by no caller.
+            crate::gfx::screen_mode_choices::screen_mode_choices(false)?;
         }
         Kind::SwitchAudio => {
             set(v, steps::flip(get(v) as u32) as i32);
-            part(0, &mut r)?;
+            apply_audio()?;
         }
         Kind::Quality { up } => {
             set(v, steps::quality(get(v) as u32, up) as i32);
-            part(0, &mut r)?;
+            apply_audio()?;
         }
         Kind::Volume { up, then } => {
             let value = steps::volume(get(v), up);
             set(v, value);
             match then {
-                Then::Send => {
-                    r.eax = value as u32;
-                    part(0, &mut r)?;
-                }
-                Then::Store(other) => {
-                    r.eax = value as u32;
-                    set(other, value);
-                }
-                Then::Sound(sound) => {
-                    r.eax = sound;
-                    part(0, &mut r)?;
-                }
+                Then::Send => crate::sound::send_command_8::send_command_8(value as u32),
+                Then::Store(other) => set(other, value),
+                Then::Sound(sound) => crate::sound::play_menu_sound::play_menu_sound_in_game(sound),
             }
         }
         Kind::Counter { up, low, high } => {
             set(v, steps::counter(get(v), up, low, high));
         }
         Kind::PreviousMode { other } => {
-            let n = steps::previous_mode(get(v), get(other));
-            r.eax = n as u32;
-            set(v, n);
+            set(v, steps::previous_mode(get(v), get(other)));
         }
-    }
-    Ok(r)
-}
-
-/// In the game: the callees' Rust versions.
-pub fn game_part(callee: usize, r: &mut Regs) -> Result<(), Refused> {
-    match callee {
-        SEND_COMMAND_8 => crate::sound::send_command_8::send_command_8(r.eax),
-        PLAY_MENU_SOUND => crate::sound::play_menu_sound::play_menu_sound_in_game(r.eax),
-        SCREEN_MODE_CHOICES => {
-            use crate::gfx::screen_mode_choices::{apply, screen_mode_choices};
-            apply(screen_mode_choices(r.eax != 0)?, r);
-        }
-        APPLY_AUDIO => {
-            *r = unsafe {
-                crate::menu::option_steps::apply_audio_choices(
-                    r,
-                    &mut crate::menu::option_steps::audio_part,
-                )
-            }?
-        }
-        _ => {}
     }
     Ok(())
-}
-
-/// `dispatch_item` without its hook (typed tables).
-pub fn item_entry(
-    r: &mut Regs,
-    item: Item,
-    game: fn(u32, &mut Regs) -> Result<(), Refused>,
-) -> Result<(), Refused> {
-    crate::menu::parts::parted_entry(r, &|r, part| option_item(r, item, part), game)
 }
 
 /// A hook for one handler: `option_item!(module, "menu::name", ITEM)`.
@@ -219,13 +154,9 @@ macro_rules! option_item {
 
             const ITEM: Item = $item;
 
-            /// The Rust version where the typed tables run it (`menu::table_calls`; hook removed
-            /// 2026-10-22).
-            pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-                item_entry(r, ITEM, |_, r| match ITEM.callee().first() {
-                    Some(&callee) => game_part(callee, r),
-                    None => Ok(()),
-                })
+            /// The Rust version the typed tables run (`menu::table_calls`).
+            pub fn run() -> Result<(), crate::errors::Refused> {
+                option_item(ITEM)
             }
         }
     };

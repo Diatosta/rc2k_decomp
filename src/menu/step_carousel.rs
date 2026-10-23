@@ -16,10 +16,8 @@
 //! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::errors::BadInput;
+use crate::framework::{game_read, game_write, rva};
 
 // ---- game data ----
 
@@ -58,15 +56,4 @@ pub unsafe fn step_carousel() -> Result<(), BadInput> {
         }
         Ok(())
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { step_carousel() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

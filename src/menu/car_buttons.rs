@@ -8,7 +8,7 @@
 //! leaving switch. Each button is `pusha` .. `popa`.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::menu::load_car_background::load_car_background;
 use crate::menu::load_slideshow_picture::load_slideshow_picture_in_game;
 use crate::sound::play_car_stream::play_car_stream;
@@ -50,7 +50,7 @@ pub unsafe fn press(
 }
 
 /// The game's: each call through the Rust version.
-pub unsafe fn call_in_game(call: Call, _r: &Regs) -> Result<(), Refused> {
+pub unsafe fn call_in_game(call: Call) -> Result<(), Refused> {
     unsafe {
         match call {
             Call::Background => load_car_background(&mut |path, car| {

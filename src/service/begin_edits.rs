@@ -12,8 +12,7 @@
 //! budgets around the boundary, edit mode 0 and 1, put back.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::screens::harness::Left;
+use crate::framework::{game_read, game_write, rva};
 use crate::service::state::{
     EDIT_MODE_RVA, EDIT_PAGE_RVA, REPAIR_TOTAL_RVA, TIME_BUDGET_RVA, flagged_item, repair_flag,
 };
@@ -48,14 +47,6 @@ pub unsafe fn begin_edit(e: Edit) -> Result<(), Refused> {
         }
     }
     Ok(())
-}
-
-/// `dispatch_edit` without its hook (typed tables).
-pub fn edit_entry(r: &mut Regs, e: Edit) -> Result<(), Refused> {
-    crate::service::harness::state_entry(r, &|_| {
-        unsafe { begin_edit(e) }?;
-        Ok(Left::nothing())
-    })
 }
 
 pub const GEAR_RATIO: Edit = Edit {

@@ -11,38 +11,26 @@
 //! rows around both ends.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, Regs, game_read, game_write, rva};
-use crate::screens::harness::Left;
+use crate::framework::{game_read, game_write, rva};
 
 const FIRST_RVA: usize = rva(0x7556B8); // g_champFirstRow
 const COUNT_RVA: usize = rva(0x75597C); // dword_75597C
 // g_captionText
 
 /// The Rust version: `of_90` the fixed count, `on` the direction.
-pub fn step_rows(entry: &Regs, of_90: bool, on: bool) -> Result<Left, Refused> {
+pub fn step_rows(of_90: bool, on: bool) -> Result<(), Refused> {
     unsafe {
         let count = if of_90 {
             0x5A
         } else {
             game_read::<u32>(COUNT_RVA)
         };
-        let last = count.wrapping_sub(9);
+        let _last = count.wrapping_sub(9);
         let row: u32 = game_read(FIRST_RVA);
-        // Converted: `rc2k_core::menu::steps::rows`; eax is left `last` on and at the wrap
-        // back.
-        let left = if on || row as i32 <= 10 {
-            Left::nothing().with(EAX, last)
-        } else {
-            Left::nothing()
-        };
+        // Converted: `rc2k_core::menu::steps::rows`.
         let row = rc2k_core::menu::steps::rows(row, count, on);
         game_write(FIRST_RVA, row);
-        crate::menu::stage_range_caption::stage_range_caption(entry)?;
-        Ok(left)
+        crate::menu::stage_range_caption::stage_range_caption();
+        Ok(())
     }
-}
-
-/// `dispatch_rows` without its hook (typed tables).
-pub fn rows_entry(r: &mut Regs, of_90: bool, on: bool) -> Result<(), Refused> {
-    crate::service::harness::state_entry(r, &|r| step_rows(r, of_90, on))
 }

@@ -15,8 +15,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
-use crate::screens::harness::{Left, draw_entry};
+use crate::framework::{game_addr, game_read, rva};
 use crate::text::draw_text::Canvas;
 
 fn k(a: usize) -> u32 {
@@ -64,15 +63,4 @@ pub unsafe fn draw_players_standings(canvas: &mut dyn Canvas) -> Result<(), Refu
         )?;
         Ok(())
     }
-}
-
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    unsafe { draw_players_standings(canvas) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_players_standings", r, &rust)
 }

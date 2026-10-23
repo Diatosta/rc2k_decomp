@@ -2,8 +2,6 @@
 
 use crate::framework::{game_ptr, rva};
 use crate::text::font::Font;
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 pub mod best_scores;
 pub mod buttons;
@@ -20,7 +18,6 @@ pub mod controller;
 pub mod draw_arcade_stage_title;
 pub mod draw_background_band;
 pub mod draw_best_scores;
-pub mod draw_best_scores_page;
 pub mod draw_bottom_panel;
 pub mod draw_brake_balance_marker;
 pub mod draw_button;
@@ -28,14 +25,12 @@ pub mod draw_button_alt;
 pub mod draw_button_highlighted;
 pub mod draw_car_figures;
 pub mod draw_championship_standings;
-pub mod draw_championship_table;
 pub mod draw_class_ranking;
 pub mod draw_class_times;
 pub mod draw_class_times_marked;
 pub mod draw_column_boxes;
 pub mod draw_column_rules;
 pub mod draw_control_bindings;
-pub mod draw_controller_page;
 pub mod draw_duel_result;
 pub mod draw_empty_savegame;
 pub mod draw_event_best_scores;
@@ -44,7 +39,6 @@ pub mod draw_graphics_settings;
 pub mod draw_highlighted_caption;
 pub mod draw_inspection_status;
 pub mod draw_item_button;
-pub mod draw_itinerary;
 pub mod draw_leave_question;
 pub mod draw_load_setup_list;
 pub mod draw_menu_items;
@@ -55,19 +49,15 @@ pub mod draw_no_controller;
 pub mod draw_note_1fd;
 pub mod draw_options_checklist;
 pub mod draw_overall_best_scores;
-pub mod draw_player2_details;
-pub mod draw_player34_details;
 pub mod draw_player_details;
 pub mod draw_player_rally_result;
 pub mod draw_player_stage_result;
 pub mod draw_players_results;
 pub mod draw_players_results_points;
 pub mod draw_players_standings;
-pub mod draw_rally_stage_info;
 pub mod draw_rally_stage_times;
 pub mod draw_rally_times_heading;
 pub mod draw_record_heading;
-pub mod draw_record_times;
 pub mod draw_redefined_keys;
 pub mod draw_repair_times;
 pub mod draw_replay_slot_names;
@@ -89,7 +79,6 @@ pub mod draw_stage_best_and_fastest;
 pub mod draw_stage_heading;
 pub mod draw_stage_info;
 pub mod draw_stage_records;
-pub mod draw_stage_results;
 pub mod draw_stage_times;
 pub mod draw_stage_times_heading;
 pub mod draw_steering_sensitivity_marker;
@@ -106,10 +95,7 @@ pub mod game_screen;
 pub mod gearing_text;
 pub mod harness;
 pub mod itinerary;
-pub mod learn_axis;
 pub mod locked_notes;
-pub mod note_locked_item_3;
-pub mod note_locked_stage;
 pub mod page_settings;
 pub mod player_number_text;
 pub mod players_results;
@@ -128,26 +114,6 @@ pub mod stage_info;
 pub mod stage_panel;
 pub mod stage_results;
 pub mod yes_no_caption;
-
-/// Console switch `blank on [prefix]` / `blank off`, kept for every hook in this module: a
-/// blanked hook returns at once, running neither the original nor the Rust version, so
-/// whatever it draws disappears from the screen. That is how to confirm, in the game, what a
-/// screen function draws. Without a prefix every hook of this module is blanked; with one,
-/// only the hooks whose name starts with it, or the one hook with exactly that name. It is harmless for these functions because they
-/// preserve every register; a new hook in this module must check `blanked(name)` right after
-/// `count_call()`.
-static BLANK: AtomicBool = AtomicBool::new(false);
-static BLANK_PREFIX: Mutex<String> = Mutex::new(String::new());
-
-/// True if the hook called `name` is blanked at the moment. A prefix that is itself the full
-/// name of a hook selects only that hook (`screens::draw_time_trial_stage_info` is also how
-/// `screens::draw_selected_stage_menu` starts).
-pub fn blanked(name: &str) -> bool {
-    BLANK.load(Ordering::Relaxed)
-        && BLANK_PREFIX
-            .lock()
-            .is_ok_and(|prefix| crate::registry::selects(prefix.as_str(), name))
-}
 
 /// byte_A8BB54: the text buffer these functions build their lines in.
 pub const LINE_BUFFER_RVA: usize = rva(0xA8BB54);

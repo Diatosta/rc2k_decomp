@@ -8,18 +8,10 @@
 //! `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::screens::best_scores::*;
-use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::Canvas;
 
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    unsafe { draw_stage_times(&STAGE_TIMES, canvas) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_stage_times", r, &rust)
+/// The Rust version (see the header).
+pub unsafe fn draw(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    unsafe { draw_stage_times(&STAGE_TIMES, canvas) }
 }

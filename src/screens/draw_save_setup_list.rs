@@ -10,8 +10,6 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::screens::harness::{Left, draw_entry};
 use crate::service::load_setup_slot::SLOT_PAGE_RVA;
 use crate::text::draw_text::Canvas;
 
@@ -28,15 +26,4 @@ pub unsafe fn draw_save_setup_list(canvas: &mut dyn Canvas) -> Result<(), Refuse
         page,
         |slot| crate::service::read_setup_slot::slot_name(slot) as u32,
     )
-}
-
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    unsafe { draw_save_setup_list(canvas) }?;
-    Ok(Left::carry(false))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_save_setup_list", r, &rust)
 }

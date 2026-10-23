@@ -4,16 +4,16 @@
 //! and which best-time table the record rows use.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{Regs, game_addr, game_ptr, game_read, rva};
+use crate::framework::{game_addr, game_ptr, game_read, rva};
 use crate::gfx::blit_marker_pair::{marker_calls, set_marker_position, sprite_table};
 use crate::records::trakpak_entry::record_entry;
 use crate::screens::draw_stage_heading::heading_text;
 use crate::screens::draw_stage_records::draw_stage_records;
+use crate::screens::font_at;
 use crate::screens::game_screen::GameScreen;
-use crate::screens::{blanked, font_at};
 use crate::strings::units::units;
 use crate::text::draw_string_by_id::draw_string_by_id_at;
-use crate::text::draw_text::{Canvas, GameCanvas};
+use crate::text::draw_text::Canvas;
 use std::ptr::copy_nonoverlapping;
 
 // ---- game data ----
@@ -185,19 +185,4 @@ pub unsafe fn draw_records_for_group(
 pub unsafe fn menu_item_id(n: u32) -> Option<u32> {
     let menu: u32 = unsafe { game_read(MENU_PTR_RVA) };
     (menu != 0).then(|| menu.wrapping_add(4 + n * 0x5C + 0x14))
-}
-
-/// `dispatch_panel` outside shadow mode, without its hook (typed tables, 2026-10-22: the entry the menus' and draw lists' enums run, with no hook).
-pub fn panel_entry(
-    name: &str,
-    r: &mut Regs,
-    rust: &dyn Fn(&mut dyn Canvas) -> Result<bool, Refused>,
-) -> Result<(), Refused> {
-    if blanked(name) {
-        return Ok(());
-    }
-    let too_wide = rust(&mut GameCanvas)?;
-    r.set_carry(too_wide);
-    r.set_zero(!too_wide);
-    Ok(())
 }

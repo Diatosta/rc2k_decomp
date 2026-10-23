@@ -36,7 +36,6 @@ use crate::gfx::blit_marker_pair::sprite_table;
 use crate::screens::draw_inspection_status::draw_inspection_status;
 use crate::screens::draw_repair_times::draw_repair_times;
 use crate::screens::draw_service_time::draw_service_time;
-use crate::screens::harness::{Left, draw_entry};
 use crate::screens::setup_markers::draw_marker;
 use crate::screens::{
     draw_brake_balance_marker, draw_ride_height_installed_marker, draw_ride_height_marker,
@@ -162,14 +161,4 @@ pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused
         }
         Ok(draw_inspection_status(regs.ebx, canvas)?.carry == Some(true))
     }
-}
-
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    Ok(Left::carry(unsafe { draw_service_area(canvas) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_service_area", r, &rust)
 }

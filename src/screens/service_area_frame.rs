@@ -81,9 +81,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    if crate::screens::blanked("screens::service_area_frame") {
-        return Ok(());
-    }
     let left = unsafe { service_area_frame(r) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())

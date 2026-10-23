@@ -13,7 +13,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::service::state::current_player;
 
 // ---- game data ----
@@ -50,11 +50,4 @@ pub unsafe fn load_setup_values() -> Result<(), BadInput> {
         game_write(rva(0x75ACA8), kept);
         Ok(())
     }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { load_setup_values() }?;
-    Ok(())
 }

@@ -22,10 +22,9 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::menu::update_blink::LAST_KEY_TIME_RVA;
 use crate::menu::update_frame_clock::CLOCK_RVA;
-use crate::screens::harness::{Left, draw_entry};
 use crate::service::state::MENU_ITEM_RVA;
 use crate::text::draw_string_by_id::string_text;
 use crate::text::draw_text::Canvas;
@@ -78,17 +77,4 @@ pub unsafe fn draw_highlighted_caption(
         )?;
         Ok(Some(too_wide))
     }
-}
-
-fn rust(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    Ok(match unsafe { draw_highlighted_caption(r.ecx, canvas) }? {
-        Some(carry) => Left::carry(carry),
-        None => Left::nothing(),
-    })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_highlighted_caption", r, &rust)
 }

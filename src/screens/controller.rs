@@ -4,7 +4,7 @@
 //! direction the player moves, into the player's +0x50 table.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 
 fn k(a: usize) -> u32 {
     unsafe { game_read(rva(a)) }
@@ -37,11 +37,9 @@ pub unsafe fn classify_controller(eax: u32, ebx: u32, ecx: u32, edx: u32) {
 /// while `dword_7559A4` is 1. A player of kind 3 (+0x34) learning control 1 or 2: the axis
 /// moved (`input::axis_moved` 1) into +0x3B or +0x3A, `dword_4F6F08` its +0x38, the found
 /// 0x200 or 0x100; else the controller read and classified. Space (key 0x39) stops it with
-/// nothing; anything found goes to the player's +0x50 + 4 x (control - 1). Every register
-/// kept. Parts: 1 the clock (eax), 2 the prompt (eax id, ebx font, ecx x, edx y), 3
-/// `axis_moved` (eax in; carry, eax), 4 the controller's read (ecx, edx, eax, ebx), 5 the
-/// key (al). Refuses (before anything) a player without its record.
-pub unsafe fn learn_axis(entry: &Regs) -> Result<(), Refused> {
+/// nothing; anything found goes to the player's +0x50 + 4 x (control - 1). The original keeps
+/// every register. Refuses (before anything) a player without its record.
+pub unsafe fn learn_axis() -> Result<(), Refused> {
     unsafe {
         if k(0x7551F4) != 1 {
             return Ok(());
@@ -50,14 +48,12 @@ pub unsafe fn learn_axis(entry: &Regs) -> Result<(), Refused> {
         if player == 0 {
             return Err(crate::errors::BadInput("no current player record").into());
         }
-        let mut r = *entry;
         w(FOUND, 0);
-        crate::screens::controller::learn_part(1, &mut r)?;
         // Converted: `rc2k_core::screens::learning` (`timed_out`, `by_axis`, `pedal`,
         // `CANCEL_KEY`, `binding`).
         use rc2k_core::screens::learning as l;
-        r.eax = r.eax.wrapping_sub(k(0x7551F8));
-        if l::timed_out(r.eax) {
+        let since = crate::system::tick_count::tick_count().wrapping_sub(k(0x7551F8));
+        if l::timed_out(since) {
             w(0x7551FC, l::TIMED_OUT);
             w(0x7551F4, 0);
             return Ok(());
@@ -66,37 +62,33 @@ pub unsafe fn learn_axis(entry: &Regs) -> Result<(), Refused> {
             let items = k(0x75558D)
                 .wrapping_add(4)
                 .wrapping_add(k(0x755525).wrapping_sub(1).wrapping_mul(0x5C));
-            r.eax = 0x3BE;
-            r.ebx = crate::framework::game_addr(rva(0x51E8C4)) as u32;
-            r.ecx = 0x1B8;
-            r.edx = ((items + 0xC) as *const u32).read_unaligned();
-            r.edi = items;
-            crate::screens::controller::learn_part(2, &mut r)?;
+            crate::text::draw_string_by_id::draw_string_by_id_at(
+                0x3BE,
+                crate::framework::game_addr(rva(0x51E8C4)) as *mut crate::text::font::Font,
+                0x1B8,
+                ((items + 0xC) as *const u32).read_unaligned() as i32,
+                &mut crate::text::draw_text::GameCanvas,
+            )?;
         }
-        // The original's `mov eax, dword_75598C; mov edi, g_players[eax*4]`.
-        r.eax = k(0x75598C);
-        r.edi = player;
         let field = |o: u32| (player + o) as *mut u8;
         let mut take = true;
         let control = k(0x7551FC);
         if l::by_axis(((player + 0x34) as *const u32).read_unaligned(), control) {
-            r.eax = 1;
-            crate::screens::controller::learn_part(3, &mut r)?;
-            if !r.carry() {
+            let m = crate::input::axes::axis_moved(1);
+            if !m.carry {
                 let (byte, found) = l::pedal(control);
-                field(byte).write(r.eax as u8);
+                field(byte).write(m.eax as u8);
                 w(0x4F6F08, ((player + 0x38) as *const u32).read_unaligned());
                 w(FOUND, found);
                 w(0x7551F4, 0);
                 take = false;
             }
         } else {
-            crate::screens::controller::learn_part(4, &mut r)?;
-            classify_controller(r.eax, r.ebx, r.ecx, r.edx);
+            let [ecx, edx, eax, ebx] = crate::input::axes::first_device_state();
+            classify_controller(eax, ebx, ecx, edx);
         }
         if take {
-            crate::screens::controller::learn_part(5, &mut r)?;
-            if r.eax as u8 == l::CANCEL_KEY {
+            if crate::input::take_key::take_key() == l::CANCEL_KEY {
                 w(FOUND, 0);
                 w(0x7551F4, 0);
             } else if k(FOUND) == 0 {
@@ -107,36 +99,6 @@ pub unsafe fn learn_axis(entry: &Regs) -> Result<(), Refused> {
         (slot as *mut u32).write_unaligned(k(FOUND));
         Ok(())
     }
-}
-
-/// `learn_axis`' parts in the game.
-pub fn learn_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::text::draw_text::GameCanvas;
-    unsafe {
-        match place {
-            1 => r.eax = crate::system::tick_count::tick_count(),
-            2 => {
-                let out = crate::text::draw_string_by_id::draw_string_by_id_at(
-                    r.eax,
-                    r.ebx as *mut crate::text::font::Font,
-                    r.ecx as i32,
-                    r.edx as i32,
-                    &mut GameCanvas,
-                )?;
-                (r.eax, r.ebx, r.ecx, r.edx) = (0, out.text as u32, out.x as u32, out.y as u32);
-            }
-            3 => {
-                let m = crate::input::axes::axis_moved(r.eax);
-                r.eax = m.eax;
-                r.set_carry(m.carry);
-            }
-            4 => {
-                [r.ecx, r.edx, r.eax, r.ebx] = crate::input::axes::first_device_state();
-            }
-            _ => r.eax = (r.eax & !0xFF) | crate::input::take_key::take_key() as u32,
-        }
-    }
-    Ok(())
 }
 
 /// `screens::draw_no_controller` (0x46AEAA): string 0x56D at (0x1BC, 0xD5) in the font at

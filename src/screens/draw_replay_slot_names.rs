@@ -13,9 +13,8 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read};
+use crate::framework::game_read;
 use crate::menu::name_lists::{NAME_LEN, REPLAY_NAMES_RVA, REPLAY_PAGE_RVA};
-use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -43,15 +42,4 @@ pub unsafe fn draw_replay_slot_names(canvas: &mut dyn Canvas) -> Result<(), Refu
         |slot| slot_name(slot) as u32,
     )
     .map(|_| ())
-}
-
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    unsafe { draw_replay_slot_names(canvas) }?;
-    Ok(Left::carry(false))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_replay_slot_names", r, &rust)
 }

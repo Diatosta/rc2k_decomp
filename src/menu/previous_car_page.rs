@@ -10,7 +10,6 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::menu::car_buttons::*;
 
 // ---- Rust version ----
@@ -22,10 +21,7 @@ pub unsafe fn previous_car_page(
     unsafe { press(Which::PreviousPage, call) }
 }
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    unsafe { previous_car_page(&mut |call| call_in_game(call, &entry)) }?;
-    Ok(())
+/// The Rust version the typed tables run.
+pub fn run() -> Result<(), Refused> {
+    unsafe { previous_car_page(&mut |call| call_in_game(call)) }
 }

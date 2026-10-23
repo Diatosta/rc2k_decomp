@@ -15,12 +15,11 @@
 //! original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read};
+use crate::framework::game_read;
 use crate::input::append_key_name::append_key_name;
 use crate::menu::player_settings::current;
 use crate::menu::redefine_keys::PLACE_RVA;
 use crate::screens::draw_name_cursor::BLINK_RVA;
-use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -53,14 +52,4 @@ pub unsafe fn draw_redefined_keys(canvas: &mut dyn Canvas) -> Result<bool, Refus
             game_read(BLINK_RVA),
         )
     }
-}
-
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    Ok(Left::carry(unsafe { draw_redefined_keys(canvas) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_redefined_keys", r, &rust)
 }

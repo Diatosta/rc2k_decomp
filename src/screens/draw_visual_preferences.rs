@@ -13,10 +13,8 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::menu::player::Player;
 use crate::menu::player_settings::current;
-use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -51,14 +49,4 @@ pub unsafe fn draw_visual_preferences(canvas: &mut dyn Canvas) -> Result<bool, R
         &mut crate::screens::game_screen::SettingsScreen::new(canvas),
         ids,
     )
-}
-
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    Ok(Left::carry(unsafe { draw_visual_preferences(canvas) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_visual_preferences", r, &rust)
 }

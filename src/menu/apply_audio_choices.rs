@@ -11,15 +11,10 @@
 //! and the self-test was the hook's.
 
 use crate::framework::Regs;
-use crate::menu::option_steps::{apply_audio_choices, audio_part};
-use crate::menu::parts::parted_entry;
+use crate::menu::option_steps::apply_audio_choices;
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    parted_entry(
-        r,
-        &|r, part| unsafe { apply_audio_choices(r, part) },
-        audio_part,
-    )
+pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { apply_audio_choices() }
 }

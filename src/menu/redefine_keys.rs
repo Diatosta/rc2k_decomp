@@ -16,10 +16,9 @@
 //! The place 8 has no item on the pages (it is not drawn either).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::input::take_key::take_key;
 use crate::menu::player::Player;
-use crate::screens::harness::Left;
 
 pub use rc2k_core::menu::player::{KEYS, Redefined};
 pub const KEYS_RVA: usize = rva(0x755595); // g_redefinedKeys
@@ -73,11 +72,4 @@ pub unsafe fn redefine_key(player: u32) -> Result<(), Refused> {
         game_write(REDEFINING_RVA, 0u32);
     }
     Ok(())
-}
-
-pub fn rust(player: fn() -> u32) -> impl Fn(&Regs) -> Result<Left, Refused> {
-    move |_| {
-        unsafe { redefine_key(player()) }?;
-        Ok(Left::nothing())
-    }
 }

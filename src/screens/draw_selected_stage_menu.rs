@@ -20,12 +20,12 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_write};
+use crate::framework::game_write;
 use crate::screens::draw_stage_records::selection;
 use crate::screens::draw_time_trial_stage_info::GROUP_TITLES_RVA;
 use crate::screens::stage_panel::{
     GROUP_COPY_RVA, build_second_heading, draw_records_for_group, draw_stage_body, dword,
-    menu_item_id, panel_entry, table_dword,
+    menu_item_id, table_dword,
 };
 use crate::text::draw_text::Canvas;
 
@@ -67,14 +67,6 @@ pub unsafe fn draw_selected_stage_menu(canvas: &mut dyn Canvas) -> Result<bool, 
         draw_stage_body(sel.record, MARKER_PALETTE, true, canvas)?;
         draw_records_for_group(sel.group, sel.record, canvas)
     }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    panel_entry("screens::draw_selected_stage_menu", r, &|canvas| unsafe {
-        draw_selected_stage_menu(canvas)
-    })
 }
 
 //

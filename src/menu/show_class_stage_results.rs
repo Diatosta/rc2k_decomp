@@ -38,7 +38,8 @@ pub unsafe fn show_class_stage_results(entry: &Regs) -> Result<Regs, Refused> {
         let count = held_figure(Page::ClassStage, count);
         game_write(COUNT_RVA, count);
         let g = crate::menu::first_page_stage::first_page_stage(&found)?;
-        let mut r = crate::menu::stage_range_caption::stage_range_caption(&g)?;
+        crate::menu::stage_range_caption::stage_range_caption();
+        let mut r = g;
         crate::menu::show_class_stage_results::game_part(1, &mut r)?;
     }
     Ok(*entry)

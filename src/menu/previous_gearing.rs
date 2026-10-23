@@ -12,24 +12,10 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::menu::player::Player;
-use crate::screens::gearing_text::{current, regions, step_gearing};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::screens::gearing_text::step_gearing;
 
-fn rust(_: &Regs) -> Result<Left, Refused> {
+/// The Rust version the typed tables run.
+pub fn run() -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::captions::step_gearing` (through `screens::gearing_text`).
-    unsafe { step_gearing(false) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let mut regions = regions().to_vec();
-    if let Ok(p) = current() {
-        regions.push((p, std::mem::size_of::<Player>()));
-    }
-    state_entry(r, &rust)
+    unsafe { step_gearing(false) }
 }

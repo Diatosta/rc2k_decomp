@@ -26,9 +26,8 @@
 //! Hooks removed 2026-10-22 (typed tables): the menus run their `entry` (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, EDI, Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::menu::parts::Part;
-use crate::screens::harness::Left;
 use rc2k_core::menu::player::Player;
 use rc2k_core::menu::steps;
 
@@ -167,68 +166,31 @@ fn car_specs_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-// ---- by state: the Rust versions on the registers ----
+// ---- by number: what the typed tables run ----
 
-/// Each state action's Rust version as a `Left`, by its number.
-fn state_rust(which: u32, r: &Regs) -> Result<Left, Refused> {
-    Ok(match which {
-        0 => {
-            keep_player_keys()?;
-            Left::nothing()
-        }
+/// Each state action's Rust version by its number. What they leave in registers is read
+/// by none of their callers (the item call sites have nothing live after the call).
+fn state_run(which: u32) -> Result<(), Refused> {
+    match which {
+        0 => keep_player_keys()?,
         1 => {
-            let (edi, eax) = lower_player_40()?;
-            Left {
-                carry: Some(false),
-                zero: Some(eax == 0),
-                ..Left::nothing().with(EDI, edi).with(EAX, eax)
-            }
+            lower_player_40()?;
         }
-        2 => {
-            lower_player_44()?;
-            Left::nothing()
-        }
-        3 => {
-            raise_player_48()?;
-            Left::nothing()
-        }
-        4 => {
-            lower_player_48()?;
-            Left::nothing()
-        }
-        5 => {
-            toggle_player_3c()?;
-            Left::nothing()
-        }
-        6 => {
-            next_scores_page();
-            Left::nothing()
-        }
-        7 => {
-            previous_scores_page();
-            Left::nothing()
-        }
-        8 => {
-            previous_replay_range();
-            Left::nothing()
-        }
-        9 => {
-            next_replay_range();
-            Left::nothing()
-        }
+        2 => lower_player_44()?,
+        3 => raise_player_48()?,
+        4 => lower_player_48()?,
+        5 => toggle_player_3c()?,
+        6 => next_scores_page(),
+        7 => previous_scores_page(),
+        8 => previous_replay_range(),
+        9 => next_replay_range(),
         10 => {
-            let (eax, ebx) = toggle_caption_choice();
-            Left::nothing().with(EAX, eax).with(EBX, ebx)
+            toggle_caption_choice();
         }
-        11 => {
-            leave_with_carry();
-            Left::carry(true)
-        }
-        _ => {
-            let _ = r;
-            Left::nothing()
-        }
-    })
+        11 => leave_with_carry(),
+        _ => {}
+    }
+    Ok(())
 }
 
 macro_rules! state_action {
@@ -237,8 +199,8 @@ macro_rules! state_action {
             use super::*;
             /// The Rust version where the typed tables run it (`menu::table_calls`; hook removed
             /// 2026-10-22).
-            pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-                crate::service::harness::state_entry(r, &|r| state_rust($which, r))
+            pub fn run() -> Result<(), crate::errors::Refused> {
+                state_run($which)
             }
         }
     };

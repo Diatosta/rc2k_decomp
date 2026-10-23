@@ -27,9 +27,8 @@
 //! the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::menu::find_class_time::{ENTRY_LEN, find_class_time};
-use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::Canvas;
 
 const LIST_RVA: usize = rva(0x7556EC); // dword_7556EC
@@ -101,15 +100,4 @@ pub unsafe fn draw_class_ranking(canvas: &mut dyn Canvas) -> Result<(), Refused>
         last_place,
     )?;
     Ok(())
-}
-
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    unsafe { draw_class_ranking(canvas) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_class_ranking", r, &rust)
 }

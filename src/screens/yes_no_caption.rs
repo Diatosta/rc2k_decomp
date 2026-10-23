@@ -13,9 +13,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, Regs, game_addr, game_read, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::{game_addr, game_read, rva};
 use crate::strings::append_string_by_id::append_string_by_id;
 
 // ---- game data ----
@@ -43,13 +41,9 @@ pub unsafe fn yes_no_caption() -> Result<(u32, u32), Refused> {
     }
 }
 
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    let (eax, ebx) = unsafe { yes_no_caption() }?;
-    Ok(Left::nothing().with(EAX, eax).with(EBX, ebx))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+/// The Rust version the typed tables run (what it leaves in registers is read by
+/// none of its callers).
+pub fn run() -> Result<(), Refused> {
+    let (_eax, _ebx) = unsafe { yes_no_caption() }?;
+    Ok(())
 }

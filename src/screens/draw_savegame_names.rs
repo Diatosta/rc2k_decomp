@@ -13,9 +13,8 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read};
+use crate::framework::{game_addr, game_read};
 use crate::menu::name_lists::{SAVEGAME_NAMES_RVA, SAVEGAME_PAGE_RVA};
-use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::Canvas;
 
 const NAME_LEN: usize = 0x20;
@@ -31,14 +30,4 @@ pub unsafe fn draw_savegame_names(canvas: &mut dyn Canvas) -> Result<bool, Refus
         page,
         |slot| names.wrapping_add(slot * NAME_LEN as u32),
     )
-}
-
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    Ok(Left::carry(unsafe { draw_savegame_names(canvas) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_savegame_names", r, &rust)
 }

@@ -12,10 +12,10 @@
 //! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::menu::disable_item::disable_item;
 use crate::menu::enable_item::enable_item;
-use crate::screens::harness::{Left, draw_entry};
+use crate::screens::harness::Left;
 use crate::text::draw_text::Canvas;
 
 fn k(a: u32) -> u32 {
@@ -48,14 +48,4 @@ pub unsafe fn draw_sound_settings(canvas: &mut dyn Canvas) -> Result<Left, Refus
     let ids = NAMES.map(|(setting, first)| k(setting).wrapping_add(first));
     let out = rc2k_core::screens::settings_pages::sound(&mut SettingsScreen::new(canvas), ids)?;
     Ok(left_of(out))
-}
-
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    unsafe { draw_sound_settings(canvas) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_sound_settings", r, &rust)
 }

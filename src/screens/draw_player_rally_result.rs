@@ -14,9 +14,8 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::screens::best_scores::{RALLY_STAGE_TIMES, draw_times_heading};
-use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::Canvas;
 
 fn k(a: usize) -> u32 {
@@ -61,15 +60,4 @@ pub unsafe fn draw_player_rally_result(canvas: &mut dyn Canvas) -> Result<(), Re
         )?;
         Ok(())
     }
-}
-
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    unsafe { draw_player_rally_result(canvas) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_player_rally_result", r, &rust)
 }

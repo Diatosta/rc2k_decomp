@@ -4,7 +4,6 @@
 
 use crate::errors::Refused;
 use crate::framework::{EAX, EBP, EBX, ECX, EDI, EDX, ESI, Regs};
-use crate::screens::blanked;
 use crate::text::draw_text::{Canvas, GameCanvas, Outcome};
 
 /// What a drawing function leaves in the registers and flags. Registers not listed are
@@ -102,10 +101,7 @@ pub type Draw<'a> = &'a dyn Fn(&Regs, &mut dyn Canvas) -> Result<Left, Refused>;
 
 /// `dispatch_draw` / `dispatch_draw_rewound` outside shadow mode, without its hook (typed tables, 2026-10-22: the entry the menus' and draw lists' enums run, with no hook):
 /// `blank` (by the function's name), then the Rust version on the game's screen.
-pub fn draw_entry(name: &str, r: &mut Regs, rust: Draw) -> Result<(), Refused> {
-    if blanked(name) {
-        return Ok(());
-    }
+pub fn draw_entry(_name: &str, r: &mut Regs, rust: Draw) -> Result<(), Refused> {
     rust(r, &mut GameCanvas)?.apply(r);
     Ok(())
 }

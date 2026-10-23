@@ -15,7 +15,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_write, rva};
+use crate::framework::{game_write, rva};
 
 const LEARNING_RVA: usize = rva(0x7551F4); // dword_7551F4: 1 while a control learns
 const STARTED_RVA: usize = rva(0x7551F8); // dword_7551F8: when it began
@@ -43,9 +43,8 @@ macro_rules! learn_entry {
             use super::*;
             /// The Rust version where the typed tables run it (`menu::table_calls`; hook removed
             /// 2026-10-22).
-            pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+            pub fn run() {
                 learn_binding($control);
-                Ok(())
             }
         }
     };

@@ -33,9 +33,8 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::menu::car_description::{CarDescription, read, shown_description};
-use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -84,14 +83,4 @@ pub unsafe fn draw_car_page(
         }
         carry
     }
-}
-
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    Ok(Left::carry(unsafe { draw_car_figures(canvas) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_car_figures", r, &rust)
 }

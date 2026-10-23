@@ -11,8 +11,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
-use crate::screens::harness::{Left, draw_entry};
+use crate::framework::{game_read, rva};
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -29,15 +28,4 @@ pub unsafe fn draw_background_band(palette: u32, canvas: &mut dyn Canvas) -> Res
         unsafe { game_read::<u32>(SWITCH_RVA) } == 1,
         palette,
     )
-}
-
-fn rust(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    unsafe { draw_background_band(r.ebx, canvas) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_background_band", r, &rust)
 }

@@ -22,8 +22,7 @@
 //! The names of the texture and colour steps are readings of their variables.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, Regs, game_addr, game_read, game_write, rva};
-use crate::menu::parts::Part;
+use crate::framework::{EAX, EBX, game_addr, game_read, game_write, rva};
 use crate::screens::harness::Left;
 
 // ---- the volume steps ----
@@ -50,60 +49,28 @@ pub const MUSIC_LEVEL_RVA: usize = rva(0x755688); // dword_755688
 pub const SPEECH_LEVEL_RVA: usize = rva(0x755698); // dword_755698
 pub const SOUNDS_A_RVA: usize = rva(0x75569C); // dword_75569C
 pub const SOUNDS_B_RVA: usize = rva(0x7556A0); // dword_7556A0
-/// The Rust version of a volume step: the registers it leaves.
-pub unsafe fn volume_step(entry: &Regs, v: Volume, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
+/// The Rust version of a volume step. What it leaves in registers is read by none of its
+/// callers (the item call sites have nothing live after the call).
+pub fn volume_step(v: Volume) {
     unsafe {
         // Converted: `rc2k_core::menu::steps::volume`.
         let value = rc2k_core::menu::steps::volume(game_read::<i32>(v.value_rva), v.up);
         game_write(v.value_rva, value);
         match v.then {
             Then::Music => {
-                r.eax = value as u32;
-                game_write(MUSIC_RVA, r.eax);
+                game_write(MUSIC_RVA, value as u32);
+                crate::sound::set_music_volume::set_music_volume(value as u32);
             }
-            Then::Speech => {
-                r.ecx = value as u32;
-                r.eax = game_addr(SPEECH_PATH_RVA) as u32;
-            }
+            Then::Speech => crate::sound::start_stream::start_stream(
+                game_addr(SPEECH_PATH_RVA) as u32,
+                value as u32,
+            ),
             Then::Sound(sound) => {
                 game_write(SOUNDS_VOLUME_RVA, value);
-                r.eax = sound;
+                crate::sound::play_menu_sound::play_menu_sound_in_game(sound);
             }
         }
-        part(0, &mut r)?;
     }
-    Ok(r)
-}
-
-/// In the game: the senders' and the menu sound's Rust versions.
-pub fn volume_part(then: Then) -> fn(u32, &mut Regs) -> Result<(), Refused> {
-    fn music(_: u32, r: &mut Regs) -> Result<(), Refused> {
-        crate::sound::set_music_volume::set_music_volume(r.eax);
-        Ok(())
-    }
-    fn speech(_: u32, r: &mut Regs) -> Result<(), Refused> {
-        crate::sound::start_stream::start_stream(r.eax, r.ecx);
-        Ok(())
-    }
-    fn sound(_: u32, r: &mut Regs) -> Result<(), Refused> {
-        crate::sound::play_menu_sound::play_menu_sound_in_game(r.eax);
-        Ok(())
-    }
-    match then {
-        Then::Music => music,
-        Then::Speech => speech,
-        Then::Sound(_) => sound,
-    }
-}
-
-/// `dispatch_volume` without its hook (typed tables).
-pub fn volume_entry(r: &mut Regs, v: Volume) -> Result<(), Refused> {
-    crate::menu::parts::parted_entry(
-        r,
-        &|r, part| unsafe { volume_step(r, v, part) },
-        volume_part(v.then),
-    )
 }
 
 // ---- the plain steps (no calls) ----
@@ -168,11 +135,6 @@ pub fn step_colour(c: Colour, up: bool) {
     }
 }
 
-/// `dispatch_plain` without its hook (typed tables).
-pub fn plain_entry(r: &mut Regs, rust: crate::service::harness::Rust) -> Result<(), Refused> {
-    crate::service::harness::state_entry(r, rust)
-}
-
 // ---- the advanced audio page's choices ----
 
 /// (the work value, the choice, the applied) by `g_audioOptions`' fields.
@@ -185,25 +147,17 @@ const AUDIO: [(usize, usize, usize); 6] = [
     (0x755670, 0x506C94, 0x506CAC), // DS3D
 ];
 /// `menu::apply_audio_choices`: the registers it leaves (`popa`'s).
-pub unsafe fn apply_audio_choices(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn apply_audio_choices() -> Result<(), Refused> {
     unsafe {
         for (work, choice, _) in AUDIO {
             game_write(rva(choice), game_read::<u32>(rva(work)));
         }
-        // eax at the call: the last value copied (DS3D's).
-        let mut g = Regs {
-            eax: game_read::<u32>(rva(AUDIO[AUDIO.len() - 1].0)),
-            ..*entry
-        };
-        part(0, &mut g)?;
+        // `audio::choose_modes` with the game's log (the original's eax there, the last
+        // value copied, is read by none of it).
+        crate::audio::choose_modes::in_game(&mut crate::audio::choose_modes::real_log)?;
         for (work, _, applied) in AUDIO {
             game_write(rva(work), game_read::<u32>(rva(applied)));
         }
     }
-    Ok(*entry)
-}
-
-/// In the game: `audio::choose_modes`' Rust version with the game's log.
-pub fn audio_part(_: u32, _: &mut Regs) -> Result<(), Refused> {
-    crate::audio::choose_modes::in_game(&mut crate::audio::choose_modes::real_log)
+    Ok(())
 }

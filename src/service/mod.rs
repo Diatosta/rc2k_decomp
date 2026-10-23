@@ -3,11 +3,7 @@
 pub mod apply_repairs;
 pub mod backspace_setup_name;
 pub mod begin_edits;
-pub mod begin_gear_ratio_edit;
-pub mod begin_ride_height_edit;
 pub mod begin_setup_name;
-pub mod begin_suspension_stiffness_edit;
-pub mod begin_tyre_edit;
 pub mod clear_repair_flags;
 pub mod clear_repair_marks;
 pub mod edit_brake_balance;
