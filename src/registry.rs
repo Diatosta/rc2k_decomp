@@ -1,22 +1,10 @@
+use crate::fatal;
 use crate::framework::GameHook;
-use crate::{audio, d3d, fatal, gfx, input, sound};
 use std::sync::LazyLock;
 
 /// Whenever a hook module is registered, it is added to this list.
-pub static ALL: LazyLock<Vec<&'static dyn GameHook>> = LazyLock::new(|| {
-    [
-        gfx::HOOKS,
-        input::HOOKS,
-        fatal::HOOKS,
-        sound::HOOKS,
-        audio::HOOKS,
-        d3d::HOOKS,
-    ]
-    .into_iter()
-    .flatten()
-    .copied()
-    .collect()
-});
+pub static ALL: LazyLock<Vec<&'static dyn GameHook>> =
+    LazyLock::new(|| [fatal::HOOKS].into_iter().flatten().copied().collect());
 
 /// Whether a name or prefix typed in the console selects the hook called `name`: `all` and a
 /// prefix select every hook they match, but the full name of a hook selects only that hook,

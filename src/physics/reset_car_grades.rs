@@ -24,7 +24,6 @@ use crate::screens::harness::Left;
 use crate::service::harness::state_entry;
 use rc2k_core::physics::grades::{percentage, reset_writes};
 
-pub const BLOCK_LEN: usize = 0xFE0;
 const ONE_RVA: usize = rva(0x5C5D38); // flt_5C5D38, 1.0
 const K256_RVA: usize = rva(0x5C5E2C); // flt_5C5E2C, 256.0
 const K100_RVA: usize = rva(0x5C5D14); // flt_5C5D14, 100.0
@@ -71,18 +70,4 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-/// Fills a test block by `seed` (the two settings at +0x34 and +0x30 small whole
-/// numbers).
-pub fn fill_block(b: u32, seed: u32) {
-    let mut s = seed | 1;
-    for k in 0..(BLOCK_LEN as u32 / 4) {
-        s = s.wrapping_mul(1_103_515_245).wrapping_add(12345);
-        unsafe { put(b + 4 * k, s) };
-    }
-    unsafe {
-        put(b + 0x34, (seed.wrapping_mul(37) % 300).wrapping_sub(20));
-        put(b + 0x30, seed.wrapping_mul(91) % 256);
-    }
 }

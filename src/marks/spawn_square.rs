@@ -25,7 +25,7 @@ use crate::marks::expire_squares::{ITEM_LEN, ITEMS, ITEMS_RVA};
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
+use crate::service::harness::state_entry;
 
 pub const CURSOR_RVA: usize = rva(0x89D166); // dword_89D166: an offset into the items
 const SIZE_K: [usize; 3] = [rva(0x8BC23A), rva(0x8BC23E), rva(0x8BC242)];
@@ -103,13 +103,6 @@ pub unsafe fn spawn_square_plain(x: u32, z: u32, kind: u32) -> u32 {
         game_write(CURSOR_RVA, found.cursor);
         ecx
     }
-}
-
-pub fn regions() -> Vec<Region> {
-    vec![
-        (game_addr(ITEMS_RVA) as u32, (ITEMS * ITEM_LEN) as usize),
-        at(CURSOR_RVA),
-    ]
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

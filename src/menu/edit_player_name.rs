@@ -27,7 +27,6 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::shadow;
 use crate::framework::{Regs, game_read, game_write};
 use crate::input::key_to_char::{has_layout, key_to_char};
 use crate::input::take_key::take_key;
@@ -37,7 +36,7 @@ use crate::menu::text_entry::{ENTERING_RVA, LENGTH_RVA, MAX_LENGTH_RVA, TEXT_LEN
 use crate::screens::font_at;
 use crate::screens::harness::Left;
 use crate::service::harness::state_entry;
-use crate::text::draw_text::{Canvas, GameCanvas, RecordingCanvas};
+use crate::text::draw_text::{Canvas, GameCanvas};
 use crate::text::measure_text::measure_text_at;
 
 // ---- game data ----
@@ -92,11 +91,8 @@ pub unsafe fn edit_player_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    if shadow() {
-        unsafe { edit_player_name(&mut RecordingCanvas::new(false)) }?;
-    } else {
-        unsafe { edit_player_name(&mut GameCanvas) }?;
-    }
+    unsafe { edit_player_name(&mut GameCanvas) }?;
+
     Ok(Left::nothing())
 }
 

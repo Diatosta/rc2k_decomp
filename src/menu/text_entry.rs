@@ -3,7 +3,6 @@
 //! of the text as it was before, which Escape brings back.
 
 use crate::framework::{game_addr, game_read, game_write, rva};
-use crate::service::harness::Region;
 
 pub const LENGTH_RVA: usize = rva(0x75556D); // dword_75556D: characters typed so far
 pub const MAX_LENGTH_RVA: usize = rva(0x755571); // dword_755571
@@ -22,10 +21,6 @@ pub fn set_length(length: i32) {
 
 pub fn backup() -> *mut u8 {
     game_addr(BACKUP_RVA) as *mut u8
-}
-
-pub fn backup_region() -> Region {
-    (backup() as u32, TEXT_LEN)
 }
 
 /// The entry's state, as the game holds it.

@@ -19,7 +19,7 @@ use crate::errors::Refused;
 use crate::framework::{EAX, EBX, ECX, EDX, ESI, Regs};
 use crate::physics::flow::{a, g, p};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::drive::replay_frames::{on_tape, tape_offset};
 
 const WORDS: usize = 0x6138C4; // dword_6138C4 .. 6138D0: the input words
@@ -55,14 +55,6 @@ pub unsafe fn record_inputs() -> Left {
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { record_inputs() })
-}
-
-/// The tape's frame written.
-pub fn regions() -> Vec<Region> {
-    vec![
-        (a(WORDS), 16),
-        (a(TAPE).wrapping_add(g(0x6EF7DC).wrapping_mul(16)), 16),
-    ]
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

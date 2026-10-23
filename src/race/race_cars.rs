@@ -6,7 +6,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::race::objects::{CAR_BLOCKS_RVA, CARS_RVA};
-use crate::service::harness::{Region, at};
 
 /// The eight car blocks (fixed; `g_carBlocks` lists them), 0xFE0 apart.
 pub const BLOCK_0: usize = 0x70F3EC;
@@ -29,12 +28,6 @@ pub const TEXT_LEN: usize = 0x708;
 fn block(n: usize) -> usize {
     rva(BLOCK_0 + n * BLOCK_STEP)
 }
-
-/// The block offsets `reset_car_blocks` sets to 0 (+0x25C first; +0x38 gets 1).
-const CLEARED: [usize; 26] = [
-    0xFA8, 0xAC, 0x88, 0xA8, 0xA4, 0xA0, 0x29C, 0x98, 0x2AC, 0x2B0, 0x2A4, 0x2A8, 0x2B4, 0x2A0,
-    0x428, 0x40C, 0x410, 0x414, 0x418, 0x41C, 0x420, 0x424, 0x25C, 0x38, 0x8C, 0x24,
-];
 
 /// `race::reset_car_blocks` (0x43658A): each of the eight car blocks (by `g_carBlocks`):
 /// +0x25C 1 for the race's cars (`g_raceCars`, unsigned) else 0, +0x38 1, +0x8C
@@ -63,19 +56,6 @@ pub unsafe fn reset_car_blocks(entry: &Regs) -> Regs {
     g
 }
 
-/// What `reset_car_blocks` writes.
-pub fn block_regions() -> Vec<Region> {
-    let mut r = Vec::new();
-    for n in 0..8u32 {
-        let b: u32 = unsafe { game_read(CAR_BLOCKS_RVA + 4 * n as usize) };
-        for &off in &CLEARED[..25] {
-            r.push((b + off as u32, 4));
-        }
-        r.push(at(block(n as usize) + 0x24));
-    }
-    r
-}
-
 /// `race::drop_absent_player` (0x436402): unless `dword_62389C` is 2 or 4, with
 /// `dword_63DB94` 2 (two players): the first player whose block's +0xB0 is not 0 (the
 /// first, else the second) is out: +0x25C 0, +0xFA8 1. Every register kept.
@@ -94,13 +74,6 @@ pub unsafe fn drop_absent_player() {
     }
 }
 
-/// What `drop_absent_player` writes.
-pub fn player_regions() -> Vec<Region> {
-    (0..2)
-        .flat_map(|n| [at(block(n) + 0x25C), at(block(n) + 0xFA8)])
-        .collect()
-}
-
 /// `race::set_player_car_kinds` (0x43670F): the two players' blocks' +0x24, +0x2C, +0x38
 /// from `PLAYER_KINDS`. Every register kept.
 pub unsafe fn set_player_car_kinds() {
@@ -109,13 +82,6 @@ pub unsafe fn set_player_car_kinds() {
             unsafe { game_write(block(n) + [0x24, 0x2C, 0x38][k], game_read::<u32>(from)) };
         }
     }
-}
-
-/// What `set_player_car_kinds` writes.
-pub fn kind_regions() -> Vec<Region> {
-    (0..2)
-        .flat_map(|n| [0x24, 0x2C, 0x38].map(|off| at(block(n) + off)))
-        .collect()
 }
 
 /// The cars' data text from its start, as the original reads it (past the buffer's end
@@ -149,80 +115,9 @@ pub unsafe fn set_up_race_cars(entry: &Regs) -> Result<Regs, Refused> {
     }
 }
 
-/// The game's eight blocks' first 0xFE0 bytes and the inputs, for saving.
-pub fn saved_regions() -> Vec<Region> {
-    let mut r: Vec<Region> = (0..8)
-        .map(|n| (game_addr(block(n)) as u32, BLOCK_STEP))
-        .collect();
-    r.extend([
-        at(MODE_RVA),
-        at(PLAYERS_RVA),
-        at(SPEEDS_RVA),
-        at(CARS_RVA),
-        (game_addr(CAR_KINDS_RVA) as u32, 32),
-        at(PLAYER_KINDS[0][1]),
-        at(PLAYER_KINDS[0][2]),
-        at(PLAYER_KINDS[1][1]),
-        at(PLAYER_KINDS[1][2]),
-    ]);
-    r
-}
-
-/// Fills the blocks with a pattern and sets the inputs of a case.
-pub fn prepare(seed: u32, mode: u32, players: u32, cars: u32, absent: [u32; 2]) {
-    unsafe {
-        for n in 0..8 {
-            let base = game_addr(block(n)) as *mut u32;
-            for k in 0..BLOCK_STEP / 4 {
-                base.add(k)
-                    .write_unaligned((k as u32 * 0x0001_0003) ^ seed ^ n as u32);
-            }
-        }
-        game_write(MODE_RVA, mode);
-        game_write(PLAYERS_RVA, players);
-        game_write(CARS_RVA, cars);
-        game_write(SPEEDS_RVA, seed & 0xFFF);
-        for n in 0..8 {
-            game_write(CAR_KINDS_RVA + 4 * n, (0x100 + n as u32) ^ seed);
-        }
-        for (n, kinds) in PLAYER_KINDS.iter().enumerate() {
-            game_write(kinds[1], 0x200 + n as u32);
-            game_write(kinds[2], 0x300 + n as u32);
-        }
-        for (n, &a) in absent.iter().enumerate() {
-            game_write(block(n) + 0xB0, a);
-        }
-    }
-}
-
 // ---- the set-ups ----
 
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-/// The set-ups' callees by place (for the copies' stand-ins and `cars_part`): 1 .. 8
-/// `set_up_cars`' steps and `clear_race_tables`, 9 .. 12 the four log entries, 13
-/// `log_newline_l1`, 14 .. 17 the three steps above and `auto_set_up_car`. Place 18,
-/// `scene::next_noise`, is not stood in for (the copies call the game's).
-pub const CAR_CALLEES: &[(usize, u32)] = &[
-    (0x437971, 1),
-    (0x4377D0, 2),
-    (0x43613A, 3),
-    (0x43645B, 4),
-    (0x4364AD, 5),
-    (0x4364BD, 6),
-    (0x43647F, 7),
-    (0x4632D4, 8),
-    (0x401427, 9),
-    (0x40142B, 10),
-    (0x401472, 11),
-    (0x401476, 12),
-    (0x4013DE, 13),
-    (0x43658A, 14),
-    (0x436402, 15),
-    (0x43670F, 16),
-    (0x436F08, 17),
-    (0x449B79, 19),
-];
 
 pub const STAGE_RVA: usize = crate::race::stage_prefs::STAGE_RVA; // g_stageNumber
 pub const STAGE_TOTAL_RVA: usize = rva(0x601C4C); // g_stageCarTotal
@@ -289,14 +184,6 @@ pub unsafe fn read_stage_car_numbers(entry: &Regs) -> Result<Regs, Refused> {
         game_write(STAGE_TOTAL_RVA, total);
     }
     Ok(g)
-}
-
-pub fn number_regions() -> Vec<Region> {
-    vec![
-        at(STAGE_TOTAL_RVA),
-        at(READ_BYTES_RVA),
-        (game_addr(SPEEDS_RVA) as u32, 4 * MOST_NUMBERS),
-    ]
 }
 
 /// `race::auto_set_up_car` (0x436F08): car block esi's set-up: +0x20, +0x3C, +0x30, +0x34
@@ -458,70 +345,6 @@ pub fn cars_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-/// What the set-ups write (beyond the blocks, which `saved_regions` covers) and read.
-pub fn set_up_regions() -> Vec<Region> {
-    let mut r = saved_regions();
-    r.extend([
-        at(STAGE_RVA),
-        at(ALL_AUTO_RVA),
-        at(BRAKES_RVA[0]),
-        at(BRAKES_RVA[1]),
-        at(MODE_1_VALUES_RVA[0]),
-        at(MODE_1_VALUES_RVA[1]),
-        at(PLAYERS_2_RVA),
-    ]);
-    r
-}
-
-/// The inputs of a set-up case beyond `prepare`'s.
-pub fn prepare_set_up(stage: u32, all: u32, brakes: [i32; 2]) {
-    unsafe {
-        game_write(STAGE_RVA, stage);
-        game_write(ALL_AUTO_RVA, all);
-        game_write(BRAKES_RVA[0], brakes[0]);
-        game_write(BRAKES_RVA[1], brakes[1]);
-        game_write(MODE_1_VALUES_RVA[0], 0x1234u32);
-        game_write(MODE_1_VALUES_RVA[1], 0x5678u32);
-        game_write(PLAYERS_2_RVA, 7u32);
-    }
-}
-
-/// One case on a copy whose calls note themselves (`race::mud::copy` with `CAR_CALLEES`):
-/// the copy and the Rust version from `before`, after `prepare`; the registers left, the
-/// calls noted and `regions` compared.
-pub fn run_cars(
-    t: &mut crate::framework::SelfTest,
-    what: &str,
-    copy: &crate::redirect::RedirectedCopy,
-    regions: &[Region],
-    before: Regs,
-    prepare: &dyn Fn(),
-    rust: &dyn Fn(&Regs) -> Result<Regs, Refused>,
-) {
-    use crate::race::level_init::take_called;
-    use crate::service::harness::capture;
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    prepare();
-    take_called();
-    let mut ro = before;
-    unsafe { crate::framework::call_game(&mut ro, copy.addr()) };
-    let theirs = (Some(regs(&ro)), take_called(), capture(regions));
-    prepare();
-    let mine = rust(&before);
-    let mine = (
-        mine.as_ref().ok().map(regs),
-        take_called(),
-        capture(regions),
-    );
-    t.check(theirs == mine, || {
-        let diff = theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b);
-        format!(
-            "{what}: original {:x?} {:x?}; rust {:x?} {:x?}; memory first differs at {diff:x?}",
-            theirs.0, theirs.1, mine.0, mine.1
-        )
-    });
-}
-
 // ---- the times, mode 2, the whole step ----
 
 /// The ten-entry tables `clear_race_tables` clears (`dword_71C010` ..).
@@ -538,14 +361,6 @@ pub unsafe fn clear_race_tables() {
             unsafe { game_write(rva(table) + 4 * k, 0u32) };
         }
     }
-}
-
-/// What `clear_race_tables` writes.
-pub fn race_table_regions() -> Vec<Region> {
-    RACE_TABLES
-        .iter()
-        .map(|&t| (game_addr(rva(t)) as u32, 40))
-        .collect()
 }
 
 const KIND_FACTORS_RVA: usize = rva(0x60475C); // flt_60475C: 0x17 floats by car kind
@@ -808,43 +623,6 @@ pub unsafe fn set_up_mode_2_cars(entry: &Regs, part: Part) -> Result<Regs, Refus
     Ok(g)
 }
 
-/// What `set_up_mode_2_cars` and `set_up_cars` write beyond `set_up_regions`.
-pub fn arcade_regions() -> Vec<Region> {
-    let mut r = set_up_regions();
-    r.extend(race_table_regions());
-    r.extend(
-        [
-            ARCADE_CARS_RVA,
-            ARCADE_A_RVA,
-            ARCADE_B_RVA,
-            START_POS_RVA,
-            BEST_POS_RVA,
-            NOISE_STATE_RVA,
-            RALLY_RVA,
-            STAGE_IN_RALLY_RVA,
-            ARCADE_KIND_RVA,
-            NOISE_SEED_RVA,
-            KIND_FACTOR_RVA,
-            EXTRA_TIME_RVA,
-            CHECK_POSITS_RVA,
-            STAGE_TOTAL_RVA,
-            READ_BYTES_RVA,
-        ]
-        .map(at),
-    );
-    r.push((
-        game_addr(ARCADE_KINDS_RVA) as u32,
-        4 * MOST_ARCADE_CARS as usize,
-    ));
-    r.push((
-        game_addr(ARCADE_ORDER_RVA) as u32,
-        4 * MOST_ARCADE_CARS as usize,
-    ));
-    r.push((game_addr(SPEEDS_RVA) as u32, 4 * MOST_NUMBERS));
-    r.push((game_addr(rva(0x601C68)) as u32, 0x100));
-    r
-}
-
 /// `race::set_up_cars` (0x43603C): race init's "cars": "gamemode" and `dword_62389C`
 /// logged; both players' +0x5FC 0 and +0xA0C .. +0xA1C -1; then by the mode: 2 the
 /// numbers, the times, the arcade set-up, `dword_601C68` (0x40 dwords) 0; 1, 3, 0 (with
@@ -878,20 +656,6 @@ pub unsafe fn set_up_cars(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         }
     }
     Ok(g)
-}
-
-/// The inputs of an arcade case: the rally, the stage in it, `dword_60101C`, the noise
-/// seed, the two players' numbers (+0xAA8).
-pub fn prepare_arcade(rally: u32, stage_in: u32, kind: u32, seed: u32, taken: [u32; 2]) {
-    unsafe {
-        game_write(RALLY_RVA, rally);
-        game_write(STAGE_IN_RALLY_RVA, stage_in);
-        game_write(ARCADE_KIND_RVA, kind);
-        game_write(NOISE_SEED_RVA, seed);
-        for (n, &k) in taken.iter().enumerate() {
-            game_write(block(n) + 0xAA8, k);
-        }
-    }
 }
 
 // ---- the arcade's opponents ----
@@ -1021,18 +785,4 @@ pub unsafe fn set_up_arcade_cars(entry: &Regs, indent: u32, part: Part) -> Resul
         }
     }
     Ok(g)
-}
-
-/// What the two write, with their inputs.
-pub fn opponent_regions() -> Vec<Region> {
-    let mut r = vec![
-        (game_addr(CAR_KINDS_RVA) as u32, 32),
-        at(NOISE_STATE_RVA),
-        at(NOISE_SEED_RVA),
-        at(crate::math::next_random::STATE_RVA),
-        at(MODE_RVA),
-        at(CARS_RVA),
-    ];
-    r.extend((0..8).map(|n| at(block(n) + 0x24)));
-    r
 }

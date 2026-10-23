@@ -25,14 +25,12 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::hud::add_quad::QUAD_RVA;
 use crate::hud::batch::TEXTURE_RVA;
 use crate::hud::draw_markers_1::{int_over_80, taken_off};
 use crate::hud::draw_signs::row;
 use crate::hud::layout_0::*;
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
-use crate::service::harness::{at, capture, restore};
 
 const SCRATCH_RVA: usize = rva(0x75C060); // dword_75C060
 const UV_SCALE_RVA: usize = rva(0x75C00C); // flt_75C00C
@@ -254,123 +252,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { layout_1(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-fn note_plain(place: u32, r: &mut Regs) {
-    crate::hud::draw_markers_1::note(place, r, &[]);
-}
-
-/// The test of a split layout: a copy whose draws go to stand-ins (by `places`; the
-/// scaled sprites' to the stand-in reading their scales, noted as place 1), against
-/// `rust`, flags and times by lot.
-pub fn test_layout(
-    hook: &RawHook,
-    address: usize,
-    len: usize,
-    calls: &[usize],
-    places: &'static [(usize, u32)],
-    rust: &dyn Fn(&Regs, Part) -> Result<Regs, Refused>,
-) -> (usize, usize) {
-    use crate::hud::draw_markers_1::{kept_stand_in, note, take};
-    use crate::install::stand_ins::{set_handler, stand_in};
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    set_handler(note_plain);
-    let copy = match unsafe {
-        crate::redirect::RedirectedCopy::new(
-            game_addr(rva(address)),
-            len,
-            // mov g_hudQuad, 0E0h
-            &[0xC7, 0x05, 0xB0, 0xBF, 0x75, 0x00, 0xE0, 0x00, 0x00, 0x00],
-            calls,
-            &|c| {
-                if c + 0x40_0000 == 0x4B716A {
-                    return Some(kept_stand_in as *const () as usize);
-                }
-                places
-                    .iter()
-                    .find(|&&(k, _)| rva(k) == c)
-                    .map(|&(_, p)| stand_in(p))
-            },
-        )
-    } {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut regions = regions();
-    regions.extend(
-        [
-            SCRATCH_RVA,
-            QUAD_RVA + 4,
-            QUAD_RVA + 8,
-            QUAD_RVA + 12,
-            QUAD_RVA + 16,
-        ]
-        .map(at),
-    );
-    let mut vars = regions.clone();
-    vars.extend(TIMES_RVA.map(at));
-    vars.extend(CLOCKS_RVA.map(at));
-    vars.extend([LAP_2_RVA, UV_SCALE_RVA, crate::hud::draw_signs::FLAT_RVA].map(at));
-    let saved = capture(&vars);
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for (word, case) in TEST_CONTROL_WORDS
-        .into_iter()
-        .flat_map(|w| (0..6u32).map(move |c| (w, c)))
-    {
-        let mut record = [0u32; 0x48];
-        record[0xF8 / 4] = [0xFFu32, 0, 0x55, 0xAA, 0x62, 0x3D][case as usize];
-        record[0xFC / 4] = [0xFFu32, 0x5A, 0, 0xA5, 0x3D, 0x62][case as usize];
-        record[0x14 / 4] = [0u32, 1234, 59_999, 0xFFFF_FF00, 6_000, 361_234][case as usize];
-        record[0x44 / 4] = 98_765 * case;
-        record[0x18 / 4] = case;
-        record[0x48 / 4] = case + 2;
-        record[0x1C / 4] = if case == 2 { 0xFFFF_FFFF } else { 4321 * case };
-        record[0x4C / 4] = if case == 3 { 0xFFFF_FFFF } else { 1111 * case };
-        record[0x28 / 4] = [5u32, 0xFFFF_FFFF, 0xFFFF_FFF0, 30, 0x16, 3][case as usize];
-        record[0x30 / 4] = [7u32, 9, 0xFFFF_FFFF, 0, 40, 2][case as usize];
-        record[0xCC / 4] = case & 1;
-        record[0xD0 / 4] = (case >> 1) & 1;
-        let before = Regs {
-            ebp: record.as_ptr() as u32,
-            ..Regs::SENTINEL
-        };
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            for (n, &r) in TIMES_RVA
-                .iter()
-                .chain(CLOCKS_RVA.iter())
-                .chain([LAP_2_RVA].iter())
-                .enumerate()
-            {
-                game_write(
-                    r,
-                    (54_321 * (case + 1) + 777 * n as u32)
-                        ^ if n % 2 == 1 { 0x8000_0000 } else { 0 },
-                );
-            }
-            game_write(UV_SCALE_RVA, 256.0f32.to_bits());
-            game_write(crate::hud::draw_signs::FLAT_RVA, case & 1);
-        };
-        prepare();
-        take();
-        let mut ro = before;
-        with_control_word(word, &mut || unsafe {
-            crate::framework::call_game(&mut ro, copy.addr())
-        });
-        let theirs = (Some(regs(&ro)), take(), capture(&regions));
-        prepare();
-        let mine = rust(&before, &mut |p, r, v| {
-            note(if p == SCALED { 1 } else { p }, r, v);
-            Ok(())
-        });
-        let mine = (mine.as_ref().ok().map(regs), take(), capture(&regions));
-        t.check(theirs == mine, || {
-            let first = theirs.1.iter().zip(&mine.1).position(|(a, b)| a != b);
-            format!("control word {word:#x}, case {case}: original {:x?} {} calls; rust {:x?} {} calls; first differing call {:?}; same state {}", theirs.0, theirs.1.len(), mine.0, mine.1.len(), first, theirs.2 == mine.2)
-        });
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

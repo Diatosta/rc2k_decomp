@@ -132,10 +132,6 @@ unsafe fn skid_vertex(n: u32, v: u32) {
     }
 }
 
-/// `race::draw_skidmarks`' calls by place: 1 `scene::depth_test_off`, 2
-/// `scene::draw_polygon`, 3 `scene::depth_test_on`. Place 0 is not used.
-pub const SKID_CALLEES: [(u32, usize); 3] = [(1, 0x44E3D1), (2, 0x44BA2C), (3, 0x44E3E1)];
-
 /// Whether a quad of `draw_skidmarks`' last run was cut by the screen clip (its registers
 /// after are not modelled; the test then compares the calls by place). Its test clears it.
 pub static SKIDS_CLIPPED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);

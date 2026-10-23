@@ -32,9 +32,8 @@
 //! Hooks removed 2026-10-22 (typed tables): the menus run their `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
-use crate::framework::{Regs, SelfTest, game_read, game_write, rva};
-use crate::menu::parts::{Part, copy, dispatch_parted, run_both, test_part};
-use crate::service::harness::{Region, at, capture, restore};
+use crate::framework::{Regs, game_read, game_write, rva};
+use crate::menu::parts::Part;
 
 const SEND_COMMAND_8: usize = 0x409BB4; // sound::send_command_8
 const PLAY_MENU_SOUND: usize = 0x40F059; // sound::play_menu_sound
@@ -90,9 +89,6 @@ pub enum Kind {
 /// (for the test's copy), the dword it changes (IDA address) and its kind.
 #[derive(Clone, Copy)]
 pub struct Item {
-    pub address: usize,
-    pub len: usize,
-    pub entry: &'static [u8],
     pub var: usize,
     pub kind: Kind,
 }
@@ -119,36 +115,6 @@ impl Item {
             Kind::SwitchAudio | Kind::Quality { .. } => &[APPLY_AUDIO],
             _ => &[],
         }
-    }
-
-    /// The offsets of its calls (each to the one callee).
-    fn calls(&self) -> &'static [usize] {
-        match self.kind {
-            Kind::Volume {
-                then: Then::Send | Then::Sound(_),
-                ..
-            } => &[0x1E],
-            Kind::SwitchModes { .. } => &[0x18],
-            Kind::SwitchAudio => &[0x7],
-            Kind::Quality { .. } => &[0xF, 0x1F],
-            _ => &[],
-        }
-    }
-
-    /// The dwords it reads and writes.
-    fn regions(&self) -> Vec<Region> {
-        let mut r = vec![at(rva(self.var))];
-        match self.kind {
-            Kind::SwitchCopy { other, .. }
-            | Kind::SwitchModes { other }
-            | Kind::PreviousMode { other } => r.push(at(rva(other))),
-            Kind::Volume {
-                then: Then::Store(other),
-                ..
-            } => r.push(at(rva(other))),
-            _ => {}
-        }
-        r
     }
 }
 
@@ -238,22 +204,6 @@ pub fn game_part(callee: usize, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-pub fn dispatch_item(
-    hook: &crate::framework::RawHook,
-    r: &mut Regs,
-    call_original: crate::screens::harness::CallOriginal,
-    item: Item,
-    game: fn(u32, &mut Regs) -> Result<(), Refused>,
-) {
-    dispatch_parted(
-        hook,
-        r,
-        call_original,
-        &|r, part| option_item(r, item, part),
-        game,
-    );
-}
-
 /// `dispatch_item` without its hook (typed tables).
 pub fn item_entry(
     r: &mut Regs,
@@ -261,69 +211,6 @@ pub fn item_entry(
     game: fn(u32, &mut Regs) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     crate::menu::parts::parted_entry(r, &|r, part| option_item(r, item, part), game)
-}
-
-/// Self-test: a copy whose call goes to a stand-in, against the Rust version, values around
-/// the ends (and the other dword's two states).
-pub fn test_item(hook: &crate::framework::RawHook, item: Item) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let copy = match copy(
-        item.address,
-        item.len,
-        item.entry,
-        item.calls(),
-        item.callee(),
-        &[],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions = item.regions();
-    let saved = capture(&regions);
-    let values = [
-        i32::MIN,
-        -5,
-        -1,
-        0,
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        0x3F,
-        0x40,
-        0x41,
-        i32::MAX,
-    ];
-    let others: &[i32] = match item.kind {
-        Kind::PreviousMode { .. } => &[0, 1, 4],
-        _ => &[0, 1, 0x1234_5678],
-    };
-    for &value in &values {
-        for &other in others {
-            run_both(
-                &mut t,
-                &format!("value {value:#x}, other {other:#x}"),
-                &copy,
-                &regions,
-                &|| {
-                    set(item.var, value);
-                    if let Some(&(at, _)) = regions.get(1) {
-                        unsafe { (at as *mut i32).write_unaligned(other) };
-                    }
-                },
-                Regs::SENTINEL,
-                false,
-                &|r| option_item(r, item, &mut test_part),
-            );
-        }
-    }
-    restore(&regions, &saved);
-    t.finish()
 }
 
 /// A hook for one handler: `option_item!(module, "menu::name", ITEM)`.
@@ -346,29 +233,12 @@ macro_rules! option_item {
     };
 }
 
-const XOR: [u8; 2] = [0x83, 0x35];
-
-/// `xor dword ptr [x], 1` as bytes.
-const fn xor_entry(x: u32) -> [u8; 7] {
-    let b = x.to_le_bytes();
-    [XOR[0], XOR[1], b[0], b[1], b[2], b[3], 0x01]
-}
-
-/// `dec` (0x0D) or `inc` (0x05) `dword ptr [x]` as bytes.
-const fn step_entry(x: u32, up: bool) -> [u8; 6] {
-    let b = x.to_le_bytes();
-    [0xFF, if up { 0x05 } else { 0x0D }, b[0], b[1], b[2], b[3]]
-}
-
 macro_rules! switch {
     ($module:ident, $name:literal, $address:expr, $len:expr, $var:expr, $kind:expr) => {
         option_item!(
             $module,
             $name,
             Item {
-                address: $address,
-                len: $len,
-                entry: &xor_entry($var),
                 var: $var as usize,
                 kind: $kind,
             }
@@ -382,9 +252,6 @@ macro_rules! step {
             $module,
             $name,
             Item {
-                address: $address,
-                len: $len,
-                entry: &step_entry($var, $up),
                 var: $var as usize,
                 kind: $kind,
             }
@@ -598,9 +465,6 @@ option_item!(
     previous_screen_mode,
     "menu::previous_screen_mode",
     Item {
-        address: 0x46FFDB,
-        len: 0x14,
-        entry: &[0xA1, 0xC8, 0x50, 0x4F, 0x00],
         var: 0x4F50C8,
         kind: Kind::PreviousMode { other: 0x4F50E4 },
     }
@@ -664,9 +528,6 @@ option_item!(
     next_audio_quality,
     "menu::next_audio_quality",
     Item {
-        address: 0x47019F,
-        len: 0x25,
-        entry: &[0x83, 0x3D, 0x6C, 0x56, 0x75, 0x00, 0x03],
         var: 0x75566C,
         kind: Kind::Quality { up: true },
     }
@@ -675,9 +536,6 @@ option_item!(
     previous_audio_quality,
     "menu::previous_audio_quality",
     Item {
-        address: 0x4701C4,
-        len: 0x25,
-        entry: &[0x83, 0x3D, 0x6C, 0x56, 0x75, 0x00, 0x00],
         var: 0x75566C,
         kind: Kind::Quality { up: false },
     }

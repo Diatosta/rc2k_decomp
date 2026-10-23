@@ -42,12 +42,11 @@
 use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::math::normalise_vector::VECTOR_RVA;
 use crate::scene::draw_object_faces::{LIST_RVA, LISTED_RVA};
 use crate::scene::face_faces_away::face_faces_away;
 use crate::scene::face_sort_key::{KEY_RVA, face_sort_key};
 use crate::scene::polygon::dword;
-use crate::service::harness::{Region, at, capture, restore};
+use crate::service::harness::{at, capture, restore};
 use rc2k_core::scene::face_tests::{Face, FaceWorld, dropped, listed_key};
 
 // ---- game data ----
@@ -227,22 +226,6 @@ pub unsafe fn list_object_face(face: usize) -> Result<(), Refused> {
         game_write(LISTED_RVA, listed + 1);
         Ok(())
     }
-}
-
-/// Everything a call may write, as the list stands before it.
-pub fn regions() -> Vec<Region> {
-    let listed = unsafe { game_read::<u32>(LISTED_RVA) }.min(LIST_ROOM - 1) as usize;
-    vec![
-        at(SEE_THROUGH_RVA),
-        (game_addr(HIDDEN_GROUPS_RVA) as u32, 8),
-        at(COUNT_RVA),
-        at(KEY_RVA),
-        at(LISTED_RVA),
-        (game_addr(LIST_RVA + listed * 0x10) as u32, 0x10),
-        // What `scene::face_faces_away` works in.
-        (game_addr(rva(0x6396A0)) as u32, 60),
-        (game_addr(VECTOR_RVA) as u32, 12),
-    ]
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).

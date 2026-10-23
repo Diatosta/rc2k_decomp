@@ -44,17 +44,3 @@ pub unsafe fn spread_point(inputs: [[u8; 10]; 4]) -> ([[u8; 10]; 3], u32) {
         ([extended(b), extended(c), extended(d)], third)
     }
 }
-
-/// The converted version (plain floats): the hook's.
-// Converted: `rc2k_core::marks::particles::spread`
-pub unsafe fn spread_point_plain(inputs: [[u8; 10]; 4]) -> ([[u8; 10]; 3], u32) {
-    use rc2k_core::math::extended::{from_f64, to_f64};
-    let [spread, b, c, d] = inputs.map(|v| to_f64(v) as f32);
-    unsafe {
-        let scale = f64::from_bits(game_read(SCALE_RVA));
-        let (point, third) =
-            rc2k_core::marks::particles::spread(spread, [b, c, d], game_read(RANDOM_RVA), scale);
-        game_write(RANDOM_RVA, third);
-        (point.map(|v| from_f64(v as f64)), third)
-    }
-}

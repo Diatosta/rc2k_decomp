@@ -309,13 +309,3 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     left.apply(r);
     Ok(())
 }
-
-/// Everything the step and its calls write, for the tests.
-pub fn test_regions() -> Vec<Region> {
-    let mut all = step_regions();
-    all.extend(ph::find_clear_place::regions());
-    all.extend(ph::update_camera::camera_regions());
-    all.extend(ph::damage_model::regions());
-    all.push(ph::face_contact::faces_region());
-    all
-}

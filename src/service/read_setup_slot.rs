@@ -13,10 +13,9 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::files::numbered_path::{buffer as path_buffer, numbered_path_in_game};
-use crate::files::read_file::{LAST_FILE_PATH_RVA, read_file};
-use crate::framework::{game_addr, game_ptr, rva};
-use crate::service::harness::{Region, at};
+use crate::files::numbered_path::numbered_path_in_game;
+use crate::files::read_file::read_file;
+use crate::framework::{game_ptr, rva};
 use std::ptr::copy_nonoverlapping;
 
 // ---- game data ----
@@ -56,17 +55,4 @@ pub unsafe fn read_setup_slot(slot: u32) -> Result<bool, Refused> {
             _ => Ok(false),
         }
     }
-}
-
-/// What reading slot `slot` may write.
-pub fn regions(slot: u32) -> Vec<Region> {
-    let mut regions = vec![
-        (game_addr(SETUP_FILE_RVA) as u32, SETUP_FILE_LEN),
-        (path_buffer() as u32, 0x100),
-        at(LAST_FILE_PATH_RVA),
-    ];
-    if slot < SLOT_COUNT {
-        regions.push((slot_name(slot) as u32, NAME_LEN));
-    }
-    regions
 }

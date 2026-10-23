@@ -19,28 +19,6 @@ const CLOSE_TEXT: usize = rva(0x4DA634); // "AUD: close sound"
 pub const GET_CAPS: u32 = 0x10;
 pub const SET_COOPERATIVE_LEVEL: u32 = 0x18;
 
-/// The places of a `Part`: the log entries the functions call (by address), then the three
-/// calls.
-pub const CALLEES: [usize; 18] = [
-    0x401432, // 0 log_write_l2
-    0x401439, // 1 log_write_l2_nl
-    0x40162D, // 2 log_hex8_l2
-    0x401634, // 3 log_hex8_l2_nl
-    0x40147D, // 4 log_int_l2
-    0x401484, // 5 log_int_l2_nl
-    0x40142B, // 6 log_write_l1_nl
-    0x40A7A9, // 7 audio::stop_primary
-    0x40C655, // 8 audio::release_sound_listener
-    0x40C8A2, // 9 audio::release_a3d
-    0x40A677, // 10 audio::set_primary_format (eax the mode)
-    0,        // 11 (`audio::volume_index` is called as it is)
-    0x40A740, // 12 audio::set_master_volume (eax)
-    0x40C5F9, // 13 audio::open_listener
-    0x40CA17, // 14 audio::open_a3d2 (eax the GUID)
-    0x40C76D, // 15 audio::open_a3d (eax the GUID)
-    0x409EA5, // 16 audio::close_sound
-    0x409E1D, // 17 audio::open_sound (eax the GUID)
-];
 /// (place, eax) -> the carry it leaves (only 10 and 13 have one).
 pub type Part<'a> = &'a mut dyn FnMut(u32, u32) -> Result<bool, Refused>;
 
@@ -212,7 +190,6 @@ pub type CreateSound<'a> = &'a mut dyn FnMut(u32, u32) -> i32;
 /// The game's own `DirectSoundCreate` (the ASI loader's dsound.dll), through its thunk; in
 /// the standalone program DirectSound on SDL (`platform_sound`).
 pub fn game_direct_sound_create(guid: u32, out: u32) -> i32 {
-    #[cfg(feature = "standalone")]
     if crate::framework::standalone() {
         let _ = guid;
         return crate::platform_sound::direct_sound_create(out);
@@ -317,95 +294,3 @@ pub unsafe fn reopen_sound(mode: u32, opened: u32, part: Part) -> Result<bool, R
 }
 
 // ---- for the self-tests ----
-
-use std::sync::Mutex;
-
-/// The stand-ins' notes: (place, eax where it is read: the log calls, 10 and 12).
-pub static NOTED: Mutex<Vec<(u32, u32)>> = Mutex::new(Vec::new());
-
-/// What the listener stand-in (place 13) answers: true for the carry.
-pub static LISTENER_FAILS: std::sync::atomic::AtomicBool =
-    std::sync::atomic::AtomicBool::new(false);
-
-/// What the stand-ins at places 14 .. 17 answer (true: the carry).
-pub static PART_CARRIES: Mutex<[bool; 4]> = Mutex::new([false; 4]);
-
-/// `DirectSoundCreate` in a copy: hands out `TEST_DIRECT_SOUND` (when `CREATE_RESULT` is
-/// 0) and gives `CREATE_RESULT`, its three arguments taken off the stack.
-pub static TEST_DIRECT_SOUND: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
-pub static CREATE_RESULT: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(0);
-
-pub fn test_direct_sound_create(guid: u32, out: u32) -> i32 {
-    use std::sync::atomic::Ordering;
-    NOTED.lock().unwrap().push((0x100, guid));
-    let r = CREATE_RESULT.load(Ordering::SeqCst);
-    if r == 0 {
-        unsafe { write(out, TEST_DIRECT_SOUND.load(Ordering::SeqCst)) };
-    }
-    r
-}
-
-extern "system" fn create_from_copy(guid: u32, out: u32, _outer: u32) -> i32 {
-    test_direct_sound_create(guid, out)
-}
-
-/// The address a copy's `DirectSoundCreate` call is pointed at.
-pub fn create_stand_in() -> usize {
-    create_from_copy as *const () as usize
-}
-
-pub fn handler(place: u32, r: &mut crate::framework::Regs) {
-    let carry = test_part(place, r.eax).unwrap_or(false);
-    r.set_carry(carry);
-}
-
-pub fn noted() -> Vec<(u32, u32)> {
-    std::mem::take(&mut *NOTED.lock().unwrap())
-}
-
-/// The Rust side's part in a test: what the stand-ins note.
-pub fn test_part(place: u32, eax: u32) -> Result<bool, Refused> {
-    let eax = if place < 7 || place == 10 || place == 12 {
-        eax
-    } else {
-        0
-    };
-    NOTED.lock().unwrap().push((place, eax));
-    Ok(place == 13 && LISTENER_FAILS.load(std::sync::atomic::Ordering::SeqCst))
-}
-
-/// A copy whose calls in `CALLEES` go to stand-ins and the rest where they went. (Each
-/// argument is one of the copy's facts, read off IDA.)
-#[allow(clippy::too_many_arguments)]
-pub fn copy(
-    hook: &crate::framework::RawHook,
-    address: usize,
-    len: usize,
-    entry: &[u8],
-    calls: &[usize],
-    jumps_out: &[usize],
-    variables: &[(usize, u32)],
-    references: usize,
-) -> Result<crate::redirect::RedirectedCopy, String> {
-    crate::audio::test_copy::make(
-        hook,
-        &crate::audio::test_copy::Copy {
-            address,
-            len,
-            entry,
-            calls,
-            jumps_out,
-        },
-        &|callee| {
-            if callee == DIRECT_SOUND_CREATE {
-                return Some(create_stand_in());
-            }
-            CALLEES
-                .iter()
-                .position(|&c| c != 0 && rva(c) == callee)
-                .map(|n| crate::install::stand_ins::stand_in(n as u32))
-        },
-        variables,
-        references,
-    )
-}

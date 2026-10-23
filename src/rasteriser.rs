@@ -209,29 +209,6 @@ fn top_left(a: &Point, b: &Point) -> bool {
     (a.y == b.y && b.x > a.x) || b.y < a.y
 }
 
-/// Draws a triangle fan (vertex 0 with each two neighbours).
-///
-/// # Safety
-/// `target.pixels` must hold `target.height` rows of `target.pitch` bytes.
-pub unsafe fn draw_fan(
-    vertices: &[Vertex],
-    target: &Target,
-    states: &States,
-    texture: Option<&Texture>,
-    depth: &mut [f32],
-) {
-    if depth.len() < target.width * target.height {
-        return;
-    }
-    let clip = Clip {
-        left: 0,
-        top: 0,
-        right: target.width,
-        bottom: target.height,
-    };
-    unsafe { draw_fan_in(vertices, target, states, texture, depth.as_mut_ptr(), &clip) };
-}
-
 /// A rectangle of the target: places from (left, top) up to (right, bottom).
 #[derive(Clone, Copy)]
 pub struct Clip {

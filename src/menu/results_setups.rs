@@ -24,10 +24,9 @@
 //! (the pointer table likewise), a null place pointer.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
-use crate::menu::player::{PLAYERS_RVA, player_at};
-use crate::screens::harness::{CallOriginal, Left};
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::framework::{Regs, game_read, game_write, rva};
+use crate::menu::player::player_at;
+use crate::screens::harness::Left;
 
 const PAIRS_RVA: usize = rva(0x7587C8); // dword_7587C8: four (offset, value) pairs
 const OUTER_RVA: usize = rva(0x7559B4); // dword_7559B4
@@ -162,85 +161,6 @@ pub fn score(n: usize) -> Result<(), Refused> {
         p(TOTALS_RVA + 4 * k, sc.total);
     }
     Ok(())
-}
-
-/// Everything they write.
-pub fn regions() -> Vec<Region> {
-    vec![
-        (game_addr(PAIRS_RVA) as u32, 0x20),
-        at(OUTER_RVA),
-        at(INNER_RVA),
-        (game_addr(ORDER_RVA) as u32, 0x10),
-        (game_addr(BONUS_RVA) as u32, 0x50), // 758758 .. 7587A8: bonus, positions, points, extra, sum
-        (game_addr(BEFORE_RVA) as u32, 0x20), // 7587A8 .. 7587C8: before, totals
-    ]
-}
-
-pub fn dispatch_results(
-    hook: &RawHook,
-    r: &mut Regs,
-    call_original: CallOriginal,
-    rust: crate::service::harness::Rust,
-) {
-    dispatch_state(hook, r, call_original, &regions(), rust);
-}
-
-/// The self-test of each: player records of the test's in `g_players`' four places, the
-/// times and totals of several patterns (ties, signs, below and above the stage's time),
-/// the game's stage record (skipped without one), put back.
-pub fn test_results(
-    hook: &RawHook,
-    call_original: CallOriginal,
-    rust: crate::service::harness::Rust,
-) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let target = match stage_time() {
-        Ok(v) => v,
-        Err(_) => return t.skip("no stage records"),
-    };
-    let inputs = [(game_addr(PLAYERS_RVA) as u32, 0x10)];
-    let written = regions();
-    let saved = (capture(&inputs), capture(&written));
-    let mut records = vec![[0u32; 0x40]; 4];
-    let at_record: Vec<u32> = records.iter_mut().map(|r| r.as_mut_ptr() as u32).collect();
-    let patterns: [[i32; 4]; 6] = [
-        [100, 200, 300, 400],
-        [400, 300, 200, 100],
-        [250, 250, 100, 250],
-        [-5, 0x7FFF_FFFF, i32::MIN, 3],
-        [0, 0, 0, 0],
-        [1000, 999, 1001, 1000],
-    ];
-    for (n, times) in patterns.iter().enumerate() {
-        for shift in [0i32, 1] {
-            check_state(
-                &mut t,
-                &format!("pattern {n}, shifted {shift}"),
-                call_original,
-                Regs::SENTINEL,
-                &|| unsafe {
-                    for (k, &r) in at_record.iter().enumerate() {
-                        let time = (target as i32)
-                            .wrapping_add(times[k])
-                            .wrapping_sub(500 * shift);
-                        ((r + 0x88) as *mut u32).write_unaligned(time as u32);
-                        ((r + 0x94) as *mut u32).write_unaligned(0x100 * k as u32 + n as u32);
-                        game_write(PLAYERS_RVA + 4 * k, r);
-                        p(TOTALS_RVA + 4 * k, times[(k + 1) % 4] as u32);
-                        p(POSITIONS_RVA + 4 * k, ((k + n) % 5) as u32);
-                    }
-                },
-                &written,
-                rust,
-            );
-        }
-    }
-    restore(&inputs, &saved.0);
-    restore(&written, &saved.1);
-    drop(records);
-    t.finish()
 }
 
 /// The Rust versions as the harness runs them.

@@ -37,13 +37,12 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::records::find_record::{find_record_in, has_section};
+use crate::records::find_record::find_record_in;
 use crate::saves::gather_savegame::CAR_LEN;
 use crate::saves::write_savegame_slot::FILE_RVA;
 use crate::screens::draw_stage_info::RECORD_TABLE_RVA;
 use crate::screens::harness::{Left, draw_entry};
 use crate::screens::stage_panel::{dword, table_dword};
-use crate::strings::string_table::is_table_id;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -118,29 +117,4 @@ fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     draw_entry("screens::draw_savegame_details", r, &rust)
-}
-
-/// Why what the buffer holds cannot be drawn safely, or None. The original scans the record
-/// table for the saved section and follows what it finds, without checks.
-pub unsafe fn details_unusable() -> Option<&'static str> {
-    unsafe {
-        let payload = (game_addr(FILE_RVA) + PAYLOAD_OFFSET) as u32;
-        if game_read::<u32>(FILE_RVA) != crate::saves::write_savegame_slot::MAGIC {
-            return Some("no saved game is in the buffer");
-        }
-        let (index, section, mode) = (dword(payload + 8), dword(payload + 12), dword(payload + 20));
-        let table = game_addr(RECORD_TABLE_RVA) as u32;
-        if index >= 64 || section >= 64 || !has_section(table, section, 600) {
-            return Some("the saved section or stage is not in the record table");
-        }
-        let title = if mode == 0x13 {
-            table_dword(SECTION_TITLES_RVA, section)
-        } else {
-            dword(find_record_in(table, 0, section) + 0x38)
-        };
-        if !is_table_id(title) || !is_table_id(0x1D9) || !is_table_id(0x1DA) {
-            return Some("the saved section has no title string");
-        }
-        None
-    }
 }

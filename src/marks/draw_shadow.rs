@@ -36,7 +36,6 @@ use crate::scene::cross_product3::cross_product3;
 use crate::scene::matrix3::{Axis, extended, rounded, turn_matrix3, turnable};
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::normalise_vector3;
-use crate::service::harness::{Region, at};
 
 const VIEW_RVA: usize = rva(0x5EA0CC); // unk_5EA0CC
 const MARK_CORNERS_RVA: usize = rva(0x8EB971); // g_marksCorners
@@ -961,83 +960,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { draw_shadow(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-/// The constants a shadow's test sets: the side scales, the in-draw, the up, the light's
-/// way (each `sh`'s, 0xD08 apart from the first's for the second).
-pub struct ShadowTest {
-    pub scales: [usize; 3],
-    pub up: usize,
-    pub light: usize,
-}
-
-pub const FIRST_TEST: ShadowTest = ShadowTest {
-    scales: [rva(0x933F68), rva(0x933F6C), rva(0x933F88)],
-    up: rva(0x934B78),
-    light: rva(0x934BB4),
-};
-
-pub const SECOND_TEST: ShadowTest = ShadowTest {
-    scales: [rva(0x93324C), rva(0x933250), rva(0x93326C)],
-    up: rva(0x933E70),
-    light: rva(0x933EB4),
-};
-
-/// The variables a shadow's test watches and sets.
-pub fn test_vars(sh: &Shadow, st: &ShadowTest) -> (Vec<Region>, Vec<Region>) {
-    let regions: Vec<Region> = vec![(addr(sh.matrix) - 0x1C, 0x100), (addr(VERTICES_RVA), 0x80)];
-    let mut vars = regions.clone();
-    vars.extend([SETTINGS_RVA, TINT_RVA, NEAR_RVA, Z_K_RVA, UV_K_RVA].map(at));
-    vars.push((addr(st.up), 0x58));
-    vars.push((addr(VIEW_RVA), 0x40));
-    vars.push((addr(sh.lifts), 0x10)); // `test_prepare` writes them (left changed until 2026-10-18)
-    vars.push((addr(MARK_CORNERS_RVA) + 0x10 * 0x80, 4 * 0x80));
-    (regions, vars)
-}
-
-/// A shadow's test set-up for case `case` (settings at `sa`).
-pub unsafe fn test_prepare(sh: &Shadow, st: &ShadowTest, sa: u32, case: u32) {
-    let fl = |v: f32| v.to_bits();
-    let k = case as f32;
-    unsafe {
-        game_write(SETTINGS_RVA, sa);
-        ((sa + sh.field) as *mut u32).write_unaligned(fl(0.3 + k * 0.4));
-        game_write(sh.corner, if case == 3 { 0xFFFF_FFFF } else { 0x10 + case });
-        game_write(sh.split, fl(0.5));
-        let consts = [
-            sh.lines[0].1,
-            sh.lines[0].0,
-            sh.lines[1].1,
-            sh.lines[1].0,
-            st.scales[0],
-            st.scales[1],
-            st.scales[2],
-        ];
-        for (n, r) in consts.into_iter().enumerate() {
-            game_write(r, fl(0.2 + n as f32 * 0.15));
-        }
-        let place = addr(sh.matrix) - 0x1C;
-        for n in 0..3usize {
-            game_write(sh.sides[0] + 4 * n, fl([1.0, 0.1, 0.2][n] + k * 0.05));
-            game_write(sh.sides[1] + 4 * n, fl([0.0, 0.3, 1.0][n] - k * 0.05));
-            ((place + 4 * n as u32) as *mut u32).write_unaligned(fl([5.0, 1.0, 40.0][n] + k));
-            game_write(st.light + 4 * n, fl([0.3, -0.9, 0.2][n]));
-        }
-        game_write(st.up, fl(0.05));
-        for n in 0..4 {
-            game_write(sh.lifts + 4 * n, fl(0.01 * n as f32));
-        }
-        for n in 0..16 {
-            game_write(VIEW_RVA + 4 * n, fl(if n % 5 == 0 { 1.0 } else { 0.0 }));
-        }
-        game_write(NEAR_RVA, fl(1.0));
-        game_write(Z_K_RVA, fl(1.0 / 3000.0));
-        game_write(UV_K_RVA, fl(1.0 / 256.0));
-        game_write(TINT_RVA, 0x0040_80C0u32 + case);
-        let corners = addr(MARK_CORNERS_RVA) + 0x10 * 0x80;
-        for n in 0..4 * 0x40u32 {
-            ((corners + 2 * n) as *mut u16).write_unaligned((n * 13) as u16);
-        }
-        std::ptr::write_bytes(addr(VERTICES_RVA) as *mut u8, 0xAA, 0x80);
-    }
 }

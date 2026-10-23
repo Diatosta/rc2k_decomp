@@ -130,7 +130,6 @@ pub mod read_controller;
 pub mod replay_range_caption;
 pub mod results_pages;
 pub mod savegame_page_numbers;
-pub mod savegame_preview;
 pub mod service_area_frame;
 pub mod service_box_frame_1;
 pub mod service_box_frame_2;
@@ -157,13 +156,6 @@ pub mod yes_no_caption;
 static BLANK: AtomicBool = AtomicBool::new(false);
 static BLANK_PREFIX: Mutex<String> = Mutex::new(String::new());
 
-pub fn set_blank(on: bool, prefix: &str) {
-    if let Ok(mut p) = BLANK_PREFIX.lock() {
-        *p = prefix.to_string();
-    }
-    BLANK.store(on, Ordering::Relaxed);
-}
-
 /// True if the hook called `name` is blanked at the moment. A prefix that is itself the full
 /// name of a hook selects only that hook (`screens::draw_time_trial_stage_info` is also how
 /// `screens::draw_selected_stage_menu` starts).
@@ -184,14 +176,4 @@ pub fn line_buffer() -> *mut u8 {
 /// A font object in game memory, by its address in IDA.
 pub fn font_at(addr: usize) -> *mut Font {
     game_ptr(rva(addr))
-}
-
-/// Copies `bytes` (a text with its NUL) to the line buffer.
-pub unsafe fn set_line(bytes: &[u8]) {
-    unsafe { std::ptr::copy_nonoverlapping(bytes.as_ptr(), line_buffer(), bytes.len()) };
-}
-
-/// True if the font object at `addr` has a glyph table, so that text can be measured with it.
-pub fn font_is_loaded(addr: usize) -> bool {
-    unsafe { font_at(addr).read_unaligned() }.glyph_table != 0
 }

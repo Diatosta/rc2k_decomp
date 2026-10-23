@@ -29,7 +29,6 @@
 //! and the self-test was the hook's.
 
 use crate::d3d::draw_fan_unclipped::polygon;
-use crate::d3d::recorder::Call;
 use crate::d3d::set_texture::CURRENT_RVA;
 use crate::d3d::{NO_TEXTURE, Vertex};
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
@@ -142,29 +141,6 @@ impl Outside for Game<'_> {
         self.call(LOG_L1, game_addr(rva(DRAWTRI_TEXT)) as u32);
         self.call(LOG_HEX8_L1, result);
     }
-}
-
-/// Works out what would be asked without asking it. Direct3D is taken to draw, and
-/// the texture asked for becomes the current one, as the layer keeps it.
-#[derive(Default, Debug, PartialEq, Eq)]
-pub struct Foreseen {
-    pub calls: Vec<Call>,
-    pub bad_vertex: bool,
-}
-
-impl Outside for Foreseen {
-    fn set_texture(&mut self, texture: u32) {
-        self.calls.push(Call::Texture(texture));
-        unsafe { game_write(CURRENT_RVA, texture) };
-    }
-    fn draw_fan(&mut self) -> u32 {
-        self.calls.push(Call::Fan(polygon()));
-        0
-    }
-    fn bad_vertex(&mut self) {
-        self.bad_vertex = true;
-    }
-    fn not_drawn(&mut self, _: u32) {}
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).

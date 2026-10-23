@@ -27,12 +27,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::marks::clip_quad::clip_quad;
 use crate::scene::fog_at::fog_at;
-use crate::scene::matrix3::extended;
-use crate::scene::vector3::call_with_three;
-use crate::service::harness::{Region, at, capture, restore};
 
 const DEPTH_RVA: usize = rva(0x8EB8DD); // flt_8EB8DD
 const WHOLE_RVA: usize = rva(0x9356C0); // dword_9356C0
@@ -257,120 +254,4 @@ pub unsafe fn draw_cell_sprite(
 pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe { crate::scene::draw_fan::draw_fan(r, &mut crate::scene::draw_fan::game_part) };
     Ok(())
-}
-
-/// The test, on the copy of the original at `address` (this one or its twin's).
-pub fn test_at(hook: &RawHook, address: usize) -> (usize, usize) {
-    use crate::race::level_init::{note, take_called};
-    use crate::race::mud::copy;
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    if unsafe { game_read::<u32>(crate::marks::setup::SETTINGS_RVA) } == 0 {
-        return t.skip("no marks settings (the clip reads them)");
-    }
-    // fld g_viewMatrix
-    let entry: &[u8] = &[0xD9, 0x05, 0xCC, 0xA2, 0x5E, 0x00];
-    let copy = match copy(
-        address,
-        0x2BE,
-        entry,
-        &[0x9C, 0x2A7, 0x2AE],
-        &[(0x44EA65, 1)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut ring_entry = vec![0u32; 0x94 / 4];
-    ring_entry[0x90 / 4] = 0x0012_3456;
-    let ea = ring_entry.as_ptr() as u32;
-    let regions: Vec<Region> = vec![
-        (game_addr(rva(0x8EB8BD)) as u32, 0x10),
-        (game_addr(rva(0x8EB8D5)) as u32, 12),
-        at(WHOLE_RVA),
-        (game_addr(VERTICES_RVA) as u32, 0xC0),
-        at(VERTEX_COUNT_RVA),
-        (game_addr(rva(0x7687F4)) as u32, 6 * 0x20),
-        at(rva(0x93CC94)),
-    ];
-    let mut vars = regions.clone();
-    vars.extend(
-        [
-            NEAR_RVA,
-            rva(0x624088),
-            rva(0x62409C),
-            rva(0x6240A0),
-            rva(0x8EB96D),
-            rva(0x63761C),
-        ]
-        .map(at),
-    );
-    vars.push((game_addr(rva(0x5EA2CC)) as u32, 0x40));
-    vars.push((game_addr(rva(0x63661C)) as u32, 0x100));
-    let saved = capture(&vars);
-    let put = |r: usize, v: f32| unsafe { game_write(r, v.to_bits()) };
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for case in 0..5u32 {
-        let k = case as f32;
-        let place = [
-            extended((k * 9.0 - 20.0).to_bits()),
-            extended((3.0 + k).to_bits()),
-            extended((if case == 2 { -10.0 } else { 50.0 + k * 40.0 }).to_bits()),
-        ];
-        let before = Regs {
-            eax: [0, 7, 0x20, 0x40, 3][case as usize],
-            ebx: (case * 0x3A1) & 0xFFF,
-            ecx: 0x8000_0000 + case,
-            edx: 4 + case * 6,
-            esi: ea,
-            ..Regs::SENTINEL
-        };
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            for n in 0..16 {
-                put(rva(0x5EA2CC) + 4 * n, if n % 5 == 0 { 1.0 } else { 0.0 });
-            }
-            put(rva(0x5EA2CC) + 0x38, 2.0);
-            put(NEAR_RVA, 1.0);
-            put(rva(0x624088), 320.0);
-            put(rva(0x62409C), 320.5);
-            put(rva(0x6240A0), 240.25);
-            put(rva(0x8EB96D), 1.0 / 3000.0);
-            game_write(rva(0x63761C), 0x40u32);
-            for n in 0..0x100 {
-                game_write(rva(0x63661C) + n, (n * 3) as u8);
-            }
-            std::ptr::write_bytes(game_addr(VERTICES_RVA) as *mut u8, 0xAA, 0xC0);
-        };
-        prepare();
-        take_called();
-        let mut ro = before;
-        unsafe { call_with_three(&mut ro, copy.addr(), &place) };
-        let theirs = (Some(regs(&ro)), take_called(), capture(&regions));
-        prepare();
-        let mine = unsafe {
-            draw_cell_sprite(&before, place, &mut |p, r| {
-                note(p, r);
-                Ok(())
-            })
-        };
-        let mine = (
-            mine.as_ref().ok().map(regs),
-            take_called(),
-            capture(&regions),
-        );
-        t.check(theirs == mine, || {
-            format!(
-                "case {case}: original {:x?} {:x?}; rust {:x?} {:x?}; state first differs at {:?}",
-                theirs.0,
-                theirs.1,
-                mine.0,
-                mine.1,
-                theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b)
-            )
-        });
-    }
-    restore(&vars, &saved);
-    drop(ring_entry);
-    t.finish()
 }

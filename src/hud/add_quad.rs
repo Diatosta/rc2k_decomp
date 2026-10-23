@@ -23,20 +23,6 @@ use rc2k_core::hud::quads;
 pub const QUAD_RVA: usize = rva(0x75BFB0); // dword_75BFB0 .. dword_75BFE4
 const SCALE_RVA: [usize; 2] = [rva(0x75C00C), rva(0x75C010)]; // flt_75C00C, flt_75C010
 
-/// The quad record at each call, as the tests note it (`note_quad`, `take_quads`).
-static QUADS: std::sync::Mutex<Vec<(u32, [u32; 14])>> = std::sync::Mutex::new(Vec::new());
-
-/// For `install::stand_ins::set_handler` and the Rust side of a test: the call's place
-/// and the quad record noted.
-pub fn note_quad(place: u32, _r: &mut Regs) {
-    let q: [u32; 14] = unsafe { game_read(QUAD_RVA) };
-    QUADS.lock().unwrap().push((place, q));
-}
-
-pub fn take_quads() -> Vec<(u32, [u32; 14])> {
-    std::mem::take(&mut *QUADS.lock().unwrap())
-}
-
 /// A call by place: 1 `add_polygon`.
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 

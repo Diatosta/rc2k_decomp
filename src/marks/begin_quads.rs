@@ -22,7 +22,6 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::service::harness::{Region, at};
 
 const TEXTURE_RVA: usize = rva(0x5D1E10); // dword_5D1E10
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices: 0x20 bytes each
@@ -99,10 +98,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
         }
     }
     Ok(())
-}
-
-pub fn regions() -> Vec<Region> {
-    let mut r = vec![(game_addr(VERTICES_RVA) as u32, 0x80)];
-    r.extend([COUNT_RVA, SCALE_RVA, CLEARED_RVA].map(at));
-    r
 }

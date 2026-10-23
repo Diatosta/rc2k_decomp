@@ -10,7 +10,7 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, game_read, rva};
 use crate::text::draw_text::Canvas;
 
-pub use rc2k_core::screens::players_results::{Layout, NO_TIME, WITH_POINTS, WITHOUT_POINTS};
+pub use rc2k_core::screens::players_results::{Layout, WITH_POINTS, WITHOUT_POINTS};
 
 fn k(a: usize) -> u32 {
     unsafe { game_read(rva(a)) }
@@ -106,11 +106,6 @@ unsafe fn prepare(layout: &Layout) -> Result<Prepared, Refused> {
             speeds,
         })
     }
-}
-
-/// Whether the page would refuse (for the tests).
-pub unsafe fn refuses(layout: &Layout) -> bool {
-    unsafe { prepare(layout) }.is_err()
 }
 
 /// The page. Converted: `rc2k_core::screens::players_results` (what it needs read and checked

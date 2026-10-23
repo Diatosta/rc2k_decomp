@@ -22,7 +22,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::Regs;
 use crate::net::lobby::{
-    CHAT, CHAT_LINE, CHAT_TEXT, MEASURE_TEXT, Part, STR_APPEND, a, block, lobby_entry, put_text,
+    CHAT, CHAT_LINE, CHAT_TEXT, MEASURE_TEXT, Part, STR_APPEND, a, block, lobby_entry,
 };
 
 const CHAT_FONT: usize = 0x51E424; // dword_51E424
@@ -131,31 +131,4 @@ pub fn add_chat_line(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     lobby_entry(r, add_chat_line)
-}
-
-/// The test's answers: `str_append` done; a line's width 0x50 a character.
-pub fn chat_answers() -> crate::net::lobby::Answer {
-    Box::new(|place, r| match place {
-        STR_APPEND => {
-            r.ebx = unsafe {
-                crate::strings::str_append::str_append(r.eax as *const u8, r.ebx as *mut u8)
-            } as u32
-        }
-        MEASURE_TEXT => {
-            let mut n = 0;
-            while byte(r.ebx + n) != 0 {
-                n += 1;
-            }
-            r.eax = 0;
-            r.ecx = 0x50 * n;
-            r.ebx = 1;
-            r.edx = 0x22;
-        }
-        _ => {}
-    })
-}
-
-/// The chat as a test starts it: "a\nb\nc\nd\ne\nf\ng\nh".
-pub fn test_chat() {
-    put_text(CHAT, b"a\nb\nc\nd\ne\nf\ng\nh");
 }

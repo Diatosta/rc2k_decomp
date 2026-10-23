@@ -29,7 +29,6 @@ use crate::hud::add_quad::QUAD_RVA;
 use crate::hud::batch::TEXTURE_RVA;
 use crate::hud::draw_marker::RECTS_RVA;
 use crate::hud::draw_signs::row;
-use crate::service::harness::{Region, at};
 use rc2k_core::hud::panels;
 
 pub const TIMES_RVA: [usize; 3] = [rva(0x75C074), rva(0x75C078), rva(0x75C07C)];
@@ -279,21 +278,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { layout_0(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-/// What the layouts write themselves (for their tests).
-pub fn regions() -> Vec<Region> {
-    let mut r: Vec<Region> = [
-        TEXTURE_RVA,
-        QUAD_RVA,
-        QUAD_RVA + 0x14,
-        PICK_RVA,
-        NEEDLE_KIND_RVA,
-        LEADING_RVA,
-        SIGN_RVA,
-    ]
-    .map(at)
-    .to_vec();
-    r.push((game_addr(DIGITS_RVA) as u32, 0x18));
-    r
 }

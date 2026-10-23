@@ -11,12 +11,9 @@
 //! This file: the places, the quads' shared steps and the tests' frame.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, SelfTest, call_game, game_addr, rva};
+use crate::framework::{Regs, rva};
 use crate::physics::flow::{a, base, p, x87_run};
 use crate::race::car_starts::Part;
-use crate::redirect::RedirectedCopy;
-use crate::service::harness::{Region, capture};
-use std::sync::Mutex;
 
 pub const TEXTURE: u32 = 0;
 pub const STATE: u32 = 1;
@@ -129,106 +126,3 @@ pub fn draw(r: &Regs, part: Part) -> Result<(), Refused> {
 }
 
 // ---- for the self-tests ----
-
-/// The calls noted: (place, eax, ebx, ecx, esi, edi, and for a draw the vertices; for a
-/// quad the two rectangles).
-type Noted = (u32, [u32; 5], Vec<u8>);
-static NOTED: Mutex<Vec<Noted>> = Mutex::new(Vec::new());
-
-fn bytes(at: u32, n: usize) -> Vec<u8> {
-    unsafe { std::slice::from_raw_parts(at as *const u8, n) }.to_vec()
-}
-
-/// The stand-ins' handler and the Rust side's part: note the call (and leave the
-/// registers as the noted calls would, every one of them keeping them).
-pub fn note(place: u32, r: &mut Regs) {
-    let extra = match place {
-        DRAW => bytes(a(VERTS), 0x80),
-        QUAD | TURNED => [bytes(r.eax, 16), bytes(r.ebx, 16)].concat(),
-        _ => Vec::new(),
-    };
-    NOTED
-        .lock()
-        .unwrap()
-        .push((place, [r.eax, r.ebx, r.ecx, r.esi, r.edi], extra));
-}
-
-fn note_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    note(place, r);
-    Ok(())
-}
-
-fn handler(place: u32, r: &mut Regs) {
-    note(place, r);
-}
-
-/// A copy of one of the five whose calls (at `calls`) go to the stand-ins by place.
-pub fn copy_of(
-    address: usize,
-    len: usize,
-    entry: &[u8],
-    calls: &[usize],
-) -> Result<RedirectedCopy, &'static str> {
-    crate::install::stand_ins::set_handler(handler);
-    unsafe {
-        RedirectedCopy::new(game_addr(rva(address)), len, entry, calls, &|c| {
-            PLACES
-                .iter()
-                .position(|&k| rva(k) == c)
-                .map(|n| crate::install::stand_ins::stand_in(n as u32))
-        })
-    }
-}
-
-/// What the tests compare: the vertices, the screen's tables and layout words.
-pub fn test_regions() -> Vec<Region> {
-    vec![
-        (a(VERTS), 0x80),
-        (a(0x5183CC), 4),
-        (a(0x5BEAD0), 0x140),
-        (a(0x5C2A0C), 0x20),
-        (a(0x5BEBF0), 0x18),
-    ]
-}
-
-/// One case: the copy and the Rust version (its calls noted) from the same state.
-pub fn both(
-    t: &mut SelfTest,
-    what: &str,
-    copy: &RedirectedCopy,
-    entry: Regs,
-    fill: &dyn Fn(),
-    rust: unsafe fn(&Regs, Part) -> Result<Regs, Refused>,
-) {
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    let all = test_regions();
-    fill();
-    NOTED.lock().unwrap().clear();
-    let mut ro = entry;
-    unsafe { call_game(&mut ro, copy.addr()) };
-    let theirs = (
-        Some(regs(&ro)),
-        std::mem::take(&mut *NOTED.lock().unwrap()),
-        capture(&all),
-    );
-    fill();
-    let mine = unsafe { rust(&entry, &mut note_part) };
-    let mine = (
-        mine.as_ref().ok().map(regs),
-        std::mem::take(&mut *NOTED.lock().unwrap()),
-        capture(&all),
-    );
-    t.check(theirs == mine, || {
-        let diff = theirs.2.iter().zip(&mine.2).position(|(x, y)| x != y);
-        let call = theirs.1.iter().zip(&mine.1).position(|(x, y)| x != y);
-        let shown = call.map(|n| (n, &theirs.1[n], &mine.1[n]));
-        format!(
-            "{what}: original {:x?} ({} calls); rust {:x?} ({} calls); first different call \
-             (index, original, rust) {shown:x?}; memory first differs at {diff:x?}",
-            theirs.0,
-            theirs.1.len(),
-            mine.0,
-            mine.1.len()
-        )
-    });
-}

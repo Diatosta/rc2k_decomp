@@ -1,7 +1,5 @@
 //! The game's side of the sound: the commands it sends to the audio thread.
 
-use crate::framework::GameHook;
-
 pub mod apply_settings;
 pub mod car_cue_sound;
 pub mod car_engine_state;
@@ -50,7 +48,6 @@ pub mod repeat_spot_voices;
 pub mod revs_sound;
 pub mod sample_duration;
 pub mod sample_settings;
-pub mod send_command;
 pub mod send_command_2;
 pub mod send_command_7;
 pub mod send_command_8;
@@ -81,5 +78,3 @@ pub mod thin_spot_voices_all;
 pub mod throttle_sound;
 pub mod turn_parts;
 pub mod wait_for_commands;
-
-pub static HOOKS: &[&dyn GameHook] = &[&send_command::HOOK];

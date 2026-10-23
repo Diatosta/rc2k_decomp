@@ -24,8 +24,6 @@ use crate::field;
 use crate::framework::{Regs, game_addr, game_read};
 use crate::input::devices::{STATE_LEN, STATE_RVA, at, com_call, put};
 use crate::input::types::InputDevice;
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicU32, Ordering};
 
 /// A call by place (see the header): eax the device, and for 1 the result back in eax.
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
@@ -101,70 +99,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { poll_device(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-/// What the test's device's `GetDeviceState` gives back, and the state it writes.
-static FAILS: AtomicU32 = AtomicU32::new(0);
-static TEST_STATE: Mutex<[u8; STATE_LEN]> = Mutex::new([0; STATE_LEN]);
-/// The test device's methods called, by slot.
-pub static NOTED: Mutex<Vec<u32>> = Mutex::new(Vec::new());
-
-extern "system" fn test_poll(_: u32) -> u32 {
-    NOTED.lock().unwrap().push(0x64);
-    0
-}
-
-extern "system" fn test_get_state(_: u32, len: u32, to: u32) -> u32 {
-    NOTED.lock().unwrap().push(0x24);
-    let s = TEST_STATE.lock().unwrap();
-    unsafe {
-        std::ptr::copy_nonoverlapping(s.as_ptr(), to as *mut u8, (len as usize).min(STATE_LEN))
-    };
-    FAILS.load(Ordering::SeqCst)
-}
-
-extern "system" fn test_acquire(_: u32) -> u32 {
-    NOTED.lock().unwrap().push(0x1C);
-    0
-}
-
-extern "system" fn test_release(_: u32) -> u32 {
-    NOTED.lock().unwrap().push(0x08);
-    0
-}
-
-extern "system" fn test_unacquire(_: u32) -> u32 {
-    NOTED.lock().unwrap().push(0x20);
-    0
-}
-
-/// A device object of the test's: its table's slots 0x08 (`Release`), 0x1C (`Acquire`),
-/// 0x20 (`Unacquire`), 0x24 (`GetDeviceState`) and 0x64 (`Poll`) the ones above.
-pub struct TestDevice {
-    table: Vec<u32>,
-    object: Box<u32>,
-}
-
-impl TestDevice {
-    pub fn new() -> Self {
-        let mut table = vec![0u32; 0x70 / 4];
-        table[0x08 / 4] = test_release as *const () as u32;
-        table[0x1C / 4] = test_acquire as *const () as u32;
-        table[0x20 / 4] = test_unacquire as *const () as u32;
-        table[0x24 / 4] = test_get_state as *const () as u32;
-        table[0x64 / 4] = test_poll as *const () as u32;
-        let object = Box::new(table.as_ptr() as u32);
-        Self { table, object }
-    }
-
-    pub fn address(&self) -> u32 {
-        let _ = &self.table;
-        &*self.object as *const u32 as u32
-    }
-}
-
-impl Default for TestDevice {
-    fn default() -> Self {
-        Self::new()
-    }
 }

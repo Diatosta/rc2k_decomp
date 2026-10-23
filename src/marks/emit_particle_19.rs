@@ -24,15 +24,14 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, SelfTest, game_read, game_write, rva};
-use crate::marks::emit_particle_6::{TEST_ENTRIES, TestEmitter};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::emitters::*;
 use crate::marks::jitter_point::jitter_point;
 use crate::marks::setup::SEED_RVA;
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
-use crate::screens::harness::{CallOriginal, Left};
-use crate::service::harness::{Region, Rust, at as at_rva, check_state, restore, state_entry};
+use crate::screens::harness::Left;
+use crate::service::harness::{Region, at as at_rva, state_entry};
 
 const LEVEL_RVA: usize = rva(0x93A1CE); // dword_93A1CE
 const MOTION_RVA: usize = rva(0x93A1C2); // dword_93A1C2 .. dword_93A1CA
@@ -190,15 +189,6 @@ pub fn globals(set: &TwinSet) -> Vec<Region> {
     r
 }
 
-/// What it may write: the globals and, when one is to be taken, the next entry.
-pub fn regions(set: &TwinSet) -> Vec<Region> {
-    let mut r = globals(set);
-    if let Some(e) = unsafe { next_entry() } {
-        r.push((e, ENTRY_LEN));
-    }
-    r
-}
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { emit_particle_19(r.esi) }?;
     Ok(Left::nothing())
@@ -208,79 +198,4 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-/// The test of either twin.
-pub fn test_with(t: &mut SelfTest, set: &TwinSet, call_original: CallOriginal, rust: Rust) {
-    let mut test = TestEmitter::new(&[
-        LEVEL_RVA,
-        set.chance_random,
-        SIZE_RVA,
-        set.spin_random,
-        MOTION_RVA,
-        MOTION_RVA + 4,
-        MOTION_RVA + 8,
-    ]);
-    let mut regions = test.regions();
-    // The car's level sits past the test object: a car of its own, 0x500 bytes.
-    let mut car = vec![0u32; 0x140];
-    regions.push((car.as_ptr() as u32, 4 * car.len()));
-    let mut made = 0;
-    let mut case = 0u32;
-    // (the level, the car's +0x4C, taken)
-    for (level, speed, taken) in [
-        (0u32, 1.0f32, 0u32),
-        (8, 30.0, 3),
-        (4, -2.5, 0),
-        (1, 1e5, 1),
-        (7, 0.0, MOST_TAKEN),
-        (8, f32::NAN, 0),
-        (0xFFFF_FFFF, 3.0, 0),
-    ] {
-        case += 1;
-        let (c, m) = (car.as_mut_ptr(), test.matrix.as_mut_ptr());
-        let seed = case.wrapping_mul(0x2545_F491);
-        test.prepare(taken);
-        check_state(
-            t,
-            &format!("level {level:#x}, speed {speed}, taken {taken:#x}"),
-            call_original,
-            Regs {
-                esi: c as u32,
-                ..Regs::SENTINEL
-            },
-            &|| unsafe {
-                restore(&regions, &vec![0xAA; regions.iter().map(|r| r.1).sum()]);
-                let base = test.ring.as_ptr() as u32;
-                for n in 0..TEST_ENTRIES {
-                    let e = (base + n * ENTRY_LEN as u32) as *mut u32;
-                    e.write_unaligned(base + ((n + 1) % TEST_ENTRIES) * ENTRY_LEN as u32);
-                }
-                game_write(RING_CURSOR_RVA, base + 3 * ENTRY_LEN as u32);
-                game_write(RING_COUNT_RVA, taken);
-                game_write(OBJECT_RVA, c as u32);
-                game_write(SEED_RVA, seed);
-                game_write(set.chance_random, seed ^ 0x33);
-                game_write(set.spin_random, seed ^ 0x55);
-                for n in 0..0x140 {
-                    *c.add(n) = (n as f32 * 0.5 - 20.0).to_bits();
-                }
-                *c.add(0x1C / 4) = 0x1234_5678;
-                *c.add(0x24 / 4) = m as u32;
-                *c.add(0x4C / 4) = speed.to_bits();
-                *c.add(set.level_at as usize / 4) = level;
-                for n in 0..0x10 {
-                    *m.add(n) = ((n as f32 - 5.0) * 0.3).to_bits();
-                }
-            },
-            &regions,
-            rust,
-        );
-        if unsafe { game_read::<u32>(RING_COUNT_RVA) } != taken {
-            made += 1;
-        }
-    }
-    t.check(made > 0, || "no case made an entry".into());
-    drop(test);
-    drop(car);
 }

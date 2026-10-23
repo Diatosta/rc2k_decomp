@@ -23,11 +23,6 @@ pub unsafe fn first_device_state() -> [u32; 4] {
     unsafe { device_state(k(0x4F6EE8)) }
 }
 
-/// `math::count_bits` (0x401854): the number of bits set in `v`.
-pub fn count_bits(v: u32) -> u32 {
-    v.count_ones()
-}
-
 /// What `input::axis_moved` leaves: the carry (none), eax.
 pub struct Moved {
     pub carry: bool,

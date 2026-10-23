@@ -15,11 +15,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, SelfTest, game_addr, game_write};
-use crate::menu::item_at::{CURRENT_MENU_RVA, ITEM_LEN, item_at};
+use crate::framework::{Regs, game_addr};
+use crate::menu::item_at::item_at;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, restore, state_entry};
-use std::cell::RefCell;
+use crate::service::harness::state_entry;
 
 use rc2k_core::menu::items::{Font, choosable};
 
@@ -49,11 +48,6 @@ pub fn disable_item(number: u32) -> Result<(), Refused> {
     set_item(number, false)
 }
 
-/// The item the call writes, or nothing for item 0.
-pub fn item_region(number: u32) -> Vec<Region> {
-    item_at(number).map_or(Vec::new(), |item| vec![(item, ITEM_LEN as usize)])
-}
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     disable_item(r.ebx)?;
     Ok(Left::nothing())
@@ -63,34 +57,4 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-/// The twins' test: items 1 .. 12 of a menu of the test's.
-pub fn check_item_setter(
-    t: &mut SelfTest,
-    call_original: unsafe extern "C" fn(*mut Regs),
-    rust: &dyn Fn(&Regs) -> Result<Left, Refused>,
-) {
-    let saved = capture(&[at(CURRENT_MENU_RVA)]);
-    let len = 4 + 12 * ITEM_LEN as usize;
-    let menu = RefCell::new(vec![0xAAu8; len]);
-    let at_menu = menu.borrow_mut().as_mut_ptr() as u32;
-    for number in 1..=12u32 {
-        check_state(
-            t,
-            &format!("item {number}"),
-            call_original,
-            Regs {
-                ebx: number,
-                ..Regs::SENTINEL
-            },
-            &|| unsafe {
-                menu.borrow_mut().fill(0xAA);
-                game_write(CURRENT_MENU_RVA, at_menu);
-            },
-            &[(at_menu, len)],
-            rust,
-        );
-    }
-    restore(&[at(CURRENT_MENU_RVA)], &saved);
 }

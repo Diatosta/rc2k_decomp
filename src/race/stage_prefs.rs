@@ -219,19 +219,6 @@ pub unsafe fn get_mat_crash(entry: &Regs) -> Regs {
     g
 }
 
-/// The skid objects' slots and marks, what `init_skidmarks` writes.
-pub fn skid_regions() -> Vec<crate::service::harness::Region> {
-    let mut r: Vec<_> = SKID_OBJECTS
-        .iter()
-        .map(|&o| (game_addr(rva(o)) as u32 + 0xF48, 16))
-        .collect();
-    r.extend([
-        (game_addr(SKID_MARKS_RVA) as u32, 0x2000),
-        crate::service::harness::at(SKID_COUNT_RVA),
-    ]);
-    r
-}
-
 /// What a step left in the registers, as a `Left` (every general register but esp).
 pub fn left_of(g: &Regs) -> crate::screens::harness::Left {
     use crate::framework::{EAX, EBP, EBX, ECX, EDI, EDX, ESI};

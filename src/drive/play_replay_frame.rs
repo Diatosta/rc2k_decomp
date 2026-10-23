@@ -17,9 +17,9 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::physics::flow::{a, g, p};
+use crate::physics::flow::{g, p};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::race_steps::play_frame`.
@@ -42,20 +42,6 @@ pub unsafe fn play_replay_frame(entry: &Regs) -> Result<Left, Refused> {
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { play_replay_frame(r) }
-}
-
-/// What it and its calls write.
-pub fn regions() -> Vec<Region> {
-    let mut all = crate::drive::read_replay_frame::regions();
-    all.extend(crate::drive::replay_cameras::regions());
-    all.extend([
-        (a(0x6EF7E0), 8),
-        (a(0x7172EC), 4 * 0xA04),
-        (a(0x70F3EC), 0x3F80),
-        (a(0x71BAC8), 0x3C0),
-        (a(0x71BF84), 0x400),
-    ]);
-    all
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

@@ -9,10 +9,7 @@
 //! tests the noting stand-ins of `sound::turn_parts`.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_read, rva, shadow};
-use crate::redirect::RedirectedCopy;
-use crate::service::harness::{Region, capture, restore};
-use crate::sound::turn_parts::{regs7, take_called, test_part};
+use crate::framework::{Regs, game_read, rva};
 
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
@@ -56,33 +53,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The hooks' dispatch. Shadow mode runs the original alone: the requests are taken by
-/// the input thread as they are written, so a request written twice could reach the
-/// device twice. Out of it the Rust version, with the game's calls.
-pub fn dispatch_effects(
-    hook: &RawHook,
-    r: &mut Regs,
-    call_original: unsafe extern "C" fn(*mut Regs),
-    rust: fn(&mut Regs, Part) -> Result<(), Refused>,
-) {
-    hook.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    let mut g = *r;
-    match rust(&mut g, &mut game_part) {
-        Ok(()) => {
-            *r = Regs {
-                esp: r.esp,
-                eflags: r.eflags,
-                ..g
-            }
-        }
-        Err(e) => unsafe { crate::fatal::raise::refused(hook, e, r, call_original) },
-    }
-}
-
 /// `dispatch_effects` without its hook (no shadow mode; a refusal is the caller's).
 pub fn effects_entry(
     r: &mut Regs,
@@ -96,59 +66,4 @@ pub fn effects_entry(
         ..g
     };
     Ok(())
-}
-
-/// What a Rust version does in a test: the registers in, its calls through the part.
-pub type Rust<'a> = &'a dyn Fn(&mut Regs, Part) -> Result<(), Refused>;
-
-/// One test case, as `sound::turn_parts::both` but with a closure: `fill` then the Rust
-/// version with the noting stand-ins, `fill` then the copy; the registers, the calls and
-/// `all` compared. A refusal counts as passed only if `refuses` says so (and the copy is
-/// then not run).
-#[allow(clippy::too_many_arguments)] // one test case's whole description
-pub fn compare(
-    t: &mut SelfTest,
-    what: &str,
-    copy: &RedirectedCopy,
-    entry: Regs,
-    fill: &dyn Fn(),
-    all: &[Region],
-    rust: Rust,
-    refuses: bool,
-) {
-    let start = capture(all);
-    fill();
-    take_called();
-    let mut g = entry;
-    let ok = rust(&mut g, &mut test_part).is_ok();
-    let mine = (regs7(&g), take_called(), capture(all));
-    restore(all, &start);
-    if !ok {
-        t.check(refuses, || format!("{what}: the Rust version refused"));
-        return;
-    }
-    fill();
-    let mut o = entry;
-    unsafe { call_game(&mut o, copy.addr()) };
-    let theirs = (regs7(&o), take_called(), capture(all));
-    restore(all, &start);
-    t.check(!refuses && theirs == mine, || {
-        let diff = theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b);
-        format!(
-            "{what}: original {:x?} {:x?}; rust {:x?} {:x?}; memory first differs at {diff:x?}",
-            theirs.0, theirs.1, mine.0, mine.1
-        )
-    });
-}
-
-/// The two records' effects' requests (what these functions write), as regions.
-pub fn record_regions() -> Vec<Region> {
-    let mut all = Vec::new();
-    for record in [RECORD_1, RECORD_2] {
-        let base = crate::framework::game_addr(rva(record)) as u32;
-        for k in 0..6 {
-            all.push((base + EFFECTS + EFFECT_LEN * k + REQUEST, 4));
-        }
-    }
-    all
 }

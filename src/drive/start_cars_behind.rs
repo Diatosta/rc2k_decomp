@@ -47,16 +47,6 @@ use rc2k_core::drive::pace_cars::{
     wanted_gap,
 };
 
-/// The calls by place (IDA addresses).
-pub const PLACES: [usize; 7] = [
-    0x460C40, // 0: drive::load_car
-    0x460C5D, // 1: drive::store_car
-    0x437613, // 2: drive::start_car_on_line
-    0x4375A5, // 3: drive::checkpoint_taken
-    0x4376E3, // 4: drive::clear_start_state
-    0x4373C0, // 5: drive::note_gap_behind
-    0x4373A4, // 6: drive::note_gap_ahead
-];
 const LOAD: u32 = 0;
 const STORE: u32 = 1;
 const START: u32 = 2;

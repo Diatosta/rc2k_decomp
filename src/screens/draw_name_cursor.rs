@@ -19,16 +19,11 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_read, rva};
 use crate::menu::player::Player;
 use crate::screens::harness::{Left, draw_entry};
-use crate::service::harness::capture;
-use crate::strings::text_from_ids::{TEXT_LEN, text};
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
 pub const BLINK_RVA: usize = rva(0x7559A8); // dword_7559A8
-pub const MEASURING_FONT: usize = 0x51E824;
-pub const FONT: usize = 0x51E8C4;
-
 // ---- Rust version ----
 
 /// `x` is ecx at entry (the measuring's x). Returns the carry.
@@ -59,13 +54,6 @@ fn rust(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     Ok(Left::carry(unsafe {
         draw_name_cursor(r.edi, r.ecx, canvas)
     }?))
-}
-
-/// What it leaves behind: the text buffer the cursor goes through. The measuring font's
-/// leftovers are not compared: the shadow run's canvas does not write font objects back
-/// (as for the other hooks that measure).
-pub fn state() -> Vec<u8> {
-    capture(&[(text() as u32, TEXT_LEN)])
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

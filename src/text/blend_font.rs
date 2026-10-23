@@ -15,10 +15,9 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_ptr, game_read, rva};
+use crate::framework::{game_ptr, game_read, rva};
 use crate::gfx::blend_palette::blend_palette;
-use crate::gfx::pixel_format::{SCRATCH_RVA, surface_format};
-use crate::service::harness::{Region, at};
+use crate::gfx::pixel_format::surface_format;
 use crate::text::font::Font;
 
 // ---- game data ----
@@ -28,18 +27,6 @@ const BLENDED_PALETTE_RVA: usize = rva(0x4F3B74); // dword_4F3B74
 const BLEND_MODE_RVA: usize = rva(0x4F3F74); // dword_4F3F74: 0 = no palette is made, 2 = eased
 const PALETTE_ENTRIES: u32 = 15;
 const FONT_LEN: usize = 0x20;
-
-/// Everything `blend_font` may write.
-pub fn blend_regions() -> [Region; 3] {
-    [
-        (game_addr(BLENDED_FONT_RVA) as u32, FONT_LEN),
-        (
-            game_addr(BLENDED_PALETTE_RVA) as u32,
-            PALETTE_ENTRIES as usize * 4,
-        ),
-        at(SCRATCH_RVA),
-    ]
-}
 
 // ---- Rust version ----
 

@@ -17,12 +17,11 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest};
+use crate::framework::Regs;
 use crate::net::connecting::STATUS_FONT;
 use crate::net::lobby::{
     CHOICE, CHOICE_BEFORE, CONNECTIONS, COPY_PICTURE, DRAW_STRING, DRAW_TEXT, FONT, FRAME_CLOCK,
-    LOCK, MOVE_CLOCK, Part, SHOW_FRAME, Saved, UNLOCK, a, answer, dword, g, lobby_entry, p,
-    run_both,
+    LOCK, MOVE_CLOCK, Part, SHOW_FRAME, UNLOCK, a, g, lobby_entry,
 };
 use rc2k_core::net::screens;
 
@@ -107,86 +106,4 @@ pub fn connections_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     lobby_entry(r, connections_frame)
-}
-
-/// The test of the two list frames.
-#[allow(clippy::too_many_arguments)] // one test's whole description
-pub fn list_frame_test(
-    hook: &RawHook,
-    address: usize,
-    len: usize,
-    entry: &[u8],
-    calls: &[usize],
-    count: usize,
-    record: u32,
-    rust: fn(&Regs, Part) -> Result<Regs, Refused>,
-) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let places = [
-        LOCK,
-        COPY_PICTURE,
-        DRAW_STRING,
-        record,
-        DRAW_TEXT,
-        UNLOCK,
-        SHOW_FRAME,
-    ];
-    let copy = match crate::net::lobby::copy(address, len, entry, calls, &places) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let all = [
-        dword(count),
-        dword(CHOICE),
-        dword(CHOICE_BEFORE),
-        dword(FRAME_CLOCK),
-        dword(MOVE_CLOCK),
-    ];
-    let saved = Saved::new(&all);
-    // (the lock failing, the count, the top, the highlighted, the blink)
-    let cases: [(bool, u32, u32, u32, u32); 6] = [
-        (true, 3, 0, 0, 0),
-        (false, 0, 0, 0, 0),
-        (false, 3, 0, 1, 0),
-        (false, 3, 0, 1, 8),
-        (false, 20, 4, 9, 0),
-        (false, 20, 0, 0x30, 0),
-    ];
-    for (fails, n, top, choice, clock) in cases {
-        run_both(
-            &mut t,
-            &format!(
-                "lock failing {fails}, {n} listed, top {top}, highlighted {choice}, clock {clock}"
-            ),
-            copy.addr(),
-            Regs::SENTINEL,
-            &all,
-            0,
-            &[],
-            &|| {
-                p(count, n);
-                p(CHOICE_BEFORE, top);
-                p(CHOICE, choice);
-                p(FRAME_CLOCK, 0x300 + clock);
-                p(MOVE_CLOCK, 0x300);
-                answer(Box::new(move |place, r| {
-                    if place == LOCK {
-                        r.set_carry(fails);
-                    }
-                    if place == record {
-                        r.eax = 0x0070_0000 + 0x100 * r.eax;
-                    }
-                    if place == DRAW_TEXT {
-                        r.eax = 0;
-                        r.ebx += 5;
-                    }
-                }));
-            },
-            &rust,
-        );
-    }
-    drop(saved);
-    t.finish()
 }

@@ -7,7 +7,6 @@ use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::marks::masks::{CURSOR_RVA, RUN_COUNT_RVA, RUNS_RVA, WORK_RVA};
 use crate::marks::spans::{span_quad, spans_fit, triangle_rows};
 use crate::math::x87;
-use crate::service::harness::{Region, at};
 
 pub const CORNERS_RVA: usize = rva(0x82E422); // g_marksRingCorners: the corner table in use
 const SCALES_RVA: usize = rva(0x89C9B0); // flt_89C9B0, flt_89C9B4, flt_89C9B8
@@ -147,16 +146,4 @@ pub unsafe fn span_ring(entry: &Regs) -> Result<Regs, Refused> {
         g.eax = cursor.wrapping_sub(game_read(WORK_RVA)) >> 3;
     }
     Ok(g)
-}
-
-/// What `span_ring` writes besides the spans, the runs and the shape.
-pub fn ring_regions() -> Vec<Region> {
-    let a = |r: usize| game_addr(r) as u32;
-    let mut r = crate::marks::spans::triangle_regions();
-    r.extend([
-        at(RUN_COUNT_RVA),
-        (a(QUAD_RVA), 0x54),
-        (a(crate::marks::spans::QUAD_TRIANGLE_RVA), 24),
-    ]);
-    r
 }

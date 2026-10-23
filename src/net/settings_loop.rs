@@ -108,16 +108,3 @@ pub fn settings_loop(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     lobby_entry(r, settings_loop)
 }
-
-/// The list screens' tests: a key script for `menu::list_take_key` (Escape after it).
-pub fn keys(script: Vec<u32>) -> crate::net::lobby::Answer {
-    let mut n = 0;
-    Box::new(move |place, r| {
-        if place == LIST_TAKE_KEY {
-            let key = script.get(n).copied().unwrap_or(1);
-            n += 1;
-            r.eax = key;
-            r.ebx = 0x1000 + n as u32;
-        }
-    })
-}

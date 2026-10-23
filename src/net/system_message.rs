@@ -29,8 +29,6 @@ use crate::net::{DESTROY, Part, net_entry};
 use rc2k_core::net::players::{A_PLAYER, System, made_host};
 
 pub const CREATE_PLAYER_OR_GROUP: u32 = 3;
-pub const DESTROY_PLAYER_OR_GROUP: u32 = 5;
-pub const SESSION_LOST: u32 = 0x31;
 pub const HOST: u32 = 0x101;
 
 /// The Rust version on the variables at `v`.

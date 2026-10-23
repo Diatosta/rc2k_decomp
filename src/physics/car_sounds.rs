@@ -11,16 +11,11 @@
 //! for `place_sound_e1`'s exact version (its Rust callers).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::math::x87_run::ext_times;
-use crate::scene::matrix3::{rounded, test_floats};
+use crate::scene::matrix3::rounded;
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::{read_floats, write_floats};
-use crate::screens::harness::Left;
-use crate::service::floats::{
-    FLOAT, Floats, Tolerance, at_test_precisions, check_state_floats, dispatch_state_floats,
-};
-use crate::service::harness::{Region, capture, restore};
 use rc2k_core::physics::sound_places::{PLAY, PLAYING, Slot};
 
 pub const CURRENT: usize = 0x71B3F8; // g_currentCar
@@ -126,144 +121,7 @@ fn offset_part(offset: u32, car: u32, listener: u32) -> [u8; 10] {
     out
 }
 
-/// The dispatch of the four: what the object's slots, the scratch and `extra` hold, the
-/// places within `FLOAT` at extended precision (none when the object is null: refused).
-pub fn dispatch_placed(
-    hook: &'static RawHook,
-    r: &mut Regs,
-    call_original: crate::screens::harness::CallOriginal,
-    extra: &[Region],
-    rust: crate::service::harness::Rust,
-) {
-    let (regions, memory): (Vec<Region>, Vec<(Region, Tolerance)>) = match object() {
-        Ok(o) => {
-            let mut regions = vec![
-                (o + 0x10, 4),
-                (o + 0x238, 0x28),
-                (game_addr(rva(0x6D1AEC)) as u32, 4),
-            ];
-            regions.extend_from_slice(extra);
-            (
-                regions,
-                vec![((o + 0x240, 12), FLOAT), ((o + 0x254, 12), FLOAT)],
-            )
-        }
-        Err(_) => (vec![], vec![]),
-    };
-    let floats = Floats {
-        memory: &memory,
-        regs: &[],
-    };
-    dispatch_state_floats(hook, r, call_original, &regions, &floats, rust);
-}
-
 /// `dispatch_placed` without its hook (Rust callers; a refusal is the caller's).
 pub fn placed_entry(r: &mut Regs, rust: crate::service::harness::Rust) -> Result<(), Refused> {
     crate::service::harness::state_entry(r, rust)
-}
-
-/// What a test sets and the functions write: the test object, the tables, the places,
-/// the view matrix, the band inputs.
-pub fn test_regions(object: u32) -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    vec![
-        (object, 0x260),
-        (a(CURRENT), 4),
-        (a(LISTED), 0x20),
-        (a(OBJECTS), 0x20),
-        (a(0x71A10C), 12),
-        (a(0x71A67C), 12),
-        (a(VIEW_TURN), 0x40),
-        (a(0x6D1AE0), 0xC),
-        (a(0x6D1AEC), 4),
-        (a(0x6D3108), 4),
-        (a(0x6D3CD0), 8),
-        (a(0x71A19C), 4),
-        (a(0x6D1AD4), 4),
-        (a(0x6D3B4C), 12),
-        (a(0x6D321C), 4),
-        (a(0x6D1A90), 0x40),
-    ]
-}
-
-/// The test of one of them: the original and the Rust version on the game's variables
-/// (saved and put back) with a test object; `set` adds the function's own inputs. Exact
-/// at double precision, the places within `FLOAT` at extended.
-pub fn test_sound(
-    hook: &RawHook,
-    original: unsafe extern "C" fn(*mut Regs),
-    rust: &dyn Fn(&Regs) -> Result<Left, Refused>,
-    set: &dyn Fn(u32),
-    extra: &[Region],
-) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let mut cells = vec![0u32; 0x98];
-    let o = cells.as_mut_ptr() as u32;
-    let mut all = test_regions(o);
-    all.extend_from_slice(extra);
-    let saved = capture(&all);
-    let memory = [((o + 0x240, 12), FLOAT), ((o + 0x254, 12), FLOAT)];
-    let tolerant = Floats {
-        memory: &memory,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, fl| {
-        for seed in 0..8u32 {
-            let prepare = || unsafe {
-                for k in 0..0x98u32 {
-                    put(o + 4 * k, 0xA5A5_0000 | k);
-                }
-                game_write(rva(CURRENT), seed % 8);
-                for k in 0..8usize {
-                    game_write(rva(OBJECTS + 4 * k), o);
-                    let v = if (k as u32 + seed).is_multiple_of(3) {
-                        u32::MAX
-                    } else {
-                        k as u32
-                    };
-                    game_write(rva(LISTED + 4 * k), v);
-                }
-                let mut f = [0u32; 24];
-                test_floats(seed * 19 + 3, &mut f);
-                for (k, v) in f.iter().take(16).enumerate() {
-                    game_write(rva(VIEW_TURN + 4 * k), *v);
-                }
-                for k in 0..3usize {
-                    game_write(
-                        rva(0x71A10C + 4 * k),
-                        seed.wrapping_mul(0x0246_8ACE) ^ k as u32,
-                    );
-                    game_write(
-                        rva(0x71A67C + 4 * k),
-                        (seed + 3).wrapping_mul(0x1357_9BDF) >> 2,
-                    );
-                }
-                // The bands' inputs: values about 0 .. 0x50 by the factors 1.
-                for v in [0x6D1AE0usize, 0x6D1AE4, 0x6D1AE8] {
-                    game_write(rva(v), 1.0f32.to_bits());
-                }
-                let band = |n: u32| ((seed * 7 + n * 11) % 0x50) as f32;
-                game_write(rva(0x6D3108), band(1).to_bits());
-                game_write(rva(0x6D3CD0), band(2).to_bits());
-                game_write(rva(0x71A19C), band(3).to_bits());
-                set(seed);
-            };
-            check_state_floats(
-                &mut t,
-                crate::framework::GameHook::name(hook),
-                &format!("control word {word:#x}, seed {seed}"),
-                original,
-                Regs::SENTINEL,
-                &prepare,
-                &all,
-                fl,
-                rust,
-            );
-        }
-    });
-    restore(&all, &saved);
-    drop(cells);
-    t.finish()
 }

@@ -14,7 +14,7 @@
 //! `dword_755980` 1. The one-player ones differ (see `Starter::first`).
 
 use crate::errors::Refused;
-use crate::framework::{Regs, SelfTest};
+use crate::framework::Regs;
 use crate::menu::championship_welcome::addr;
 use crate::menu::event_flow::*;
 use rc2k_core::menu::starters;
@@ -22,10 +22,6 @@ use rc2k_core::menu::starters;
 const REPAIR_SET: usize = 0x75649C; // dword_75649C: 0xF
 
 pub struct Starter {
-    pub address: usize,
-    pub len: usize,
-    pub entry: &'static [u8],
-    pub calls: &'static [usize],
     /// The championship and the seats (see `rc2k_core::menu::starters`).
     pub kind: starters::Starter,
 }
@@ -103,64 +99,6 @@ pub unsafe fn start_event(s: &Starter, entry: &Regs, call: Call) -> Result<Regs,
     // Converted: `rc2k_core::menu::starters::start`.
     starters::start(s.kind, &mut Game { g: *entry, call })?;
     Ok(*entry)
-}
-
-/// A starter's self-test: every car choice left in turn and none, both ways of a saved
-/// game for the A8's first.
-pub fn test_starter(t: SelfTest, s: &'static Starter) -> (usize, usize) {
-    if (0..s.kind.players()).any(|k| player(k) == 0) {
-        return t.skip("a player missing from g_players");
-    }
-    let flow = Flow {
-        address: s.address,
-        len: s.len,
-        entry: s.entry,
-        calls: s.calls,
-        fatal_jumps: &[],
-        writes: &[
-            EVENT_TYPE,
-            CAR_LEFT,
-            REPAIR_SET,
-            INDEX,
-            SECTION,
-            crate::menu::run_championship::STAGES_DONE,
-            PLAYER_COUNT,
-            CURRENT,
-            EVENT_MODE,
-            LEAVE,
-            ENDED_569,
-            ENDED_565,
-            DONE,
-            CONTINUING,
-        ],
-    };
-    let continuing: &[u32] = if s.kind.first() && s.kind.championship == starters::Championship::A8
-    {
-        &[0, 1]
-    } else {
-        &[0]
-    };
-    let prepares: Vec<Box<dyn Fn()>> = continuing
-        .iter()
-        .map(|&c| Box::new(move || set(CONTINUING, c)) as Box<dyn Fn()>)
-        .collect();
-    let mut cases = Vec::new();
-    for (prepare, &c) in prepares.iter().zip(continuing) {
-        for left in 0..=s.kind.players() as usize {
-            cases.push(Case {
-                what: format!("continuing {c}, the car choice left at {left}"),
-                prepare: prepare.as_ref(),
-                script: vec![(
-                    SELECT_CAR_LOOP,
-                    car_choices(s.kind.players() as usize, left),
-                )],
-                before: Regs::SENTINEL,
-            });
-        }
-    }
-    test_flow(t, &flow, &[], &cases, &|r, c| unsafe {
-        start_event(s, r, c)
-    })
 }
 
 /// A starter's hook file: the hook, its dispatch and its test.

@@ -33,26 +33,14 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::field;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, rva};
+use crate::framework::{Regs, game_addr, rva};
 use crate::input::types::{ForceEffect, InputDevice};
-use crate::menu::parts::{Part, copy, dispatch_parted, run_both, test_part};
+use crate::menu::parts::Part;
 
-const START: usize = 0x409AEE; // sub_409AEE
-const SET: usize = 0x409B1F; // sub_409B1F
-const STOP: usize = 0x409B0D; // sub_409B0D
-const CALLEES: [usize; 3] = [START, SET, STOP];
+// sub_409AEE
+// sub_409B1F
+// sub_409B0D
 const ROWS_RVA: usize = rva(0x4F6E08); // unk_4F6E08
-use rc2k_core::input::effect_changes::ROWS;
-
-/// One effect's function, as IDA shows it.
-#[derive(Clone, Copy)]
-pub struct Effect {
-    pub number: u32,
-    pub address: usize,
-    pub len: usize,
-    pub entry: [u8; 6],
-    pub calls: &'static [usize],
-}
 
 fn put(effect: u32, o: u32, v: u32) {
     unsafe { ((effect + o) as *mut u32).write_unaligned(v) }
@@ -120,21 +108,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-pub fn dispatch_effect(
-    hook: &RawHook,
-    r: &mut Regs,
-    call_original: crate::screens::harness::CallOriginal,
-    number: u32,
-) {
-    dispatch_parted(
-        hook,
-        r,
-        call_original,
-        &|r, part| unsafe { effect_change(r, number, part) },
-        game_part,
-    );
-}
-
 /// `dispatch_effect` without its hook (a refusal is the caller's).
 pub fn effect_entry(r: &mut Regs, number: u32) -> Result<(), Refused> {
     crate::menu::parts::parted_entry(
@@ -142,69 +115,4 @@ pub fn effect_entry(r: &mut Regs, number: u32) -> Result<(), Refused> {
         &|r, part| unsafe { effect_change(r, number, part) },
         game_part,
     )
-}
-
-pub fn test_effect(hook: &RawHook, e: Effect) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let copy = match copy(e.address, e.len, &e.entry, e.calls, &CALLEES, &[]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut effect = [0u8; std::mem::size_of::<ForceEffect>()];
-    let mut record = [0u8; 0x40];
-    let (at_effect, at_record) = (effect.as_mut_ptr() as u32, record.as_mut_ptr() as u32);
-    for change in 0..=5u32 {
-        for (ecx, edx, kind) in [
-            (0u32, 0u32, 0u32),
-            (3, 0x80, 1),
-            (0xFFFF_FF80, 0x7F, 2),
-            (13, 0xFFFF_FFFF, 3),
-            (0x7FF, 0x1FF, 1),
-        ] {
-            if e.number == 1 && change == 3 {
-                // Only rows of the table, and blends that do not divide by 0.
-                let row = game_addr(ROWS_RVA) as u32 + 16 * ecx;
-                if ecx as i32 >= ROWS || ecx as i32 <= -1 {
-                    continue;
-                }
-                let (a, b) = (get(row + 4), get(row + 12));
-                if (((b.wrapping_sub(a) as i32).wrapping_mul(edx as i32)) >> 8) as u32
-                    == a.wrapping_neg()
-                {
-                    continue;
-                }
-            }
-            run_both(
-                &mut t,
-                &format!("change {change}, ecx {ecx:#x}, edx {edx:#x}, device kind {kind}"),
-                &copy,
-                &[
-                    (at_effect, std::mem::size_of::<ForceEffect>()),
-                    (at_record, 0x40),
-                ],
-                &|| unsafe {
-                    for k in 0..std::mem::size_of::<ForceEffect>() as u32 {
-                        ((at_effect + k) as *mut u8).write((k * 7 + change) as u8);
-                    }
-                    std::ptr::write_bytes(at_record as *mut u8, 0x33, 0x40);
-                    ((at_record + field!(InputDevice, sensitivity)) as *mut u32)
-                        .write_unaligned(kind);
-                },
-                Regs {
-                    eax: change,
-                    ecx,
-                    edx,
-                    esi: at_record,
-                    edi: at_effect,
-                    ..Regs::SENTINEL
-                },
-                false,
-                &|r| unsafe { effect_change(r, e.number, &mut test_part) },
-            );
-        }
-    }
-    let _ = (&mut effect, &mut record);
-    t.finish()
 }

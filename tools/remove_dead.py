@@ -51,14 +51,45 @@ for path, lines in wanted.items():
             above = s[prev:start].lstrip()
             if above.startswith('///') or above.startswith('#['):
                 start = prev
+            elif above.startswith('//') and not above.startswith('// ----'):
+                # a plain comment goes with the item only if doc comments are above it
+                k = prev
+                while k > 0:
+                    k2 = s.rfind('\n', 0, k - 1) + 1
+                    t = s[k2:k].lstrip()
+                    if t.startswith('///'):
+                        break
+                    if not (t.startswith('//') and not t.startswith('// ----')):
+                        k = -1
+                        break
+                    k = k2
+                if k <= 0:
+                    break
+                start = prev
             else:
                 break
         brace = s.find('{', item)
         semi = s.find(';', item)
-        if re.match(r'\s*(pub(\([^)]*\))? )?(const|static|type) ', head):
+        if re.match(r'\s*(pub(\([^)]*\))? )?(const|static|type) ', head) and not re.match(
+            r'\s*(pub(\([^)]*\))? )?const (unsafe )?fn ', head
+        ):
             end = strip_hook.cut_item(s, s.index('=', item) + 1)
         elif semi != -1 and (brace == -1 or semi < brace) and 'fn ' not in head:
-            end = semi + 1  # `struct X;`
+            # `struct X;`, or a tuple struct `struct X(..);` whose fields may hold `;`
+            # (`[u8; 4]`): its end is the `;` after the closing parenthesis
+            paren = s.find('(', item)
+            if paren != -1 and paren < semi:
+                depth, k = 0, paren
+                while True:
+                    if s[k] == '(':
+                        depth += 1
+                    elif s[k] == ')':
+                        depth -= 1
+                        if depth == 0:
+                            break
+                    k += 1
+                semi = s.index(';', k)
+            end = semi + 1
         else:
             end = strip_hook.cut_item(s, start)
         s = s[:start] + s[end:].lstrip('\n')

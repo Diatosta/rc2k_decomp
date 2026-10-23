@@ -19,7 +19,7 @@ use crate::framework::{Regs, game_write, rva};
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
+use crate::service::harness::state_entry;
 
 pub const FACTOR_RVA: usize = rva(0x93C6C8); // flt_93C6C8
 
@@ -43,11 +43,6 @@ pub unsafe fn blend_corner(entry: &Regs) -> Regs {
         }
     }
     g
-}
-
-/// What it writes.
-pub fn regions(dst: u32) -> Vec<Region> {
-    vec![at(FACTOR_RVA), (dst, 12)]
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

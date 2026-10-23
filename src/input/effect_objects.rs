@@ -24,7 +24,7 @@
 
 use crate::field;
 use crate::input::devices::{at, put};
-use crate::input::di_harness::{EFFECT_LEN, method, slot};
+use crate::input::di_harness::{method, slot};
 use crate::input::types::ForceEffect;
 
 /// `release_effect`'s Rust version.
@@ -63,41 +63,5 @@ pub fn stop_effect(effect: u32) {
     let object = at(effect, field!(ForceEffect, object));
     if object != 0 {
         method(object, slot::STOP, &[]);
-    }
-}
-
-/// An effect of the test's at `entry` (0xA4 bytes): a constant force's parameters
-/// (`input::make_effect`'s), and an object made for it on the wheel (`object`).
-pub fn test_effect(entry: u32, object: bool) {
-    unsafe { std::ptr::write_bytes(entry as *mut u8, 0x5A, EFFECT_LEN as usize) };
-    put(entry, field!(ForceEffect, kind), 1);
-    put(entry, field!(ForceEffect, found), 1);
-    put(entry, field!(ForceEffect, object), 0);
-    let constant = crate::input::di_objects::guid(
-        0x1354_1C20,
-        0x8E33,
-        0x11D0,
-        [0x9A, 0xD0, 0x00, 0xA0, 0xC9, 0xA0, 0x6E, 0x35],
-    );
-    unsafe {
-        std::ptr::copy_nonoverlapping(
-            constant.as_ptr(),
-            (entry + field!(ForceEffect, guid)) as *mut u8,
-            16,
-        )
-    };
-    crate::input::make_effect::fill_parameters(entry);
-    if object {
-        let device = crate::input::di_objects::test_device(1);
-        method(
-            device,
-            slot::CREATE_EFFECT,
-            &[
-                entry + field!(ForceEffect, guid),
-                entry + field!(ForceEffect, effect),
-                entry + field!(ForceEffect, object),
-                0,
-            ],
-        );
     }
 }

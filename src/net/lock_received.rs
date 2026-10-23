@@ -17,9 +17,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{CARRY_FLAG, RawHook, Regs, SelfTest, ZERO_FLAG};
-use crate::net::lobby::{FLAGS, answer, run_both};
-use crate::net::message_vars::{MessageVars, TestVars, as_rust, get, set};
+use crate::framework::Regs;
+use crate::net::message_vars::{MessageVars, get};
 use crate::net::{Part, WAIT_OBJECT, net_entry};
 
 /// The Rust version on the variables at `v`.
@@ -42,44 +41,4 @@ pub fn lock_received(r: &mut Regs, part: Part) -> Result<(), Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     net_entry(r, lock_received)
-}
-
-/// The two wrappers' test: a copy (`len` bytes, its first bytes `entry`, the call at +6
-/// to `place`) against `rust`, each flag setting the callee may leave.
-pub fn test_wrapper(
-    hook: &RawHook,
-    address: usize,
-    entry: &[u8],
-    place: u32,
-    rust: fn(&mut Regs, &MessageVars, Part) -> Result<(), Refused>,
-) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let tv = TestVars::new(0);
-    let copy = match tv.copy(address, 0xD, entry, &[6], &[place], 1) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let v = tv.v;
-    for flags in [0, ZERO_FLAG, CARRY_FLAG] {
-        run_both(
-            &mut t,
-            &format!("the callee's flags {flags:#x}"),
-            copy.addr(),
-            Regs::SENTINEL,
-            &[tv.region()],
-            FLAGS,
-            &[],
-            &|| {
-                set(v.mutex, 0x0BAD_0E5E);
-                answer(Box::new(move |_, r| {
-                    // What the callee may change it keeps; a register changed would show.
-                    r.eflags |= flags;
-                }));
-            },
-            &as_rust(|r, part| rust(r, &v, part)),
-        );
-    }
-    t.finish()
 }

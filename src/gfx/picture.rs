@@ -3,7 +3,6 @@
 //! every menu screen goes through it.
 
 use crate::framework::{game_read, game_write, rva};
-use crate::service::harness::Region;
 
 /// dword_4F49DC: the pointer to the buffer.
 pub const PICTURE_RVA: usize = rva(0x4F49DC);
@@ -22,18 +21,8 @@ pub const SCREEN_BITS_RVA: usize = rva(0x4F4954);
 /// The buffer holds a whole screen: 800 x 600 pixels of four bytes.
 pub const PICTURE_DWORDS: usize = 0x75300;
 
-/// True while a self-test writes pictures of its own into the buffer. One of them
-/// (`gfx::build_glyphs`'s) runs with the game running, and the game's frames then copy a
-/// buffer that changes under them: a shadow comparison of that copy says nothing.
-pub static IN_A_TEST: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
 pub fn picture() -> *mut u8 {
     unsafe { game_read::<u32>(PICTURE_RVA) as *mut u8 }
-}
-
-/// The first `bytes` of the buffer, for capturing and comparing.
-pub fn picture_region(bytes: usize) -> Region {
-    (picture() as u32, bytes)
 }
 
 /// The picture's width, height and row length set (`rc2k_core::gfx::picture_size`).

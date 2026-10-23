@@ -14,11 +14,9 @@
 //! the game).
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, rva, shadow};
-use crate::race::car_starts::{PLACES, Part, note, take_called};
-use crate::redirect::RedirectedCopy;
-use crate::service::harness::{Region, capture};
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use crate::framework::{Regs, game_addr, rva};
+use crate::race::car_starts::Part;
+use crate::service::harness::Region;
 
 pub const BLOCKED: u32 = 13;
 pub const LOG: u32 = 14;
@@ -27,17 +25,6 @@ pub const ON_LINE: u32 = 16;
 pub const NEAREST_IN: u32 = 17;
 pub const FIND_GROUND: u32 = 18;
 pub const COUNT_PROBE: u32 = 19;
-
-/// Our places' functions (IDA addresses).
-const EXTRA: [(usize, u32); 7] = [
-    (0x438E22, COUNT_PROBE),
-    (0x4413F8, NEAREST_IN),
-    (0x441E29, FIND_GROUND),
-    (0x43F0DF, BLOCKED),
-    (0x40142B, LOG),
-    (0x43EFEF, RESET_CAR),
-    (0x43FB00, ON_LINE),
-];
 
 /// The calls in the game.
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
@@ -66,31 +53,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The hooks' dispatch: the original alone in shadow mode, else `rust` with the game's
-/// calls.
-pub fn dispatch_reset(
-    hook: &RawHook,
-    r: &mut Regs,
-    call_original: unsafe extern "C" fn(*mut Regs),
-    rust: unsafe fn(&Regs, Part) -> Result<Regs, Refused>,
-) {
-    hook.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { rust(r, &mut game_part) } {
-        Ok(g) => {
-            *r = Regs {
-                esp: r.esp,
-                eflags: r.eflags,
-                ..g
-            }
-        }
-        Err(e) => unsafe { crate::fatal::raise::refused(hook, e, r, call_original) },
-    }
-}
-
 /// `dispatch_reset` without its hook (Rust callers; a refusal is the caller's).
 pub fn reset_entry(
     r: &mut Regs,
@@ -107,103 +69,10 @@ pub fn reset_entry(
 
 // ---- for the self-tests ----
 
-/// Which calls to place 13 say blocked: bit k (mod 64) for the k-th.
-static PATTERN: AtomicU64 = AtomicU64::new(0);
-static BLOCKED_CALLS: AtomicU32 = AtomicU32::new(0);
-
-/// The stand-ins: stream A's `note`, and for place 13 the carry by the pattern.
-pub fn handler(place: u32, r: &mut Regs) {
-    note(place, r);
-    if place == BLOCKED {
-        let k = BLOCKED_CALLS.fetch_add(1, Ordering::SeqCst);
-        r.set_carry((PATTERN.load(Ordering::SeqCst) >> (k % 64)) & 1 != 0);
-    }
-}
-
-/// The Rust side's part in a test.
-pub fn test_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    handler(place, r);
-    Ok(())
-}
-
-/// Sets the pattern and starts the count over (and the noted calls).
-pub fn start_case(pattern: u64) {
-    PATTERN.store(pattern, Ordering::SeqCst);
-    BLOCKED_CALLS.store(0, Ordering::SeqCst);
-    take_called();
-}
-
-/// A copy of a step whose calls (at `calls`) go to the stand-ins by place.
-pub fn copy_of(
-    address: usize,
-    len: usize,
-    entry: &[u8],
-    calls: &[usize],
-) -> Result<RedirectedCopy, &'static str> {
-    crate::install::stand_ins::set_handler(handler);
-    unsafe {
-        RedirectedCopy::new(game_addr(rva(address)), len, entry, calls, &|c| {
-            PLACES
-                .iter()
-                .position(|&k| rva(k) == c)
-                .map(|n| n as u32)
-                .or_else(|| EXTRA.iter().find(|e| rva(e.0) == c).map(|e| e.1))
-                .map(crate::install::stand_ins::stand_in)
-        })
-    }
-}
-
 /// What the steps read and write: stream A's regions and the reset's two variables
 /// (`dword_614C4C`, `dword_614C50`).
 pub fn regions() -> Vec<Region> {
     let mut r = crate::race::car_starts::regions();
     r.push((game_addr(rva(0x614C4C)) as u32, 8));
     r
-}
-
-/// One case: `fill` puts it in place; the copy and `rust` from the same inputs, the calls
-/// with their registers, the registers left and the memory compared.
-pub fn both(
-    t: &mut SelfTest,
-    what: &str,
-    copy: &RedirectedCopy,
-    pattern: u64,
-    entry: Regs,
-    fill: &dyn Fn(),
-    rust: unsafe fn(&Regs, Part) -> Result<Regs, Refused>,
-) {
-    both_with(t, what, copy, pattern, entry, fill, rust, &[]);
-}
-
-/// `both`, with more regions compared.
-#[allow(clippy::too_many_arguments)] // one case's whole description
-pub fn both_with(
-    t: &mut SelfTest,
-    what: &str,
-    copy: &RedirectedCopy,
-    pattern: u64,
-    entry: Regs,
-    fill: &dyn Fn(),
-    rust: unsafe fn(&Regs, Part) -> Result<Regs, Refused>,
-    extra: &[Region],
-) {
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    let mut all = regions();
-    all.extend_from_slice(extra);
-    fill();
-    start_case(pattern);
-    let mut ro = entry;
-    unsafe { call_game(&mut ro, copy.addr()) };
-    let theirs = (Some(regs(&ro)), take_called(), capture(&all));
-    fill();
-    start_case(pattern);
-    let mine = unsafe { rust(&entry, &mut test_part) };
-    let mine = (mine.as_ref().ok().map(regs), take_called(), capture(&all));
-    t.check(theirs == mine, || {
-        let diff = theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b);
-        format!(
-            "{what}: original {:x?} {:x?}; rust {:x?} {:x?}; memory first differs at {diff:x?}",
-            theirs.0, theirs.1, mine.0, mine.1
-        )
-    });
 }

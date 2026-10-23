@@ -3,7 +3,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_read, game_write, rva};
-use crate::service::harness::{Region, at};
 
 pub const OBJECTS_RVA: usize = rva(0x512A10); // off_512A10
 pub const CARS_RVA: usize = rva(0x63DB90); // dword_63DB90: the cars in the race
@@ -19,17 +18,6 @@ pub fn object(n: u32) -> u32 {
 
 unsafe fn wake(n: u32) {
     unsafe { ((object(n) + 8) as *mut u32).write_unaligned(1) };
-}
-
-/// The eight objects' flags (and the variables), what the two write.
-pub fn regions() -> Vec<Region> {
-    let mut r: Vec<Region> = (0..OBJECTS)
-        .map(object)
-        .filter(|&o| o != 0)
-        .map(|o| (o + 8, 4))
-        .collect();
-    r.extend([at(COUNT_RVA), at(STARTED_RVA)]);
-    r
 }
 
 pub fn objects_there() -> bool {

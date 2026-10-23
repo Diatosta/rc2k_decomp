@@ -26,18 +26,11 @@ use rc2k_core::screens::stage_panel::stage_line;
 
 // ---- game data ----
 
-const HEADING_STRING: u32 = 0x481;
-
 unsafe fn dword(at: *const u8) -> u32 {
     unsafe { at.cast::<u32>().read_unaligned() }
 }
 
 // ---- Rust version ----
-
-/// The line with its NUL. The error is the track pack lookup's.
-pub unsafe fn stage_heading_text(record: *const u8) -> Result<Vec<u8>, FatalError> {
-    unsafe { heading_text(record, HEADING_STRING) }
-}
 
 /// The same line starting with another label string (the stage panels build one with 0x482).
 /// Converted: `rc2k_core::screens::stage_panel::stage_line`.

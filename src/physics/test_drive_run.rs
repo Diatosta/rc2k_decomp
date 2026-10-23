@@ -26,11 +26,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, ECX, EDX, RawHook, Regs, SelfTest};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
+use crate::framework::{EAX, EBX, ECX, EDX, Regs};
 use crate::physics::flow::{a, base, c0, g, guard, p, x87_run};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, restore, state_entry};
+use crate::service::harness::{Region, state_entry};
 
 const DRIVE: usize = 0x71A190; // g_carDriveSpeed
 const GEAR: usize = 0x71A1AC; // g_carGear
@@ -141,41 +140,4 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-/// The test of the run and of `physics::test_drive`: from the same state, the drive force
-/// as it is and by lot.
-pub fn drive_test(
-    hook: &RawHook,
-    call_original: crate::screens::harness::CallOriginal,
-    rust: crate::service::harness::Rust,
-) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let all = regions();
-    let saved = capture(&all);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for case in 0..3u32 {
-                let set = || {
-                    restore(&all, &saved);
-                    if case > 0 {
-                        p(0x5CB968, (1.5f32 * case as f32).to_bits());
-                    }
-                };
-                check_state(
-                    &mut t,
-                    &format!("control word {word:#x}, case {case}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &set,
-                    &all,
-                    rust,
-                );
-            }
-        });
-    }
-    restore(&all, &saved);
-    t.finish()
 }

@@ -126,9 +126,6 @@ pub unsafe fn draw_stage_map_in_game() -> Result<(), Refused> {
 
 /// How a setting draws the map: the Rust version in the game, a counter in the tests.
 pub type Draw<'a> = &'a mut dyn FnMut() -> Result<(), Refused>;
-/// A setting's Rust version.
-pub type SettingFn = unsafe fn(Draw) -> Result<(), Refused>;
-
 /// The choice's settings (converted: `rc2k_core::menu::steps::stage_sub` and
 /// `stage_number`): the variable stepped, then the map drawn again (`draw`: the Rust
 /// version in the game). When the map refuses, the variable is put back first, so that the
@@ -191,79 +188,3 @@ pub unsafe fn previous_stage_number(draw: Draw) -> Result<(), Refused> {
 }
 
 // ---- for the settings' self-tests ----
-
-/// A setting's function: its address and length as IDA shows them, its first bytes, the
-/// offset of its call of the map.
-pub struct Setting {
-    pub address: usize,
-    pub len: usize,
-    pub entry: &'static [u8],
-    pub call: usize,
-    pub variable: usize,
-}
-
-static MAPS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
-
-fn count_map(_: u32, _: &mut Regs) {
-    MAPS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-}
-
-/// A copy whose map call goes to a stand-in that counts it, against the Rust version with a
-/// `draw` that counts; on the game's variable with each of `values`, put back afterwards.
-pub fn check_setting(
-    t: &mut crate::framework::SelfTest,
-    s: &Setting,
-    values: &[u32],
-    rust: SettingFn,
-) -> Result<(), &'static str> {
-    use crate::install::stand_ins::{set_handler, stand_in};
-    use crate::service::harness::{at, capture, restore};
-    use std::sync::atomic::Ordering;
-    let copy = unsafe {
-        crate::redirect::RedirectedCopy::new(
-            game_addr(rva(s.address)),
-            s.len,
-            s.entry,
-            &[s.call],
-            &|_| Some(stand_in(0)),
-        )
-    }?;
-    set_handler(count_map);
-    let var = [at(rva(s.variable))];
-    let saved = capture(&var);
-    for &value in values {
-        let run = |rust_side: bool| {
-            unsafe { game_write(rva(s.variable), value) };
-            MAPS.store(0, Ordering::SeqCst);
-            let before = Regs::SENTINEL;
-            let mut ro = before;
-            let ok = if rust_side {
-                unsafe {
-                    rust(&mut || {
-                        MAPS.fetch_add(1, Ordering::SeqCst);
-                        Ok(())
-                    })
-                }
-                .is_ok()
-            } else {
-                unsafe { crate::framework::call_game(&mut ro, copy.addr()) };
-                ro.preserved_except(
-                    &before,
-                    crate::framework::EAX | crate::framework::ECX | crate::framework::EDX,
-                )
-            };
-            (
-                ok,
-                unsafe { game_read::<u32>(rva(s.variable)) },
-                MAPS.load(Ordering::SeqCst),
-            )
-        };
-        let theirs = run(false);
-        let mine = run(true);
-        t.check(theirs.0 && theirs == mine, || {
-            format!("{value:#x}: original {theirs:x?}; rust {mine:x?}")
-        });
-    }
-    restore(&var, &saved);
-    Ok(())
-}

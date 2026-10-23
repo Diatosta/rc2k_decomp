@@ -9,7 +9,6 @@ use crate::marks::shape_points::{FARTHEST_RVA, TURNED_RVA, turn_shape_checks, tu
 use crate::marks::turns::{clamp_pair, smooth_pair, smooth_steps};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
-use crate::service::harness::{Region, at};
 
 pub const CORNERS_RVA: [usize; 2] = [rva(0x82E426), rva(0x82F03E)]; // g_marksCornersA, _B
 pub const ENTRIES: u32 = 0x81;
@@ -163,17 +162,4 @@ pub unsafe fn make_corners(entry: &Regs) -> Result<Regs, Refused> {
         g.eax = corners;
     }
     Ok(g)
-}
-
-/// What `make_corners` writes besides what `turn_shape_points` does.
-pub fn corner_regions() -> Vec<Region> {
-    let a = |r: usize| game_addr(r) as u32;
-    let mut r: Vec<Region> = CORNERS_RVA
-        .iter()
-        .map(|&t| (a(t), (ENTRIES * ENTRY) as usize))
-        .collect();
-    r.extend([(a(SCALE_RVA), 8), at(crate::scene::vector3::STATUS_RVA)]);
-    r.extend(crate::marks::shape_points::turn_regions());
-    r.extend(crate::marks::turns::step_regions());
-    r
 }

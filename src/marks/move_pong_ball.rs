@@ -26,7 +26,6 @@ use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::pong;
 use crate::marks::pong_ball_hits::pong_ball_hits;
 use crate::math::x87;
-use rc2k_core::marks::pong::Hit;
 
 const LIMITS_RVA: usize = rva(0x7691A6); // flt_7691A6 .. flt_7691C2
 
@@ -77,17 +76,4 @@ pub unsafe fn move_pong_ball(entry: &Regs) -> Regs {
         }
         g
     }
-}
-
-/// The converted version (plain floats): the hook's.
-// Converted: `rc2k_core::marks::pong::Court::move_ball`
-pub unsafe fn move_pong_ball_plain(entry: &Regs) -> Regs {
-    let mut g = *entry;
-    let rules = pong::rules();
-    let (hit, status) = pong::with_court(|c| c.move_ball(&rules));
-    if let Hit::Hit([x, y]) = hit {
-        (g.eax, g.ebx) = (x, y);
-    }
-    g.eax = status;
-    g
 }

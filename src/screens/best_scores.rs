@@ -396,27 +396,6 @@ pub unsafe fn draw_record_times(canvas: &mut dyn Canvas) -> Result<(), Refused> 
     }
 }
 
-/// Whether the record pages have what they read (for the tests).
-pub unsafe fn record_page_ready() -> bool {
-    unsafe {
-        section_there()
-            && k(0x7556D8) != 0
-            && crate::records::trakpak_entry::record_entry(record_at(k(INDEX)) as *const u8).is_ok()
-    }
-}
-
-/// Whether a stage times page has its records, table and track-pack entry (for the tests).
-pub unsafe fn times_page_ready(p: &StageTimes) -> bool {
-    unsafe {
-        let base = (p.records)();
-        if base == 0 || (p.table)() == 0 {
-            return false;
-        }
-        let record = base.wrapping_add(k(p.record).wrapping_mul(0xA4));
-        crate::records::trakpak_entry::record_entry(record as *const u8).is_ok()
-    }
-}
-
 /// `screens::draw_event_best_scores`' (0x4A8DBF): group `dword_7558F4`, the player's own
 /// (+0x14 1) in the highlight fonts.
 pub const EVENT_BEST_SCORES: Table = Table {

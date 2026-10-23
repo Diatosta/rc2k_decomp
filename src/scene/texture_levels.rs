@@ -169,10 +169,3 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     }
     Ok(())
 }
-
-/// The three texture tables.
-pub fn tables() -> Vec<crate::service::harness::Region> {
-    [TAGS_RVA, SYSTEM_LEVELS_RVA, VIDEO_LEVELS_RVA]
-        .map(|t| (game_addr(t) as u32, 4 * SLOTS as usize))
-        .to_vec()
-}

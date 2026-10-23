@@ -35,22 +35,18 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, rva};
-use crate::gfx::blit_marker_pair::{MARKER_X_RVA, MARKER_Y_RVA};
+use crate::framework::{Regs, game_read};
 use crate::menu::item_at::{ITEM_LEN, MENU_HEAD_LEN};
 use crate::menu::update_blink::{BLINK_OFF_RVA, LAST_KEY_TIME_RVA};
 use crate::menu::update_frame_clock::CLOCK_RVA;
-use crate::screens::buttons::{ALT, PLAIN, dword};
-use crate::screens::draw_menu_item_text::item_text_regions;
+use crate::screens::buttons::dword;
 use crate::screens::harness::{Left, draw_entry};
-use crate::service::harness::{Region, at, capture};
 use crate::service::state::MENU_ITEM_RVA;
-use crate::text::blend_font::blend_regions;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-const HIGHLIGHTED_RVA: usize = rva(0x7559D0); // dword_7559D0: 1 while the highlighted item is drawn
+// dword_7559D0: 1 while the highlighted item is drawn
 
 // What an item's +0x1C says goes behind its text.
 
@@ -119,23 +115,6 @@ pub unsafe fn draw_menu_items(
 fn rust(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     unsafe { draw_menu_items(r.edi, r.ebx, r.ecx, canvas) }?;
     Ok(Left::nothing())
-}
-
-/// Everything the function and the ones under it leave behind, but the font objects that
-/// measuring writes.
-pub fn regions() -> Vec<Region> {
-    [
-        &[at(HIGHLIGHTED_RVA), at(MARKER_X_RVA), at(MARKER_Y_RVA)][..],
-        &PLAIN.regions(),
-        &ALT.regions(),
-        &item_text_regions(),
-        &blend_regions(),
-    ]
-    .concat()
-}
-
-pub fn state() -> Vec<u8> {
-    capture(&regions())
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

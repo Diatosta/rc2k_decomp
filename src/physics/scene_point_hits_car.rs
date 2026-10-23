@@ -16,10 +16,10 @@
 
 use crate::errors::Refused;
 use crate::framework::{EBX, ESI, Regs};
-use crate::physics::flow::{a, fill3, g, p};
-use crate::physics::point_hits_car::{self, point_hits_car};
+use crate::physics::flow::{fill3, g, p};
+use crate::physics::point_hits_car::point_hits_car;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 
 /// `g_scenePoints`: the pointer to the scene's points (three whole numbers each).
 pub const SCENE_POINTS: usize = 0x5CCCC0;
@@ -36,12 +36,6 @@ pub unsafe fn scene_point_hits_car(record: u32, object: u32) -> (bool, u32, u32)
 fn rust(r: &Regs) -> Result<Left, Refused> {
     let (inside, ebx, esi) = unsafe { scene_point_hits_car(r.esi, r.ebp) };
     Ok(Left::carry(inside).with(EBX, ebx).with(ESI, esi))
-}
-
-pub fn regions() -> Vec<Region> {
-    let mut all = point_hits_car::regions();
-    all.extend([(a(0x614108), 4), (a(0x6D3B40), 12)]);
-    all
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

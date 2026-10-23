@@ -11,24 +11,7 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::screens::service_boxes::{Inputs, Part, addr, at_esi, quad, quad_part, rd, set};
-
-/// What the code tests and reads.
-pub static INPUTS: Inputs = Inputs {
-    tested: &[
-        (
-            0x755525,
-            &[
-                0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF, 0x10,
-                0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x63,
-            ],
-        ),
-        (0x7559A4, &[0x1]),
-        (0x75AA9C, &[0x1]),
-        (0x75AB38, &[0x1]),
-    ],
-    read: &[0x75AA90, 0x75AA94, 0x75AA98],
-};
+use crate::screens::service_boxes::{Part, addr, at_esi, quad, quad_part, rd, set};
 
 /// The Rust version (see the header): the registers it leaves.
 #[allow(unused_assignments, clippy::needless_late_init)] // the translator's flags, one per `cmp`

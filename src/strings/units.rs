@@ -25,7 +25,3 @@ pub fn figure_bytes(figure: Figure) -> Vec<u8> {
     }
     out
 }
-
-pub fn is_metric() -> bool {
-    units() != 0
-}

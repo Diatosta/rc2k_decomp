@@ -167,7 +167,6 @@ pub const TEXTURE_INFOS_RVA: usize = rva(0x979F30); // g_textureInfos, 0x40 each
 const SURFACE_KINDS_RVA: usize = rva(0x63D9D0); // dword_63D9D0
 /// The map: the stretch's two anchors and what is made of them (0x6236B8 .. 0x6236F8).
 pub const MAP_WORK_RVA: usize = rva(0x6236B8);
-pub const MAP_WORK_LEN: usize = 0x44;
 pub const MAP_X_RVA: usize = rva(0x9FC940); // g_mapX
 pub const MAP_Y_RVA: usize = rva(0xA019A8); // g_mapY
 const MOST_FACES: u32 = 0x10_0000;
@@ -620,24 +619,6 @@ pub unsafe fn map_checkpoints(entry: &Regs) -> Result<Regs, Refused> {
     }
 }
 
-/// `race::build_best_line`'s callees by place, as IDA shows them: the eight steps (and
-/// `nullsub_7`, "speeds", at 3), then the log's four.
-pub const BUILD_CALLEES: &[(usize, u32)] = &[
-    (0x4458A7, 0),
-    (0x4459DF, 1),
-    (0x445AAB, 2),
-    (0x445AF0, 3),
-    (0x445AF1, 4),
-    (0x445FB4, 5),
-    (0x445BB2, 6),
-    (0x445CF1, 7),
-    (0x445E30, 8),
-    (0x401427, 9),
-    (0x40142B, 10),
-    (0x401472, 11),
-    (0x401476, 12),
-];
-
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 const RULE_RVA: [usize; 2] = [rva(0x4DC4A8), rva(0x4DC536)]; // "-----..."
@@ -722,64 +703,3 @@ pub fn build_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 }
 
 // ---- for the self-tests ----
-
-/// A course of the test's for the line's steps: `faces` faces (filled by `fill`), the
-/// first `checks` of `g_checkpointFaces` naming them (by `order`), `g_checkpointCount`
-/// `checks`; the game's put back when dropped.
-pub struct TestLine {
-    pub faces: crate::race::course_data::TestTable,
-    pub points: Vec<i32>,
-    vars: Vec<crate::service::harness::Region>,
-    saved: Vec<u8>,
-}
-
-impl TestLine {
-    /// Each face's first point (+4) is its own number; the points lie on a wavy line.
-    pub fn new(
-        faces: u32,
-        checks: u32,
-        order: &dyn Fn(u32) -> u32,
-        fill: &dyn Fn(usize, &mut [u8]),
-    ) -> Self {
-        use crate::service::harness::{at, capture};
-        let vars = vec![
-            (game_addr(CHECK_FACES_RVA) as u32, 4 * checks as usize + 4),
-            at(CHECK_COUNT_RVA),
-            at(POINTS_RVA),
-        ];
-        let saved = capture(&vars);
-        let points: Vec<i32> = (0..faces as i32)
-            .flat_map(|n| [n * 0x3_1000 - 0x40_0000, n * 77, (n * n * 0x900) ^ 0x1_5555])
-            .collect();
-        let table = crate::race::course_data::TestTable::new(
-            FACES_RVA,
-            crate::race::course_data::FACE_COUNT_RVA,
-            0x40,
-            faces,
-            faces as usize,
-            &|n, f| {
-                fill(n, f);
-                f[4..8].copy_from_slice(&(n as u32).to_le_bytes());
-            },
-        );
-        unsafe {
-            game_write(POINTS_RVA, points.as_ptr() as u32);
-            for k in 0..checks {
-                game_write(CHECK_FACES_RVA + 4 * k as usize, order(k));
-            }
-            game_write(CHECK_COUNT_RVA, checks);
-        }
-        Self {
-            faces: table,
-            points,
-            vars,
-            saved,
-        }
-    }
-}
-
-impl Drop for TestLine {
-    fn drop(&mut self) {
-        crate::service::harness::restore(&self.vars, &self.saved);
-    }
-}

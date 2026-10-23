@@ -34,7 +34,6 @@ use crate::framework::Regs;
 use crate::net::{Part, net_entry};
 use rc2k_core::net::inbox;
 
-pub use rc2k_core::net::inbox::{LONGEST, RECORDS};
 /// The Rust version.
 pub fn store_received(r: &mut Regs, _part: Part) -> Result<(), Refused> {
     let base = r.edi.wrapping_add(0x34);

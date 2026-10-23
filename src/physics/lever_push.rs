@@ -26,10 +26,10 @@ use crate::math::x87_run::mul2_to_int;
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::turn_by_car_matrix::turn_by_car_matrix;
 use crate::physics::turn_by_inverse::turn_by_inverse;
-use crate::scene::matrix3::{extended, rounded, test_floats};
+use crate::scene::matrix3::{extended, rounded};
 use crate::scene::view_matrix::cross_product;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 
 fn a(x: usize) -> u32 {
     game_addr(rva(x)) as u32
@@ -84,56 +84,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { lever_push() })
 }
 
-/// What the function writes.
-pub fn regions() -> Vec<Region> {
-    vec![
-        (a(0x614B54), 0x1C),
-        (a(0x62400C), 4),
-        (a(0x6140E4), 8),
-        (a(0x71A10C), 4),
-        (a(0x71A114), 4),
-    ]
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-/// What the tests set: the spin, the lever, the two factors, both matrices.
-pub fn inputs() -> Vec<Region> {
-    vec![
-        (a(0x71A15C), 12),
-        (a(0x614B44), 12),
-        (a(0x614C48), 4),
-        (a(0x614768), 4),
-        (a(0x71A08C), 0x40),
-        (a(0x71A9A4), 0x40),
-    ]
-}
-
-/// Puts a case in place: values by `seed`, the matrices a turn about y and its inverse.
-pub fn set_inputs(seed: u32) {
-    let mut f = [0u32; 8];
-    test_floats(seed * 13 + 5, &mut f);
-    for k in 0..3 {
-        p(0x71A15C + 4 * k, f[k]);
-        p(0x614B44 + 4 * k, f[k + 3]);
-    }
-    p(0x614C48, (seed as f32 * 0.13).to_bits());
-    p(0x614768, f[6]);
-    let (s, c) = (seed as f32 * 0.41).sin_cos();
-    let turn = [c, 0.0, -s, 0.0, 0.0, 1.0, 0.0, 0.0, s, 0.0, c, 0.0];
-    let back = [c, 0.0, s, 0.0, 0.0, 1.0, 0.0, 0.0, -s, 0.0, c, 0.0];
-    for k in 0..12 {
-        p(0x71A08C + 4 * k, turn[k].to_bits());
-        p(0x71A9A4 + 4 * k, back[k].to_bits());
-    }
-    for k in 12..16 {
-        p(0x71A08C + 4 * k, (k as f32 * 3.0).to_bits());
-        p(0x71A9A4 + 4 * k, (seed as f32).to_bits());
-    }
-    p(0x71A10C, seed.wrapping_mul(0x0123_4567));
-    p(0x71A114, seed.wrapping_mul(0x089A_BCDE));
 }

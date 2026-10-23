@@ -28,14 +28,6 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::menu::parts::{Part, parted_entry};
 
-pub const CALLEES: [usize; 6] = [
-    0x401427, // 0 logfile::log_write_l1
-    0x401622, // 1 logfile::log_hex8_l1
-    0x4015CF, // 2 logfile::log_float_l1
-    0x401472, // 3 logfile::log_int_l1
-    0x401476, // 4 logfile::log_int_l1_nl
-    0x4013DE, // 5 logfile::log_newline_l1
-];
 const WRITE: u32 = 0;
 const HEX8: u32 = 1;
 const FLOAT: u32 = 2;

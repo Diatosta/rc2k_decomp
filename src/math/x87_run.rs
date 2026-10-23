@@ -35,38 +35,6 @@ pub fn sum_times_over(a: u32, b: u32, h: u32, d: u32) -> u32 {
     out
 }
 
-/// The x87's control word now (the precision a call runs at: 0x027F double, 0x037F
-/// extended).
-pub fn control_word() -> u16 {
-    let mut word = 0u16;
-    unsafe {
-        core::arch::asm!("fnstcw word ptr [{o}]", o = in(reg) &raw mut word, options(nostack));
-    }
-    word
-}
-
-/// Runs `f` with the x87's control word set to `word`, then puts the old one back (for
-/// self-tests that try several precisions).
-pub fn with_control_word(word: u16, f: &mut dyn FnMut()) {
-    let mut old = 0u16;
-    unsafe {
-        core::arch::asm!("fnstcw word ptr [{o}]", "fldcw word ptr [{w}]",
-            o = in(reg) &raw mut old, w = in(reg) &raw const word, options(nostack));
-    }
-    f();
-    unsafe {
-        core::arch::asm!("fldcw word ptr [{w}]", w = in(reg) &raw const old, options(nostack));
-    }
-}
-
-/// Control words for those tests: double and extended precision (the game's two; it never
-/// runs at single, 2026-10-20), all exceptions masked, rounding to nearest.
-pub const TEST_CONTROL_WORDS: [u16; 2] = [DOUBLE, 0x037F];
-/// Single precision, all exceptions masked.
-pub const SINGLE: u16 = 0x007F;
-/// Double precision: what the game runs at most of the time (2026-10-20, hook.log).
-pub const DOUBLE: u16 = 0x027F;
-
 /// `fild a; fild c; fsubp; fmul f; fild b; fild c; fsubp; fmul g; fild c; faddp; faddp;
 /// fistp`: c + (a - c) f + (b - c) g as a whole number (the sums in that order).
 pub fn plane_height(a: i32, b: i32, c: i32, f: u32, g: u32) -> i32 {
@@ -177,15 +145,6 @@ pub fn square_times_plus_times(a: u32, k: u32, c: u32, g: u32) -> (u32, u32) {
 pub fn minus_one() -> u32 {
     let mut out = 0u32;
     x87!("fld1", "fchs", "fstp dword ptr [{o}]"; o = &raw mut out);
-    out
-}
-
-/// `fild i; fdiv d; fmul m; fstp`.
-pub fn int_over_times(i: i32, d: u32, m: u32) -> u32 {
-    let (v, mut out) = ([i as u32, d, m], 0u32);
-    x87!("fild dword ptr [{v}]", "fdiv dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]",
-        "fstp dword ptr [{o}]";
-        v = v.as_ptr(), o = &raw mut out);
     out
 }
 

@@ -26,13 +26,8 @@ pub fn stop_stream(entry: &Regs) -> Option<Regs> {
 }
 
 const SENDER: Sender = Sender {
-    address: 0x40F757,
-    len: 0x18,
-    entry: [0x60, 0x33, 0xC0, 0x33, 0xDB, 0x33, 0xC9, 0xBA],
-    calls: &[0xC, 0x11],
     command: 0x9,
     sends: stop_stream,
-    reads: &[],
 };
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

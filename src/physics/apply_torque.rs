@@ -23,14 +23,12 @@
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::math::x87_run::neg_product2_plus;
-use crate::physics::apply_force::BLOCK_LEN;
 use crate::physics::turn_by_inverse_at::turn_by_inverse_at;
 use crate::physics::turn_by_matrix_at::turn_by_matrix_at;
 use crate::scene::vector3::{read_floats, write_floats};
 use crate::scene::view_matrix::cross_product;
 use crate::screens::harness::Left;
 use crate::service::floats::floats_entry;
-use crate::service::harness::Region;
 
 const WORK_RVA: usize = rva(0x6D30B4); // dword_6D30B4
 const CROSS_RVA: usize = rva(0x614274); // flt_614274
@@ -115,50 +113,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-/// What the function writes on the car at `car`.
-pub fn regions(car: u32) -> Vec<Region> {
-    vec![
-        (game_addr(WORK_RVA) as u32, 12),
-        (game_addr(CROSS_RVA) as u32, 12),
-        (car + SPIN_OFFSET, 12),
-    ]
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-/// Fills a test car block (its spin and both matrices) and record by `seed`.
-pub fn fill(rec: u32, car: u32, seed: u32) {
-    unsafe {
-        for k in 0..BLOCK_LEN / 4 {
-            put(car + 4 * k, 0x5A00_0000 | k);
-        }
-        for k in 0..8 {
-            put(
-                rec + 4 * k,
-                ((seed * 7 + k * 3) as f32 * 0.5 - 6.0).to_bits(),
-            );
-        }
-        for k in 0..3 {
-            put(
-                car + SPIN_OFFSET + 4 * k,
-                ((seed + k) as f32 * 0.75 - 1.5).to_bits(),
-            );
-        }
-        let a = seed as f32 * 0.3;
-        let (s, c) = a.sin_cos();
-        let turn = [c, 0.0, -s, 0.0, 0.0, 1.0, 0.0, 0.0, s, 0.0, c, 0.0];
-        let back = [c, 0.0, s, 0.0, 0.0, 1.0, 0.0, 0.0, -s, 0.0, c, 0.0];
-        for k in 0..12 {
-            put(car + 0x9CC + 4 * k as u32, turn[k as usize].to_bits());
-            put(car + 0xB4 + 4 * k as u32, back[k as usize].to_bits());
-        }
-        for k in 12..16u32 {
-            put(car + 0x9CC + 4 * k, (seed as f32 * 0.1).to_bits());
-            put(car + 0xB4 + 4 * k, (k as f32 - seed as f32).to_bits());
-        }
-    }
 }

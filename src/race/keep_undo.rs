@@ -16,10 +16,9 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::race::viewer::{
-    BLOCKS, CAMERAS, PLACES, TABLE_LEN, UNDO_BLOCKS, UNDO_CAMERAS, UNDO_PLACES, dword, get, put,
-    region, regs_entry, table,
+    BLOCKS, CAMERAS, PLACES, TABLE_LEN, UNDO_BLOCKS, UNDO_CAMERAS, UNDO_PLACES, get, put,
+    regs_entry, table,
 };
-use crate::service::harness::Region;
 
 /// The Rust version.
 pub fn keep_undo() {
@@ -32,14 +31,6 @@ pub fn keep_undo() {
             (table(PLACES, n), table(CAMERAS, n)),
         );
     }
-}
-
-pub fn regions() -> Vec<Region> {
-    vec![
-        dword(UNDO_BLOCKS),
-        region(UNDO_PLACES, TABLE_LEN),
-        region(UNDO_CAMERAS, TABLE_LEN),
-    ]
 }
 
 fn rust(r: &Regs) -> Result<Regs, Refused> {

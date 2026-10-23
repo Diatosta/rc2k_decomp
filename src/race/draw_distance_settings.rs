@@ -14,24 +14,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, rva};
+use crate::framework::Regs;
 use crate::race::frame_draw::*;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
-
-pub fn distance_regions() -> Vec<Region> {
-    [
-        0x60A87Cusize,
-        0x60930C,
-        0x609358,
-        0x609308,
-        0x609320,
-        0x60AC80,
-    ]
-    .iter()
-    .map(|&a| at(rva(a)))
-    .collect()
-}
+use crate::service::harness::state_entry;
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { draw_distance_settings() })

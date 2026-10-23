@@ -31,9 +31,6 @@ pub const RECORDS: u32 = 0x1CD;
 pub const RECORD_LEN: usize = 0x40;
 /// "The sample's own".
 pub const OWN: u32 = 0xFFFF_FF91;
-/// "The buffer's" (rates only).
-pub const BUFFER_RATE: u32 = 0xFFFF_FF90;
-
 /// The record of sample `n`, or a refusal past the records.
 pub fn record(n: u32) -> Result<*const u32, BadInput> {
     if n >= RECORDS {
@@ -88,6 +85,3 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
 }
-
-pub const TEST_VOLUMES: [u32; 6] = [OWN, BUFFER_RATE, 0, 0x20, 0x41, 0xFFFF_FFF0];
-pub const TEST_RATES: [u32; 8] = [OWN, BUFFER_RATE, 0, 99, 22050, 200_001, 0x8000_0000, 7];

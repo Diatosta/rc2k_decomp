@@ -25,7 +25,7 @@
 use crate::errors::Refused;
 use crate::field;
 use crate::framework::{Regs, game_addr, rva};
-use crate::input::devices::{RECORD_LEN, at, put};
+use crate::input::devices::{at, put};
 use crate::input::di_harness::{
     DWORD_PROP_RVA, EFFECT_LEN, EFFECTS_AT, a, entry_of, fatal, method, slot,
 };
@@ -107,22 +107,4 @@ pub fn begin_force(record: u32, part: crate::input::make_effect::Part) -> Result
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     begin_force(r.esi, &mut crate::input::make_effect::game_part)?;
     Ok(())
-}
-
-/// A test controller's entry (number 2 of the table) with force feedback or not, and a
-/// record of `start` for it with the device and the strength given.
-pub fn test_controller(rec: u32, start: &[u8], device: usize, force: bool, strength: u32) {
-    unsafe { std::ptr::copy_nonoverlapping(start.as_ptr(), rec as *mut u8, RECORD_LEN) };
-    put(rec, field!(InputDevice, controller), 2);
-    put(
-        entry_of(rec),
-        field!(Controller, force_feedback),
-        force as u32,
-    );
-    put(
-        rec,
-        field!(InputDevice, device),
-        crate::input::di_objects::test_device(device),
-    );
-    put(rec, field!(InputDevice, strength), strength);
 }

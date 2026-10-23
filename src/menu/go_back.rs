@@ -12,17 +12,9 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
+use crate::service::harness::state_entry;
 
 // ---- game data ----
-
-use crate::menu::leaving::{
-    FIELD_A0C_RVA as C_RVA, LEAVE_EVENT_RVA as A_RVA, LEAVE_SCREEN_RVA as B_RVA,
-};
-
-pub fn regions() -> [Region; 3] {
-    [at(A_RVA), at(B_RVA), at(C_RVA)]
-}
 
 // ---- Rust version ----
 

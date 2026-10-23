@@ -13,22 +13,19 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{Regs, game_read};
 use crate::menu::name_lists::{NAME_LEN, REPLAY_NAMES_RVA, REPLAY_PAGE_RVA};
 use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-const X_RVA: usize = rva(0x755A18); // g_markerX
-const Y_RVA: usize = rva(0x755A1C); // g_markerY
-const ROW_RVA: usize = rva(0x7559EC); // dword_7559EC: a work variable, here the row counter
+// g_markerX
+// g_markerY
+// dword_7559EC: a work variable, here the row counter
 
 const SLOT_PAGE_RVA: usize = REPLAY_PAGE_RVA;
-pub const FONT: usize = 0x51E8C4; // stru_51E8C4
-pub const COLUMNS: [i32; 2] = [0xC6, 0x213];
-pub const PAGES: u32 = 5;
-
+// stru_51E8C4
 /// The name of replay slot `slot`.
 fn slot_name(slot: u32) -> *const u8 {
     crate::framework::game_ptr::<u8>(REPLAY_NAMES_RVA).wrapping_add(slot as usize * NAME_LEN)
@@ -47,8 +44,6 @@ pub unsafe fn draw_replay_slot_names(canvas: &mut dyn Canvas) -> Result<(), Refu
     )
     .map(|_| ())
 }
-
-pub const STATE_RVAS: [usize; 3] = [X_RVA, Y_RVA, ROW_RVA];
 
 fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     unsafe { draw_replay_slot_names(canvas) }?;

@@ -49,7 +49,7 @@ const LEVEL_MIPS_RVA: usize = rva(0x5CDABC); // dword_5CDABC
 const TEXTURE_OF_RVA: usize = rva(0x5D2AE8); // dword_5D2AE8
 const ALLOCATE_RVA: usize = rva(0x4051ED); // gfx::allocate_textures
 
-pub use rc2k_core::scene::textures::{Ask, Call};
+pub use rc2k_core::scene::textures::Call;
 
 // ---- Rust version ----
 

@@ -16,33 +16,10 @@
 //! the pixels are copied as they are, whatever the surface depth.
 
 use crate::errors::FatalError;
-use crate::framework::{
-    EAX, EBX, ECX, EDX, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-    shadow,
-};
-use crate::gfx::surface::{
-    BASE_RVA, BITS_PER_PIXEL_RVA, BYTES_PER_PIXEL_RVA, CLIP_BOTTOM_RVA, CLIP_LEFT_RVA,
-    CLIP_RIGHT_RVA, CLIP_TOP_RVA, Clip, PITCH_RVA, Surface, clip, surface,
-};
+use crate::framework::{Regs, game_read, game_write, rva};
+use crate::gfx::surface::{Clip, Surface, clip, surface};
 use std::cell::RefCell;
 use std::ptr::copy_nonoverlapping;
-use std::slice::{from_raw_parts, from_raw_parts_mut};
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
-use windows_sys::Win32::System::Memory::{
-    MEM_COMMIT, MEM_RESERVE, PAGE_EXECUTE_READWRITE, VirtualAlloc,
-};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("gfx::blit_glyph", rva(0x4069B2), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -140,12 +117,7 @@ pub struct Exit {
 /// The part of the surface a glyph may touch: `rows` spans of `row_bytes` bytes, the first at
 /// address `first`, each `pitch` bytes after the one before.
 #[derive(Clone, Copy, Debug)]
-pub struct Area {
-    pub first: u32,
-    pub pitch: i32,
-    pub rows: u32,
-    pub row_bytes: u32,
-}
+pub struct Area {}
 
 /// Draws the glyph `record` at (`x`, `y`). `put(address, bytes)` receives every write.
 /// Returns the registers the original leaves and, unless the glyph is clipped away, the part
@@ -204,12 +176,7 @@ pub unsafe fn blit_glyph(
         ecx: exit.ecx,
         edx: exit.edx,
     };
-    let area = area.map(|a| Area {
-        first: base.wrapping_add(a.first),
-        pitch: a.pitch,
-        rows: a.rows,
-        row_bytes: a.row_bytes,
-    });
+    let area = area.map(|_a| Area {});
     (exit, area)
 }
 
@@ -295,34 +262,6 @@ thread_local! {
     static RECORDER: RefCell<Option<Recorder>> = const { RefCell::new(None) };
 }
 
-/// Runs `f` and returns the calls of `blit_glyph` that reached the hook on this thread
-/// meanwhile. With `swallow`, those calls are only listed: nothing is drawn and the original
-/// is not run, so a test can run original code that draws without touching the surface.
-/// Other threads are not affected. Calls made by original code are seen only while the hook is
-/// enabled (`recording_works`); calls made by Rust code through `blit_glyph_on_surface` always.
-pub fn record_calls(swallow: bool, f: impl FnOnce()) -> Vec<BlitCall> {
-    let outer = RECORDER.with(|r| r.borrow_mut().take());
-    // Inside a swallowing recording everything is swallowed.
-    let swallow = swallow || outer.as_ref().is_some_and(|o| o.swallow);
-    RECORDER.with(|r| {
-        *r.borrow_mut() = Some(Recorder {
-            calls: Vec::new(),
-            swallow,
-        })
-    });
-    f();
-    let mine = RECORDER
-        .with(|r| r.borrow_mut().take())
-        .map(|r| r.calls)
-        .unwrap_or_default();
-    // An enclosing recording sees these calls too.
-    if let Some(mut outer) = outer {
-        outer.calls.extend_from_slice(&mine);
-        RECORDER.with(|r| *r.borrow_mut() = Some(outer));
-    }
-    mine
-}
-
 /// Tells this thread's recording, if there is one, about a call. True if the call is to be
 /// swallowed: the caller must then draw nothing.
 fn note_call(call: BlitCall) -> bool {
@@ -332,139 +271,6 @@ fn note_call(call: BlitCall) -> bool {
             rec.swallow
         })
     })
-}
-
-/// False if the hook is switched off, in which case `record_calls` sees nothing.
-pub fn recording_works() -> bool {
-    HOOK.is_enabled()
-}
-
-// ---- hook ----
-
-impl Area {
-    fn row_start(&self, row: u32) -> u32 {
-        self.first
-            .wrapping_add((row as i32).wrapping_mul(self.pitch) as u32)
-    }
-
-    /// The bytes of all spans, row after row.
-    unsafe fn read(&self) -> Vec<u8> {
-        let mut image = Vec::with_capacity((self.rows * self.row_bytes) as usize);
-        for row in 0..self.rows {
-            let span = self.row_start(row) as *const u8;
-            image.extend_from_slice(unsafe { from_raw_parts(span, self.row_bytes as usize) });
-        }
-        image
-    }
-
-    /// Applies one write to an image made by `read`. False if it is not inside one span.
-    fn apply(&self, image: &mut [u8], addr: u32, bytes: &[u8]) -> bool {
-        for row in 0..self.rows {
-            let at = addr.wrapping_sub(self.row_start(row)) as usize;
-            if at + bytes.len() <= self.row_bytes as usize {
-                let start = (row * self.row_bytes) as usize + at;
-                image[start..start + bytes.len()].copy_from_slice(bytes);
-                return true;
-            }
-        }
-        false
-    }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    let surface = surface();
-    let (glyph, table) = (r.eax, r.esi as *const u8);
-
-    let swallowed = note_call(BlitCall::new(
-        glyph,
-        r.ecx as i32,
-        r.edx as i32,
-        r.ebx,
-        r.esi,
-    ));
-    if swallowed {
-        return;
-    }
-
-    let record = match unsafe { glyph_record(&surface, table, glyph) } {
-        Ok(value) => value,
-        Err(e) => {
-            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-            return;
-        }
-    };
-    let (x, y, palette) = (r.ecx as i32, r.edx as i32, r.ebx as *const u32);
-    let clip = clip();
-    let mut scratch = read_scratch();
-
-    if !shadow() {
-        let (exit, _) = unsafe {
-            blit_glyph(
-                record,
-                x,
-                y,
-                palette,
-                &surface,
-                &clip,
-                &mut scratch,
-                &mut |addr, bytes| {
-                    copy_nonoverlapping(bytes.as_ptr(), addr as *mut u8, bytes.len())
-                },
-            )
-        };
-        write_scratch(&scratch);
-        (r.eax, r.ebx, r.ecx, r.edx) = (exit.eax, exit.ebx, exit.ecx, exit.edx);
-        return;
-    }
-
-    // Shadow: Rust only records its writes; the original draws on the real surface. The
-    // visible spans are read before and after, and must end up as Rust's writes make them.
-    let mut writes: Vec<(u32, Vec<u8>)> = Vec::new();
-    let (exit, area) = unsafe {
-        blit_glyph(
-            record,
-            x,
-            y,
-            palette,
-            &surface,
-            &clip,
-            &mut scratch,
-            &mut |addr, bytes| writes.push((addr, bytes.to_vec())),
-        )
-    };
-    let mut expected = area.map(|a| unsafe { a.read() });
-    let mut stray = false;
-    for (addr, bytes) in &writes {
-        stray |= match (&area, &mut expected) {
-            (Some(a), Some(image)) => !a.apply(image, *addr, bytes),
-            _ => true,
-        };
-    }
-
-    let mut o = *r;
-    unsafe { call_original(&mut o) };
-
-    let pixels_ok = match (&area, &expected) {
-        (Some(a), Some(image)) => *image == unsafe { a.read() },
-        _ => true,
-    };
-    let original_exit = Exit {
-        eax: o.eax,
-        ebx: o.ebx,
-        ecx: o.ecx,
-        edx: o.edx,
-    };
-    let original_scratch = read_scratch();
-    if stray || !pixels_ok || original_exit != exit || original_scratch != scratch {
-        crate::screens::harness::mismatch_unless_disturbed(&HOOK, || {
-            format!(
-                "glyph={glyph} x={x} y={y} bits={}: pixels_ok={pixels_ok} stray_write={stray} original {original_exit:x?} {original_scratch:?} rust {exit:x?} {scratch:?}",
-                surface.bits_per_pixel
-            )
-        });
-    }
-    (r.eax, r.ebx, r.ecx, r.edx) = (o.eax, o.ebx, o.ecx, o.edx);
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
@@ -510,32 +316,11 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     Ok(())
 }
 
-// ---- self-test ----
 //
 // The original reads the surface and clip globals, which the game's own drawing uses all the
 // time, so they cannot be pointed at a test surface. Instead the test runs a private copy of
 // the original's code in which every reference to those globals is redirected to
 // `TEST_GLOBALS`. The copy never touches game state.
-
-const CODE_START: usize = 0x4069B2;
-const CODE_LEN: usize = 0x407062 - CODE_START;
-
-/// Order of `TEST_GLOBALS`.
-const GLOBAL_RVAS: [usize; 12] = [
-    BITS_PER_PIXEL_RVA,
-    BYTES_PER_PIXEL_RVA,
-    PITCH_RVA,
-    BASE_RVA,
-    CLIP_LEFT_RVA,
-    CLIP_RIGHT_RVA,
-    CLIP_TOP_RVA,
-    CLIP_BOTTOM_RVA,
-    LEFT_SKIP_RVA,
-    VISIBLE_W_RVA,
-    TOP_SKIP_RVA,
-    ROWS_LEFT_RVA,
-];
-static TEST_GLOBALS: [AtomicU32; 12] = [const { AtomicU32::new(0) }; 12];
 
 mod patched {
     #![allow(dead_code)]
@@ -549,290 +334,4 @@ mod patched {
 
     // Only `call_copy` is used: it runs the code at COPY with a full register set.
     hook_asm!(unused_thunk, call_copy, dispatch = unused, original = COPY);
-}
-
-/// Builds the patched copy once. Err says why it could not be built.
-unsafe fn build_copy() -> Result<(), &'static str> {
-    if patched::COPY.load(Ordering::Relaxed) != 0 {
-        return Ok(());
-    }
-    unsafe {
-        let mem = VirtualAlloc(
-            std::ptr::null(),
-            CODE_LEN,
-            MEM_COMMIT | MEM_RESERVE,
-            PAGE_EXECUTE_READWRITE,
-        ) as *mut u8;
-        if mem.is_null() {
-            return Err("VirtualAlloc failed");
-        }
-        // Unhooked, so the copy starts with the original's own first bytes.
-        HOOK.run_unhooked(|| {
-            copy_nonoverlapping(game_addr(rva(CODE_START)) as *const u8, mem, CODE_LEN)
-        });
-        let code = from_raw_parts_mut(mem, CODE_LEN);
-        if code[..5] != [0x56, 0x57, 0x55, 0x8B, 0xEB] {
-            return Err("unexpected first bytes in the original");
-        }
-        for (i, &global) in GLOBAL_RVAS.iter().enumerate() {
-            let from = (game_addr(global) as u32).to_le_bytes();
-            let to = (&TEST_GLOBALS[i] as *const AtomicU32 as u32).to_le_bytes();
-            let (mut at, mut hits) = (0, 0);
-            while at + 4 <= CODE_LEN {
-                if code[at..at + 4] == from {
-                    code[at..at + 4].copy_from_slice(&to);
-                    hits += 1;
-                    at += 4;
-                } else {
-                    at += 1;
-                }
-            }
-            if hits == 0 {
-                return Err("a global is not referenced in the original");
-            }
-        }
-        patched::COPY.store(mem as usize, Ordering::Relaxed);
-    }
-    Ok(())
-}
-
-/// Runs the patched copy of the original with the given surface, clip and scratch values.
-unsafe fn run_copy(
-    before: &Regs,
-    surface: &Surface,
-    clip: &Clip,
-    scratch: &Scratch,
-) -> (Regs, Scratch) {
-    let values = [
-        surface.bits_per_pixel,
-        surface.bytes_per_pixel as u32,
-        surface.pitch as u32,
-        surface.base,
-        clip.left as u32,
-        clip.right as u32,
-        clip.top as u32,
-        clip.bottom as u32,
-        scratch.left_skip as u32,
-        scratch.visible_w as u32,
-        scratch.top_skip as u32,
-        scratch.rows_left as u32,
-    ];
-    for (slot, v) in TEST_GLOBALS.iter().zip(values) {
-        slot.store(v, Ordering::Relaxed);
-    }
-    let mut regs = *before;
-    unsafe { patched::call_copy(&mut regs) };
-    let after = |i: usize| TEST_GLOBALS[i].load(Ordering::Relaxed) as i32;
-    let scratch = Scratch {
-        left_skip: after(8),
-        visible_w: after(9),
-        top_skip: after(10),
-        rows_left: after(11),
-    };
-    (regs, scratch)
-}
-
-/// Rows of (gap, count) runs for a glyph `width` pixels wide: empty rows, rows that fill the
-/// width exactly, runs with no gap and runs with gaps.
-fn test_rows(width: u32, height: u32, seed: u32) -> Vec<Vec<(u32, u32)>> {
-    let mut state = seed.wrapping_mul(2_654_435_761).wrapping_add(12_345);
-    let mut next = |below: u32| {
-        state = state.wrapping_mul(1_103_515_245).wrapping_add(12_345);
-        (state >> 16) % below
-    };
-    (0..height)
-        .map(|row| {
-            let mut runs = Vec::new();
-            if width == 0 || row % 5 == 3 {
-                return runs; // an empty row
-            }
-            if row % 5 == 4 {
-                runs.push((0, width)); // one run across the whole width
-                return runs;
-            }
-            let mut at = 0;
-            while at < width {
-                let gap = next(4).min(width - at);
-                let count = (1 + next(5)).min(width - at - gap);
-                if count == 0 {
-                    break;
-                }
-                runs.push((gap, count));
-                at += gap + count;
-            }
-            runs
-        })
-        .collect()
-}
-
-/// One glyph record. `unit` 1 = normal record, 2 or 4 = extended record with that pixel size.
-fn test_record(
-    unit: usize,
-    x_offset: u32,
-    y_offset: u32,
-    width: u32,
-    rows: &[Vec<(u32, u32)>],
-) -> Vec<u8> {
-    let field = |out: &mut Vec<u8>, v: u32| out.extend_from_slice(&v.to_le_bytes()[..unit]);
-    let mut out = Vec::new();
-    let height = rows.len() as u32;
-    if unit == 1 {
-        out.extend([x_offset as u8, y_offset as u8, width as u8, height as u8]);
-    } else {
-        let marker: u32 = if unit == 2 { 0xFFFF_FFFE } else { 0xFFFF_FFFC };
-        out.extend_from_slice(&marker.to_le_bytes());
-        for v in [x_offset, y_offset, width, height] {
-            out.extend_from_slice(&(v as u16).to_le_bytes());
-        }
-    }
-    let mut pixel = 1u32;
-    for runs in rows {
-        for &(gap, count) in runs {
-            field(&mut out, count);
-            field(&mut out, gap);
-            for _ in 0..count {
-                // Never 0xAA in any byte, so a drawn pixel always differs from the fill.
-                pixel = pixel % 0x99 + 1;
-                field(&mut out, pixel * 0x0101_0101);
-            }
-        }
-        field(&mut out, 0);
-    }
-    out
-}
-
-/// A glyph table: one dword offset per glyph, then the records.
-fn test_table(records: &[Vec<u8>]) -> Vec<u8> {
-    let mut table = Vec::new();
-    let mut at = records.len() * 4;
-    for r in records {
-        table.extend_from_slice(&(at as u32).to_le_bytes());
-        at += r.len();
-    }
-    for r in records {
-        table.extend_from_slice(r);
-    }
-    table
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Err(why) = unsafe { build_copy() } {
-        return t.skip(why);
-    }
-
-    // (x offset, y offset, width, height) of the test glyphs, in each of the three encodings.
-    let shapes = [
-        (0, 0, 1, 1),
-        (1, 2, 5, 7),
-        (0, 0, 8, 8),
-        (3, 0, 12, 10),
-        (0, 1, 20, 6),
-        (2, 2, 0, 5), // no width
-        (2, 2, 6, 0), // no rows
-    ];
-    let mut records = Vec::new();
-    for unit in [1, 2, 4] {
-        for (i, &(xo, yo, w, h)) in shapes.iter().enumerate() {
-            records.push(test_record(
-                unit,
-                xo,
-                yo,
-                w,
-                &test_rows(w, h, (unit * 16 + i) as u32),
-            ));
-        }
-    }
-    let table = test_table(&records);
-    let palette: Vec<u32> = (0..256u32)
-        .map(|i| (i.wrapping_mul(0x0101_0101) ^ 0x1122_3344) & 0x7F7F_7F7F)
-        .collect();
-
-    // A 64 x 48 pixel surface with spare bytes around it; the clip rectangle lies well inside.
-    const MARGIN: usize = 4096;
-    const PITCH: usize = 64 * 4 + 16;
-    const ROWS: usize = 48;
-    let mut pixels = vec![0xAAu8; MARGIN + PITCH * ROWS + MARGIN];
-    let clip = Clip {
-        left: 10,
-        right: 41,
-        top: 8,
-        bottom: 31,
-    };
-    let xs = [-30, -3, 2, 6, 9, 10, 12, 20, 25, 33, 38, 41, 42, 60];
-    let ys = [-20, -2, 3, 7, 8, 12, 20, 24, 28, 31, 32, 50];
-    let stale = Scratch {
-        left_skip: 0x5EED_0001,
-        visible_w: 0x5EED_0002,
-        top_skip: 0x5EED_0003,
-        rows_left: 0x5EED_0004,
-    };
-
-    for (bits, bytes_per_pixel) in [(8u32, 1), (16, 2), (24, 3), (32, 4)] {
-        let surface = Surface {
-            base: unsafe { pixels.as_mut_ptr().add(MARGIN) } as u32,
-            pitch: PITCH as i32,
-            bytes_per_pixel,
-            bits_per_pixel: bits,
-        };
-        for glyph in 0..records.len() as u32 {
-            for &x in &xs {
-                for &y in &ys {
-                    let before = Regs {
-                        eax: glyph,
-                        ecx: x as u32,
-                        edx: y as u32,
-                        ebx: palette.as_ptr() as u32,
-                        esi: table.as_ptr() as u32,
-                        ..Regs::SENTINEL
-                    };
-                    pixels.fill(0xAA);
-                    let (ro, scratch_o) = unsafe { run_copy(&before, &surface, &clip, &stale) };
-                    let pixels_o = pixels.clone();
-
-                    pixels.fill(0xAA);
-                    let mut scratch_r = stale;
-                    let Ok(record) = (unsafe { glyph_record(&surface, table.as_ptr(), glyph) })
-                    else {
-                        t.check(false, || format!("glyph={glyph}: glyph_record refused it"));
-                        continue;
-                    };
-                    let (exit, _) = unsafe {
-                        blit_glyph(
-                            record,
-                            x,
-                            y,
-                            palette.as_ptr(),
-                            &surface,
-                            &clip,
-                            &mut scratch_r,
-                            &mut |addr, bytes| {
-                                copy_nonoverlapping(bytes.as_ptr(), addr as *mut u8, bytes.len())
-                            },
-                        )
-                    };
-
-                    let exit_o = Exit {
-                        eax: ro.eax,
-                        ebx: ro.ebx,
-                        ecx: ro.ecx,
-                        edx: ro.edx,
-                    };
-                    let same_pixels = pixels_o == pixels;
-                    let preserved = ro.preserved_except(&before, EAX | EBX | ECX | EDX);
-                    t.check(
-                        same_pixels && exit_o == exit && scratch_o == scratch_r && preserved,
-                        || {
-                            format!(
-                                "bits={bits} glyph={glyph} x={x} y={y}: same_pixels={same_pixels} preserved={preserved} original {exit_o:x?} {scratch_o:x?} rust {exit:x?} {scratch_r:x?}"
-                            )
-                        },
-                    );
-                }
-            }
-        }
-    }
-    t.finish()
 }

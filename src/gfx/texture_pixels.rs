@@ -21,7 +21,7 @@
 
 use crate::framework::rva;
 
-pub const THIRDS_RVA: usize = rva(0x4F4B30); // g_thirds
+// g_thirds
 pub const READING_RVA: usize = rva(0x4F4A24); // dword_4F4A24
 pub const SCALE_RVA: usize = rva(0x4F4A28); // dword_4F4A28
 pub const SATURATION_RVA: usize = rva(0x4F4A2C); // dword_4F4A2C
@@ -62,22 +62,4 @@ pub unsafe fn halve_texture(pixels: *mut u32, width: u32, height: u32, times: u3
     let pixels =
         unsafe { std::slice::from_raw_parts_mut(pixels, width as usize * height as usize) };
     rc2k_core::gfx::pixels::halve(pixels, width, height, times).expect("the slice is the picture")
-}
-
-/// Pixels for the self-tests, by lot: some of alpha 0, some near black, some magenta,
-/// the rest anything.
-pub fn test_pixels(seed: &mut u32, count: usize) -> Vec<u32> {
-    (0..count)
-        .map(|_| {
-            *seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-            let lot = *seed;
-            match lot >> 28 {
-                0 => lot & 0xFF_FFFF,
-                1 => lot & 0xFF07_0707,
-                2 => 0xF8_00F8 | lot & 0xFF07_0007,
-                3 => lot | 0xFF00_0000,
-                _ => lot.rotate_left(7),
-            }
-        })
-        .collect()
 }

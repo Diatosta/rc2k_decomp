@@ -21,45 +21,13 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
-use crate::physics::flow::{base, x87_run};
-use crate::service::harness::Region;
-use crate::sound::spot_voices::{WORK, g, p, voice, voice_regions};
-use crate::sound::turn_parts::{Part, SCRATCH, turn_entry};
+use crate::framework::Regs;
+use crate::sound::spot_voices::{g, p, voice};
+use crate::sound::turn_parts::{Part, turn_entry};
 
 pub const NEAREST_ON_SEGMENT: u32 = 0x4633DE;
 const ENDS: usize = 0x71C384;
 const RESULT: usize = 0x71C3A8;
-pub const PLAYING: usize = WORK;
-pub const BEST_D: usize = WORK + 4;
-pub const BEST: usize = WORK + 8;
-pub const NEXT_D: usize = WORK + 12;
-pub const NEXT: usize = WORK + 16;
-/// `mov scratch, 1000.0; fld [v+0x40]; fmul scratch; fistp scratch`.
-pub fn distance_1000(v: u32) -> u32 {
-    p(SCRATCH, 0x447A_0000);
-    x87_run!(
-        "fld dword ptr [{bx} + 0x40]",
-        "fmul dword ptr [{b} + 0x1183CC]",
-        "fistp dword ptr [{b} + 0x1183CC]";
-        bx = v, b = base()
-    );
-    g(SCRATCH)
-}
-
-/// The pickers' work cleared.
-pub fn clear_work() {
-    for (at, v) in [
-        (PLAYING, 0),
-        (BEST_D, u32::MAX),
-        (BEST, 0),
-        (NEXT_D, u32::MAX),
-        (NEXT, 0),
-    ] {
-        p(at, v);
-    }
-}
-
 // ---- Rust version ----
 
 /// Converted: `rc2k_core::sound::spot_voices::merge` and `merge_between`.
@@ -91,13 +59,6 @@ pub fn merge_spot_voices_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
     store_voices(&voices);
     (c.eax, c.ebx) = (point[2], voice(nearest as u32));
     Ok(())
-}
-
-pub fn merge_regions(_: &Regs) -> Vec<Region> {
-    let mut all = voice_regions();
-    use crate::math::nearest_on_segment::{VARS, VARS_LEN};
-    all.push((game_addr(rva(VARS)) as u32, VARS_LEN));
-    all
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

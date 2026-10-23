@@ -24,7 +24,7 @@ use crate::physics::clamped_asin::clamped_asin_at;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 
 const TURNED_RVA: usize = rva(0x5C70E0); // flt_5C70E0, E4, E8
 const ANGLES_RVA: usize = rva(0x5C70D4); // flt_5C70D4 (pitch), D8 (heading), DC (roll)
@@ -50,11 +50,6 @@ impl AnglePlaces {
             scratch: game_addr(SCRATCH_RVA) as u32,
             limit: game_addr(LIMIT_RVA) as u32,
         }
-    }
-
-    /// What the function writes (the limit is put back).
-    pub fn regions(&self) -> Vec<Region> {
-        vec![(self.turned, 12), (self.angles, 12), (self.scratch, 4)]
     }
 }
 

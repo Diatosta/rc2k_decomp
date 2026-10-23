@@ -29,14 +29,3 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
 }
-
-pub fn anchors(n: usize, f: &mut [u8]) {
-    f.fill(0x66);
-    let place = if n.is_multiple_of(4) {
-        [(n * 3) as u16, (n * 5 + 1) as u16]
-    } else {
-        [0, 0]
-    };
-    f[0x2C..0x2E].copy_from_slice(&place[0].to_le_bytes());
-    f[0x2E..0x30].copy_from_slice(&place[1].to_le_bytes());
-}

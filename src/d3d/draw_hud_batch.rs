@@ -13,19 +13,14 @@
 
 use crate::framework::{Regs, rva, standalone};
 
-#[cfg(feature = "standalone")]
 const VERTICES_RVA: usize = rva(0x764F2C); // off_764F2C: g_hudVertices
-#[cfg(feature = "standalone")]
 const INDICES_RVA: usize = rva(0x764F30); // off_764F30: g_hudIndices
-#[cfg(feature = "standalone")]
 const VERTEX_COUNT_RVA: usize = rva(0x764F24); // g_hudVertexCount
-#[cfg(feature = "standalone")]
 const INDEX_COUNT_RVA: usize = rva(0x764F28); // g_hudIndexCount
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     if standalone() {
-        #[cfg(feature = "standalone")]
         unsafe {
             use crate::framework::game_read;
             // The two pointers are the game's: in the standalone's image they were moved

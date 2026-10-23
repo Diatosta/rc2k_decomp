@@ -109,35 +109,3 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     *r = Regs { esp: r.esp, ..left };
     Ok(())
 }
-
-/// The batch and the polygon by lot (for this test and the HUD's other tests).
-pub unsafe fn test_batch(case: u32) {
-    unsafe {
-        std::ptr::write_bytes(
-            game_addr(VERTICES_RVA) as *mut u8,
-            0xAA,
-            (VERTEX_ROOM * 0x20) as usize,
-        );
-        std::ptr::write_bytes(
-            game_addr(INDICES_RVA) as *mut u8,
-            0xAA,
-            (INDEX_ROOM * 2) as usize,
-        );
-        game_write(
-            VERTEX_COUNT_RVA,
-            [0u32, 40, 0x64, 0x65, 0x90][case as usize % 5],
-        );
-        game_write(
-            INDEX_COUNT_RVA,
-            [0u32, 60, 0x96, 0, 0xD8][case as usize % 5],
-        );
-        game_write(TEXTURE_RVA, 3 + case % 2);
-        game_write(BATCH_TEXTURE_RVA, 3u32);
-        game_write(VIRTUAL_RVA[0], 640.0f32.to_bits());
-        game_write(VIRTUAL_RVA[1], 480.0f32.to_bits());
-        let p = game_addr(POLYGON_RVA) as *mut f32;
-        for n in 0..32 {
-            *p.add(n) = n as f32 * 7.5 + case as f32;
-        }
-    }
-}

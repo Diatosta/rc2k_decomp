@@ -28,41 +28,13 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, game_addr, game_read, game_write, hook_asm, rva, shadow, standalone,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva, standalone};
 use crate::input::devices::RECORDS;
-use std::sync::atomic::AtomicUsize;
 
 // Kept for the hooked game (2026-10-23): the game's `start_threads` starts the thread at
 // its own address. Without this hook the original ran, with no gate, so a self-test's
 // pause could not hold it and tests that set `dword_518998` met its count
 // (`race::replay_viewer`, shadow on). Removed when the hooked DLL goes.
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("input::input_thread", rva(0x4078DA), thunk, &ORIGINAL);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { input_thread(&mut game_part) } {
-        Ok(()) => unsafe { windows_sys::Win32::System::Threading::ExitThread(0) },
-        // The original from the start: it finds its flag set and goes to its end.
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 const SLOT_RVA: usize = rva(0x5184F4); // slot: the input thread's
 const START_TEXT_RVA: usize = rva(0x4DA4B2); // "INPUTTDB:START"
 const QUIT_TEXT_RVA: usize = rva(0x4DA4C1); // "INPUTTDB:QUIT"
@@ -135,7 +107,6 @@ pub unsafe fn input_thread(part: Part) -> Result<(), Refused> {
             // One gate a tick, before anything is written: a self-test's pause waits for this
             // one and holds the next (2026-10-23: the gate began after the count, so a pause
             // begun during the wait let one count through; `install::run_page`'s test saw it).
-            crate::framework::hook_enter();
             loop {
                 unsafe { game_write(TICKS_RVA, g(TICKS_RVA).wrapping_add(1)) };
                 gone -= TICK_MS;
@@ -150,7 +121,6 @@ pub unsafe fn input_thread(part: Part) -> Result<(), Refused> {
                 part(7, &mut r)?;
                 unsafe { crate::input::input_tick::input_tick_in_game() }
             })();
-            crate::framework::hook_leave();
             ticked?;
             if g(ACTIVE_RVA) != 1 {
                 crate::system::sleep::sleep(1000);

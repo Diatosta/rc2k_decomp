@@ -17,17 +17,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, rva};
-use crate::physics::ground::Ground;
+use crate::framework::Regs;
 use crate::race::frame_draw::*;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
-
-pub fn mask_regions() -> Vec<Region> {
-    let mut v = crate::physics::probe_ground::regions(&Ground::game());
-    v.push(at(rva(0x64167C)));
-    v
-}
+use crate::service::harness::state_entry;
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(all_regs(&unsafe { face_hide_mask(r)? }))

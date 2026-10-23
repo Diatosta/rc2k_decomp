@@ -21,7 +21,7 @@
 
 use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::BadInput;
-use crate::framework::{RawHook, Regs, game_addr, game_read, game_write, rva, shadow};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::scene::clip_asm::{
     BYTES_A, BYTES_B, CHECKED, ENTRY_A, ENTRY_B, OUT_1, OUT_2, PLANE, RECORD_A, RECORD_B, Work,
     cut_at_depth, cut_at_x, cut_at_y,
@@ -31,7 +31,6 @@ use crate::scene::polygon::{ENTRIES, ENTRIES_RVA, ENTRY_LEN, LIST_RVA, dword, li
 use crate::scene::project_point::{
     CENTRE_X_RVA, CENTRE_Y_RVA, FLAT_DEPTH_RVA, FLAT_RVA, RECORD_LEN, SCALE_RVA, to_screen,
 };
-use crate::screens::harness::CallOriginal;
 use crate::service::harness::{Region, at, capture, restore};
 
 // ---- game data ----
@@ -245,25 +244,6 @@ pub fn regions() -> Vec<Region> {
     regions
 }
 
-/// What a call that clips nothing may write, and what would show that it clipped after
-/// all: the counts and switches, without the tables. For shadow mode, where the full
-/// set for every polygon made a stage too slow to hear (2026-10-13).
-pub fn light_regions() -> Vec<Region> {
-    [
-        COUNT_RVA,
-        NEXT_ENTRY_RVA,
-        NEXT_RECORD_RVA,
-        CHECKED_RVA,
-        KEPT_MASK_RVA,
-        PLANE_RVA,
-        MASK_RVA,
-        SCREEN_CLIPPED_RVA,
-        DEPTH_CLIPPED_RVA,
-    ]
-    .map(at)
-    .to_vec()
-}
-
 /// Runs `clip`, and if it refuses puts back what it had written by then: a pass that
 /// runs out of entries has changed the polygon.
 pub unsafe fn or_undone(clip: impl FnOnce() -> Result<(), BadInput>) -> Result<(), BadInput> {
@@ -274,47 +254,4 @@ pub unsafe fn or_undone(clip: impl FnOnce() -> Result<(), BadInput>) -> Result<(
         restore(&regions, &before);
     }
     done
-}
-
-/// The `dispatch` of a clipping hook. The original leaves its registers changed and
-/// the Rust version does not; they are not compared.
-pub fn dispatch_clip(
-    hook: &RawHook,
-    r: &mut Regs,
-    call_original: CallOriginal,
-    regions: &dyn Fn() -> Vec<Region>,
-    rust: &dyn Fn() -> Result<(), BadInput>,
-) {
-    hook.count_call();
-    if !shadow() {
-        if let Err(e) = rust() {
-            unsafe { crate::fatal::raise::refused(hook, e, r, call_original) };
-        }
-        return;
-    }
-    if !crate::service::harness::shadow_due(hook) {
-        unsafe { call_original(r) };
-        return;
-    }
-    let regions = regions();
-    let count: u32 = unsafe { game_read(COUNT_RVA) };
-    let before = capture(&regions);
-    let mine = rust().map(|()| capture(&regions));
-    restore(&regions, &before);
-    unsafe { call_original(r) };
-    let Ok(mine) = mine else {
-        return;
-    };
-    let theirs = capture(&regions);
-    if mine != theirs {
-        hook.mismatch(|| {
-            format!(
-                "a polygon of {} vertices: first different byte {:?} of {} (regions {:x?})",
-                count,
-                mine.iter().zip(&theirs).position(|(a, b)| a != b),
-                mine.len(),
-                regions
-            )
-        });
-    }
 }

@@ -23,10 +23,6 @@ pub static SETUP: Setup = Setup {
         (From::Var(rva(0x75C170)), rva(0x75C044), false),
         (From::Var(rva(0x75C174)), rva(0x75C048), false),
     ],
-    len: 0x51,
-    entry: [0xFF, 0x75, 0x5C, 0x8F, 0x05, 0x54, 0xC0, 0x75, 0x00],
-    call: 0x4B,
-    callee: &[(0x4B6C4E, 1)],
 };
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).

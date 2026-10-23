@@ -116,34 +116,3 @@ pub fn first_overall_time(list: u32, kind: u32, rally: bool) -> Result<u32, Refu
 }
 
 // ---- self-tests ----
-
-/// A list of 24 entries (the first two with no class and position 99, then classes 2 and 3
-/// in turn, positions 1 .. 11 in each; times of the test's) and its end mark.
-pub fn test_list() -> Vec<u32> {
-    let words = ENTRY_LEN as usize / 4;
-    let mut list = vec![0u32; 25 * words];
-    for n in 0..24usize {
-        let w = &mut list[n * words..(n + 1) * words];
-        w[0] = n as u32;
-        w[0x14 / 4] = 5000 + 311 * n as u32;
-        w[0x18 / 4] = 9000 + 577 * n as u32;
-        w[0x1C / 4] = if n < 2 { 0 } else { [2, 3][n % 2] };
-        w[0x44 / 4] = if n < 2 { 99 } else { (n as u32 - 2) / 2 + 1 };
-    }
-    list[24 * words] = u32::MAX;
-    list
-}
-
-/// A championship history of the test's: 12 entries, positions 1 .. 12 (in another order),
-/// and its end mark.
-pub fn champ_list() -> Vec<u32> {
-    let words = CHAMP_ENTRY_LEN as usize / 4;
-    let mut list = vec![0u32; 13 * words];
-    for n in 0..12usize {
-        let w = &mut list[n * words..(n + 1) * words];
-        w[0] = n as u32;
-        w[0x70 / 4] = [3u32, 1, 2, 6, 4, 5, 9, 7, 8, 12, 10, 11][n];
-    }
-    list[12 * words] = u32::MAX;
-    list
-}

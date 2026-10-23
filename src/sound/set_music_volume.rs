@@ -30,13 +30,8 @@ pub fn set_music_volume(entry: &Regs) -> Option<Regs> {
 }
 
 pub const SENDER: Sender = Sender {
-    address: 0x40F83E,
-    len: 0x20,
-    entry: [0x60, 0x3B, 0x05, 0x94, 0x69, 0x50, 0x00, 0x74],
-    calls: &[0x14, 0x19],
     command: 0xB,
     sends: set_music_volume,
-    reads: &[(0x506994, &[0, 0x40, 0x1234_5678])],
 };
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

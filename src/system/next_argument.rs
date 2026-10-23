@@ -39,18 +39,3 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     (r.eax, r.ecx, r.ebx) = (start as u32, len, next as u32);
     Ok(())
 }
-
-pub const TEST_LINES: [&[u8]; 12] = [
-    b"\0",
-    b"   \t \0",
-    b"word\0",
-    b"  two words\0",
-    b"\"C:\\Program Files\\ral.exe\" -a -c 1\0",
-    b"\"open quote\0",
-    b"\"\" after\0",
-    b"a\rb\tc d\0",
-    b"\"quoted\rreturn\" x\0",
-    b"x\"y z\" w\0",
-    b"-i name \"second name\" 3 5 -u\0",
-    b" \r \r\0",
-];

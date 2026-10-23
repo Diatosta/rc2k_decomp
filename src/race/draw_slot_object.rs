@@ -17,10 +17,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::Regs;
 use crate::race::frame_draw::*;
-use crate::race::start_kept_reflections::kept_regions;
-use crate::service::harness::{Region, at};
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
@@ -31,48 +29,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
         r.esp = esp;
     }
     Ok(())
-}
-
-pub fn slot_regions() -> Vec<Region> {
-    let g = |a: usize, len: usize| (game_addr(rva(a)) as u32, len);
-    let mut v = kept_regions();
-    v.extend([
-        g(0x5EA444, 0x40),
-        g(0x5EA484, 0x40),
-        g(0x5EA04C, 0x40),
-        g(0x5EA10C, 0x40),
-        g(0x5EA30C, 0x40),
-        g(0x63501C, 0xC),
-        at(rva(0x6214FC)),
-        at(rva(0x635054)),
-        g(0x635084, 0x18),
-        at(rva(0x6365C8)),
-        at(rva(0x62DAF4)),
-        at(rva(0x62400C)),
-    ]);
-    v
-}
-
-/// The inputs a slot test sets.
-pub fn slot_inputs() -> Vec<Region> {
-    let g = |a: usize, len: usize| (game_addr(rva(a)) as u32, len);
-    vec![
-        at(rva(0x63DB94)),
-        at(rva(0x62389C)),
-        at(rva(0x63DB9C)),
-        g(0x641680, 0x20),
-        g(0x5EA1CC, 0x40),
-        g(0x5EA24C, 0x40),
-    ]
-}
-
-/// A test slot: object `object`, a place and a turn by `seed`.
-pub fn fill_slot(slot: &mut [u32; 0x1E], object: u32, seed: &mut u32) {
-    slot[0] = object;
-    slot[1] = 0x10_0000 ^ (*seed % 0x1000);
-    slot[2] = 0x2_0000;
-    slot[3] = 0x18_0000u32.wrapping_sub(*seed % 0x3000);
-    let turn = crate::scene::matrix::test_floats(seed);
-    slot[4..20].copy_from_slice(&turn);
-    slot[0x17] = 0x800;
 }

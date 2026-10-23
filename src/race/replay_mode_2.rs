@@ -27,7 +27,7 @@ pub fn replay_mode_2(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// In the game: the viewer's Rust version.
 pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::race::replay_viewer::{game_part, replay_viewer};
-    *r = replay_viewer(r, &mut game_part, true)?;
+    *r = replay_viewer(r, &mut game_part)?;
     Ok(())
 }
 

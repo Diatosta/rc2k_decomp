@@ -15,11 +15,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{CARRY_FLAG, RawHook, Regs, SelfTest};
-use crate::net::lobby::{
-    COPY_PICTURE, DRAW_STRING, LOCK, Part, RUN_FRAME, SHOW_FRAME, SLEEP, UNLOCK, answer,
-    lobby_entry, run_both,
-};
+use crate::framework::Regs;
+use crate::net::lobby::{LOCK, Part, RUN_FRAME, SLEEP, lobby_entry};
 
 pub const STATUS_FONT: usize = 0x51E9A4; // stru_51E9A4
 const INIT_CONNECTION: u32 = 0x418794; // net::init_connection
@@ -55,56 +52,4 @@ pub fn connecting(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     lobby_entry(r, connecting)
-}
-
-/// The test of the three status screens: a copy of `address` (`len` bytes, its first
-/// bytes `entry`, its calls at `calls` to `places`, the last the call after), the lock and
-/// the last call failing or not.
-pub fn status_test(
-    hook: &RawHook,
-    address: usize,
-    len: usize,
-    entry: &[u8],
-    calls: &[usize],
-    last: u32,
-    rust: fn(&Regs, Part) -> Result<Regs, Refused>,
-) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let places = [
-        RUN_FRAME,
-        LOCK,
-        COPY_PICTURE,
-        DRAW_STRING,
-        UNLOCK,
-        SHOW_FRAME,
-        SLEEP,
-        last,
-    ];
-    let copy = match crate::net::lobby::copy(address, len, entry, calls, &places) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    for (lock_fails, last_fails) in [(false, false), (true, false), (false, true)] {
-        run_both(
-            &mut t,
-            &format!("the lock failing {lock_fails}, the call {last_fails}"),
-            copy.addr(),
-            Regs {
-                eax: 3,
-                ..Regs::SENTINEL
-            },
-            &[],
-            CARRY_FLAG,
-            &[],
-            &|| {
-                answer(Box::new(move |place, r| {
-                    r.set_carry((place == LOCK && lock_fails) || (place == last && last_fails))
-                }))
-            },
-            &rust,
-        );
-    }
-    t.finish()
 }

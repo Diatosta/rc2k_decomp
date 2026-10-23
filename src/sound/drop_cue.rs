@@ -20,10 +20,6 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::Regs;
 use crate::sound::turn_parts::Part;
 
-/// The queue's length: the header and 16 cues.
-pub const QUEUE_LEN: usize = 0x210;
-pub const MOST_CUES: u32 = 16;
-
 // ---- Rust version ----
 
 /// Converted: `rc2k_core::sound::cars::drop_cue`.

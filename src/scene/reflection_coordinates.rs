@@ -24,15 +24,14 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{EAX, EDX, ESI, Regs, game_addr, game_read, game_write, rva};
-use crate::math::normalise_vector::{LENGTH_RVA, VECTOR_RVA, normalise_vector};
+use crate::math::normalise_vector::{VECTOR_RVA, normalise_vector};
 use crate::math::x87;
-use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::project_point::RECORDS_RVA;
 use crate::scene::reflect_vector::{
     MATRIX_RVA, NORMAL_RVA, VECTOR_RVA as MIRRORED_RVA, reflect_vector,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
+use crate::service::harness::state_entry;
 
 // ---- game data ----
 
@@ -138,18 +137,6 @@ pub unsafe fn reflection_coordinates() -> Result<Leftovers, BadInput> {
     }
 }
 
-/// What the function and its parts write.
-pub fn regions() -> Vec<Region> {
-    vec![
-        (game_addr(COORDINATES_RVA) as u32, 8),
-        (game_addr(MIRRORED_RVA) as u32, 12),
-        (game_addr(NORMAL_RVA) as u32, 12),
-        (game_addr(VECTOR_RVA) as u32, 32),
-        at(LENGTH_RVA),
-        at(CHECKED_RVA),
-    ]
-}
-
 fn rust(_: &Regs) -> Result<Left, Refused> {
     let left = unsafe { reflection_coordinates() }?;
     Ok(Left::nothing()
@@ -162,75 +149,4 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-/// Records of the test's for a few normals and points, and the matrix; `inputs()` is
-/// what a test that uses them puts back.
-pub struct Mirrors {
-    records: Vec<[u32; 8]>,
-}
-
-pub const TEST_NORMALS: u32 = 4;
-pub const TEST_POINTS: u32 = 4;
-
-impl Mirrors {
-    pub fn new() -> Self {
-        let f = |value: f32| value.to_bits();
-        let mut records = vec![[0u32; 8]; 0x2000];
-        let normals = [
-            [0.0f32, 0.0, -1.0],
-            [0.6, -0.8, 0.0],
-            [-0.577, 0.577, -0.577],
-            [0.1, 0.2, -0.97],
-        ];
-        let points = [
-            [0.0f32, 0.0, 9000.0],
-            [1200.5, -300.25, 8000.0],
-            [-4000.0, 2500.0, 12000.0],
-            [0.001, 0.002, 4096.0],
-        ];
-        for (n, normal) in normals.into_iter().enumerate() {
-            records[0x1000 + 0x10 + n][4..7].copy_from_slice(&normal.map(f));
-        }
-        for (n, point) in points.into_iter().enumerate() {
-            records[0x1000 + 0x20 + n][4..7].copy_from_slice(&point.map(f));
-        }
-        Self { records }
-    }
-
-    pub fn inputs() -> Vec<Region> {
-        vec![
-            at(RECORDS_RVA),
-            at(NORMAL_NUMBER_RVA),
-            at(POINT_NUMBER_RVA),
-            (game_addr(MATRIX_RVA) as u32, 0x40),
-        ]
-    }
-
-    /// Normal `normal` and point `point` (0 .. 3 each) as the function's inputs.
-    pub unsafe fn set(&self, normal: u32, point: u32, turned: bool) {
-        let matrix: [f32; 16] = if turned {
-            [
-                0.36, 0.48, -0.8, 0.0, -0.8, 0.6, 0.0, 0.0, 0.48, 0.64, 0.6, 0.0, 0.0, 0.0, 0.0,
-                0.0,
-            ]
-        } else {
-            [
-                1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-            ]
-        };
-        unsafe {
-            game_write(RECORDS_RVA, self.records.as_ptr() as u32);
-            // Numbers past 0xFFF, as an object's are taken: by their low twelve bits.
-            game_write(NORMAL_NUMBER_RVA, 0x5010 + normal);
-            game_write(POINT_NUMBER_RVA, (0x3020 + point).wrapping_neg());
-            game_write(MATRIX_RVA, matrix.map(f32::to_bits));
-        }
-    }
-}
-
-impl Default for Mirrors {
-    fn default() -> Self {
-        Self::new()
-    }
 }

@@ -190,27 +190,6 @@ pub unsafe fn scale_corners_plain(entry: &Regs) -> Regs {
     g
 }
 
-/// The float places of what `scale_corners` writes (the sides are whole numbers).
-pub fn corner_floats() -> Vec<(
-    crate::service::harness::Region,
-    crate::service::floats::Tolerance,
-)> {
-    let a = |r: usize| game_addr(r) as u32;
-    let mut r: Vec<_> = (0..4)
-        .map(|k| {
-            (
-                (a(CORNER_WORK_RVA + 0x20 * k), 8),
-                crate::service::floats::FLOAT,
-            )
-        })
-        .collect();
-    r.push((
-        (a(SLOPES_RVA), 0x24 * CORNERS as usize),
-        crate::service::floats::FLOAT,
-    ));
-    r
-}
-
 /// `marks::reset_settings_blocks` (0x4C9A6D), in step 3: the eight blocks of 0x4C8 at
 /// `g_marksSettings` + 0x60 (the last first): +0x4C .. +0x60 the six floats from
 /// `flt_9354C6`, the last three again at +0x64, +0x70, +0x7C, +0x30 8. Leaves ebp the
@@ -240,15 +219,6 @@ pub unsafe fn reset_settings_blocks(entry: &Regs) -> Regs {
     g
 }
 
-/// What `scale_corners` writes.
-pub fn corner_regions() -> Vec<crate::service::harness::Region> {
-    let a = |r: usize| game_addr(r) as u32;
-    let mut r: Vec<_> = (0..4).map(|k| (a(CORNER_WORK_RVA + 0x20 * k), 8)).collect();
-    r.push((a(CORNER_SIDES_RVA), 8));
-    r.push((a(SLOPES_RVA), 0x24 * CORNERS as usize));
-    r
-}
-
 /// In the game: place 0 `memory::allocate`, 1 `scale_corners`, 2 `allocate_links`, 3
 /// `reset_settings_blocks`.
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
@@ -260,22 +230,5 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             _ => *r = reset_settings_blocks(r),
         }
     }
-    Ok(())
-}
-
-/// A stand-in handler for the allocations' tests: noted; place 0 gives `GIVES` with the
-/// carry clear, place 1 runs `scale_corners`; the others are only noted.
-pub fn give(place: u32, r: &mut Regs) {
-    crate::race::level_init::note(place, r);
-    match place {
-        0 => r.set_carry(false),
-        1 => *r = unsafe { scale_corners(r) },
-        _ => {}
-    }
-}
-
-/// The same as a part, for the Rust side.
-pub fn test_give(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    give(place, r);
     Ok(())
 }

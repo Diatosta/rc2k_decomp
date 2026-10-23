@@ -19,9 +19,8 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::physics::face_contact::{Touched, guarded};
+use crate::physics::face_contact::Touched;
 use crate::physics::find_course_record::find_course_record;
-use crate::screens::harness::Left;
 
 /// The steps, not guarded.
 // Converted: `rc2k_core::physics::ground_search::cell_key`.
@@ -35,16 +34,8 @@ pub fn steps(r: &mut Regs, touched: &mut Touched) -> Result<(), Refused> {
     crate::physics::record_face_contacts::steps(r, touched)
 }
 
-/// The Rust version.
-pub unsafe fn cell_face_contacts(entry: &Regs) -> Result<Left, Refused> {
-    guarded(entry, steps)
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     crate::physics::face_contact::faces_entry(r, steps)
 }
-
-/// The nine cells' offsets, in `face_contacts_around`'s order.
-pub use rc2k_core::physics::ground_search::CELLS as AROUND;

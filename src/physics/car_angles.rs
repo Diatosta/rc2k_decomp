@@ -21,7 +21,7 @@ use crate::math::x87_run::mul3_to_int;
 use crate::physics::matrix_angles::{AnglePlaces, matrix_angles_at};
 use crate::race::stage_prefs::CRASH_MATRIX_RVA;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 
 const INTS_RVA: usize = rva(0x71A998); // dword_71A998 (from D8), 99C (from D4), 9A0 (from DC)
 
@@ -56,13 +56,6 @@ pub unsafe fn car_angles() -> Left {
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { car_angles() })
-}
-
-/// What the function writes.
-pub fn regions() -> Vec<Region> {
-    let mut r = AnglePlaces::game().regions();
-    r.push((game_addr(INTS_RVA) as u32, 12));
-    r
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

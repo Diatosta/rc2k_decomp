@@ -2,12 +2,9 @@
 //! one up or down, and the four that select or deselect a change.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EDI, RawHook, Regs, SelfTest, game_addr, game_read, game_write};
-use crate::screens::harness::{CallOriginal, Left};
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
-use crate::service::state::{
-    FLAG_TABLE_LEN, MENU_ITEM_RVA, REPAIR_FLAGS_RVA, current_player, flagged_item, set_repair_flag,
-};
+use crate::framework::{EDI, game_addr};
+use crate::screens::harness::Left;
+use crate::service::state::current_player;
 
 // ---- steppers ----
 
@@ -55,61 +52,6 @@ pub unsafe fn step(stepper: Stepper) -> Result<Left, Refused> {
     Ok(left)
 }
 
-pub fn dispatch_stepper(
-    hook: &RawHook,
-    r: &mut Regs,
-    call_original: CallOriginal,
-    stepper: Stepper,
-) {
-    let regions: Vec<Region> = target(stepper)
-        .map(|(addr, _)| vec![(addr, 4)])
-        .unwrap_or_default();
-    dispatch_state(hook, r, call_original, &regions, &|_| unsafe {
-        step(stepper)
-    });
-}
-
-/// Why a stepper cannot be tested now, or None.
-pub fn stepper_unavailable(stepper: Stepper) -> Option<&'static str> {
-    target(stepper)
-        .is_err()
-        .then_some("there is no current player object")
-}
-
-/// Values on both sides of both limits. The value is put back afterwards.
-pub fn check_stepper(t: &mut SelfTest, call_original: CallOriginal, stepper: Stepper) {
-    let Ok((addr, _)) = target(stepper) else {
-        return;
-    };
-    let regions = [(addr, 4)];
-    let saved = capture(&regions);
-    let max = stepper.max;
-    for value in [
-        -3,
-        -1,
-        0,
-        1,
-        2,
-        max - 1,
-        max,
-        max + 1,
-        max + 50,
-        i32::MAX,
-        i32::MIN,
-    ] {
-        check_state(
-            t,
-            &format!("value={value}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe { (addr as *mut i32).write_unaligned(value) },
-            &regions,
-            &|_| unsafe { step(stepper) },
-        );
-    }
-    restore(&regions, &saved);
-}
-
 // ---- selecting a change ----
 
 /// A setup value that costs service time to change: `chosen` is what the keys step,
@@ -118,62 +60,4 @@ pub fn check_stepper(t: &mut SelfTest, call_original: CallOriginal, stepper: Ste
 pub struct Change {
     pub chosen_rva: usize,
     pub installed_rva: usize,
-}
-
-/// Flips the flag of the highlighted menu item; if it is then not 1, the chosen value goes
-/// back to the installed one.
-pub unsafe fn toggle_change(change: Change) -> Result<Left, Refused> {
-    // Converted: `rc2k_core::service::repairs::toggle_change`.
-    let item = flagged_item()?;
-    let mut t = crate::service::state::flags();
-    let back = rc2k_core::service::repairs::toggle_change(&mut t, item as usize);
-    set_repair_flag(item, t[item as usize]);
-    if back {
-        unsafe { game_write(change.chosen_rva, game_read::<u32>(change.installed_rva)) };
-    }
-    Ok(Left::nothing())
-}
-
-fn change_regions(change: Change) -> [Region; 2] {
-    [
-        (game_addr(REPAIR_FLAGS_RVA) as u32, FLAG_TABLE_LEN),
-        at(change.chosen_rva),
-    ]
-}
-
-pub fn dispatch_change(hook: &RawHook, r: &mut Regs, call_original: CallOriginal, change: Change) {
-    dispatch_state(
-        hook,
-        r,
-        call_original,
-        &change_regions(change),
-        &|_| unsafe { toggle_change(change) },
-    );
-}
-
-/// Several items and flag values. Everything written is put back.
-pub fn check_change(t: &mut SelfTest, call_original: CallOriginal, change: Change) {
-    let regions = change_regions(change);
-    let inputs = [at(MENU_ITEM_RVA), at(change.installed_rva)];
-    let saved = (capture(&regions), capture(&inputs));
-    for item in [0u32, 2, 0xE, 0xF, 0x12, 0x13] {
-        for flag in [0u32, 1, 2, 3] {
-            check_state(
-                t,
-                &format!("item={item:#x} flag={flag}"),
-                call_original,
-                Regs::SENTINEL,
-                &|| unsafe {
-                    game_write(MENU_ITEM_RVA, item);
-                    set_repair_flag(item, flag);
-                    game_write(change.chosen_rva, 0x5EED_0001u32);
-                    game_write(change.installed_rva, 0x5EED_0002u32);
-                },
-                &regions,
-                &|_| unsafe { toggle_change(change) },
-            );
-        }
-    }
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
 }

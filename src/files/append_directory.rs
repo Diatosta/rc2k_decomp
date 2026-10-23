@@ -15,9 +15,6 @@
 use crate::errors::BadInput;
 use crate::framework::{CARRY_FLAG, Regs, ZERO_FLAG};
 
-/// Converted: `rc2k_core::files::paths`.
-pub use rc2k_core::files::paths::{is_separator, last_separator};
-
 /// The bytes of a NUL-terminated text, without the NUL (an unbounded scan, as the
 /// original's).
 pub unsafe fn text_of<'a>(text: *const u8) -> &'a [u8] {

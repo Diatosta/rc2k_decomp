@@ -18,16 +18,11 @@ const SECONDS: u32 = 0x254;
 const COORDS: u32 = 0x654;
 const CENTRE: u32 = 0xC54;
 const GRADES: u32 = 0xC90;
-/// Where `reset_pong` puts the eight floats: four (x, y) pairs 0x18 apart.
-const PONG_TO: [usize; 8] = [
-    0x768688, 0x76868C, 0x7686A0, 0x7686A4, 0x7686B8, 0x7686BC, 0x7686D0, 0x7686D4,
-];
-pub const OUTLINE_COUNT_RVA: usize = rva(0x768700); // dword_768700
-pub const OUTLINE_MARK_RVA: usize = rva(0x7687D0); // dword_7687D0
+// dword_768700
+// dword_7687D0
 pub const FOUND_RVA: usize = rva(0x7695B2); // g_marksSplineFaces: faces of the kind found
 /// The four tables of 8 records (`g_marksSplinesA` .. `D`).
 pub const TABLES: [usize; 4] = [0x76B9B2, 0x772E32, 0x77A2B2, 0x781732];
-pub const TABLE_LEN: u32 = 8 * SPLINE_LEN;
 pub const OBJECT_RVA: usize = rva(0x76A202); // g_marksSplineObject
 pub const PLACE_RVA: usize = rva(0x76A206); // g_marksSplinePlace: the next of 8
 pub const OFFSET_RVA: usize = rva(0x76A20A); // g_marksSplineOffset: the place times 0xE90
@@ -214,14 +209,6 @@ pub fn find_farthest_points(entry: &Regs) -> Regs {
 pub unsafe fn reset_pong() {
     let rules = crate::marks::pong::rules();
     crate::marks::pong::with_court(|c| c.reset(&rules));
-}
-
-/// What `reset_pong` writes.
-pub fn outline_regions() -> Vec<crate::service::harness::Region> {
-    use crate::service::harness::at;
-    let mut r: Vec<_> = PONG_TO.into_iter().map(|a| at(rva(a))).collect();
-    r.extend([at(OUTLINE_COUNT_RVA), at(OUTLINE_MARK_RVA)]);
-    r
 }
 
 /// `marks::gather_spline_points` (0x4B9D5F): record ebp emptied, then the points of object
@@ -711,14 +698,6 @@ pub unsafe fn load_splines(
     Ok(g)
 }
 
-/// The four tables, whole.
-pub fn table_regions() -> Vec<crate::service::harness::Region> {
-    TABLES
-        .iter()
-        .map(|&t| (game_addr(rva(t)) as u32, TABLE_LEN as usize))
-        .collect()
-}
-
 /// What the record's functions write besides the record.
 pub fn work_regions() -> Vec<crate::service::harness::Region> {
     use crate::service::harness::at;
@@ -734,73 +713,3 @@ pub fn work_regions() -> Vec<crate::service::harness::Region> {
 }
 
 // ---- for the self-tests ----
-
-/// A record of the test's (with room past it for `find_spline_ends`' reads), filled by lot.
-pub struct TestSpline {
-    pub bytes: Vec<u8>,
-}
-
-/// How far past a record `find_spline_ends` can read.
-const READ_REACH: u32 = 0x65C + 0x30 * MOST_POINTS;
-
-impl TestSpline {
-    pub fn new() -> Self {
-        Self {
-            bytes: vec![0; READ_REACH as usize],
-        }
-    }
-
-    pub fn addr(&self) -> u32 {
-        self.bytes.as_ptr() as u32
-    }
-
-    pub fn region(&self) -> crate::service::harness::Region {
-        (self.addr(), SPLINE_LEN as usize)
-    }
-
-    /// Everything by lot from `seed`, `points` points (heights about the grades' bounds),
-    /// the grades' starts and counts a split of the points.
-    pub fn fill(&self, seed: u32, points: u32) {
-        let mut s = seed;
-        let mut next = move || {
-            s = s.wrapping_mul(1_103_515_245).wrapping_add(12345);
-            s >> 4
-        };
-        let a = self.addr();
-        unsafe {
-            for n in 0..READ_REACH / 4 {
-                put(a + 4 * n, next());
-            }
-            put(a + COUNT, points);
-            for k in 0..MOST_POINTS {
-                let p = a + COORDS + 12 * k;
-                for c in 0..3 {
-                    put(p + 4 * c, (next() % 0x2_0000).wrapping_sub(0x1_0000));
-                }
-                put(p + 4, next() % 0x9000);
-                put(a + IDS + 4 * k, next() % 0x60);
-            }
-            let first = next() % (points + 1);
-            let second = next() % (points - first + 1);
-            for k in 0..MOST_POINTS {
-                put(a + GRADES + 4 * k, next() % 4);
-            }
-            for o in [0x20u32, 0x24, 0x28] {
-                put(
-                    a + o,
-                    (((next() % 0x8000) as f32 - 16384.0) / 2048.0).to_bits(),
-                );
-            }
-            put(a, 0);
-            put(a + 0xC, first);
-            put(a + 4, first);
-            put(a + 0x10, second);
-        }
-    }
-}
-
-impl Default for TestSpline {
-    fn default() -> Self {
-        Self::new()
-    }
-}

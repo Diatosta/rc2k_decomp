@@ -15,8 +15,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest};
-use crate::net::lobby::{Part, Saved, connection, dword, fatal_ret_1, fatal_ret_2, p, run_both};
+use crate::framework::Regs;
+use crate::net::lobby::{Part, connection};
 
 /// The Rust version: the registers it leaves.
 pub fn connection_entry(entry: &Regs, _: Part) -> Result<Regs, Refused> {
@@ -33,59 +33,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     crate::race::viewer::regs_entry(r, &|r| {
         connection_entry(r, &mut crate::net::lobby::game_part)
     })
-}
-
-/// The test of the two record functions: a copy, its fatal jumps (at +6 and +0x16) to the
-/// landings.
-pub fn entry_test(
-    hook: &RawHook,
-    address: usize,
-    entry: [u8; 6],
-    count: usize,
-    table: usize,
-    codes: [u32; 2],
-    rust: fn(&Regs, Part) -> Result<Regs, Refused>,
-) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let copy = match crate::net::lobby::copy(address, 0x23, &entry, &[], &[]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    unsafe {
-        copy.retarget(0x6 + 2, fatal_ret_1 as *const () as usize);
-        copy.retarget(0x16 + 2, fatal_ret_2 as *const () as usize);
-    }
-    let regions = [dword(count), dword(table)];
-    let saved = Saved::new(&regions);
-    for (index, records, at) in [
-        (0u32, 3u32, 0x0123_4560u32),
-        (2, 3, 0x0123_4560),
-        (3, 3, 0x0123_4560),
-        (0xFFFF_FFFF, 3, 0x0123_4560),
-        (0, 0, 0x0123_4560),
-        (1, 5, 0),
-        (9, 5, 0),
-    ] {
-        run_both(
-            &mut t,
-            &format!("record {index:#x} of {records}, table {at:#x}"),
-            copy.addr(),
-            Regs {
-                eax: index,
-                ..Regs::SENTINEL
-            },
-            &regions,
-            0,
-            &codes,
-            &|| {
-                p(count, records);
-                p(table, at);
-            },
-            &rust,
-        );
-    }
-    drop(saved);
-    t.finish()
 }

@@ -30,9 +30,7 @@ pub const FILE_LEN: usize = 0x8000;
 pub const TEMPLATE_RVA: usize = rva(0x5296FB); // aSavedataSavega: "savedata\savegame\svgame00"
 pub const SLOTS: u32 = 100;
 
-pub const MAGIC: u32 = 0x4753_3552; // "R5SG"
-pub const VERSION: u32 = 0x5_1122;
-
+// "R5SG"
 pub fn slot_name(slot: u32) -> *mut u8 {
     game_ptr::<u8>(SAVEGAME_NAMES_RVA).wrapping_add(slot as usize * NAME_LEN)
 }

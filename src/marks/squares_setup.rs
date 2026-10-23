@@ -22,8 +22,6 @@ use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
 
-/// The calls' offsets (the first at the entry: hence the private copy).
-pub const CALLS: [usize; 9] = [0x0, 0xA, 0x19, 0x28, 0x37, 0x46, 0x55, 0x64, 0x73];
 const TEXTURE_RVA: usize = rva(0x5D1E10); // dword_5D1E10
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount

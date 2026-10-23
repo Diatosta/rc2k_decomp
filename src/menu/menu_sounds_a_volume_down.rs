@@ -10,10 +10,6 @@ use crate::framework::Regs;
 use crate::menu::option_steps::{SOUNDS_A_RVA, Then, Volume, volume_entry};
 
 const STEP: Volume = Volume {
-    address: 0x468080,
-    len: 0x2E,
-    entry: [0xFF, 0x0D, 0x9C, 0x56, 0x75, 0x00],
-    call: 0x28,
     value_rva: SOUNDS_A_RVA,
     up: false,
     then: Then::Sound(0x10),

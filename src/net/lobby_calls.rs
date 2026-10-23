@@ -6,7 +6,7 @@
 //! has them.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::Regs;
 use crate::net::lobby::*;
 use crate::race::loadlevel::or_in_game;
 use crate::text::draw_text::{GameCanvas, Outcome};
@@ -331,9 +331,4 @@ pub fn call(place: u32, r: &mut Regs) -> Result<(), Refused> {
         }
     }
     Ok(())
-}
-
-/// The game's address of a place, for the hooks that are called through it.
-pub fn address(place: u32) -> usize {
-    game_addr(rva(place as usize))
 }

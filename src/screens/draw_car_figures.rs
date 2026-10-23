@@ -33,12 +33,9 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{Regs, game_read, rva};
 use crate::menu::car_description::{CarDescription, read, shown_description};
-use crate::screens::LINE_BUFFER_RVA;
 use crate::screens::harness::{Left, draw_entry};
-use crate::service::harness::{at, capture};
-use crate::strings::text_from_ids::{TEXT_LEN, text};
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -46,8 +43,7 @@ use crate::text::draw_text::Canvas;
 const PAGE_RVA: usize = rva(0x755998); // dword_755998
 // dword_755990
 pub const NOTICE_KIND_RVA: usize = rva(0x4E07A0); // g_noticeKind
-pub const TEXT_KEPT_RVA: usize = rva(0x7559EC); // dword_7559EC
-pub const LINE_LEN: usize = 0x100;
+// dword_7559EC
 const PAGES: u32 = 4;
 
 // ---- Rust version ----
@@ -94,39 +90,8 @@ fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     Ok(Left::carry(unsafe { draw_car_figures(canvas) }?))
 }
 
-pub fn state() -> Vec<u8> {
-    capture(&[
-        (game_addr(LINE_BUFFER_RVA) as u32, LINE_LEN),
-        (text() as u32, TEXT_LEN),
-        at(TEXT_KEPT_RVA),
-    ])
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     draw_entry("screens::draw_car_figures", r, &rust)
-}
-
-/// A record of the test's: string ids where the pages take strings, figures elsewhere.
-pub fn test_record(car: u32, seed: u32) -> [u32; 0x1D] {
-    let mut lot = seed;
-    let mut next = |below: u32| {
-        lot = lot.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-        (lot >> 8) % below
-    };
-    let mut record = [0u32; 0x1D];
-    record[0] = car;
-    for value in record.iter_mut().skip(3) {
-        *value = match next(5) {
-            0 => 0,
-            1 => 0xFF00 | next(0x100),
-            _ => next(30_000),
-        };
-    }
-    // The strings.
-    for offset in [0x10, 0x2C, 0x30, 0x34, 0x38, 0x44, 0x48, 0x4C, 0x50, 0x70] {
-        record[offset / 4] = 0x249 + next(0x18);
-    }
-    record
 }

@@ -11,34 +11,9 @@
 //! program, and for a recording that swallows, the number is kept and nothing more.
 //! No self-test.
 
-use crate::d3d::recorder::{Call, note};
-use crate::framework::{RawHook, Regs, game_write, hook_asm, rva, standalone};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("d3d::set_texture", rva(0x41ACF5), thunk, &ORIGINAL);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_write, rva, standalone};
 
 pub const CURRENT_RVA: usize = rva(0x5AB93C); // g_currentTexture
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    // Swallowed, the number is still kept, so that the code above sees its own texture
-    // as the current one for what it draws next; who swallows puts the variable back.
-    if note(|| Call::Texture(r.eax)) || standalone() {
-        unsafe { game_write(CURRENT_RVA, r.eax) };
-        r.ecx = 0;
-        return;
-    }
-    unsafe { call_original(r) };
-}
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's). In the
 /// hooked game it goes to the game's function, whose hook notes the call for the tests'

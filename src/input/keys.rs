@@ -14,15 +14,11 @@ pub const MOUSE_RVA: usize = rva(0x5C6924); // g_mouseX, g_mouseY
 pub const LAST_MOUSE_RVA: usize = rva(0x5C692C); // g_lastMouseX, g_lastMouseY
 pub const CLICKS_RVA: usize = rva(0x5C6934); // g_leftClick, g_rightClick
 pub const BUTTONS_RVA: usize = rva(0x5C693C); // g_mouseButtons, g_leftButton, g_rightButton
-/// The mouse's variables, `g_mouseX` .. `g_rightButton`.
-pub const MOUSE_VARS: (usize, usize) = (MOUSE_RVA, 0x24);
 pub const DOWN_RVA: usize = rva(0x4F6ADC); // g_keysDown
 pub const NOW_RVA: usize = rva(0x4F6B5C); // g_keysNow
 pub const BEFORE_RVA: usize = rva(0x4F6BDC); // g_keysBefore
 pub const PRESSED_RVA: usize = rva(0x4F6CDC); // g_keysPressed
 pub const REPEAT_RVA: usize = rva(0x4F6D5C); // g_keyRepeat
-/// The key tables, `g_keysDown` .. `g_keyRepeat` (0x80 each; 0x4F6C5C .. unused here).
-pub const KEY_TABLES: (usize, usize) = (DOWN_RVA, 0x300);
 const KEYS: u32 = rc2k_core::input::frame::KEYS as u32;
 const SCREENSHOT_KEY: u32 = rc2k_core::input::frame::SCREENSHOT_KEY as u32; // byte_4F6BAE
 pub const SCREENSHOTS_RVA: usize = rva(0x4F52B4); // g_screenshotsOn
@@ -35,10 +31,6 @@ use rc2k_core::input::frame::KeyTables;
 
 unsafe fn byte(table: usize, n: u32) -> u8 {
     unsafe { game_read(table + n as usize) }
-}
-
-unsafe fn set_byte(table: usize, n: u32, v: u8) {
-    unsafe { game_write(table + n as usize, v) };
 }
 
 fn tables() -> KeyTables {
@@ -220,58 +212,3 @@ pub fn game_screenshot() {
 }
 
 // ---- for the self-tests ----
-
-/// The input's state: the key tables, the mouse, the word, the two frame dwords.
-pub fn regions() -> Vec<crate::service::harness::Region> {
-    use crate::service::harness::at;
-    let mut r = vec![
-        (game_addr(KEY_TABLES.0) as u32, KEY_TABLES.1),
-        (game_addr(MOUSE_VARS.0) as u32, MOUSE_VARS.1),
-        at(MOUSE_WORD_RVA),
-        at(SCREENSHOTS_RVA),
-    ];
-    r.extend(FRAME_CLEARED_RVA.map(at));
-    r
-}
-
-/// A state of the test's: keys down by `seed` (never the screenshot key), last frame's
-/// half like it, repeat counts near 0x41, the mouse word.
-pub fn set_state(seed: u32, mouse: u32) {
-    unsafe {
-        let mut s = seed;
-        let mut next = || {
-            s = s.wrapping_mul(1_103_515_245).wrapping_add(12345);
-            s >> 9
-        };
-        for k in 0..KEYS {
-            let down = if next() % 3 == 0 {
-                (next() % 3) as u8
-            } else {
-                0
-            };
-            set_byte(DOWN_RVA, k, if k == SCREENSHOT_KEY { 0 } else { down });
-            set_byte(
-                BEFORE_RVA,
-                k,
-                if next() % 2 == 0 {
-                    down
-                } else {
-                    (next() & 1) as u8
-                },
-            );
-            set_byte(NOW_RVA, k, (next() % 3) as u8);
-            set_byte(PRESSED_RVA, k, 0xEE);
-            set_byte(
-                REPEAT_RVA,
-                k,
-                [0u8, 0x3F, 0x40, 0x41, 7][next() as usize % 5],
-            );
-        }
-        set_byte(NOW_RVA, SCREENSHOT_KEY, 0);
-        game_write(MOUSE_WORD_RVA, mouse);
-        game_write(MOUSE_RVA, [0x111u32, 0x222, 0x333, 0x444, 9, 9, 0x55, 7, 7]);
-        for at in FRAME_CLEARED_RVA {
-            game_write(at, 0x5A5Au32);
-        }
-    }
-}

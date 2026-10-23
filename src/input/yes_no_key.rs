@@ -16,15 +16,14 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, Regs, SelfTest, game_addr, game_ptr, game_read, game_write, rva};
+use crate::framework::{EAX, Regs, game_addr, game_ptr, game_read, game_write, rva};
 use crate::input::key_to_char::{
     LAYOUT_A_RVA, LAYOUT_MODE_RVA, LAYOUT_RVA, has_layout, key_to_char,
 };
 use crate::input::take_key::take_key;
-use crate::screens::harness::{CallOriginal, Left};
-use crate::service::harness::{Region, Rust, at, capture, check_state, restore, state_entry};
+use crate::screens::harness::Left;
+use crate::service::harness::state_entry;
 use crate::strings::append_string_by_id::push_string;
-use crate::strings::string_table::{blob, is_table_id};
 use crate::strings::text_from_ids::{TEXT_LEN, text};
 
 // ---- game data ----
@@ -35,16 +34,6 @@ const LOWER_CASE_RVA: usize = rva(0x4F0BC8); // byte_4F0BC8: 256 characters
 use rc2k_core::input::keyboard::ANSWERS;
 pub const YES: u32 = 1;
 pub const NO: u32 = u32::MAX;
-
-/// What the two yes/no functions may write: `key_to_char`'s state and the start of the text
-/// buffer.
-pub fn yes_no_regions() -> Vec<Region> {
-    [
-        &crate::input::key_to_char::regions()[..],
-        &[(text() as u32, 0x100)],
-    ]
-    .concat()
-}
 
 // ---- Rust version ----
 
@@ -105,37 +94,4 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-/// Why the yes/no functions cannot be tested, or None if they can.
-pub fn yes_no_unavailable() -> Option<&'static str> {
-    if !has_layout() {
-        return Some("no keyboard layout");
-    }
-    (blob().is_null() || !ANSWERS.iter().all(|&(id, _)| is_table_id(id)))
-        .then_some("the strings are not loaded")
-}
-
-/// The test of both entries: `call_original` gets the key in eax.
-pub fn check_keys(t: &mut SelfTest, call_original: CallOriginal, rust: Rust) {
-    let regions = [&yes_no_regions()[..], &[at(KEY_GIVEN_RVA)]].concat();
-    let saved = capture(&regions);
-    for high in [0u32, 0x1234_5600] {
-        for key in 0..0x80u32 {
-            let before = Regs {
-                eax: high | key,
-                ..Regs::SENTINEL
-            };
-            check_state(
-                t,
-                &format!("eax={:#x}", high | key),
-                call_original,
-                before,
-                &|| restore(&regions, &saved),
-                &regions,
-                rust,
-            );
-        }
-    }
-    restore(&regions, &saved);
 }

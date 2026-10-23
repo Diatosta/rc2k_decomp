@@ -15,10 +15,9 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, rva};
-use crate::physics::apply_force::BLOCK_LEN;
-use crate::physics::apply_torque::{apply_torque, apply_torque_at, fill};
+use crate::physics::apply_torque::apply_torque;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 
 const CAR_RVA: usize = rva(0x719FD8); // g_car
 
@@ -47,62 +46,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-/// What `apply_torque` writes on the work car.
-pub fn regions() -> Vec<Region> {
-    crate::physics::apply_torque::regions(game_addr(CAR_RVA) as u32)
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-/// Test cells: a car block, 0x17 records, the two scratch vectors.
-pub struct Cells {
-    pub cells: Vec<u32>,
-    pub car: u32,
-    pub recs: u32,
-    pub work: u32,
-    pub cross: u32,
-}
-
-impl Default for Cells {
-    fn default() -> Cells {
-        Cells::new()
-    }
-}
-
-impl Cells {
-    pub fn new() -> Cells {
-        let mut cells = vec![0u32; (BLOCK_LEN as usize) / 4 + 8 * 0x17 + 6];
-        let car = cells.as_mut_ptr() as u32;
-        let recs = car + BLOCK_LEN;
-        let work = recs + 0x20 * 0x17;
-        Cells {
-            cells,
-            car,
-            recs,
-            work,
-            cross: work + 12,
-        }
-    }
-
-    /// The car and `count` records filled by `seed`.
-    pub fn fill(&self, count: u32, seed: u32) {
-        for k in 0..count {
-            fill(self.recs + 0x20 * k, self.car, seed + k);
-        }
-    }
-
-    /// The Rust core on `count` records.
-    pub fn run_rust(&self, count: u32) {
-        for k in 0..count {
-            unsafe { apply_torque_at(self.recs + 0x20 * k, self.car, self.work, self.cross) };
-        }
-    }
-
-    pub fn all(&self) -> [Region; 1] {
-        [(self.car, 4 * self.cells.len())]
-    }
 }

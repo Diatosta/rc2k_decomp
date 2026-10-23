@@ -35,9 +35,8 @@ use crate::physics::flow::a;
 use crate::race::replay_path::{LAST_RACE_PATH, replay_path};
 use crate::race::viewer::{
     BLOCK, BLOCK_CURSOR, BLOCK_DATA, BLOCKS, CAMERAS, CAR_HEADER, FRAME, HANDLE, HEADER, INDEX,
-    MARK_IN, MARK_OUT, OPEN, Part, TABLE_LEN, dword, get, put, region, regs_entry,
+    MARK_IN, MARK_OUT, OPEN, Part, get, put, regs_entry,
 };
-use crate::service::harness::Region;
 
 const RECORDED: usize = 0x5BEC84; // dword_5BEC84: a replay was recorded
 const CARS_FROM: usize = 0x528534; // unk_528534
@@ -209,23 +208,4 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &|r| open_viewed_replay(r, &mut game_part))
-}
-
-/// What it writes.
-pub fn regions() -> Vec<Region> {
-    vec![
-        dword(HANDLE),
-        dword(OPEN),
-        dword(BLOCK),
-        dword(FRAME),
-        region(HEADER, HEADER_LEN as usize),
-        region(INDEX, INDEX_LEN as usize),
-        region(CAMERAS, TABLE_LEN),
-        dword(MARK_IN),
-        dword(MARK_OUT),
-        dword(BLOCK_CURSOR),
-        region(CAR_HEADER, 0x400),
-        region(BLOCK_DATA, 8),
-        region(0x94E8B0, 0x100),
-    ]
 }

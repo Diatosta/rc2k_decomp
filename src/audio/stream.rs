@@ -69,19 +69,6 @@ pub unsafe fn fill_stream_part(s: &mut AudioStream, at: u32, bytes: u32) -> Fill
     Some((read, true))
 }
 
-/// The registers `fill_stream_part` leaves: eax, ecx, edi (its one caller keeps its own).
-pub fn fill_left(r: &mut crate::framework::Regs, at: u32, bytes: u32, s: &AudioStream, f: Filled) {
-    match f {
-        None => {}
-        Some((read, false)) => r.eax = read,
-        Some((_, true)) => {
-            r.eax = u32::from_ne_bytes([s.silence(); 4]);
-            r.ecx = 0;
-            r.edi = at + bytes;
-        }
-    }
-}
-
 /// `audio::stop_stream`: not playing; the buffer stopped and released; the file closed.
 pub unsafe fn stop_stream(s: &mut AudioStream) -> Result<(), Refused> {
     not_a3d("A3D (0x40D1D0)")?;
@@ -251,49 +238,3 @@ pub unsafe fn feed_stream(s: &mut AudioStream, parts: u32) -> Result<bool, Refus
 }
 
 // ---- for the self-tests ----
-
-/// A WAV file of the test's in `var`: `DATA_LEN` bytes of data after a 0x2C-byte head.
-pub const TEST_FILE: &str = "var\\rc2k_hook_stream_test.wav";
-pub const TEST_PATH: &[u8] = b"var\\rc2k_hook_stream_test.wav\0";
-pub const MISSING_PATH: &[u8] = b"var\\rc2k_hook_no_such_stream.wav\0";
-pub const DATA_LEN: u32 = 0x300;
-pub const DATA_AT: u32 = 0x2C;
-
-/// Writes the test file: 16-bit stereo, or 8-bit mono with `eight`.
-pub fn make_test_file(eight: bool) -> bool {
-    use crate::audio::read_sample::{fmt, riff};
-    let data: Vec<u8> = (0..DATA_LEN).map(|i| (i * 13 + 5) as u8).collect();
-    let format = if eight {
-        fmt(1, 1, 11025, 8)
-    } else {
-        fmt(1, 2, 22050, 16)
-    };
-    std::fs::write(
-        TEST_FILE,
-        riff(b"WAVE", &[(b"fmt ", &format), (b"data", &data)]),
-    )
-    .is_ok()
-}
-
-pub fn remove_test_file() {
-    let _ = std::fs::remove_file(TEST_FILE);
-}
-
-/// The test file opened at `offset` of its data (None: it cannot be).
-pub fn open_test_file(offset: u32) -> Option<u32> {
-    unsafe {
-        let h = crate::files::handle::open_by_mode(TEST_PATH.as_ptr(), 0).ok()??;
-        crate::files::handle::seek(h, (DATA_AT + offset) as i32, 0);
-        Some(h)
-    }
-}
-
-/// Where an open file is (None: it is closed).
-pub fn position(file: u32) -> Option<u32> {
-    unsafe { crate::files::handle::seek(file, 0, 1) }
-}
-
-/// A player with the file field cleared (the handles of two runs differ).
-pub fn without_file(s: &AudioStream) -> AudioStream {
-    AudioStream { file: 0, ..*s }
-}

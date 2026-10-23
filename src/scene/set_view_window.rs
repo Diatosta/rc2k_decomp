@@ -33,12 +33,11 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, EDX, Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{EAX, EBX, EDX, Regs, game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::screens::harness::Left;
 use crate::service::floats::floats_entry;
-use crate::service::harness::{Region, at};
 
 // ---- game data ----
 
@@ -200,88 +199,6 @@ pub unsafe fn set_view_window_plain() -> Left {
             .with(EAX, low)
             .with(EBX, 0x1_0000)
             .with(EDX, (w.product >> 32) as u32)
-    }
-}
-
-/// Everything it writes.
-pub fn regions() -> [Region; 8] {
-    let block = |rva: usize, len: usize| (game_addr(rva) as u32, len);
-    [
-        block(DEPTH_RVA, 8),
-        block(SCALE_RVA, 4),
-        block(MIDDLE_RVA, 0x10),
-        // The farthest depth's three, the edges, the edges as floats, the offsets.
-        block(FARTHEST_RVA, 0x34),
-        at(DIVISOR_RVA),
-        at(CLIP_FARTHEST_RVA),
-        block(LESS_ONE_RVA, 8),
-        at(CHECKED_RVA),
-    ]
-}
-
-/// What it reads and a test sets.
-pub fn inputs() -> [Region; 9] {
-    let block = |rva: usize, len: usize| (game_addr(rva) as u32, len);
-    [
-        at(REACH_RVA),
-        block(SIZE_RVA, 8),
-        at(IN_RACE_RVA),
-        block(OFFSETS_RVA, 8),
-        at(SCALE_A_RVA),
-        at(SCALE_B_RVA),
-        at(SCALE_C_RVA),
-        at(NEARER_RVA),
-        // flt_624220, flt_624224 (written), flt_624228, flt_62422C
-        block(FADE_B_RVA, 0x10),
-    ]
-}
-
-/// Settings of a test's, by lot.
-pub unsafe fn set_inputs(seed: &mut u32, case: usize) {
-    let mut lot = || {
-        *seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-        *seed >> 8
-    };
-    let mut float = |around: f32| {
-        match lot() % 9 {
-            0 => 0.0,
-            1 => -around,
-            _ => around * (0.25 + (lot() % 4000) as f32 / 1000.0),
-        }
-        .to_bits()
-    };
-    unsafe {
-        let fades = [float(1.0), 0, float(0.5), float(0.9)];
-        game_write(FADE_B_RVA, fades);
-        game_write(SCALE_A_RVA, float(1.0));
-        game_write(SCALE_C_RVA, float(0.002));
-        game_write(
-            SCALE_B_RVA,
-            [0x100u32, 0x80, 0, 0xFFFF_FF00][lot() as usize % 4],
-        );
-        game_write(
-            REACH_RVA,
-            match case % 7 {
-                0 => 0,
-                1 => 0x0800_0001,
-                2 => 0x400,
-                _ => lot() % 0x300,
-            },
-        );
-        game_write(
-            SIZE_RVA,
-            match case % 5 {
-                0 => [0x320u32, 0x258],
-                1 => [0x8000_0001, 0xFFFF_FFFF],
-                _ => [lot() % 0x800, lot() % 0x600],
-            },
-        );
-        game_write(IN_RACE_RVA, [0u32, 1, 1, 2][lot() as usize % 4]);
-        game_write(OFFSETS_RVA, [lot() % 0x200, (lot() % 0x200).wrapping_neg()]);
-        game_write(
-            NEARER_RVA,
-            [0u32, 5, 10, 11, 100, 0xFFFF_FFFF, 0x8000_0000, 0x7FFF_FFFF][lot() as usize % 8],
-        );
     }
 }
 

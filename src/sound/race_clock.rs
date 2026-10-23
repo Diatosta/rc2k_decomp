@@ -4,16 +4,11 @@
 //! sets it going and `sound::step_race_clock` (0x40F20E) says whether a turn is due.
 
 use crate::framework::{game_read, game_write, rva};
-use crate::service::harness::{Region, at};
 
 pub const LAST_RVA: usize = rva(0x5124E8); // dword_5124E8
 pub const RATE_RVA: usize = rva(0x5124EC); // dword_5124EC
 pub const STEP_RVA: usize = rva(0x5124F0); // dword_5124F0
 pub const TURNS_RVA: usize = rva(0x5124F4); // dword_5124F4
-
-pub fn regions() -> [Region; 4] {
-    [at(LAST_RVA), at(RATE_RVA), at(STEP_RVA), at(TURNS_RVA)]
-}
 
 fn load() -> rc2k_core::sound::clock::RaceClock {
     unsafe {

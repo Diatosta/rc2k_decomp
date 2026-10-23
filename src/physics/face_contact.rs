@@ -34,7 +34,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest};
+use crate::framework::Regs;
 use crate::math::x87::int_hypot;
 use crate::math::x87_run::compare_80;
 use crate::physics::contact_force::{self, RECORD, contact_force};
@@ -45,8 +45,8 @@ use crate::physics::vector_length::vector_length;
 use crate::race::norms::norm_regions;
 use crate::race::norms::normalise_work_vector;
 use crate::race::stage_prefs::left_of;
-use crate::screens::harness::{CallOriginal, Left};
-use crate::service::harness::{Region, capture, dispatch_state, restore};
+use crate::screens::harness::Left;
+use crate::service::harness::{Region, capture, restore};
 use rc2k_core::physics::face_contacts::{self as contacts, FaceObject, Inside};
 
 const WORK: usize = 0x5C5F60; // g_workVector
@@ -246,28 +246,10 @@ pub fn guarded(
     }
 }
 
-/// The Rust version.
-pub unsafe fn face_contact(entry: &Regs) -> Result<Left, Refused> {
-    guarded(entry, steps)
-}
-
-/// The stage's faces, for the tests.
-pub fn faces_region() -> Region {
-    (g(FACES), 0x40 * g(0x5CCD1C).min(0x4_0000) as usize)
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     faces_entry(r, steps)
-}
-
-/// The faces' bytes now, in `touched`'s order.
-pub fn face_bytes(touched: &Touched) -> Vec<[u8; 0x40]> {
-    touched
-        .iter()
-        .map(|&(face, _)| unsafe { (face as *const [u8; 0x40]).read_unaligned() })
-        .collect()
 }
 
 pub fn put_back_faces(touched: &Touched) {
@@ -276,105 +258,10 @@ pub fn put_back_faces(touched: &Touched) {
     }
 }
 
-/// `dispatch_state` for the face contacts, whose writes to the faces are not known
-/// before: `regions()` (the lit-face list among them) and the faces the Rust version
-/// handed to `touch_face` (it logs them) are compared, not the whole face array. A face
-/// the original wrote and the Rust version did not shows in the list.
-pub fn dispatch_faces(
-    hook: &RawHook,
-    r: &mut Regs,
-    call_original: CallOriginal,
-    steps: fn(&mut Regs, &mut Touched) -> Result<(), Refused>,
-) {
-    if !crate::framework::shadow() {
-        dispatch_state(hook, r, call_original, &[], &|e| guarded(e, steps));
-        return;
-    }
-    hook.count_call();
-    if !crate::service::harness::shadow_due(hook) {
-        unsafe { call_original(r) };
-        return;
-    }
-    let all = regions();
-    let before = capture(&all);
-    let (mut mine_regs, mut touched) = (*r, Touched::new());
-    if let Err(e) = steps(&mut mine_regs, &mut touched) {
-        restore(&all, &before);
-        put_back_faces(&touched);
-        unsafe { crate::fatal::raise::refused(hook, e, r, call_original) };
-        return;
-    }
-    let left = left_of(&mine_regs);
-    let mine = (capture(&all), face_bytes(&touched));
-    restore(&all, &before);
-    put_back_faces(&touched);
-    let mut o = *r;
-    unsafe { call_original(&mut o) };
-    let theirs = (capture(&all), face_bytes(&touched));
-    if theirs != mine || !left.matches(r, &o) {
-        crate::screens::harness::mismatch_unless_disturbed(hook, || {
-            format!(
-                "faces {:x?}: original {theirs:x?}; rust {mine:x?} regs_ok={}",
-                touched.iter().map(|t| t.0).collect::<Vec<_>>(),
-                left.matches(r, &o)
-            )
-        });
-    }
-    let esp = r.esp;
-    *r = o;
-    r.esp = esp;
-}
-
 /// `dispatch_faces` without its hook (Rust callers; a refusal is the caller's).
 pub fn faces_entry(
     r: &mut Regs,
     steps: fn(&mut Regs, &mut Touched) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     crate::service::harness::state_entry(r, &|e| guarded(e, steps))
-}
-
-/// Up to `n` object faces (first byte 0xFF, object byte not 0x3B) of the stage.
-pub fn object_faces(n: usize) -> Vec<u32> {
-    let (faces, count) = (g(FACES), g(0x5CCD1C));
-    (0..count)
-        .filter(|&k| byte(faces + 0x40 * k) == 0xFF && byte(faces + 0x40 * k + 1) != 0x3B)
-        .take(n)
-        .collect()
-}
-
-/// The car moved onto the object face `k`'s point (its scene point + the face's place).
-pub fn move_car_onto(k: u32) {
-    let face = g(FACES) + 0x40 * k;
-    let rd = |x: u32| unsafe { (x as *const u32).read_unaligned() };
-    let point = rd(face + 4)
-        .wrapping_mul(12)
-        .wrapping_add(g(crate::physics::scene_point_hits_car::SCENE_POINTS));
-    for j in 0..3 {
-        p(
-            0x71A10C + 4 * j as usize,
-            rd(point + 4 * j).wrapping_add(rd(face + 0x30 + 4 * j)),
-        );
-    }
-}
-
-/// The tests' frame: in a race, everything written (and the car's place, the direction)
-/// saved; `case(set)` runs each case with `set` putting the state back first; restored
-/// at the end. None outside a race.
-pub fn in_race_test(
-    hook: &RawHook,
-    case: &mut dyn FnMut(&mut SelfTest, &dyn Fn()),
-) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    if !crate::physics::move_slot::in_race() || g(0x71A238) > 0x40 {
-        return t.skip("not in a race (no stage)");
-    }
-    let mut all = regions();
-    all.extend([faces_region(), (a(0x71B400), 4), (a(0x5C5F60), 12)]);
-    let saved = capture(&all);
-    let put_back = || restore(&all, &saved);
-    case(&mut t, &put_back);
-    put_back();
-    t.finish()
 }

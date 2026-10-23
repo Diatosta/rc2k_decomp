@@ -55,13 +55,7 @@ pub fn race_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     if g(QUITTING_RVA) == 1 {
         // The game is closing. In the game its shutdown thread (`threading::request_quit`)
         // ends the program meanwhile; the standalone, which has none, ends it here.
-        #[cfg(feature = "standalone")]
         crate::standalone::leave_from_race();
-        #[cfg(not(feature = "standalone"))]
-        {
-            cmp_one(&mut r, 1);
-            return Ok(r);
-        }
     }
     'lost: {
         if g(ACTIVE_RVA) == 0 || g(LOST_RVA) == 1 {
@@ -127,9 +121,7 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     // The thunk is ungated (a frame is long) and the Rust frame calls the Rust versions
     // directly, past every gate: one gate per frame, so that a `selftest`'s pause waits for
     // the frame under way and holds the next (as the audio thread's turns).
-    crate::framework::hook_enter();
     let done = race_frame(r, &mut game_part);
-    crate::framework::hook_leave();
     let left = done?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())

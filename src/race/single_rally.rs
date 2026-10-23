@@ -270,30 +270,6 @@ pub unsafe fn player(n: u32) -> u32 {
     }
 }
 
-/// A player's record's length (0x28C apart).
-pub const PLAYER_LEN: usize = 0x28C;
-
-/// What the table writes outside the players' records: every `Store` / `Put` and the
-/// `rep movsb` destinations (0x75B0DC 0x20, 0x75B09C 0x40, 0x75B02C 0x40).
-pub fn written() -> Vec<crate::service::harness::Region> {
-    let mut v: Vec<usize> = SINGLE_RALLY
-        .iter()
-        .filter_map(|op| match *op {
-            Store(_, a) | Put(a, _) => Some(a),
-            _ => None,
-        })
-        .collect();
-    v.sort();
-    v.dedup();
-    let mut r: Vec<crate::service::harness::Region> =
-        v.iter().map(|&a| (game_addr(rva(a)) as u32, 4)).collect();
-    r.extend(
-        [(0x75B0DC, 0x20), (0x75B09C, 0x40), (0x75B02C, 0x40)]
-            .map(|(a, n)| (game_addr(rva(a)) as u32, n)),
-    );
-    r
-}
-
 /// The calls in the game: the race's Rust versions; the sound, scene, input and screen
 /// ones through their hooks (`call_game`; the screen mode is the platform's).
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {

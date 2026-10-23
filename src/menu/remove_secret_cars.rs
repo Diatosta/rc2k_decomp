@@ -17,9 +17,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::menu::car_lists;
 
 // ---- game data ----
@@ -35,10 +35,6 @@ const SECRET: List = (rva(0x759F4A), 0x0C);
 /// unk_759F7A: where a list is copied to and back from.
 const SCRATCH: List = (rva(0x759F7A), 0x32);
 pub const CHEATS_RVA: usize = rva(0x75870C); // g_cheats
-
-pub fn region(list: List) -> Region {
-    (game_addr(list.0) as u32, list.1 * 4)
-}
 
 /// The list's entries before its -1.
 pub unsafe fn read_list(list: List) -> Result<Vec<u32>, BadInput> {

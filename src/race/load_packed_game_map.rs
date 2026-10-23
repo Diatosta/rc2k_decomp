@@ -13,23 +13,11 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::Regs;
 use crate::race::game_map::*;
-use crate::service::harness::Region;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     unsafe { load_packed_game_map(r.eax) }?;
     Ok(())
-}
-
-pub fn kept() -> Vec<Region> {
-    vec![
-        (game_addr(VARS.0) as u32, VARS.1),
-        (game_addr(LIST_RVA) as u32, 0x40),
-        (game_addr(KEY_LIST_RVA) as u32, 0x40),
-        (game_addr(rva(0x93E8B0)) as u32, READ_BUFFER_LEN),
-        (game_addr(PACKED_PATH_RVA) as u32, 0x40),
-        crate::service::harness::at(rva(0x4F52B0)),
-    ]
 }

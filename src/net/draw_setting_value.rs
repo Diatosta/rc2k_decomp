@@ -64,29 +64,3 @@ pub fn draw_setting_value(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     lobby_entry(r, draw_setting_value)
 }
-
-/// The test's answers for the strings: appended as the game's.
-pub fn string_answers() -> crate::net::lobby::Answer {
-    Box::new(|place, r| match place {
-        STR_APPEND => {
-            r.ebx = unsafe {
-                crate::strings::str_append::str_append(r.eax as *const u8, r.ebx as *mut u8)
-            } as u32
-        }
-        APPEND_STRING => {
-            unsafe { (r.ebx as *mut [u8; 2]).write_unaligned(*b"#!") };
-            r.ebx += 2;
-            r.eax |= 0x0055_0000;
-        }
-        crate::net::lobby::FORMAT_U32 => {
-            let text = crate::strings::format_u32::format_u32(r.eax, r.ecx as u8);
-            unsafe { std::ptr::copy_nonoverlapping(text.as_ptr(), r.ebx as *mut u8, text.len()) };
-            r.ebx += text.len() as u32;
-        }
-        DRAW_TEXT => {
-            r.eax = 0;
-            r.ebx = r.ebx.wrapping_add(3);
-        }
-        _ => {}
-    })
-}

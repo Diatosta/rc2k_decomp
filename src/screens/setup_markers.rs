@@ -14,19 +14,14 @@
 //! values are changed in the player directly, so those bars have one marker.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, ESI, RawHook, Regs, SelfTest, game_read, game_write, rva};
+use crate::framework::{EAX, ESI, Regs, game_read, rva};
 use crate::gfx::blit_bar::Bar;
 use crate::gfx::blit_bar_marker::blit_bar_marker;
-use crate::screens::harness::{CallOriginal, Left, check_draw, dispatch_draw, push_dwords};
-use crate::service::state::{
-    BLINK_RVA, EDIT_MODE_RVA, MENU_ITEM_RVA, blink_on, edit_mode, menu_item, repair_flag,
-    repair_flag_addr,
-};
+use crate::screens::harness::Left;
+use crate::service::state::{blink_on, edit_mode, menu_item, repair_flag, repair_flag_addr};
 use crate::text::draw_text::Canvas;
 
-pub use rc2k_core::screens::setup_markers::{
-    BAR_WIDTH, LEFT_X, LOWER_Y, MARKER_GLYPH, RIGHT_X, SECOND_MARKER_GLYPH, UPPER_Y,
-};
+pub use rc2k_core::screens::setup_markers::{BAR_WIDTH, LEFT_X, RIGHT_X};
 
 pub const LOWER_LEFT_CHOSEN_RVA: usize = rva(0x75ACA8); // dword_75ACA8
 pub const LOWER_LEFT_INSTALLED_RVA: usize = rva(0x75ACAC); // dword_75ACAC
@@ -134,33 +129,6 @@ pub unsafe fn draw_marker(
 
 // ---- hook ----
 
-/// The bar globals: the marker's position is left in them.
-fn state() -> Vec<u8> {
-    let mut s = Vec::new();
-    push_dwords(
-        &mut s,
-        &[
-            rva(0x755224),
-            rva(0x755228),
-            rva(0x75522C),
-            rva(0x755230),
-            rva(0x755234),
-            rva(0x755238),
-        ],
-    );
-    s
-}
-
-pub fn dispatch_marker(hook: &RawHook, r: &mut Regs, call_original: CallOriginal, marker: Marker) {
-    dispatch_draw(
-        hook,
-        r,
-        call_original,
-        &|r, canvas| unsafe { draw_marker(marker, r, canvas) },
-        &state,
-    );
-}
-
 /// `dispatch_marker` without its hook (a refusal is the caller's).
 pub fn marker_entry(name: &str, r: &mut Regs, marker: Marker) -> Result<(), Refused> {
     crate::screens::harness::draw_entry(name, r, &|r, canvas| unsafe {
@@ -169,102 +137,3 @@ pub fn marker_entry(name: &str, r: &mut Regs, marker: Marker) -> Result<(), Refu
 }
 
 // ---- self-test ----
-
-/// Size of the stand-in for the player: the fields read are at +0x110 and +0x11C.
-const FAKE_CAR_DWORDS: usize = 0x50;
-
-/// Every combination of edit mode, highlighted item, blink, flag and a few percentages, with
-/// the blitter calls swallowed (the caller checks `drawing_unavailable` first). Everything
-/// written is put back.
-pub fn check_marker(t: &mut SelfTest, call_original: CallOriginal, marker: Marker) {
-    let (item, value_rvas): (u32, Vec<usize>) = match marker {
-        Marker::Always { percent_rva, .. } => (0x12, vec![percent_rva]),
-        Marker::Lower {
-            item,
-            chosen_rva,
-            installed_rva,
-            ..
-        } => (item, vec![chosen_rva, installed_rva]),
-        Marker::Upper { item, .. } => (item, vec![]),
-    };
-    let saved_bar = Bar::read();
-    let saved_values: Vec<u32> = value_rvas
-        .iter()
-        .map(|&at| unsafe { game_read(at) })
-        .collect();
-    let saved_mode: [u32; 3] = unsafe {
-        [
-            game_read(EDIT_MODE_RVA),
-            game_read(MENU_ITEM_RVA),
-            game_read(BLINK_RVA),
-        ]
-    };
-    let flag = repair_flag_addr(item) as *mut u32;
-    let saved_flag = unsafe { flag.read_unaligned() };
-
-    let mut fake_car = [0u32; FAKE_CAR_DWORDS];
-    let mut before = Regs::SENTINEL;
-    before.edi = fake_car.as_mut_ptr() as u32;
-
-    // The second value only matters to the lower markers: equal to the first, or not.
-    for (percent, other) in [
-        (0i32, 0i32),
-        (-7, -7),
-        (1, 2),
-        (50, 50),
-        (100, 50),
-        (130, 130),
-    ] {
-        for edit in [0u32, 1, 2] {
-            for selected in [item, item ^ 1] {
-                for blink in [0u32, 1] {
-                    for flag_value in [0u32, 1, 2] {
-                        if let Marker::Upper { car_offset, .. } = marker {
-                            fake_car[car_offset as usize / 4] = percent as u32;
-                        }
-                        let prepare = || unsafe {
-                            game_write(EDIT_MODE_RVA, edit);
-                            game_write(MENU_ITEM_RVA, selected);
-                            game_write(BLINK_RVA, blink);
-                            flag.write_unaligned(flag_value);
-                            for (&at, v) in value_rvas.iter().zip([percent, other]) {
-                                game_write(at, v);
-                            }
-                            Bar {
-                                x: 0x5EED,
-                                y: 0x5EED,
-                                width: 0x5EED,
-                                fill_glyph: 0x5EED,
-                                end_glyph: 0x5EED,
-                                percent: 0x5EED,
-                            }
-                            .write();
-                        };
-                        check_draw(
-                            t,
-                            &format!(
-                                "percent={percent} other={other} edit={edit} selected={selected:#x} blink={blink} flag={flag_value}"
-                            ),
-                            call_original,
-                            before,
-                            &prepare,
-                            &|r, canvas| unsafe { draw_marker(marker, r, canvas) },
-                            &state,
-                        );
-                    }
-                }
-            }
-        }
-    }
-
-    unsafe {
-        game_write(EDIT_MODE_RVA, saved_mode[0]);
-        game_write(MENU_ITEM_RVA, saved_mode[1]);
-        game_write(BLINK_RVA, saved_mode[2]);
-        flag.write_unaligned(saved_flag);
-        for (&at, &v) in value_rvas.iter().zip(&saved_values) {
-            game_write(at, v);
-        }
-    }
-    saved_bar.write();
-}

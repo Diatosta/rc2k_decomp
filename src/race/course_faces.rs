@@ -523,13 +523,6 @@ unsafe fn fill_entry(slot: u32, corner: u32) {
     }
 }
 
-/// Entries filled from corners, (slot, corner) each (for the tests).
-pub unsafe fn fill_entries(pairs: &[(u32, u32)]) {
-    for &(slot, corner) in pairs {
-        unsafe { fill_entry(slot, corner) };
-    }
-}
-
 /// The light's third byte (bits 16 .. 23) of entry `slot`: the lamps' part.
 unsafe fn lamp_byte(slot: u32) -> u8 {
     unsafe { ((entry(slot) + 0x1E) as *const u8).read() }

@@ -14,22 +14,17 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{Regs, game_read};
 use crate::screens::harness::{Left, draw_entry};
 use crate::service::load_setup_slot::SLOT_PAGE_RVA;
-use crate::service::read_setup_slot::{NAME_LEN, slot_name};
+use crate::service::read_setup_slot::slot_name;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-const X_RVA: usize = rva(0x755A18); // g_markerX
-const Y_RVA: usize = rva(0x755A1C); // g_markerY
-const ROW_RVA: usize = rva(0x7559EC); // dword_7559EC: a work variable, here the row counter
-
-pub const FONT: usize = 0x51E8A4;
-pub const COLUMNS: [i32; 2] = [0xE9, 0x238];
-const ROWS: u32 = 15;
-pub const PAGES: u32 = 3;
+// g_markerX
+// g_markerY
+// dword_7559EC: a work variable, here the row counter
 
 // ---- Rust version ----
 
@@ -45,8 +40,6 @@ pub unsafe fn draw_setup_slot_names(canvas: &mut dyn Canvas) -> Result<(), Refus
     .map(|_| ())
 }
 
-pub const STATE_RVAS: [usize; 3] = [X_RVA, Y_RVA, ROW_RVA];
-
 fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     unsafe { draw_setup_slot_names(canvas) }?;
     Ok(Left::carry(false))
@@ -56,10 +49,4 @@ fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     draw_entry("screens::draw_setup_slot_names", r, &rust)
-}
-
-/// True if every name of the list ends within its 0x20 bytes, so that drawing stays inside it.
-pub fn names_end() -> bool {
-    (0..PAGES * ROWS * 2)
-        .all(|slot| (0..NAME_LEN).any(|i| unsafe { slot_name(slot).add(i).read() } == 0))
 }

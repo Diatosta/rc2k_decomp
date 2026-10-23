@@ -5,8 +5,7 @@
 //! first face and a number of faces in `g_faces`, whose entries point into the faces'
 //! memory.
 
-use crate::framework::{game_addr, game_read, rva};
-use crate::service::harness::Region;
+use crate::framework::{game_read, rva};
 
 pub const SLOT_RVA: usize = rva(0x634FEC); // dword_634FEC: the slot being loaded
 pub const KIND_RVA: usize = rva(0x634FE8); // dword_634FE8: its kind
@@ -29,10 +28,6 @@ pub const OBJECT_KINDS_RVA: usize = rva(0x5CD27C); // g_objectKinds
 /// The file as read: +4 points, +8 faces, +0xC normals, +0x2C the points.
 pub const FILE_RVA: usize = rva(0xA2BB54); // byte_A2BB54
 pub const FILE_ROOM: usize = 0x40000;
-
-pub fn slot_entry(table: usize, slot: u32) -> Region {
-    (game_addr(table) as u32 + slot * 4, 4)
-}
 
 pub unsafe fn of_slot(table: usize, slot: u32) -> u32 {
     unsafe { game_read(table + slot as usize * 4) }

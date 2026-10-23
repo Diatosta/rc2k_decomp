@@ -72,31 +72,3 @@ pub fn effect_found(info: u32, record: u32) -> u32 {
     }
     1
 }
-
-/// The eleven standard effects' `DIEFFECTINFOA`s, as `EnumEffects` gives them.
-pub fn test_infos() -> Vec<DiEffectInfo> {
-    (0..11u32)
-        .map(|n| {
-            let family: u32 = match n {
-                0 => 1,
-                1 => 2,
-                2..=6 => 3,
-                _ => 4,
-            };
-            DiEffectInfo {
-                size: std::mem::size_of::<DiEffectInfo>() as u32,
-                guid: crate::input::di_objects::guid(
-                    0x1354_1C20 + n,
-                    0x8E33,
-                    0x11D0,
-                    [0x9A, 0xD0, 0x00, 0xA0, 0xC9, 0xA0, 0x6E, 0x35],
-                ),
-                // the type with a flag above its low byte, and parameters of the test's
-                eff_type: family | 0x200,
-                static_params: 0x100 + n,
-                dynamic_params: 0x200 + n,
-                name: [0; 260],
-            }
-        })
-        .collect()
-}

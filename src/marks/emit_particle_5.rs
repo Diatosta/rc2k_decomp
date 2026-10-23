@@ -24,15 +24,14 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, SelfTest, game_read, game_write, rva};
-use crate::marks::emit_particle_6::{TEST_ENTRIES, TestEmitter};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::emitters::*;
 use crate::marks::jitter_point::jitter_point;
 use crate::marks::setup::SEED_RVA;
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at as at_rva, check_state, restore, state_entry};
+use crate::service::harness::{Region, at as at_rva, state_entry};
 
 const STRENGTH_RVA: usize = rva(0x93555E); // g_marksStrength
 const SIGN_RVA: usize = rva(0x935432); // g_marksSign: -1 or 1
@@ -212,85 +211,4 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-/// The test of either emitter.
-pub fn test_with(
-    t: &mut SelfTest,
-    set: &JitterSet,
-    call_original: crate::screens::harness::CallOriginal,
-    rust: crate::service::harness::Rust,
-) {
-    let mut test = TestEmitter::new(&[STRENGTH_RVA, SIGN_RVA, SIDE_BIT_RVA, set.place_random]);
-    let regions = test.regions();
-    let mut made = 0;
-    let mut case = 0u32;
-    // (the wheel's +0x18, +0x10, the side bit, taken)
-    for (speed, push, side, taken) in [
-        (3.0f32, 0.5f32, 0u32, 0u32),
-        (-10.0, 4.0, 1, 5),
-        (0.0, 1.0, 0, 0),
-        (-0.0, 1.0, 1, 0),
-        (1.4, 1.0, 1, 0),
-        (-1.6, 1.0, 0, 0),
-        (2.5e-3, -7.0, 3, 0x10),
-        (1e6, 1e6, 2, 0),
-        (5.0, 2.0, 1, MOST_TAKEN),
-    ] {
-        case += 1;
-        let ptrs = (
-            test.wheel.as_mut_ptr(),
-            test.object.as_mut_ptr(),
-            test.matrix.as_mut_ptr(),
-        );
-        let seed = case.wrapping_mul(0x2545_F491);
-        test.prepare(taken);
-        check_state(
-            t,
-            &format!("speed {speed}, push {push}, side {side}, taken {taken:#x}"),
-            call_original,
-            Regs {
-                edi: ptrs.0 as u32,
-                esi: ptrs.1 as u32,
-                ..Regs::SENTINEL
-            },
-            &|| unsafe {
-                restore(&regions, &vec![0xAA; regions.iter().map(|r| r.1).sum()]);
-                let base = test.ring.as_ptr() as u32;
-                for n in 0..TEST_ENTRIES {
-                    let e = (base + n * ENTRY_LEN as u32) as *mut u32;
-                    e.write_unaligned(base + ((n + 1) % TEST_ENTRIES) * ENTRY_LEN as u32);
-                }
-                game_write(RING_CURSOR_RVA, base + 3 * ENTRY_LEN as u32);
-                game_write(RING_COUNT_RVA, taken);
-                game_write(OBJECT_RVA, ptrs.1 as u32);
-                game_write(SEED_RVA, seed);
-                game_write(set.place_random, seed ^ 0x55);
-                game_write(SIDE_BIT_RVA, side);
-                let w = ptrs.0;
-                for n in 0..0x20 {
-                    *w.add(n) = (n as f32 * 0.75 - 3.0).to_bits();
-                }
-                *w.add(4) = push.to_bits();
-                *w.add(6) = speed.to_bits();
-                *w.add(8) = 0x1234_56C7;
-                let o = ptrs.1;
-                for n in 0..0x30 {
-                    *o.add(n) = (n as f32 * 1.25 + 0.5).to_bits();
-                }
-                *o.add(0x1C / 4) = 0x1234_5678;
-                *o.add(0x24 / 4) = ptrs.2 as u32;
-                for n in 0..0x10 {
-                    *ptrs.2.add(n) = ((n as f32 - 5.0) * 0.3).to_bits();
-                }
-            },
-            &regions,
-            rust,
-        );
-        if unsafe { game_read::<u32>(RING_COUNT_RVA) } != taken {
-            made += 1;
-        }
-    }
-    t.check(made > 0, || "no case made an entry".into());
-    drop(test);
 }

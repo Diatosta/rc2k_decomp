@@ -13,8 +13,7 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::race::viewer::{Part, Saved, dword, fill, get, move_dwords, put, region, run_both};
-use crate::service::harness::Region;
+use crate::race::viewer::{Part, get, move_dwords, put};
 
 const IN_HEADER: usize = 0x719C54; // dword_719C54
 const IN_FORCE: usize = 0x5C2C94; // dword_5C2C94
@@ -66,63 +65,4 @@ pub fn restore_replay_patches(entry: &Regs, part: Part) -> Result<Regs, Refused>
 pub fn game_part(_place: u32, _r: &mut Regs) -> Result<(), Refused> {
     unsafe { crate::physics::apply_patches::apply_patches() };
     Ok(())
-}
-
-pub fn regions() -> Vec<Region> {
-    vec![
-        dword(IN_FORCE),
-        region(SWITCHES, 0x34),
-        region(KEPT, 0x34),
-        dword(APPLIED),
-    ]
-}
-
-/// The self-test of either: a copy whose call goes to a stand-in, against the Rust
-/// version; in the header or not, in force or not.
-pub fn test_patches(
-    hook: &crate::framework::RawHook,
-    address: usize,
-    len: usize,
-    call: usize,
-    rust: &dyn Fn(&Regs, Part) -> Result<Regs, Refused>,
-) -> (usize, usize) {
-    let Some(mut t) = crate::framework::SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    // pusha; cmp dword_719C54, 0
-    let copy = match crate::race::viewer::copy(
-        address,
-        len,
-        &[0x60, 0x83, 0x3D, 0x54, 0x9C, 0x71, 0x00, 0x00],
-        &[call],
-        &[(0x4648BD, 1)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    crate::race::viewer::quiet();
-    let mut all = regions();
-    all.extend([dword(IN_HEADER), region(REPLAYS, 0x34)]);
-    let saved = Saved::new(&all);
-    for (header, force) in [(0u32, 0u32), (0, 1), (5, 0), (5, 1)] {
-        run_both(
-            &mut t,
-            &format!("in the header {header}, in force {force}"),
-            copy.addr(),
-            Regs::SENTINEL,
-            &regions(),
-            0,
-            &|| {
-                put(IN_HEADER, header);
-                put(IN_FORCE, force);
-                fill(SWITCHES, 0x34, 14);
-                fill(KEPT, 0x34, 15);
-                fill(REPLAYS, 0x34, 16);
-                put(APPLIED, 1);
-            },
-            &|r| rust(r, &mut crate::race::viewer::test_part),
-        );
-    }
-    drop(saved);
-    t.finish()
 }

@@ -29,16 +29,6 @@ use crate::physics::flow::{a, g, p};
 use crate::race::step_replay_cars::{CARS, CURRENT};
 use crate::race::viewer::{BLOCK, BLOCK_DATA, FRAME, Part, move_dwords, regs_entry};
 
-/// The calls by place, as IDA shows them.
-pub const CALLEES: [usize; 8] = [
-    0, 0x46010D, // 1 drive::load_replay_cars
-    0x460949, // 2 drive::replay_cameras
-    0x460835, // 3 race::step_replay_cars
-    0x460C40, // 4 drive::load_car
-    0x44FF1B, // 5 physics::camera_frame
-    0x460C5D, // 6 drive::store_car
-    0x454229, // 7 sub_454229 (race::draw_race_scene)
-];
 const STILL: usize = 0x601024; // dword_601024
 const STILL_2: usize = 0x6416BC; // dword_6416BC
 const DRAWING: usize = 0x6416B8; // dword_6416B8

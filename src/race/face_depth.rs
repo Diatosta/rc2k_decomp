@@ -19,27 +19,12 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::Regs;
 use crate::race::frame_draw::*;
-use crate::scene::project_point::regions as point_regions;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
+use crate::service::harness::state_entry;
 
-const FACES: usize = rva(0x5CCCBC); // g_courseFaces
-
-/// What it may write for face `ebx`.
-pub fn depth_regions(ebx: u32) -> Vec<Region> {
-    let mut v = vec![at(FACE_KEY_RVA), at(rva(0x63DC44))];
-    let faces: u32 = unsafe { game_read(FACES) };
-    if faces != 0 {
-        let face = (ebx << 6).wrapping_add(faces);
-        for k in 0..4 {
-            let point = unsafe { (face.wrapping_add(4 + 4 * k) as *const u32).read_unaligned() };
-            v.extend(point_regions(point));
-        }
-    }
-    v
-}
+// g_courseFaces
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { face_depth(r.ebx) }?;

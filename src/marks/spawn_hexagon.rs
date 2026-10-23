@@ -24,7 +24,7 @@ use crate::marks::expire_hexagons::{ITEM_LEN, ITEMS, ITEMS_RVA};
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
+use crate::service::harness::state_entry;
 
 pub const CURSOR_RVA: usize = rva(0x81517E); // dword_81517E: an offset into the items
 const WINDOW: u32 = 32;
@@ -84,13 +84,6 @@ pub unsafe fn spawn_hexagon_plain(x: u32, z: u32, kind: u32) {
         }
         game_write(CURSOR_RVA, found.cursor);
     }
-}
-
-pub fn regions() -> Vec<Region> {
-    vec![
-        (game_addr(ITEMS_RVA) as u32, (ITEMS * ITEM_LEN) as usize),
-        at(CURSOR_RVA),
-    ]
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

@@ -21,7 +21,7 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, ZERO_FLAG, game_addr, hook_enter, hook_leave, rva};
+use crate::framework::{Regs, ZERO_FLAG, game_addr, rva};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 // ---- game data ----
@@ -151,12 +151,6 @@ pub unsafe fn receive_thread(entry: &Regs, v: &ReceiveVars, part: Part) -> Resul
 /// versions, the posted call through the game; a turn's messages and posted call hold the
 /// gate.
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    struct Gate;
-    impl Drop for Gate {
-        fn drop(&mut self) {
-            hook_leave();
-        }
-    }
     match place {
         1 => {
             let (carry, zero) =
@@ -165,13 +159,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             r.set_zero(zero);
         }
         2 => {
-            hook_enter();
-            let _gate = Gate;
             crate::calls::call(rva(0x4194CC), r); // net::take_messages
         }
         3 => {
-            hook_enter();
-            let _gate = Gate;
             crate::menu::table_calls::call_any(r.eax, r);
         }
         4 => unsafe { windows_sys::Win32::System::Threading::ExitThread(0) },

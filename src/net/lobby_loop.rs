@@ -39,7 +39,7 @@ use crate::net::lobby::{
     ALL_RACED, BACK_FROM_RACE, BLOCK, CAR_ITEM, CHOICE, CLOCK, CLOCK_A, EDITED, FRAME_CLOCK,
     KEY_CLOCK, LIST_TAKE_KEY, MAYBE_LEXICON, MOVE_CLOCK, OWN, PLAYER, PLAYERS, Part, QUITTING,
     RACING, RUN_FRAME, SCREENSHOT, SCREENSHOTS_ON, SEND, SEND_BUFFER, SHOW_GAPS, STAGE_ITEM, SYNC,
-    SYNC_CLOCK, SYNC_FIRST, SYNCED, TICK, a, block, dword, g, game, gb, lobby_entry, p, pb, region,
+    SYNC_CLOCK, SYNC_FIRST, SYNCED, TICK, a, block, g, game, gb, lobby_entry, p, pb,
 };
 use crate::net::types::NetPlayerBlock;
 
@@ -278,36 +278,4 @@ pub fn lobby_loop(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     lobby_entry(r, lobby_loop)
-}
-
-/// The sync's and the loops' variables, for the tests.
-pub fn lobby_regions() -> Vec<crate::service::harness::Region> {
-    vec![
-        dword(PLAYERS),
-        dword(RACING),
-        dword(CHOICE),
-        dword(EDITED),
-        dword(KEY_CLOCK),
-        dword(FRAME_CLOCK),
-        dword(MOVE_CLOCK),
-        dword(CLOCK_A),
-        region(OWN, 0x40),
-        region(SYNCED, 8),
-        region(SYNC, 2),
-        region(CAR_ITEM, 0xC),
-        dword(SCREENSHOTS_ON),
-        region(SEND_BUFFER, 4),
-        (block(0), 8 * BLOCK as usize),
-    ]
-}
-
-/// The players' blocks for a test: ids 0x10 + n, states as given.
-pub fn set_players(states: &[u8]) {
-    for (n, &s) in states.iter().enumerate() {
-        let b = block(n as u32);
-        unsafe {
-            ((b + field!(NetPlayerBlock, id)) as *mut u32).write_unaligned(0x10 + n as u32);
-            ((b + field!(NetPlayerBlock, record.state)) as *mut u8).write(s);
-        }
-    }
 }

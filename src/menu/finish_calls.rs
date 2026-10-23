@@ -26,24 +26,6 @@ pub const CALLED: [usize; 15] = [
     0x407F95, // 14 input::take_key
 ];
 
-/// The stand-ins' table for `race::mud::copy`.
-pub const PLACES: [(usize, u32); 14] = [
-    (0x415C93, 1),
-    (0x40F02E, 2),
-    (0x47CEA8, 3),
-    (0x4433A7, 4),
-    (0x44346B, 5),
-    (0x44347E, 6),
-    (0x443396, 7),
-    (0x4278C7, 8),
-    (0x40F826, 9),
-    (0x404823, 10),
-    (0x442AF6, 11),
-    (0x474E04, 12),
-    (0x40F780, 13),
-    (0x407F95, 14),
-];
-
 /// A call by place (`CALLED`).
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
@@ -64,14 +46,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     }
     crate::calls::call(rva(CALLED[place as usize]), r);
     Ok(())
-}
-
-/// The regions the starts write (the tests').
-pub fn regions() -> Vec<crate::service::harness::Region> {
-    use crate::service::harness::at;
-    let mut v: Vec<_> = SET_UP_RVA.map(at).to_vec();
-    v.extend([ON_RVA, rva(0x75ACCC)].map(at));
-    v
 }
 
 const KEPT_RVA: usize = rva(0x75ACE4); // dword_75ACE4

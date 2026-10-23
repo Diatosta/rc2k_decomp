@@ -31,7 +31,6 @@ use crate::framework::{Regs, game_addr, game_read, game_write};
 use crate::gfx::lay_out_pcx::lay_out_pcx;
 use crate::gfx::pcx::{
     FILE_PALETTE_LEN, FILE_PALETTE_RVA, HEADER_LEN, HEADER_RVA, PALETTE_RVA, PIXELS_RVA, stream,
-    test_header, test_palette, test_plane_bytes, test_runs,
 };
 use crate::gfx::pcx_reader::reader_entry;
 use crate::gfx::picture::FLAGS_RVA;
@@ -88,13 +87,4 @@ pub unsafe fn read_pcx_8bit(path: *const u8) -> Result<bool, BadInput> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     reader_entry(r, read_pcx_8bit)
-}
-
-/// A whole file: header, coded rows, palette.
-pub fn test_file(width: u16, height: u16, line_bytes: u16, seed: u32) -> Vec<u8> {
-    let mut file = test_header(2, 3, width, height, 1, line_bytes);
-    let rows = test_plane_bytes(line_bytes as usize * height as usize, seed);
-    file.extend(test_runs(&rows));
-    file.extend(test_palette());
-    file
 }

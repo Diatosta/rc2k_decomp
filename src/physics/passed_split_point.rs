@@ -27,7 +27,7 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::{EAX, EBX, ECX, ESI, Regs, game_addr, game_read, game_write, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::progress;
 use std::cmp::Ordering;
 
@@ -159,11 +159,6 @@ pub unsafe fn passed_split_point(entry: &Regs) -> Result<Left, Refused> {
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { passed_split_point(r) }
-}
-
-pub fn regions() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    vec![(a(0x639824), 12), (a(0x62400C), 4), (a(0x614CFC), 12)]
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

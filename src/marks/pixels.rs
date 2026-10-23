@@ -10,7 +10,6 @@ use crate::marks::turns::{TURN_RVA, scale_rows3, set_line_turn, turn_pair};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::vector3::STATUS_RVA;
-use crate::service::harness::{Region, at};
 
 pub const PIXEL_RVA: usize = rva(0x833DB2); // g_marksPixel: x, then y (dword_833DB6)
 pub const WORK_RVA: usize = rva(0x82E3D2); // dword_82E3D2, dword_82E3D6: the pixel worked on
@@ -133,19 +132,6 @@ pub unsafe fn map_pixel(entry: &Regs) -> Regs {
     *entry
 }
 
-/// What `map_pixel` writes besides its four bytes.
-pub fn pixel_regions() -> Vec<Region> {
-    let a = |r: usize| game_addr(r) as u32;
-    vec![
-        (a(PIXEL_RVA), 4),
-        (a(SLOPE_RVA), 0x14),
-        (a(ENDS_RVA), 0x14),
-        (a(TURN_RVA[0]), 0x24),
-        at(SEED_RVA),
-        at(STATUS_RVA),
-    ]
-}
-
 /// The rows a shape entry may fill: x and length inside 0x100, rows inside 0x80.
 unsafe fn rows_fit(entries: u32, index: u32) -> Result<(), Refused> {
     unsafe {
@@ -229,40 +215,6 @@ pub unsafe fn map_shape(entry: &Regs) -> Result<Regs, Refused> {
     Ok(g)
 }
 
-/// What `map_shape_rows` writes besides the table and `map_pixel`'s.
-pub fn row_regions() -> Vec<Region> {
-    let mut r = pixel_regions();
-    r.extend([
-        (game_addr(PIXEL_RVA) as u32 + 4, 4),
-        at(ROW_RVA),
-        (game_addr(WORK_RVA) as u32, 8),
-    ]);
-    r
-}
-
-/// The line pair the tests set (12 floats from 0x82E3DA) and the table pointer.
-pub fn test_inputs() -> Vec<Region> {
-    vec![
-        (game_addr(LINES_RVA) as u32, 0x2C),
-        at(TABLE_RVA),
-        at(ROW_LESS_RVA),
-    ]
-}
-
-/// Lines by lot (corners inside the picture, apart).
-pub unsafe fn fill_lines(seed: u32) {
-    let mut s = seed;
-    let mut next = move || {
-        s = s.wrapping_mul(1_103_515_245).wrapping_add(12345);
-        (s >> 8) % 0x8000
-    };
-    let mut v = [0u32; 11];
-    for x in v.iter_mut() {
-        *x = (next() as f32 / 128.0).to_bits();
-    }
-    unsafe { game_write(LINES_RVA, v) };
-}
-
 const MAPPED_RVA: [usize; 3] = [rva(0x844E10), rva(0x844E18), rva(0x844E1C)]; // shapes, table, corners
 const CORNER_TABLE_RVA: usize = rva(0x8445E6); // dword_8445E6
 const MIDDLE_RVA: usize = rva(0x8445D6); // flt_8445D6, flt_8445DA
@@ -329,20 +281,4 @@ pub unsafe fn map_shapes(entry: &Regs) -> Result<Regs, Refused> {
         x87::set_control_word(came);
     }
     Ok(g)
-}
-
-/// What `map_shapes` writes besides the table and the pixels' variables.
-pub fn shapes_regions() -> Vec<Region> {
-    let a = |r: usize| game_addr(r) as u32;
-    let mut r = row_regions();
-    r.extend([
-        (a(MAPPED_RVA[0]), 4),
-        (a(MAPPED_RVA[1]), 8),
-        at(TABLE_RVA),
-        (a(MIDDLE_RVA), 8),
-        at(CORNER_TABLE_RVA),
-        (a(LINES_RVA), 0x2C),
-        at(crate::marks::masks::VALUE_RVA),
-    ]);
-    r
 }

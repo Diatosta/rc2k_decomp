@@ -8,7 +8,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{game_ptr, log, rva, trace};
+use crate::framework::{game_ptr, rva};
 use crate::threading::thread_slot::ThreadSlot;
 use windows_sys::Win32::System::Threading::GetCurrentThreadId;
 
@@ -28,13 +28,7 @@ pub unsafe fn find_thread_slot() -> *const ThreadSlot {
     let tid = unsafe { GetCurrentThreadId() };
     let id_of = |n: usize| unsafe { (&raw const (*slots.add(n)).thread_id).read_volatile() };
     match rc2k_core::threading::slot_of(id_of, tid) {
-        Some(n) => {
-            let slot = unsafe { slots.add(n) };
-            if trace() {
-                log(&format!("find_thread_slot: tid={tid:#x} slot={slot:p}"));
-            }
-            slot
-        }
+        Some(n) => unsafe { slots.add(n) },
         None => std::ptr::null(),
     }
 }

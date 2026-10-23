@@ -16,9 +16,6 @@ pub const REPAIR_TOTAL_RVA: usize = rva(0x75AC8C); // dword_75AC8C: time of the 
 pub const PLAYER_INDEX_RVA: usize = rva(0x75598C); // dword_75598C: the current player
 pub const PLAYERS_RVA: usize = rva(0x75647C); // g_players[player index]
 
-/// The service time that is free: `budget - total` has to stay at or above this.
-pub const FREE_SERVICE_TIME: i32 = 900;
-
 /// The current player (`Player`), or None if the index or the pointer is not usable.
 pub fn current_player() -> Option<u32> {
     unsafe {
@@ -56,9 +53,6 @@ pub fn blink_on() -> bool {
 /// the -1 that ends them.
 pub const ITEM_COUNT: u32 = 20;
 
-/// Bytes of a flag table with its terminator.
-pub const FLAG_TABLE_LEN: usize = (ITEM_COUNT as usize + 1) * 4;
-
 /// The highlighted menu item, if it has a flag.
 pub fn flagged_item() -> Result<u32, BadInput> {
     let item = menu_item();
@@ -71,11 +65,6 @@ pub fn flagged_item() -> Result<u32, BadInput> {
 
 pub fn set_repair_flag(item: u32, value: u32) {
     unsafe { (repair_flag_addr(item) as *mut u32).write_unaligned(value) }
-}
-
-/// Address of the second flag of menu item `item`.
-pub fn repair_mark_addr(item: u32) -> u32 {
-    (game_addr(REPAIR_MARKS_RVA) as u32).wrapping_add(item.wrapping_mul(4))
 }
 
 /// The flag table, with its end mark.

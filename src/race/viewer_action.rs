@@ -51,32 +51,6 @@ use crate::race::viewer::{
     PLAY_FROM_HERE, Part, SLOT, SNAPSHOT, get, move_dwords, pb, put, regs_entry,
 };
 
-/// The calls by place, as IDA shows them.
-pub const CALLEES: [usize; 23] = [
-    0, 0x41EBA1, // 1 drive::read_replay_frame_0 (eax)
-    0x41EBAB, // 2 drive::read_replay_frame (eax, ebx)
-    0x41E1E2, // 3 race::play_from_here
-    0x41E224, // 4 race::play_marked
-    0x41E438, // 5 race::keep_undo
-    0x41E2F6, // 6 race::copy_marked
-    0x41E403, // 7 race::reset_marks
-    0x41E46B, // 8 race::undo_edit
-    0x41CEB4, // 9 race::viewer_tidy_stage
-    0x46F786, // 10 menu::replay_slot_loop (eax)
-    0x41EB7C, // 11 race::close_viewed_replay
-    0x41E9FF, // 12 race::open_viewed_replay (ebx)
-    0x41CDC2, // 13 race::viewer_load_stage
-    0x41ED1C, // 14 race::save_viewed_replay (ebx)
-    0x41E6DC, // 15 race::choose_save_slot (eax)
-    0x41E6BD, // 16 race::spread_camera (ebx, dh)
-    0x41E599, // 17 race::edit_camera_1
-    0x41E5BA, // 18 race::edit_camera_2
-    0x41E5EB, // 19 race::next_camera
-    0x41E654, // 20 race::previous_camera
-    0x41F35E, // 21 race::start_frame_pictures (eax)
-    0x41F3C6, // 22 race::stop_frame_pictures
-];
-
 /// The Rust version: the registers it leaves (ZF: it was an action).
 pub fn viewer_action(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut out = *entry;

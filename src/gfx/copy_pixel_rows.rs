@@ -22,7 +22,6 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{EBX, EDI, EDX, ESI, Regs, rva};
 use crate::gfx::harness::pixels_entry;
 use crate::screens::harness::Left;
-use crate::service::harness::Region;
 
 pub const COPY_PIXEL_ROWS: usize = rva(0x407540);
 
@@ -68,22 +67,6 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
                 .with(EDI, to),
         },
     )
-}
-
-/// The destination's rows, from the first byte written to the last, for comparing. Empty
-/// when nothing is copied or the numbers make no sense as a block of memory.
-pub fn written(r: &Regs, bytes_per_dword: u32) -> Vec<Region> {
-    if r.esi == r.edi || r.edx == 0 || r.ecx == 0 {
-        return Vec::new();
-    }
-    let row_bytes = r.ecx as i64 * bytes_per_dword as i64;
-    let step = row_bytes - r.ebp as i32 as i64;
-    let last = step * (r.edx as i64 - 1);
-    let (low, high) = (last.min(0), last.max(0) + row_bytes);
-    if high - low > 0x400_0000 {
-        return Vec::new();
-    }
-    vec![((r.edi as i64 + low) as u32, (high - low) as usize)]
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

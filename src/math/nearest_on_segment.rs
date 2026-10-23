@@ -18,9 +18,6 @@ use crate::math::x87_run::compare_80;
 use crate::physics::flow::{base, hold_high, hold_low, p, x87_run};
 use crate::sound::turn_parts::Part;
 
-/// dword_71C384 .. flt_71C3D4: the ends, the point, the result and the work.
-pub const VARS: usize = 0x71C384;
-pub const VARS_LEN: usize = 0x54;
 // flt_5C5D90: 0
 // flt_5C5D38: 1
 const T: usize = 0x71C3B4;

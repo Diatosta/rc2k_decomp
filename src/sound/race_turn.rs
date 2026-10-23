@@ -45,16 +45,8 @@ fn g(x: usize) -> u32 {
 /// standalone, where there is no original to jump into, the program is ended the same
 /// way from here.
 pub fn quit_in_game(r: &mut Regs) {
-    #[cfg(feature = "standalone")]
-    {
-        let _ = r;
-        crate::standalone::leave_from_race();
-    }
-    // (its hook is gone: the address is the original)
-    #[cfg(not(feature = "standalone"))]
-    unsafe {
-        crate::framework::call_game(r, crate::framework::game_addr(rva(0x40D5F3)))
-    };
+    let _ = r;
+    crate::standalone::leave_from_race();
 }
 
 // ---- Rust version ----

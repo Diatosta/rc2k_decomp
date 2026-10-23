@@ -7,7 +7,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 
-pub const RECORDS_RVA: usize = rva(0x641AA4); // unk_641AA4: the points, 0x20 bytes each
+// unk_641AA4: the points, 0x20 bytes each
 pub const COUNT_RVA: usize = rva(0x64192C); // dword_64192C
 pub const HULL_COUNT_RVA: usize = rva(0x643ACC); // dword_643ACC
 pub const FARTHEST_RVA: usize = rva(0x643ABC); // dword_643ABC: the farthest point's record
@@ -528,9 +528,6 @@ unsafe fn raise_onto_face(index: u32) {
         );
     }
 }
-
-/// `race::shadow_on_face`'s draw by place: 1 `scene::draw_polygon`. Place 0 is not used.
-pub const FACE_CALLEES: [(u32, usize); 1] = [(1, 0x44BA2C)];
 
 /// Whether `shadow_on_face`'s last screen clip cut the polygon: the registers its passes
 /// leave are not modelled (no callee reads them), so its test compares those calls by place.

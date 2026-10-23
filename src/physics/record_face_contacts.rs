@@ -20,9 +20,8 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::physics::face_contact::{self, Touched, guarded};
+use crate::physics::face_contact::{self, Touched};
 use crate::physics::flow::g;
-use crate::screens::harness::Left;
 use rc2k_core::physics::ground_search;
 
 const RECORDS: usize = 0x5CCCB8; // g_courseRecords (a pointer)
@@ -52,21 +51,8 @@ pub fn steps(r: &mut Regs, touched: &mut Touched) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The Rust version.
-pub unsafe fn record_face_contacts(entry: &Regs) -> Result<Left, Refused> {
-    guarded(entry, steps)
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     crate::physics::face_contact::faces_entry(r, steps)
-}
-
-/// The record holding face `k`, if any.
-pub fn record_of(k: u32) -> Option<u32> {
-    (0..g(0x5CCD18).min(0x10_0000)).find(|&n| {
-        let (first, last) = record_faces(n);
-        first != u32::MAX && first <= k && k <= last
-    })
 }

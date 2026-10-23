@@ -16,29 +16,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::Regs;
 use crate::race::frame_draw::*;
-use crate::scene::matrix::{self, matrix as whole};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
-
-pub fn sky_regions() -> Vec<Region> {
-    let mut v: Vec<Region> = [
-        matrix::TURN_Y_RVA,
-        matrix::PLACED_RVA,
-        matrix::TURNED_RVA,
-        matrix::OBJECT_RVA,
-    ]
-    .map(whole)
-    .to_vec();
-    v.extend([
-        (game_addr(matrix::TURN_Y_WORK_RVA) as u32, 8),
-        (game_addr(rva(0x63501C)) as u32, 0xC),
-        at(rva(0x635038)),
-        at(rva(0x62400C)),
-    ]);
-    v
-}
+use crate::service::harness::state_entry;
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { sky_matrix() })

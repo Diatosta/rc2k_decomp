@@ -53,10 +53,3 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
 }
-
-/// A table of the tests': 16 entries whose first dwords have mixed bits.
-pub fn test_table() -> Vec<u32> {
-    (0..16u32)
-        .flat_map(|n| [n.wrapping_mul(0x0101_1011) ^ (n << 12), 0xAA00 + n])
-        .collect()
-}

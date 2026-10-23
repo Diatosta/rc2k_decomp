@@ -22,8 +22,8 @@
 use crate::errors::Refused;
 use crate::framework::{ECX, EDI, ESI, Regs, game_addr, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
-use rc2k_core::physics::saved_car::{MOST_LISTED, restore_count, restored};
+use crate::service::harness::state_entry;
+use rc2k_core::physics::saved_car::{restore_count, restored};
 
 /// The variables' addresses: the game's, or a test's.
 #[derive(Clone, Copy)]
@@ -51,16 +51,6 @@ impl SavedCar {
             list: a(0x71ADC8),
             count: a(0x71A238),
         }
-    }
-
-    /// What it writes, for a count of `n`.
-    pub fn regions(&self, n: u32) -> Vec<Region> {
-        vec![
-            (self.counter, 4),
-            (self.place, 12),
-            (self.matrix, 0x40),
-            (self.list, 4 * n.min(MOST_LISTED) as usize),
-        ]
     }
 
     unsafe fn at(a: u32) -> u32 {

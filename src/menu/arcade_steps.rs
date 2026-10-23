@@ -51,11 +51,11 @@
 //! in 0x28 (0x30 for `off_75A12E`) entries, a shown car past the list.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
-use crate::menu::player::{PLAYERS_RVA, player_at};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::menu::player::player_at;
 use crate::menu::standings::{bytes, table};
-use crate::screens::harness::{CallOriginal, Left};
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::screens::harness::Left;
+use crate::service::harness::{capture, restore};
 use rc2k_core::menu::{bests, standings};
 
 pub const LEVEL_RVA: usize = rva(0x7587EC); // dword_7587EC
@@ -78,7 +78,7 @@ const SUM_RVA: usize = rva(0x758798); // dword_758798
 const CHEATS_RVA: usize = rva(0x75870C); // g_cheats
 const KEPT_NAME_RVA: usize = rva(0x755884); // g_keptPlayerName
 const SLOT_RVA: usize = rva(0x7559EC); // dword_7559EC
-const HHMM_RVA: usize = rva(0x7559F0); // hhmm
+// hhmm
 const BEST_LINE_RVA: usize = rva(0x75B02C); // unk_75B02C
 const CARS_RVA: usize = rva(0x75A042); // off_75A042
 const SHOWN_LIST_RVA: usize = rva(0x75A12E); // off_75A12E
@@ -99,10 +99,6 @@ fn p(a: usize, v: u32) {
 fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
-fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
-}
-
 /// The stage's record (`off_73555A[level]` + stage x 0xA4).
 fn stage_record() -> Result<u32, Refused> {
     let (level, stage) = (g(LEVEL_RVA), g(STAGE_RVA));
@@ -387,222 +383,3 @@ pub fn secret_car_list() -> Left {
 }
 
 // ---- hooks' and tests' common parts ----
-
-/// What they may write, for the shadow comparison: the variables, the stage's records,
-/// the course's times, the level's scores, the current player's record, the car lists.
-pub fn regions() -> Vec<Region> {
-    let mut r = vec![
-        at(FLAG_RVA),
-        at(TIME_SEEN_RVA),
-        (game_addr(BONUS_RVA) as u32, 0x70), // 758758 .. 7587C8
-        (game_addr(KEPT_NAME_RVA) as u32, 0x20),
-        at(SLOT_RVA),
-        at(HHMM_RVA),
-        (game_addr(BEST_LINE_RVA) as u32, 0x40),
-        (game_addr(CARS_RVA) as u32, 4 * CARS_LEN as usize),
-        (
-            game_addr(SHOWN_LIST_RVA) as u32,
-            4 * SHOWN_LIST_LEN as usize,
-        ),
-        (game_addr(rva(0x755258)) as u32, 0x140), // the two lists of numbers
-    ];
-    r.extend(crate::race::save_seal::seal_regions());
-    r.push((game_addr(crate::race::save_seal::BLOCK_RVA) as u32, 8));
-    if let Ok(s) = stage_record() {
-        r.push((s, 0xA4));
-    }
-    if let Ok(t) = course_times() {
-        r.push((t, 0x618));
-    }
-    if let Ok(s) = level_scores() {
-        r.push((s, 0x320));
-    }
-    if let Ok((_, p)) = current() {
-        r.push((p, std::mem::size_of::<crate::menu::player::Player>()));
-    }
-    r
-}
-
-pub fn dispatch_step(
-    hook: &RawHook,
-    r: &mut Regs,
-    call_original: CallOriginal,
-    rust: crate::service::harness::Rust,
-) {
-    dispatch_state(hook, r, call_original, &regions(), rust);
-}
-
-/// Test memory in the places the steps read: level 2 stage 3 whose course is 1, the
-/// times and scores of the test's, two player records with names, cheats; the car lists
-/// of the test's in the game's lists' places.
-struct Fixture {
-    stages: Vec<u8>,
-    times: Vec<u8>,
-    scores: Vec<u8>,
-    players: Vec<u8>,
-    names: Vec<u8>,
-    inputs: Vec<Region>,
-    saved: Vec<u8>,
-}
-
-fn inputs() -> Vec<Region> {
-    let mut r = regions();
-    r.extend([
-        at(LEVEL_RVA),
-        at(STAGE_RVA),
-        (game_addr(STAGE_TABLES_RVA) as u32, 0x18),
-        at(TIMES_BASE_RVA),
-        at(SCORES_BASE_RVA),
-        at(CURRENT_RVA),
-        (game_addr(PLAYERS_RVA) as u32, 0x10),
-        at(CHEATS_RVA),
-        at(SHOWN_RVA),
-        at(PLACES_RVA),
-        at(rva(0x75ACD8)),
-    ]);
-    r
-}
-
-const PLAYER_LEN: usize = 0x300;
-
-impl Fixture {
-    fn new() -> Self {
-        let inputs = inputs();
-        let saved = capture(&inputs);
-        let mut f = Self {
-            stages: vec![0; 7 * 0xA4],
-            times: vec![0; 2 * 0x618],
-            scores: vec![0; 6 * 0x320],
-            players: vec![0; 2 * PLAYER_LEN],
-            names: vec![0; 0x40],
-            inputs,
-            saved,
-        };
-        unsafe {
-            p(LEVEL_RVA, 2);
-            p(STAGE_RVA, 3);
-            p(STAGE_TABLES_RVA + 8, f.stages.as_mut_ptr() as u32);
-            p(TIMES_BASE_RVA, f.times.as_mut_ptr() as u32);
-            p(SCORES_BASE_RVA, f.scores.as_mut_ptr() as u32);
-            p(PLAYERS_RVA, f.players.as_mut_ptr() as u32);
-            p(
-                PLAYERS_RVA + 4,
-                f.players.as_mut_ptr().add(PLAYER_LEN) as u32,
-            );
-            game_write(rva(0x75ACD8), 2u32);
-        }
-        f
-    }
-
-    /// Contents by `seed`; the times' and scores' +0x14 from `keys` (top to bottom).
-    fn fill(&mut self, seed: u32, keys: &[i32; 10], player: u32) {
-        let pattern = |v: &mut Vec<u8>, salt: u32| {
-            for (k, b) in v.iter_mut().enumerate() {
-                *b = ((k as u32).wrapping_mul(0x3B) ^ seed.wrapping_mul(salt)) as u8;
-            }
-        };
-        pattern(&mut self.stages, 7);
-        pattern(&mut self.times, 11);
-        pattern(&mut self.scores, 13);
-        pattern(&mut self.players, 17);
-        self.names[..0x20].copy_from_slice(b"Test driver name, thirty-one by\0");
-        self.names[0x20..].copy_from_slice(b"Second test name, thirty-one by\0");
-        let names = self.names.as_ptr() as u32;
-        let stage = self.stages.as_ptr() as u32 + 3 * 0xA4;
-        put(stage + 0x3C, 1);
-        put(stage + 0x30, keys[0] as u32);
-        let times = self.times.as_ptr() as u32 + 0x618;
-        let scores = self.scores.as_ptr() as u32 + 2 * 0x320;
-        for (k, &key) in keys.iter().enumerate() {
-            put(times + k as u32 * TIME_LEN + 0x14, key as u32);
-            put(
-                scores + k as u32 * SCORE_LEN + 0x14,
-                key.wrapping_neg() as u32,
-            );
-        }
-        for n in 0..2u32 {
-            let r = self.players.as_ptr() as u32 + n * PLAYER_LEN as u32;
-            put(r + 0x18, names + 0x20 * n);
-            put(
-                r + 0x88,
-                keys[(4 + seed as usize) % 10].wrapping_add(n as i32) as u32,
-            );
-            put(r + 0x94, keys[(seed as usize + n as usize) % 10] as u32);
-        }
-        p(CURRENT_RVA, player);
-        p(SCORE_RVA, keys[seed as usize % 10].wrapping_neg() as u32);
-        p(
-            SCORE_1_RVA,
-            keys[(seed as usize + 3) % 10].wrapping_neg() as u32,
-        );
-        p(CHEATS_RVA, seed.wrapping_mul(0x9E37_79B9) & 0x7FFFF);
-        p(PLACES_RVA, 5 + seed);
-        p(POSITION_RVA, seed % 4);
-        p(FLAG_RVA, 0);
-        // The car lists: shown car 1 of five, a list of three.
-        for k in 0..SHOWN_LIST_LEN as usize {
-            p(
-                SHOWN_LIST_RVA + 4 * k,
-                if k < 5 {
-                    game_addr(rva(0x757210)) as u32 + 0x78 * k as u32
-                } else {
-                    u32::MAX
-                },
-            );
-        }
-        for k in 0..CARS_LEN as usize {
-            p(
-                CARS_RVA + 4 * k,
-                if k < 3 {
-                    game_addr(rva(0x757300)) as u32 + 0x78 * k as u32
-                } else {
-                    u32::MAX
-                },
-            );
-        }
-        p(SHOWN_RVA, seed % 5);
-    }
-
-    fn end(self) {
-        restore(&self.inputs, &self.saved);
-    }
-}
-
-/// The self-test of each step: the fixture filled by several seeds and orders of the
-/// best lists (sorted, a tie, the tenth best and worst), the current player 0 and 1.
-pub fn test_step(
-    hook: &RawHook,
-    call_original: CallOriginal,
-    rust: crate::service::harness::Rust,
-    before: &dyn Fn(u32) -> Regs,
-) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let mut f = Fixture::new();
-    let orders: [[i32; 10]; 4] = [
-        [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000],
-        [100, 200, 300, 400, 500, 600, 700, 800, 900, 50],
-        [100, 200, 300, 300, 500, 600, 600, 800, 900, 300],
-        [-5, 0x7FFF_FFFF, 3, 3, i32::MIN, 0, 1, 2, 3, 3],
-    ];
-    let fixture = std::cell::RefCell::new(&mut f);
-    for (n, keys) in orders.iter().enumerate() {
-        for seed in [0u32, 1, 2] {
-            for player in [0u32, 1] {
-                let stage = fixture.borrow().stages.as_ptr() as u32 + 3 * 0xA4;
-                check_state(
-                    &mut t,
-                    &format!("order {n}, seed {seed}, player {player}"),
-                    call_original,
-                    before(stage),
-                    &|| fixture.borrow_mut().fill(seed, keys, player),
-                    &regions(),
-                    rust,
-                );
-            }
-        }
-    }
-    f.end();
-    t.finish()
-}

@@ -8,7 +8,6 @@
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, rva};
 use crate::math::x87;
-use crate::service::harness::Region;
 
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
@@ -139,60 +138,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         }
     }
     Ok(())
-}
-
-/// The dwords a table's steps write.
-pub fn written(steps: &[Step]) -> Vec<usize> {
-    let mut w: Vec<usize> = steps
-        .iter()
-        .filter_map(|s| match *s {
-            Copy(to, _)
-            | IntToFloat(to, _)
-            | FloatToInt(to, _)
-            | FloatCopy(to, _)
-            | Brake(to, _)
-            | Put(to, _)
-            | Store(to)
-            | Dec(to) => Some(to),
-            _ => None,
-        })
-        .collect();
-    w.sort();
-    w.dedup();
-    w
-}
-
-/// The dwords a table's steps read.
-pub fn read(steps: &[Step]) -> Vec<usize> {
-    let mut r: Vec<usize> = steps
-        .iter()
-        .filter_map(|s| match *s {
-            Copy(_, from)
-            | IntToFloat(_, from)
-            | FloatToInt(_, from)
-            | FloatCopy(_, from)
-            | Brake(_, from)
-            | Load(from)
-            | SubEax(from)
-            | BitIf(from, _)
-            | Value(from, _)
-            | Float(from)
-            | JumpIfNot(from, _, _)
-            | Dec(from) => Some(from),
-            _ => None,
-        })
-        .collect();
-    r.sort();
-    r.dedup();
-    r
-}
-
-/// Regions of dwords.
-pub fn regions_of(dwords: &[usize]) -> Vec<Region> {
-    dwords
-        .iter()
-        .map(|&a| (game_addr(rva(a)) as u32, 4))
-        .collect()
 }
 
 pub const GRAHAM_TO_SHAUN: [Step; 446] = [

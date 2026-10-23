@@ -17,7 +17,7 @@
 use crate::errors::Refused;
 use crate::framework::{Regs, game_read, game_write, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
+use crate::service::harness::state_entry;
 
 const FRAMED_RVA: usize = rva(0x621514); // dword_621514
 const WIDE_RVA: usize = rva(0x621480); // dword_621480
@@ -47,21 +47,6 @@ pub unsafe fn choose_view_window() -> Left {
         game_write(SCALE_RVA, window.scale);
         crate::scene::set_view_window::set_view_window()
     }
-}
-
-pub fn regions() -> Vec<Region> {
-    let mut r: Vec<Region> = crate::scene::set_view_window::regions().to_vec();
-    r.extend(
-        [
-            WINDOW_RVA[0],
-            WINDOW_RVA[1],
-            OFFSET_RVA[0],
-            OFFSET_RVA[1],
-            SCALE_RVA,
-        ]
-        .map(at),
-    );
-    r
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {

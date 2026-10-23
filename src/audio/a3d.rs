@@ -138,21 +138,3 @@ pub unsafe fn splash(kept: u32) -> Result<(), Refused> {
 }
 
 // ---- for the self-tests ----
-
-/// `CoCreateInstance` in a copy: no object, "class not registered", its five arguments
-/// taken off the stack.
-#[unsafe(naked)]
-pub unsafe extern "C" fn no_class() {
-    core::arch::naked_asm!(
-        "mov eax, [esp + 0x14]",
-        "mov dword ptr [eax], 0",
-        "mov eax, 0x80040154",
-        "ret 0x14",
-    )
-}
-
-/// The Rust side's `CoCreateInstance` in a test: as `no_class`.
-pub fn test_create(_: u32, _: u32, out: u32) -> i32 {
-    unsafe { write(out, 0) };
-    0x8004_0154u32 as i32
-}

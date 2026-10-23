@@ -20,18 +20,9 @@ use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::math::x87;
 use crate::math::x87_run::{abs_sqrt_times_plus, one_less, sine_cosine_of};
-use crate::physics::mirror::{Mirror, Spec};
+use crate::physics::mirror::Mirror;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
-
-pub const RANGES: [(u32, u32); 2] = [(0x5C7098, 0x5C70BC), (0x5C78F8, 0x5C7908)];
-pub const SPEC: Spec = (
-    0x421019,
-    0x155,
-    &[0xD9, 0x05, 0xF8, 0x78, 0x5C, 0x00],
-    &[],
-    47,
-);
+use crate::service::harness::state_entry;
 
 /// The Rust core on the variables `m` reaches; the matrix at `out`.
 pub unsafe fn axis_turn_at(m: &Mirror, out: u32) {
@@ -76,10 +67,6 @@ pub unsafe fn axis_turn_matrix(out: u32) {
 fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { axis_turn_matrix(r.edi) };
     Ok(Left::nothing())
-}
-
-pub fn regions(m: &Mirror, out: u32) -> Vec<Region> {
-    vec![(m.a(0x5C7098), 0x24), (out, 0x40)]
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

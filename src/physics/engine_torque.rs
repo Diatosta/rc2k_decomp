@@ -19,17 +19,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EBX, RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
+use crate::framework::{EBX, Regs, game_read, game_write, rva};
 use crate::math::x87;
-use crate::math::x87_run::{
-    TEST_CONTROL_WORDS, div_then_mul, lerp_table, trunc_mul_to_int, with_control_word,
-};
-use crate::scene::matrix3::test_floats;
+use crate::math::x87_run::{div_then_mul, lerp_table, trunc_mul_to_int};
 use crate::screens::harness::Left;
-use crate::service::floats::{
-    FLOAT, Floats, at_test_precisions, check_state_floats, dispatch_state_floats,
-};
-use crate::service::harness::{Region, capture, check_state, restore};
 use rc2k_core::physics::engine::{Engine, engine_torque as engine_torque_core};
 use std::cmp::Ordering;
 
@@ -118,41 +111,6 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { engine_torque_plain() })
 }
 
-/// The float places `engine_torque` writes (IDA addresses, lengths).
-pub const TORQUE_FLOATS: [(usize, usize); 2] = [(0x62400C, 4), (0x614744, 8)];
-
-/// What the engine's steps write.
-pub fn regions() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    vec![
-        (a(0x62400C), 4),
-        (a(0x623FB8), 4),
-        (a(0x614740), 0x14),
-        (a(0x71A1C8), 4),
-    ]
-}
-
-/// The shadow comparison of a converted engine step: `regions`, the float places
-/// `floats` names (IDA addresses, lengths) within `FLOAT`.
-pub fn dispatch_engine(
-    hook: &'static RawHook,
-    r: &mut Regs,
-    call_original: crate::screens::harness::CallOriginal,
-    regions: &[Region],
-    floats: &[(usize, usize)],
-    rust: &dyn Fn(&Regs) -> Result<Left, Refused>,
-) {
-    let memory: Vec<_> = floats
-        .iter()
-        .map(|&(x, len)| ((game_addr(rva(x)) as u32, len), FLOAT))
-        .collect();
-    let floats = Floats {
-        memory: &memory,
-        regs: &[],
-    };
-    dispatch_state_floats(hook, r, call_original, regions, &floats, rust);
-}
-
 /// `dispatch_engine` without its hook (Rust callers; a refusal is the caller's).
 pub fn engine_entry(
     r: &mut Regs,
@@ -165,123 +123,4 @@ pub fn engine_entry(
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     engine_entry(r, &rust)
-}
-
-/// The inputs the engine tests set.
-pub fn inputs() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    vec![
-        (a(0x71A1B0), 8),
-        (a(0x613FF0), 0x24),
-        (a(0x614B7C), 0x24),
-        (a(0x71A3CC), 4),
-        (a(0x71A610), 4),
-        (a(0x71A1AC), 4),
-        (a(0x6140BC), 0x24),
-        (a(0x5CB968), 4),
-        (a(0x71A1A8), 4),
-        (a(0x71A018), 4),
-        (a(0x71A184), 4),
-        (a(0x71A000), 4),
-        (a(0x614758), 4),
-        (a(0x614750), 4),
-        (a(0x624020), 4),
-        (a(0x62401C), 4),
-    ]
-}
-
-/// An engine case: the engine speed's share of its top, the curve and the rest by `seed`.
-pub fn set_engine(seed: u32, share: f32) {
-    p(0x71A1B4, 6000.0f32.to_bits());
-    p(0x71A1B0, (6000.0 * share).to_bits());
-    let mut f = [0u32; 9];
-    test_floats(seed * 7 + 2, &mut f);
-    for (k, v) in f.iter().enumerate() {
-        p(0x613FF0 + 4 * k, (k as f32 / 8.0).to_bits());
-        p(0x614B7C + 4 * k, (f32::from_bits(*v) % 400.0).to_bits());
-    }
-    p(0x71A3CC, (0.5 + seed as f32 * 0.25).to_bits());
-    p(0x71A610, 3 + seed % 4);
-    p(0x71A1AC, seed % 5);
-    for (k, r) in [-4.0f32, 0.0, 3.5, 2.2, 1.5, 1.1, 0.9, 0.8, 0.7]
-        .iter()
-        .enumerate()
-    {
-        p(0x6140BC + 4 * k, r.to_bits());
-    }
-    p(0x5CB968, 1.5f32.to_bits());
-    p(0x71A1A8, seed.is_multiple_of(3) as u32);
-    p(0x71A018, seed % 2);
-    p(0x71A184, (seed as f32 * 4.5).to_bits());
-    p(0x71A000, seed * 3);
-    p(0x71A1C8, seed % 3);
-    p(0x614750, 0x5A5A);
-}
-
-/// The engine shares the tests run through.
-pub const SHARES: [f32; 8] = [0.0, 0.1, 0.33, 0.5, 0.875, 0.99, 1.0, 1.2];
-
-/// The test of one of the engine's steps.
-pub fn test_engine(
-    t: &mut SelfTest,
-    original: unsafe extern "C" fn(*mut Regs),
-    rust: &dyn Fn(&Regs) -> Result<Left, Refused>,
-) {
-    let mut all = regions();
-    all.extend(inputs());
-    let saved = capture(&all);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for (seed, share) in SHARES.iter().enumerate() {
-                check_state(
-                    t,
-                    &format!("control word {word:#x}, share {share}"),
-                    original,
-                    Regs::SENTINEL,
-                    &|| set_engine(seed as u32, *share),
-                    &all,
-                    rust,
-                );
-            }
-        });
-    }
-    restore(&all, &saved);
-}
-
-/// `test_engine` for a converted step: exact at double precision, at extended the float
-/// places `floats` names (IDA addresses, lengths) within `FLOAT`.
-pub fn test_engine_floats(
-    t: &mut SelfTest,
-    name: &'static str,
-    original: unsafe extern "C" fn(*mut Regs),
-    rust: &dyn Fn(&Regs) -> Result<Left, Refused>,
-    floats: &[(usize, usize)],
-) {
-    let mut all = regions();
-    all.extend(inputs());
-    let saved = capture(&all);
-    let memory: Vec<_> = floats
-        .iter()
-        .map(|&(x, len)| ((game_addr(rva(x)) as u32, len), FLOAT))
-        .collect();
-    let tolerant = Floats {
-        memory: &memory,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, fl| {
-        for (seed, share) in SHARES.iter().enumerate() {
-            check_state_floats(
-                t,
-                name,
-                &format!("control word {word:#x}, share {share}"),
-                original,
-                Regs::SENTINEL,
-                &|| set_engine(seed as u32, *share),
-                &all,
-                fl,
-                rust,
-            );
-        }
-    });
-    restore(&all, &saved);
 }

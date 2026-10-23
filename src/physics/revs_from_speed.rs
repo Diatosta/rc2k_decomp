@@ -23,12 +23,6 @@ use crate::framework::Regs;
 use crate::physics::gearing::*;
 use crate::screens::harness::Left;
 
-/// The Rust version (the exact one, for the gearbox's Rust callers), on the game's
-/// variables.
-pub unsafe fn revs_from_speed() -> Result<Left, Refused> {
-    unsafe { revs_from_speed_at(&GearPlaces::game()) }
-}
-
 fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { revs_from_speed_plain_at(&GearPlaces::game()) }
 }

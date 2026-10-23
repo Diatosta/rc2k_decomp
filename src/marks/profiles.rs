@@ -8,7 +8,6 @@ use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
 
 pub const RINGS_RVA: usize = rva(0x8DD061); // dword_8DD061, dword_8DD461, then dword_8DD861
-pub const RINGS_LEN: usize = 0x804;
 pub const DONE_RVA: usize = rva(0x91FF3E); // dword_91FF3E: 0, or where to go on
 pub const RESUME_RVA: usize = rva(0x4C3EA6); // loc_4C3EA6
 const RAMPS_RVA: usize = rva(0x9152F6); // off_9152F6: 3 tables
@@ -16,12 +15,8 @@ const SINES_RVA: usize = rva(0x915302); // off_915302: 8 tables
 const CURVES_RVA: usize = rva(0x915322); // off_915322: 2 tables
 const RAMP_STEPS_RVA: usize = rva(0x91FF42); // flt_91FF42, 256.0
 const CURVE_STEPS_RVA: usize = rva(0x91FF46); // flt_91FF46, 256.0
-/// The 13 tables, each 0x800 bytes, 0x8E506D .. 0x8EB86D.
-pub const TABLES_RVA: usize = rva(0x8E506D);
-pub const TABLES_LEN: usize = 13 * 0x800;
 /// The profiles' work, `flt_8EB871` .. `flt_8EB899`.
 pub const WORK_RVA: usize = rva(0x8EB871);
-pub const WORK_LEN: usize = 0x2C;
 pub const COURSE_INFO_RVA: usize = rva(0x5C6FA0); // g_courseInfo
 pub const COURSE_CORNERS: u32 = 0x1C_2000;
 pub const CORNERS_LEN: usize = 0x8000;
@@ -150,16 +145,4 @@ pub unsafe fn make_profiles(
         part(3, &mut g)?;
     }
     Ok(g)
-}
-
-/// What `make_profiles` writes itself.
-pub fn profile_regions() -> Vec<crate::service::harness::Region> {
-    let a = |r: usize| game_addr(r) as u32;
-    vec![
-        (a(RINGS_RVA), RINGS_LEN),
-        crate::service::harness::at(DONE_RVA),
-        (a(TABLES_RVA), TABLES_LEN),
-        (a(WORK_RVA), WORK_LEN),
-        (a(crate::marks::blocks::CORNERS_RVA), CORNERS_LEN),
-    ]
 }

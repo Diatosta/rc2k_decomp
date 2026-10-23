@@ -33,7 +33,7 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{EAX, ESI, Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::drive::controls::{FLIP_BIT, VIEW_BIT, computer_drives, flipped, read_keys};
 
 fn g(x: u32) -> u32 {
@@ -131,20 +131,6 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     let mut g = *r;
     unsafe { read_car_controls(&mut g) }?;
     Ok(Left::nothing().with(EAX, g.eax).with(ESI, g.esi))
-}
-
-/// Everything it writes.
-pub fn regions() -> Vec<Region> {
-    let mut r = crate::drive::drive_computer_car::regions();
-    r.extend([
-        (a(0x5C694C), 4),
-        (a(0x71A43C), 0x14),
-        (a(0x613890), 0x18),
-        (a(0x71A05C), 4),
-        (a(0x719FD8 + 0x684), 0x1C),
-        (a(0x71A654), 8),
-    ]);
-    r
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

@@ -15,8 +15,6 @@ use windows_sys::Win32::System::Environment::SetCurrentDirectoryA;
 pub const SET_CURRENT_DIRECTORY: usize = 0x403105;
 pub const MAKE_DIRECTORY: usize = 0x403113;
 pub const REMOVE_DIRECTORY: usize = 0x403123;
-pub const DELETE_FILE: usize = 0x402E8C;
-
 pub unsafe fn set_current_directory(path: *const u8) -> u32 {
     unsafe { SetCurrentDirectoryA(path) as u32 }
 }

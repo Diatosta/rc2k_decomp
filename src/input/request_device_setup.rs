@@ -23,22 +23,9 @@ use crate::input::devices::put;
 use crate::input::input_tick::COMMAND_RVA;
 use crate::input::types::InputDevice;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
+use crate::service::harness::state_entry;
 
 pub const DEVICES_RVA: usize = rva(0x4F6EE8); // g_inputDevices
-/// The bytes of the record this writes.
-pub const WRITTEN: usize = 0x24;
-
-/// What it writes: the record and the command.
-pub fn regions() -> Vec<Region> {
-    let record = unsafe { game_read::<u32>(DEVICES_RVA) };
-    let mut r = vec![at(COMMAND_RVA)];
-    if record != 0 {
-        r.push((record, WRITTEN));
-    }
-    r
-}
-
 /// The Rust version (see the header).
 pub unsafe fn request_device_setup(
     controller: u32,

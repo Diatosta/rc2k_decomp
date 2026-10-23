@@ -33,12 +33,11 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{EAX, ECX, EDX, Regs, game_addr, game_ptr, game_read, game_write, rva};
+use crate::framework::{EAX, ECX, EDX, Regs, game_ptr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::polygon::{dword, put};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at};
 
 // ---- game data ----
 
@@ -307,27 +306,6 @@ pub unsafe fn project_point_plain(point: u32) -> Result<Projected, Refused> {
     }
 }
 
-/// The float places of `regions(point)`: the record's five floats and `dword_62400C`.
-pub fn float_places(point: u32) -> Vec<(Region, crate::service::floats::Tolerance)> {
-    use crate::service::floats::FLOAT;
-    let mut places = vec![(at(CHECKED_RVA), FLOAT)];
-    let records: u32 = unsafe { game_read(RECORDS_RVA) };
-    if let (Ok(offset), true) = (unsafe { record_offset(point) }, records != 0) {
-        places.push(((records.wrapping_add(offset + 0xC), 0x14), FLOAT));
-    }
-    places
-}
-
-/// What a call for `point` may write.
-pub fn regions(point: u32) -> Vec<Region> {
-    let mut regions = vec![at(CHECKED_RVA)];
-    let records: u32 = unsafe { game_read(RECORDS_RVA) };
-    if let (Ok(offset), true) = (unsafe { record_offset(point) }, records != 0) {
-        regions.push((records.wrapping_add(offset), RECORD_LEN));
-    }
-    regions
-}
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     let done = unsafe { project_point_plain(r.eax) }?;
     let left = Left::nothing().with(EAX, done.eax).with(EDX, done.record);
@@ -341,123 +319,4 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     crate::service::floats::floats_entry(r, &rust)
-}
-
-/// The variables a test of the projection sets, to be put back afterwards.
-pub fn inputs() -> Vec<Region> {
-    let mut inputs: Vec<Region> = [
-        RECORDS_RVA,
-        POINTS_RVA,
-        POINT_COUNT_RVA,
-        OBJECT_POINTS_RVA,
-        FLAT_RVA,
-        FLAT_DEPTH_RVA,
-        SCALE_RVA,
-        CENTRE_X_RVA,
-        CENTRE_Y_RVA,
-        LOWERED_RVA,
-        CHECKED_RVA,
-    ]
-    .map(at)
-    .to_vec();
-    inputs.push((game_addr(MATRIX_RVA) as u32, 0x40));
-    inputs
-}
-
-/// Points, records and views for a test: the game's variables are pointed at them by
-/// `set`, and `inputs()` is what to put back.
-pub struct World {
-    pub records: Vec<[u32; 8]>,
-    pub points: Vec<[i32; 3]>,
-}
-
-pub const TEST_POINTS: u32 = 8;
-pub const TEST_OBJECT_POINTS: u32 = 6;
-
-impl World {
-    pub fn new() -> Self {
-        let mut points = vec![[0i32; 3]; TEST_POINTS as usize + 0x40];
-        for (n, point) in points.iter_mut().enumerate() {
-            let n = n as i32;
-            *point = [n * 977 - 3000, 2500 - n * 613, n * 1201 - 1500];
-        }
-        // One far off, one of the largest numbers.
-        points[5] = [123_456_789, -98_765_432, 7_654_321];
-        points[6] = [i32::MAX, i32::MIN, 1];
-        Self {
-            records: vec![[0; 8]; 0x2000],
-            points,
-        }
-    }
-
-    /// The records as nobody made them, but for the objects' (which the function only
-    /// finds) and one of the scene's that is there already; the variables for view
-    /// `view` (0 .. 3), flat or not, lowered or not.
-    pub unsafe fn set(&mut self, view: usize, flat: bool, lowered: bool) {
-        let f = |value: f32| value.to_bits();
-        self.records.fill([0xAAAA_AAAA; 8]);
-        for n in 0..TEST_OBJECT_POINTS as usize {
-            let depth = [100.0f32, 5000.0, 4096.0, 70000.0, f32::NAN, 12000.5][n];
-            self.records[0x1000 + n] = [0, 0, 0, f(10.0 + n as f32), 0, 0, f(depth), f(20.0)];
-        }
-        self.records[2] = [2, 7, 7, f(1.5), f(2.5), f(3.5), f(9000.0), f(4.5)];
-        let matrices: [[f32; 16]; 4] = [
-            [
-                1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 9000.0, 0.0,
-            ],
-            [
-                0.36, 0.48, -0.8, 0.0, -0.8, 0.6, 0.0, 0.0, 0.48, 0.64, 0.6, 0.0, 12.25, -7.5,
-                20000.3, 0.0,
-            ],
-            [
-                1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 4096.0, 0.0,
-            ],
-            [
-                0.1234567, 3.3333333, -0.7171068, 0.0, 2.7282818, -0.5, 0.3333333, 0.0, -1.4242135,
-                0.0009765, 1.7320508, 0.0, -333.33334, 0.1, 6000.7, 0.0,
-            ],
-        ];
-        unsafe {
-            game_write(MATRIX_RVA, matrices[view % 4].map(f));
-            game_write(RECORDS_RVA, self.records.as_mut_ptr() as u32);
-            game_write(POINTS_RVA, self.points.as_ptr() as u32);
-            game_write(POINT_COUNT_RVA, TEST_POINTS);
-            game_write(OBJECT_POINTS_RVA, TEST_OBJECT_POINTS);
-            game_write(FLAT_RVA, flat as u32);
-            game_write(FLAT_DEPTH_RVA, 7999u32);
-            game_write(SCALE_RVA, f(640.0 + view as f32 * 0.37));
-            game_write(CENTRE_X_RVA, f(400.0));
-            game_write(CENTRE_Y_RVA, f(300.5));
-            game_write(LOWERED_RVA, lowered as u32);
-            game_write(CHECKED_RVA, 0xAAAA_AAAAu32);
-        }
-    }
-
-    /// Everything a projection may have written.
-    pub fn state(&self) -> (Vec<[u32; 8]>, u32) {
-        (self.records.clone(), unsafe { game_read(CHECKED_RVA) })
-    }
-}
-
-impl Default for World {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// Two states of the test's world the same, the records' floats (+0xC .. +0x1C) and the
-/// checked value within `tolerance`.
-pub fn same_world(
-    theirs: &(Vec<[u32; 8]>, u32),
-    mine: &(Vec<[u32; 8]>, u32),
-    tolerance: crate::service::floats::Tolerance,
-) -> bool {
-    use crate::service::floats::close;
-    theirs.0.len() == mine.0.len()
-        && theirs
-            .0
-            .iter()
-            .zip(&mine.0)
-            .all(|(a, b)| a[..3] == b[..3] && (3..8).all(|k| close(a[k], b[k], tolerance)))
-        && close(theirs.1, mine.1, tolerance)
 }

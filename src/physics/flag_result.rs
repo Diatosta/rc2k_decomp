@@ -5,8 +5,7 @@
 //! (the registers and the flags named), and the original's are used.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, shadow};
-use crate::screens::harness::CallOriginal;
+use crate::framework::Regs;
 
 /// What such a function leaves: eax (the value it had, where it is not changed), ecx and
 /// ebx where they change, the carry and (when callers may read it) zero.
@@ -33,60 +32,6 @@ impl FlagResult {
             r.set_zero(z);
         }
     }
-
-    /// True if `after` (the original's) is this, every other register kept from `before`.
-    pub fn matches(&self, before: &Regs, after: &Regs) -> bool {
-        use crate::framework::{EAX, EBX, ECX};
-        let mask = EAX | self.ecx.map_or(0, |_| ECX) | self.ebx.map_or(0, |_| EBX);
-        after.eax == self.eax
-            && self.ecx.is_none_or(|v| after.ecx == v)
-            && self.ebx.is_none_or(|v| after.ebx == v)
-            && after.carry() == self.carry
-            && self
-                .zero
-                .is_none_or(|z| crate::audio::buffer_play::zero(after) == z)
-            && after.preserved_except(before, mask)
-    }
-}
-
-pub fn dispatch_flags(
-    hook: &RawHook,
-    r: &mut Regs,
-    call_original: CallOriginal,
-    rust: &dyn Fn(&Regs) -> Result<FlagResult, Refused>,
-) {
-    hook.count_call();
-    if shadow() && !crate::service::harness::shadow_due(hook) {
-        unsafe { call_original(r) };
-        return;
-    }
-    let mine = match rust(r) {
-        Ok(m) => m,
-        Err(e) => {
-            unsafe { crate::fatal::raise::refused(hook, e, r, call_original) };
-            return;
-        }
-    };
-    if !shadow() {
-        mine.apply(r);
-        return;
-    }
-    let mut o = *r;
-    unsafe { call_original(&mut o) };
-    if !mine.matches(r, &o) {
-        crate::screens::harness::mismatch_unless_disturbed(hook, || {
-            format!(
-                "ecx {:#x}: original eax {:#x} carry {} zero {}; rust {mine:?}",
-                r.ecx,
-                o.eax,
-                o.carry(),
-                crate::audio::buffer_play::zero(&o)
-            )
-        });
-    }
-    let esp = r.esp;
-    *r = o;
-    r.esp = esp;
 }
 
 /// `dispatch_flags` without its hook (Rust callers; a refusal is the caller's).

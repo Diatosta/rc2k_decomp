@@ -20,7 +20,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::Regs;
 use crate::race::frame_draw::*;
 use crate::screens::harness::Left;
 use crate::service::harness::state_entry;
@@ -33,14 +33,4 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-/// Whether a stage is there to gather from: faces, point records and points.
-pub fn stage_there() -> bool {
-    unsafe {
-        game_read::<u32>(rva(0x5CCCBC)) != 0
-            && game_read::<u32>(crate::scene::project_point::RECORDS_RVA) != 0
-            && game_read::<u32>(crate::scene::project_point::POINTS_RVA) != 0
-            && game_read::<u32>(rva(0x5CCD1C)) >= 40 // g_courseFaceCount
-    }
 }

@@ -12,9 +12,8 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_addr, rva};
 use crate::menu::car_description::{read, shown_description};
-use crate::scene::carousel_pictures::ENTRIES_RVA;
 use crate::screens::harness::Left;
 use crate::service::harness::state_entry;
 use crate::strings::append_string_by_id::append_string_by_id;
@@ -47,52 +46,6 @@ pub unsafe fn car_caption() -> Result<(), Refused> {
         put_string(id, CAPTION_RVA, CAPTION_LEN)
     }
 }
-
-/// Carousel records of a test's: each a car and a string id, with the table of their
-/// addresses put where the game keeps its own (`dword_75A65C`) until dropped.
-pub struct TestRecords {
-    records: Vec<[u32; 4]>,
-    table: Vec<u32>,
-    saved: u32,
-}
-
-impl TestRecords {
-    /// One record a car of `cars`, its string one of `ids` in turn.
-    pub fn new(cars: &[u32], ids: &[u32]) -> Self {
-        let records: Vec<[u32; 4]> = cars
-            .iter()
-            .enumerate()
-            .map(|(n, &car)| [car, ids[n % ids.len()], 0, 0])
-            .collect();
-        let table: Vec<u32> = records.iter().map(|r| r.as_ptr() as u32).collect();
-        let saved = unsafe { game_read(ENTRIES_RVA) };
-        unsafe { game_write(ENTRIES_RVA, table.as_ptr() as u32) };
-        Self {
-            records,
-            table,
-            saved,
-        }
-    }
-
-    pub fn len(&self) -> u32 {
-        self.records.len() as u32
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.records.is_empty()
-    }
-}
-
-impl Drop for TestRecords {
-    fn drop(&mut self) {
-        let _ = &self.table;
-        unsafe { game_write(ENTRIES_RVA, self.saved) };
-    }
-}
-
-/// The cars the tests take: every car the tables have, the one that stands for
-/// another among them.
-pub const TEST_CARS: [u32; 12] = [0, 1, 2, 5, 0x10, 0x16, 0x17, 0x18, 0x20, 0x21, 0x22, 3];
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { car_caption() }?;

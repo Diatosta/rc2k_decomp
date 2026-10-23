@@ -36,9 +36,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EBX, ECX, EDI, EDX, ESI, Regs, SelfTest, game_read, rva};
+use crate::framework::{EBX, ECX, EDI, EDX, ESI, Regs, game_read, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{check_state, dispatch_state};
 
 /// A converter: the format it makes and where its constants are (IDA addresses).
 #[derive(Clone, Copy)]
@@ -92,79 +91,6 @@ pub fn convert_rows(entry: &Regs, c: Converter) -> Result<Left, Refused> {
         zero: Some(true),
         ..left
     })
-}
-
-/// Whether the processor has 3DNow (CPUID 0x80000001, edx bit 31).
-fn has_3dnow() -> bool {
-    #[cfg(target_arch = "x86")]
-    {
-        use std::arch::x86::__cpuid;
-        if __cpuid(0x8000_0000).eax < 0x8000_0001 {
-            return false;
-        }
-        __cpuid(0x8000_0001).edx & (1 << 31) != 0
-    }
-    #[cfg(not(target_arch = "x86"))]
-    false
-}
-
-pub fn dispatch_converter(
-    hook: &crate::framework::RawHook,
-    r: &mut Regs,
-    call_original: crate::screens::harness::CallOriginal,
-    c: Converter,
-) {
-    // The destination: the pixels written, ecx / 4 * 8 bytes a row.
-    let rows = r.edx.min(0x1_0000) as usize;
-    let bytes = ((r.ecx >> 2) as usize * 8).saturating_mul(rows);
-    let regions = if bytes == 0 || bytes > 0x100_0000 {
-        vec![]
-    } else {
-        vec![(r.edi, bytes)]
-    };
-    dispatch_state(hook, r, call_original, &regions, &|r| convert_rows(r, c));
-}
-
-pub fn test_converter(
-    hook: &crate::framework::RawHook,
-    call_original: crate::screens::harness::CallOriginal,
-    c: Converter,
-) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    if c.three_dnow && !has_3dnow() {
-        return t.skip("the processor has no 3DNow: the original cannot run here");
-    }
-    for (width, rows, ebp) in [(4u32, 1u32, 0u32), (16, 3, 0), (13, 2, 0), (8, 2, 8)] {
-        // a row's room: the steps' bytes and ebp's moves
-        let pixels: Vec<u32> = (0..width * rows)
-            .map(|n| n.wrapping_mul(0x9E37_79B9) ^ 0x1234_5678 ^ (n << 24))
-            .collect();
-        let room = (width as usize * 2 + ebp as usize * 2) * rows as usize + 64;
-        let mut out = vec![0xAAu8; room];
-        // ebp taken from edi after each row: start past the room it may go back
-        let start = out.as_mut_ptr() as u32 + (ebp * rows);
-        let o = out.as_mut_ptr() as u32;
-        check_state(
-            &mut t,
-            &format!("format {}, {width} x {rows}, ebp {ebp}", c.format),
-            call_original,
-            Regs {
-                esi: pixels.as_ptr() as u32,
-                edi: start,
-                ecx: width,
-                edx: rows,
-                ebp,
-                ..Regs::SENTINEL
-            },
-            &|| unsafe { std::ptr::write_bytes(o as *mut u8, 0xAA, room) },
-            &[(o, room)],
-            &|r| convert_rows(r, c),
-        );
-        drop((pixels, out));
-    }
-    t.finish()
 }
 
 /// The eight converters by their IDA address (hooks removed 2026-10-23: `gfx::convert_picture`

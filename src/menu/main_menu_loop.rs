@@ -185,17 +185,6 @@ pub const SCREEN: Screen = Screen {
     after_blink: &[Step::DoFlow(idle)],
     restart_action_check: true,
     always_asks: true,
-    also_reads: &[IDLE_RVA, IDLE_HELD_RVA],
-    also_writes: &[
-        rva(0x623FB0),
-        rva(0x623FB4),
-        rva(0x624080),
-        rva(0x7554EC),
-        rva(0x75AA74),
-        rva(0x75AA7C),
-        IDLE_FRAMES_RVA,
-        BLINK_TIME_RVA,
-    ],
 };
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).

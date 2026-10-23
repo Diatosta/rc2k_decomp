@@ -3,7 +3,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, rva};
-use crate::service::harness::Region;
 
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
@@ -142,12 +141,4 @@ pub fn log_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         }
     }
     Ok(())
-}
-
-/// What `copy_rally_times` writes (with the game's pointers).
-pub fn times_regions() -> Vec<Region> {
-    match unsafe { rally_times_places() } {
-        Some((_, to)) => vec![(to, 10 * 0x50)],
-        None => Vec::new(),
-    }
 }

@@ -8,7 +8,6 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::marks::masks::{CURSOR_RVA, RUNS_RVA, WORK_RVA};
 use crate::math::x87;
-use crate::service::harness::{Region, at};
 
 /// The edge pair `span_edges` works from: y0, y1, the left and right x at y0, at y1.
 pub const EDGE_RVA: usize = rva(0x82FD16); // dword_82FD16 .. dword_82FD2A
@@ -120,12 +119,6 @@ pub unsafe fn span_edges(entry: &Regs) -> Result<Regs, Refused> {
         game_write(XS_RVA, [xa, xb]);
     }
     Ok(g)
-}
-
-/// What `span_edges` writes besides the spans.
-pub fn edge_regions() -> Vec<Region> {
-    let a = |r: usize| game_addr(r) as u32;
-    vec![(a(HEIGHT_RVA), 0x20), (a(WORDS_RVA), 4), at(SCRATCH_RVA)]
 }
 
 /// The corners sorted by y, the original's way: pass after pass, a pair swapped when the
@@ -245,21 +238,6 @@ pub unsafe fn span_triangle(entry: &Regs) -> Result<Regs, Refused> {
     Ok(*entry)
 }
 
-/// What `span_triangle` writes besides the spans and the run.
-pub fn triangle_regions() -> Vec<Region> {
-    let a = |r: usize| game_addr(r) as u32;
-    let mut r = edge_regions();
-    r.extend([
-        (a(EDGE_RVA), 24),
-        at(SPLIT_RVA),
-        (a(TRIANGLE_RVA), 24),
-        at(RUNS_RVA),
-        at(CURSOR_RVA),
-        at(SPANS_TOTAL_RVA),
-    ]);
-    r
-}
-
 /// `marks::span_quad` (0x4BE0C6): the quad at ebp (four x, y floats) as two triangles, its
 /// corners 0, 1, 2 and then 2, 3, 0 (through 0x833D46), each `span_triangle`d. Every
 /// register kept. Refuses as `span_triangle` (the second only after the first is made).
@@ -283,90 +261,3 @@ pub unsafe fn span_quad(entry: &Regs) -> Result<Regs, Refused> {
 }
 
 // ---- for the self-tests ----
-
-/// A work block of the test's in `g_marksMaskWork` with the cursor at its start and the
-/// runs at their table's start; the game's variables put back when dropped.
-pub struct TestWork {
-    pub block: Vec<u8>,
-    inputs: Vec<Region>,
-    saved: Vec<u8>,
-}
-
-impl TestWork {
-    pub fn new() -> Self {
-        let a = |r: usize| game_addr(r) as u32;
-        let mut inputs = triangle_regions();
-        inputs.extend([
-            at(WORK_RVA),
-            at(crate::marks::masks::RUN_COUNT_RVA),
-            (a(QUAD_TRIANGLE_RVA), 24),
-            (a(rva(RUNS_START as usize)), 0x100),
-        ]);
-        let saved = crate::service::harness::capture(&inputs);
-        Self {
-            block: vec![0xAA; 0x4000],
-            inputs,
-            saved,
-        }
-    }
-
-    pub fn addr(&self) -> u32 {
-        self.block.as_ptr() as u32
-    }
-
-    /// The block 0xAA, the cursor at its start, the runs at theirs, the counts 0.
-    pub fn reset(&self) {
-        unsafe {
-            std::ptr::write_bytes(self.addr() as *mut u8, 0xAA, self.block.len());
-            game_write(WORK_RVA, self.addr());
-            game_write(CURSOR_RVA, self.addr());
-            game_write(RUNS_RVA, game_addr(rva(RUNS_START as usize)) as u32);
-            game_write(SPANS_TOTAL_RVA, 0u32);
-            game_write(crate::marks::masks::RUN_COUNT_RVA, 0u32);
-        }
-    }
-
-    /// What the tests compare.
-    pub fn regions(&self) -> Vec<Region> {
-        let mut r = triangle_regions();
-        r.push((self.addr(), self.block.len()));
-        r.push((game_addr(rva(RUNS_START as usize)) as u32, 0x100));
-        r.push((game_addr(QUAD_TRIANGLE_RVA) as u32, 24));
-        r
-    }
-}
-
-impl Default for TestWork {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Drop for TestWork {
-    fn drop(&mut self) {
-        crate::service::harness::restore(&self.inputs, &self.saved);
-    }
-}
-
-/// `n` corners (x, y floats) by lot inside a mask, now and then two at one height or on a
-/// whole row.
-pub fn test_corners(seed: u32, n: usize) -> Vec<u32> {
-    let mut s = seed;
-    let mut next = move || {
-        s = s.wrapping_mul(1_103_515_245).wrapping_add(12345);
-        s >> 8
-    };
-    let mut v = Vec::new();
-    for _ in 0..n {
-        let x = (next() % 0xF000) as f32 / 256.0;
-        let y = match next() % 6 {
-            0 => (next() % 0x70) as f32,
-            _ => (next() % 0x7000) as f32 / 256.0,
-        };
-        v.extend([x.to_bits(), y.to_bits()]);
-    }
-    if seed.is_multiple_of(3) {
-        v[3] = v[1];
-    }
-    v
-}

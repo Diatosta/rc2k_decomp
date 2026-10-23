@@ -1,5 +1,3 @@
-use crate::framework::GameHook;
-
 pub mod allocate_picture_buffer;
 pub mod alpha_from_kept;
 pub mod blend_palette;
@@ -88,5 +86,3 @@ pub mod try_screen_mode;
 pub mod write_screen_pcx;
 
 pub mod clear_back_surface;
-
-pub static HOOKS: &[&dyn GameHook] = &[&blit_glyph::HOOK];

@@ -20,7 +20,7 @@ use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
+use crate::service::harness::state_entry;
 
 pub const ITEMS_RVA: usize = rva(0x81623E); // g_marksHexagonItems
 pub const ITEMS: u32 = 0x800;
@@ -81,15 +81,6 @@ pub unsafe fn expire_hexagons(entry: &Regs) -> Regs {
     g
 }
 
-pub fn regions() -> Vec<Region> {
-    vec![
-        (game_addr(ITEMS_RVA) as u32, (ITEMS * ITEM_LEN) as usize),
-        at(PLACE_RVA[0]),
-        at(PLACE_RVA[1]),
-        at(RANDOM_RVA),
-    ]
-}
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { expire_hexagons(r) }))
 }
@@ -98,24 +89,4 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-/// The game's items with a few made live (seeded), for this test and `hexagons_step`'s.
-pub unsafe fn test_items(case: u32) {
-    unsafe {
-        let base = game_addr(ITEMS_RVA) as u32;
-        std::ptr::write_bytes(base as *mut u8, 0, (ITEMS * ITEM_LEN) as usize);
-        for n in 0..40u32 {
-            let e = base + (n * 37 + case) % ITEMS * ITEM_LEN;
-            (e as *mut u32).write_unaligned(1);
-            ((e + 0x14) as *mut u32).write_unaligned(((n * 53 + case * 7) as f32 * 3.3).to_bits());
-            ((e + 0x18) as *mut u32).write_unaligned(((n * 29) as f32 * 7.1).to_bits());
-        }
-        game_write(RANDOM_RVA, case.wrapping_mul(0x2545_F491));
-        game_write(STEPS_RVA, [0u32, 1, 3, 9][case as usize % 4]);
-        game_write(LATEST_RVA, case * 5);
-        for n in 0..0x100usize {
-            game_write(VALUES_RVA + 4 * n, (n as u32 * 0x0101_0007) ^ case);
-        }
-    }
 }

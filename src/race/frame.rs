@@ -6,7 +6,6 @@ use crate::errors::Refused;
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::race::objects::CAR_BLOCKS_RVA;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at};
 
 const ONE_CHOSEN_RVA: usize = rva(0x52A910); // dword_52A910
 const CHOSEN_CAR_RVA: usize = rva(0x52A920); // dword_52A920
@@ -55,17 +54,6 @@ pub unsafe fn set_both_counters(value: u32) {
     }
 }
 
-pub fn counter_regions(b: u32) -> Vec<Region> {
-    vec![(b + 0x71C, 0x18)]
-}
-
-pub fn both_counter_regions() -> Vec<Region> {
-    [0x70F3EC, 0x7103CC]
-        .iter()
-        .flat_map(|&b| counter_regions(game_addr(rva(b)) as u32))
-        .collect()
-}
-
 /// The view cars' numbers: `dword_63DBA8`, `dword_63DBAC`, `dword_63DBA0`.
 pub const VIEW_CARS: [usize; 3] = [rva(0x63DBA8), rva(0x63DBAC), rva(0x63DBA0)];
 
@@ -99,35 +87,7 @@ pub unsafe fn store_view_car(n: usize) -> Result<Left, Refused> {
     unsafe { with_view_car(n, || crate::drive::store_car::store_car()) }
 }
 
-/// What a view car's store writes: that car's block (none when it is null: refused) and
-/// `g_currentCar`.
-pub fn store_regions(n: usize) -> Vec<Region> {
-    let car: u32 = unsafe { game_read(VIEW_CARS[n]) };
-    let mut regions = vec![at(crate::drive::car::CURRENT_CAR_RVA)];
-    let b = block(car & 7);
-    if b != 0 {
-        regions.push((b, crate::drive::car::CAR_LEN));
-    }
-    regions
-}
-
-/// What a view car's load writes: the work copy and `g_currentCar`.
-pub fn load_regions() -> Vec<Region> {
-    vec![
-        (
-            game_addr(crate::drive::car::CAR_RVA) as u32,
-            crate::drive::car::CAR_LEN,
-        ),
-        at(crate::drive::car::CURRENT_CAR_RVA),
-    ]
-}
-
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut crate::framework::Regs) -> Result<(), Refused>;
-
-/// `race::race_keys`' sound calls by place: 1 `sound::send_command_8` (0x409BB4), 2
-/// `sound::set_music_volume` (0x40F83E). Place 0 is not used (the tests' stand-in 0 gives
-/// eax).
-pub const KEY_SOUND_CALLEES: [(u32, usize); 2] = [(1, 0x409BB4), (2, 0x40F83E)];
 
 const VIEW_MODE_RVA: usize = rva(0x4F6B79); // byte_4F6B79: the second view's keys (a reading)
 const NEXT_VIEW_KEY_RVA: usize = rva(0x4F6D17); // byte_4F6D17
@@ -146,12 +106,6 @@ const VIEW_COUNTERS_RVA: usize = rva(0x6138D4); // dword_6138D4[7]: by camera vi
 pub const BIT_KEYS: [usize; 7] = [
     0x4F6D34, 0x4F6D1E, 0x4F6D1D, 0x4F6D20, 0x4F6D1F, 0x4F6D1C, 0x4F6D33,
 ];
-/// Every key byte the function reads (IDA addresses).
-pub const KEY_BYTES: [usize; 13] = [
-    0x4F6B79, 0x4F6D17, 0x4F6D18, 0x4F6D19, 0x4F6D1A, 0x4F6D1B, 0x4F6D1C, 0x4F6D1D, 0x4F6D1E,
-    0x4F6D1F, 0x4F6D20, 0x4F6D33, 0x4F6D34,
-];
-
 fn pressed(key: usize) -> bool {
     unsafe { game_read::<u8>(key) != 0 }
 }
@@ -264,19 +218,6 @@ pub fn key_sound_part(place: u32, r: &mut crate::framework::Regs) -> Result<(), 
     Ok(())
 }
 
-/// What `race_keys` may write: the eight car blocks, `choose_shown_cars`' variables, the
-/// split, both volumes and `set_camera_view`'s step count.
-pub fn key_regions() -> Vec<Region> {
-    let mut v: Vec<Region> = vec![(game_addr(rva(0x70F3EC)) as u32, 8 * 0xFE0)];
-    for a in [
-        0x63DBA8, 0x63DBAC, 0x63DB98, 0x6238A4, 0x63DBB0, 0x63DBB4, 0x4F82D8, 0x518100, 0x719FE0,
-    ] {
-        v.push(at(rva(a)));
-    }
-    v.push((game_addr(rva(0x641680)) as u32, 0x20));
-    v
-}
-
 /// `race::tyre_change`'s variables (IDA addresses): the copies `dword_5BEBE0` /
 /// `dword_5BEBE4` and their sources `dword_5D1444` / `dword_5D2444`; car 0's (block at
 /// 0x70F3EC) +0x268 "c1 tyrec" count `dword_70F654`, +0x26C the change's state
@@ -332,15 +273,6 @@ pub fn tyre_variables() -> Vec<u32> {
     TYRE_VARIABLES
         .iter()
         .map(|&a| game_addr(rva(a)) as u32)
-        .collect()
-}
-
-/// What `tyre_change` writes (with `race::tyre_change_gauge` stood in for).
-pub fn tyre_regions(v: &[u32]) -> Vec<Region> {
-    [0usize, 1, 5, 6, 7]
-        .iter()
-        .map(|&k| (v[k], 4))
-        .chain([(v[8], 0x10)])
         .collect()
 }
 

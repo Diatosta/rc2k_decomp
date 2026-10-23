@@ -27,7 +27,6 @@ pub mod clip;
 pub mod clip_asm;
 pub mod clip_polygon_by_depth;
 pub mod clip_polygon_to_screen;
-pub mod clip_test;
 pub mod copy_matrix_with_place;
 pub mod count_texture_needs;
 pub mod cross_product;

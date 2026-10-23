@@ -16,8 +16,7 @@ DEST="${STANDALONE_DIR:-$GAME_DIR/..}"
 ./tools/fetch_sdl3.sh
 ./tools/build_ffmpeg.sh
 
-cargo xwin build --release --xwin-arch x86 --target i686-pc-windows-msvc \
-    --features standalone --bin rc2k
+cargo xwin build --release --xwin-arch x86 --target i686-pc-windows-msvc --bin rc2k
 
 
 cp --remove-destination target/i686-pc-windows-msvc/release/rc2k.exe "$DEST/"

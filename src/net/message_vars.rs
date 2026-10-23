@@ -80,10 +80,6 @@ const PLACES: [(usize, usize); 21] = [
     (0x52AC2C, 4),
 ];
 
-/// A test's variables: 0x170 bytes (the dwords, then the synced bytes at +0x54, the data
-/// at +0x60, 0x104 bytes with the byte past its end); the blocks elsewhere.
-pub const TEST_LEN: usize = 0x170;
-
 impl MessageVars {
     fn from_list(v: [u32; 21]) -> Self {
         Self {
@@ -111,56 +107,9 @@ impl MessageVars {
         }
     }
 
-    fn list(&self) -> [u32; 21] {
-        [
-            self.dplay,
-            self.lobby,
-            self.player_id,
-            self.send_to,
-            self.from,
-            self.to,
-            self.size,
-            self.data,
-            self.session_open,
-            self.mutex,
-            self.taken,
-            self.received,
-            self.players,
-            self.sync,
-            self.own,
-            self.answer,
-            self.all_raced,
-            self.race_over,
-            self.synced,
-            self.sync_first,
-            self.stage_item,
-        ]
-    }
-
     /// The game's.
     pub fn game() -> Self {
         Self::from_list(PLACES.map(|(x, _)| a(x)))
-    }
-
-    /// A test's, at `at` (`TEST_LEN` bytes), the players' blocks at `received`.
-    pub fn test(at: u32, received: u32) -> Self {
-        let mut v = [0u32; 21];
-        for (n, x) in v.iter_mut().enumerate() {
-            *x = at + 4 * n as u32;
-        }
-        v[18] = at + 0x54;
-        v[7] = at + 0x60;
-        v[11] = received;
-        Self::from_list(v)
-    }
-
-    /// The redirections for `net::lobby::copy_vars`: each game variable to this one.
-    pub fn redirects(&self) -> Vec<(usize, usize, u32)> {
-        PLACES
-            .iter()
-            .zip(self.list())
-            .map(|(&(x, n), to)| (x, n, to))
-            .collect()
     }
 }
 
@@ -181,63 +130,3 @@ pub fn set8(at: u32, value: u8) {
 }
 
 // ---- the tests' side ----
-
-use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::net::Part;
-use crate::redirect::RedirectedCopy;
-use crate::service::harness::Region;
-
-/// A test's variables in memory of its own.
-pub struct TestVars {
-    memory: Vec<u32>,
-    pub v: MessageVars,
-}
-
-impl TestVars {
-    /// The variables, the players' blocks at `received` (an address).
-    pub fn new(received: u32) -> Self {
-        let memory = vec![0u32; TEST_LEN / 4];
-        let v = MessageVars::test(memory.as_ptr() as u32, received);
-        Self { memory, v }
-    }
-
-    /// All of them, as a region.
-    pub fn region(&self) -> Region {
-        (self.memory.as_ptr() as u32, TEST_LEN)
-    }
-
-    /// A copy of an original (`net::lobby::copy_vars`) whose references to the variables
-    /// are these; `references` of them expected.
-    pub fn copy(
-        &self,
-        address: usize,
-        len: usize,
-        entry: &[u8],
-        outs: &[usize],
-        places: &[u32],
-        references: usize,
-    ) -> Result<RedirectedCopy, &'static str> {
-        crate::net::lobby::copy_vars(
-            address,
-            len,
-            entry,
-            outs,
-            places,
-            &self.v.redirects(),
-            references,
-        )
-    }
-}
-
-/// A Rust version that works on the registers, as `net::lobby::run_both` takes it.
-pub fn as_rust<F>(f: F) -> impl Fn(&Regs, Part) -> Result<Regs, Refused>
-where
-    F: Fn(&mut Regs, Part) -> Result<(), Refused>,
-{
-    move |entry, part| {
-        let mut r = *entry;
-        f(&mut r, part)?;
-        Ok(r)
-    }
-}

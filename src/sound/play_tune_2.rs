@@ -22,13 +22,8 @@ pub fn play_tune_2(entry: &Regs) -> Option<Regs> {
 }
 
 const SENDER: Sender = Sender {
-    address: 0x40F76F,
-    len: 0x11,
-    entry: [0x60, 0xB0, 0x02, 0x32, 0xE4, 0xB9, 0x40, 0x00],
-    calls: &[0xA],
     command: 0xB,
     sends: play_tune_2,
-    reads: &[],
 };
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

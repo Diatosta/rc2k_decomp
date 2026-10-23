@@ -12,12 +12,7 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::screens::service_boxes::{Inputs, Part, quad, quad_part, rd};
-
-pub static INPUTS: Inputs = Inputs {
-    tested: &[],
-    read: &[0x75AA94],
-};
+use crate::screens::service_boxes::{Part, quad, quad_part, rd};
 
 /// The Rust version: every register kept. Parts: 1 the quads, 2 the rules, 3 the boxes.
 pub unsafe fn draw_two_column_panel(entry: &Regs, part: Part) -> Result<Regs, Refused> {

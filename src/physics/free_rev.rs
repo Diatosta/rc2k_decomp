@@ -80,10 +80,6 @@ pub unsafe fn free_rev_plain() -> Left {
     left
 }
 
-/// The float places `free_rev` writes (IDA addresses, lengths).
-pub const FREE_REV_FLOATS: [(usize, usize); 4] =
-    [(0x62400C, 4), (0x614744, 8), (0x614750, 4), (0x71A1B0, 4)];
-
 /// The Rust version (the exact one, for `physics::free_rev_in_neutral`,
 /// `free_rev_clutch` and their callers).
 pub unsafe fn free_rev() -> Left {

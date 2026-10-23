@@ -9,21 +9,9 @@
 //! other flags of the original's `test al, al` (sign, parity) are not reproduced; carry and
 //! zero are.
 
-use crate::framework::{RawHook, Regs, SelfTest, game_ptr, hook_asm, rva, shadow};
+use crate::framework::{Regs, game_ptr, rva};
 use std::cell::Cell;
-use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("input::take_key", rva(0x407F95), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use std::sync::atomic::{AtomicU8, Ordering};
 
 // ---- game data ----
 
@@ -57,49 +45,6 @@ thread_local! {
     static REPLAYED: Cell<Option<u8>> = const { Cell::new(None) };
 }
 
-/// Runs `f` and returns the key the hook handed out during it, if it was asked for one.
-pub fn noting_taken_key<R>(f: impl FnOnce() -> R) -> (R, Option<u8>) {
-    // An enclosing call keeps its own note if nothing is taken in here.
-    let outer = LAST_TAKEN.replace(None);
-    let result = f();
-    let taken = LAST_TAKEN.get();
-    if taken.is_none() {
-        LAST_TAKEN.set(outer);
-    }
-    (result, taken)
-}
-
-/// Runs `f` with `take_key` returning `key` instead of the real pending key.
-pub fn replaying_key<R>(key: u8, f: impl FnOnce() -> R) -> R {
-    let outer = REPLAYED.replace(Some(key));
-    let result = f();
-    REPLAYED.set(outer);
-    result
-}
-
-/// True if keys taken by original code are noted, that is, if this hook is on.
-pub fn notes_taken_keys() -> bool {
-    HOOK.is_enabled()
-}
-
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    // The console command `fatal` uses this hook to get onto the game's own thread.
-    crate::fatal::raise::raise_test_if_armed(r);
-    if shadow() {
-        unsafe { call_original(r) };
-        LAST_TAKEN.set(Some(r.eax as u8));
-        return;
-    }
-    let key = take_key();
-    LAST_TAKEN.set(Some(key));
-    r.eax = (r.eax & !0xFF) | key as u32;
-    r.set_zero(key == 0);
-    r.set_carry(false);
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     crate::fatal::raise::raise_test_if_armed(r);
@@ -109,43 +54,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     r.set_zero(key == 0);
     r.set_carry(false);
     Ok(())
-}
-
-// ---- self-test: a real key pressed during the test is lost or misread ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let saved = pending_key().load(Ordering::SeqCst);
-    for key in [0u8, 1, 0x1C, 0x68, 0x69, 0x80, 0xFF] {
-        pending_key().store(key, Ordering::SeqCst);
-        let before = Regs::SENTINEL;
-        let mut ro = before;
-        unsafe { call_original(&mut ro) };
-        let left_o = pending_key().load(Ordering::SeqCst);
-
-        pending_key().store(key, Ordering::SeqCst);
-        let mine = take_key();
-        let left_r = pending_key().load(Ordering::SeqCst);
-
-        let mut expected = before;
-        expected.eax = (before.eax & !0xFF) | mine as u32;
-        let zero_o = ro.eflags & 0x40 != 0;
-        let ok = ro.eax == expected.eax
-            && ro.preserved_except(&before, crate::framework::EAX)
-            && zero_o == (mine == 0)
-            && !ro.carry()
-            && left_o == 0
-            && left_r == 0;
-        t.check(ok, || {
-            format!(
-                "key={key:#x}: original eax={:#x} zero={zero_o} carry={} left={left_o:#x}; rust key={mine:#x} left={left_r:#x}",
-                ro.eax,
-                ro.carry()
-            )
-        });
-    }
-    pending_key().store(saved, Ordering::SeqCst);
-    t.finish()
 }

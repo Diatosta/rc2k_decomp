@@ -9,7 +9,6 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::service::harness::{Region, at};
 
 /// A step's calls by callee (`CALLEES`' index; 28 the log, 29 the loading bar).
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
@@ -47,7 +46,7 @@ pub const CALLEES: [usize; 28] = [
 ];
 pub const LOG: u32 = 28;
 pub const PROGRESS: u32 = 29;
-pub const LOG_RVA: usize = 0x40142B; // logfile::log_write_l1_nl
+// logfile::log_write_l1_nl
 
 const PACKED_RVA: usize = rva(0x5BE9B5); // g_usePackedMaps
 const PACKED_2_RVA: usize = rva(0x5BE9B9); // dword_5BE9B9
@@ -455,70 +454,3 @@ fn step_part(callee: u32, r: &mut Regs) -> Result<(), Refused> {
 }
 
 // ---- for the self-test ----
-
-/// The stand-in place of a callee (24 stand-ins for 30 kinds of call: the last six
-/// callees share the first six's places; their order still shows), the log 22, the
-/// loading bar 23.
-pub fn place_of(callee: u32) -> u32 {
-    match callee {
-        LOG => 22,
-        PROGRESS => 23,
-        c if c < 22 => c,
-        c => c - 22,
-    }
-}
-
-/// The copy's calls redirected by target (the loading bar's is a `call esi`, by the
-/// patched callback).
-pub fn redirect(target: usize) -> Option<usize> {
-    if target == rva(LOG_RVA) {
-        return Some(crate::install::stand_ins::stand_in(22));
-    }
-    CALLEES
-        .iter()
-        .position(|&k| rva(k) == target)
-        .map(|n| crate::install::stand_ins::stand_in(place_of(n as u32)))
-}
-
-/// What the function writes or reads that the test keeps.
-pub fn regions() -> Vec<Region> {
-    let mut r: Vec<Region> = [
-        PACKED_RVA,
-        PACKED_2_RVA,
-        EDITOR_RVA,
-        DIRECTION_IN_RVA,
-        DIRECTION_RVA,
-        STAGE_RVA,
-        BAR_MARK_RVA,
-        BAR_CALLBACK_RVA,
-        OBJECT_SPAN_RVA[0],
-        OBJECT_SPAN_RVA[1],
-        REFRESH_FLAGS_RVA,
-        REFRESH_FLAGS_2_RVA,
-        REFRESH_A_RVA,
-        REFRESH_B_RVA,
-        NO_PLACE_RVA,
-        MARKER_OBJECT_RVA,
-        CLEARED_RVA[0],
-        CLEARED_RVA[1],
-    ]
-    .map(at)
-    .to_vec();
-    r.extend(BLOCK_84.map(|b| at(rva(b))));
-    r
-}
-
-/// A case's inputs.
-pub fn prepare(editor: u32, direction: u32, stage: u32, flags: [u32; 2], no_place: u32) {
-    unsafe {
-        for &(a, len) in &regions() {
-            std::ptr::write_bytes(a as *mut u8, 0x5A, len);
-        }
-        game_write(EDITOR_RVA, editor);
-        game_write(DIRECTION_IN_RVA, direction);
-        game_write(STAGE_RVA, stage);
-        game_write(REFRESH_FLAGS_RVA, flags[0]);
-        game_write(REFRESH_FLAGS_2_RVA, flags[1]);
-        game_write(NO_PLACE_RVA, no_place);
-    }
-}

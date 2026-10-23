@@ -92,8 +92,6 @@ pub const SCREEN: Screen = Screen {
     after_blink: &[],
     restart_action_check: false,
     always_asks: false,
-    also_reads: &[],
-    also_writes: &[],
 };
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).

@@ -18,26 +18,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
-use crate::race::draw_distance_settings::distance_regions;
+use crate::framework::Regs;
 use crate::race::frame_draw::*;
-use crate::race::sample_noise::noise_regions;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
-
-pub fn fog_regions() -> Vec<Region> {
-    let mut v = distance_regions();
-    v.extend(noise_regions());
-    v.extend([
-        (game_addr(FOG_TABLE_RVA) as u32, 0x1000),
-        at(rva(0x63761C)),
-        at(rva(0x62DAF0)),
-        at(rva(0x6365F0)),
-        at(rva(0x6365F4)),
-        at(rva(0x636610)),
-    ]);
-    v
-}
+use crate::service::harness::state_entry;
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(all_regs(&unsafe { fog_table(r)? }))

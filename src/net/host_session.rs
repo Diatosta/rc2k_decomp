@@ -21,15 +21,14 @@
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::{Regs, SelfTest};
+use crate::framework::Regs;
 use crate::net::dplay::{OPEN, call};
 use crate::net::find_sessions::zeroed_description;
 use crate::net::lobby::{
-    APP_GUID, DPLAY, DPLAY_METHOD, FLAGS, JOINED, JOINED_MOST, JOINED_NAME, JOINED_PASSWORD,
-    LOG_HEX_L2_NL, LOG_L2, LOG_L2_NL, MACHINE_NAME, MOST_PLAYERS, POST_CALL, POSTING, Part,
-    RESTORE_WINDOW, SESSION_DESC, SESSION_OPEN, SESSION_PASSWORD, Saved, TestObject, ZERO_MEMORY,
-    a, answer, cmp_flags, com_answer, dword, fill, g, game, lobby_entry, log_text, movsb, p,
-    region, run_both, test_eax,
+    APP_GUID, DPLAY, JOINED, JOINED_MOST, JOINED_NAME, JOINED_PASSWORD, LOG_HEX_L2_NL, LOG_L2,
+    LOG_L2_NL, MACHINE_NAME, MOST_PLAYERS, POST_CALL, POSTING, Part, RESTORE_WINDOW, SESSION_DESC,
+    SESSION_OPEN, SESSION_PASSWORD, ZERO_MEMORY, a, cmp_flags, g, game, lobby_entry, log_text,
+    movsb, p, test_eax,
 };
 use crate::net::types::DpSessionDesc;
 
@@ -141,73 +140,4 @@ pub fn finish(
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     lobby_entry(r, host_session)
-}
-
-/// The test of `net::host_session` and `net::join_session`: the cases on a copy.
-#[allow(clippy::too_many_arguments)] // one test's whole description
-pub fn session_test(
-    t: &mut SelfTest,
-    copy: usize,
-    entry: Regs,
-    then: u32,
-    record: u32,
-    rust: crate::net::lobby::Rust,
-) {
-    let dplay = TestObject::dplay();
-    let dp = dplay.addr();
-    let all = vec![
-        dword(DPLAY),
-        dword(POSTING),
-        dword(SESSION_OPEN),
-        region(JOINED, 0x64),
-        region(SESSION_DESC, 0x50),
-    ];
-    let saved = Saved::new(&all);
-    // (what, an object, posting, Open's result, the failing call)
-    let cases: [(&str, bool, u32, u32, u32); 7] = [
-        ("no object", false, 0, 0, 0),
-        ("done", true, 0, 0, 0),
-        ("posted", true, 1, 0, 0),
-        ("posted, failing", true, 1, 0x8877_0005, 0),
-        ("Open fails", true, 0, 0x8877_0005, 0),
-        ("no player", true, 0, 0, CREATE_PLAYER),
-        ("no group", true, 0, 0, then),
-    ];
-    for (what, object, posting, result, fails) in cases {
-        run_both(
-            t,
-            what,
-            copy,
-            entry,
-            &all,
-            FLAGS,
-            &[],
-            &|| {
-                p(DPLAY, if object { dp } else { 0 });
-                p(POSTING, posting);
-                p(SESSION_OPEN, 0);
-                fill(JOINED, 0x64, 93);
-                fill(SESSION_DESC, 0x50, 94);
-                answer(Box::new(move |place, r| {
-                    if place == POST_CALL {
-                        r.eax = result;
-                    }
-                    if place == 0x418553 {
-                        r.eax = record;
-                    }
-                    r.set_carry(place == fails);
-                }));
-                com_answer(Box::new(move |place, _| {
-                    if place == DPLAY_METHOD | OPEN {
-                        result
-                    } else {
-                        0
-                    }
-                }));
-            },
-            rust,
-        );
-    }
-    drop(saved);
-    drop(dplay);
 }

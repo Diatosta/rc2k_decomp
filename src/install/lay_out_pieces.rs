@@ -27,7 +27,6 @@ use rc2k_core::install::layout;
 use rc2k_core::install::pieces::{self, LayoutError, ListMemory};
 
 pub const PIECE: u32 = layout::PIECE;
-pub const MOST_PIECES: u32 = pieces::MOST_PIECES;
 const TITLE: usize = 0x51DD78; // unk_51DD78: the title's item
 const TEXT_FONTS: usize = 0x51D52C; // byte_51D52C
 

@@ -22,10 +22,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::service::harness::{Region, at};
+use crate::framework::{Regs, game_read, game_write, rva};
 use rc2k_core::hud::strips;
-use std::sync::Mutex;
 
 const TOPS_RVA: usize = rva(0x6D1880); // dword_6D1880: 12
 const LEFTS_RVA: usize = rva(0x6D18B0); // dword_6D18B0: 6
@@ -130,50 +128,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { draw_view_strip(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-/// A quad as the tests note it: the place, eax .. ebp, its inputs and texture.
-type Noted = (u32, [u32; 6], [u32; 0x10], u32);
-
-static NOTED: Mutex<Vec<Noted>> = Mutex::new(Vec::new());
-
-/// For `install::stand_ins::set_handler` and the Rust side of the tests.
-pub fn note_quad(place: u32, r: &mut Regs) {
-    let inputs: [u32; 0x10] = unsafe { game_read(QUAD_IN_RVA) };
-    let texture: u32 = unsafe { game_read(TEXTURE_RVA) };
-    NOTED.lock().unwrap().push((
-        place,
-        [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.ebp],
-        inputs,
-        texture,
-    ));
-}
-
-pub fn take() -> Vec<Noted> {
-    std::mem::take(&mut *NOTED.lock().unwrap())
-}
-
-/// What the strips write (for the tests).
-pub fn regions() -> Vec<Region> {
-    vec![
-        (game_addr(SIZES_RVA) as u32, 0x10),
-        (game_addr(QUAD_IN_RVA) as u32, 0x40),
-        at(ALPHA_RVA),
-        at(TEXTURE_RVA),
-        at(SIDES_RVA[0]),
-        at(SIDES_RVA[1]),
-    ]
-}
-
-/// The settings by lot (for the tests): what they held is the caller's to put back
-/// (`settings()`).
-pub unsafe fn test_settings(case: u32) {
-    set(FLAT_RVA, case & 1);
-    set(SHOWN_RVA, if case.is_multiple_of(3) { 0 } else { 0x40 });
-    set(PLAYERS_RVA, u32::from(case == 4));
-    set(TEXTURE_RVA, 0xC5);
-}
-
-pub fn settings() -> Vec<Region> {
-    [FLAT_RVA, SHOWN_RVA, PLAYERS_RVA].map(at).to_vec()
 }

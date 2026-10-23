@@ -25,8 +25,6 @@ use crate::service::harness::state_entry;
 use rc2k_core::drive::camera_views::CameraView;
 
 pub const STEP_RVA: usize = rva(0x719FE0); // dword_719FE0
-pub const VIEW_LEN: u32 = 0x6A0;
-
 unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
 }
@@ -62,13 +60,4 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-/// Fills a test block (`VIEW_LEN` bytes) by `seed`.
-pub fn fill_block(s: u32, seed: u32) {
-    let mut x = seed.wrapping_mul(0x9E37_79B9) | 1;
-    for k in 0..VIEW_LEN / 4 {
-        x = x.wrapping_mul(1_103_515_245).wrapping_add(12345);
-        unsafe { put(s + 4 * k, x) };
-    }
 }

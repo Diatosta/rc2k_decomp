@@ -4,9 +4,8 @@
 //! of 0x22 three-float entries.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::math::x87;
-use crate::service::floats::{FLOAT, Floats, Tolerance, at_test_precisions, check_state_floats};
 
 pub const KIND_RVA: usize = rva(0x769232); // g_marksKind
 pub const KINDS: u32 = 0x22;
@@ -257,95 +256,4 @@ pub unsafe fn set_kind_values_plain(entry: &Regs, k: &KindTables) -> Result<Regs
             ..*entry
         })
     }
-}
-
-/// The float places of a set's writes: all of them but the dwords copied.
-pub fn kind_floats(k: &KindTables) -> Vec<(crate::service::harness::Region, Tolerance)> {
-    use crate::service::harness::at;
-    let mut r: Vec<_> = [1, 2, 5, 6, 7, 8, 9, 10]
-        .iter()
-        .map(|&n| (at(k.outs[n]), FLOAT))
-        .collect();
-    r.extend(k.place.iter().map(|&a| (at(a), FLOAT)));
-    r.push(((game_addr(k.copied) as u32 + 16, 8), FLOAT));
-    r
-}
-
-/// What `set_kind_values` writes for a set.
-pub fn kind_regions(k: &KindTables) -> Vec<crate::service::harness::Region> {
-    use crate::service::harness::at;
-    let mut r: Vec<_> = k.outs.iter().chain(&k.place).map(|&a| at(a)).collect();
-    r.push((game_addr(k.copied) as u32, 24));
-    r.extend(k.divisor_copy.map(at));
-    r
-}
-
-/// The tables a test fills (0x22 floats each, 0x22 x 12 bytes each).
-pub fn kind_inputs(k: &KindTables) -> Vec<crate::service::harness::Region> {
-    let mut r: Vec<_> = k
-        .tables
-        .iter()
-        .map(|&a| (game_addr(a) as u32, 4 * KINDS as usize))
-        .collect();
-    r.extend(
-        k.triples
-            .iter()
-            .map(|&a| (game_addr(a) as u32, 12 * KINDS as usize)),
-    );
-    r.push(crate::service::harness::at(KIND_RVA));
-    r
-}
-
-/// The self-test of either set: its tables filled with floats of the test's (each table's
-/// own, so no difference is 0), every kind compared at both test precisions (exact at
-/// double), then 0x22 refused.
-pub fn test_kinds(
-    t: &mut crate::framework::SelfTest,
-    name: &'static str,
-    k: &KindTables,
-    call_original: crate::screens::harness::CallOriginal,
-    rust: crate::service::harness::Rust,
-) {
-    use crate::service::harness::{capture, restore};
-    let regions = kind_regions(k);
-    let inputs = kind_inputs(k);
-    let (saved, saved_inputs) = (capture(&regions), capture(&inputs));
-    let places = kind_floats(k);
-    let tolerant = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        for kind in 0..KINDS {
-            check_state_floats(
-                t,
-                name,
-                &format!("control word {word:#x}, kind {kind:#x}"),
-                call_original,
-                Regs::SENTINEL,
-                &|| unsafe {
-                    for &(a, n) in &regions {
-                        std::ptr::write_bytes(a as *mut u8, 0xAA, n);
-                    }
-                    for (m, &(a, n)) in inputs[..inputs.len() - 1].iter().enumerate() {
-                        for i in 0..n / 4 {
-                            let v = 1.5 + m as f32 * 3.7 + i as f32 * (0.31 + m as f32 * 0.05);
-                            ((a as usize + 4 * i) as *mut f32).write_unaligned(v);
-                        }
-                    }
-                    game_write(KIND_RVA, kind);
-                },
-                &regions,
-                held,
-                rust,
-            );
-        }
-    });
-    unsafe { game_write(KIND_RVA, KINDS) };
-    t.check(
-        unsafe { set_kind_values_plain(&Regs::SENTINEL, k) }.is_err(),
-        || "kind 0x22: the Rust version went on".into(),
-    );
-    restore(&inputs, &saved_inputs);
-    restore(&regions, &saved);
 }

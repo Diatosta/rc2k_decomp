@@ -20,7 +20,6 @@
 
 use crate::framework::{Regs, game_read, game_write};
 use crate::marks::pong;
-use rc2k_core::marks::pong::Back;
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn pong_bat_back(entry: &Regs) -> Regs {
@@ -34,17 +33,6 @@ pub unsafe fn pong_bat_back(entry: &Regs) -> Regs {
             game_write(pong::BAT[0], g.eax);
             game_write(pong::BAT[1], g.ebx);
         }
-    }
-    g
-}
-
-/// The converted version (plain floats): the hook's.
-// Converted: `rc2k_core::marks::pong::Court::bat_back`
-pub unsafe fn pong_bat_back_plain(entry: &Regs) -> Regs {
-    let mut g = *entry;
-    match pong::with_court(|c| c.bat_back()) {
-        Back::Kept(status) => g.eax = status,
-        Back::PutBack([x, y]) => (g.eax, g.ebx) = (x, y),
     }
     g
 }

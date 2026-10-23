@@ -55,7 +55,6 @@ use rc2k_core::sound::engine::{Left, Words, extrapolation, over_256, readings, s
 /// off_514F90: the sound kinds, 36 pointers.
 pub const KINDS: usize = 0x514F90;
 pub const KIND_COUNT: u32 = 36;
-pub const KIND_LEN: usize = 0x88;
 /// dword_5BEC94: 1 holds the revs as they are.
 const HOLD: usize = 0x5BEC94;
 

@@ -43,33 +43,3 @@ pub unsafe fn jitter_point(inputs: [[u8; 10]; 4]) -> ([[u8; 10]; 3], u32) {
     let [d, c, b] = moved;
     ([extended(b), extended(c), extended(d)], last)
 }
-
-/// The converted version (plain floats): the hook's.
-// Converted: `rc2k_core::marks::particles::jitter`
-pub unsafe fn jitter_point_plain(inputs: [[u8; 10]; 4]) -> ([[u8; 10]; 3], u32) {
-    use rc2k_core::math::extended::{from_f64, to_f64};
-    let [spread, b, c, d] = inputs.map(|v| to_f64(v) as f32);
-    unsafe {
-        let j = rc2k_core::marks::particles::jitter(spread, [b, c, d], game_read(SEED_RVA));
-        game_write(SEED_RVA, j.seed);
-        (j.point.map(|v| from_f64(v as f64)), j.last as u32)
-    }
-}
-
-/// Four inputs by lot for the tests of this and `marks::spread_point`: the first small
-/// and not 0, the others floats or unrounded.
-pub fn test_inputs(seed: u32) -> [[u8; 10]; 4] {
-    let mut f = [0u32; 8];
-    crate::scene::matrix3::test_floats(seed * 13 + 1, &mut f);
-    let spread = [0.5f32, 3.0, 0.01, 250.0, -2.0][seed as usize % 5].to_bits();
-    [
-        if seed.is_multiple_of(3) {
-            x87::sub_80(spread, f[7])
-        } else {
-            extended(spread)
-        },
-        extended(f[0]),
-        x87::sub_80(f[1], f[4]),
-        extended(f[2]),
-    ]
-}

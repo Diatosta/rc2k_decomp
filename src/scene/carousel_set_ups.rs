@@ -455,10 +455,3 @@ pub const PLAIN: [Option<&[Op]>; 21] = [
     Some(MENU_13),
     Some(MENU_14),
 ];
-
-/// The function each menu's set-up is, for the self-test's copy.
-pub const FUNCTIONS: [usize; 21] = [
-    0x48F481, 0x48F566, 0x48F64B, 0x48F712, 0x48F7C5, 0x48F86E, 0x48F953, 0x48FA24, 0x48FB31,
-    0x48FBEE, 0x48FCC9, 0x48FED9, 0x48FF83, 0x4A08AB, 0x4A094F, 0x4A0A19, 0x4A0AEA, 0x4A0BBB,
-    0x4A0CA0, 0x48FDD6, 0x4A0D67,
-];

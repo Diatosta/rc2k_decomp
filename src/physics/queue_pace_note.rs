@@ -27,12 +27,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_read, rva, shadow};
-use crate::install::stand_ins::{set_handler, stand_in};
-use crate::redirect::RedirectedCopy;
-use crate::service::harness::{Region, capture};
+use crate::framework::{Regs, game_addr, game_read, rva};
 use rc2k_core::physics::pace_calls::{Code, code, find_group, text_place};
-use std::sync::Mutex;
 
 /// A call by place (see the header).
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
@@ -44,11 +40,6 @@ pub const CUE: u32 = 3;
 pub const QUEUE: u32 = 4;
 pub const PACE: u32 = 5;
 pub const EXPIRE: u32 = 6;
-/// The places' functions, as IDA shows them.
-pub const PLACES: [usize; 7] = [
-    0x401427, 0x401472, 0x401476, 0x45D1D3, 0x44194D, 0x4418B3, 0x44196B,
-];
-
 const GROUPS: usize = 0x615E14; // dword_615E14
 const GROUP_CHECKPOINTS: usize = 0x619E18; // dword_619E18
 const GROUP_TEXTS: usize = 0x61AE18; // dword_61AE18
@@ -127,32 +118,6 @@ pub fn pace_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The pace notes' hooks' dispatch: the original alone in shadow mode, else `rust` with
-/// the game's calls.
-pub fn dispatch_pace(
-    hook: &RawHook,
-    r: &mut Regs,
-    call_original: unsafe extern "C" fn(*mut Regs),
-    rust: fn(&mut Regs, Part) -> Result<(), Refused>,
-) {
-    hook.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    let mut g = *r;
-    match rust(&mut g, &mut pace_part) {
-        Ok(()) => {
-            *r = Regs {
-                esp: r.esp,
-                eflags: r.eflags,
-                ..g
-            }
-        }
-        Err(e) => unsafe { crate::fatal::raise::refused(hook, e, r, call_original) },
-    }
-}
-
 /// `dispatch_pace` without its hook (Rust callers; a refusal is the caller's).
 pub fn pace_entry(
     r: &mut Regs,
@@ -175,70 +140,3 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
 }
 
 // ---- for the self-tests ----
-
-static CALLED: Mutex<Vec<(u32, [u32; 7])>> = Mutex::new(Vec::new());
-
-/// The stand-ins: each call noted with its registers, which it leaves as they came.
-pub fn handler(place: u32, r: &mut Regs) {
-    CALLED
-        .lock()
-        .unwrap()
-        .push((place, [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp]));
-}
-
-pub fn take_called() -> Vec<(u32, [u32; 7])> {
-    std::mem::take(&mut *CALLED.lock().unwrap())
-}
-
-/// A copy of one of the pace notes' functions whose calls (at `calls`) go to the
-/// stand-ins by `PLACES`.
-pub fn copy_of(
-    address: usize,
-    len: usize,
-    entry: &[u8],
-    calls: &[usize],
-) -> Result<RedirectedCopy, &'static str> {
-    set_handler(handler);
-    unsafe {
-        RedirectedCopy::new(game_addr(rva(address)), len, entry, calls, &|c| {
-            PLACES
-                .iter()
-                .position(|&k| rva(k) == c)
-                .map(|n| stand_in(n as u32))
-        })
-    }
-}
-
-/// One case: `fill` then the copy, `fill` then `rust` with the stand-ins; the calls, the
-/// registers and the memory compared.
-pub fn both(
-    t: &mut SelfTest,
-    what: &str,
-    copy: &RedirectedCopy,
-    entry: Regs,
-    fill: &dyn Fn(),
-    all: &[Region],
-    rust: fn(&mut Regs, Part) -> Result<(), Refused>,
-) {
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    fill();
-    take_called();
-    let mut ro = entry;
-    unsafe { call_game(&mut ro, copy.addr()) };
-    let theirs = (Some(regs(&ro)), take_called(), capture(all));
-    fill();
-    let mut g = entry;
-    let ok = rust(&mut g, &mut |p, r| {
-        handler(p, r);
-        Ok(())
-    })
-    .is_ok();
-    let mine = (ok.then(|| regs(&g)), take_called(), capture(all));
-    t.check(theirs == mine, || {
-        let diff = theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b);
-        format!(
-            "{what}: original {:x?} {:x?}; rust {:x?} {:x?}; memory first differs at {diff:x?}",
-            theirs.0, theirs.1, mine.0, mine.1
-        )
-    });
-}

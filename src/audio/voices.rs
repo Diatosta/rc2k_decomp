@@ -36,10 +36,7 @@ pub const BUFFER_LOST_RVA: usize = rva(0x4F82CC); // g_soundBufferLost
 pub const COMMIT_RVA: usize = rva(0x4F82D0); // g_commit3d: 3D settings to commit
 pub const SAMPLE_MEMORY_RVA: usize = rva(0x4F8300); // g_sampleMemory (a MemoryList)
 // The records, voices and channels and their constants: `rc2k_core::audio::voices`.
-pub use rc2k_core::audio::voices::{
-    CHANNELS_CLEARED, DEFAULT, DEFAULT_PLACE, DIRTY_FREQUENCY, DIRTY_PAN, DIRTY_PLACE, DIRTY_PLAY,
-    DIRTY_RESTART, DIRTY_VOLUME, LOADED, MODE_3D, MixerChannel, OWN_FREQUENCY, SampleRecord, Voice,
-};
+pub use rc2k_core::audio::voices::{LOADED, MODE_3D, MixerChannel, SampleRecord, Voice};
 
 /// Where the audio thread's tables and lists are: the game's, or a test's.
 #[derive(Clone, Copy, Debug)]
@@ -65,20 +62,6 @@ impl World {
             channels: a(CHANNELS_RVA),
             sound_mode: a(SOUND_MODE_RVA),
         }
-    }
-
-    /// The game's address of each, as the original's code holds it, with this world's.
-    pub fn pairs(&self) -> [(u32, u32); 7] {
-        let game = World::game();
-        [
-            (game.samples, self.samples),
-            (game.playing, self.playing),
-            (game.stopping, self.stopping),
-            (game.channels_used, self.channels_used),
-            (game.channel_count, self.channel_count),
-            (game.channels, self.channels),
-            (game.sound_mode, self.sound_mode),
-        ]
     }
 }
 

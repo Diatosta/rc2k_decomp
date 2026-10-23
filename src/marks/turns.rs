@@ -36,10 +36,6 @@ pub unsafe fn set_line_turn(line: u32, back: bool) {
     }
 }
 
-pub fn turn_regions() -> Vec<Region> {
-    TURN_RVA.iter().map(|&r| at(r)).collect()
-}
-
 /// `marks::scale_rows3` (0x4BF498): the three rows of three floats at esi each made the
 /// length `flt_89CA24` .. `flt_89CA2C` says (`x87::scale_row`). Every register kept.
 pub unsafe fn scale_rows3(rows: u32) {
@@ -150,11 +146,6 @@ pub unsafe fn clamp_pair(entry: &Regs, inputs: [[u8; 10]; 2]) -> (Regs, [[u8; 10
 
 // ---- the converted versions (`rc2k_core::marks::turns`) ----
 
-/// The line turn's four floats.
-fn line_turn_now() -> rc2k_core::marks::turns::LineTurn {
-    TURN_RVA.map(|r| f32::from_bits(unsafe { game_read(r) }))
-}
-
 /// The converted `set_line_turn` / `set_line_turn_back` (plain floats): the hooks'.
 // Converted: `rc2k_core::marks::turns::line_turn`
 pub unsafe fn set_line_turn_plain(line: u32, back: bool) {
@@ -199,20 +190,4 @@ pub unsafe fn smooth_steps_plain(entry: &Regs) -> Regs {
         }
     }
     g
-}
-
-/// The converted `turn_pair` (plain floats): the hook's.
-// Converted: `rc2k_core::marks::turns::turn_pair`
-pub unsafe fn turn_pair_plain(inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
-    use rc2k_core::math::extended::{from_f64, to_f64};
-    let (a, b) =
-        rc2k_core::marks::turns::turn_pair(line_turn_now(), to_f64(inputs[0]), to_f64(inputs[1]));
-    [from_f64(a), from_f64(b)]
-}
-
-/// Two 80-bit values from floats, for the tests.
-pub fn test_pair(seed: u32) -> [[u8; 10]; 2] {
-    let mut v = [0u32; 2];
-    crate::scene::matrix3::test_floats(seed, &mut v);
-    v.map(crate::scene::matrix3::extended)
 }

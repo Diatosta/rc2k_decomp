@@ -14,11 +14,7 @@ use crate::menu::start_event::{Starter, starter_hook};
 use rc2k_core::menu::starters::{self, Championship, Seats};
 
 pub const START_CHAMPIONSHIP_ONE: Starter = Starter {
-    address: 0x4A25F4,
-    len: 0xC2,
     // pusha; call service::repair_car
-    entry: &[0x60, 0xE8, 0x69, 0x49, 0xFE, 0xFF],
-    calls: &[0x1, 0x6B, 0x76, 0x84, 0x93],
     kind: starters::Starter {
         championship: Championship::First,
         seats: Seats::One,

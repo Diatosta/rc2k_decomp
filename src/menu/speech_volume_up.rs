@@ -10,10 +10,6 @@ use crate::framework::Regs;
 use crate::menu::option_steps::{SPEECH_LEVEL_RVA, Then, Volume, volume_entry};
 
 const STEP: Volume = Volume {
-    address: 0x468055,
-    len: 0x2B,
-    entry: [0xFF, 0x05, 0x98, 0x56, 0x75, 0x00],
-    call: 0x25,
     value_rva: SPEECH_LEVEL_RVA,
     up: true,
     then: Then::Speech,

@@ -22,18 +22,14 @@
 //! and the Rust version (with `test_part`) from the same state and compares the registers,
 //! the flags, the calls (place, registers, and a text a call gets) and memory.
 
-use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{CARRY_FLAG, Regs, SelfTest, ZERO_FLAG, game_addr, rva};
-use crate::service::harness::{Region, capture, diff_summary, restore};
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicU32, Ordering};
+use crate::errors::{FatalError, Refused};
+use crate::framework::{Regs, ZERO_FLAG, game_addr, rva};
 
 /// A call by place: the callee's address in the game (or a stand-in's in a test).
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 /// A Win32 call by the address of its import (`jmp` thunk), the arguments in, eax out.
 pub type Api<'a> = &'a mut dyn FnMut(u32, &[u32]) -> u32;
 
-pub const CF: u32 = CARRY_FLAG;
 pub const ZF: u32 = ZERO_FLAG;
 
 // ---- the variables (IDA addresses) ----
@@ -45,7 +41,7 @@ pub const PATH_B: usize = 0x95E9F8; // byte_95E9F8: another, 0x100
 pub const SCRIPT_PATH: usize = 0x95EAF8; // byte_95EAF8: the script's path; an edit's backup
 pub const TYPED: usize = 0x95EBF8; // byte_95EBF8: the folder typed on the page, 0x100
 pub const BASE_B: usize = 0x5295B4; // unk_5295B4: base directory B
-pub const BASE_A: usize = 0x5189A8; // g_baseDirectory
+// g_baseDirectory
 pub const LOCALE: usize = 0x518AA8; // g_localeDirectory
 pub const MEDIA_MODE: usize = 0x5189A4; // g_mediaMode
 pub const STATUS: usize = 0x51BB8C; // g_installStatus
@@ -53,10 +49,10 @@ pub const SOURCE: usize = 0x51BB8D; // g_installSource, 0xFF bytes
 pub const SOURCE_SIZE: usize = 0x51BC90; // dword_51BC90
 pub const REG_KEY: usize = 0x51BB5C; // phkResult
 pub const SAME_VERSION: usize = 0x51B9C8; // dword_51B9C8: the installation is this version
-pub const UPDATING: usize = 0x51B9CC; // dword_51B9CC (-u)
+// dword_51B9CC (-u)
 pub const FROM_COMMAND: usize = 0x51B9D0; // dword_51B9D0 (-i: the paths given)
 pub const ADD_ITEMS: usize = 0x51B9D4; // g_addStartItems
-pub const REMOVE_ITEMS: usize = 0x51B9D8; // g_removeStartItems
+// g_removeStartItems
 pub const RUN_DXSETUP: usize = 0x51B9DC; // g_runDxSetup
 pub const INSTALLING: usize = 0x51B9E0; // g_installing (-p)
 pub const OFFER_REGISTRATION: usize = 0x51B9E4; // dword_51B9E4
@@ -70,10 +66,10 @@ pub const DRIVE_COUNT: usize = 0x51BAE0; // dword_51BAE0
 pub const FIRST_DRIVE: usize = 0x51BAE4; // dword_51BAE4: the first letter looked at
 pub const FILES_COPIED: usize = 0x51BAE8; // dword_51BAE8
 pub const FILES_TO_COPY: usize = 0x51BAEC; // dword_51BAEC
-pub const COPY_SPARE: usize = 0x51BAF0; // dword_51BAF0
+// dword_51BAF0
 pub const ROOM_NEEDED: usize = 0x51BAF8; // dword_51BAF8: KB
 pub const BUFFERS: usize = 0x51BAFC; // stru_51BAFC: the installer's memory list
-pub const BAR_GLYPHS: usize = 0x51BB3C; // dword_51BB3C: install.bun
+// dword_51BB3C: install.bun
 pub const DIRS: usize = 0x51BB40; // dword_51BB40: the folders' names, 0x10000
 pub const FILES: usize = 0x51BB44; // dword_51BB44: the files' names, 0x40000
 pub const DIR_COUNT: usize = 0x51BB48; // dword_51BB48
@@ -81,9 +77,9 @@ pub const FILE_COUNT: usize = 0x51BB4C; // dword_51BB4C
 pub const DIR_SCAN: usize = 0x51BB50; // dword_51BB50: the next folder to search
 pub const DIR_CURSOR: usize = 0x51BB54; // dword_51BB54
 pub const FILE_CURSOR: usize = 0x51BB58; // dword_51BB58
-pub const ROOM_BY_MODE: usize = 0x51C3F7; // dword_51C3F7: KB by installation
+// dword_51C3F7: KB by installation
 pub const LAYOUT: usize = 0x51C407; // dword_51C407: the page's pieces, 0x30 bytes each after
-pub const LAYOUT_ROOM: usize = 0x1000; // up to unk_51D407's list variables
+// up to unk_51D407's list variables
 pub const LIST_ANSWER: usize = 0x51D415; // byte_51D415
 pub const KEY_TAKEN: usize = 0x51D414; // byte_51D414
 pub const LIST_LEAVE: usize = 0x51D416; // g_listLeave
@@ -100,10 +96,10 @@ pub const QUITTING: usize = 0x51837C; // g_quitting
 pub const TEXT: usize = 0x93E430; // text: the shared text buffer
 pub const SCRATCH: usize = 0x93E8B0; // g_pngInfo: 0x10000 bytes used as scratch
 pub const DRIVE_LETTERS: usize = 0x52A30F; // byte_52A30F: the drives' texts, 0x10 each
-pub const SCRIPT_ENTRY: usize = 0x51DD48; // off_51DD48: the third page's action
+// off_51DD48: the third page's action
 pub const LANGUAGE_COUNT: usize = 0x51BEEA; // g_languageCount
-pub const FIND_DATA: usize = 0x4E05A8; // FindFileData
-pub const FIND_SKIPPED: usize = 0x4E06E6; // FindFileData+13Eh: attributes passed over
+// FindFileData
+// FindFileData+13Eh: attributes passed over
 
 // ---- memory by address ----
 
@@ -213,56 +209,6 @@ pub fn append_string_by_id(r: &mut Regs) {
         })
     };
     r.ebx = out as u32;
-}
-
-fn put_bytes(r: &mut Regs, bytes: &[u8]) {
-    unsafe { std::ptr::copy_nonoverlapping(bytes.as_ptr(), r.ebx as *mut u8, bytes.len()) };
-    r.ebx = r.ebx.wrapping_add(bytes.len() as u32);
-}
-
-/// `strings::format_u32` (eax the value, ecx the flags, ebx the cursor).
-pub fn format_u32(r: &mut Regs) {
-    let digits = crate::strings::format_u32::format_u32(r.eax, r.ecx as u8);
-    put_bytes(r, &digits);
-}
-
-/// `strings::append_percent` (eax the value, ebx the cursor).
-pub fn append_percent(r: &mut Regs) {
-    let digits = crate::strings::append_percent::append_percent(r.eax);
-    put_bytes(r, &digits);
-}
-
-/// `strings::hex_append` (eax the value, ecx the digits, ebx the cursor).
-pub fn hex_append(r: &mut Regs) -> Result<(), Refused> {
-    let digits = crate::strings::hex_append::hex_append(r.eax, r.ecx)?;
-    put_bytes(r, &digits);
-    Ok(())
-}
-
-/// `strings::text_length` (ebx the text): ecx its length; zero set.
-pub fn text_length(r: &mut Regs) -> Result<(), Refused> {
-    r.ecx = unsafe { crate::strings::text_length::text_length(r.ebx as *const u8) }?;
-    r.set_zero(true);
-    Ok(())
-}
-
-/// `strings::same_text` (eax, ebx): zero set when they are the same but for case.
-pub fn same_text(r: &mut Regs) {
-    let same =
-        unsafe { crate::strings::same_text::same_text(r.eax as *const u8, r.ebx as *const u8) };
-    r.set_zero(same);
-}
-
-/// `files::resolve_path` (eax the path): eax the path to open.
-pub fn resolve_path(r: &mut Regs) -> Result<(), Refused> {
-    r.eax = unsafe { crate::files::resolve_path::resolve_path_in_game(r.eax as *const u8) }? as u32;
-    Ok(())
-}
-
-/// `files::append_directory` (edx the path, ebx the cursor).
-pub fn append_directory(r: &mut Regs) -> Result<(), Refused> {
-    *r = unsafe { crate::files::append_directory::append_directory_regs(r) }?;
-    Ok(())
 }
 
 // ---- the callees, by IDA address ----
@@ -721,471 +667,3 @@ pub fn game_api(place: u32, x: &[u32]) -> u32 {
 }
 
 // ---- self-tests ----
-
-/// One call noted: the place, eax, ebx, ecx, edx, esi, edi, ebp, and the text it is given
-/// (by `TEXT_OF`).
-pub type Noted = (u32, [u32; 7], Vec<u8>);
-
-static NOTED: Mutex<Vec<Noted>> = Mutex::new(Vec::new());
-static PLACES: Mutex<Vec<u32>> = Mutex::new(Vec::new());
-
-/// What a stand-in answers (the place, the registers): the test's.
-pub type Answer = Box<dyn FnMut(u32, &mut Regs) + Send>;
-static ANSWER: Mutex<Option<Answer>> = Mutex::new(None);
-
-/// The text a call is given, to be noted with it: by the place, from its registers.
-pub type TextOf = fn(u32, &Regs) -> Vec<u8>;
-static TEXT_OF: Mutex<Option<TextOf>> = Mutex::new(None);
-
-/// A NUL-terminated text at `at` (at most `max` bytes), for `TextOf`s.
-pub fn text_at(at: u32, max: usize) -> Vec<u8> {
-    let mut out = Vec::new();
-    for n in 0..max as u32 {
-        let b = rb(at + n);
-        if b == 0 {
-            break;
-        }
-        out.push(b);
-    }
-    out
-}
-
-/// The answer the stand-ins give from now on.
-pub fn answer(f: Answer) {
-    *ANSWER.lock().unwrap() = Some(f);
-}
-
-pub fn set_text_of(f: Option<TextOf>) {
-    *TEXT_OF.lock().unwrap() = f;
-}
-
-/// Whether `note` records ebp as 0: for a function whose ebp at its calls is a stack
-/// address (`install::run_script`'s `mov ebp, esp`), which no Rust version can give.
-static NOTE_NO_EBP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
-pub fn note_no_ebp(on: bool) {
-    NOTE_NO_EBP.store(on, Ordering::SeqCst);
-}
-
-fn note(place: u32, r: &mut Regs) {
-    let ebp = if NOTE_NO_EBP.load(Ordering::SeqCst) {
-        0
-    } else {
-        r.ebp
-    };
-    let text = TEXT_OF
-        .lock()
-        .unwrap()
-        .map(|f| f(place, r))
-        .unwrap_or_default();
-    NOTED
-        .lock()
-        .unwrap()
-        .push((place, [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, ebp], text));
-    let mut answer = ANSWER.lock().unwrap().take();
-    if let Some(f) = answer.as_mut() {
-        f(place, r);
-    }
-    let mut slot = ANSWER.lock().unwrap();
-    if slot.is_none() {
-        *slot = answer;
-    }
-}
-
-fn handler(n: u32, r: &mut Regs) {
-    let place = PLACES
-        .lock()
-        .unwrap()
-        .get(n as usize)
-        .copied()
-        .unwrap_or(u32::MAX);
-    note(place, r);
-}
-
-/// The address of the stand-in for test place `n` of the copy made last (for the lists'
-/// actions a test puts in its lists).
-pub fn stand_in(n: u32) -> u32 {
-    crate::install::stand_ins::stand_in(n) as u32
-}
-
-/// The Rust side's calls in the tests: a stand-in's address is its place, as the copy's
-/// calls are noted.
-pub fn test_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    let places = PLACES.lock().unwrap().clone();
-    let place = (0..places.len() as u32)
-        .find(|&n| stand_in(n) == place)
-        .map(|n| places[n as usize])
-        .unwrap_or(place);
-    note(place, r);
-    Ok(())
-}
-
-pub fn take_noted() -> Vec<Noted> {
-    std::mem::take(&mut *NOTED.lock().unwrap())
-}
-
-/// The Rust side's Win32 calls in the tests: noted as the copy's are (`api_places`).
-pub fn test_api(apis: &'static [(u32, u32, u32)]) -> impl FnMut(u32, &[u32]) -> u32 {
-    move |place, args| {
-        let n = apis
-            .iter()
-            .find(|&&(import, _, _)| import == place)
-            .map(|&(_, n, _)| n)
-            .unwrap_or(7);
-        crate::system::api_stand_ins::note(n, args)
-    }
-}
-
-static FATAL_CODE: AtomicU32 = AtomicU32::new(0);
-static GUARD_ESP: AtomicU32 = AtomicU32::new(0);
-
-/// `call_game` that a copy's jump to a fatal landing comes back from: the registers are not
-/// stored then (`FATAL_CODE` says the code).
-#[unsafe(naked)]
-unsafe extern "C" fn run_guarded(_regs: *mut Regs, _addr: usize) {
-    core::arch::naked_asm!(
-        "push ebx", "push esi", "push edi", "push ebp",
-        "mov eax, [esp + 20]",
-        "push eax",
-        "mov dword ptr [{guard}], esp",
-        "mov ecx, [eax + {o_ecx}]",
-        "mov edx, [eax + {o_edx}]",
-        "mov ebx, [eax + {o_ebx}]",
-        "mov esi, [eax + {o_esi}]",
-        "mov edi, [eax + {o_edi}]",
-        "mov ebp, [eax + {o_ebp}]",
-        "mov eax, [eax + {o_eax}]",
-        "call dword ptr [esp + 28]",
-        "pushfd",
-        "cld",
-        "push eax",
-        "mov eax, [esp + 8]",
-        "mov [eax + {o_ecx}], ecx",
-        "mov [eax + {o_edx}], edx",
-        "mov [eax + {o_ebx}], ebx",
-        "mov [eax + {o_esi}], esi",
-        "mov [eax + {o_edi}], edi",
-        "mov [eax + {o_ebp}], ebp",
-        "pop dword ptr [eax + {o_eax}]",
-        "pop dword ptr [eax + {o_eflags}]",
-        "add esp, 4",
-        "pop ebp", "pop edi", "pop esi", "pop ebx",
-        "ret",
-        guard = sym GUARD_ESP,
-        o_eax = const core::mem::offset_of!(Regs, eax),
-        o_eflags = const core::mem::offset_of!(Regs, eflags),
-        o_ecx = const core::mem::offset_of!(Regs, ecx),
-        o_edx = const core::mem::offset_of!(Regs, edx),
-        o_ebx = const core::mem::offset_of!(Regs, ebx),
-        o_esi = const core::mem::offset_of!(Regs, esi),
-        o_edi = const core::mem::offset_of!(Regs, edi),
-        o_ebp = const core::mem::offset_of!(Regs, ebp),
-    )
-}
-
-/// Where a fatal stub of a copy goes after noting its code: back out of `run_guarded`.
-#[unsafe(naked)]
-unsafe extern "C" fn fatal_landing() {
-    core::arch::naked_asm!(
-        "mov esp, dword ptr [{guard}]",
-        "cld",
-        "add esp, 4",
-        "pop ebp", "pop edi", "pop esi", "pop ebx",
-        "ret",
-        guard = sym GUARD_ESP,
-    )
-}
-
-/// A copy of an original for a test, with its fatal stubs.
-pub struct Copy {
-    pub copy: crate::redirect::RedirectedCopy,
-    stubs: *mut u8,
-}
-
-impl Drop for Copy {
-    fn drop(&mut self) {
-        use windows_sys::Win32::System::Memory::{MEM_RELEASE, VirtualFree};
-        unsafe { VirtualFree(self.stubs.cast(), 0, MEM_RELEASE) };
-    }
-}
-
-/// The copy of `address` (`len` bytes, its first bytes `entry`): every `call rel32` out of
-/// it (offset, target) in `calls`; those to `stood` and to imports in `apis` (import,
-/// stand-in place, arguments) go to stand-ins; `fatal` (the offset of a jump's rel32, the
-/// code its stub sets) to landings; `extra` places (for the lists' actions a test puts in
-/// its lists: `stand_in(n)` for n from `stood.len()` on).
-#[allow(clippy::too_many_arguments)] // one test copy's whole description
-pub fn copy(
-    address: usize,
-    len: usize,
-    entry: &[u8],
-    calls: &[(usize, u32)],
-    stood: &[u32],
-    apis: &[(u32, u32, u32)],
-    fatal: &[(usize, u32)],
-    extra: &[u32],
-) -> Result<Copy, String> {
-    use windows_sys::Win32::System::Memory::{
-        MEM_COMMIT, MEM_RESERVE, PAGE_EXECUTE_READWRITE, VirtualAlloc,
-    };
-    let mut places: Vec<u32> = stood.iter().map(|&x| a(x as usize)).collect();
-    places.extend(extra.iter().copied());
-    *PLACES.lock().unwrap() = places;
-    crate::install::stand_ins::set_handler(handler);
-    let offsets: Vec<usize> = calls.iter().map(|&(o, _)| o).collect();
-    unsafe {
-        let copy = crate::redirect::RedirectedCopy::new(
-            game_addr(rva(address)),
-            len,
-            entry,
-            &offsets,
-            &|target| {
-                stood
-                    .iter()
-                    .position(|&x| rva(x as usize) == target)
-                    .map(|n| crate::install::stand_ins::stand_in(n as u32))
-            },
-        )
-        .map_err(str::to_string)?;
-        for &(offset, target) in calls {
-            if let Some(&(_, place, args)) = apis.iter().find(|&&(i, _, _)| i == target) {
-                copy.retarget(
-                    offset + 1,
-                    crate::system::api_stand_ins::stand_in(place, args),
-                );
-            }
-        }
-        let stubs = VirtualAlloc(
-            std::ptr::null(),
-            0x1000,
-            MEM_COMMIT | MEM_RESERVE,
-            PAGE_EXECUTE_READWRITE,
-        ) as *mut u8;
-        if stubs.is_null() {
-            return Err("VirtualAlloc failed".into());
-        }
-        for (n, &(jump_off, code)) in fatal.iter().enumerate() {
-            // the rel32 operand sits after the opcode: +2 for a 0F 8x jcc, +1 for E9/E8
-            let at = (copy.addr() as *const u8).add(jump_off);
-            let operand = jump_off + if at.read() == 0x0F { 2 } else { 1 };
-            // mov dword ptr [FATAL_CODE], code; jmp fatal_landing
-            let stub = stubs.add(16 * n);
-            let bytes: [u8; 10] = {
-                let mut b = [0xC7, 0x05, 0, 0, 0, 0, 0, 0, 0, 0];
-                b[2..6].copy_from_slice(&(FATAL_CODE.as_ptr() as u32).to_le_bytes());
-                b[6..10].copy_from_slice(&code.to_le_bytes());
-                b
-            };
-            std::ptr::copy_nonoverlapping(bytes.as_ptr(), stub, 10);
-            stub.add(10).write(0xE9);
-            let rel = (fatal_landing as *const () as u32).wrapping_sub(stub as u32 + 15);
-            (stub.add(11) as *mut u32).write_unaligned(rel);
-            copy.retarget(operand, stub as usize);
-        }
-        Ok(Copy { copy, stubs })
-    }
-}
-
-/// What a side left: the registers (or the fatal error's code), the calls, the Win32 calls,
-/// memory.
-type Outcome = (
-    Result<Regs, u32>,
-    Vec<Noted>,
-    Vec<crate::system::api_stand_ins::Noted>,
-    Vec<u8>,
-);
-
-/// The Rust version as the tests run it.
-pub type Rust<'a> = &'a dyn Fn(&Regs, Part, Api) -> Result<Regs, Refused>;
-
-fn same(o: &Regs, m: &Regs, flags: u32) -> bool {
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    regs(o) == regs(m) && (o.eflags ^ m.eflags) & flags == 0
-}
-
-fn show(r: &Result<Regs, u32>) -> String {
-    match r {
-        Ok(m) => format!(
-            "eax={:#x} ebx={:#x} ecx={:#x} edx={:#x} esi={:#x} edi={:#x} ebp={:#x} flags={:#x}",
-            m.eax, m.ebx, m.ecx, m.edx, m.esi, m.edi, m.ebp, m.eflags
-        ),
-        Err(code) => format!("fatal {code:#x}"),
-    }
-}
-
-/// One case: `prepare`, the copy from `entry`; `prepare`, the Rust version from `entry`
-/// (with `test_part` and the Win32 calls noted as `apis` says); the registers (the flags in
-/// `flags`) or the fatal error, the calls and `regions` compared. Memory is put back after.
-#[allow(clippy::too_many_arguments)] // the case: what, code, start, memory, flags, sides
-pub fn both(
-    t: &mut SelfTest,
-    what: &str,
-    copy: &Copy,
-    entry: Regs,
-    regions: &[Region],
-    flags: u32,
-    apis: &'static [(u32, u32, u32)],
-    prepare: &dyn Fn(),
-    rust: Rust,
-) {
-    let start = capture(regions);
-    prepare();
-    take_noted();
-    crate::system::api_stand_ins::take_noted();
-    FATAL_CODE.store(0, Ordering::SeqCst);
-    let mut o = entry;
-    unsafe { run_guarded(&mut o, copy.copy.addr()) };
-    let code = FATAL_CODE.swap(0, Ordering::SeqCst);
-    let theirs: Outcome = (
-        if code != 0 { Err(code) } else { Ok(o) },
-        take_noted(),
-        crate::system::api_stand_ins::take_noted(),
-        capture(regions),
-    );
-    restore(regions, &start);
-    prepare();
-    let mut api = test_api(apis);
-    let mine = rust(&entry, &mut test_part, &mut api);
-    let refusal = match &mine {
-        Err(Refused::BadInput(BadInput(why))) => Some(*why),
-        _ => None,
-    };
-    let mine: Outcome = (
-        match mine {
-            Ok(m) => Ok(m),
-            Err(Refused::Fatal(f)) => Err(f.code),
-            Err(Refused::BadInput(_)) => Err(u32::MAX),
-        },
-        take_noted(),
-        crate::system::api_stand_ins::take_noted(),
-        capture(regions),
-    );
-    restore(regions, &start);
-    let regs_ok = match (&theirs.0, &mine.0) {
-        (Ok(o), Ok(m)) => same(o, m, flags),
-        (Err(x), Err(y)) => x == y,
-        _ => false,
-    };
-    let ok = regs_ok && theirs.1 == mine.1 && theirs.2 == mine.2 && theirs.3 == mine.3;
-    t.check(ok, || {
-        format!(
-            "{what}: original {}; rust {}{}; calls {}; win32 {}; memory: {}",
-            show(&theirs.0),
-            show(&mine.0),
-            refusal
-                .map(|w| format!(" (refused: {w})"))
-                .unwrap_or_default(),
-            if theirs.1 == mine.1 {
-                "same".to_string()
-            } else {
-                format!(
-                    "original {:x?} rust {:x?}",
-                    first_diff(&theirs.1, &mine.1).0,
-                    first_diff(&theirs.1, &mine.1).1
-                )
-            },
-            if theirs.2 == mine.2 {
-                "same".to_string()
-            } else {
-                format!("original {:x?} rust {:x?}", theirs.2, mine.2)
-            },
-            diff_summary(&theirs.3, &mine.3)
-        )
-    });
-}
-
-/// The first call where two lists differ (and its index), for the log.
-fn first_diff(x: &[Noted], y: &[Noted]) -> (Option<(usize, Noted)>, Option<Noted>) {
-    let n = x
-        .iter()
-        .zip(y)
-        .position(|(p, q)| p != q)
-        .unwrap_or(x.len().min(y.len()));
-    (x.get(n).cloned().map(|c| (n, c)), y.get(n).cloned())
-}
-
-/// Stand-ins that answer nothing.
-pub fn quiet() {
-    *ANSWER.lock().unwrap() = None;
-    set_text_of(None);
-}
-
-/// A recognisable byte pattern.
-pub fn fill(at: u32, len: usize, seed: u32) {
-    for n in 0..len as u32 {
-        wb(
-            at + n,
-            (n.wrapping_mul(0x9E37).wrapping_add(seed) ^ (n >> 8)) as u8,
-        );
-    }
-}
-
-/// A region of IDA address `x`.
-pub fn region(x: usize, len: usize) -> Region {
-    (a(x), len)
-}
-
-/// Writes a NUL-terminated text at IDA address `x`.
-pub fn put_text(x: usize, text: &[u8]) {
-    for (n, &b) in text.iter().enumerate() {
-        wb(a(x) + n as u32, b);
-    }
-    wb(a(x) + text.len() as u32, 0);
-}
-
-/// The texts noted with calls to the file and folder functions: the path they get.
-pub fn path_text(place: u32, r: &Regs) -> Vec<u8> {
-    let ida = (place as usize)
-        .wrapping_sub(game_addr(0))
-        .wrapping_add(0x40_0000);
-    match ida {
-        SET_CD | MAKE_DIR | REMOVE_DIR => text_at(r.edx, 0x100),
-        DELETE_FILE | FIND_FIRST | OPEN | READ_FILE | WRITE_FILE => text_at(r.eax, 0x100),
-        COPY_FILE => {
-            let mut t = text_at(r.eax, 0x100);
-            t.push(b'>');
-            t.extend(text_at(r.ebx, 0x100));
-            t
-        }
-        NORMALISE => text_at(r.esi, 0x100),
-        DRAW_TEXT | MEASURE_TEXT => text_at(r.ebx, 0x100),
-        _ => Vec::new(),
-    }
-}
-
-/// What the list helpers may write of a list (edi) and its items, for shadow mode: the list
-/// and its items, each choice item's chosen byte and choices, each value's byte, each edit's
-/// record and text; the highlight, the edit's backup, the answer and leave bytes.
-pub fn list_regions(list: u32) -> Vec<Region> {
-    let count = match rb(list + 1) {
-        0 => 0x100,
-        n => n as u32,
-    };
-    let mut all = vec![
-        (list, 0x18 + 0x10 * count as usize),
-        region(CHOICE, 4),
-        region(SCRIPT_PATH, 0x102),
-        region(KEY_TAKEN, 3),
-    ];
-    for n in 0..count {
-        let item = list + 0x18 + 0x10 * n;
-        match rb(item) & 0xF {
-            2 => {
-                let choices = match rb(item + 1) {
-                    0 => 0x100,
-                    c => c as usize,
-                };
-                all.push((rd(item + 8), 1));
-                all.push((rd(item + 0xC), 2 * choices));
-            }
-            3 => all.push((rd(item + 8), 1)),
-            4 => {
-                let edit = rd(item + 0xC);
-                all.push((edit, 8));
-                all.push((rd(item + 8), rb(edit + 1) as usize + 2));
-            }
-            _ => {}
-        }
-    }
-    all
-}

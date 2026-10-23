@@ -14,9 +14,9 @@
 
 use crate::errors::FatalError;
 use crate::framework::{Regs, game_read, game_write, rva};
-use crate::gfx::blit_glyph::{BlitCall, blit_glyph_on_surface, glyph_record};
+use crate::gfx::blit_glyph::{BlitCall, blit_glyph_on_surface};
 use crate::gfx::blit_marker_pair::sprite_table;
-use crate::gfx::surface::{CLIP_RIGHT_RVA, clip, surface};
+use crate::gfx::surface::{CLIP_RIGHT_RVA, clip};
 
 // ---- game data ----
 
@@ -64,15 +64,6 @@ impl Bar {
             game_write(BAR_END_GLYPH_RVA, self.end_glyph);
             game_write(BAR_PERCENT_RVA, self.percent);
         }
-    }
-
-    /// Pixels from x to where `percent` of the width ends: an unsigned division by 100.
-    pub fn length(&self) -> Result<i32, FatalError> {
-        let product = self.width.wrapping_mul(self.percent);
-        if product == 0 {
-            return Err(BAR_HAS_NO_LENGTH);
-        }
-        Ok((product as u32 / 100) as i32)
     }
 }
 
@@ -147,17 +138,6 @@ impl Bar {
 /// The bar described by the bar globals. Converted: `rc2k_core::gfx::bars::bar`.
 pub unsafe fn blit_bar(blit: Blit) -> Result<(), FatalError> {
     rc2k_core::gfx::bars::bar(&mut GameBar(blit), &Bar::read().core())
-}
-
-/// A `Blit` that lists the calls and makes the blitter's own checks, without drawing.
-pub fn checked_list(
-    calls: &mut Vec<BlitCall>,
-) -> impl FnMut(BlitCall) -> Result<(), FatalError> + '_ {
-    |call| {
-        unsafe { glyph_record(&surface(), call.table as *const u8, call.glyph) }?;
-        calls.push(call);
-        Ok(())
-    }
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).

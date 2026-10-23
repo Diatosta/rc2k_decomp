@@ -14,9 +14,7 @@
 //! a call through a gated hook did, so that `selftest`'s pause holds the thread here.
 
 use crate::errors::Refused;
-use crate::framework::{
-    IMAGE_BASE, Regs, call_game, game_addr, hook_enter, hook_leave, log, shadow,
-};
+use crate::framework::{IMAGE_BASE, Regs, call_game, game_addr, log};
 use crate::menu::table_routes::{item_fn, screen_fn};
 use rc2k_core::menu::tables::{ItemFn, ScreenFn};
 use std::sync::Mutex;
@@ -34,15 +32,10 @@ pub fn call_any(function: u32, r: &mut Regs) {
 }
 
 fn run(function: u32, r: &mut Regs, only_tables: bool) {
-    if shadow() {
-        unsafe { call_game(r, function as usize) };
-        return;
-    }
     let ral = (function as usize)
         .wrapping_sub(game_addr(0))
         .wrapping_add(IMAGE_BASE) as u32;
     let entry = *r;
-    hook_enter();
     let result = if let Some(f) = ItemFn::from_ral(ral) {
         Some((Named::Item(f), item_fn(f, r)))
     } else if let Some(f) = ScreenFn::from_ral(ral) {
@@ -51,7 +44,6 @@ fn run(function: u32, r: &mut Regs, only_tables: bool) {
         let at = (ral as usize).wrapping_sub(IMAGE_BASE);
         crate::routes::by_rva(at, r).map(|done| (Named::Routed, done))
     };
-    hook_leave();
     match result {
         Some((_, Ok(()))) => {}
         Some((name, Err(Refused::BadInput(why)))) => {

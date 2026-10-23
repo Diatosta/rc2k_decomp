@@ -27,7 +27,6 @@ use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::{dot_product3, normalise_vector3};
-use crate::service::harness::{Region, at};
 
 const VIEW_RVA: usize = rva(0x5EA3CC); // flt_5EA3CC: the view matrix
 const LAST_RVA: usize = rva(0x91FFBE); // flt_91FFBE .. flt_91FFC6
@@ -67,36 +66,4 @@ pub unsafe fn view_motion(entry: &Regs) -> Regs {
         g.esi = m;
     }
     g
-}
-
-/// The converted version (plain floats): the hook's.
-// Converted: `rc2k_core::marks::view::view_motion`
-pub unsafe fn view_motion_plain(entry: &Regs) -> Regs {
-    unsafe {
-        let m = game_addr(VIEW_RVA) as u32;
-        // The fourth float of each row is not read.
-        let matrix: [f32; 15] = std::array::from_fn(|n| {
-            if n % 4 == 3 {
-                0.0
-            } else {
-                f32::from_bits(((m + 4 * n as u32) as *const u32).read_unaligned())
-            }
-        });
-        let last: [u32; 3] = game_read(LAST_RVA);
-        let ticks: i32 = game_read(TICKS_RVA);
-        let v = rc2k_core::marks::view::view_motion(&matrix, last.map(f32::from_bits), ticks);
-        game_write(STEP_RVA, v.step.map(f32::to_bits));
-        game_write(FACING_RVA, v.facing.to_bits());
-        game_write(LAST_RVA, v.last.map(f32::to_bits));
-        game_write(STEP_RVA, v.per_tick.map(f32::to_bits));
-        Regs { esi: m, ..*entry }
-    }
-}
-
-pub fn regions() -> Vec<Region> {
-    vec![
-        (game_addr(STEP_RVA) as u32, 12),
-        at(FACING_RVA),
-        (game_addr(LAST_RVA) as u32, 12),
-    ]
 }

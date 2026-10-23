@@ -41,16 +41,14 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
-use crate::physics::camera_ground::{Check, carry_entry};
+use crate::framework::Regs;
+use crate::physics::camera_ground::carry_entry;
 use crate::physics::camera_view::{rd, record};
 use crate::physics::flow::{a, base, g, guard, hold_high, hold_low, p, x87_run};
 use crate::physics::touch_face::FACES;
 use crate::race::car_starts::Part;
 use crate::scene::matrix3::rounded;
-use crate::screens::harness::CallOriginal;
-use crate::service::harness::{Region, capture, restore};
+use crate::service::harness::Region;
 use rc2k_core::physics::camera_view;
 
 const MODE: usize = 0x71A65C;
@@ -355,69 +353,4 @@ pub unsafe fn update_camera(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     carry_entry(r, update_camera)
-}
-
-/// The tests of the camera's step and its parents (in a race): the original and the Rust
-/// version (the game's probes) on the stage, everything written saved and put back; the
-/// camera where it is, moved below the car (into the ground), every mode, a switch under
-/// way; three precisions.
-pub fn camera_test(hook: &RawHook, call_original: CallOriginal, rust: Check) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    if !crate::physics::move_slot::in_race() {
-        return t.skip("not in a race (no stage)");
-    }
-    let mut all = camera_regions();
-    all.extend([(a(0x71A10C), 12), (a(0x71A998), 12)]);
-    let saved = capture(&all);
-    // The carry is not compared: none of the three (`update_camera`, `camera_frame`,
-    // `camera_avoid_ground`) has its flags read, and theirs are their last compare's, which
-    // the stage decides (2026-10-18: each failed on it in turn, shadow on and off).
-    let regs = |r: &Regs| (r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for case in 0..14u32 {
-                let set = || {
-                    restore(&all, &saved);
-                    p(
-                        MODE,
-                        [0u32, 1, 2, 3, 4, 5, 6, 7, 9, 0x2A, 0x2E, 0x31, 0, 1][case as usize],
-                    );
-                    p(0x71A660, case % 4);
-                    if case >= 12 {
-                        // A switch under way.
-                        p(0x71A66C, 1);
-                        p(0x71A668, g(0x719FE0).wrapping_sub(3));
-                        p(0x71A670, 10);
-                    } else {
-                        p(0x71A66C, 0);
-                    }
-                    if case % 3 == 1 {
-                        // The camera into the ground below the car.
-                        p(0x71A67C, g(0x71A10C));
-                        p(0x71A680, g(0x71A110).wrapping_sub(0x4_0000));
-                        p(0x71A684, g(0x71A114));
-                    }
-                };
-                set();
-                let mut ro = Regs::SENTINEL;
-                unsafe { call_original(&mut ro) };
-                let theirs = (regs(&ro), capture(&all));
-                set();
-                let mine =
-                    unsafe { rust(&Regs::SENTINEL, &mut crate::physics::reset_parts::game_part) };
-                let mine = (mine.as_ref().ok().map(regs), capture(&all));
-                t.check(Some(theirs.0) == mine.0 && theirs.1 == mine.1, || {
-                    let diff = theirs.1.iter().zip(&mine.1).position(|(a, b)| a != b);
-                    format!(
-                        "control word {word:#x}, case {case}: original {:x?}; rust {:x?}; memory first differs at {diff:x?}",
-                        theirs.0, mine.0
-                    )
-                });
-            }
-        });
-    }
-    restore(&all, &saved);
-    t.finish()
 }

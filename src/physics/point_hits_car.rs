@@ -25,11 +25,10 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::math::turn_scratch_xz::scratch;
-use crate::math::x87::loaded;
 use crate::physics::flow::{a, base, g, p, x87_run};
 use crate::physics::turn_by_heading::turn_by_heading;
 use crate::physics::vector_length::vector_length;
-use crate::scene::matrix3::{rounded, test_floats};
+use crate::scene::matrix3::rounded;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, state_entry};
 use rc2k_core::physics::contacts;
@@ -134,42 +133,4 @@ pub fn regions() -> Vec<Region> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-/// The car's figures it reads (set by lot in the tests): its place, heading, speed and
-/// box, the offset.
-pub fn inputs() -> Vec<Region> {
-    vec![
-        (a(0x6D3B40), 12),
-        (a(0x71A10C), 12),
-        (a(0x71A998), 4),
-        (a(0x71A170), 12),
-        (a(0x614BC0), 12),
-        (a(0x71A208), 4),
-        (a(KIND), 4),
-    ]
-}
-
-/// Sets `inputs()` from `seed`: places within some 0x8000 of each other, a box of some
-/// 0x10000 .. 0x30000, the contact kind `kind`.
-pub fn set_inputs(seed: u32, kind: u32) {
-    // The calls' counter (`dword_614110`, one up a call): the same start for both sides.
-    p(0x614110, seed);
-    let mut f = [0u32; 8];
-    test_floats(seed.wrapping_mul(13).wrapping_add(5), &mut f);
-    let small = |k: usize, m: i32| (f[k] as i32).wrapping_rem(m) as u32;
-    for k in 0..3 {
-        p(0x6D3B40 + 4 * k, small(k, 0x8000));
-        p(0x71A10C + 4 * k, small(k + 3, 0x8000));
-    }
-    p(0x71A998, f[6] & 0xFFFF);
-    for k in 0..3 {
-        p(
-            0x71A170 + 4 * k,
-            loaded((f32::from_bits(f[k + 2]) % 4.0).to_bits()),
-        );
-        p(0x614BC0 + 4 * k, 0x10000 + (f[k + 4] & 0x1FFFF));
-    }
-    p(0x71A208, (f32::from_bits(f[7]) % 3.0).to_bits());
-    p(KIND, kind);
 }

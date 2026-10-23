@@ -6,7 +6,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
-use crate::service::harness::{Region, at};
 
 /// One kind's tables.
 pub struct Shapes {
@@ -146,17 +145,6 @@ impl Shapes {
             g.eax = RADII;
         }
     }
-
-    /// What `make` writes and the mark.
-    pub fn regions(&self) -> Vec<Region> {
-        let a = |r: usize| game_addr(r) as u32;
-        vec![
-            at(self.done),
-            (a(self.items), (ITEMS * self.item_len) as usize),
-            (a(self.curve), 4 * CURVE as usize),
-            (a(self.points), (12 * self.sides * RADII) as usize),
-        ]
-    }
 }
 
 /// `marks::set_up_hexagons` (0x4BAA55): once (`g_marksHexagonsDone`, then `resume`) four
@@ -232,19 +220,6 @@ pub unsafe fn set_up_hexagons_plain(entry: &Regs, resume: u32) -> Result<Regs, R
     unsafe { hexagons_with(entry, resume, true) }
 }
 
-/// What `set_up_hexagons` writes.
-pub fn hexagon_regions() -> Vec<Region> {
-    let a = |r: usize| game_addr(r) as u32;
-    let mut r = HEXAGONS.regions();
-    r.extend([
-        (a(rva(0x816192)), 16),
-        (a(FANS_RVA), (FANS * 24) as usize),
-        (a(FAN_RECORDS_RVA), (FANS * 0xC0) as usize),
-        (a(CLEARED_RVA), 16),
-    ]);
-    r
-}
-
 /// `marks::set_up_squares` (0x4BF529): its once-only mark set (`g_marksSquaresDone`, then
 /// `resume`; nothing else is done once); the square items cleared, their curve and circles
 /// (4 points); then `marks::reset_pong`. Leaves eax 8, esi past the radii, edi past the
@@ -274,11 +249,4 @@ pub unsafe fn set_up_squares(entry: &Regs, resume: u32) -> Result<Regs, Refused>
 // Converted: `rc2k_core::marks::{waves::mark, shapes}`
 pub unsafe fn set_up_squares_plain(entry: &Regs, resume: u32) -> Result<Regs, Refused> {
     unsafe { squares_with(entry, resume, true) }
-}
-
-/// What `set_up_squares` writes.
-pub fn square_regions() -> Vec<Region> {
-    let mut r = SQUARES.regions();
-    r.extend(crate::marks::splines::outline_regions());
-    r
 }

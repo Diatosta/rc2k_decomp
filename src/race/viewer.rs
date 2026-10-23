@@ -14,10 +14,9 @@
 //! `run_both` compares the registers, the flags the callers read, the calls and memory.
 
 use crate::errors::Refused;
-use crate::framework::{CARRY_FLAG, RawHook, Regs, SelfTest, ZERO_FLAG, game_addr, shadow};
+use crate::framework::Regs;
 use crate::physics::flow::{a, g, p};
-use crate::service::harness::{Region, capture, diff_summary, restore};
-use std::sync::Mutex;
+use crate::service::harness::Region;
 
 /// A call by place.
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
@@ -36,7 +35,6 @@ pub const EDITING: usize = 0x5BECA8; // dword_5BECA8: the editing keys work
 pub const INDEX: usize = 0x5BECC8; // "RCIB": the index, 0x3850 bytes
 pub const BLOCKS: usize = 0x5BECD0; // dword_5BECD0: blocks in the replay
 pub const PLACES: usize = 0x5BECD8; // lDistanceToMove: (offset, size) a block
-pub const MOST_BLOCKS: u32 = 0x708;
 pub const LAST_RACE: u32 = 0xDE; // the slot of `var\tmprpl` as it is
 pub const BLOCK: usize = 0x5C2530; // dword_5C2530: the block shown
 pub const FRAME: usize = 0x5C2534; // dword_5C2534: its frame, 0 .. 99
@@ -88,15 +86,6 @@ pub const FRAME_CLOCK: usize = 0x51D41F; // dword_51D41F
 pub const MOVE_CLOCK: usize = 0x51D423; // dword_51D423
 pub const CLOCK: usize = 0x518998; // dword_518998
 
-/// Clamped to the game's tables: a block number as the original indexes by it.
-pub fn place_of(block: u32) -> usize {
-    PLACES + 8 * block as usize
-}
-
-pub fn camera_of(block: u32) -> usize {
-    CAMERAS + 8 * block as usize
-}
-
 pub fn gb(x: usize) -> u8 {
     unsafe { (a(x) as *const u8).read() }
 }
@@ -126,12 +115,6 @@ pub unsafe fn table(x: usize, dwords: usize) -> &'static mut [u32] {
     unsafe { std::slice::from_raw_parts_mut(at, dwords) }
 }
 
-/// The flags of `cmp v, 1` as `jb` / `jz` read them.
-pub fn cmp_one(r: &mut Regs, v: u32) {
-    r.set_carry(v < 1);
-    r.set_zero(v == 1);
-}
-
 /// A region of IDA address `x`, `len` bytes.
 pub fn region(x: usize, len: usize) -> Region {
     (a(x), len)
@@ -146,69 +129,6 @@ pub fn dword(x: usize) -> Region {
 /// The Rust version as the dispatchers run it: the registers it leaves, flags included.
 pub type Rust<'a> = &'a dyn Fn(&Regs) -> Result<Regs, Refused>;
 
-fn same(o: &Regs, m: &Regs, flags: u32) -> bool {
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    regs(o) == regs(m) && (o.eflags ^ m.eflags) & flags == 0
-}
-
-/// The whole `dispatch` of a hook whose Rust version only changes memory in `regions` and
-/// the registers: the Rust version outside shadow mode; in it the Rust version first, its
-/// memory put back, the original, and the registers, the flags in `flags` and `regions`
-/// compared (the original's are kept).
-pub fn dispatch_regs(
-    hook: &RawHook,
-    r: &mut Regs,
-    call_original: crate::screens::harness::CallOriginal,
-    regions: &[Region],
-    flags: u32,
-    rust: Rust,
-) {
-    hook.count_call();
-    if !shadow() {
-        match rust(r) {
-            Ok(left) => *r = Regs { esp: r.esp, ..left },
-            Err(e) => unsafe { crate::fatal::raise::refused(hook, e, r, call_original) },
-        }
-        return;
-    }
-    if !crate::service::harness::shadow_due(hook) {
-        unsafe { call_original(r) };
-        return;
-    }
-    let before = capture(regions);
-    let mine = match rust(r) {
-        Ok(left) => left,
-        Err(e) => {
-            restore(regions, &before);
-            unsafe { crate::fatal::raise::refused(hook, e, r, call_original) };
-            return;
-        }
-    };
-    let state = capture(regions);
-    restore(regions, &before);
-    let mut o = *r;
-    unsafe { call_original(&mut o) };
-    let theirs = capture(regions);
-    if theirs != state || !same(&o, &mine, flags) {
-        crate::screens::harness::mismatch_unless_disturbed(hook, || {
-            format!(
-                "entry eax={:#x} ebx={:#x} ecx={:#x} edx={:#x} esi={:#x} edi={:#x}; regs_ok={}; memory: {}",
-                r.eax,
-                r.ebx,
-                r.ecx,
-                r.edx,
-                r.esi,
-                r.edi,
-                same(&o, &mine, flags),
-                diff_summary(&theirs, &state)
-            )
-        });
-    }
-    let esp = r.esp;
-    *r = o;
-    r.esp = esp;
-}
-
 /// `dispatch_regs` / `dispatch_parts` without the hook (no shadow mode; a refusal is the
 /// caller's): the Rust version's registers but esp.
 pub fn regs_entry(r: &mut Regs, rust: Rust) -> Result<(), Refused> {
@@ -217,235 +137,7 @@ pub fn regs_entry(r: &mut Regs, rust: Rust) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The `dispatch` of a hook whose Rust version calls through `part` and whose calls have
-/// effects that must not happen twice (files, frames, menus): the Rust version outside
-/// shadow mode, the original alone in it.
-pub fn dispatch_parts(
-    hook: &RawHook,
-    r: &mut Regs,
-    call_original: crate::screens::harness::CallOriginal,
-    rust: &dyn Fn(&Regs) -> Result<Regs, Refused>,
-) {
-    hook.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match rust(r) {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(hook, e, r, call_original) },
-    }
-}
-
 // ---- for the self-tests ----
-
-/// One call noted: (place, eax, ebx, ecx, edx).
-pub type Call = (u32, u32, u32, u32, u32);
-
-static CALLED: Mutex<Vec<Call>> = Mutex::new(Vec::new());
-
-/// What a stand-in does after it is noted: the test's answer by place.
-pub type Answer = Box<dyn FnMut(u32, &mut Regs) + Send>;
-
-static ANSWER: Mutex<Option<Answer>> = Mutex::new(None);
-
-/// The stand-ins' handler: the call noted, then answered.
-pub fn note(place: u32, r: &mut Regs) {
-    CALLED
-        .lock()
-        .unwrap()
-        .push((place, r.eax, r.ebx, r.ecx, r.edx));
-    if let Some(answer) = ANSWER.lock().unwrap().as_mut() {
-        answer(place, r);
-    }
-}
-
-/// The Rust side's calls in the tests.
-pub fn test_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    note(place, r);
-    Ok(())
-}
-
-pub fn take_called() -> Vec<Call> {
-    std::mem::take(&mut *CALLED.lock().unwrap())
-}
-
-/// The answer the stand-ins give from now on (`prepare` sets it again for each side).
-pub fn answer(f: Answer) {
-    *ANSWER.lock().unwrap() = Some(f);
-}
-
-/// Stand-ins that answer nothing (only note).
-pub fn quiet() {
-    *ANSWER.lock().unwrap() = None;
-}
-
-/// An answer for every place: the carry flag clear and nothing else.
-pub fn clear_carry() -> Answer {
-    Box::new(|_, r| r.set_carry(false))
-}
-
-/// A copy whose calls to `places`' callees (IDA addresses) go to stand-ins of those places;
-/// other calls go where they went.
-pub fn copy(
-    address: usize,
-    len: usize,
-    entry: &[u8],
-    calls: &[usize],
-    places: &'static [(usize, u32)],
-) -> Result<crate::redirect::RedirectedCopy, &'static str> {
-    crate::install::stand_ins::set_handler(note);
-    unsafe {
-        crate::redirect::RedirectedCopy::new(
-            game_addr(crate::framework::rva(address)),
-            len,
-            entry,
-            calls,
-            &|c| {
-                places
-                    .iter()
-                    .find(|&&(k, _)| crate::framework::rva(k) == c)
-                    .map(|&(_, p)| crate::install::stand_ins::stand_in(p))
-            },
-        )
-    }
-}
-
-/// One case: `prepare`, the copy (or original) at `code` from `before`, `prepare`, the Rust
-/// version from `before`; the registers, the flags in `flags`, the calls and `regions`
-/// compared. A Rust refusal counts as a failure.
-#[allow(clippy::too_many_arguments)] // the case: what, code, start, memory, flags, sides
-pub fn run_both(
-    t: &mut SelfTest,
-    what: &str,
-    code: usize,
-    before: Regs,
-    regions: &[Region],
-    flags: u32,
-    prepare: &dyn Fn(),
-    rust: Rust,
-) {
-    prepare();
-    take_called();
-    let mut ro = before;
-    unsafe { crate::framework::call_game(&mut ro, code) };
-    let theirs = (take_called(), capture(regions));
-    prepare();
-    let mine = rust(&before);
-    let state = (take_called(), capture(regions));
-    let regs_ok = mine.as_ref().is_ok_and(|m| same(&ro, m, flags));
-    t.check(regs_ok && theirs == state, || {
-        format!(
-            "{what}: regs_ok={regs_ok}: original eax={:#x} ebx={:#x} ecx={:#x} edx={:#x} \
-             esi={:#x} edi={:#x} ebp={:#x} flags={:#x}; rust {}; calls original {:x?} rust \
-             {:x?}; memory: {}",
-            ro.eax,
-            ro.ebx,
-            ro.ecx,
-            ro.edx,
-            ro.esi,
-            ro.edi,
-            ro.ebp,
-            ro.eflags & flags,
-            match &mine {
-                Ok(m) => format!(
-                    "eax={:#x} ebx={:#x} ecx={:#x} edx={:#x} esi={:#x} edi={:#x} ebp={:#x} flags={:#x}",
-                    m.eax,
-                    m.ebx,
-                    m.ecx,
-                    m.edx,
-                    m.esi,
-                    m.edi,
-                    m.ebp,
-                    m.eflags & flags
-                ),
-                Err(e) => format!("refused {e:?}"),
-            },
-            theirs.0,
-            state.0,
-            diff_summary(&theirs.1, &state.1)
-        )
-    });
-}
-
-/// `run_both` against the hook's original itself (a function with no calls, or whose calls
-/// are the Rust versions on either side).
-#[allow(clippy::too_many_arguments)] // as `run_both`
-pub fn check_original(
-    t: &mut SelfTest,
-    what: &str,
-    call_original: crate::screens::harness::CallOriginal,
-    before: Regs,
-    regions: &[Region],
-    flags: u32,
-    prepare: &dyn Fn(),
-    rust: Rust,
-) {
-    prepare();
-    let mut ro = before;
-    unsafe { call_original(&mut ro) };
-    let theirs = capture(regions);
-    prepare();
-    let mine = rust(&before);
-    let state = capture(regions);
-    let regs_ok = mine.as_ref().is_ok_and(|m| same(&ro, m, flags));
-    t.check(regs_ok && theirs == state, || {
-        format!(
-            "{what}: regs_ok={regs_ok}: original eax={:#x} ebx={:#x} ecx={:#x} edx={:#x} \
-             esi={:#x} edi={:#x} flags={:#x}; rust {}; memory: {}",
-            ro.eax,
-            ro.ebx,
-            ro.ecx,
-            ro.edx,
-            ro.esi,
-            ro.edi,
-            ro.eflags & flags,
-            match &mine {
-                Ok(m) => format!(
-                    "eax={:#x} ebx={:#x} ecx={:#x} edx={:#x} esi={:#x} edi={:#x} flags={:#x}",
-                    m.eax,
-                    m.ebx,
-                    m.ecx,
-                    m.edx,
-                    m.esi,
-                    m.edi,
-                    m.eflags & flags
-                ),
-                Err(e) => format!("refused {e:?}"),
-            },
-            diff_summary(&theirs, &state)
-        )
-    });
-}
-
-pub const CF: u32 = CARRY_FLAG;
-pub const ZF: u32 = ZERO_FLAG;
-
-/// Saved and put back over a test.
-pub struct Saved(Vec<Region>, Vec<u8>);
-
-impl Saved {
-    pub fn new(regions: &[Region]) -> Self {
-        Self(regions.to_vec(), capture(regions))
-    }
-}
-
-impl Drop for Saved {
-    fn drop(&mut self) {
-        restore(&self.0, &self.1);
-    }
-}
-
-/// A recognisable byte pattern for test tables.
-pub fn fill(x: usize, len: usize, seed: u32) {
-    unsafe {
-        let at = a(x) as *mut u8;
-        for n in 0..len {
-            at.add(n)
-                .write((n as u32).wrapping_mul(0x9E37).wrapping_add(seed) as u8 ^ (n >> 8) as u8);
-        }
-    }
-}
 
 /// `g` and `p` for the hooks here.
 pub fn get(x: usize) -> u32 {

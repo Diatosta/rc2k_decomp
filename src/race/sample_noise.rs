@@ -15,14 +15,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::Regs;
 use crate::race::frame_draw::*;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
-
-pub fn noise_regions() -> Vec<Region> {
-    vec![(game_addr(rva(0x637620)) as u32, 0x18)]
-}
+use crate::service::harness::state_entry;
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { sample_noise(r.esi) })

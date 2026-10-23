@@ -15,15 +15,8 @@
 //! and the self-test was the hook's.
 
 use crate::math::x87_run::length_80;
-use crate::scene::vector3::*;
 
 /// The Rust version: the length as it is left in st(0).
 pub unsafe fn vector_length(v: u32) -> [u8; 10] {
     unsafe { length_80(v as *const u32) }
-}
-
-/// The converted version (`rc2k_core::math::vector`, plain floats): the hook's.
-pub unsafe fn vector_length_plain(v: u32) -> [u8; 10] {
-    let length = rc2k_core::math::vector::length(unsafe { read_floats(v) });
-    rc2k_core::math::extended::from_f64(length)
 }

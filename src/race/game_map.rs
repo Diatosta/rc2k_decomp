@@ -26,13 +26,10 @@ pub const PIXEL_BYTES_RVA: usize = rva(0x5BE9A5); // g_mapPixelBytes
 pub const FORMAT_RVA: usize = rva(0x5BE9A9); // g_mapPixelFormat
 pub const BLACK_RVA: usize = rva(0x5BE9B1); // g_mapBlack
 pub const USE_PACKED_RVA: usize = rva(0x5BE9B5); // g_usePackedMaps
-/// The map's variables, `g_mapKeyPixels` .. `g_usePackedMaps`.
-pub const VARS: (usize, usize) = (KEY_PIXELS_RVA, 0x5BE9B9 - 0x5BE98D);
 pub const LIST_RVA: usize = rva(0x5BE90D); // g_mapList
 pub const KEY_LIST_RVA: usize = rva(0x5BE94D); // g_mapKeyList
 const KINDS_RVA: usize = rva(0x5ABAC0); // off_5ABAC0: the pixel kinds
 const READ_BUFFER_RVA: usize = rva(0x93E8B0); // g_pngInfo, used as the read buffer
-pub const READ_BUFFER_LEN: usize = 0xC000;
 pub const PACKED_PATH_RVA: usize = rva(0x5BE9BD); // g_packedPath
 const MAGIC: u32 = 0x4D53_5153; // "SQSM"
 const VERSION: u32 = 0x5_0000;
@@ -322,45 +319,3 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 }
 
 // ---- for the self-tests ----
-
-/// The map's state after a run, made comparable: the variables but the pointers, each
-/// tile's offset in the pixels (or -1), and the pixels.
-pub fn snapshot() -> Vec<u32> {
-    unsafe {
-        let mut s = Vec::new();
-        for r in [TILE_COUNT_RVA, PIXEL_BYTES_RVA, FORMAT_RVA, BLACK_RVA] {
-            s.push(game_read::<u32>(r));
-        }
-        let (tiles, pixels): (u32, u32) = (game_read(TILES_RVA), game_read(TILE_PIXELS_RVA));
-        s.push((tiles != 0) as u32);
-        s.push(game_read::<u32>(KEY_PIXELS_RVA));
-        if tiles != 0 {
-            for n in 0..TILES {
-                let at = get(tiles + 4 * n);
-                s.push(if at == 0 || at == 1 {
-                    at.wrapping_sub(2)
-                } else {
-                    at.wrapping_sub(pixels)
-                });
-            }
-        }
-        if pixels != 0 {
-            let len = (game_read::<u32>(TILE_COUNT_RVA).min(MOST_TILES) << 8)
-                * game_read::<u32>(PIXEL_BYTES_RVA);
-            for k in 0..len / 4 {
-                s.push(get(pixels + 4 * k));
-            }
-        }
-        s
-    }
-}
-
-/// Whether the map's lists are empty (a test frees them after each run).
-pub fn lists_empty() -> bool {
-    unsafe { (*list(LIST_RVA)).head == 0 && (*list(KEY_LIST_RVA)).head == 0 }
-}
-
-/// Whether entry 3 of the pixel kinds is there yet.
-pub fn format_ready() -> bool {
-    unsafe { game_read::<u32>(KINDS_RVA + 0xC) != 0 }
-}

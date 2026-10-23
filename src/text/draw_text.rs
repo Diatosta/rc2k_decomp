@@ -20,8 +20,7 @@
 
 use crate::bridge::{Raw, read_through};
 use crate::errors::FatalError;
-use crate::gfx::blit_glyph::{BlitCall, blit_glyph_on_surface, glyph_record};
-use crate::gfx::surface::surface;
+use crate::gfx::blit_glyph::{BlitCall, blit_glyph_on_surface};
 use crate::text::font::Font;
 use crate::text::glyph_kerning::{State, state_ptr};
 
@@ -57,41 +56,6 @@ impl Canvas for GameCanvas {
             )
         }
         .map(|_| ())
-    }
-}
-
-/// Draws nothing: keeps a private kerning table and lists the blitter calls.
-pub struct RecordingCanvas {
-    pub state: State,
-    pub calls: Vec<BlitCall>,
-    /// Make the blitter's three fatal-error checks, as a real call would.
-    pub check_glyphs: bool,
-}
-
-impl RecordingCanvas {
-    /// Starts from the game's current kerning table.
-    pub fn new(check_glyphs: bool) -> Self {
-        Self {
-            state: unsafe { *state_ptr() },
-            calls: Vec::new(),
-            check_glyphs,
-        }
-    }
-}
-
-impl Canvas for RecordingCanvas {
-    fn keeps_font_changes(&self) -> bool {
-        false
-    }
-    fn kerning(&mut self) -> &mut State {
-        &mut self.state
-    }
-    unsafe fn blit_glyph(&mut self, c: BlitCall) -> Result<(), FatalError> {
-        if self.check_glyphs {
-            unsafe { glyph_record(&surface(), c.table as *const u8, c.glyph) }?;
-        }
-        self.calls.push(c);
-        Ok(())
     }
 }
 

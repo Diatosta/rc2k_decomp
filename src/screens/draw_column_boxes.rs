@@ -17,22 +17,7 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::screens::service_boxes::{Inputs, Part, quad, quad_part, rd, set};
-
-const ROWS: [u32; 32] = {
-    let mut v = [0u32; 32];
-    let mut k = 0;
-    while k < 32 {
-        v[k] = k as u32 + 1;
-        k += 1;
-    }
-    v
-};
-
-pub static INPUTS: Inputs = Inputs {
-    tested: &[(0x755525, &ROWS), (0x7559A4, &[1])],
-    read: &[0x75AA90],
-};
+use crate::screens::service_boxes::{Part, quad, quad_part, rd, set};
 
 const ROW: usize = 0x7559EC; // dword_7559EC
 const MARKER_X: usize = 0x755A18; // g_markerX

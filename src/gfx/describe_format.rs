@@ -28,8 +28,6 @@ use crate::service::harness::state_entry;
 
 const NUMBERS_RVA: usize = rva(0x4F3F78); // dword_4F3F78: six of (number, layout)
 const NUMBERS: usize = 6;
-pub const FORMAT_LEN: usize = 0x18;
-
 // ---- Rust version ----
 
 /// Converted: `rc2k_core::gfx::pixels::describe`.

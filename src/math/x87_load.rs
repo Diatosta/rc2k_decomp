@@ -18,63 +18,6 @@ pub fn int_times_int_over_to_int(a: i32, b: i32, c: u32) -> i32 {
     out
 }
 
-/// `fld a; fsin; fmul k; fadd one; fstp`: 1 + k sin(a), rounded once.
-pub fn sine_times_plus(a: u32, k: u32, one: u32) -> u32 {
-    let (v, mut out) = ([a, k, one], 0u32);
-    x87!(
-        "fld dword ptr [{v}]",
-        "fsin",
-        "fmul dword ptr [{v} + 4]",
-        "fadd dword ptr [{v} + 8]",
-        "fstp dword ptr [{o}]";
-        v = v.as_ptr(), o = &raw mut out
-    );
-    out
-}
-
-/// `fild a; fdiv b; fdiv c; fadd st, st; fstp`: twice a whole number over two floats.
-pub fn int_over_two_doubled(a: i32, b: u32, c: u32) -> u32 {
-    let (v, mut out) = ([a as u32, b, c], 0u32);
-    x87!(
-        "fild dword ptr [{v}]",
-        "fdiv dword ptr [{v} + 4]",
-        "fdiv dword ptr [{v} + 8]",
-        "fadd st, st",
-        "fstp dword ptr [{o}]";
-        v = v.as_ptr(), o = &raw mut out
-    );
-    out
-}
-
-/// `fild a; fmul b; fmul c; fstp`: a whole number times two floats.
-pub fn int_times_two(a: i32, b: u32, c: u32) -> u32 {
-    let (v, mut out) = ([a as u32, b, c], 0u32);
-    x87!(
-        "fild dword ptr [{v}]",
-        "fmul dword ptr [{v} + 4]",
-        "fmul dword ptr [{v} + 8]",
-        "fstp dword ptr [{o}]";
-        v = v.as_ptr(), o = &raw mut out
-    );
-    out
-}
-
-/// `fild a; fldpi; fmulp st(1), st; fmul b; fdiv c; fstp`: a whole number times pi times
-/// b over c.
-pub fn int_pi_times_over(a: i32, b: u32, c: u32) -> u32 {
-    let (v, mut out) = ([a as u32, b, c], 0u32);
-    x87!(
-        "fild dword ptr [{v}]",
-        "fldpi",
-        "fmulp st(1), st",
-        "fmul dword ptr [{v} + 4]",
-        "fdiv dword ptr [{v} + 8]",
-        "fstp dword ptr [{o}]";
-        v = v.as_ptr(), o = &raw mut out
-    );
-    out
-}
-
 /// `fld a; fabs; fistp`: the size of a float as a whole number.
 pub fn abs_to_int(a: u32) -> i32 {
     let (v, mut out) = ([a], 0i32);
@@ -430,25 +373,4 @@ pub fn sun_size(x: u32, cx: u32, y: u32, cy: u32, h: u32, k: u32) -> u32 {
         v = v.as_ptr(), o = &raw mut out
     );
     out
-}
-
-/// `fld a; fmul k; fcomp b; fnstsw ax`, C0: a times k (in the x87's precision) below b, or
-/// one is no number.
-pub fn scaled_below_or_unordered(a: u32, k: u32, b: u32) -> bool {
-    let v = [a, k, b];
-    let status: u16;
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{v}]",
-            "fmul dword ptr [{v} + 4]",
-            "fcomp dword ptr [{v} + 8]",
-            "fnstsw ax",
-            v = in(reg) v.as_ptr(),
-            out("ax") status,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
-    }
-    status & 0x0100 != 0
 }

@@ -19,14 +19,12 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, rva};
-use crate::records::find_record::{find_record_in, has_section};
+use crate::records::find_record::find_record_in;
 use crate::screens::draw_stage_heading::draw_stage_heading;
-use crate::screens::draw_stage_records::has_selected_record;
 use crate::screens::stage_panel::{
     BEST_TIMES_PTR_RVA, TITLE_FONT, draw_records_from, draw_stage_body, dword, label, panel_entry,
-    stage_unusable, table_dword,
+    table_dword,
 };
-use crate::strings::string_table::is_table_id;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -92,28 +90,3 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
 // One case: the event's current stage, with the game's own fonts, strings and records. It
 // only runs when all of that is there and looks sane, because the original scans the record
 // table and follows several pointers without checks.
-
-/// Records looked at when checking that the section exists.
-const SCAN_LIMIT: u32 = 600;
-
-/// Why the event's stage cannot be used for a test, or None if it can.
-pub unsafe fn event_stage_unusable() -> Option<&'static str> {
-    unsafe {
-        let table = game_addr(RECORD_TABLE_RVA) as u32;
-        let section: u32 = game_read(SECTION_RVA);
-        let index: u32 = game_read(INDEX_RVA);
-        if index >= 64 || section >= 64 || !has_section(table, section, SCAN_LIMIT) {
-            return Some("the event's section or index is not in the record table");
-        }
-        if !is_table_id(event_title()) {
-            return Some("the event's section has no title string");
-        }
-        if let Some(why) = stage_unusable(event_stage().0) {
-            return Some(why);
-        }
-        if game_read::<u32>(BEST_TIMES_PTR_RVA) == 0 || !has_selected_record() {
-            return Some("the best-time or record tables are not loaded");
-        }
-        None
-    }
-}

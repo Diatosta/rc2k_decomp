@@ -13,13 +13,6 @@
 
 // ---- Rust version ----
 
-#[cfg_attr(
-    not(feature = "standalone"),
-    allow(
-        dead_code,
-        reason = "only the standalone's `start` calls it; the hooked game runs the original"
-    )
-)]
 pub unsafe fn seed_random() {
     crate::math::next_random::wait_for_random();
     use crate::bridge::Global;

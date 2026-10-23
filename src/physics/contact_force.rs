@@ -42,7 +42,7 @@ use crate::physics::scale_vector::scale_vector;
 use crate::physics::turn_by_car_matrix::turn_by_car_matrix;
 use crate::physics::turn_by_inverse::turn_by_inverse;
 use crate::physics::vector_length::vector_length;
-use crate::scene::matrix3::{extended, rounded, test_floats};
+use crate::scene::matrix3::{extended, rounded};
 use crate::scene::view_matrix::cross_product;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, state_entry};
@@ -260,28 +260,4 @@ pub fn regions() -> Vec<Region> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-/// The figures it reads besides its work, set by lot in the tests (the matrices are
-/// `g_crashMatrix` and `g_carInverseMatrix`).
-pub fn inputs() -> Vec<Region> {
-    vec![
-        (a(0x6D3078), 0x198),
-        (a(0x613FA8), 12),
-        (a(0x6D1DF4), 8),
-        (a(0x71A08C), 0x40),
-        (a(0x71A9A4), 0x40),
-    ]
-}
-
-/// Sets `inputs()` by lot from `seed`, small enough to keep the figures finite.
-pub fn set_inputs(seed: u32) {
-    for (k, (at, len)) in inputs().into_iter().enumerate() {
-        let mut f = vec![0u32; len / 4];
-        test_floats(seed.wrapping_mul(97).wrapping_add(k as u32), &mut f);
-        for (n, v) in f.iter().enumerate() {
-            let v = (f32::from_bits(*v) % 8.0).to_bits();
-            unsafe { ((at + 4 * n as u32) as *mut u32).write_unaligned(v) };
-        }
-    }
 }

@@ -2,7 +2,7 @@
 //! default best times use them, and the table their names come from.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::strings::append_string_by_id::push_string;
 
 const DRIVERS_RVA: usize = rva(0x73B674); // unk_73B674
@@ -64,13 +64,4 @@ pub unsafe fn put(at: u32, offset: u32, value: u32) {
 /// Copies bytes to `at + offset`.
 pub unsafe fn put_bytes(at: u32, offset: u32, bytes: &[u8]) {
     unsafe { std::ptr::copy(bytes.as_ptr(), (at + offset) as *mut u8, bytes.len()) };
-}
-
-/// The address the game has in a variable, for the self-tests' regions.
-pub fn table_at(variable: usize) -> u32 {
-    unsafe { game_read(variable) }
-}
-
-pub fn drivers_region() -> (u32, usize) {
-    (game_addr(DRIVERS_RVA) as u32, DRIVERS as usize * DRIVER_LEN)
 }

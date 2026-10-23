@@ -9,40 +9,12 @@
 //! Platform: the original always runs. In the standalone program the rasteriser draws
 //! each triangle (`platform_3d::draw_indexed_list`) and the result is 0. No self-test.
 
-use crate::framework::{RawHook, Regs, hook_asm, rva, standalone};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("d3d::draw_indexed", rva(0x41ADF5), thunk, &ORIGINAL);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if standalone() {
-        #[cfg(feature = "standalone")]
-        unsafe {
-            crate::platform_3d::draw_indexed_list(r.ebx, r.eax, r.ecx, r.edx)
-        };
-        r.eax = 0;
-        return;
-    }
-    unsafe { call_original(r) };
-}
+use crate::framework::{Regs, rva, standalone};
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     if standalone() {
-        #[cfg(feature = "standalone")]
-        unsafe {
-            crate::platform_3d::draw_indexed_list(r.ebx, r.eax, r.ecx, r.edx)
-        };
+        unsafe { crate::platform_3d::draw_indexed_list(r.ebx, r.eax, r.ecx, r.edx) };
         r.eax = 0;
         return Ok(());
     }

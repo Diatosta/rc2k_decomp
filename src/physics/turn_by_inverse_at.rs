@@ -17,12 +17,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest};
-use crate::math::x87_run::{DOUBLE, TEST_CONTROL_WORDS, with_control_word};
+use crate::framework::Regs;
 use crate::physics::turn_by_car_matrix::{turn_point_by, turn_point_by_plain};
-use crate::scene::matrix3::test_floats;
 use crate::screens::harness::Left;
-use crate::service::floats::{FLOAT, close};
 
 /// Where a car block's inverse matrix is.
 pub const INVERSE_OFFSET: u32 = 0x9CC;
@@ -46,67 +43,4 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     crate::service::floats::floats_entry(r, &rust)
-}
-
-/// The test of both: `original` (the hook's `call_original`) on a test block whose
-/// matrix at `offset` is by lot, against `turn_point_by`.
-pub fn test_turn_at(
-    hook: &RawHook,
-    original: unsafe extern "C" fn(*mut Regs),
-    offset: u32,
-) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let mut block = vec![0u32; 0xA20 / 4];
-    let car = block.as_mut_ptr() as u32;
-    let mut point = vec![0u32; 3];
-    let v = point.as_mut_ptr();
-    let fill = |seed: u32| {
-        let mut f = [0u32; 16];
-        test_floats(seed * 7 + 3, &mut f);
-        let mut q = [0u32; 3];
-        test_floats(seed * 11 + 5, &mut q);
-        for (n, x) in q.iter_mut().enumerate() {
-            if (seed >> n) & 1 != 0 {
-                *x ^= 0x8000_0000;
-            }
-        }
-        unsafe {
-            ((car + offset) as *mut [u32; 16]).write_unaligned(f);
-            (v as *mut [u32; 3]).write(q);
-        }
-    };
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 1..=12u32 {
-                fill(seed);
-                let before = Regs {
-                    esi: v as u32,
-                    edi: car,
-                    ..Regs::SENTINEL
-                };
-                let mut ro = before;
-                unsafe { original(&mut ro) };
-                let theirs = unsafe { (v as *const [u32; 3]).read() };
-                fill(seed);
-                unsafe { turn_point_by_plain(car + offset, v as u32) };
-                let mine = unsafe { (v as *const [u32; 3]).read() };
-                let regs_ok = ro.preserved_except(&before, 0);
-                // Exact at the game's double precision, within the tolerance at extended.
-                let same = if word == DOUBLE {
-                    theirs == mine
-                } else {
-                    theirs.iter().zip(&mine).all(|(&a, &b)| close(a, b, FLOAT))
-                };
-                t.check(regs_ok && same, || {
-                    format!(
-                        "control word {word:#x}, seed {seed}: regs_ok={regs_ok} original {theirs:x?}; rust {mine:x?}"
-                    )
-                });
-            }
-        });
-    }
-    drop((block, point));
-    t.finish()
 }

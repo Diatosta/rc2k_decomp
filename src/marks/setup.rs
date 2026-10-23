@@ -8,7 +8,6 @@ use crate::math::x87;
 
 pub const SEED_RVA: usize = rva(0x71C8CC); // g_marksSeed
 pub const NOISE_RVAS: [usize; 3] = [rva(0x8BC511), rva(0x8BC911), rva(0x8BCD11)]; // g_marksNoiseA ..
-pub const NOISE_LEN: u32 = 0x100;
 pub const NOISE_COUNT_RVA: usize = rva(0x8BC405); // dword_8BC405
 pub const WAVE_DONE_RVA: usize = rva(0x9206C2); // g_marksWaveDone: 0, or where to go instead
 const WAVE_DONE_TARGET_RVA: usize = rva(0x4C4EA0); // nullsub_23
@@ -26,7 +25,6 @@ pub const CLOCK_RVA: usize = rva(0x613830); // g_sceneClock
 pub const SETTINGS_RVA: usize = rva(0x767A28); // g_marksSettings
 /// `g_marksClockStarted` .. `flt_764FE4`, `g_marksClockNow`, `g_marksClockBefore`.
 pub const CLOCK_VARS_RVA: usize = rva(0x764FC8);
-pub const CLOCK_VARS_LEN: usize = 0x28;
 const STARTED: usize = 0;
 const LAST: usize = 4;
 const TICKS: usize = 8;
@@ -246,7 +244,6 @@ pub unsafe fn tick_clock_plain(entry: &Regs) -> Regs {
 /// `marks::make_noise_curve`'s variables (0x8DA410 ..): the value, its least and most
 /// step, the step's change, the step, and a running sum of the seeds.
 pub const CURVE_VARS_RVA: usize = rva(0x8DA410);
-pub const CURVE_VARS_LEN: usize = 0x18;
 pub const CURVE_RVA: usize = rva(0x8D2310); // g_marksCurve: 0x1000 whole numbers
 pub const CURVE_COPY_RVA: usize = rva(0x8D6310); // g_marksCurveCopy
 pub const CURVE_LEN: u32 = 0x1000;
@@ -256,7 +253,6 @@ const SMOOTH_RVAS: [usize; 3] = [rva(0x8DB4D4), rva(0x8DB4D8), rva(0x8DB4DC)]; /
 const RAMP_BY_RVA: usize = rva(0x8DB4E0); // dword_8DB4E0, 0x1000
 /// Three tables of 0x800 20-bit randoms, two of remainders, one of floats.
 pub const RANDOMS_RVA: usize = rva(0x8C6000);
-pub const RANDOMS: u32 = 0x800;
 const SPREAD_SCALE_RVA: usize = rva(0x8DB4E4); // flt_8DB4E4, 0.0625
 const SPREAD_BASE_RVA: usize = rva(0x8DB4E8); // flt_8DB4E8
 const DIVISOR_RVAS: [usize; 2] = [rva(0x8DB4EC), rva(0x8DB4F0)]; // 0xC00 each
@@ -370,19 +366,4 @@ pub unsafe fn make_noise_curve(entry: &Regs) -> Result<Regs, Refused> {
         g.edi = game_addr(CURVE_RECORDS_RVA) as u32 + 0x80 * CURVE_RECORDS;
     }
     Ok(g)
-}
-
-/// What `make_noise_curve` writes.
-pub fn noise_curve_regions() -> Vec<crate::service::harness::Region> {
-    let a = |r: usize| game_addr(r) as u32;
-    vec![
-        (a(CURVE_VARS_RVA), CURVE_VARS_LEN),
-        crate::service::harness::at(SEED_RVA),
-        (a(CURVE_RVA), 8 * CURVE_LEN as usize),
-        (a(RANDOMS_RVA), 0xC000),
-        crate::service::harness::at(CURVE_FLAG_RVA),
-        (a(CURVE_RECORDS_RVA), 0x80 * CURVE_RECORDS as usize),
-        (a(QUADS_RVA), 0x10),
-        (a(QUADS_RVA + 0x20), 0x20),
-    ]
 }

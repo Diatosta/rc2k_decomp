@@ -29,8 +29,6 @@ use crate::scene::vector3::{read_floats, write_floats};
 use crate::screens::harness::Left;
 use crate::service::floats::floats_entry;
 
-pub const BLOCK_LEN: u32 = 0xFE0;
-
 unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
@@ -114,47 +112,4 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-/// Fills a test car block (its motion and inverse matrix) and record by `seed`.
-pub fn fill(rec: u32, car: u32, seed: u32) {
-    unsafe {
-        for k in 0..BLOCK_LEN / 4 {
-            put(car + 4 * k, 0x5A00_0000 | k);
-        }
-        for k in 0..8 {
-            put(
-                rec + 4 * k,
-                ((seed * 7 + k * 3) as f32 * 0.5 - 6.0).to_bits(),
-            );
-        }
-        for k in 0..3 {
-            put(
-                car + 0x198 + 4 * k,
-                ((seed + k) as f32 * 1.25 - 2.0).to_bits(),
-            );
-        }
-        let a = seed as f32 * 0.3;
-        let m = [
-            a.cos(),
-            0.0,
-            -a.sin(),
-            0.0,
-            0.0,
-            1.0,
-            0.0,
-            0.0,
-            a.sin(),
-            0.0,
-            a.cos(),
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-        ];
-        for (k, v) in m.iter().enumerate() {
-            put(car + 0x9CC + 4 * k as u32, v.to_bits());
-        }
-    }
 }

@@ -15,28 +15,9 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::race::best_line::{CHECKS_RVA, MOST_CHECKS};
 use crate::service::harness::{Region, at};
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicU32, Ordering};
 
 /// A step's calls: (place, registers).
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-/// The calls by place, as IDA shows them.
-pub const PLACES: [usize; 13] = [
-    0x43EB5D, // 0: physics::set_handling (stream B's)
-    0x43D43E, // 1: race::get_mat_crash
-    0x45D305, // 2: physics::probe_ground (stream B's)
-    0x43FC32, // 3: race::settle_car
-    0x43F16C, // 4: race::invert_car_matrix
-    0x446280, // 5: race::first_check_checkpoint
-    0x44666F, // 6: race::place_car_on_line
-    0x41FD12, // 7: math::turn_point_xz
-    0x44134F, // 8: race::nearest_checkpoint
-    0x43FB47, // 9: race::reset_car_motion
-    0x460C40, // 10: drive::load_car
-    0x4464AD, // 11: race::start_car
-    0x460C5D, // 12: drive::store_car
-];
 
 const fn car(offset: usize) -> usize {
     rva(0x719FD8 + offset)
@@ -349,63 +330,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 // ---- for the self-tests ----
 
-static CALLED: Mutex<Vec<(u32, [u32; 7])>> = Mutex::new(Vec::new());
-static COUNT: AtomicU32 = AtomicU32::new(0);
-
-/// The stand-ins: each call noted with its registers, then registers of the test's
-/// (place 5 and 8, the checkpoints, small numbers; place 2, the wheels, heights of the
-/// test's written).
-pub fn note(place: u32, r: &mut Regs) {
-    let k = COUNT.fetch_add(1, Ordering::SeqCst);
-    CALLED
-        .lock()
-        .unwrap()
-        .push((place, [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp]));
-    r.eax = r.eax.rotate_left(3) ^ place.wrapping_mul(0x111).wrapping_add(k);
-    r.edx ^= k.wrapping_shl(8);
-    r.esi = r.esi.wrapping_add(place);
-    match place {
-        2 => unsafe {
-            for w in 0..4u32 {
-                let h = (k.wrapping_mul(0x9E37_79B9) ^ w.wrapping_mul(0x1234_5677)) >> 9;
-                game_write(WHEELS_RVA + 4 * w as usize, h.wrapping_sub(0x20_0000));
-            }
-            r.ebx = k;
-        },
-        5 => r.eax = k % 7,
-        8 => r.eax = k % 40,
-        _ => {}
-    }
-}
-
-pub fn test_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    note(place, r);
-    Ok(())
-}
-
-pub fn take_called() -> Vec<(u32, [u32; 7])> {
-    COUNT.store(0, Ordering::SeqCst);
-    std::mem::take(&mut *CALLED.lock().unwrap())
-}
-
-/// A copy of a step whose calls (at `calls`) go to the stand-ins by place.
-pub fn copy_of(
-    address: usize,
-    len: usize,
-    entry: &[u8],
-    calls: &[usize],
-) -> Result<crate::redirect::RedirectedCopy, &'static str> {
-    crate::install::stand_ins::set_handler(note);
-    unsafe {
-        crate::redirect::RedirectedCopy::new(game_addr(rva(address)), len, entry, calls, &|c| {
-            PLACES
-                .iter()
-                .position(|&k| rva(k) == c)
-                .map(|n| crate::install::stand_ins::stand_in(n as u32))
-        })
-    }
-}
-
 /// What the steps read and write, for saving and comparing: the work car, the start's
 /// variables, the wheels, the inputs.
 pub fn regions() -> Vec<Region> {
@@ -434,74 +358,4 @@ pub fn regions() -> Vec<Region> {
     r.push((game_addr(WHEELS_RVA) as u32, 16));
     r.push((game_addr(WHEELS_2_RVA) as u32, 16));
     r
-}
-
-/// The inputs a case sets: `dword_62389C`, `dword_64BB18`, `dword_52A910`,
-/// `dword_63DB94`, `g_currentCar`, `g_raceCars`.
-#[derive(Clone, Copy, Debug)]
-pub struct Case {
-    pub mode: u32,
-    pub no_place: u32,
-    pub side: u32,
-    pub cars_2: u32,
-    pub current: u32,
-    pub cars: u32,
-}
-
-/// Puts a case in place: the work car filled by `seed`, the variables 0x5A.., the inputs
-/// (and +0x68C three times the car's number).
-pub fn prepare(case: &Case, seed: u32) {
-    unsafe {
-        let base = game_addr(CAR_RVA) as *mut u32;
-        for k in 0..CAR_LEN / 4 {
-            base.add(k)
-                .write_unaligned((k as u32).wrapping_mul(0x0101_0101) ^ seed);
-        }
-        for (k, &(a, len)) in regions().iter().enumerate().skip(1) {
-            std::ptr::write_bytes(a as *mut u8, 0x50 + k as u8, len);
-        }
-        game_write(MODE_RVA, case.mode);
-        game_write(NO_PLACE_RVA, case.no_place);
-        game_write(SIDE_RVA, case.side);
-        game_write(CARS_2_RVA, case.cars_2);
-        game_write(CURRENT_CAR_RVA, case.current);
-        game_write(RACE_CARS_RVA, case.cars);
-        game_write(PENDING_RVA, case.current.wrapping_mul(3));
-    }
-}
-
-/// One case: the copy and the Rust version from the same inputs, the calls with their
-/// registers, the registers left and the memory compared.
-pub fn both(
-    t: &mut crate::framework::SelfTest,
-    what: &str,
-    copy: &crate::redirect::RedirectedCopy,
-    case: &Case,
-    rust: &dyn Fn(&Regs, Part) -> Result<Regs, Refused>,
-) {
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    let regions = regions();
-    prepare(case, 0x2026_1017);
-    take_called();
-    let mut ro = Regs::SENTINEL;
-    unsafe { crate::framework::call_game(&mut ro, copy.addr()) };
-    let theirs = (
-        Some(regs(&ro)),
-        take_called(),
-        crate::service::harness::capture(&regions),
-    );
-    prepare(case, 0x2026_1017);
-    let mine = rust(&Regs::SENTINEL, &mut test_part);
-    let mine = (
-        mine.as_ref().ok().map(regs),
-        take_called(),
-        crate::service::harness::capture(&regions),
-    );
-    t.check(theirs == mine, || {
-        let diff = theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b);
-        format!(
-            "{what} {case:x?}: original {:x?} {:x?}; rust {:x?} {:x?}; memory first differs at {diff:x?}",
-            theirs.0, theirs.1, mine.0, mine.1
-        )
-    });
 }

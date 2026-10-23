@@ -52,7 +52,6 @@ const ROWS_LEFT_RVA: usize = rva(0x4F50B8); // dword_4F50B8
 
 // Converted: `rc2k_core::gfx::picture` (the arithmetic); here the copy, the row table and the
 // work variables.
-pub use rc2k_core::gfx::picture::{blend, step};
 
 pub unsafe fn rescale_picture() -> Result<(), Refused> {
     unsafe {

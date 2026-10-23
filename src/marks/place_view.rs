@@ -22,12 +22,11 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, SelfTest, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::floats::{Floats, at_test_precisions, check_state_floats, floats_entry};
-use crate::service::harness::{Region, at, capture, restore};
+use crate::service::floats::floats_entry;
 
 /// One of the two near-copies' variables (`place_view`'s and `place_view_2`'s).
 pub struct ViewPlace {
@@ -50,9 +49,6 @@ pub const FIRST: ViewPlace = ViewPlace {
     height: rva(0x8C5FE1),      // flt_8C5FE1
     matrix_copy: rva(0x8BDD89), // dword_8BDD89: nine dwords
 };
-
-/// From `point` to past the matrix's copy: 0x3C bytes.
-pub const WRITTEN_LEN: usize = 0x3C;
 
 /// The shared body (see the header), on `v`'s variables.
 pub unsafe fn place_view_with(entry: &Regs, v: &ViewPlace) -> Result<Regs, Refused> {
@@ -105,14 +101,6 @@ pub unsafe fn place_view_with_plain(entry: &Regs, v: &ViewPlace) -> Result<Regs,
     Ok(g)
 }
 
-/// The places' tolerances: `out`'s three whole numbers made from floats.
-pub fn float_places(v: &ViewPlace) -> [(Region, crate::service::floats::Tolerance); 1] {
-    [(
-        (game_addr(v.out) as u32, 12),
-        crate::service::floats::ROUNDED,
-    )]
-}
-
 /// The Rust version (see the header). Refuses as `transform_int_points` (never, ecx 1).
 pub unsafe fn place_view(entry: &Regs) -> Result<Regs, Refused> {
     unsafe { place_view_with(entry, &FIRST) }
@@ -121,66 +109,6 @@ pub unsafe fn place_view(entry: &Regs) -> Result<Regs, Refused> {
 /// The converted version (plain floats): the hook's.
 pub unsafe fn place_view_plain(entry: &Regs) -> Result<Regs, Refused> {
     unsafe { place_view_with_plain(entry, &FIRST) }
-}
-
-/// The test of either: matrices, places and heights by lot, `extra` the other regions it
-/// writes.
-pub fn test_with(
-    t: &mut SelfTest,
-    v: &ViewPlace,
-    call_original: crate::screens::harness::CallOriginal,
-    extra: &[Region],
-    rust: crate::service::harness::Rust,
-) {
-    let mut regions = vec![(game_addr(v.point) as u32, WRITTEN_LEN)];
-    regions.extend_from_slice(extra);
-    let mut inputs = regions.clone();
-    inputs.extend([
-        (game_addr(v.place) as u32, 12),
-        (game_addr(v.matrix) as u32, 36),
-        at(v.height),
-    ]);
-    let saved = capture(&inputs);
-    let places = float_places(v);
-    let tolerant = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        let mut floats = [0u32; 10];
-        for case in 0..20u32 {
-            crate::scene::matrix3::test_floats(0x51A7_0000 + case, &mut floats);
-            let place = [
-                (case as i32 - 10) * 0x1_2345,
-                -(case as i32) * 0x777,
-                0x4000_0000 - case as i32 * 0x0800_0000,
-            ];
-            check_state_floats(
-                t,
-                "marks::place_view",
-                &format!(
-                    "control word {word:#x}, case {case}: matrix {:x?}, place {place:x?}, height {:#x}",
-                    &floats[..9],
-                    floats[9]
-                ),
-                call_original,
-                Regs::SENTINEL,
-                &|| unsafe {
-                    restore(&inputs, &saved);
-                    for &(a, n) in &regions {
-                        std::ptr::write_bytes(a as *mut u8, 0xAA, n);
-                    }
-                    game_write(v.matrix, <[u32; 9]>::try_from(&floats[..9]).unwrap());
-                    game_write(v.place, place);
-                    game_write(v.height, floats[9]);
-                },
-                &regions,
-                held,
-                rust,
-            );
-        }
-    });
-    restore(&inputs, &saved);
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

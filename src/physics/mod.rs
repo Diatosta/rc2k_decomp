@@ -44,7 +44,6 @@ pub mod clear_records;
 pub mod compare_split_times;
 pub mod contact_force;
 pub mod copy_car_word_8;
-pub mod copy_hooks_test;
 pub mod corner_hits_car;
 pub mod count_down_notice;
 pub mod count_down_start;

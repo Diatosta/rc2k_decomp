@@ -45,7 +45,7 @@ use crate::math::x87_run::{
 use crate::race::norms::normalise_work_vector;
 use crate::scene::view_matrix::cross_product;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::drive::computer_driver as driver;
 
 fn g(x: u32) -> u32 {
@@ -293,15 +293,6 @@ pub unsafe fn drive_computer_car() -> Result<(), Refused> {
 fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { drive_computer_car() }?;
     Ok(Left::nothing())
-}
-
-/// Everything it writes.
-pub fn regions() -> Vec<Region> {
-    vec![
-        (a(0x71BF88), 0x71C2D4 - 0x71BF88),
-        (a(0x5C5F60), 12),
-        (a(0x62400C), 4),
-    ]
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

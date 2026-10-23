@@ -14,9 +14,7 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::net::lobby::{
-    EDIT_FONT, EDIT_SAVED, EDIT_TEXT, EDIT_WIDTH, EDITED, Part, a, movsb, p, region,
-};
+use crate::net::lobby::{EDIT_FONT, EDIT_SAVED, EDIT_TEXT, EDIT_WIDTH, EDITED, Part, a, movsb, p};
 
 /// The Rust version: the registers it leaves (the entry's).
 pub fn begin_edit(entry: &Regs, _: Part) -> Result<Regs, Refused> {
@@ -26,11 +24,6 @@ pub fn begin_edit(entry: &Regs, _: Part) -> Result<Regs, Refused> {
     p(EDIT_FONT, entry.edx);
     movsb(a(EDIT_SAVED), entry.ebx, 0x40);
     Ok(*entry)
-}
-
-/// What it writes.
-pub fn regions() -> Vec<crate::service::harness::Region> {
-    vec![region(EDIT_TEXT, 0x10), region(EDIT_SAVED, 0x40)]
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

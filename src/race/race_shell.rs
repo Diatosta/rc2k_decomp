@@ -2,7 +2,6 @@
 //! 2026-10-17): what runs round a stage's loading and its run. Here its small leaves.
 
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::service::harness::{Region, at};
 
 pub const CONTROLS_RVA: usize = rva(0x4F7DE4); // dword_4F7DE4 (`create_controls` 3)
 /// Each car block's +0xB0 (dword_70F49C ..): the player absent.
@@ -25,10 +24,6 @@ pub unsafe fn clear_player_absences() {
     for a in ABSENCES {
         unsafe { game_write(rva(a), 0u32) };
     }
-}
-
-pub fn absence_regions() -> Vec<Region> {
-    ABSENCES.iter().map(|&a| at(rva(a))).collect()
 }
 
 /// `race::kind_past_table` (0x4651AC): carry for a kind (eax) of 0x17 or more; zero as
@@ -163,13 +158,6 @@ pub unsafe fn copy_league_table(entry: &Regs) -> Regs {
     g
 }
 
-pub fn league_regions() -> Vec<Region> {
-    vec![
-        (game_addr(LEAGUE_A_RVA) as u32, 0x28),
-        (game_addr(LEAGUE_B_RVA) as u32, 0x280),
-    ]
-}
-
 const ONE_PLAYER_CHOICE_RVA: usize = rva(0x52A910); // dword_52A910
 const ONE_PLAYER_CAR_RVA: usize = rva(0x52A920); // dword_52A920
 const CAR_KINDS_RVA: usize = rva(0x623858); // g_raceCarKinds
@@ -259,19 +247,6 @@ pub unsafe fn set_start_states(entry: &Regs) -> Result<Regs, Refused> {
     Ok(g)
 }
 
-pub fn start_state_regions() -> Vec<Region> {
-    let mut r: Vec<Region> = START_VALUES_RVA
-        .iter()
-        .map(|&a| (game_addr(a) as u32, 4))
-        .collect();
-    r.push(at(GEAR_CHOICE_RVA));
-    for n in 0..8u32 {
-        let b: u32 = unsafe { game_read(crate::race::objects::CAR_BLOCKS_RVA + 4 * n as usize) };
-        r.push((b + 0x684, 4));
-    }
-    r
-}
-
 /// `race::store_results_by_mode` (0x449957): by `dword_62389C`: 2 the first block's +0x8C
 /// to `dword_75AFFC`, its +0x654 to `dword_75B000` and `dword_6051BC`, its +0x88 to
 /// `dword_75B01C`; 0 the first two blocks' +0x88 to `dword_75B01C` / `dword_75B08C` and
@@ -315,13 +290,4 @@ pub unsafe fn store_results_by_mode(entry: &Regs) -> Regs {
         _ => {}
     }
     g
-}
-
-pub fn result_regions() -> Vec<Region> {
-    [
-        0x75AFFC, 0x75B000, 0x6051BC, 0x75B01C, 0x75B08C, 0x75B020, 0x75B090,
-    ]
-    .iter()
-    .map(|&a| at(rva(a)))
-    .collect()
 }

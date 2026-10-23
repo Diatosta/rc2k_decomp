@@ -27,21 +27,6 @@ use crate::physics::flow::{g, p};
 use crate::race::viewer::{Part, regs_entry};
 use crate::screens::harness::Left;
 
-/// The calls by place, as IDA shows them.
-pub const CALLEES: [usize; 13] = [
-    0, 0x4560EA, // 1 drive::choose_shown_cars
-    0x43A27E, // 2 drive::car_input_words
-    0x460162, // 3 drive::play_inputs
-    0x460C40, // 4 drive::load_car
-    0x43A35A, // 5 drive::read_car_controls
-    0x439BF6, // 6 physics::gear_input_rules
-    0x439DB1, // 7 drive::steer_inputs
-    0x43A004, // 8 drive::pedal_inputs
-    0x43A0D3, // 9 drive::reset_request
-    0x43B635, // 10 physics::car_physics_step
-    0x460C5D, // 11 drive::store_car
-    0x436758, // 12 drive::race_mode_cars
-];
 pub const CURRENT: usize = 0x71B3F8; // g_currentCar
 pub const CARS: usize = 0x63DB90; // g_raceCars
 const BLOCKS_OF_CARS: usize = 0x71B3B8; // g_carBlocks

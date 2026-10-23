@@ -23,7 +23,7 @@
 //! sent, the mutex taken).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, game_addr, rva, shadow};
+use crate::framework::{Regs, game_addr, rva};
 
 pub mod add_address_element;
 pub mod add_chat_line;
@@ -286,26 +286,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         }
     }
     Ok(())
-}
-
-/// The hooks' dispatch: shadow mode runs the original alone; out of it the Rust version
-/// with the game's calls, the registers it leaves (the flags kept unless `flags`).
-pub fn dispatch_net(
-    hook: &RawHook,
-    r: &mut Regs,
-    call_original: unsafe extern "C" fn(*mut Regs),
-    rust: fn(&mut Regs, Part) -> Result<(), Refused>,
-) {
-    hook.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    let mut g = *r;
-    match rust(&mut g, &mut game_part) {
-        Ok(()) => *r = Regs { esp: r.esp, ..g },
-        Err(e) => unsafe { crate::fatal::raise::refused(hook, e, r, call_original) },
-    }
 }
 
 /// `dispatch_net` outside shadow mode, without its hook (a refusal is the caller's).

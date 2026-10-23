@@ -69,20 +69,3 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     r.set_carry(mine.is_none());
     Ok(())
 }
-
-pub const TEST_PATHS: [&[u8]; 14] = [
-    b"\0",
-    b"C:\\Games\\RC2k\0",
-    b"C:\\Games\\RC2k\\\0",
-    b"c:\0",
-    b"D:/Mixed/Case/\0",
-    b"E:File\0",
-    b"\\\\Server\\Share\\Dir\0",
-    b"//Server/Share\0",
-    b"\\\\\0",
-    b"relative\\path\0",
-    b"x\0",
-    b":\0",
-    b"\xC9:\\\xC0b\0",
-    b"1:/\0",
-];

@@ -28,7 +28,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva, shadow};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::input::key_to_char::{has_layout, key_to_char};
 use crate::input::take_key::take_key;
 use crate::menu::add_text_length::add_text_length;
@@ -43,7 +43,7 @@ use crate::screens::harness::Left;
 use crate::service::harness::state_entry;
 use crate::service::state::menu_item;
 use crate::strings::append_string_by_id::push_string;
-use crate::text::draw_text::{Canvas, GameCanvas, RecordingCanvas};
+use crate::text::draw_text::{Canvas, GameCanvas};
 use crate::text::measure_text::measure_text_at;
 
 // ---- game data ----
@@ -143,12 +143,8 @@ pub unsafe fn edit_savegame_name(
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    if shadow() {
-        // The original has saved the game already.
-        unsafe { edit_savegame_name(&mut RecordingCanvas::new(false), &mut |_| {}) }?;
-    } else {
-        unsafe { edit_savegame_name(&mut GameCanvas, &mut save_game) }?;
-    }
+    unsafe { edit_savegame_name(&mut GameCanvas, &mut save_game) }?;
+
     Ok(Left::nothing())
 }
 

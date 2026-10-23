@@ -13,15 +13,7 @@ use crate::menu::start_event::{Starter, starter_hook};
 use rc2k_core::menu::starters::{self, Championship, Seats};
 
 pub const START_A8_FOUR: Starter = Starter {
-    address: 0x4AA040,
-    len: 0x163,
     // pusha; mov dword_755954, 5
-    entry: &[
-        0x60, 0xC7, 0x05, 0x54, 0x59, 0x75, 0x00, 0x05, 0x00, 0x00, 0x00,
-    ],
-    calls: &[
-        0x1F, 0x6B, 0x76, 0x88, 0xAC, 0xB7, 0xC9, 0xED, 0xF8, 0x106, 0x12A, 0x135, 0x143, 0x152,
-    ],
     kind: starters::Starter {
         championship: Championship::A8,
         seats: Seats::Four,

@@ -20,9 +20,7 @@ pub const RECORDS_RVA: usize = rva(0x5CCCB8); // g_courseRecords
 pub const RECORD_COUNT_RVA: usize = rva(0x5CCD18); // g_courseRecordCount
 /// `g_kindFirstRecords` (0x100 dwords), followed by `g_kindLastRecords` (0x5CC7E4).
 pub const KIND_TABLES_RVA: usize = rva(0x5CC3E4);
-pub const KIND_TABLES_LEN: usize = 0x800;
 const KINDS: u32 = 0x100;
-pub use rc2k_core::race::faces::MOST_FACES;
 /// The records the course memory's first part (0xF00000 bytes) can hold.
 pub const MOST_RECORDS: u32 = 0x7_8000;
 
@@ -141,72 +139,6 @@ pub unsafe fn group_records_by_kind(entry: &Regs) -> Result<Regs, Refused> {
 
 // ---- for the self-tests ----
 
-/// Faces or records of a test's in the game's pointer and count until dropped.
-pub struct TestTable {
-    pub memory: Vec<u8>,
-    initial: Vec<u8>,
-    vars: [crate::service::harness::Region; 2],
-    saved: Vec<u8>,
-}
-
-impl TestTable {
-    /// `count` entries of `size` bytes (room for `room`), filled by `fill(n, bytes)`.
-    pub fn new(
-        pointer: usize,
-        counter: usize,
-        size: usize,
-        count: u32,
-        room: usize,
-        fill: &dyn Fn(usize, &mut [u8]),
-    ) -> Self {
-        use crate::service::harness::{at, capture};
-        let vars = [at(pointer), at(counter)];
-        let saved = capture(&vars);
-        let mut memory = vec![0u8; size * room];
-        for (n, entry) in memory.chunks_mut(size).enumerate() {
-            fill(n, entry);
-        }
-        unsafe {
-            game_write(pointer, memory.as_ptr() as u32);
-            game_write(counter, count);
-        }
-        Self {
-            initial: memory.clone(),
-            memory,
-            vars,
-            saved,
-        }
-    }
-
-    /// The entries as `new` filled them, before each run.
-    pub fn reset(&self) {
-        let at = self.memory.as_ptr() as *mut u8;
-        unsafe { std::ptr::copy_nonoverlapping(self.initial.as_ptr(), at, self.initial.len()) };
-    }
-
-    pub fn region(&self) -> crate::service::harness::Region {
-        (self.memory.as_ptr() as u32, self.memory.len())
-    }
-}
-
-impl Drop for TestTable {
-    fn drop(&mut self) {
-        crate::service::harness::restore(&self.vars, &self.saved);
-    }
-}
-
-/// `race::load_level`'s callees by place, as IDA shows them: `set_cdat_number`,
-/// `files::read_level_file`, `copy_course_header`, `race::lay_out_course`,
-/// `reset_face_lights`, `logfile::log_write_l1`.
-pub const LOAD_CALLEES: &[(usize, u32)] = &[
-    (0x4456DD, 0),
-    (0x41BA2E, 1),
-    (0x445736, 2),
-    (0x421BE3, 3),
-    (0x45ED70, 4),
-    (0x401427, 5),
-];
-
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 const COURSE_PATH_RVA: usize = rva(0x60B02B); // "srclvls\level01\cdat00c"
@@ -291,11 +223,6 @@ pub fn load_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     }
     Ok(())
 }
-
-/// `race::locate_current_course`'s callees by place, as IDA shows them: `load_level`,
-/// `race::lay_out_course`, `group_records_by_kind`, `race::build_best_line`.
-pub const LOCATE_CALLEES: &[(usize, u32)] =
-    &[(0x4455FC, 0), (0x421BE3, 1), (0x421E42, 2), (0x445772, 3)];
 
 const CDAT_NUMBER_RVA: usize = rva(0x609380); // dword_609380
 

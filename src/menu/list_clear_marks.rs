@@ -18,7 +18,6 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::race::viewer::regs_entry;
-use crate::service::harness::Region;
 use rc2k_core::menu::list_menu::{has_choices, rounds, unmarked};
 
 /// The Rust version.
@@ -52,24 +51,6 @@ pub unsafe fn list_clear_marks(list: u32) {
 fn rust(r: &Regs) -> Result<Regs, Refused> {
     unsafe { list_clear_marks(r.edi) };
     Ok(*r)
-}
-
-/// The list's bytes and its kind 2 items' choices, as far as they go.
-pub unsafe fn regions_of(list: u32) -> Vec<Region> {
-    unsafe {
-        let count = ((list + 1) as *const u8).read() as usize;
-        let mut all = vec![(list, 0x18 + 0x10 * count)];
-        for n in 0..count {
-            let item = list + 0x18 + 0x10 * n as u32;
-            if (item as *const u8).read() & 0xF == 2 {
-                let choices = ((item + 1) as *const u8).read() as usize;
-                let at = ((item + 0xC) as *const u32).read_unaligned();
-                let n = if choices == 0 { 0x100 } else { choices };
-                all.push((at, 2 * n));
-            }
-        }
-        all
-    }
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

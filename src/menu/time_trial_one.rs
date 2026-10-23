@@ -25,7 +25,6 @@ use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::menu::event_flow::*;
 use crate::menu::flow_game::Game;
-use crate::menu::time_trial_qualifies::QUALIFIES;
 use rc2k_core::menu::rounds;
 
 flow_hook!(
@@ -41,39 +40,4 @@ pub unsafe fn time_trial_one(entry: &Regs, call: Call) -> Result<Regs, Refused> 
     // Converted: `rc2k_core::menu::rounds::time_trial_one`.
     rounds::time_trial_one(&mut Game::new(entry, call))?;
     Ok(*entry)
-}
-
-/// The time trial's rounds' scripts for `n` players (`results` the results page).
-pub fn time_trial_scripts(n: u32, results: usize) -> Vec<(String, Script)> {
-    let race = |v: u32| Answer::write(RACE_RESULT, v);
-    let q = || Answer::write(QUALIFIES, 1).and(crate::menu::time_trial_qualifies::ANY_QUALIFIED, 1);
-    let mut out = crate::menu::single_rally_two::round_scripts(n, results);
-    out.extend([
-        (
-            "the service's yes".to_string(),
-            vec![(TIME_TRIAL_SERVICE, vec![Answer::yes()])],
-        ),
-        (
-            "qualified, the best times page's yes".to_string(),
-            vec![
-                (RACE, (0..n).map(|k| race(k + 7)).collect()),
-                (TIME_TRIAL_QUALIFIES, vec![q()]),
-                (TIME_TRIAL_BEST_TIMES_LOOP, vec![Answer::yes()]),
-            ],
-        ),
-        (
-            "the last qualified, then the review ends".to_string(),
-            vec![
-                (RACE, (0..n).map(|k| race(k + 9)).collect()),
-                (
-                    TIME_TRIAL_QUALIFIES,
-                    (0..n)
-                        .map(|k| if k + 1 == n { q() } else { Answer::none() })
-                        .collect(),
-                ),
-                (REVIEW_485F5E, vec![Answer::write(ENDED_569, 1)]),
-            ],
-        ),
-    ]);
-    out
 }

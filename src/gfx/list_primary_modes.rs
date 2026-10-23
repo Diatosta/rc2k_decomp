@@ -16,12 +16,8 @@
 //! to stand-ins noting eax, against the Rust version, both switches.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, rva, standalone,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva, standalone};
 use crate::gfx::mark_3d_modes::{ModeVars, mark_3d_modes};
-use crate::install::stand_ins::{act, set_handler, stand_in};
-use std::sync::Mutex;
 
 // ---- game data ----
 
@@ -131,94 +127,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let entry = *r;
     unsafe { list_primary_modes(&entry, &CardVars::game(), &mut game_part) }?;
     Ok(())
-}
-
-/// The calls noted: (place, eax).
-pub static NOTED: Mutex<Vec<(u32, u32)>> = Mutex::new(Vec::new());
-
-pub fn note(place: u32, r: &mut Regs) {
-    NOTED.lock().unwrap().push((place, r.eax));
-}
-
-pub fn test_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    act(place, r);
-    Ok(())
-}
-
-pub type Rust = unsafe fn(&Regs, &CardVars, Part) -> Result<(), Refused>;
-
-/// Both switches, the copy against `rust`.
-pub fn compare(
-    t: &mut SelfTest,
-    hook: &RawHook,
-    copy: (usize, usize, &[u8], &[usize], usize),
-    rust: Rust,
-) {
-    let mut m = vec![0u32; 6];
-    let at = m.as_mut_ptr() as u32;
-    let v = CardVars {
-        primary_3d: at,
-        secondary_3d: at + 4,
-        secondary_guid: at + 8,
-    };
-    let (address, len, entry, calls, references) = copy;
-    let c = match crate::audio::test_copy::make(
-        hook,
-        &crate::audio::test_copy::Copy {
-            address,
-            len,
-            entry,
-            calls,
-            jumps_out: &[],
-        },
-        &|callee| {
-            CALLEES
-                .iter()
-                .position(|&c| rva(c) == callee)
-                .map(|n| stand_in(n as u32))
-        },
-        &[
-            (0x5AB4AC, v.primary_3d),
-            (0x5AB4B0, v.secondary_3d),
-            (0x5AB4B4, v.secondary_guid),
-        ],
-        references,
-    ) {
-        Ok(c) => c,
-        Err(why) => {
-            t.check(false, || format!("no copy: {why}"));
-            return;
-        }
-    };
-    set_handler(note);
-    for primary in [0u32, 1, 2] {
-        for secondary in [0u32, 1, 2] {
-            let run = |mine: bool| unsafe {
-                let p = at as *mut u32;
-                p.write_volatile(primary);
-                p.add(1).write_volatile(secondary);
-                NOTED.lock().unwrap().clear();
-                let before = Regs::SENTINEL;
-                let (done, preserved) = if mine {
-                    (rust(&before, &v, &mut test_part).is_ok(), true)
-                } else {
-                    let mut ro = before;
-                    call_game(&mut ro, c.addr());
-                    (true, ro.preserved_except(&before, 0))
-                };
-                (
-                    done && preserved,
-                    std::mem::take(&mut *NOTED.lock().unwrap()),
-                )
-            };
-            let theirs = run(false);
-            let ours = run(true);
-            t.check(theirs == ours, || {
-                format!(
-                    "primary {primary}, secondary {secondary}: original {theirs:x?}; rust {ours:x?}"
-                )
-            });
-        }
-    }
-    drop(m);
 }

@@ -17,12 +17,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest};
-use crate::input::effects::compare;
-use crate::net::{
-    CAR, LOG_INT, LOG_INT_NL, LOG_TEXT, MESSAGE, Part, SEND_RACE, a, log_send, net_entry,
-};
-use crate::system::api_stand_ins::copy_with;
+use crate::framework::Regs;
+use crate::net::{CAR, MESSAGE, Part, SEND_RACE, a, log_send, net_entry};
 use rc2k_core::net::race::Kind;
 
 /// What one of the three sends: its log text (an RVA as IDA shows it) and its kind (the
@@ -74,58 +70,4 @@ pub fn send_inputs(r: &mut Regs, part: Part) -> Result<(), Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     net_entry(r, send_inputs)
-}
-
-/// The test of the three: a copy of the original at `address` (`len` bytes, its first
-/// bytes `entry`: `pusha; lea eax, aSendX`; the send's call at `send`).
-pub fn test_send(
-    hook: &RawHook,
-    address: usize,
-    len: usize,
-    entry: &[u8],
-    send: usize,
-    m: &'static Message,
-) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let mut block = vec![0u32; 0x1010 / 4];
-    let mut message = vec![0u32; 0x100 / 4];
-    let (car, out) = (block.as_mut_ptr() as u32, message.as_mut_ptr() as u32);
-    let copy = match copy_with(
-        address,
-        len,
-        entry,
-        &[7, 19, 31, send],
-        &[LOG_TEXT, LOG_INT, LOG_INT_NL, SEND_RACE],
-        &[],
-        &[(CAR, 0x1008, car), (MESSAGE, 0x100, out)],
-        m.kind.fields().len() + 1,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let all = [(car, 0x1010usize), (out, 0x100)];
-    for seed in [1u32, 0x9E37_79B9] {
-        let fill = || unsafe {
-            for n in 0..0x1010 / 4 {
-                ((car + 4 * n) as *mut u32).write_volatile(n.wrapping_mul(seed) ^ 0x5A5A_0000);
-            }
-            for n in 0..0x100 / 4 {
-                ((out + 4 * n) as *mut u32).write_volatile(0xAAAA_AAAA);
-            }
-        };
-        compare(
-            &mut t,
-            &format!("seed {seed:#x}"),
-            &copy,
-            Regs::SENTINEL,
-            &fill,
-            &all,
-            &|r, part| send_fields_with(r, m, car, out, part),
-            false,
-        );
-    }
-    let _ = (&mut block, &mut message);
-    t.finish()
 }

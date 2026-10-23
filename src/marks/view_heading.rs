@@ -23,10 +23,9 @@ use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::rounded;
-use crate::scene::vector3::{STATUS_RVA, angle_between_vectors, angle_between_vectors_plain};
+use crate::scene::vector3::{angle_between_vectors, angle_between_vectors_plain};
 use crate::screens::harness::Left;
 use crate::service::floats::*;
-use crate::service::harness::{Region, at};
 
 const VIEW_RVA: usize = rva(0x5EA3CC); // flt_5EA3CC: the view's matrix
 const LEVEL_RVA: usize = rva(0x91FF7E); // flt_91FF7E: three floats
@@ -69,14 +68,6 @@ pub unsafe fn view_heading_plain(entry: &Regs) -> Regs {
         game_write(HEADING_RVA, heading.to_bits());
     }
     g
-}
-
-pub fn regions() -> Vec<Region> {
-    vec![
-        (game_addr(LEVEL_RVA) as u32, 0x18),
-        at(HEADING_RVA),
-        at(STATUS_RVA),
-    ]
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {

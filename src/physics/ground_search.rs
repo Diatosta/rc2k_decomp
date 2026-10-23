@@ -21,7 +21,6 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::physics::ground::*;
-use crate::physics::search_record_faces::{TEST_RECORDS, set_records};
 use crate::screens::harness::Left;
 use crate::service::harness::state_entry;
 
@@ -39,26 +38,4 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-/// Record n's cell: (n % 3, n / 3), as `search_cell`'s test.
-pub fn cell_key(n: u32) -> u32 {
-    ((n / 3) << 11) + n % 3
-}
-
-/// The test's ground with `TEST_RECORDS` in cells (n % 3, n / 3) and the kind tables.
-pub fn test_ground(seed: u32) -> TestGround {
-    let mut test = TestGround::new(20, 25, TEST_RECORDS.len() as u32);
-    test.lay_out(seed);
-    set_records(&mut test, &cell_key);
-    let g = test.ground();
-    for n in 0..TEST_RECORDS.len() as u32 {
-        let key = cell_key(n);
-        let kind = (key & 0xF) + (((key >> 11) & 0xF) << 4);
-        unsafe {
-            g.put(0x5CC3E4 + 4 * kind, n);
-            g.put(0x5CC7E4 + 4 * kind, n);
-        }
-    }
-    test
 }

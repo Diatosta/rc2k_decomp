@@ -81,14 +81,3 @@ pub unsafe fn draw_championship_table(canvas: &mut dyn Canvas) -> Result<(), Ref
         )
     }
 }
-
-/// Whether every row's position is in the history (for the tests).
-pub unsafe fn championship_table_ready() -> bool {
-    unsafe {
-        let table = k(0x7556F0);
-        table != 0
-            && (0..10).all(|n| {
-                find_history_entry(table, k(0x7558F4), k(0x7556B8).wrapping_add(n)).is_ok()
-            })
-    }
-}

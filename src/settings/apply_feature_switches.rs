@@ -16,13 +16,6 @@ use crate::framework::{game_read, game_write, rva};
 
 // ---- game data ----
 
-#[cfg_attr(
-    not(feature = "standalone"),
-    allow(
-        dead_code,
-        reason = "only the standalone's `start` calls it; the hooked game runs the original"
-    )
-)]
 /// (used, ignore setting, the processor has it)
 const FEATURES: [(usize, usize, usize); 3] = [
     (rva(0x5183A8), rva(0x5183AC), rva(0x5183F8)), // g_hasMmx, dword_5183AC, dword_5183F8
@@ -32,13 +25,6 @@ const FEATURES: [(usize, usize, usize); 3] = [
 
 // ---- Rust version ----
 
-#[cfg_attr(
-    not(feature = "standalone"),
-    allow(
-        dead_code,
-        reason = "only the standalone's `start` calls it; the hooked game runs the original"
-    )
-)]
 pub unsafe fn apply_feature_switches() {
     // Converted: `rc2k_core::files::settings::feature_switches`.
     unsafe {

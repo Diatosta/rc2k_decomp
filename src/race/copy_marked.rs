@@ -20,10 +20,9 @@ use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::physics::flow::a;
 use crate::race::viewer::{
-    CAMERAS, CLIP_BLOCKS, CLIP_CAMERAS, CLIP_PLACES, MARK_IN, MARK_OUT, PLACES, TABLE_LEN, dword,
-    get, move_dwords, put, region, regs_entry,
+    CAMERAS, CLIP_BLOCKS, CLIP_CAMERAS, CLIP_PLACES, MARK_IN, MARK_OUT, PLACES, get, move_dwords,
+    put, regs_entry,
 };
-use crate::service::harness::Region;
 
 /// The Rust version: the registers it leaves.
 pub fn copy_marked(entry: &Regs) -> Result<Regs, Refused> {
@@ -43,14 +42,6 @@ pub fn copy_marked(entry: &Regs) -> Result<Regs, Refused> {
     r.esi = a(CAMERAS + 8 * r.eax as usize) + 4 * dwords as u32;
     r.edi = a(CLIP_CAMERAS) + 4 * dwords as u32;
     Ok(r)
-}
-
-pub fn regions() -> Vec<Region> {
-    vec![
-        dword(CLIP_BLOCKS),
-        region(CLIP_PLACES, TABLE_LEN),
-        region(CLIP_CAMERAS, TABLE_LEN),
-    ]
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

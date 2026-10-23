@@ -17,11 +17,8 @@
 use crate::errors::{BadInput, Refused};
 use crate::files::swap_missing_extension::swap_missing_extension;
 use crate::framework::{Regs, game_addr, game_read, rva};
-use crate::gfx::pcx::{PALETTE_RVA, decoded_region, layout_regions};
-use crate::gfx::picture::{FLAGS_RVA, HEIGHT_RVA, ROW_BYTES_RVA, WIDTH_RVA};
 use crate::gfx::read_pcx::read_pcx;
 use crate::gfx::read_png::read_png;
-use crate::service::harness::{Region, at, capture};
 use crate::strings::text_length::text_length;
 
 // ---- game data ----
@@ -54,23 +51,6 @@ pub unsafe fn read_picture_file(path: *mut u8) -> Result<bool, Refused> {
             Reader::Chatzone => Ok(read_pcx(game_addr(CHATZONE_PATH_RVA) as *const u8)?),
         }
     }
-}
-
-/// What a reading leaves that is defined on both sides: the picture's variables, the layout
-/// without its palette, the decoded rows.
-pub fn left_behind() -> Vec<u8> {
-    let mut regions: Vec<Region> = layout_regions()
-        .into_iter()
-        .filter(|&(addr, _)| addr != game_addr(PALETTE_RVA) as u32)
-        .collect();
-    regions.extend([
-        at(WIDTH_RVA),
-        at(HEIGHT_RVA),
-        at(ROW_BYTES_RVA),
-        at(FLAGS_RVA),
-    ]);
-    regions.extend(decoded_region());
-    capture(&regions)
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).

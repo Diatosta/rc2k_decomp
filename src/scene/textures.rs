@@ -6,7 +6,6 @@
 //! slot and a first texture.
 
 use crate::framework::{game_addr, game_read, rva};
-use crate::service::harness::Region;
 
 pub const WANTED_RVA: usize = rva(0x5DA968); // dword_5DA968
 pub const LOADED_RVA: usize = rva(0x5DB968); // dword_5DB968
@@ -20,10 +19,6 @@ pub const PLACES: u32 = 0xFA0;
 pub const SLOT_COUNT_RVA: usize = rva(0x5DC970); // dword_5DC970
 pub const LOADS_RVA: usize = rva(0x6415F8); // dword_6415F8
 
-pub fn table(rva: usize, entries: u32) -> Region {
-    (game_addr(rva) as u32, entries as usize * 4)
-}
-
 /// One of the game's tables of dwords as a slice, for the core.
 ///
 /// # Safety
@@ -35,29 +30,4 @@ pub unsafe fn slice(rva: usize, entries: u32) -> &'static mut [u32] {
 
 pub unsafe fn entry(rva: usize, n: u32) -> u32 {
     unsafe { game_read(rva + n as usize * 4) }
-}
-
-/// Numbers for a test's table, by lot: about one in `gap` below `below`, the others -1.
-pub fn test_table(seed: &mut u32, entries: u32, gap: u32, below: u32) -> Vec<u32> {
-    (0..entries)
-        .map(|_| {
-            *seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-            let lot = *seed >> 8;
-            if lot.is_multiple_of(gap) {
-                (lot / gap) % below
-            } else {
-                u32::MAX
-            }
-        })
-        .collect()
-}
-
-pub unsafe fn write_table(rva: usize, values: &[u32]) {
-    unsafe {
-        std::ptr::copy_nonoverlapping(
-            values.as_ptr() as *const u8,
-            game_addr(rva) as *mut u8,
-            values.len() * 4,
-        );
-    }
 }

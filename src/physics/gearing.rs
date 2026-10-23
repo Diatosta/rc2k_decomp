@@ -47,14 +47,6 @@ impl GearPlaces {
             speed: game_addr(SPEED_RVA) as u32,
         }
     }
-
-    pub fn regions(&self) -> Vec<crate::service::harness::Region> {
-        vec![
-            (self.engine_speed, 4),
-            (self.drive_speed, 4),
-            (self.drive_speed_2, 4),
-        ]
-    }
 }
 
 unsafe fn at(a: u32) -> u32 {
@@ -201,24 +193,6 @@ pub unsafe fn revs_from_speed_plain_at(p: &GearPlaces) -> Result<Left, Refused> 
     }
 }
 
-/// The three hooks' shadow comparison: the speeds within `FLOAT` (each is one correctly
-/// rounded product or quotient but for a sum of far-apart speeds at extended precision).
-pub fn dispatch_gearing(
-    hook: &'static crate::framework::RawHook,
-    r: &mut crate::framework::Regs,
-    call_original: crate::screens::harness::CallOriginal,
-    rust: crate::service::harness::Rust,
-) {
-    use crate::service::floats::{FLOAT, Floats, dispatch_state_floats};
-    let regions = GearPlaces::game().regions();
-    let memory: Vec<_> = regions.iter().map(|&g| (g, FLOAT)).collect();
-    let floats = Floats {
-        memory: &memory,
-        regs: &[],
-    };
-    dispatch_state_floats(hook, r, call_original, &regions, &floats, rust);
-}
-
 /// `dispatch_gearing` without its hook (Rust callers; a refusal is the caller's).
 pub fn gearing_entry(
     r: &mut crate::framework::Regs,
@@ -226,95 +200,3 @@ pub fn gearing_entry(
 ) -> Result<(), crate::errors::Refused> {
     crate::service::harness::state_entry(r, rust)
 }
-
-/// For the self-tests: the captures of `regions` (the speeds first, then whole numbers)
-/// agree: the same at double precision, the speeds within `FLOAT` at the others.
-pub fn speeds_agree(
-    regions: &[crate::service::harness::Region],
-    theirs: &[u8],
-    mine: &[u8],
-    word: u16,
-) -> bool {
-    use crate::service::floats::{Agreement, FLOAT, Floats, compare_memory};
-    if theirs == mine {
-        return true;
-    }
-    if word == crate::math::x87_run::DOUBLE {
-        return false;
-    }
-    let memory: Vec<_> = regions.iter().take(3).map(|&g| (g, FLOAT)).collect();
-    let floats = Floats {
-        memory: &memory,
-        regs: &[],
-    };
-    compare_memory(regions, theirs, mine, &floats) != Agreement::Differ
-}
-
-/// For the self-tests: the variables, a ratio table (-1 ..= 7) of the test's.
-pub struct TestGearing {
-    _cells: Vec<u32>,
-    pub places: GearPlaces,
-}
-
-impl TestGearing {
-    pub fn new() -> Self {
-        let mut cells = vec![0u32; 5 + 9 + 1];
-        let base = cells.as_mut_ptr() as u32;
-        let places = GearPlaces {
-            gear: base,
-            engine_speed: base + 4,
-            drive_speed: base + 8,
-            drive_speed_2: base + 12,
-            drive_kind: base + 16,
-            ratios: base + 24, // gear 0; gear -1 at base + 20
-            speed: base + 56,
-        };
-        Self {
-            _cells: cells,
-            places,
-        }
-    }
-
-    /// Everything filled: the gear, the drive kind, four speeds and nine ratios by lot.
-    pub fn fill(&self, gear: u32, kind: u32, seed: u32) {
-        let p = &self.places;
-        let mut f = [0u32; 13];
-        crate::scene::matrix3::test_floats(seed, &mut f);
-        unsafe {
-            put(p.gear, gear);
-            put(p.drive_kind, kind);
-            put(p.engine_speed, f[0]);
-            put(p.drive_speed, f[1]);
-            put(p.drive_speed_2, f[2]);
-            put(p.speed, f[12]);
-            for k in 0..9u32 {
-                // A ratio of 0 now and then (the x87 gives an infinity; masked).
-                put(p.ratios - 4 + 4 * k, f[3 + k as usize]);
-            }
-        }
-    }
-
-    /// The test's variables as `test_copy::make` patches them in.
-    pub fn variables(&self) -> [(usize, u32); 7] {
-        let p = &self.places;
-        [
-            (0x71A1AC, p.gear),
-            (0x71A1B0, p.engine_speed),
-            (0x71A190, p.drive_speed),
-            (0x71A194, p.drive_speed_2),
-            (0x71A018, p.drive_kind),
-            (0x6140C0, p.ratios),
-            (0x71A184, p.speed),
-        ]
-    }
-}
-
-impl Default for TestGearing {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// Gears and drive kinds the tests run through.
-pub const TEST_GEARS: [u32; 6] = [0, 1, 2, 7, u32::MAX, 4];
-pub const TEST_KINDS: [u32; 3] = [0, 1, 2];

@@ -22,7 +22,7 @@ use crate::menu::event_flow::*;
 use crate::screens::harness::Left;
 use crate::service::harness::state_entry;
 
-pub const KEPT_NAME: usize = 0x755884; // g_keptPlayerName
+// g_keptPlayerName
 /// The chosen stage's ten best times, for the core; refused as `event_flow::stage_times`.
 pub fn stage_list<'a>() -> Result<rc2k_core::menu::standings::Entries<'a>, Refused> {
     let times = stage_times()?;

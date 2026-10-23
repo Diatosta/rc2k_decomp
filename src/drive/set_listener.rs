@@ -35,38 +35,14 @@ use crate::errors::Refused;
 use crate::framework::{EAX, EBP, EBX, ECX, EDI, EDX, ESI, Regs};
 use crate::math::x87;
 use crate::math::x87_run::{ext_to_int, int_80, int_over_int_plus};
-use crate::physics::mirror::{Mirror, Spec};
+use crate::physics::mirror::Mirror;
 use crate::race::mud::car_file_number;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::drive::listener;
 
-/// Everything it reads or writes but the light records (IDA addresses, end exclusive).
-pub const RANGES: [(u32, u32); 14] = [
-    (0x5C2FA0, 0x5C2FD8),
-    (0x5C5620, 0x5C56EC),
-    (0x5EA0CC, 0x5EA34C),
-    (0x601024, 0x601028),
-    (0x606298, 0x6062A4),
-    (0x608C60, 0x608C78),
-    (0x613FC4, 0x613FC8),
-    (0x6238A8, 0x6238AC),
-    (0x62400C, 0x624010),
-    (0x637644, 0x637648),
-    (0x63DB9C, 0x63DBA0),
-    (0x6415D0, 0x6415E4),
-    (0x70F410, 0x710300),
-    (0x71B3B8, 0x71B3D8),
-];
-pub const SPEC: Spec = (
-    0x4565B7,
-    0x3E5,
-    &[0x8B, 0x1D, 0x9C, 0xDB, 0x63, 0x00],
-    &[0x10E, 0x1B0, 0x1C7, 0x1F9, 0x222, 0x24D, 0x276],
-    124,
-);
 const TURNED: u32 = 0x5EA10C; // g_turnedMatrix
 const LIT: u32 = 0x5EA14C; // g_litMatrix
 const VIEW_TURN: u32 = 0x5EA24C; // g_viewTurnMatrix
@@ -190,20 +166,6 @@ pub unsafe fn set_listener() -> Result<Left, Refused> {
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { set_listener() }
-}
-
-/// What it writes.
-pub fn regions(m: &Mirror) -> Vec<Region> {
-    vec![
-        (m.a(0x5C2FA0), 0x38),
-        (m.a(0x5C5620), 0xCC),
-        (m.a(0x5EA0CC), 0x40),
-        (m.a(TURNED), 0x80),
-        (m.a(MADE), 0x40),
-        (m.a(0x608C60), 0x18),
-        (m.a(0x62400C), 4),
-        (m.a(0x70F628), 4),
-    ]
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

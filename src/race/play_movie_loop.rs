@@ -26,18 +26,6 @@ use crate::framework::Regs;
 use crate::physics::flow::a;
 use crate::race::viewer::{BLOCK, PLAY_END, Part, gb, get, put, regs_entry};
 
-/// The calls by place, as IDA shows them.
-pub const CALLEES: [usize; 10] = [
-    0, 0x45857D, // 1 race::init_skidmarks
-    0x401427, // 2 logfile::log_write_l1
-    0x401476, // 3 logfile::log_int_l1_nl
-    0x450381, // 4 scene::restart_clock
-    0x420115, // 5 input::update
-    0x4454D2, // 6 drive::race_step
-    0x4541BF, // 7 drive::race_frame
-    0x40142B, // 8 logfile::log_write_l1_nl
-    0,
-];
 const STATE: usize = 0x5C5CE0; // dword_5C5CE0
 const SCENE_CLOCK: usize = 0x613830; // g_sceneClock
 const CLOCK_BASE: usize = 0x613840; // dword_613840

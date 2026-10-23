@@ -86,14 +86,6 @@ pub unsafe fn find_farthest_pairs(entry: &Regs) -> Result<Regs, Refused> {
     Ok(g)
 }
 
-/// What `find_farthest_pairs` writes.
-pub fn farthest_regions() -> Vec<Region> {
-    FARTHEST_RVA
-        .iter()
-        .map(|&r| (game_addr(r) as u32, 8))
-        .collect()
-}
-
 /// What `turn_shape_points` refuses for turns ebx, ecx.
 pub unsafe fn turn_shape_checks(ebx: u32, ecx: u32) -> Result<(), Refused> {
     unsafe {
@@ -193,46 +185,6 @@ pub unsafe fn target_regions() -> Vec<Region> {
         }
     }
     r
-}
-
-/// The set's fields the tests fill, by list: count, targets, points, offset.
-pub fn set_inputs() -> Vec<Region> {
-    let set = game_addr(SET_RVA) as u32;
-    vec![(set, 0xAAC)]
-}
-
-/// Fills list `n` of the set with `count` points by lot whose targets are in `targets`
-/// (12 bytes each).
-pub unsafe fn fill_set(seed: u32, counts: [u32; 2], targets: u32) {
-    let set = game_addr(SET_RVA) as u32;
-    let mut s = seed;
-    let mut next = move || {
-        s = s.wrapping_mul(1_103_515_245).wrapping_add(12345);
-        s >> 8
-    };
-    unsafe {
-        for n in 0..2 {
-            put(set + COUNT[n], counts[n]);
-            for k in 0..MOST_POINTS {
-                put(
-                    set + TARGETS[n] + 4 * k,
-                    targets + 12 * (MOST_POINTS * n as u32 + k),
-                );
-                for c in 0..3 {
-                    put(
-                        set + POINTS[n] + 12 * k + 4 * c,
-                        (next() % 0x4_0000).wrapping_sub(0x2_0000),
-                    );
-                }
-            }
-            for c in 0..3 {
-                put(
-                    set + OFFSET[n] + 4 * c,
-                    (next() % 0x10_0000).wrapping_sub(0x8_0000),
-                );
-            }
-        }
-    }
 }
 
 /// The two shapes' steps and ends for `turn_all_shapes`: the step (each shape's +0), a, b,
@@ -471,12 +423,6 @@ pub unsafe fn make_shape_set(entry: &Regs) -> Result<Regs, Refused> {
     Ok(g)
 }
 
-/// What `make_shape_set` writes besides the set: 0x884E5C .. 0x885A6C.
-pub fn shape_set_regions() -> Vec<Region> {
-    let a = game_addr(FIRST_POINT_RVA) as u32;
-    vec![(a, (game_addr(SET_RVA) as u32 - a) as usize)]
-}
-
 /// The kind's two face kinds and the set's ends (`dword_89C72C`, `_7B4`, `_8C4`, `_83C` by
 /// `g_marksKind`; `flt_89C96C`, `_70`).
 const BY_KIND_RVA: [usize; 4] = [rva(0x89C72C), rva(0x89C7B4), rva(0x89C8C4), rva(0x89C83C)];
@@ -537,47 +483,4 @@ pub unsafe fn make_shape_sets(entry: &Regs) -> Result<Regs, Refused> {
     Ok(g)
 }
 
-/// What `make_shape_sets` writes besides the sets.
-pub fn shape_sets_regions() -> Vec<Region> {
-    let mut r = shape_set_regions();
-    r.extend([
-        at(KINDS_RVA[0]),
-        at(KINDS_RVA[1]),
-        (game_addr(STEPS_IN_RVA) as u32, 0x1C),
-    ]);
-    r
-}
-
 // ---- for the self-tests ----
-
-/// Everything a shape-set test writes, for capture: the block, the first three sets, the
-/// count, the kinds, the inputs, `g_marksKind`.
-pub fn shape_test_regions() -> Vec<Region> {
-    let mut r = shape_sets_regions();
-    r.extend([
-        (game_addr(SET_RVA) as u32, 3 * SET_LEN as usize),
-        at(SET_COUNT_RVA),
-        at(crate::marks::kind_values::KIND_RVA),
-    ]);
-    r
-}
-
-/// The test scene's faces given the two face kinds (and another) in turn, the kinds set.
-pub unsafe fn shape_test_faces(scene: &crate::marks::lines::TestScene, seed: u32) {
-    unsafe {
-        let kinds: [u32; 2] = [0x1E, 0x1D];
-        game_write(KINDS_RVA[0], kinds[0]);
-        game_write(KINDS_RVA[1], kinds[1]);
-        for n in 0..2 * crate::marks::lines::TEST_FACES {
-            let k = [kinds[0], kinds[1], 3][((n + seed) % 3) as usize];
-            *((scene.face(n) + 7) as *mut u8) = k as u8;
-        }
-    }
-}
-
-/// Tilts and ends by lot into 0x764F60 ...
-pub unsafe fn shape_test_inputs(seed: u32) {
-    let mut v = [0u32; 7];
-    crate::scene::matrix3::test_floats(seed + 80, &mut v);
-    unsafe { game_write(STEPS_IN_RVA, v) };
-}

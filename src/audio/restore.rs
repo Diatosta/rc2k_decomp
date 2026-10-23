@@ -5,29 +5,11 @@
 
 use crate::audio::voices::{read, write};
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 
 pub const WINDOW_ACTIVE_RVA: usize = rva(0x518374); // g_windowActive
 pub const GET_STATUS: u32 = 0x24;
 pub const RESTORE: u32 = 0x50;
-/// `GetStatus`: the buffer's memory was lost.
-pub const BUFFER_LOST: u32 = 2;
-
-/// The calls, by place: their addresses (0x4D5D9A is the `Sleep` import's thunk).
-pub const CALLEES: [usize; 12] = [
-    0x40A862, // 0 audio::restore_buffer (eax the pointer's place)
-    0x40B82B, // 1 audio::fill_buffer (esi)
-    0x40A775, // 2 audio::play_primary
-    0x40A839, // 3 audio::replay_looping
-    0x40B922, // 4 audio::play_buffer (esi)
-    0x4D5D9A, // 5 Sleep (1000, on the stack)
-    0x40ACA1, // 6 audio::clear_channels
-    0x40A61F, // 7 audio::release_primary
-    0x40A54B, // 8 audio::make_primary
-    0x40A677, // 9 audio::set_primary_format (eax the mode)
-    0x40BBCB, // 10 audio::close_primary_mixer
-    0x40BAD2, // 11 audio::set_up_primary_mixer
-];
 pub type Part<'a> = &'a mut dyn FnMut(u32, u32, u32) -> Result<bool, Refused>;
 
 /// The Rust versions, as the game has them.
@@ -230,67 +212,3 @@ pub unsafe fn close_primary_mixer(
 }
 
 // ---- for the self-tests ----
-
-use std::sync::Mutex;
-
-/// The stand-ins' notes (place, eax, esi as each reads them) and their carries by place.
-pub static NOTED: Mutex<Vec<(u32, u32, u32)>> = Mutex::new(Vec::new());
-pub static CARRIES: Mutex<[bool; 12]> = Mutex::new([false; 12]);
-/// How many of the first `set_primary_format` calls (place 9) fail.
-pub static FORMAT_FAILS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
-
-pub fn test_part(place: u32, eax: u32, esi: u32) -> Result<bool, Refused> {
-    let eax = if place == 0 || place == 9 { eax } else { 0 };
-    let esi = if place == 1 || place == 4 { esi } else { 0 };
-    if place != 5 {
-        NOTED.lock().unwrap().push((place, eax, esi));
-    }
-    if place == 9 {
-        use std::sync::atomic::Ordering;
-        let left = FORMAT_FAILS.load(Ordering::SeqCst);
-        if left > 0 {
-            FORMAT_FAILS.store(left - 1, Ordering::SeqCst);
-            return Ok(true);
-        }
-        return Ok(false);
-    }
-    Ok(CARRIES.lock().unwrap()[place as usize])
-}
-
-pub fn handler(place: u32, r: &mut Regs) {
-    let carry = test_part(place, r.eax, r.esi).unwrap_or(false);
-    r.set_carry(carry);
-}
-
-pub fn noted() -> Vec<(u32, u32, u32)> {
-    std::mem::take(&mut *NOTED.lock().unwrap())
-}
-
-/// `Sleep`'s stand-in in a copy: it takes its argument off the stack, as `Sleep` does.
-#[unsafe(naked)]
-pub unsafe extern "C" fn no_sleep() {
-    core::arch::naked_asm!("ret 4")
-}
-
-/// A copy whose calls in `CALLEES` go to stand-ins (`Sleep` to `no_sleep`).
-pub fn copy(
-    hook: &crate::framework::RawHook,
-    c: &crate::audio::test_copy::Copy,
-    variables: &[(usize, u32)],
-    references: usize,
-) -> Result<crate::redirect::RedirectedCopy, String> {
-    crate::audio::test_copy::make(
-        hook,
-        c,
-        &|callee| {
-            let place = CALLEES.iter().position(|&c| rva(c) == callee)?;
-            Some(if place == 5 {
-                no_sleep as *const () as usize
-            } else {
-                crate::install::stand_ins::stand_in(place as u32)
-            })
-        },
-        variables,
-        references,
-    )
-}

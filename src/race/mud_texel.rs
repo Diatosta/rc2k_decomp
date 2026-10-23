@@ -46,17 +46,3 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
 }
-
-/// The places the two texel tests use: even, odd in x or y, past 64 x 48 at each halving.
-pub const TEST_PLACES: [(u32, u32); 10] = [
-    (0, 0),
-    (4, 8),
-    (5, 8),
-    (4, 9),
-    (2, 6),
-    (62, 46),
-    (64, 4),
-    (8, 96),
-    (0xFC, 0xBC),
-    (130, 2),
-];

@@ -5,7 +5,7 @@
 //! `system::api_stand_ins`).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, shadow};
+use crate::framework::Regs;
 use crate::system::api_stand_ins::Api;
 
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
@@ -17,7 +17,7 @@ pub const LOG_2: u32 = 0x401432; // logfile::log_write_l2
 pub const LOG_2_NL: u32 = 0x401439; // logfile::log_write_l2_nl
 pub const HEX8_2_NL: u32 = 0x401634; // logfile::log_hex8_l2_nl
 pub const WAIT_FOR_THREADS: u32 = 0x410BA8; // threading::wait_for_threads
-pub const RESUME: u32 = 0x410D1D; // threading::resume_slot_thread
+// threading::resume_slot_thread
 
 // The Win32 functions (`Api` places).
 pub const MESSAGE_BOX: u32 = 0; // MessageBoxA(hwnd, text, caption, type)
@@ -76,73 +76,9 @@ pub fn game_api(place: u32, args: &[u32]) -> u32 {
     }
 }
 
-/// One test case: `fill` then the Rust version with the noting stand-ins and `test_api`,
-/// `fill` then the copy (`system::api_stand_ins::copy_with`); the registers, both kinds of
-/// calls and `all` compared, `all` put back. A refusal counts as passed only if `refuses`
-/// says so (the copy is then not run).
-#[allow(clippy::too_many_arguments)] // one test case's whole description
-pub fn compare_exit(
-    t: &mut crate::framework::SelfTest,
-    what: &str,
-    copy: &crate::redirect::RedirectedCopy,
-    entry: Regs,
-    fill: &dyn Fn(),
-    all: &[crate::service::harness::Region],
-    rust: &dyn Fn(&mut Regs, Part, Api) -> Result<(), Refused>,
-    refuses: bool,
-) {
-    use crate::service::harness::{capture, restore};
-    use crate::sound::turn_parts::{regs7, take_called, test_part};
-    use crate::system::api_stand_ins::{take_noted, test_api};
-    let start = capture(all);
-    fill();
-    take_called();
-    take_noted();
-    let mut g = entry;
-    let ok = rust(&mut g, &mut test_part, &mut test_api).is_ok();
-    let mine = (regs7(&g), take_called(), take_noted(), capture(all));
-    restore(all, &start);
-    if !ok {
-        t.check(refuses, || format!("{what}: the Rust version refused"));
-        return;
-    }
-    fill();
-    let mut o = entry;
-    unsafe { crate::framework::call_game(&mut o, copy.addr()) };
-    let theirs = (regs7(&o), take_called(), take_noted(), capture(all));
-    restore(all, &start);
-    t.check(!refuses && theirs == mine, || {
-        let diff = theirs.3.iter().zip(&mine.3).position(|(a, b)| a != b);
-        format!(
-            "{what}: original {:x?} {:x?} {:x?}; rust {:x?} {:x?} {:x?}; memory first differs at {diff:x?}",
-            theirs.0, theirs.1, theirs.2, mine.0, mine.1, mine.2
-        )
-    });
-}
-
 /// A Rust version of the way out: the registers in and out, the game's calls, the Win32
 /// calls.
 pub type Rust = fn(&mut Regs, Part, Api) -> Result<(), Refused>;
-
-/// The hooks' dispatch: shadow mode runs the original alone (each of these frees, closes or
-/// shows something once); out of it the Rust version, the registers it leaves.
-pub fn dispatch_exit(
-    hook: &RawHook,
-    r: &mut Regs,
-    call_original: unsafe extern "C" fn(*mut Regs),
-    rust: Rust,
-) {
-    hook.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    let mut g = *r;
-    match rust(&mut g, &mut game_part, &mut game_api) {
-        Ok(()) => *r = Regs { esp: r.esp, ..g },
-        Err(e) => unsafe { crate::fatal::raise::refused(hook, e, r, call_original) },
-    }
-}
 
 /// `dispatch_exit` outside shadow mode, without its hook (a refusal is the caller's).
 pub fn exit_entry(r: &mut Regs, rust: Rust) -> Result<(), Refused> {

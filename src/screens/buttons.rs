@@ -13,17 +13,14 @@
 //! button's x as its palette (leftover ebx): these sprites do not use one.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{Regs, SelfTest, game_addr, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::gfx::blit_bar::BAR_HAS_NO_LENGTH;
 use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::blit_marker_pair::sprite_table;
-use crate::screens::harness::{CallOriginal, Draw, check_draw};
-use crate::service::harness::{Region, at, capture, restore};
 use crate::service::state::MENU_ITEM_RVA;
-use crate::strings::text_from_ids::{TEXT_LEN, text};
 use crate::text::draw_text::Canvas;
 use crate::text::font::Font;
-use crate::text::measure_string_by_id::{MEASURING_FONT, TEST_STRINGS, measure_string_by_id_at};
+use crate::text::measure_string_by_id::measure_string_by_id_at;
 
 /// One of the three button functions.
 pub struct Kind {
@@ -97,24 +94,6 @@ pub const ALT: Kind = Kind {
     },
 };
 
-impl Kind {
-    /// The work variables this function leaves behind.
-    pub fn regions(&self) -> [Region; 6] {
-        [
-            at(self.width_rva),
-            at(self.x_rva),
-            at(self.y_rva),
-            at(self.left_rva),
-            at(self.right_rva),
-            at(MIDDLE_RVA),
-        ]
-    }
-
-    pub fn state(&self) -> Vec<u8> {
-        capture(&self.regions())
-    }
-}
-
 // Menu item fields the button functions read.
 const ITEM_X: u32 = 0;
 const ITEM_Y: u32 = 4;
@@ -126,7 +105,6 @@ const ITEM_SPRITES: u32 = 0x20;
 const ITEM_MEASURING_FONT: u32 = 0x4C;
 
 pub const ALIGN_CENTRE: u32 = 1;
-pub const ALIGN_LEFT: u32 = 2;
 pub const ALIGN_RIGHT: u32 = 3;
 
 pub unsafe fn dword(at: u32) -> u32 {
@@ -244,145 +222,3 @@ pub unsafe fn draw_text_button(
 }
 
 // ---- self-tests ----
-
-/// A menu item for the tests, as dwords, and the sprite numbers it points at.
-pub struct TestItem {
-    pub words: [u32; 0x5C / 4],
-    _sprites: Box<[u32; 5]>,
-}
-
-impl TestItem {
-    pub fn new() -> Self {
-        let sprites = Box::new([0x40u32, 0x41, 0x42, 0x43, 0x44]);
-        let mut words = [0xAAAA_AAAAu32; 0x5C / 4];
-        words[(ITEM_X / 4) as usize] = 300;
-        words[(ITEM_Y / 4) as usize] = 200;
-        words[(ITEM_SPRITES / 4) as usize] = sprites.as_ptr() as u32;
-        words[(ITEM_MEASURING_FONT / 4) as usize] = game_addr(rva(MEASURING_FONT)) as u32;
-        words[(ITEM_STRING / 4) as usize] = TEST_STRINGS[0];
-        Self {
-            words,
-            _sprites: sprites,
-        }
-    }
-
-    pub fn set(&mut self, offset: u32, value: u32) {
-        self.words[(offset / 4) as usize] = value;
-    }
-
-    pub fn addr(&self) -> u32 {
-        self.words.as_ptr() as u32
-    }
-}
-
-impl Default for TestItem {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-const TEST_WIDTHS: [u32; 9] = [1, 7, 31, 32, 33, 64, 65, 100, 200];
-
-/// The self-test of one of the three button functions. Never a width of 0 or an alignment
-/// outside 1 .. 3: those are fatal errors.
-pub fn check_kind(t: &mut SelfTest, kind: &'static Kind, call_original: CallOriginal, rust: Draw) {
-    // `draw_button`'s variables too: `draw_button_alt` reads two of them.
-    let regions = [kind.regions(), PLAIN.regions()].concat();
-    let saved = capture(&regions);
-    let item = TestItem::new();
-    for align in [ALIGN_CENTRE, ALIGN_LEFT, ALIGN_RIGHT] {
-        for width in TEST_WIDTHS {
-            let before = Regs {
-                eax: width,
-                ebx: 300,
-                ecx: 200,
-                edx: align,
-                edi: item.addr(),
-                ..Regs::SENTINEL
-            };
-            check_draw(
-                t,
-                &format!("align={align} width={width}"),
-                call_original,
-                before,
-                &|| restore(&regions, &[0xA5; 48]),
-                rust,
-                &|| kind.state(),
-            );
-        }
-    }
-    restore(&regions, &saved);
-}
-
-/// The self-test of `draw_item_button`: both states of the highlight.
-pub fn check_item_button(t: &mut SelfTest, call_original: CallOriginal, rust: Draw) {
-    let regions = [&PLAIN.regions()[..], &[at(MENU_ITEM_RVA)]].concat();
-    let saved = capture(&regions);
-    let mut item = TestItem::new();
-    item.set(ITEM_TYPE, 7);
-    for highlighted in [7u32, 3] {
-        for align in [ALIGN_CENTRE, ALIGN_LEFT, ALIGN_RIGHT] {
-            for width in TEST_WIDTHS {
-                item.set(ITEM_WIDTH, width);
-                item.set(ITEM_ALIGN, align);
-                let before = Regs {
-                    edi: item.addr(),
-                    ..Regs::SENTINEL
-                };
-                check_draw(
-                    t,
-                    &format!(
-                        "highlighted={} align={align} width={width}",
-                        highlighted == 7
-                    ),
-                    call_original,
-                    before,
-                    &|| {
-                        restore(&regions[..6], &[0xAA; 24]);
-                        unsafe { game_write(MENU_ITEM_RVA, highlighted) };
-                    },
-                    rust,
-                    &|| PLAIN.state(),
-                );
-            }
-        }
-    }
-    restore(&regions, &saved);
-}
-
-/// The self-test of one of the four text buttons: the game's strings, measured with its
-/// measuring font. The caller has checked `measuring_unavailable`.
-pub fn check_text_button(
-    t: &mut SelfTest,
-    kind: &'static Kind,
-    call_original: CallOriginal,
-    rust: Draw,
-) {
-    let font = (game_addr(rva(MEASURING_FONT)) as u32, 0x20);
-    let regions = [&kind.regions()[..], &[font, (text() as u32, TEXT_LEN)]].concat();
-    let saved = capture(&regions);
-    let mut item = TestItem::new();
-    for id in TEST_STRINGS {
-        for measure_x in [0u32, 7] {
-            item.set(ITEM_STRING, id);
-            let before = Regs {
-                ecx: measure_x,
-                edi: item.addr(),
-                ..Regs::SENTINEL
-            };
-            check_draw(
-                t,
-                &format!("string={id:#x} ecx={measure_x}"),
-                call_original,
-                before,
-                &|| {
-                    restore(&regions, &saved);
-                    restore(&regions[..6], &[0xAA; 24]);
-                },
-                rust,
-                &|| [kind.state(), capture(&regions[7..])].concat(),
-            );
-        }
-    }
-    restore(&regions, &saved);
-}

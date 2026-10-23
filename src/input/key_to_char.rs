@@ -21,7 +21,6 @@
 
 use crate::errors::BadInput;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::service::harness::{Region, at};
 
 // ---- game data ----
 
@@ -51,11 +50,6 @@ fn down(rva: usize) -> bool {
 /// True if a keyboard layout is set.
 pub fn has_layout() -> bool {
     unsafe { game_read::<u32>(LAYOUT_RVA) != 0 }
-}
-
-/// What the function may write.
-pub fn regions() -> [Region; 2] {
-    [at(LAYOUT_RVA), (game_addr(DEAD_KEY_RVA) as u32, 1)]
 }
 
 // ---- Rust version ----

@@ -68,14 +68,6 @@ pub fn results_of(pairs: &[(usize, usize, usize)]) -> Vec<usize> {
         .collect()
 }
 
-/// The inputs' dwords.
-pub fn inputs_of(pairs: &[(usize, usize, usize)]) -> Vec<usize> {
-    pairs
-        .iter()
-        .flat_map(|&(k, from, _)| [k, from, from + 4, from + 8])
-        .collect()
-}
-
 pub fn regions() -> Vec<Region> {
     results_of(&PAIRS).into_iter().map(at).collect()
 }

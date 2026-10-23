@@ -314,22 +314,3 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     }
     Ok(())
 }
-
-/// The callees by place, as IDA shows them, for the tests' copies.
-pub const CALLEES: &[(usize, u32)] = &[
-    (0x426BE6, 0),
-    (0x426CA2, 1),
-    (0x426D5E, 2),
-    (0x426E16, 3),
-    (0x401427, 4),
-    (0x401472, 5),
-    (0x426AB7, 6),
-    (0x41F469, 7),
-    (0x41F485, 8),
-    (0x41F4A1, 9),
-    (0x425CA9, 10),
-    (0x426B67, 11),
-    (0x425BB4, 12),
-    (0x40142B, 13),
-    (0x401476, 14),
-];

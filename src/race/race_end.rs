@@ -4,7 +4,6 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::service::harness::{Region, at};
 
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
@@ -64,13 +63,6 @@ pub unsafe fn record_replay_header(entry: &Regs, part: Part) -> Result<Regs, Ref
         }
     }
     Ok(g)
-}
-
-pub fn replay_header_regions() -> Vec<Region> {
-    rc2k_core::race::replay::HEADER_SETTINGS
-        .iter()
-        .map(|s| at(rva(HEADER) + s.offset() as usize))
-        .collect()
 }
 
 /// The sound parts of `reset_race_sounds`, by place.
@@ -185,24 +177,6 @@ impl SoundVars {
             voices: game_addr(VOICES_RVA) as u32,
         }
     }
-}
-
-/// The game's sound object table and voices, as IDA shows them (for a test's copy).
-pub const SOUND_OBJECTS_IDA: usize = 0x512A10;
-pub const VOICES_IDA: usize = 0x5168C0;
-pub const VOICES_LEN: usize = 0x48 * 0x50;
-pub const OBJECT_LEN: usize = 0x2A8;
-
-/// The plain variables `reset_race_sounds` writes.
-pub fn sound_regions() -> Vec<Region> {
-    let mut r: Vec<Region> = CLEARED.iter().map(|&a| at(rva(a))).collect();
-    r.extend([
-        at(rva(0x5165EC)),
-        at(rva(0x518054)),
-        at(ENVIRONMENT_RVA),
-        at(rva(0x5124E4)),
-    ]);
-    r
 }
 
 /// `reset_race_sounds`' sound parts in the game: the Rust versions.
@@ -408,14 +382,6 @@ fn tidy_step(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The plain variables the tidying writes.
-pub fn tidy_regions() -> Vec<Region> {
-    [0x606294usize, 0x6235F4, 0x63DB74, 0x63DB78]
-        .iter()
-        .map(|&a| at(rva(a)))
-        .collect()
-}
-
 // ---- the race ----
 
 /// `race::record_replay_header`'s log calls in the game.
@@ -524,23 +490,6 @@ fn race_step(place: u32, r: &mut Regs) -> Result<(), Refused> {
         };
     }
     Ok(())
-}
-
-/// The plain variables `run_race` writes.
-pub fn race_regions() -> Vec<Region> {
-    [
-        0x60101Cusize,
-        0x60519C,
-        0x621514,
-        0x5C5CE0,
-        0x6238AC,
-        0x63DB84,
-        0x75AFF4,
-        0x75ACD8,
-    ]
-    .iter()
-    .map(|&a| at(rva(a)))
-    .collect()
 }
 
 // ---- above the race ----

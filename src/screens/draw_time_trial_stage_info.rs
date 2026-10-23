@@ -26,9 +26,8 @@ use crate::screens::draw_stage_records::selection;
 use crate::screens::font_at;
 use crate::screens::stage_panel::{
     GROUP_COPY_RVA, SECOND_HEADING_RVA, TITLE_FONT, build_second_heading, draw_records_for_group,
-    draw_stage_body, dword, label, panel_entry, stage_unusable, table_dword,
+    draw_stage_body, dword, label, panel_entry, table_dword,
 };
-use crate::strings::string_table::is_table_id;
 use crate::text::draw_text::{Canvas, draw_text_at};
 
 // ---- game data ----
@@ -86,20 +85,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     panel_entry("screens::draw_time_trial_stage_info", r, &|canvas| unsafe {
         draw_time_trial_stage_info(canvas)
     })
-}
-
-/// Why the selected stage cannot be used for a test, or None if it can.
-pub unsafe fn selected_stage_unusable() -> Option<&'static str> {
-    unsafe {
-        let Some(sel) = selection() else {
-            return Some("no record table is selected");
-        };
-        if sel.group >= 16
-            || !is_table_id(table_dword(GROUP_TITLES_RVA, sel.group))
-            || !is_table_id(dword(sel.table.wrapping_add(0x38)))
-        {
-            return Some("the selection has no title strings");
-        }
-        stage_unusable(sel.record)
-    }
 }

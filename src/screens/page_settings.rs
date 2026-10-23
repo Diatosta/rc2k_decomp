@@ -158,23 +158,3 @@ pub unsafe fn stage_choice_texts() -> Result<(), Refused> {
         stage_line(0x482, record)
     }
 }
-
-/// Whether `stage_options_texts` would refuse (or meet another track pack): for its test.
-pub unsafe fn stage_options_texts_refuses() -> bool {
-    unsafe { stage_texts_refuse(k(0x7556F8), k(0x75880E), k(0x758812)) }
-}
-
-/// Whether `stage_choice_texts` would refuse (or meet another track pack): for its test.
-pub unsafe fn stage_choice_texts_refuses() -> bool {
-    unsafe { k(0x74DB68) == 0 || stage_texts_refuse(k(0x7558C8), k(0x7558D0), k(0x7558CC)) }
-}
-
-unsafe fn stage_texts_refuse(a: u32, b: u32, c: u32) -> bool {
-    unsafe {
-        if stage_refuses(a, b).is_err() {
-            return true;
-        }
-        let (_, record) = stage_record(a, b, c);
-        crate::records::trakpak_entry::record_entry(record as *const u8).is_err()
-    }
-}

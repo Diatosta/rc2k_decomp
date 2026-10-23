@@ -7,22 +7,10 @@ use crate::menu::player::{PLAYERS, player_at};
 use crate::menu::step_carousel::{ANGLE_RVA, COUNT_RVA, DIRECTION_RVA, FRONT_RVA};
 use crate::menu::take_shown_car::{CURRENT_PLAYER_RVA, SHOWN_CAR_RVA};
 use crate::scene::carousel_pictures::ENTRIES_RVA;
-use crate::service::harness::{Region, at};
 
 pub const LAST_ENTRY_RVA: usize = rva(0x75649C); // dword_75649C: the entries' last index
 pub const CHOSEN_RVA: usize = rva(0x755561); // dword_755561: set to 0 by the turns
 const MOST_ENTRIES: u32 = 0x100;
-
-/// What the four write.
-pub fn regions() -> [Region; 5] {
-    [
-        at(FRONT_RVA),
-        at(SHOWN_CAR_RVA),
-        at(DIRECTION_RVA),
-        at(ANGLE_RVA),
-        at(CHOSEN_RVA),
-    ]
-}
 
 /// `menu::find_player_car`: the front of the carousel and the shown car the index of the
 /// entry whose car (+0) is the current player's `car_number`, 0 when none is (the first

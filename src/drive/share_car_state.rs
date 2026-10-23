@@ -35,12 +35,9 @@ use crate::math::x87;
 use crate::math::x87_run::{compare_full, sub_div_to_int};
 use crate::race::mud::car_file_number;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::drive::sharing;
 
-pub const BLOCK_LEN: usize = 0xFE0;
-pub const RECORD_LEN: usize = 0x440;
-pub const SOUND_LEN: usize = 0x100;
 const SCRATCH: usize = 0x62400C; // dword_62400C
 const LEVEL_FROM_RVA: usize = rva(0x63DB5C); // flt_63DB5C
 const LEVEL_STEP_RVA: usize = rva(0x5C5D44); // flt_5C5D44
@@ -158,53 +155,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { share_car_state(r) }
 }
 
-pub fn regions(r: &Regs) -> Vec<Region> {
-    vec![
-        (r.esi, BLOCK_LEN),
-        (r.edi, RECORD_LEN),
-        (r.ebp + 0xF0, 4),
-        (game_addr(rva(SCRATCH)) as u32, 4),
-    ]
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-/// Fills a test block, record and sound object by `seed`.
-pub fn fill(s: u32, o: u32, p: u32, seed: u32) {
-    let mut x = seed.wrapping_mul(0x9E37_79B9) | 1;
-    let mut next = move || {
-        x = x.wrapping_mul(1_103_515_245).wrapping_add(12345);
-        x
-    };
-    unsafe {
-        for (base, len) in [(s, BLOCK_LEN), (o, RECORD_LEN), (p, SOUND_LEN)] {
-            for k in 0..(len as u32 / 4) {
-                put(base + 4 * k, next());
-            }
-        }
-        put(s + 0x24, next() % 0x22);
-        put(s + 0xFAC, next() % 3);
-        let from = f32::from_bits(game_read(LEVEL_FROM_RVA));
-        for f in [0x2B4, 0x2B8, 0x1D8] {
-            put(s + f, (from + (next() % 80) as f32 - 20.0).to_bits());
-        }
-        for k in 0..4 {
-            put(s + 0x600 + 4 * k, next() % 2);
-        }
-        put(s + 0xA34, next() % 2);
-        for k in 0..6 {
-            if next() % 3 == 0 {
-                put(o + 0x258 + 4 * k, 0x8000_0000);
-            }
-        }
-        if seed.is_multiple_of(4) {
-            for k in 0..6 {
-                put(o + 0x258 + 4 * k, 0x8000_0000);
-            }
-        }
-    }
 }

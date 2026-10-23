@@ -13,19 +13,7 @@
 
 use crate::d3d::recorder::{Call, note};
 use crate::d3d::{VERTEX_LEN, Vertex};
-use crate::framework::{RawHook, Regs, hook_asm, rva, standalone};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("d3d::draw_vertex_strip", rva(0x41ADE1), thunk, &ORIGINAL);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, rva, standalone};
 
 /// Direct3D takes at most this many vertices in one primitive.
 const MOST: u32 = 0x400;
@@ -36,22 +24,6 @@ fn vertices(r: &Regs) -> Vec<Vertex> {
         .collect()
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    let swallowed = note(|| Call::Fan(vertices(r)));
-    if swallowed {
-        r.eax = 0;
-        return;
-    }
-    if standalone() {
-        #[cfg(feature = "standalone")]
-        crate::platform_3d::draw_strip(&vertices(r));
-        r.eax = 0;
-        return;
-    }
-    unsafe { call_original(r) };
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let swallowed = note(|| Call::Fan(vertices(r)));
@@ -60,7 +32,6 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
         return Ok(());
     }
     if standalone() {
-        #[cfg(feature = "standalone")]
         crate::platform_3d::draw_strip(&vertices(r));
         r.eax = 0;
         return Ok(());

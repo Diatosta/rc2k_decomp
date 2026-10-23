@@ -29,7 +29,7 @@ use crate::marks::setup::SEED_RVA;
 use crate::math::x87;
 use crate::scene::matrix3::rounded;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at as at_rva, capture, restore, state_entry};
+use crate::service::harness::{Region, at as at_rva, state_entry};
 
 const RATE_K: [usize; 4] = [rva(0x93A41A), rva(0x93A41E), rva(0x93A422), rva(0x93A426)];
 const SIDE_RANDOM_RVA: usize = rva(0x93A42A);
@@ -184,74 +184,4 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-/// A ring, a wheel, a car object (with its matrix) of a test's; the game's variables
-/// they replace kept and put back on drop.
-pub struct TestEmitter {
-    pub ring: Vec<u8>,
-    pub wheel: Vec<u32>,
-    pub object: Vec<u32>,
-    pub matrix: Vec<u32>,
-    saved: Vec<u8>,
-    inputs: Vec<Region>,
-}
-
-pub const TEST_ENTRIES: u32 = 0x20;
-
-impl TestEmitter {
-    pub fn new(extra: &[usize]) -> Self {
-        let mut inputs: Vec<Region> = [
-            OBJECT_RVA,
-            TAG_RVA,
-            FLAGS_RVA,
-            RATE_RVA,
-            SEED_RVA,
-            RING_CURSOR_RVA,
-            RING_COUNT_RVA,
-        ]
-        .map(at_rva)
-        .to_vec();
-        inputs.push((crate::framework::game_addr(SIDES_RVA) as u32, 8));
-        inputs.extend(extra.iter().map(|&a| at_rva(a)));
-        let saved = capture(&inputs);
-        Self {
-            ring: vec![0; (TEST_ENTRIES as usize) * ENTRY_LEN],
-            wheel: vec![0; 0x20],
-            object: vec![0; 0x30],
-            matrix: vec![0; 0x10],
-            saved,
-            inputs,
-        }
-    }
-
-    /// The ring linked (+0 the next taken), the cursor at entry 3, `count` taken.
-    pub fn prepare(&mut self, count: u32) {
-        let base = self.ring.as_mut_ptr() as u32;
-        self.ring.fill(0xAA);
-        for n in 0..TEST_ENTRIES {
-            let e = (base + n * ENTRY_LEN as u32) as *mut u32;
-            let next = base + ((n + 1) % TEST_ENTRIES) * ENTRY_LEN as u32;
-            unsafe { e.write_unaligned(next) };
-        }
-        unsafe {
-            game_write(RING_CURSOR_RVA, base + 3 * ENTRY_LEN as u32);
-            game_write(RING_COUNT_RVA, count);
-            self.object[0x24 / 4] = self.matrix.as_ptr() as u32;
-            game_write(OBJECT_RVA, self.object.as_ptr() as u32);
-        }
-    }
-
-    pub fn regions(&self) -> Vec<Region> {
-        let mut r = self.inputs.clone();
-        r.push((self.ring.as_ptr() as u32, self.ring.len()));
-        r.push((self.wheel.as_ptr() as u32, 4 * self.wheel.len()));
-        r
-    }
-}
-
-impl Drop for TestEmitter {
-    fn drop(&mut self) {
-        restore(&self.inputs, &self.saved);
-    }
 }

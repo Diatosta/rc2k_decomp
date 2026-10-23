@@ -18,9 +18,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::Regs;
 use crate::screens::harness::{Left, draw_entry};
-use crate::strings::text_from_ids::{TEXT_LEN, text};
 use crate::text::draw_text::Canvas;
-use std::slice::from_raw_parts;
 
 const LABEL_LEN: u32 = 0x10;
 const END: u32 = u32::MAX;
@@ -60,10 +58,6 @@ pub unsafe fn draw_menu_labels(menu: u32, canvas: &mut dyn Canvas) -> Result<(),
         }
         rc2k_core::screens::menus::labels(&mut MenuScreen::new(canvas), &list)
     }
-}
-
-pub fn state() -> Vec<u8> {
-    unsafe { from_raw_parts(text(), TEXT_LEN) }.to_vec()
 }
 
 fn rust(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {

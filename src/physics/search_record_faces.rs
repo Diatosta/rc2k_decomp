@@ -41,25 +41,3 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
 }
-
-/// Records for the tests: (first, last) faces.
-pub const TEST_RECORDS: [(u32, u32); 7] = [
-    (0, 15),
-    (5, 5),
-    (3, 9),
-    (9, 3),
-    (u32::MAX, u32::MAX),
-    (12, 19),
-    (0, 0),
-];
-
-/// Puts `TEST_RECORDS` into the test's records, record n's key `key(n)`.
-pub fn set_records(test: &mut TestGround, key: &dyn Fn(u32) -> u32) {
-    for (n, &(first, last)) in TEST_RECORDS.iter().enumerate() {
-        let r = &mut test.records[n * RECORD_LEN as usize..(n + 1) * RECORD_LEN as usize];
-        r.fill(0x55);
-        r[0..4].copy_from_slice(&key(n as u32).to_le_bytes());
-        r[8..12].copy_from_slice(&first.to_le_bytes());
-        r[12..16].copy_from_slice(&last.to_le_bytes());
-    }
-}

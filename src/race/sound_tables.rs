@@ -4,7 +4,6 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, rva};
-use crate::service::harness::Region;
 
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
@@ -94,9 +93,6 @@ impl TableVars {
 }
 
 pub const RECORDS: u32 = 0x22;
-pub const RECORD_LEN: usize = 0x88;
-pub const SINES: u32 = 0x40;
-
 /// `race::prepare_sound_tables` (0x40D636), converted (the hook's and
 /// `set_up_race_sound_objects`'): once (`dword_516358`): each of the 0x22 records
 /// (`off_514F90`) its span at +4 (`sound_span`), +0xC made its reciprocal (`fld1` /
@@ -135,36 +131,6 @@ pub unsafe fn prepare_sound_tables_plain(v: &TableVars) {
         // The scratch: 0x20, the step, then each x: the last left.
         put(v.scratch, last.to_bits());
     }
-}
-
-/// What `prepare_sound_tables` writes.
-/// The float places `prepare_sound_tables` writes: each record's span and reciprocal
-/// (+0xC) and its rows' spans; the sines and the scratch.
-pub fn table_floats(v: &TableVars) -> Vec<(Region, crate::service::floats::Tolerance)> {
-    use crate::service::floats::FLOAT;
-    let mut f = Vec::new();
-    for n in 0..RECORDS {
-        let record = unsafe { get(v.records + 4 * n) };
-        f.push(((record + 0xC, 4), FLOAT));
-        for k in 0..3 {
-            for o in [0x28, 0x34] {
-                f.push(((record + o + 0x28 * k, 4), FLOAT));
-            }
-        }
-    }
-    f.extend([
-        ((v.sines, 4 * SINES as usize), FLOAT),
-        ((v.scratch, 4), FLOAT),
-    ]);
-    f
-}
-
-pub fn table_regions(v: &TableVars) -> Vec<Region> {
-    let mut r: Vec<Region> = (0..RECORDS)
-        .map(|n| (unsafe { get(v.records + 4 * n) }, RECORD_LEN))
-        .collect();
-    r.extend([(v.done, 4), (v.sines, 4 * SINES as usize), (v.scratch, 4)]);
-    r
 }
 
 /// The sound parts of `restart_race_sounds` and `silence_race_sounds`, by place.
@@ -233,8 +199,6 @@ pub struct ObjectVars {
 pub const OBJECTS_IDA: [usize; 8] = [
     0x512A30, 0x512ED8, 0x513380, 0x513828, 0x513CD0, 0x514178, 0x514620, 0x514AC8,
 ];
-pub const OBJECT_LEN: usize = 0x4A8;
-
 impl ObjectVars {
     pub fn game() -> Self {
         Self {
@@ -386,24 +350,4 @@ pub fn object_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         }
     }
     Ok(())
-}
-
-/// The plain variables the two write.
-pub fn object_regions() -> Vec<Region> {
-    [
-        0x514F78usize,
-        0x514F7C,
-        0x514F8C,
-        0x514F70,
-        0x514F74,
-        0x5BEBE8,
-        0x52A910,
-        0x52A920,
-        0x52AD98,
-        0x75ACE0,
-        0x75ACD8,
-    ]
-    .iter()
-    .map(|&a| (game_addr(rva(a)) as u32, 4))
-    .collect()
 }

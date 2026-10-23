@@ -29,12 +29,11 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87_run::{ext_times, ints_diff_80};
-use crate::scene::matrix3::{extended, rounded, test_floats};
+use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::{read_floats, write_floats};
 use crate::screens::harness::Left;
 use crate::service::floats::floats_entry;
-use crate::service::harness::Region;
 use rc2k_core::physics::sound_places as places;
 use rc2k_core::physics::x87::loaded;
 
@@ -224,65 +223,4 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-/// What a sound test sets (`o` the test object).
-pub fn test_regions(o: u32) -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    vec![
-        (o, 0x260),
-        (a(0x512A10), 0x20),
-        (a(0x71B3F8), 4),
-        (a(0x63DB94), 4),
-        (a(0x71A0AC), 12),
-        (a(0x71A10C), 12),
-        (a(0x71A67C), 12),
-        (a(0x71A1AC), 4),
-        (a(0x71A1BC), 4),
-        (a(0x71A198), 4),
-        (a(0x71A220), 16),
-        (a(0x71A260), 16),
-        (a(0x71A610), 4),
-        (a(0x71A6C8), 4),
-        (a(0x71A908), 4),
-        (a(0x5EA24C), 0x40),
-    ]
-}
-
-/// A sound case.
-pub fn set_sound(o: u32, seed: u32) {
-    unsafe {
-        for k in 0..0x98u32 {
-            put(o + 4 * k, 0xA5A5_0000 | k);
-        }
-    }
-    for k in 0..8usize {
-        p(0x512A10 + 4 * k, o);
-    }
-    p(0x71B3F8, seed % 8);
-    p(0x63DB94, 0);
-    let mut f = [0u32; 24];
-    test_floats(seed * 11 + 7, &mut f);
-    for (k, v) in f.iter().take(16).enumerate() {
-        p(0x5EA24C + 4 * k, *v);
-    }
-    for k in 0..3usize {
-        p(0x71A0AC + 4 * k, f[16 + k]);
-        p(0x71A10C + 4 * k, seed.wrapping_mul(0x0246_8ACE) ^ k as u32);
-        p(0x71A67C + 4 * k, (seed + 5).wrapping_mul(0x1357_9BDF) >> 3);
-    }
-    p(0x71A1AC, seed % 4);
-    p(0x71A1BC, 3000 + seed * 100);
-    p(0x71A198, f[19]);
-    p(0x71A220, seed & 1);
-    p(0x71A224, (seed >> 1) & 1);
-    p(0x71A22C, (seed % 3 == 2) as u32);
-    p(0x71A260, f[20]);
-    p(0x71A26C, f[21]);
-    p(
-        0x71A610,
-        [0u32, 0x80, 0x200, 0xFFFF_FFF0][(seed % 4) as usize],
-    );
-    p(0x71A6C8, seed % 2);
-    p(0x71A908, seed * 3);
 }

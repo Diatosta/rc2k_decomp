@@ -33,8 +33,6 @@ const COLOUR_RVA: usize = rva(0x75BFA0); // dword_75BFA0
 pub const PLACES_RVA: [usize; 2] = [rva(0x75BFF0), rva(0x75BFF4)];
 pub const ENDS_RVA: [usize; 2] = [rva(0x75BFF8), rva(0x75BFFC)]; // start, end
 pub const WIDTH_RVA: usize = rva(0x75C000); // dword_75C000
-pub const PARTS: u32 = rc2k_core::hud::stage_bars::PARTS;
-
 /// A call by place: 1 `add_solid_quad`.
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 

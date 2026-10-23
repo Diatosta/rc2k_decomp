@@ -19,7 +19,7 @@ use crate::framework::{Regs, game_addr, rva};
 use crate::physics::car_frame_motion::car_frame_motion_at;
 use crate::physics::turn_by_inverse::INVERSE_RVA;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 
 /// Where the vectors are: the game's or a test's.
 #[derive(Clone, Copy)]
@@ -43,10 +43,6 @@ impl MotionPlaces {
             local: g(0x71A17C),
             inverse: game_addr(INVERSE_RVA) as u32,
         }
-    }
-
-    pub fn regions(&self) -> Vec<Region> {
-        vec![(self.motion, 12), (self.spin, 12), (self.local, 12)]
     }
 }
 

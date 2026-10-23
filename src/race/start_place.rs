@@ -230,14 +230,6 @@ pub unsafe fn nearest_checkpoint(entry: &Regs) -> Result<Regs, Refused> {
     }
 }
 
-/// What `nearest_checkpoint` writes.
-pub fn nearest_regions() -> Vec<Region> {
-    [FROM_X_RVA, FROM_Z_RVA, SCRATCH_RVA, NEAREST_DISTANCE_RVA]
-        .iter()
-        .map(|&a| at(a))
-        .collect()
-}
-
 /// `race::invert_car_matrix` (0x43F16C): `scene::invert_turn` of the work car's matrix
 /// (`g_crashMatrix`, +0xB4) into its inverse (+0x9CC, 0x71A9A4), every register kept.
 pub unsafe fn invert_car_matrix() {
@@ -247,16 +239,4 @@ pub unsafe fn invert_car_matrix() {
             game_addr(CAR_INVERSE_RVA),
         )
     };
-}
-
-/// What `invert_car_matrix` writes: `invert_turn`'s work and the inverse.
-pub fn invert_regions() -> Vec<Region> {
-    use crate::scene::view_matrix::{INVERTED_LEN, INVERTED_RVA, squaring_regions};
-    let mut r = squaring_regions().to_vec();
-    r.push((game_addr(INVERTED_RVA) as u32, INVERTED_LEN));
-    r.push((
-        game_addr(CAR_INVERSE_RVA) as u32,
-        crate::scene::matrix::MATRIX_LEN,
-    ));
-    r
 }

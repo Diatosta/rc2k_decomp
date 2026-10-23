@@ -115,16 +115,3 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
 }
-
-/// 256 colours of the test's in `g_mudColours` (the 16 patterns), until put back.
-pub fn test_colours() -> Region {
-    (game_addr(COLOURS_RVA) as u32, 0x400)
-}
-
-pub fn fill_test_colours() {
-    for k in 0..0x100u32 {
-        let alpha = [0x00u32, 0x40, 0x80, 0xFF][(k % 4) as usize];
-        let colour = (alpha << 24) | (k.wrapping_mul(0x01_0F_37) & 0xFF_FFFF);
-        unsafe { game_write(COLOURS_RVA + 4 * k as usize, colour) };
-    }
-}

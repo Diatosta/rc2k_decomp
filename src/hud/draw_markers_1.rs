@@ -18,14 +18,11 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::hud::add_quad::QUAD_RVA;
 use crate::hud::draw_marker::RECTS_RVA;
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
-use crate::service::harness::{Region, at, capture, restore};
 use rc2k_core::hud::quads;
 use rc2k_core::math::extended::{from_f64, to_f64};
-use std::sync::Mutex;
 
 const COLOURS_RVA: [usize; 2] = [rva(0x75BF50), rva(0x75BF54)];
 const K_RVA: [usize; 2] = [rva(0x75C0A8), rva(0x75C0AC)];
@@ -104,135 +101,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { draw_markers_1(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-/// A call as the tests note it: the place, eax .. esi, the values.
-pub type Noted = (u32, [u32; 5], Vec<[u8; 10]>);
-
-static NOTED: Mutex<Vec<Noted>> = Mutex::new(Vec::new());
-
-pub fn note(place: u32, r: &Regs, v: &[[u8; 10]]) {
-    NOTED
-        .lock()
-        .unwrap()
-        .push((place, [r.eax, r.ebx, r.ecx, r.edx, r.esi], v.to_vec()));
-}
-
-pub fn take() -> Vec<Noted> {
-    std::mem::take(&mut *NOTED.lock().unwrap())
-}
-
-extern "C" fn note_kept(r: *const Regs, v: *const [u8; 10]) {
-    note(1, unsafe { &*r }, unsafe {
-        std::slice::from_raw_parts(v, 2)
-    });
-}
-
-/// The tests' stand-in for `add_scaled_sprite`: its two values read, not popped.
-#[unsafe(naked)]
-pub unsafe extern "C" fn kept_stand_in() {
-    core::arch::naked_asm!(
-        "lea esp, [esp - 20]",
-        "fld st(0)",
-        "fstp tbyte ptr [esp]",
-        "fld st(1)",
-        "fstp tbyte ptr [esp + 10]",
-        "pushfd",
-        "pushad",
-        "mov eax, esp",
-        "lea ecx, [esp + 36]",
-        "push ecx",
-        "push eax",
-        "call {note}",
-        "add esp, 8",
-        "popad",
-        "popfd",
-        "lea esp, [esp + 20]",
-        "ret",
-        note = sym note_kept,
-    )
-}
-
-/// The test of the markers: a copy whose calls go to the stand-in, against `rust`.
-pub fn test_markers(
-    hook: &RawHook,
-    address: usize,
-    rust: &dyn Fn(&Regs, Part) -> Result<Regs, Refused>,
-) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let copy = match unsafe {
-        crate::redirect::RedirectedCopy::new(
-            game_addr(rva(address)),
-            0xF5,
-            // mov eax, dword_75BF50
-            &[0xA1, 0x50, 0xBF, 0x75, 0x00],
-            &[0x69, 0xE3],
-            &|c| (c + 0x40_0000 == 0x4B716A).then_some(kept_stand_in as *const () as usize),
-        )
-    } {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions: Vec<Region> = vec![at(QUAD_RVA + 0x14), at(SCRATCH_RVA)];
-    let mut vars = regions.clone();
-    vars.extend(
-        [
-            COLOURS_RVA[0],
-            COLOURS_RVA[1],
-            K_RVA[0],
-            K_RVA[1],
-            UV_SCALE_RVA,
-        ]
-        .map(at),
-    );
-    let saved = capture(&vars);
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for (word, case) in TEST_CONTROL_WORDS
-        .into_iter()
-        .flat_map(|w| (0..4u32).map(move |c| (w, c)))
-    {
-        let mut record = [0u32; 0x20];
-        record[0x68 / 4] = 1000.0f32.to_bits();
-        record[0x6C / 4] = (case as f32 * 333.3).to_bits();
-        record[0x70 / 4] = (999.0 - case as f32 * 211.0).to_bits();
-        let before = Regs {
-            ebp: record.as_ptr() as u32,
-            ..Regs::SENTINEL
-        };
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            game_write(COLOURS_RVA[0], 0x00FF_8040u32 + case);
-            game_write(COLOURS_RVA[1], 0x0040_80FFu32 + case);
-            game_write(K_RVA[0], 560.0f32.to_bits());
-            game_write(K_RVA[1], 40.0f32.to_bits());
-            game_write(UV_SCALE_RVA, 256.0f32.to_bits());
-        };
-        prepare();
-        take();
-        let mut ro = before;
-        with_control_word(word, &mut || unsafe {
-            crate::framework::call_game(&mut ro, copy.addr())
-        });
-        let theirs = (Some(regs(&ro)), take(), capture(&regions));
-        prepare();
-        let mine = rust(&before, &mut |p, r, v| {
-            note(p, r, v);
-            Ok(())
-        });
-        let mine = (mine.as_ref().ok().map(regs), take(), capture(&regions));
-        t.check(theirs == mine, || {
-            format!(
-                "control word {word:#x}, case {case}: original {:x?} {:?}; rust {:x?} {:?}; same state {}",
-                theirs.0,
-                theirs.1.len(),
-                mine.0,
-                mine.1.len(),
-                theirs.2 == mine.2
-            )
-        });
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

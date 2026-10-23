@@ -13,17 +13,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr};
+use crate::framework::Regs;
 use crate::race::frame_draw::*;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
-
-pub fn kept_regions() -> Vec<Region> {
-    vec![
-        (game_addr(KEPT_NORMALS_RVA) as u32, 0x1000),
-        at(REFLECTIONS_KEPT_RVA),
-    ]
-}
+use crate::service::harness::state_entry;
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { start_kept_reflections() })

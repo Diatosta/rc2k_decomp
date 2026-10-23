@@ -40,8 +40,3 @@ pub fn show_in_game_options() {
         unsafe { set(n, shown_in_game_option(n)) };
     }
 }
-
-/// Items 3 .. 6, the bytes the two write.
-pub fn items_region() -> crate::service::harness::Region {
-    (item(IN_GAME_OPTIONS.start), 4 * ITEM_LEN as usize)
-}

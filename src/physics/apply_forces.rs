@@ -44,15 +44,6 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-/// What `apply_force` writes on the work car.
-pub fn regions() -> Vec<crate::service::harness::Region> {
-    vec![
-        (game_addr(rva(0x614B30)) as u32, 12),
-        (game_addr(rva(0x62400C)) as u32, 4),
-        (game_addr(rva(0x719FD8 + 0x198)) as u32, 0x18),
-    ]
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {

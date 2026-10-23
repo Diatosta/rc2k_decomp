@@ -13,12 +13,9 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::physics::mirror::Spec;
 use crate::physics::rate_damage::rate_damage;
 use crate::screens::harness::Left;
 use crate::service::harness::state_entry;
-
-pub const OWN_SPEC: Spec = (0x4AB5D0, 6, &[0xE8, 0x17, 0x3C, 0x00, 0x00], &[0], 0);
 
 /// The Rust version.
 pub unsafe fn rate_current_car() -> Left {

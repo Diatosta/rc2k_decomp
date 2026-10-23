@@ -24,7 +24,6 @@
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::marks::pong;
 use crate::math::x87;
-use rc2k_core::marks::pong::Hit;
 
 /// The original's 0x4B8105 .. 0x4B8189: the centres and their difference.
 unsafe fn centres(b: u32) {
@@ -129,18 +128,6 @@ pub unsafe fn pong_ball_hits(entry: &Regs) -> Regs {
         g.ebx = game_read(ALONG_RVA);
         game_write(pong::BALL_WAY[0], g.eax);
         game_write(pong::BALL_WAY[1], g.ebx);
-    }
-    g
-}
-
-/// The converted version (plain floats): the hook's.
-// Converted: `rc2k_core::marks::pong::Court::ball_hits`
-pub unsafe fn pong_ball_hits_plain(entry: &Regs) -> Regs {
-    let mut g = *entry;
-    let rules = pong::rules();
-    match pong::with_court(|c| c.ball_hits(&rules)) {
-        Hit::Missed(status) => g.eax = status,
-        Hit::Hit([x, y]) => (g.eax, g.ebx) = (x, y),
     }
     g
 }

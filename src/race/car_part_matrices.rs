@@ -14,27 +14,11 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::Regs;
 use crate::race::car_parts::car_part_matrices;
-use crate::service::harness::{Region, at};
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     unsafe { car_part_matrices(r.esi) }?;
     Ok(())
-}
-
-/// Everything the function writes but the block.
-pub fn written() -> Vec<Region> {
-    let g = |a: usize, len: usize| (game_addr(rva(a)) as u32, len);
-    vec![
-        g(0x5E9F8C, 0x538),
-        g(0x6417E0, 0x100),
-        g(0x641760, 0x40),
-        g(0x608C48, 0x18),
-        g(0x635038, 0x4C),
-        g(0x63501C, 0xC),
-        g(0x624148, 0x18),
-        at(rva(0x62400C)),
-    ]
 }

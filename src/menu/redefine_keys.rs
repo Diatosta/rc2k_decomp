@@ -16,15 +16,12 @@
 //! The place 8 has no item on the pages (it is not drawn either).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, SelfTest, game_addr, game_read, game_write, rva};
-use crate::input::take_key::{PENDING_KEY_RVA, pending_key, take_key};
-use crate::menu::player::{PLAYERS, Player, player_at};
-use crate::screens::harness::{CallOriginal, Left};
-use crate::service::harness::{Region, at, capture, check_state_with, restore};
-use crate::service::state::PLAYER_INDEX_RVA;
-use std::sync::atomic::Ordering;
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::input::take_key::take_key;
+use crate::menu::player::Player;
+use crate::screens::harness::Left;
 
-pub use rc2k_core::menu::player::{KEY_ESCAPE, KEYS, Redefined};
+pub use rc2k_core::menu::player::{KEYS, Redefined};
 pub const KEYS_RVA: usize = rva(0x755595); // g_redefinedKeys
 pub const REDEFINING_RVA: usize = rva(0x7556AC); // g_redefiningKey
 pub const PLACE_RVA: usize = rva(0x7556B0); // g_redefinedKeyPlace
@@ -43,8 +40,6 @@ fn reserved() -> Option<Vec<u8>> {
         .position(|&b| b == 0)
         .map(|end| list[..end].to_vec())
 }
-
-pub use rc2k_core::menu::player::place_key;
 
 /// One frame of redefining a key of `player` (0: refused).
 pub unsafe fn redefine_key(player: u32) -> Result<(), Refused> {
@@ -80,87 +75,9 @@ pub unsafe fn redefine_key(player: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-/// What a frame may write, but the pending key.
-pub fn regions(player: u32) -> Vec<Region> {
-    let mut regions = vec![
-        (game_addr(KEYS_RVA) as u32, KEYS),
-        at(REDEFINING_RVA),
-        at(PLACE_RVA),
-    ];
-    if player != 0 {
-        regions.push((player + KEYS_OFFSET, KEYS));
-    }
-    regions
-}
-
 pub fn rust(player: fn() -> u32) -> impl Fn(&Regs) -> Result<Left, Refused> {
     move |_| {
         unsafe { redefine_key(player()) }?;
         Ok(Left::nothing())
     }
-}
-
-/// The self-test of a key handler: for each player it can be given (`players`, the index
-/// the page leaves in `dword_75598C`), keys of the kinds there are, at three places.
-pub fn check_redefine(
-    t: &mut SelfTest,
-    call_original: CallOriginal,
-    players: &[u32],
-    player: fn() -> u32,
-) {
-    let Some(reserved) = reserved() else {
-        t.check(false, || "the reserved list has no end".into());
-        return;
-    };
-    let reserved_key = reserved.iter().copied().find(|&k| k > 1).unwrap_or(0x3B);
-    let inputs = [at(PLAYER_INDEX_RVA), (game_addr(PENDING_KEY_RVA) as u32, 1)];
-    let saved_inputs = capture(&inputs);
-    let all: Vec<Region> = (0..PLAYERS)
-        .map(player_at)
-        .filter(|&p| p != 0)
-        .flat_map(regions)
-        .collect();
-    let saved = capture(&all);
-    let start: [u8; KEYS] = [
-        0x48, 0x50, 0x4B, 0x4D, 0x1E, 0x2C, 0x39, 0x1D, 0, 0x2E, 0x19, 0x26,
-    ];
-    for &index in players {
-        if player_at(index) == 0 {
-            continue;
-        }
-        unsafe { game_write(PLAYER_INDEX_RVA, index) };
-        let p = player();
-        if p == 0 {
-            continue;
-        }
-        let regions = regions(p);
-        for redefining in [0u32, 1] {
-            for place in [0u32, 5, 11] {
-                for key in [0u8, KEY_ESCAPE, 0x10, 0x9E, 0x2C, 0x48, reserved_key, 0xFF] {
-                    let prepare = || unsafe {
-                        (game_addr(KEYS_RVA) as *mut [u8; KEYS]).write(start);
-                        ((p + KEYS_OFFSET) as *mut [u8; KEYS]).write_unaligned([0x77; KEYS]);
-                        game_write(REDEFINING_RVA, redefining);
-                        game_write(PLACE_RVA, place);
-                        pending_key().store(key, Ordering::SeqCst);
-                    };
-                    let rust = rust(player);
-                    check_state_with(
-                        t,
-                        &format!(
-                            "player {index}, redefining {redefining}, place {place}, key {key:#x}"
-                        ),
-                        call_original,
-                        Regs::SENTINEL,
-                        &prepare,
-                        &regions,
-                        &rust,
-                        &|| vec![pending_key().load(Ordering::SeqCst)],
-                    );
-                }
-            }
-        }
-    }
-    restore(&all, &saved);
-    restore(&inputs, &saved_inputs);
 }

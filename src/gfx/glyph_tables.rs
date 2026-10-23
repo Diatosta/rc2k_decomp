@@ -159,35 +159,3 @@ impl Parts for Game {
         }
     }
 }
-
-/// For the self-tests: every call noted with its registers (`menu::frame_test`), nothing
-/// done.
-pub struct Noted<'a>(pub &'a [(usize, u32)]);
-
-impl Parts for Noted<'_> {
-    unsafe fn call(&mut self, function: usize, regs: &mut Regs) -> Result<(), Refused> {
-        use crate::menu::screen_loop::Env;
-        crate::menu::frame_test::Noting { places: self.0 }.call(function, regs);
-        Ok(())
-    }
-}
-
-/// The places the self-tests give the calls.
-pub const PLACES: [(usize, u32); 9] = [
-    (ALLOCATE, 0),
-    (REWIND_LIST, 1),
-    (TAKE_FROM_LIST, 2),
-    (BEGIN_TABLES, 3),
-    (BEGIN_TABLE, 4),
-    (BUILD_GLYPHS, 5),
-    (PALETTE_TO_PIXELS, 6),
-    (END_TABLES, 7),
-    (ALPHA_PALETTE, 8),
-];
-
-pub fn stand_in_for(function: usize) -> Option<usize> {
-    PLACES
-        .iter()
-        .find(|&&(known, _)| known == function)
-        .map(|&(_, place)| crate::menu::frame_test::stand_in(place))
-}

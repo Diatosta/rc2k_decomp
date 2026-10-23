@@ -21,8 +21,7 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::service::harness::{Region, at};
-use crate::sound::spot_voices::{voice, voice_regions};
+use crate::sound::spot_voices::voice;
 use crate::sound::turn_parts::{Part, RANDOM, turn_entry};
 
 // ---- Rust version ----
@@ -48,12 +47,6 @@ pub fn thin_spot_voices_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
     store_voices(&voices);
     c.eax = (c.eax & 1) ^ 1;
     Ok(())
-}
-
-pub fn thin_regions(_: &Regs) -> Vec<Region> {
-    let mut all = voice_regions();
-    all.push(at(crate::math::next_random::STATE_RVA));
-    all
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

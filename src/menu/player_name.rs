@@ -13,16 +13,11 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, rva};
 use crate::menu::player_settings::current;
 use crate::menu::text_entry::{TEXT_LEN, length, set_length};
-use crate::service::harness::Region;
 
 pub const KEPT_RVA: usize = rva(0x755884); // unk_755884
 
 pub fn kept() -> *mut u8 {
     game_addr(KEPT_RVA) as *mut u8
-}
-
-pub fn kept_region() -> Region {
-    (kept() as u32, TEXT_LEN)
 }
 
 /// The current player's name.
@@ -32,10 +27,6 @@ pub fn name() -> Result<*mut u8, Refused> {
         return Err(BadInput("a player without a name").into());
     }
     Ok(name as *mut u8)
-}
-
-pub unsafe fn keep_name(name: *mut u8) {
-    unsafe { std::ptr::copy_nonoverlapping(name, kept(), TEXT_LEN) };
 }
 
 pub unsafe fn bring_back_name(name: *mut u8) {

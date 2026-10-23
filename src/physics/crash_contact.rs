@@ -40,7 +40,7 @@ use crate::physics::place_sound_e5::place_sound_e5;
 use crate::physics::sound_cue_e5::sound_cue_e5;
 use crate::physics::touch_face::FACES;
 use crate::race::stage_prefs::left_of;
-use crate::scene::matrix3::{extended, rounded, test_floats};
+use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, state_entry};
@@ -194,73 +194,4 @@ fn regions() -> Vec<Region> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-/// What both contacts' tests set by lot besides `contact_force::inputs()`: the probe
-/// points, their tables, the car's speeds.
-pub fn test_inputs() -> Vec<Region> {
-    let mut all = contact_force::inputs();
-    all.extend([
-        (a(0x71A238), 4),
-        (a(0x6D1E14), 0xC00), // the point tables to 0x6D2914's end
-        (a(0x71ADC8), 0x100),
-        (a(0x71AAC8), 0x300),
-        (a(0x71A15C), 0x20), // the turn speed .. the speed's end
-        (a(0x71A0A0), 4),
-        (a(0x71A208), 4),
-        (a(0x71A1FC), 12),
-        (a(0x613EF8), 4),
-        (a(0x71A22C), 4),
-        (a(FACES), 4),
-        (a(crate::physics::car_sounds::CURRENT), 4),
-        (a(crate::physics::car_sounds::LISTED), 0x20),
-        (a(0x6D3028), 4),
-        (a(0x6D3014), 0x10),
-        (a(0x614A90), 0x18),
-        (a(0x614148), 8),
-    ]);
-    all
-}
-
-/// Sets `test_inputs()` from `seed`: depths from `low` up 0x1800, faces at `faces` (eight).
-pub fn set_test_inputs(seed: u32, low: i32, faces: u32) {
-    contact_force::set_inputs(seed);
-    p(0x614148, seed % 3);
-    p(0x61414C, 5);
-    let mut f = vec![0u32; 0x400];
-    test_floats(seed.wrapping_mul(29).wrapping_add(3), &mut f);
-    let small = |v: u32| (f32::from_bits(v) % 8.0).to_bits();
-    for (k, v) in f.iter().enumerate().take(0x1C0) {
-        // 0x6D1E14 .. 0x6D2514: the point tables.
-        p(0x6D1E14 + 4 * k, small(*v));
-    }
-    p(0x71A238, 5 + seed % 0x3C);
-    for k in 0..0x40usize {
-        p(
-            0x6D2514 + 4 * k,
-            (low + (f[k + 0x1C0] % 0x1800) as i32) as u32,
-        );
-        p(0x6D2914 + 4 * k, f[k + 0x200] & 1);
-        p(0x71ADC8 + 4 * k, f[k + 0x240] % 8);
-    }
-    for k in 0..0xC0usize {
-        p(0x71AAC8 + 4 * k, small(f[k + 0x280]));
-    }
-    for k in 0..8usize {
-        p(0x71A15C + 4 * k, small(f[k + 0x340]));
-    }
-    p(0x71A0A0, small(f[0x348]));
-    p(0x71A208, small(f[0x349]));
-    p(0x613EF8, [0x800u32, 0x100, 0x1800, 0][(seed % 4) as usize]);
-    p(0x71A22C, (seed / 4) % 2);
-    p(FACES, faces);
-    for k in 0..0x80u32 {
-        unsafe { ((faces + 4 * k) as *mut u32).write(small(f[0x380 + k as usize])) };
-    }
-    let car = seed % 8;
-    p(crate::physics::car_sounds::CURRENT, car);
-    p(
-        crate::physics::car_sounds::LISTED + 4 * car as usize,
-        u32::MAX,
-    );
 }

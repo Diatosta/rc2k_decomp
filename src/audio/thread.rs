@@ -139,16 +139,6 @@ pub unsafe fn audio_thread(entry: &Regs, v: &ThreadVars, part: Part) -> Result<(
 /// directly, so without this it ran on under the tests (`feed_stream`'s test saw
 /// `g_lockedParts` change, 2026-10-15).
 pub fn game_part(place: u32, r: &mut Regs) -> Result<bool, Refused> {
-    struct Gate;
-    impl Drop for Gate {
-        fn drop(&mut self) {
-            crate::framework::hook_leave();
-        }
-    }
-    let _gate = matches!(place, 8..=11 | 15).then(|| {
-        crate::framework::hook_enter();
-        Gate
-    });
     turn_part(place, r)
 }
 

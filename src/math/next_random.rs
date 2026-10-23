@@ -37,21 +37,6 @@ fn this_thread() -> u32 {
     unsafe { windows_sys::Win32::System::Threading::GetCurrentThreadId() }
 }
 
-/// Runs `f` (a self-test) with the generator to this thread alone.
-pub fn own_random<R>(f: impl FnOnce() -> R) -> R {
-    use std::sync::atomic::Ordering;
-    /// Gives the generator back however `f` ends (a panic too), or the game would wait.
-    struct Release;
-    impl Drop for Release {
-        fn drop(&mut self) {
-            OWNER.store(0, Ordering::SeqCst);
-        }
-    }
-    OWNER.store(this_thread(), Ordering::SeqCst);
-    let _release = Release;
-    f()
-}
-
 /// Waits while another thread owns the generator (`own_random`).
 pub fn wait_for_random() {
     use std::sync::atomic::Ordering;
@@ -72,18 +57,3 @@ pub unsafe fn next_random() -> u32 {
     DRAWS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     with_random(|r| r.draw())
 }
-
-pub const TEST_STATES: [u32; 12] = [
-    0,
-    1,
-    2,
-    4,
-    6,
-    7,
-    0x40_0000,
-    0x40_0006,
-    0xFFFF_FFFF,
-    0x8000_0001,
-    0x1234_5678,
-    0xDEAD_BEEF,
-];

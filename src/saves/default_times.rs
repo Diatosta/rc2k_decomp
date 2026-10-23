@@ -15,20 +15,16 @@
 //! Converted: `rc2k_core::saves::defaults` (everything worked out before anything is
 //! written; `GameSource` and `apply` here).
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, game_addr, game_read, game_write, rva};
-use crate::math::next_random::STATE_RVA;
+use crate::errors::BadInput;
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::random_below::random_below;
 use crate::saves::drivers::Driver;
-use crate::screens::harness::{CallOriginal, Left};
-use crate::service::harness::{Region, at, dispatch_replayed_state};
 use rc2k_core::Invalid;
 use rc2k_core::saves::defaults::{Filled, Record};
 
 pub const WITH_CHECKPOINTS_RVA: usize = rva(0x755A0C); // dword_755A0C
 const CHECKPOINTS_RVA: usize = rva(0x71C7C0); // dword_71C7C0[16]
 const CHECKPOINT_COUNTS_RVA: usize = rva(0x71C730); // dword_71C730[stage]
-const MOST_CHECKPOINTS: u32 = 16;
 pub const WORK_A_RVA: usize = rva(0x7559AC); // seconds
 pub const WORK_B_RVA: usize = rva(0x7559B0); // dword_7559B0
 /// Ten entries.
@@ -151,53 +147,4 @@ pub unsafe fn records(table: u32) -> Result<usize, BadInput> {
             ((table + n as u32 * RECORD_LEN) as *const u32).read_unaligned() == u32::MAX
         })
         .ok_or(BadInput("a record table without its end"))
-}
-
-/// What all four may write besides their tables.
-pub fn shared_regions() -> Vec<Region> {
-    vec![
-        (
-            game_addr(CHECKPOINTS_RVA) as u32,
-            MOST_CHECKPOINTS as usize * 4,
-        ),
-        at(WORK_A_RVA),
-        at(WORK_B_RVA),
-        at(STATE_RVA),
-    ]
-}
-
-/// The `dispatch` of the four: the original first (it may log), then the Rust version
-/// without the log on what was put back.
-pub fn dispatch_times(
-    hook: &RawHook,
-    r: &mut Regs,
-    call_original: CallOriginal,
-    tables: Result<Vec<Region>, BadInput>,
-    run: &dyn Fn(&Regs, Log) -> Result<(), Refused>,
-) {
-    let tables = match tables {
-        Ok(tables) => tables,
-        Err(e) => {
-            hook.count_call();
-            unsafe { crate::fatal::raise::refused(hook, e, r, call_original) };
-            return;
-        }
-    };
-    let regions = [tables, shared_regions()].concat();
-    dispatch_replayed_state(
-        hook,
-        r,
-        call_original,
-        &regions,
-        &|r| run(r, &mut to_the_log).map(|()| Left::nothing()),
-        &|r| run(r, &mut to_nowhere).map(|()| Left::nothing()),
-    );
-}
-
-/// The game's variable that holds a table, as a region of `len` bytes; refuses none.
-pub fn table_region(variable: usize, len: u32) -> Result<Region, BadInput> {
-    match unsafe { game_read::<u32>(variable) } {
-        0 => Err(BadInput("a table of best times is missing")),
-        table => Ok((table, len as usize)),
-    }
 }

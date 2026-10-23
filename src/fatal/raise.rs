@@ -13,7 +13,7 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::fatal::report::{CODE_RVA, MESSAGE_RVA};
-use crate::framework::{GameHook, RawHook, Regs, game_write, log, rva, shadow};
+use crate::framework::{GameHook, RawHook, Regs, game_write, log, rva};
 use crate::threading::find_thread_slot::find_thread_slot;
 use std::ffi::CString;
 use std::sync::Mutex;
@@ -73,16 +73,6 @@ pub unsafe fn refused(
         }
         Refused::Fatal(error) => error,
     };
-    if shadow() {
-        unsafe { call_original(r) };
-        hook.mismatch(|| {
-            format!(
-                "the Rust version reported fatal error {:#x} {:?}; the original returned",
-                error.code, error.message
-            )
-        });
-        return;
-    }
     log(&format!(
         "{}: the Rust version raises fatal error {:#x} {:?}",
         hook.name(),
@@ -116,13 +106,6 @@ const TEST_ERROR: FatalError = FatalError {
     code: 0x8BAD_F00D,
     message: "rc2k_hook test error\\nraised by the console command `fatal`",
 };
-
-/// Makes the next `input::take_key` call raise `TEST_ERROR`. The game's own thread calls
-/// that every frame; the console's thread must not raise it itself, because the exit path
-/// would then close the game from the wrong thread.
-pub fn arm_test() {
-    TEST_ARMED.store(true, Ordering::SeqCst);
-}
 
 /// Called by the `input::take_key` hook.
 pub fn raise_test_if_armed(regs: &Regs) {

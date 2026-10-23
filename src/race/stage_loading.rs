@@ -6,7 +6,6 @@
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::race::loadlevel::or_in_game;
-use crate::service::harness::{Region, at};
 
 /// A step's calls by callee (`CALLEES`' index).
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
@@ -212,41 +211,4 @@ fn step_part(callee: u32, r: &mut Regs) -> Result<(), Refused> {
         }
     }
     Ok(())
-}
-
-/// What `load_stage` writes or reads that the test keeps.
-pub fn regions() -> Vec<Region> {
-    let mut r: Vec<Region> = vec![
-        at(REPLAY_RVA),
-        at(CAR_MINUS_4_RVA),
-        at(NO_PLACE_RVA),
-        at(CLOCK_RVA),
-    ];
-    r.extend(STARTS.iter().map(|&(a, _)| (game_addr(rva(a)) as u32, 4)));
-    for n in 0..8 {
-        r.push(at(rva(BLOCK_FB4 + n * 0xFE0)));
-        r.push(at(rva(BLOCK_FB0 + n * 0xFE0)));
-    }
-    r.extend(LAST_STARTS.iter().map(|&(a, _)| at(rva(a))));
-    r
-}
-
-/// A case's inputs: the replay switch, `dword_64BB18`, the clock.
-pub fn prepare(replay: u32, no_place: u32, clock: u32) {
-    unsafe {
-        for &(a, len) in &regions() {
-            std::ptr::write_bytes(a as *mut u8, 0x5A, len);
-        }
-        game_write(REPLAY_RVA, replay);
-        game_write(NO_PLACE_RVA, no_place);
-        game_write(CLOCK_RVA, clock);
-    }
-}
-
-/// The copy's calls redirected by target: callee n to stand-in n + 1.
-pub fn redirect(target: usize) -> Option<usize> {
-    CALLEES
-        .iter()
-        .position(|&k| rva(k) == target)
-        .map(|n| crate::install::stand_ins::stand_in(n as u32 + 1))
 }

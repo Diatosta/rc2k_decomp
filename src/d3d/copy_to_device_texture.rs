@@ -13,39 +13,11 @@
 //! do it (`platform_3d::hold_texture`, as `scene::load_texture` there; before 2026-10-19
 //! the standalone skipped it: the viewer's panel did not show). No self-test.
 
-use crate::framework::{RawHook, Regs, hook_asm, rva, standalone};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "d3d::copy_to_device_texture",
-    rva(0x41A8F9),
-    thunk,
-    &ORIGINAL,
-);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if standalone() {
-        #[cfg(feature = "standalone")]
-        crate::platform_3d::hold_texture("d3d::copy_to_device_texture", r.eax, r.ebx);
-        return;
-    }
-    unsafe { call_original(r) };
-}
+use crate::framework::{Regs, rva, standalone};
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     if standalone() {
-        #[cfg(feature = "standalone")]
         crate::platform_3d::hold_texture("d3d::copy_to_device_texture", r.eax, r.ebx);
         return Ok(());
     }

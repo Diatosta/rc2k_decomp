@@ -27,7 +27,6 @@ use crate::hud::add_quad::QUAD_RVA;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
 use crate::service::floats::*;
-use crate::service::harness::Region;
 
 pub use rc2k_core::hud::disc::ENTRIES;
 
@@ -128,34 +127,4 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-/// The disc's tables by lot (for this test and `draw_disc`'s); what they held is the
-/// caller's to put back (`tables()`).
-pub unsafe fn test_tables(case: u32) {
-    unsafe {
-        let f = game_addr(rva(0x75C188)) as *mut f32;
-        for n in 0..(4 * ENTRIES as usize) {
-            *f.add(n) = ((n as f32) * 0.3 + case as f32).sin();
-        }
-        let v = |r: usize, x: f32| crate::framework::game_write(rva(r), x.to_bits());
-        v(0x75C050, 40.0 + case as f32);
-        v(0x75C04C, 0.9);
-        v(0x75C01C, 128.0);
-        v(0x75C054, 3.0);
-        v(0x75C058, -2.0);
-        v(0x75C020, 256.0);
-        v(0x75C044, 320.0);
-        v(0x75C048, 240.0);
-        crate::framework::game_write(QUAD_RVA, 0xC0 + case);
-    }
-}
-
-/// What `test_tables` writes.
-pub fn tables() -> Vec<Region> {
-    let mut r = vec![(game_addr(rva(0x75C188)) as u32, 0x44 * 4)];
-    r.push((game_addr(rva(0x75C01C)) as u32, 8));
-    r.push((game_addr(rva(0x75C044)) as u32, 0x18));
-    r.push((game_addr(QUAD_RVA) as u32, 4));
-    r
 }

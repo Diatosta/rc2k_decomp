@@ -24,7 +24,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87_run::{ext_to_int, int_80, int_mul_add};
-use crate::scene::matrix3::test_floats;
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, state_entry};
@@ -129,70 +128,4 @@ pub fn regions() -> Vec<Region> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-/// The inputs the slot tests set.
-pub fn inputs() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    vec![
-        (a(0x633370), 0x400),
-        (a(0x633770), 0x400),
-        (a(0x633B70), 0x400),
-        (a(0x71A08C), 0x40),
-        (a(0x71A10C), 12),
-        (a(0x71A15C), 0x20),
-        (a(0x71ADD8), 4),
-        (a(0x719FE0), 4),
-        (a(0x71BE8C), 4),
-        (a(0x71B3F8), 4),
-        (a(0x71AA14), 0x1C),
-        (a(0x71BA2C), 0x1C),
-        (a(0x62DAD0), 4),
-    ]
-}
-
-/// A slot case: `empty` slots from the n-th on, parts' middles and the car by `seed`.
-pub fn set_slots(seed: u32, empty: Option<u32>) {
-    let first = game_addr(rva(SLOTS)) as u32;
-    unsafe {
-        for c in 0..8u32 {
-            let s = first + 0x78 * c;
-            for k in 0..30u32 {
-                put(s + 4 * k, 0x5A00_0000 | (c << 8) | k);
-            }
-            put(
-                s,
-                if empty.is_some_and(|e| c >= e) {
-                    0
-                } else {
-                    c + 1
-                },
-            );
-            put(
-                s + 0x64,
-                (seed.wrapping_mul(31) ^ c.wrapping_mul(0x77)) % 1000,
-            );
-        }
-    }
-    for k in 0..0x100usize {
-        p(0x633370 + 4 * k, (k as u32 * 37 + seed) % 2000);
-        p(0x633770 + 4 * k, (k as u32 * 53) % 900);
-        p(0x633B70 + 4 * k, (k as u32 * 71 + seed * 3) % 3000);
-    }
-    let mut f = [0u32; 24];
-    test_floats(seed * 5 + 1, &mut f);
-    for (k, v) in f.iter().take(12).enumerate() {
-        p(0x71A08C + 4 * k, (f32::from_bits(*v) % 2.0).to_bits());
-    }
-    for k in 12..16usize {
-        p(0x71A08C + 4 * k, 0);
-    }
-    for k in 0..3usize {
-        p(0x71A10C + 4 * k, seed.wrapping_mul(0x0012_3457) ^ k as u32);
-        p(0x71A15C + 4 * k, f[12 + k]);
-        p(0x71A170 + 4 * k, f[15 + k]);
-    }
-    p(0x71ADD8, seed);
-    p(0x719FE0, seed * 7);
-    p(0x71BE8C, 6.0e-5f32.to_bits());
 }

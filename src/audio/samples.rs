@@ -19,10 +19,6 @@ pub const BUFFER_SIZE_RVA: usize = rva(0x506934); // g_sampleBufferSize
 pub const SAMPLE_BITS_FLAGS_RVA: usize = rva(0x4F82E0); // g_sampleBitsFlags: {flag, bits} x 2
 pub const SAMPLE_CHANNEL_FLAGS_RVA: usize = rva(0x4F82F0); // g_sampleChannelFlags: {flag, channels} x 2
 
-pub const EIGHT_BITS: u32 = 0x10;
-pub const MONO: u32 = 0x100;
-pub const SHIFT: u32 = 0xF;
-
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct SampleFile {

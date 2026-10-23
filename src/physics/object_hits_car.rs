@@ -26,11 +26,11 @@ use crate::errors::Refused;
 use crate::framework::{EAX, EBX, ECX, EDX, Regs};
 use crate::math::x87_run::{ext_to_int, int_80};
 use crate::physics::flow::{a, g, p};
-use crate::physics::object_turn_matrix::{self, object_turn_matrix};
-use crate::physics::point_hits_car::{self, point_hits_car};
+use crate::physics::object_turn_matrix::object_turn_matrix;
+use crate::physics::point_hits_car::point_hits_car;
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::state_entry;
 use rc2k_core::physics::contacts;
 
 const OBJECT: usize = 0x6D321C; // dword_6D321C
@@ -75,13 +75,6 @@ pub unsafe fn object_hits_car(entry: &Regs) -> Result<Left, Refused> {
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { object_hits_car(r) }
-}
-
-pub fn regions() -> Vec<Region> {
-    let mut all = object_turn_matrix::regions();
-    all.extend(point_hits_car::regions());
-    all.extend([(a(0x61410C), 4), (a(0x6D3B40), 12)]);
-    all
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

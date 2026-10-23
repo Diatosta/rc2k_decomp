@@ -11,13 +11,12 @@
 //! rows around both ends.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
-use crate::screens::harness::{CallOriginal, Left};
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::framework::{EAX, Regs, game_read, game_write, rva};
+use crate::screens::harness::Left;
 
 const FIRST_RVA: usize = rva(0x7556B8); // g_champFirstRow
 const COUNT_RVA: usize = rva(0x75597C); // dword_75597C
-const CAPTION_RVA: usize = rva(0xA8BE54); // g_captionText
+// g_captionText
 
 /// The Rust version: `of_90` the fixed count, `on` the direction.
 pub fn step_rows(entry: &Regs, of_90: bool, on: bool) -> Result<Left, Refused> {
@@ -43,55 +42,7 @@ pub fn step_rows(entry: &Regs, of_90: bool, on: bool) -> Result<Left, Refused> {
     }
 }
 
-fn regions() -> [Region; 2] {
-    [at(FIRST_RVA), (game_addr(CAPTION_RVA) as u32, 0x20)]
-}
-
-pub fn dispatch_rows(
-    hook: &RawHook,
-    r: &mut Regs,
-    call_original: CallOriginal,
-    of_90: bool,
-    on: bool,
-) {
-    dispatch_state(hook, r, call_original, &regions(), &|r| {
-        step_rows(r, of_90, on)
-    });
-}
-
 /// `dispatch_rows` without its hook (typed tables).
 pub fn rows_entry(r: &mut Regs, of_90: bool, on: bool) -> Result<(), Refused> {
     crate::service::harness::state_entry(r, &|r| step_rows(r, of_90, on))
-}
-
-pub fn test_rows(
-    hook: &RawHook,
-    call_original: CallOriginal,
-    of_90: bool,
-    on: bool,
-) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let inputs = [at(COUNT_RVA)];
-    let saved = (capture(&regions()), capture(&inputs));
-    for count in [0x5Au32, 0x1E, 9] {
-        for row in [1u32, 10, 11, 0x50, 0x51, 0x52, 0xFFFF_FFF0] {
-            check_state(
-                &mut t,
-                &format!("count {count:#x}, row {row:#x}"),
-                call_original,
-                Regs::SENTINEL,
-                &|| unsafe {
-                    game_write(COUNT_RVA, count);
-                    game_write(FIRST_RVA, row);
-                },
-                &regions(),
-                &|r| step_rows(r, of_90, on),
-            );
-        }
-    }
-    restore(&regions(), &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
 }

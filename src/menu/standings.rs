@@ -130,134 +130,6 @@ pub fn kept_name<'a>() -> &'a mut [u8; NAME_LEN] {
     unsafe { &mut *(game_addr(KEPT_NAME_RVA) as *mut [u8; NAME_LEN]) }
 }
 
-/// Test entries: `n` of `size` bytes from `p` (figures by lot, groups 1 .. 3 at `group_at`,
-/// a player at some), then the end entry.
-pub fn fill_test_table(p: u32, size: u32, n: u32, group_at: u32, case: u32) {
-    for k in 0..n {
-        let e = p + k * size;
-        for o in (0..size).step_by(4) {
-            put(e + o, (k * 0x3B + o * 7 + case * 0x101) & 0xFF);
-        }
-        put(e, k);
-        put(
-            e + 4,
-            if (k * 5 + case).is_multiple_of(4) {
-                1 + k % 4
-            } else {
-                0
-            },
-        );
-        put(e + group_at, 1 + (k + case) % 3);
-    }
-    put(p + n * size, 0xFFFF_FFFF);
-}
-
-/// The test of a clearing hook: a table of the test's (eight entries) in `table`.
-pub fn test_clear(
-    hook: &crate::framework::RawHook,
-    call_original: crate::screens::harness::CallOriginal,
-    table: usize,
-    size: u32,
-    rust: &dyn Fn(&Regs) -> Result<crate::screens::harness::Left, Refused>,
-) -> (usize, usize) {
-    use crate::framework::{SelfTest, game_write};
-    use crate::service::harness::{at, capture, check_state, restore};
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let mut buf = vec![0u32; (9 * size / 4) as usize];
-    let tp = buf.as_mut_ptr() as u32;
-    let regions = vec![(tp, (9 * size) as usize)];
-    let vars = vec![at(table)];
-    let saved = capture(&vars);
-    for case in 0..3u32 {
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                game_write(table, tp);
-                fill_test_table(tp, size, 8, 0x10, case);
-            },
-            &regions,
-            rust,
-        );
-    }
-    restore(&vars, &saved);
-    drop(buf);
-    t.finish()
-}
-
-/// The test of a first-player search: a table of the test's from edi, groups by lot; where
-/// the group has no player the Rust version's fatal error is checked (the original's would
-/// end the game).
-#[allow(clippy::too_many_arguments)]
-pub fn test_first_player(
-    hook: &crate::framework::RawHook,
-    call_original: crate::screens::harness::CallOriginal,
-    size: u32,
-    group_at: u32,
-    any_group: bool,
-    code: u32,
-    rust: &dyn Fn(&Regs) -> Result<crate::screens::harness::Left, Refused>,
-) -> (usize, usize) {
-    use crate::framework::SelfTest;
-    use crate::service::harness::check_state;
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let mut buf = vec![0u32; (9 * size / 4) as usize];
-    let tp = buf.as_mut_ptr() as u32;
-    for case in 0..8u32 {
-        let group = if any_group {
-            [ANY_GROUP, 1, 2, 3][case as usize % 4]
-        } else {
-            0
-        };
-        let before = Regs {
-            edi: tp,
-            ebx: group,
-            ..Regs::SENTINEL
-        };
-        fill_test_table(tp, size, 8, group_at, case);
-        let has = (0..8u32).any(|k| {
-            let e = tp + k * size;
-            let g = get(e + group_at);
-            let in_group = if !any_group || group == ANY_GROUP {
-                g != 0
-            } else {
-                g == group
-            };
-            in_group && get(e + 4) != 0
-        });
-        if !has {
-            let refused = rust(&before);
-            t.check(
-                matches!(refused, Err(Refused::Fatal(e)) if e.code == code),
-                || {
-                    format!(
-                        "case {case}: group {group:#x} has no player, Rust gave {:?}",
-                        refused.as_ref().err()
-                    )
-                },
-            );
-            continue;
-        }
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            before,
-            &|| fill_test_table(tp, size, 8, group_at, case),
-            &[],
-            rust,
-        );
-    }
-    drop(buf);
-    t.finish()
-}
-
 pub const PLAYER_COUNT_RVA: usize = rva(0x755984); // dword_755984
 pub const SECTION_RVA: usize = rva(0x75595C); // section
 pub const INDEX_RVA: usize = rva(0x755958); // index
@@ -330,18 +202,6 @@ pub fn sort_table_a(key: u32) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// What `sort_table_a` writes.
-pub fn sort_regions() -> Vec<crate::service::harness::Region> {
-    use crate::service::harness::at;
-    let first: u32 = unsafe { game_read(TABLE_A_RVA) };
-    vec![
-        (first, (SORTED * A_ENTRY) as usize),
-        at(SORT_I_RVA),
-        at(SORT_J_RVA),
-        (game_addr(KEPT_NAME_RVA) as u32, 0x1F),
-    ]
-}
-
 /// The last best score of `group` moved up its ten (the original's nine compares from the
 /// bottom: a later entry not below the one above it moves up). Refused without a table or
 /// past the five groups.
@@ -357,12 +217,6 @@ pub fn rank_in_group(group: u32) -> Result<(), BadInput> {
     };
     standings::rank_in_group(&mut ten, kept_name());
     Ok(())
-}
-
-/// What `rank_in_group` writes.
-pub fn rank_regions() -> Vec<crate::service::harness::Region> {
-    let table: u32 = unsafe { game_read(BEST_SCORES_RVA) };
-    vec![(table, 5 * 0x258), (game_addr(KEPT_NAME_RVA) as u32, 0x1F)]
 }
 
 /// The current player's (`dword_75598C`) best score entered at the bottom of `group`'s ten
@@ -428,24 +282,6 @@ pub fn sort_table_b(key: u32, down: bool) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// What `sort_table_b` writes.
-pub fn sort_regions_b() -> Vec<crate::service::harness::Region> {
-    use crate::service::harness::at;
-    let first: u32 = unsafe { game_read(TABLE_B_RVA) };
-    vec![
-        (first, (SORTED * B_ENTRY) as usize),
-        at(SORT_I_RVA),
-        at(SORT_J_RVA),
-        (game_addr(KEPT_NAME_RVA) as u32, 0x1F),
-    ]
-}
-
-/// The thirteen parts the inspection looks at (engine, bodywork, exhaust, electrics,
-/// lights, cooling, steering, clutch, suspension, differential, brakes, gearbox, tyres):
-/// their index in the player's +0xD4 .. +0x108 and in the limits (`dword_75ABD8` ..) and
-/// penalties (`dword_75AC48` ..), fourteen each; index 4 (+0xE4, `dword_75ABE8`) is not
-/// looked at.
-pub const INSPECTED: [u32; 13] = [0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 pub const LIMITS_RVA: usize = rva(0x75ABD8); // dword_75ABD8: 14
 pub const PENALTIES_RVA: usize = rva(0x75AC48); // dword_75AC48: 14
 

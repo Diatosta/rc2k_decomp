@@ -18,13 +18,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, SelfTest};
-use crate::physics::face_contact::{
-    self, Touched, faces_region, guarded, move_car_onto, object_faces,
-};
+use crate::framework::Regs;
+use crate::physics::face_contact::{Touched, guarded};
 use crate::physics::flow::{g, p};
-use crate::screens::harness::{CallOriginal, Left};
-use crate::service::harness::check_state;
+use crate::screens::harness::Left;
 
 /// The steps, not guarded.
 // Converted: `rc2k_core::physics::ground_search::cells_around`.
@@ -48,45 +45,8 @@ pub unsafe fn face_contacts_around(entry: &Regs) -> Result<Left, Refused> {
     guarded(entry, steps)
 }
 
-/// The regions both hooks' tests compare (the whole face array).
-pub fn test_regions() -> Vec<crate::service::harness::Region> {
-    let mut all = face_contact::regions();
-    all.push(faces_region());
-    all
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     crate::physics::face_contact::faces_entry(r, steps)
-}
-
-/// The test of this and of `face_contacts`: the original `call_original`, the car where
-/// it is and moved onto object faces.
-pub fn test(
-    t: &mut SelfTest,
-    put_back: &dyn Fn(),
-    call_original: CallOriginal,
-    rust: crate::service::harness::Rust,
-) {
-    let all = test_regions();
-    let mut moves = vec![None];
-    moves.extend(object_faces(10).into_iter().map(Some));
-    for moved in moves {
-        let set = || {
-            put_back();
-            if let Some(k) = moved {
-                move_car_onto(k);
-            }
-        };
-        check_state(
-            t,
-            &format!("car moved onto {moved:?}"),
-            call_original,
-            Regs::SENTINEL,
-            &set,
-            &all,
-            rust,
-        );
-    }
 }

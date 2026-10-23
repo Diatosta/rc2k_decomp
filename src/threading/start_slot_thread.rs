@@ -14,7 +14,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::FatalError;
-use crate::framework::{Regs, log, shadow};
+use crate::framework::{Regs, log};
 use std::ffi::c_void;
 use windows_sys::Win32::System::Threading::CreateThread;
 
@@ -57,11 +57,7 @@ unsafe extern "system" fn run_routine(routine: *mut c_void) -> u32 {
     let routine = routine as usize;
     let mut r = Regs::default();
     let at = routine.wrapping_sub(crate::framework::game_addr(0));
-    let ran = if shadow() {
-        None
-    } else {
-        crate::routes::by_rva(at, &mut r)
-    };
+    let ran = { crate::routes::by_rva(at, &mut r) };
     match ran {
         Some(Ok(())) => {}
         Some(Err(crate::errors::Refused::Fatal(error))) => {

@@ -3,7 +3,6 @@
 //! tables (`race::seal_block`, with `race::permute_bits`).
 
 use crate::framework::{game_addr, game_read, game_write, rva};
-use crate::service::harness::{Region, at};
 
 /// `race::pack_runs` (0x41EFEC): ecx bytes at esi packed to edi: runs of 2 .. 0x80 equal
 /// bytes as (length - 1, byte), other stretches of up to 0x80 as (-length, bytes); fewer
@@ -75,20 +74,4 @@ pub unsafe fn seal_block() {
         game_write(SEALED_RVA[0], sealed.block[0]);
         game_write(SEALED_RVA[1], sealed.block[1]);
     }
-}
-
-/// What `seal_block` writes, and its inputs.
-pub fn seal_regions() -> Vec<Region> {
-    vec![
-        (game_addr(SUBKEYS_RVA) as u32, 0x80),
-        at(SEALED_RVA[0]),
-        at(SEALED_RVA[1]),
-    ]
-}
-
-pub fn seal_inputs() -> Vec<Region> {
-    vec![
-        (game_addr(KEY_RVA) as u32, 8),
-        (game_addr(BLOCK_RVA) as u32, 8),
-    ]
 }

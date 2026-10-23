@@ -18,32 +18,18 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_ptr, rva};
-use crate::screens::harness::{Left, draw_entry, drawing_unavailable};
-use crate::screens::{LINE_BUFFER_RVA, font_is_loaded};
-use crate::service::harness::{Region, at};
-use crate::strings::string_table::{blob, is_table_id};
-use crate::strings::text_from_ids::{TEXT_LEN, text};
+use crate::framework::{Regs, game_ptr};
+use crate::screens::LINE_BUFFER_RVA;
+use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_string_by_id::string_text;
 use crate::text::draw_text::Canvas;
 use crate::text::font::Font;
-use crate::text::measure_string_by_id::TEST_STRINGS;
 
 // ---- game data ----
 
-const SPACED_FONT_RVA: usize = rva(0x7559EC); // dword_7559EC
-const ONE_CHARACTER_RVA: usize = rva(0xA8BC54); // byte_A8BC54
-const LINE_LEN: usize = 0x100; // from g_lineBuffer to byte_A8BC54
-
-/// What the function may write, the shared text buffer included.
-pub fn item_text_regions() -> [Region; 4] {
-    [
-        at(SPACED_FONT_RVA),
-        (game_addr(LINE_BUFFER_RVA) as u32, LINE_LEN),
-        at(ONE_CHARACTER_RVA),
-        (text() as u32, TEXT_LEN),
-    ]
-}
+// dword_7559EC
+// byte_A8BC54
+// from g_lineBuffer to byte_A8BC54
 
 // ---- Rust version ----
 
@@ -93,19 +79,4 @@ fn rust(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     draw_entry("screens::draw_menu_item_text", r, &rust)
-}
-
-pub const TEST_FONT: usize = 0x51E584;
-
-/// Why a test that draws the game's strings cannot run, or None if it can.
-pub fn text_unavailable() -> Option<&'static str> {
-    drawing_unavailable().or_else(|| {
-        (blob().is_null()
-            || !font_is_loaded(TEST_FONT)
-            || !TEST_STRINGS.iter().all(|&id| is_table_id(id))
-            || TEST_STRINGS
-                .iter()
-                .any(|&id| unsafe { string_text(id) }.is_ok_and(|s| s.len() < 2)))
-        .then_some("the strings or the font are not loaded")
-    })
 }

@@ -26,8 +26,6 @@ use crate::framework::Regs;
 use crate::input::devices::{at, put};
 use crate::input::types::InputDevice;
 
-pub const CONTROLS_LEN: usize = 0x60;
-
 /// A call by place (see the header).
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 

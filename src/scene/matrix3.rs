@@ -8,7 +8,6 @@ use crate::framework::Regs;
 use crate::math::x87;
 use crate::math::x87::x87;
 use crate::scene::vector3::{read_floats, write_floats};
-use std::cell::UnsafeCell;
 
 /// `scene::identity_matrix3` (0x46574E): the matrix at esi the identity (1.0 from `fld1`).
 /// Every register kept.
@@ -111,49 +110,6 @@ pub unsafe fn transform_int_points_plain(entry: &Regs) -> Result<Regs, Refused> 
     Ok(g)
 }
 
-/// Floats by lot for the tests: mostly within ±4, a few large, some negative zero.
-pub fn test_floats(seed: u32, out: &mut [u32]) {
-    let mut s = seed;
-    for v in out.iter_mut() {
-        s = s.wrapping_mul(1_103_515_245).wrapping_add(12345);
-        let f = ((s >> 8) as i32 % 0x8000) as f32 / 4096.0;
-        *v = match s % 13 {
-            0 => 0x8000_0000,
-            1 => (f * 70000.0).to_bits(),
-            _ => f.to_bits(),
-        };
-    }
-}
-
-/// An angle as the game left it in st(0): the ten bytes of an 80-bit value.
-pub struct Angle(pub UnsafeCell<[u8; 10]>);
-
-unsafe impl Sync for Angle {}
-
-impl Angle {
-    pub const fn new() -> Self {
-        Self(UnsafeCell::new([0; 10]))
-    }
-
-    pub fn ptr(&self) -> *mut u8 {
-        self.0.get() as *mut u8
-    }
-
-    pub fn set(&self, bytes: [u8; 10]) {
-        unsafe { *self.0.get() = bytes };
-    }
-
-    pub fn get(&self) -> [u8; 10] {
-        unsafe { *self.0.get() }
-    }
-}
-
-impl Default for Angle {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 /// The axis a turn is about.
 #[derive(Clone, Copy)]
 pub enum Axis {
@@ -207,37 +163,11 @@ pub unsafe fn turn_matrix3(axis: Axis, at: u32, angle: [u8; 10]) -> Result<(), R
     Ok(())
 }
 
-/// The converted `turn_matrix3` (`rc2k_core::math::vector`, plain floats): the hooks'.
-pub unsafe fn turn_matrix3_plain(axis: Axis, at: u32, angle: [u8; 10]) -> Result<(), Refused> {
-    use rc2k_core::math::vector::{Axis as A, turn_matrix};
-    turnable(&angle)?;
-    let axis = match axis {
-        Axis::X => A::X,
-        Axis::Y => A::Y,
-        Axis::Z => A::Z,
-    };
-    let m = turn_matrix(axis, rc2k_core::math::extended::to_f64(angle));
-    unsafe { write_floats(at, &m) };
-    Ok(())
-}
-
 /// A float made an 80-bit value (`fld dword; fstp tbyte`).
 pub fn extended(f: u32) -> [u8; 10] {
     let mut out = [0u8; 10];
     let o = out.as_mut_ptr();
     x87!("fld dword ptr [{f}]", "fstp tbyte ptr [{o}]"; f = &f as *const u32, o = o);
-    out
-}
-
-/// pi times `n` over 8 as an 80-bit value, not a float (`fldpi`, `fimul`, `fidiv`).
-pub fn extended_pi(n: i32) -> [u8; 10] {
-    let mut out = [0u8; 10];
-    let o = out.as_mut_ptr();
-    let eight = 8i32;
-    x87!(
-        "fldpi", "fimul dword ptr [{n}]", "fidiv dword ptr [{e}]", "fstp tbyte ptr [{o}]";
-        n = &n as *const i32, e = &eight as *const i32, o = o
-    );
     out
 }
 

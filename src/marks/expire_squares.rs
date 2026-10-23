@@ -79,22 +79,3 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
 }
-
-/// The game's items with a few made live (seeded), for this test and `squares_step`'s.
-pub unsafe fn test_items(case: u32) {
-    unsafe {
-        let base = game_addr(ITEMS_RVA) as u32;
-        std::ptr::write_bytes(base as *mut u8, 0, (ITEMS * ITEM_LEN) as usize);
-        for n in 0..40u32 {
-            let e = base + (n * 41 + case) % ITEMS * ITEM_LEN;
-            (e as *mut u32).write_unaligned(1);
-            ((e + 0x20) as *mut u32).write_unaligned(((n * 53 + case * 7) as f32 * 3.3).to_bits());
-            ((e + 0x24) as *mut u32).write_unaligned(((n * 29) as f32 * 7.1).to_bits());
-        }
-        game_write(
-            SHAPES_RVA[0],
-            0x0101_0100u32.wrapping_mul(case) | (case * 37) & 0xFF,
-        );
-        game_write(RUNS_RVA, case % 3);
-    }
-}

@@ -25,9 +25,6 @@ pub unsafe fn car_label(edi: u32, eax: u32, ecx: u32) {
 }
 
 pub const MARK_COUNT_RVA: usize = rva(0x601830); // dword_601830: the dwords cleared to 0xC
-/// The two callers' buffers (`dword_6D160C`, `dword_6D170C`) are 0x40 dwords each.
-pub const MARK_BUFFER_DWORDS: u32 = rc2k_core::race::frame::COLOUR_BUFFER_DWORDS;
-
 /// `race::split_colours` (0x45B16A): `dword_601830` dwords at edi set to 0xC; then for each
 /// of the block esi's +0x90 values at +0x140 (none when +0x90 is 0 or negative), edi's
 /// dword 8 when it is not above the one before (0x63 before the first; the sign of the
@@ -156,8 +153,6 @@ pub const SPOT_COUNT_RVA: usize = rva(0x6D1DC4); // dword_6D1DC4: the spots made
 pub const SPOTS_RVA: usize = rva(0x6D1AF4); // unk_6D1AF4: 36 spots of 0x14 bytes
 pub const SHARED_COUNT_RVA: usize = rva(0x5165EC); // dword_5165EC
 pub const SHARED_SPOTS_RVA: usize = rva(0x5165F0); // unk_5165F0: 36 of 0x14 (to 0x5168C0)
-pub const SPOTS_MAX: u32 = rc2k_core::race::view::MOST_SHARED_SPOTS;
-
 /// `race::share_sound_spots` (0x45C7B9): `dword_5165EC` = `dword_6D1DC4`, and that many
 /// 0x14-byte spots copied from 0x6D1AF4 to 0x5165F0 (read by the sound side,
 /// `sub_40E642`). Leaves ecx 0, esi past the spots (0x6D1AF4 with none), edi past the
@@ -270,9 +265,6 @@ pub unsafe fn object_bytes() -> Left {
     unsafe { object_bytes_at(&object_tables()) }
 }
 
-/// The panel's values (IDA addresses), `race::panel_values`: from 0x6D13FE to 0x6D1472.
-pub const PANEL_START_RVA: usize = rva(0x6D13FE);
-pub const PANEL_LEN: usize = 0x74;
 pub const SCRATCH_RVA: usize = rva(0x62400C); // dword_62400C: the original's scratch dword
 const DISTANCES_RVA: usize = rva(0x9F78D8); // g_checkpointDistances
 const START_CHECKPOINT_RVA: usize = rva(0x60102C); // dword_60102C
@@ -337,9 +329,6 @@ pub unsafe fn panel_values_plain() -> Left {
             .with(EAX, eax)
     }
 }
-
-/// The distance shown of each view (the float places `panel_values_plain` writes).
-pub const PANEL_FLOATS: [usize; 2] = [rva(0x6D146A), rva(0x6D146E)];
 
 const SOUND_OBJECTS_RVA: usize = rva(0x512A10); // g_raceSoundObjects: 8 pointers
 const SHOWN_RVA: usize = rva(0x641680); // dword_641680[8]: each car's view (-1 not shown)
@@ -505,24 +494,6 @@ pub unsafe fn panel_motion_plain() -> Left {
 /// `panel_motion`'s views and their three floats' places (IDA addresses).
 pub const PANEL_MOTION: [(usize, u32); 2] = [(0, 0x6D1432), (1, 0x6D145A)];
 
-/// The float places `panel_motion_plain` writes, within `FLOAT`.
-pub fn motion_float_places() -> Vec<(
-    crate::service::harness::Region,
-    crate::service::floats::Tolerance,
-)> {
-    PANEL_MOTION
-        .iter()
-        .flat_map(|&(_, out)| {
-            (0..3).map(move |k| {
-                (
-                    crate::service::harness::at(rva(out as usize + 4 * k)),
-                    crate::service::floats::FLOAT,
-                )
-            })
-        })
-        .collect()
-}
-
 /// `race::panel_marks` (0x45AEFE): the eight dwords at 0x6D14A2 .. 0x6D14C2 (but 0x6D14B2)
 /// 0; for each view block, `dword_6D14B2` / `dword_6D14C6` = 400 + (+0xFA0), and its first
 /// +0xF98 (at most 4) values at +0xF78, each + 1, at 0x6D14A2 / 0x6D14B6. Leaves esi the
@@ -635,26 +606,6 @@ pub fn all_regs(after: &crate::framework::Regs) -> Left {
         .with(EBP, after.ebp)
 }
 
-/// The panel's fields `panel_*` write: 0x6D13FE .. 0x6D14CA.
-pub fn panel_regions() -> Vec<crate::service::harness::Region> {
-    vec![
-        (g(0x6D13FE), 0xCC),
-        crate::service::harness::at(SCRATCH_RVA),
-    ]
-}
-
-/// The countdown's fields: 0x6D1482 .. 0x6D14A2 and `dword_6D1810`.
-pub fn light_regions() -> Vec<crate::service::harness::Region> {
-    vec![
-        (g(0x6D1482), 0x20),
-        crate::service::harness::at(LIGHTS_SHOWN_RVA),
-    ]
-}
-
-pub const LIGHTS_START: usize = LIGHTS_START_RVA;
-pub const SCENE_CLOCK: usize = SCENE_CLOCK_RVA;
-pub const SHOWN_SINCE: usize = SHOWN_SINCE_RVA;
-
 /// The two views' colour buffers for `split_colours`: `dword_6D160C`, `dword_6D170C`.
 pub const COLOUR_BUFFERS: [u32; 2] = [0x6D160C, 0x6D170C];
 
@@ -747,7 +698,7 @@ pub fn hold_to_limit(eax: u32) -> u32 {
 }
 
 pub const SORT_COUNT_RVA: usize = rva(0x63DC50); // dword_63DC50
-pub const SORT_ENTRIES_RVA: usize = rva(0x9DB730); // dword_9DB730: 0x1000 of 8 bytes
+// dword_9DB730: 0x1000 of 8 bytes
 pub const SORT_MAX: u32 = 0x1000;
 
 /// `race::add_sort_entry` (0x454D57): entry `dword_63DC50` of `dword_9DB730`: +4 ebx, +0
@@ -927,7 +878,7 @@ pub unsafe fn face_depth(ebx: u32) -> Result<(), Refused> {
 }
 
 pub const DEPTH_COUNT_RVA: usize = rva(0x63DC4C); // dword_63DC4C
-pub const DEPTH_ENTRIES_RVA: usize = rva(0x9D3730); // dword_9D3730: 0x1000 of 8 bytes
+// dword_9D3730: 0x1000 of 8 bytes
 
 /// `race::add_depth_entry` (0x454D2A): `face_depth` of face ebx, then entry
 /// `dword_63DC4C` of `dword_9D3730`: +0 the key, +4 ebx; the count + 1. Leaves edx the
@@ -958,7 +909,7 @@ const VIEW_X_RVA: usize = rva(0x6062B0); // dword_6062B0
 const VIEW_Z_RVA: usize = rva(0x6062B4); // dword_6062B4
 const GRID_X_RVA: usize = rva(0x63E174); // dword_63E174
 const GRID_Z_RVA: usize = rva(0x63E178); // dword_63E178
-pub const GRID_RVA: usize = rva(0x63E17C); // dword_63E17C[0x400]: 32 x 32 course records
+// dword_63E17C[0x400]: 32 x 32 course records
 const RECORD_X_RVA: usize = rva(0x5CCBF0); // dword_5CCBF0
 const RECORD_Z_RVA: usize = rva(0x5CCBF4); // dword_5CCBF4
 const COURSE_RECORDS_RVA: usize = rva(0x5CCCB8); // g_courseRecords (a pointer)
@@ -1280,49 +1231,6 @@ unsafe fn check_course_grid() -> Result<(), Refused> {
     }
 }
 
-/// What gathering these records' faces may write: the current face, both tables and
-/// their counts, the face tests' dwords, and the scene records of every face's points.
-pub fn gather_regions(records: &[u32]) -> Vec<crate::service::harness::Region> {
-    use crate::service::harness::at;
-    let mut v = vec![
-        at(CURRENT_FACE_RVA),
-        at(SORT_COUNT_RVA),
-        (g(0x9DB730), 0x8000),
-        at(DEPTH_COUNT_RVA),
-        (g(0x9D3730), 0x8000),
-        at(FACE_X_RVA),
-        at(FACE_DEPTH_RVA),
-        at(FACE_KEY_RVA),
-        at(FACE_SIDE_RVA),
-        at(SCRATCH_RVA),
-    ];
-    unsafe {
-        let faces: u32 = game_read(rva(0x5CCCBC));
-        if faces == 0 || game_read::<u32>(POINT_RECORDS_RVA) == 0 {
-            return v;
-        }
-        let mut seen = std::collections::BTreeSet::new();
-        for &r in records {
-            let Some((first, last)) = record_faces(r) else {
-                continue;
-            };
-            if last == u32::MAX || last - first > 0x1000 {
-                continue;
-            }
-            for face in first..=last {
-                let at = (face << 6).wrapping_add(faces);
-                for k in 0..4 {
-                    let point = get(at + 4 + 4 * k);
-                    if seen.insert(point & 0xFFF | (point >> 31) << 12) {
-                        v.extend(crate::scene::project_point::regions(point));
-                    }
-                }
-            }
-        }
-    }
-    v
-}
-
 /// The records `gather_visible_faces` gathers, as it would.
 pub fn visible_records() -> Vec<u32> {
     unsafe {
@@ -1337,19 +1245,6 @@ pub fn visible_records() -> Vec<u32> {
         .map(|n| (n << 5).wrapping_add(records))
         .collect()
     }
-}
-
-/// `prepare_course_view`'s and `mark_far_cells`' other writes: the grid (and past it),
-/// the turned cell, the limit, `dword_63F17C`'s neighbours.
-pub fn far_regions() -> Vec<crate::service::harness::Region> {
-    use crate::service::harness::at;
-    vec![
-        (g(0x63E17C), 0x1084),
-        at(TURNED_X_RVA),
-        at(TURNED_Z_RVA),
-        at(FAR_LIMIT_RVA),
-        at(SCRATCH_RVA),
-    ]
 }
 
 pub const SHOWN_CAR_RVA: usize = rva(0x63DBA4); // dword_63DBA4: the drawn view's car
@@ -1951,7 +1846,7 @@ pub unsafe fn sample_noise(map: u32) -> Left {
     }
 }
 
-pub const FOG_TABLE_RVA: usize = rva(0x63661C); // g_fogTable: 0x1000 bytes
+// g_fogTable: 0x1000 bytes
 const FOG_LENGTH_RVA: usize = rva(0x63761C); // g_fogTableLength
 
 /// `race::fog_table` (0x44FC33): `draw_distance_settings`; the noise at the car
@@ -2003,10 +1898,6 @@ pub unsafe fn fog_table(entry: &crate::framework::Regs) -> Result<crate::framewo
     }
 }
 
-/// `race::set_up_fog`'s calls by place: 1 `scene::restart_clock` (0x450381), 2 the fog
-/// colour to the device (`sub_44E76B`: `dword_5AB964` = eax, then `sub_41AE25`, render
-/// state 0x22 by `d3d::set_render_state`). Place 0 is not used.
-pub const FOG_CALLEES: [(u32, usize); 2] = [(1, 0x450381), (2, 0x44E76B)];
 pub const FOG_COLOUR_RVA: usize = rva(0x624000); // dword_624000
 
 /// `race::set_up_fog` (0x44FBD9): `scene::restart_clock`; `dword_624000` = the fog colour
@@ -2464,7 +2355,7 @@ pub fn sky_part(place: u32, r: &mut crate::framework::Regs) -> Result<(), Refuse
     Ok(())
 }
 
-pub const KEPT_NORMALS_RVA: usize = rva(0x6399B8); // g_keptReflectionNormals: 0x400 dwords
+// g_keptReflectionNormals: 0x400 dwords
 pub const REFLECTIONS_KEPT_RVA: usize = rva(0x63D9B8); // g_reflectionsKept
 
 /// `race::start_kept_reflections` (0x451864): the 0x400 kept reflection normals cleared to
@@ -2487,10 +2378,6 @@ pub unsafe fn start_kept_reflections() -> Left {
 pub unsafe fn end_kept_reflections() {
     unsafe { game_write(REFLECTIONS_KEPT_RVA, 0u32) };
 }
-
-/// `race::draw_slot_object`'s draw by place: 1 `scene::draw_scene_object`. Place 0 is
-/// not used.
-pub const SLOT_CALLEES: [(u32, usize); 1] = [(1, 0x451E3E)];
 
 /// `race::draw_slot_object` (0x4626D1): race slot esi's object (+0, into `g_objectNumber`)
 /// drawn, unless outside one player and modes 0 and 2 its car (object 0x50 + 0x14 x car)
@@ -2612,10 +2499,6 @@ pub unsafe fn draw_race_slots(
         })
     }
 }
-
-/// `race::draw_screen_quad`'s calls by place: 1 `scene::depth_buffer_off`, 2
-/// `scene::draw_polygon`, 3 `scene::depth_buffer_on`. Place 0 is not used.
-pub const QUAD_CALLEES: [(u32, usize); 3] = [(1, 0x44E3F1), (2, 0x44BA2C), (3, 0x44E41F)];
 
 /// `race::draw_screen_quad` (0x44B364): a flat rectangle on the screen from x
 /// `dword_623E10` .. `dword_623E14`, y `dword_623E20` .. `dword_623E24` (the four vertices
@@ -3176,19 +3059,6 @@ pub unsafe fn draw_lamp_flare(
         part(6, &mut r)
     }
 }
-
-/// `race::draw_list_entry`'s calls by place: 1 `scene::draw_described_object` (0x451B61),
-/// 2 `race::draw_tinted_face` (0x44F9F3, a course face), 3 `race::draw_flare`, 4
-/// `race::draw_lamp_flare`, 5 `race::draw_car_entry` (0x455105, a car), 6 `scene::draw_scene_object` (within 3
-/// and 4). Place 0 is not used.
-pub const ENTRY_CALLEES: [(u32, usize); 6] = [
-    (1, 0x451B61),
-    (2, 0x44F9F3),
-    (3, 0x455189),
-    (4, 0x4551F4),
-    (5, 0x455105),
-    (6, 0x451E3E),
-];
 
 /// `race::draw_list_entry` (0x454FF0): one entry's second word ebx (into `dword_5CCCD4`;
 /// the top bit dropped): below 0x1000000 a course face (`g_currentCourseFace`): kind 0xFF

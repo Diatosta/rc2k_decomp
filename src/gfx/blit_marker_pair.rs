@@ -46,11 +46,6 @@ pub unsafe fn set_marker_position(call: &BlitCall) {
     }
 }
 
-/// The position the two globals hold.
-pub fn marker_position() -> (i32, i32) {
-    unsafe { (game_read(MARKER_X_RVA), game_read(MARKER_Y_RVA)) }
-}
-
 /// Draws both markers on the game's surface.
 pub unsafe fn blit_marker_pair(object: *const u8, palette: u32) -> Result<(), FatalError> {
     for call in unsafe { marker_calls(object, palette, sprite_table()) } {

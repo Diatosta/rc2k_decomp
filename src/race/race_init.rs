@@ -8,7 +8,6 @@ use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::race::best_line::{CHECK_COUNT_RVA, CHECK_FACES_RVA, FACES_RVA};
 use crate::race::objects::CAR_BLOCKS_RVA;
 use crate::race::sounds::REPLAY_RVA;
-use crate::service::harness::{Region, at};
 
 pub const SLOTS_RVA: usize = rva(0x71BAC8); // g_raceSlots: 8 records of 0x78, +0 in use
 pub const SLOT_SIZE: u32 = 0x78;
@@ -30,18 +29,6 @@ pub fn block(n: u32) -> u32 {
 
 unsafe fn put(at: u32, value: u32) {
     unsafe { (at as *mut u32).write_unaligned(value) };
-}
-
-/// The race slots' first dwords.
-pub fn slot_regions() -> Vec<Region> {
-    (0..SLOTS)
-        .map(|n| (game_addr(SLOTS_RVA) as u32 + n * SLOT_SIZE, 4))
-        .collect()
-}
-
-/// Bytes `from .. from + len` of each car block.
-pub fn block_regions(from: u32, len: usize) -> Vec<Region> {
-    (0..BLOCKS).map(|n| (block(n) + from, len)).collect()
 }
 
 /// `race::clear_race_slots` (0x4621CD): the eight `g_raceSlots` records' first dword 0.
@@ -139,19 +126,6 @@ pub unsafe fn reset_car_race_state(entry: &Regs) -> Regs {
         edi: block(BLOCKS - 1),
         ..*entry
     }
-}
-
-/// What `reset_car_race_state` writes.
-pub fn race_state_regions() -> Vec<Region> {
-    let mut r = block_regions(0x71C, 0x18);
-    r.extend(block_regions(0xA0C, 0x14));
-    r.extend(
-        BLANK_TEXT_RVAS
-            .iter()
-            .chain(UNSET_TEXT_RVAS.iter())
-            .map(|&a| at(a)),
-    );
-    r
 }
 
 /// `race::first_check_checkpoint` (0x446280): the first checkpoint from 1 whose face's

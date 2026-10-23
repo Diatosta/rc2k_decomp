@@ -104,6 +104,6 @@ Each entry says:
 - **Seen**: yes, with the original game (the reason the owner's copy had the particles
   cut out) and with the converted game on 2026-10-23.
 - **Fix**: the Rust version ends the bursts when the ring is full, keeping the caller's
-  registers, as the intended exit does. In the hooked game, where the original code
-  still runs, the two exits are mended at start-up (`lea esp, [esp+4]` becomes
-  `lea esp, [esp+8]`, `src/bug_fixes.rs`).
+  registers, as the intended exit does (`src/marks/emit_bursts.rs`). (For the hooked
+  game, removed on 2026-10-23, the original's two exits were mended at start-up:
+  `lea esp, [esp+4]` became `lea esp, [esp+8]` at 0x4CD741 and 0x4CDC6E.)

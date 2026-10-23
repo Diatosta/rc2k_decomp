@@ -3,10 +3,9 @@
 //! `scene::choose_carousel_pictures` and `scene::update_carousel_pictures`.
 
 use crate::errors::BadInput;
-use crate::framework::{EAX, EBX, ECX, EDI, ESI, game_addr, game_read, game_write, rva};
+use crate::framework::{EAX, EBX, ECX, EDI, ESI, game_read, game_write, rva};
 use crate::scene::textures::{KIND_SLOT_RVA, KIND_TEXTURE_RVA, SLOTS, WANTED_RVA};
 use crate::screens::harness::Left;
-use crate::service::harness::Region;
 
 pub const WANTED_PICTURES_RVA: usize = rva(0x75AAA8); // dword_75AAA8 .. dword_75AAB4
 pub const SHOWN_RVA: usize = rva(0x75AAB8); // dword_75AAB8 .. dword_75AAC4
@@ -16,16 +15,6 @@ const KIND: usize = 0x2BC;
 pub const FIRST_TEXTURE_RVA: usize = KIND_TEXTURE_RVA + KIND * 4; // dword_5D15D8
 pub const FIRST_SLOT_RVA: usize = KIND_SLOT_RVA + KIND * 4; // dword_5D25D8
 const ENTRIES: u32 = 0x100;
-
-/// The 32 slots of the four pictures, where they lie in the table.
-pub fn slot_regions() -> Vec<Region> {
-    let slot: u32 = unsafe { game_read(FIRST_SLOT_RVA) };
-    let mut regions = vec![(game_addr(WANTED_PICTURES_RVA) as u32, 0x30)];
-    if slot.checked_add(32).is_some_and(|end| end <= SLOTS) {
-        regions.push((game_addr(WANTED_RVA) as u32 + slot * 4, 32 * 4));
-    }
-    regions
-}
 
 /// `scene::update_carousel_pictures` (0x49029C) for the four entries given: each
 /// entry's picture (the first dword of its record) is wanted and shown; the held

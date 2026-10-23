@@ -16,14 +16,9 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::screens::service_boxes::{Inputs, Part, quad, quad_part, rd};
+use crate::screens::service_boxes::{Part, quad, quad_part, rd};
 
 const SEE_THROUGH: usize = 0x75AB50; // dword_75AB50
-
-pub static INPUTS: Inputs = Inputs {
-    tested: &[],
-    read: &[SEE_THROUGH],
-};
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn draw_fade_overlay(entry: &Regs, mut part: Part) -> Result<Regs, Refused> {

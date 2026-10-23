@@ -37,22 +37,11 @@ use crate::errors::Refused;
 use crate::framework::{EAX, ECX, ESI, Regs};
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, ext_times, mul3, one_less_products, ramp, square};
-use crate::physics::mirror::{Mirror, Spec};
+use crate::physics::mirror::Mirror;
 use crate::scene::matrix3::rounded;
 use crate::screens::harness::Left;
-use crate::service::floats::{FLOAT, Tolerance, floats_entry};
-use crate::service::harness::Region;
+use crate::service::floats::floats_entry;
 use rc2k_core::physics::handling::{At, Figures};
-
-/// The mirrored ranges of the tests: the work copy and the grades' block.
-pub const RANGES: [(u32, u32); 2] = [(0x719FD8, 0x71AFB8), (0x75B340, 0x75B6AC)];
-pub const SPEC: Spec = (
-    0x4AF1EC,
-    0x1055,
-    &[0xD9, 0xE8, 0xD9, 0x05, 0x90, 0xA2, 0x71, 0x00],
-    &[],
-    349,
-);
 
 const K: u32 = 0x75B388;
 const LOW: u32 = 0x75B350;
@@ -98,21 +87,6 @@ const FAILURES: [(u32, u32, u32, u32); 7] = [
     (0x71A3FC, 0x75B438, 0x75B41C, 0xA),
 ];
 
-/// What it writes.
-pub fn regions(m: &Mirror) -> Vec<Region> {
-    let mut r: Vec<Region> = [
-        0x71A274, 0x71A2AC, 0x71A3CC, 0x71A3D0, 0x71A3D4, 0x71A3D8, 0x71A3DC, 0x71A3E0, 0x71A400,
-        0x71A404, 0x71A408, 0x71A40C, SCRATCH, 0x75B43C,
-    ]
-    .iter()
-    .map(|&v| (m.a(v), 4))
-    .collect();
-    r.push((m.a(0x71A3E4), 0x1C));
-    r.push((m.a(0x75B404), 0x38));
-    r.push((m.a(0x75B490), 0x10));
-    r
-}
-
 /// The variables of `rc2k_core::physics::handling` where `m` has them.
 pub struct OnMirror<'a>(pub &'a Mirror);
 
@@ -133,19 +107,6 @@ impl Figures for OnMirror<'_> {
     fn put(&mut self, at: At, v: u32) {
         unsafe { self.0.put(ida(at), v) }
     }
-}
-
-/// The float places it writes, held to `FLOAT` at extended precision.
-pub fn floats(m: &Mirror) -> Vec<(Region, Tolerance)> {
-    [
-        (0x71A3CC, 0x18),
-        (0x75B43C, 4),
-        (0x75B404, 0x38),
-        (0x75B490, 0x10),
-    ]
-    .iter()
-    .map(|&(v, len)| ((m.a(v), len), FLOAT))
-    .collect()
 }
 
 /// The converted version (`rc2k_core::physics::handling`, plain floats) on the variables
@@ -279,46 +240,4 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-/// A case's inputs in the mirror: the figures 0x71A278 .. 0x71A32C (and 0x75B440,
-/// 0x75B444, 0x75B3F0) between -0.5 and 2 with some exact grades, the flags, the switch
-/// and the random by `seed`; the tables kept (the game's), but for one case with a flat
-/// table.
-pub fn fill(m: &Mirror, seed: u32) {
-    let mut s = seed.wrapping_mul(0x9E37_79B9) | 1;
-    let mut next = move || {
-        s = s.wrapping_mul(1_103_515_245).wrapping_add(12345);
-        s >> 8
-    };
-    unsafe {
-        let zero = m.get(ZERO);
-        for v in (0x71A278..0x71A32C)
-            .step_by(4)
-            .chain([0x75B440, 0x75B444, 0x75B3F0])
-        {
-            let r = next();
-            let f = match r % 7 {
-                0 => zero,
-                1 => 1.0f32.to_bits(),
-                _ => (((r >> 3) % 2500) as f32 / 1000.0 - 0.5).to_bits(),
-            };
-            m.put(v, f);
-        }
-        for v in (0x71A3E4..0x71A40C).step_by(4) {
-            m.put(v, next() % 2);
-        }
-        m.put(
-            0x75B3E4,
-            if seed.is_multiple_of(3) {
-                0
-            } else {
-                1.0f32.to_bits()
-            },
-        );
-        m.put(RANDOM, next().wrapping_mul(0x01F3_A9C5));
-        if seed % 5 == 4 {
-            m.put(0x75B558 + 8, m.get(0x75B558));
-        }
-    }
 }

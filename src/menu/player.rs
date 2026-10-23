@@ -8,7 +8,7 @@ use crate::framework::{game_read, rva};
 
 pub const PLAYERS_RVA: usize = rva(0x75647C); // g_players
 
-pub use rc2k_core::menu::player::{PLAYERS, Player, Setting};
+pub use rc2k_core::menu::player::{PLAYERS, Player};
 
 /// Player `index`'s address, or 0.
 pub fn player_at(index: u32) -> u32 {
@@ -16,13 +16,4 @@ pub fn player_at(index: u32) -> u32 {
         return 0;
     }
     unsafe { game_read(PLAYERS_RVA + index as usize * 4) }
-}
-
-/// The four players, as harness regions (for self-tests and shadow snapshots).
-pub fn player_regions() -> Vec<crate::service::harness::Region> {
-    (0..PLAYERS)
-        .map(player_at)
-        .filter(|&p| p != 0)
-        .map(|p| (p, std::mem::size_of::<Player>()))
-        .collect()
 }

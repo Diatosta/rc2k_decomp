@@ -12,7 +12,6 @@ use crate::scene::matrix::{
     TURN_Y_WORK_RVA, VIEW_TURN_RVA,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::Region;
 
 pub const TURN_Z_RVA: usize = rva(0x5EA00C); // flt_5EA00C
 pub const TURN_Z_WORK_RVA: usize = rva(0x624158); // dword_624158, dword_62415C
@@ -32,8 +31,6 @@ pub const SQUARED_RVA: usize = rva(0x5C6FD0);
 /// The inverting's work: the nine floats copied (`flt_5C7050` ..) and the nine made
 /// (`flt_5C7074` ..).
 pub const INVERTED_RVA: usize = rva(0x5C7050);
-pub const INVERTED_LEN: usize = 0x48;
-
 /// Which of the three turnings.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Axis {
@@ -66,14 +63,6 @@ impl Axis {
             Axis::Y => [0, 0x20, 8, 0x28],
             Axis::Z => [0, 4, 0x10, 0x14],
         }
-    }
-
-    pub fn regions(self) -> [Region; 3] {
-        [
-            matrix::matrix(self.matrix()),
-            (game_addr(self.work()) as u32, 8),
-            (game_addr(CHECKED_RVA) as u32, 4),
-        ]
     }
 }
 
@@ -201,14 +190,6 @@ pub unsafe fn invert_turn(from: usize, out: usize) {
     }
 }
 
-/// What `invert_turn` and `square_matrix` write besides the matrix.
-pub fn squaring_regions() -> [Region; 2] {
-    [
-        (game_addr(SQUARED_RVA) as u32, 0x30),
-        (game_addr(CHECKED_RVA) as u32, 4),
-    ]
-}
-
 /// `scene::set_view_matrices` (0x438FBF).
 pub unsafe fn set_view_matrices() -> Left {
     unsafe {
@@ -321,29 +302,4 @@ pub unsafe fn set_view_matrices_plain() -> Left {
             .with(EDI, game_addr(VIEW_BACK_RVA) as u32)
             .with(EBP, game_addr(VIEW_RVA) as u32)
     }
-}
-
-/// Everything `set_view_matrices` writes.
-pub fn view_regions() -> Vec<Region> {
-    let mut regions: Vec<Region> = [
-        VIEW_TURN_RVA,
-        TURN_X_RVA,
-        TURN_Y_RVA,
-        TURN_Z_RVA,
-        LIT_RVA,
-        PLACED_RVA,
-        KEPT_PLACE_RVA,
-        VIEW_RVA,
-        VIEW_BACK_RVA,
-    ]
-    .map(matrix::matrix)
-    .to_vec();
-    regions.extend([
-        (game_addr(TURN_X_WORK_RVA) as u32, 8),
-        (game_addr(TURN_Y_WORK_RVA) as u32, 8),
-        (game_addr(TURN_Z_WORK_RVA) as u32, 8),
-        (game_addr(INVERTED_RVA) as u32, INVERTED_LEN),
-    ]);
-    regions.extend(squaring_regions());
-    regions
 }

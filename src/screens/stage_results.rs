@@ -148,29 +148,3 @@ pub unsafe fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused>
         Ok(())
     }
 }
-
-/// Whether the page has what it reads (for the test): the checks `draw_stage_results` refuses
-/// on, run without drawing.
-pub unsafe fn stage_results_ready() -> bool {
-    unsafe {
-        let (base, record) = records();
-        if k(0x75558D) == 0 || base == 0 || times_table() == 0 {
-            return false;
-        }
-        if crate::screens::page_settings::stage_line_bytes(0x481, record).is_err() {
-            return false;
-        }
-        let first = times_table().wrapping_add(get(record + 0x3C).wrapping_mul(0x618));
-        if (1..=10).any(|n| get(first.wrapping_add(0x9C * n)) == u32::MAX) {
-            return false;
-        }
-        let both_off = (k(0x7556F8) ^ 1) & (k(0x7556FC) ^ 1);
-        both_off != 1
-            || crate::records::find_stage_record::find_stage_record(
-                game_addr(rva(0x735576)) as u32,
-                k(0x75880E),
-                k(0x758812),
-            )
-            .is_ok()
-    }
-}

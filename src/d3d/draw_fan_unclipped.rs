@@ -10,21 +10,8 @@
 //! program the rasteriser draws it (`platform_3d::draw_fan`) and the result is 0. No
 //! self-test.
 
-use crate::d3d::recorder::{Call, note};
 use crate::d3d::{VERTEX_LEN, Vertex};
-use crate::framework::{RawHook, Regs, game_addr, game_read, hook_asm, rva, standalone};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("d3d::draw_fan_unclipped", rva(0x41AD9C), thunk, &ORIGINAL);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_addr, game_read, rva, standalone};
 
 pub const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 pub const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
@@ -41,22 +28,6 @@ pub fn polygon() -> Vec<Vertex> {
         .collect()
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    let swallowed = note(|| Call::Fan(polygon()));
-    if swallowed {
-        r.eax = 0;
-        return;
-    }
-    if standalone() {
-        #[cfg(feature = "standalone")]
-        crate::platform_3d::draw_fan(&polygon());
-        r.eax = 0;
-        return;
-    }
-    unsafe { call_original(r) };
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's). In the
 /// hooked game it goes to the game's function, whose hook notes the call for the tests'
 /// recorder (`d3d::recorder`) and runs the original: noted here as well, a call would be
@@ -66,7 +37,6 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
         unsafe { crate::framework::call_game(r, crate::framework::game_addr(rva(0x41AD9C))) };
         return Ok(());
     }
-    #[cfg(feature = "standalone")]
     crate::platform_3d::draw_fan(&polygon());
     r.eax = 0;
     Ok(())

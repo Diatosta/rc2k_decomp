@@ -18,7 +18,7 @@ use crate::framework::{ECX, EDI, ESI, Regs};
 use crate::physics::flow::a;
 use crate::screens::harness::Left;
 use crate::service::harness::state_entry;
-use rc2k_core::drive::replay_frames::{START_DWORDS, START_PIECES, StartPiece, start_layout};
+use rc2k_core::drive::replay_frames::{START_DWORDS, StartPiece, start_layout};
 
 const B: usize = 0x70F3EC; // g_carBlockStore (four blocks of 0xFE0)
 const SAVED: usize = 0x7172EC; // unk_7172EC
@@ -30,14 +30,6 @@ pub fn piece_at(piece: StartPiece) -> usize {
         StartPiece::RaceSlots => 0x71BAC8, // g_raceSlots
         StartPiece::Extra => 0x71BF84,     // unk_71BF84
     }
-}
-
-/// The pieces in order: (where, dwords).
-pub fn pieces() -> Vec<(usize, usize)> {
-    START_PIECES
-        .iter()
-        .map(|&(x, n)| (piece_at(x), n))
-        .collect()
 }
 
 /// The Rust version.

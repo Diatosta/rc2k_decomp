@@ -15,24 +15,14 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::Regs;
 use crate::input::yes_no_for_key::yes_no_for_key;
-use crate::input::yes_no_key::{NO, YES, yes_no_regions};
+use crate::input::yes_no_key::{NO, YES};
 use crate::menu::leaving::{question, with_question};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
+use crate::service::harness::state_entry;
 
 // ---- game data ----
 
-pub use crate::menu::leaving::{ANSWER_RVA, ANSWERED_RVA as LEAVING_RVA, ASKING_RVA};
-
-/// What the function may write.
-pub fn handle_yes_no_regions() -> Vec<Region> {
-    [
-        &yes_no_regions()[..],
-        &[at(ANSWER_RVA), at(LEAVING_RVA)],
-        &crate::menu::go_back::regions(),
-    ]
-    .concat()
-}
+pub use crate::menu::leaving::{ANSWERED_RVA as LEAVING_RVA, ASKING_RVA};
 
 // ---- Rust version ----
 

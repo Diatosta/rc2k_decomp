@@ -12,10 +12,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, game_read, rva};
-use crate::install::outside::{Game, Outside, READ_REGISTRY};
+use crate::install::outside::{Game, Outside};
 use crate::install::read_registry::{SOURCE_RVA, STATUS_RVA};
-use crate::install::stand_ins::stand_in;
-use crate::redirect::RedirectedCopy;
 use crate::service::harness::{Region, capture, restore};
 use crate::strings::same_text::compare_texts;
 use std::cmp::Ordering;
@@ -76,23 +74,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     r.set_zero(mine.0);
     r.set_carry(mine.1);
     Ok(())
-}
-
-const LEN: usize = 0x3D;
-const ENTRY_BYTES: [u8; 8] = [0x60, 0xE8, 0x6B, 0x0F, 0x00, 0x00, 0x80, 0x3D];
-const CALLS: [usize; 3] = [0x01, 0x1E, 0x2D];
-const READ_REGISTRY_RVA: usize = rva(0x413D14);
-
-/// The original with its registry reading pointed at the test's world; the current
-/// directory is this machine's. Also for `install::check_clio_disc`'s test.
-pub unsafe fn copy_asking_the_test() -> Result<RedirectedCopy, &'static str> {
-    unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x412DA3)),
-            LEN,
-            &ENTRY_BYTES,
-            &CALLS,
-            &|callee| (callee == READ_REGISTRY_RVA).then(|| stand_in(READ_REGISTRY)),
-        )
-    }
 }

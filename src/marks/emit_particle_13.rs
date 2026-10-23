@@ -146,15 +146,6 @@ pub fn globals() -> Vec<Region> {
     .to_vec()
 }
 
-/// What it may write: the globals and, when one is to be taken, the next entry.
-pub fn regions() -> Vec<Region> {
-    let mut r = globals();
-    if let Some(e) = unsafe { next_entry() } {
-        r.push((e, ENTRY_LEN));
-    }
-    r
-}
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { emit_particle_13(r.esi) }?;
     Ok(Left::nothing())

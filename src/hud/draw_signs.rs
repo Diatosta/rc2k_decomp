@@ -17,9 +17,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::hud::draw_marker::RECTS_RVA;
-use crate::service::harness::{at, capture, restore};
 
 const WIDTHS_RVA: usize = rva(0x75BF80); // dword_75BF80: 8
 pub const FLAT_RVA: usize = rva(0x6D1502); // dword_6D1502
@@ -81,65 +80,6 @@ pub unsafe fn signs_with(
         }
     }
     Ok(g)
-}
-
-/// The test of a signs function: a copy whose calls go to a stand-in, against `rust`.
-pub fn test_signs(
-    hook: &RawHook,
-    address: usize,
-    len: usize,
-    entry: &[u8],
-    calls: &[usize],
-    rust: &dyn Fn(&Regs, Part) -> Result<Regs, Refused>,
-) -> (usize, usize) {
-    use crate::race::level_init::{note, take_called};
-    use crate::race::mud::copy;
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let copy = match copy(address, len, entry, calls, &[(0x4B70EE, 1)]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let vars = vec![at(FLAT_RVA)];
-    let saved = capture(&vars);
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for case in 0..4u32 {
-        let mut record = [0u32; 0x40];
-        for n in 0..9u32 {
-            record[(0xA4 / 4 + n) as usize] = if (case + n) % 3 == 0 {
-                0
-            } else {
-                n * 5 + case + 1
-            };
-        }
-        record[0xB4 / 4] = 0x100 + case;
-        record[0xC8 / 4] = 0x180 + case;
-        let before = Regs {
-            ebp: record.as_ptr() as u32,
-            ..Regs::SENTINEL
-        };
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            game_write(FLAT_RVA, case & 1);
-        };
-        prepare();
-        take_called();
-        let mut ro = before;
-        unsafe { crate::framework::call_game(&mut ro, copy.addr()) };
-        let theirs = (Some(regs(&ro)), take_called());
-        prepare();
-        let mine = rust(&before, &mut |p, r| {
-            note(p, r);
-            Ok(())
-        });
-        let mine = (mine.as_ref().ok().map(regs), take_called());
-        t.check(theirs == mine, || {
-            format!("case {case}: original {theirs:x?}; rust {mine:x?}")
-        });
-    }
-    restore(&vars, &saved);
-    t.finish()
 }
 
 /// In the game: `add_sprite`'s Rust version.

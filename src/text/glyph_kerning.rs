@@ -11,7 +11,6 @@ use crate::framework::{game_ptr, rva};
 // ---- game data ----
 
 const STATE_RVA: usize = rva(0x93E830); // g_textLineState: the kerning row table
-pub const STATE_LEN: usize = rc2k_core::text::KERNING_ROWS * 2;
 /// The kerning row table: for each of 64 rows, trailing blank pixels and gap.
 pub type State = rc2k_core::text::Kerning;
 

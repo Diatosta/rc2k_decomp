@@ -36,18 +36,3 @@ pub unsafe fn blend_points(entry: &Regs) -> ([[u8; 10]; 3], Regs) {
     });
     (v, g)
 }
-
-/// The converted version (plain floats): the hook's.
-// Converted: `rc2k_core::marks::particles::blend`
-pub unsafe fn blend_points_plain(entry: &Regs) -> ([[u8; 10]; 3], Regs) {
-    let mut g = *entry;
-    g.edx = (g.edx & 0xFF) * 12;
-    let at = FILE_RVA + g.edx as usize;
-    let k: [u32; 3] = unsafe { game_read(at) };
-    let p = |r: u32| -> [i32; 3] {
-        std::array::from_fn(|c| unsafe { ((r + 4 * c as u32) as *const i32).read_unaligned() })
-    };
-    let v =
-        rc2k_core::marks::particles::blend([p(g.eax), p(g.ebx), p(g.ecx)], k.map(f32::from_bits));
-    (v.map(rc2k_core::math::extended::from_f64), g)
-}

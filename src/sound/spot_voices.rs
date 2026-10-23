@@ -17,7 +17,6 @@ use crate::service::harness::{Region, at};
 pub const VOICES: usize = 0x5168C0;
 pub const VOICE_LEN: u32 = 0x50;
 pub const VOICE_COUNT: u32 = 0x48;
-pub const FREE: u32 = 0x1888_FFFF;
 /// g_sharedSoundSpots, g_sharedSoundSpotCount.
 pub const SPOTS: usize = 0x5165F0;
 pub const SPOT_COUNT: usize = 0x5165EC;
@@ -62,21 +61,6 @@ pub fn voice_regions() -> Vec<Region> {
         (game_addr(rva(WORK)) as u32, 0x14),
         at(rva(crate::sound::turn_parts::SCRATCH)),
     ]
-}
-
-/// The voices filled for a test: a pattern, then `each` for every voice.
-pub fn fill_voices(seed: u32, each: &dyn Fn(u32, u32)) {
-    for n in 0..VOICE_COUNT {
-        let v = voice(n);
-        for k in 0..VOICE_LEN / 4 {
-            set(
-                v,
-                4 * k,
-                (n.wrapping_mul(0x9E37_79B9) ^ seed ^ (k * 0x0101_0101)) & 0x3F7F_FFFF,
-            );
-        }
-        each(n, v);
-    }
 }
 
 /// The voices as the core's (`rc2k_core::sound::spot_voices`).

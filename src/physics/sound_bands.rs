@@ -16,12 +16,9 @@
 //! against the converted version (exact: the product of two floats fits an `f64`): values
 //! by lot about the band's ends, at the test control words (0x027F, 0x037F).
 
-use crate::framework::{EBX, RawHook, Regs, SelfTest, call_game};
+use crate::framework::EBX;
 use crate::math::x87;
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
-use crate::scene::matrix3::test_floats;
 use crate::screens::harness::Left;
-use crate::service::harness::capture;
 use rc2k_core::physics::sound_bands::sound_band;
 
 pub const SCRATCH: usize = 0x6D1AEC; // dword_6D1AEC
@@ -76,61 +73,4 @@ pub unsafe fn band_value_plain(twin: Twin) -> u32 {
 /// The converted version on the game's variables: the hooks'.
 pub unsafe fn band_plain(twin: Twin) -> Left {
     Left::nothing().with(EBX, unsafe { band_value_plain(twin) })
-}
-
-/// The test of one twin.
-pub fn test_twin(hook: &RawHook, twin: Twin, entry: &[u8]) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let mut cells = vec![0u32; 3];
-    let base = cells.as_mut_ptr() as u32;
-    let (value, factor, scratch) = (base, base + 4, base + 8);
-    let copy = match crate::audio::test_copy::make(
-        hook,
-        &crate::audio::test_copy::Copy {
-            address: twin.0,
-            len: 0x30,
-            entry,
-            calls: &[],
-            jumps_out: &[],
-        },
-        &|_| None,
-        &[(twin.1, value), (twin.2, factor), (SCRATCH, scratch)],
-        4,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let all = [(base, 12)];
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 0..12u32 {
-                let fill = || {
-                    let mut f = [0u32; 1];
-                    test_floats(seed * 13 + 5, &mut f);
-                    let v = match seed {
-                        0 => 0x7FC0_0000,
-                        1 => (-3.0f32).to_bits(),
-                        2 => 1.0e12f32.to_bits(),
-                        _ => (f32::from_bits(f[0]) % 90.0).to_bits(),
-                    };
-                    unsafe { (base as *mut [u32; 3]).write([v, 1.0f32.to_bits(), 0xAAAA_AAAA]) };
-                };
-                fill();
-                let mut ro = Regs::SENTINEL;
-                unsafe { call_game(&mut ro, copy.addr()) };
-                let theirs = capture(&all);
-                fill();
-                let b = unsafe { band_at_plain(value, factor, scratch, twin.3) };
-                let mine = capture(&all);
-                let regs_ok = Left::nothing().with(EBX, b).matches(&Regs::SENTINEL, &ro);
-                t.check(regs_ok && theirs == mine, || {
-                    format!("control word {word:#x}, seed {seed}: original ebx {:#x} {theirs:x?}; rust {b:#x} {mine:x?}", ro.ebx)
-                });
-            }
-        });
-    }
-    drop((copy, cells));
-    t.finish()
 }

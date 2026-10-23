@@ -29,11 +29,10 @@
 //! the speeches and pictures; what `item_at` refuses.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
-use crate::menu::parts::{Answer, Part, answers, copy, dispatch_parted, run_both, test_part};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::menu::parts::Part;
 use crate::records::find_record::{find_record_in, has_section};
-use crate::screens::harness::{CallOriginal, Left};
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::screens::harness::Left;
 use rc2k_core::menu::stage_screens;
 
 const TABLE_RVA: usize = rva(0x735576); // g_recordTable
@@ -53,13 +52,9 @@ const WELCOME_RVA: usize = rva(0x75987E); // off_75987E
 const WELCOME_A8_RVA: usize = rva(0x759896); // off_759896
 const TITLE_BAR_RVA: usize = rva(0x731C54); // "files\g\graphics\screens\titlebar.p.."
 const RECORD: u32 = 0xA4;
-const START_STREAM: usize = 0x40F743;
-const TAKE_KEY: usize = 0x407F95;
 const LOAD_PICTURE: usize = 0x4118D1;
 const CONVERT_PICTURE: usize = 0x406126;
 const DRAW_STAGE_MAP: usize = 0x4683CF;
-const PLAY_STAGE_SPEECH: usize = 0x47F437;
-
 fn g(a: usize) -> u32 {
     unsafe { game_read(a) }
 }
@@ -222,42 +217,6 @@ pub fn page_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-pub fn dispatch_speech(hook: &RawHook, r: &mut Regs, call_original: CallOriginal, rally: bool) {
-    dispatch_parted(
-        hook,
-        r,
-        call_original,
-        &|r, part| unsafe {
-            if rally {
-                play_rally_speech(r, part)
-            } else {
-                play_stage_speech(r, part)
-            }
-        },
-        speech_part,
-    );
-}
-
-pub fn dispatch_picture(hook: &RawHook, r: &mut Regs, call_original: CallOriginal) {
-    dispatch_parted(
-        hook,
-        r,
-        call_original,
-        &|r, part| unsafe { load_welcome_picture(r, part) },
-        picture_part,
-    );
-}
-
-pub fn dispatch_page(hook: &RawHook, r: &mut Regs, call_original: CallOriginal, up: bool) {
-    dispatch_parted(
-        hook,
-        r,
-        call_original,
-        &|r, part| unsafe { step_stage_page(r, up, part) },
-        page_part,
-    );
-}
-
 /// `dispatch_page` without its hook (typed tables).
 pub fn page_entry(r: &mut Regs, up: bool) -> Result<(), Refused> {
     crate::menu::parts::parted_entry(
@@ -267,306 +226,9 @@ pub fn page_entry(r: &mut Regs, up: bool) -> Result<(), Refused> {
     )
 }
 
-/// What the plain ones write: the page count, menu item 1.
-pub fn plain_regions() -> Vec<Region> {
-    let mut r = vec![at(PAGES_RVA)];
-    if let Ok(item) = crate::menu::item_at::item_at(1) {
-        r.push((item, crate::menu::item_at::ITEM_LEN as usize));
-    }
-    r
-}
-
-pub fn dispatch_plain(
-    hook: &RawHook,
-    r: &mut Regs,
-    call_original: CallOriginal,
-    rust: crate::service::harness::Rust,
-) {
-    dispatch_state(hook, r, call_original, &plain_regions(), rust);
-}
-
 /// `dispatch_plain` without its hook (typed tables).
 pub fn plain_entry(r: &mut Regs, rust: crate::service::harness::Rust) -> Result<(), Refused> {
     crate::service::harness::state_entry(r, rust)
 }
 
 // ---- self-tests ----
-
-/// Six records of the test's at the start of `g_recordTable` (section 0, index 0 .. 5),
-/// saved and put back.
-struct Records {
-    saved: Vec<u8>,
-}
-
-fn records_region() -> Region {
-    (game_addr(TABLE_RVA) as u32, 8 * RECORD as usize)
-}
-
-impl Records {
-    fn new() -> Self {
-        Self {
-            saved: capture(&[records_region()]),
-        }
-    }
-    /// Record `n`'s first dword and +4.
-    fn set(&self, firsts: &[u32], speech: u32) {
-        let table = game_addr(TABLE_RVA) as u32;
-        for (n, &f) in firsts.iter().enumerate() {
-            let r = table + RECORD * n as u32;
-            unsafe {
-                std::ptr::write_bytes(r as *mut u8, 0x11 * (n as u8 + 1), RECORD as usize);
-                (r as *mut u32).write_unaligned(f);
-                ((r + 4) as *mut u32).write_unaligned(speech);
-            }
-        }
-    }
-    fn end(self) {
-        restore(&[records_region()], &self.saved);
-    }
-}
-
-pub fn test_count(hook: &RawHook, call_original: CallOriginal) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let records = Records::new();
-    let inputs = [at(INDEX_RVA), at(SECTION_RVA), at(PAGES_RVA)];
-    let saved = capture(&inputs);
-    for (n, firsts) in [
-        [1u32, 0, 0, 7, 0, 1, 1, 1],
-        [0, 2, 3, 0, 0, 0, 5, 1],
-        [0, 0, 0, 0, 0, 0, 0, 1],
-    ]
-    .iter()
-    .enumerate()
-    {
-        for index in [0u32, 1, 3] {
-            check_state(
-                &mut t,
-                &format!("records {n}, index {index}"),
-                call_original,
-                Regs::SENTINEL,
-                &|| {
-                    records.set(firsts, 0);
-                    p(INDEX_RVA, index);
-                    p(SECTION_RVA, 0);
-                    p(PAGES_RVA, 0xAAAA_AAAA);
-                },
-                &[at(PAGES_RVA)],
-                &|_| {
-                    count_stage_pages()?;
-                    Ok(Left::nothing())
-                },
-            );
-        }
-    }
-    restore(&inputs, &saved);
-    records.end();
-    t.finish()
-}
-
-fn speech_regions() -> [Region; 4] {
-    [
-        at(SPEECH_ON_RVA),
-        at(SPEECH_AT_RVA),
-        at(SPEECH_CLEAR_RVA),
-        at(PAGES_RVA),
-    ]
-}
-
-/// `play_stage_speech` (`rally` false) or `play_rally_speech`: a copy whose stream (and key)
-/// go to stand-ins, the championship and not, a few speeches (the game's tables; a null
-/// entry is skipped).
-pub fn test_speech(hook: &RawHook, rally: bool) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let made = if rally {
-        copy(
-            0x47F40F,
-            0x28,
-            &[0x60, 0xE8, 0x80, 0x8B, 0xF8, 0xFF],
-            &[0x1, 0x21],
-            &[START_STREAM, TAKE_KEY],
-            &[],
-        )
-    } else {
-        copy(
-            0x47F437,
-            0x54,
-            &[0x60, 0x8D, 0x3D, 0x76, 0x55, 0x73, 0x00],
-            &[0x12, 0x4D],
-            &[START_STREAM],
-            &[],
-        )
-    };
-    let copy = match made {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let records = Records::new();
-    let inputs = [at(INDEX_RVA), at(SECTION_RVA), at(MODE_RVA), at(VOLUME_RVA)];
-    let saved = (capture(&inputs), capture(&speech_regions()));
-    answers(&[(1, &[Answer::eax(0x1C)])]);
-    for mode in [0u32, 2] {
-        for speech in [0u32, 1, 3] {
-            let section = if rally { speech } else { 0 };
-            if mode == 2 && !rally && g(STAGE_SPEECHES_RVA + 4 * speech as usize) == 0 {
-                continue;
-            }
-            run_both(
-                &mut t,
-                &format!("mode {mode}, speech {speech}"),
-                &copy,
-                &speech_regions(),
-                &|| {
-                    records.set(&[1, 0, 2, 3], speech);
-                    p(INDEX_RVA, 1);
-                    p(SECTION_RVA, section);
-                    p(MODE_RVA, mode);
-                    p(VOLUME_RVA, 0x33);
-                    p(SPEECH_ON_RVA, 0xAAAA_AAAA);
-                    p(SPEECH_AT_RVA, 0xBBBB_BBBB);
-                    p(SPEECH_CLEAR_RVA, 0xCCCC_CCCC);
-                },
-                Regs::SENTINEL,
-                false,
-                &|r| unsafe {
-                    if rally {
-                        play_rally_speech(r, &mut test_part)
-                    } else {
-                        play_stage_speech(r, &mut test_part)
-                    }
-                },
-            );
-        }
-    }
-    answers(&[]);
-    restore(&inputs, &saved.0);
-    restore(&speech_regions(), &saved.1);
-    records.end();
-    t.finish()
-}
-
-pub fn test_picture(hook: &RawHook) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    // The `jb` to the fatal stub (its rel32 at +0x2D) lands in `fatal_landing`.
-    let copy = match copy(
-        0x4684BD,
-        0x38,
-        &[0x60, 0x8B, 0x1D, 0x5C, 0x59, 0x75, 0x00],
-        &[0x26, 0x31],
-        &[LOAD_PICTURE, CONVERT_PICTURE],
-        &[0x2D],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let inputs = [at(SECTION_RVA), at(MODE_RVA)];
-    let saved = capture(&inputs);
-    for carry in [false, true] {
-        answers(&[(0, &[Answer::carry(carry)])]);
-        for mode in [0u32, 2] {
-            for section in [0u32, 1, 5] {
-                run_both(
-                    &mut t,
-                    &format!("carry {carry}, mode {mode}, section {section}"),
-                    &copy,
-                    &[],
-                    &|| {
-                        p(SECTION_RVA, section);
-                        p(MODE_RVA, mode);
-                    },
-                    Regs::SENTINEL,
-                    false,
-                    &|r| unsafe { load_welcome_picture(r, &mut test_part) },
-                );
-            }
-        }
-    }
-    answers(&[]);
-    restore(&inputs, &saved);
-    t.finish()
-}
-
-pub fn test_page(hook: &RawHook, address: usize, up: bool) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let (len, calls, entry): (usize, [usize; 2], [u8; 6]) = if up {
-        (0x3C, [0x30, 0x35], [0x60, 0xA1, 0x6C, 0x59, 0x75, 0x00])
-    } else {
-        (0x39, [0x2D, 0x32], [0x60, 0xA1, 0x6C, 0x59, 0x75, 0x00])
-    };
-    let copy = match copy(
-        address,
-        len,
-        &entry,
-        &calls,
-        &[DRAW_STAGE_MAP, PLAY_STAGE_SPEECH],
-        &[],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions = [at(PAGE_RVA), at(PAGES_RVA), at(INDEX_RVA), at(FIRST_RVA)];
-    let saved = capture(&regions);
-    for (page, pages) in [
-        (0u32, 3u32),
-        (1, 3),
-        (3, 3),
-        (4, 3),
-        (0, 0),
-        (0xFFFF_FFFF, 2),
-    ] {
-        run_both(
-            &mut t,
-            &format!("page {page:#x} of {pages}"),
-            &copy,
-            &regions,
-            &|| {
-                p(PAGE_RVA, page);
-                p(PAGES_RVA, pages);
-                p(FIRST_RVA, 0x20);
-                p(INDEX_RVA, 0xAAAA_AAAA);
-            },
-            Regs::SENTINEL,
-            false,
-            &|r| unsafe { step_stage_page(r, up, &mut test_part) },
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
-}
-
-/// The two looks: the original and the Rust version on the current menu's item 1, put
-/// back (skipped without a current menu).
-pub fn test_style(hook: &RawHook, call_original: CallOriginal, b: bool) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let regions = plain_regions();
-    if regions.len() < 2 {
-        return t.skip("no current menu");
-    }
-    let saved = capture(&regions);
-    let item = regions[1].0;
-    for fill in [0u8, 0x5A] {
-        check_state(
-            &mut t,
-            &format!("item filled with {fill:#x}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                std::ptr::write_bytes((item + 0x1C) as *mut u8, fill, 8);
-                std::ptr::write_bytes((item + 0x50) as *mut u8, fill, 4);
-            },
-            &regions,
-            &|_| style_stage_item(b),
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
-}

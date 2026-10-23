@@ -5,7 +5,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
-use crate::service::harness::{Region, at};
 
 pub const DONE_RVA: usize = rva(0x8BC3D6); // g_marksEdgesDone: 0, or where to go on
 pub const RESUME_RVA: usize = rva(0x4C0FFD); // loc_4C0FFD
@@ -142,19 +141,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         }
     }
     Ok(())
-}
-
-/// What `load_edges` writes itself (its steps are stand-ins in the test).
-pub fn edge_regions() -> Vec<Region> {
-    let a = |r: usize| game_addr(r) as u32;
-    vec![
-        at(DONE_RVA),
-        (a(BOXES_RVA), (0x30 * KINDS) as usize),
-        (a(KIND_FLOATS_RVA), (4 * KINDS) as usize),
-        (a(PATH_RVA), 0x14),
-        (a(EDGE_RVA), EDGE_LEN as usize),
-        at(TILT_RVA),
-    ]
 }
 
 const KIND_AT: u32 = 0x26A8; // the settings' kind

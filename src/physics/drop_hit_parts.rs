@@ -98,15 +98,3 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
 }
-
-/// The hit tests' inputs: the kind, the word, the timers, the bits.
-pub fn set_hits(seed: u32) {
-    p(0x719FFC, [3u32, 0x16, 0x17, 0x21, 0][(seed % 5) as usize]);
-    p(0x719FE4, seed.wrapping_mul(0x9E37_79B9));
-    for k in 0..4usize {
-        let v = [50.0f32, 100.0, 300.0, f32::NAN][(seed as usize + k) % 4];
-        p(0x71A2D0 + 4 * k, v.to_bits());
-        p(0x71A32C + 4 * k, v.to_bits());
-    }
-    p(0x71A270, 0xFFFF_FFFF ^ (seed.wrapping_mul(0x24) & 0x1FE));
-}

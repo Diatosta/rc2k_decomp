@@ -41,9 +41,6 @@ pub const CAR0_B_RVA: usize = rva(0x7554C4); // dword_7554C4 -> car 0 +0x274
 pub use rc2k_core::saves::savegame::{NAME_AT as NAME_OFFSET, NAME_POINTER as NAME_PTR_OFFSET};
 pub const RECORDS_RVA: usize = rva(0x73B674); // unk_73B674
 
-/// Bytes written to the buffer.
-pub const GATHERED_LEN: usize = rc2k_core::saves::savegame::LEN;
-
 /// The four players, if every one is there and has its pointer at +0x18.
 pub fn cars() -> Result<[u32; CARS], BadInput> {
     let mut cars = [0u32; CARS];

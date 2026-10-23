@@ -168,30 +168,6 @@ pub fn game_normal(a: u32, b: u32, c: u32) {
 
 // ---- for the self-tests ----
 
-/// A course of the test's: `faces` faces over `points` points, laid out from a course
-/// memory of its own (0x100, two 0x20 records, the faces, the points), the game's
-/// pointers and counts set to it until dropped.
-pub struct TestCourse {
-    pub memory: Vec<u8>,
-    saved: Vec<u8>,
-}
-
-/// The game's variables a test course sets.
-pub fn course_inputs() -> Vec<crate::service::harness::Region> {
-    use crate::service::harness::at;
-    let mut r: Vec<_> = [
-        COURSE_MEMORY_RVA,
-        FIRST_COUNT_RVA,
-        FACE_COUNT_RVA,
-        POINT_COUNT_RVA,
-        QUAD_RVA,
-    ]
-    .map(at)
-    .to_vec();
-    r.push((game_addr(LAYOUT_RVA) as u32, 20));
-    r
-}
-
 /// What the norms' functions write.
 pub fn norm_regions() -> Vec<crate::service::harness::Region> {
     vec![
@@ -199,67 +175,4 @@ pub fn norm_regions() -> Vec<crate::service::harness::Region> {
         crate::service::harness::at(LENGTH_RVA),
         (game_addr(NORMAL_WORK_RVA) as u32, NORMAL_WORK_LEN),
     ]
-}
-
-impl TestCourse {
-    pub const FIRST: u32 = 2;
-
-    pub fn new(faces: u32, points: u32, quad: bool, seed: u32) -> Self {
-        let saved = crate::service::harness::capture(&course_inputs());
-        let len = 0x100 + Self::FIRST * 0x20 + faces * 0x40 + points * 12;
-        let mut memory = vec![0u8; len as usize];
-        let mut s = seed;
-        let mut next = || {
-            s = s.wrapping_mul(1_103_515_245).wrapping_add(12345);
-            s >> 8
-        };
-        let base = memory.as_mut_ptr() as u32;
-        let face0 = base + 0x100 + Self::FIRST * 0x20;
-        let point0 = face0 + faces * 0x40;
-        unsafe {
-            for f in 0..faces {
-                let face = face0 + f * 0x40;
-                *(face as *mut u8) = if f % 5 == 4 {
-                    0x10
-                } else {
-                    (next() & 0xF) as u8
-                };
-                ((face + 2) as *mut u16).write_unaligned(next() as u16);
-                for k in 0..4 {
-                    // Some out of range, some repeated in their low twelve bits.
-                    let p = match next() % 9 {
-                        0 => points + 3,
-                        1 => 0x1000 + k,
-                        _ => next() % points,
-                    };
-                    ((face + 4 + 4 * k) as *mut u32).write_unaligned(p);
-                }
-            }
-            for p in 0..points * 3 {
-                ((point0 + 4 * p) as *mut i32)
-                    .write_unaligned((next() % 0x2_0000) as i32 - 0x1_0000);
-            }
-            game_write(COURSE_MEMORY_RVA, base);
-            game_write(FIRST_COUNT_RVA, Self::FIRST);
-            game_write(FACE_COUNT_RVA, faces);
-            game_write(POINT_COUNT_RVA, points);
-            game_write(QUAD_RVA, if quad { 0u32 } else { u32::MAX });
-        }
-        lay_out_course_now();
-        Self { memory, saved }
-    }
-
-    pub fn region(&self) -> crate::service::harness::Region {
-        (self.memory.as_ptr() as u32, self.memory.len())
-    }
-}
-
-fn lay_out_course_now() {
-    unsafe { lay_out_course() };
-}
-
-impl Drop for TestCourse {
-    fn drop(&mut self) {
-        crate::service::harness::restore(&course_inputs(), &self.saved);
-    }
 }

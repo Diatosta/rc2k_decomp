@@ -7,7 +7,6 @@ use crate::framework::rva;
 pub mod allocate;
 pub mod free_list;
 pub mod free_own_heap;
-pub mod move_bytes;
 pub mod open_own_heap;
 pub mod take_from_list;
 pub mod virtual_alloc;

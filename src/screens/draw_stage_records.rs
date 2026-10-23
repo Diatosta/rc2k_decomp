@@ -22,22 +22,14 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{GameHook, RawHook, Regs, SelfTest, game_read, rva, shadow};
-use crate::gfx::blit_glyph::{record_calls, recording_works};
+use crate::framework::{Regs, game_read, rva};
+use crate::screens::blanked;
 use crate::screens::stage_panel::PanelScreen;
-use crate::screens::{blanked, font_is_loaded, line_buffer, set_line};
 use crate::strings::append_time::show_hours;
-use crate::strings::string_table::{blob, is_table_id};
 use crate::strings::units::units;
-use crate::text::draw_text::{Canvas, GameCanvas, RecordingCanvas};
-use crate::text::glyph_kerning::state_ptr;
-use std::slice::from_raw_parts;
+use crate::text::draw_text::{Canvas, GameCanvas};
 
 // ---- game data ----
-
-const LABEL_FONT: usize = 0x51E5A4;
-const TEXT_FONT: usize = 0x51E584;
-const TIME_FONT: usize = 0x51E564;
 
 const RECORD_TABLES_RVA: usize = rva(0x735512); // off_735512: pointers to tables of tables
 const SELECTED_GROUP_RVA: usize = rva(0x7558C8); // dword_7558C8
@@ -90,11 +82,6 @@ pub unsafe fn selection() -> Option<Selection> {
 
 unsafe fn selected_record() -> Option<(u32, u32)> {
     unsafe { selection() }.map(|s| (s.record, s.sub))
-}
-
-/// False while no record table is selected, in which case the original must not be run.
-pub fn has_selected_record() -> bool {
-    unsafe { selected_record() }.is_some()
 }
 
 // ---- Rust version ----
@@ -179,77 +166,10 @@ pub unsafe fn draw_records_rows(
     }
 }
 
-/// The line buffer as far as these functions use it: the text and the one-character cell of
-/// `draw_time_fixed_pitch`.
-unsafe fn line_area() -> Vec<u8> {
-    unsafe { from_raw_parts(line_buffer(), 0x80) }.to_vec()
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     rows_entry("screens::draw_stage_records", r, &STAGE_ROWS)
-}
-
-/// The dispatch of a records drawer (this one, `screens::draw_time_trial_records`).
-pub fn dispatch_rows(
-    hook: &RawHook,
-    r: &mut Regs,
-    call_original: crate::screens::harness::CallOriginal,
-    rows: &Rows,
-) {
-    hook.count_call();
-    if blanked(hook.name()) {
-        return;
-    }
-    let entry = r.edi;
-
-    if !shadow() {
-        match unsafe { draw_records_rows(entry, rows, &mut GameCanvas) } {
-            Ok(too_wide) => {
-                r.set_carry(too_wide);
-                r.set_zero(!too_wide);
-            }
-            // The original, run from the start, redraws the same things and meets the same
-            // error.
-            Err(e) => unsafe { crate::fatal::raise::refused(hook, e, r, call_original) },
-        }
-        return;
-    }
-
-    // Shadow: Rust goes through the motions in the line buffer and lists its blitter calls;
-    // the original then does it again and really draws.
-    let mut canvas = RecordingCanvas::new(true);
-    let too_wide = match unsafe { draw_records_rows(entry, rows, &mut canvas) } {
-        Ok(value) => value,
-        Err(e) => {
-            unsafe { crate::fatal::raise::refused(hook, e, r, call_original) };
-            return;
-        }
-    };
-    let area_r = unsafe { line_area() };
-
-    let mut o = *r;
-    let calls = record_calls(false, || unsafe { call_original(&mut o) });
-    let area_o = unsafe { line_area() };
-
-    let ok = o.preserved_except(r, 0)
-        && o.carry() == too_wide
-        && area_o == area_r
-        && unsafe { *state_ptr() } == canvas.state
-        && (!recording_works() || calls == canvas.calls);
-    if !ok {
-        hook.mismatch(|| {
-            format!(
-                "entry={entry:#x}: original carry={} calls={} rust carry={too_wide} calls={} same_line_buffer={}",
-                o.carry(),
-                calls.len(),
-                canvas.calls.len(),
-                area_o == area_r
-            )
-        });
-    }
-    r.eflags = o.eflags;
 }
 
 /// `dispatch_rows` outside shadow mode, without its hook (typed tables, 2026-10-22: the entry the menus' and draw lists' enums run, with no hook).
@@ -267,77 +187,3 @@ pub fn rows_entry(name: &str, r: &mut Regs, rows: &Rows) -> Result<(), Refused> 
 // Uses the game's own fonts, strings and selected record, so it only runs when those are
 // there. The blitter's hook swallows the calls; the line buffer and the kerning table are
 // restored.
-
-/// The self-test of a records drawer.
-pub fn test_rows(
-    hook: &RawHook,
-    call_original: crate::screens::harness::CallOriginal,
-    rows: &Rows,
-) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    if !recording_works() {
-        return t.skip("the gfx::blit_glyph hook is off, so the original would really draw");
-    }
-    let fonts_loaded = [LABEL_FONT, TEXT_FONT, TIME_FONT]
-        .iter()
-        .all(|&f| font_is_loaded(f));
-    if blob().is_null() || !fonts_loaded || ![0, 0x34B, 0x34C].iter().all(|&id| is_table_id(id)) {
-        return t.skip("the string table or the fonts are not loaded");
-    }
-    if unsafe { selected_record() }.is_none() {
-        return t.skip("no record is selected (its table is not loaded)");
-    }
-    let saved_line = unsafe { from_raw_parts(line_buffer(), 0x200) }.to_vec();
-    let saved_state = unsafe { *state_ptr() };
-
-    // (nationality, car number, time, name)
-    let entries: [(u32, u32, u32, &[u8]); 4] = [
-        (0, 0, 0, b"A\0"),
-        (3, 0x18, 12_345, b"TEST DRIVER\0"),
-        (7, 0x19, 360_000, b"Another Name\0"),
-        (1, 0x1A, 599_999, b"\0"),
-    ];
-    for (first, second, time, name) in entries {
-        let mut entry = [0u8; 0x60];
-        entry[8..12].copy_from_slice(&first.to_le_bytes());
-        entry[0x10..0x14].copy_from_slice(&second.to_le_bytes());
-        entry[0x14..0x18].copy_from_slice(&time.to_le_bytes());
-        entry[0x20..0x20 + name.len()].copy_from_slice(name);
-
-        let before = Regs {
-            edi: entry.as_ptr() as u32,
-            ..Regs::default()
-        };
-        let mut ro = before;
-        let calls_o = record_calls(true, || unsafe { call_original(&mut ro) });
-        let area_o = unsafe { line_area() };
-        let state_o = unsafe { *state_ptr() };
-
-        unsafe { set_line(&saved_line) };
-        let mut canvas = RecordingCanvas::new(false);
-        let mine = unsafe { draw_records_rows(entry.as_ptr() as u32, rows, &mut canvas) };
-        let area_r = unsafe { line_area() };
-        unsafe { set_line(&saved_line) };
-
-        let preserved = ro.preserved_except(&before, 0);
-        let ok = mine == Ok(ro.carry())
-            && area_o == area_r
-            && calls_o == canvas.calls
-            && state_o == canvas.state
-            && preserved;
-        t.check(ok, || {
-            format!(
-                "first={first} second={second:#x} time={time}: original carry={} calls={:?} preserved={preserved} same_line_buffer={}; rust {mine:?} calls={:?}",
-                ro.carry(),
-                calls_o,
-                area_o == area_r,
-                canvas.calls
-            )
-        });
-    }
-
-    unsafe { *state_ptr() = saved_state };
-    t.finish()
-}

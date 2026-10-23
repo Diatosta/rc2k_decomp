@@ -16,14 +16,12 @@
 use crate::framework::{Regs, game_read, rva, standalone};
 
 const WANTED_RVA: usize = rva(0x6415E0); // dword_6415E0
-#[cfg(feature = "standalone")]
 const PICTURE_RVA: usize = rva(0x624234); // dword_624234: the mirror picture's texture
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     if standalone() {
         if unsafe { game_read::<u32>(WANTED_RVA) } != 0 {
-            #[cfg(feature = "standalone")]
             crate::platform_3d::copy_screen_to_system_texture(unsafe { game_read(PICTURE_RVA) });
         }
         return Ok(());

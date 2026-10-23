@@ -90,31 +90,3 @@ pub unsafe fn release_sound_listener(listener: u32) {
 }
 
 // ---- for the self-tests ----
-
-/// A copy of a part whose variables are the test's. (`test_copy::make` with its `Copy`
-/// written out: each argument is one of the copy's facts, read off IDA.)
-#[allow(clippy::too_many_arguments)]
-pub fn copy_of(
-    hook: &crate::framework::RawHook,
-    address: usize,
-    len: usize,
-    entry: &[u8],
-    calls: &[usize],
-    jumps_out: &[usize],
-    variables: &[(usize, u32)],
-    references: usize,
-) -> Result<crate::redirect::RedirectedCopy, String> {
-    crate::audio::test_copy::make(
-        hook,
-        &crate::audio::test_copy::Copy {
-            address,
-            len,
-            entry,
-            calls,
-            jumps_out,
-        },
-        &|_| None,
-        variables,
-        references,
-    )
-}

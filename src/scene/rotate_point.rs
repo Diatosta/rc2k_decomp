@@ -36,10 +36,3 @@ pub unsafe fn rotate_point(m: u32, p: [[u8; 10]; 3]) -> [[u8; 10]; 3] {
     );
     out
 }
-
-/// The converted version (`rc2k_core::math::vector`, plain floats): the hook's.
-pub unsafe fn rotate_point_plain(m: u32, p: [[u8; 10]; 3]) -> [[u8; 10]; 3] {
-    use rc2k_core::math::extended::{from_f64, to_f64};
-    let m = unsafe { crate::scene::vector3::read_floats(m) };
-    rc2k_core::math::vector::rotate_point(&m, p.map(to_f64)).map(from_f64)
-}

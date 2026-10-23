@@ -26,18 +26,12 @@ use crate::framework::{EBX, ESI, Regs};
 use crate::math::x87;
 use crate::math::x87_run::int_lerp;
 use crate::physics::grade_or_reset::{MODE, grade_or_reset_at};
-use crate::physics::mirror::{Mirror, Spec};
+use crate::physics::mirror::Mirror;
 use crate::physics::rate_damage::{OnMirror, rate_damage_plain_at};
 use crate::physics::reset_car_grades::reset_grades_at;
 use crate::screens::harness::Left;
 use crate::service::floats::floats_entry;
 
-pub const RANGES: [(u32, u32); 3] = [
-    (0x719FD8, 0x71AFB8),
-    (0x75B340, 0x75B6AC),
-    (0x613E00, 0x614D00),
-];
-pub const OWN_SPEC: Spec = (0x43EB5D, 0x177, &[0xE8, 0x2C, 0xCF, 0xFF, 0xFF], &[0], 49);
 const KIND: u32 = 0x71A018; // g_carDriveKind
 const K256: u32 = 0x5C5E2C; // flt_5C5E2C, 256.0
 

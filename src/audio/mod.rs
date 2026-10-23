@@ -1,8 +1,6 @@
 //! The audio thread (`audio::thread`, 0x409CCE): the side that carries out what `sound::`
 //! sends. See `voices.rs`.
 
-use crate::framework::GameHook;
-
 pub mod a3d;
 pub mod buffer_play;
 pub mod buffer_settings;
@@ -20,14 +18,12 @@ pub mod make_buffer;
 pub mod mix;
 pub mod mix_channels;
 pub mod mixer;
-pub mod mixer_harness;
 pub mod mixer_set_up;
 pub mod new_voice;
 pub mod open_eax;
 pub mod open_voice_manager;
 pub mod primary;
 pub mod property_sets;
-pub mod read_sample;
 pub mod read_sample_of;
 pub mod release_eax;
 pub mod release_voice;
@@ -46,11 +42,8 @@ pub mod stop_all_voices;
 pub mod stop_streams;
 pub mod stray_voices;
 pub mod stream;
-pub mod stream_command;
 pub mod stream_commands;
 pub mod take_commands;
-pub mod test_copy;
-pub mod test_sound;
 pub mod thread;
 pub mod thread_parts;
 pub mod update_mixer_voices;
@@ -58,5 +51,3 @@ pub mod update_voices;
 pub mod voices;
 pub mod volume_command;
 pub mod write_mix;
-
-pub static HOOKS: &[&dyn GameHook] = &[&take_commands::HOOK];

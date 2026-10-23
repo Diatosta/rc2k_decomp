@@ -24,15 +24,11 @@
 //! first input device record; for `raise_controller_sensitivity` an edi below 0x10000.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, EDI, RawHook, Regs, SelfTest, game_read, game_write, rva};
-use crate::input::input_tick::COMMAND_RVA;
+use crate::framework::{EAX, EBX, EDI, Regs, game_read, rva};
 use crate::input::request_device_release::request_device_release;
 use crate::input::request_device_setup::{DEVICES_RVA, request_device_setup};
-use crate::menu::player::{PLAYERS_RVA, Player};
 use crate::menu::player_settings::current;
-use crate::screens::harness::{CallOriginal, Left};
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
-use crate::service::state::PLAYER_INDEX_RVA;
+use crate::screens::harness::Left;
 
 pub const COUNT_RVA: usize = rva(0x4F78E0); // dword_4F78E0: the listed controllers
 
@@ -154,26 +150,6 @@ pub fn raise_dead_zone(offset: u32) -> Result<(u32, u32, u32), Refused> {
     Ok((value, room, p))
 }
 
-/// What they may write: the current player's record, the device record's first bytes and
-/// the command.
-pub fn regions() -> Vec<Region> {
-    let mut r = crate::input::request_device_setup::regions();
-    if let Ok(p) = player() {
-        r.push((p, std::mem::size_of::<Player>()));
-    }
-    r
-}
-
-/// The dispatch of each: `rust` the Rust version as the harness runs it.
-pub fn dispatch_item(
-    hook: &RawHook,
-    r: &mut Regs,
-    call_original: CallOriginal,
-    rust: crate::service::harness::Rust,
-) {
-    dispatch_state(hook, r, call_original, &regions(), rust);
-}
-
 /// `dispatch_item` without its hook (typed tables).
 pub fn item_entry(r: &mut Regs, rust: crate::service::harness::Rust) -> Result<(), Refused> {
     crate::service::harness::state_entry(r, rust)
@@ -190,95 +166,4 @@ pub fn dead_zone_left(offset: u32) -> Result<Left, Refused> {
     } else {
         Left::nothing()
     })
-}
-
-/// The self-test of each: a player record of the test's in player 0's place (the current
-/// player 0), a device record of the test's, controllers 0 .. 4 with counts 0, 2 and 3,
-/// sensitivities -1 .. 4, dead zones around their limit, the caller's edi on a dword 0 and 1.
-pub fn test_item(
-    hook: &RawHook,
-    call_original: CallOriginal,
-    rust: crate::service::harness::Rust,
-) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let inputs = [
-        at(PLAYER_INDEX_RVA),
-        at(PLAYERS_RVA),
-        at(DEVICES_RVA),
-        at(COMMAND_RVA),
-        at(COUNT_RVA),
-    ];
-    let saved = capture(&inputs);
-    let mut record = vec![0u8; std::mem::size_of::<Player>()];
-    let mut device = vec![0u8; 0x40];
-    let mut caller = [0u32; 0x10];
-    let (p, d, e) = (
-        record.as_mut_ptr() as u32,
-        device.as_mut_ptr() as u32,
-        caller.as_mut_ptr() as u32,
-    );
-    let (record_len, device_len) = (record.len(), device.len());
-    let regions: [Region; 3] = [at(COMMAND_RVA), (p, record_len), (d, device_len)];
-    // controller, count, sensitivity, dead zones +0x40 and +0x44
-    let cases: [(u32, u32, u32, u32, u32); 12] = [
-        (0, 2, 0, 10, 20),
-        (1, 2, 1, 40, 39),
-        (2, 2, 3, 40, 40),
-        (3, 2, 2, 45, 45),
-        (2, 3, 0xFFFF_FFFF, 0, 89),
-        (3, 3, 4, 0, 90),
-        (0, 0, 2, 50, 41),
-        (1, 0, 2, 0, 0),
-        (0xFFFF_FFFF, 2, 1, 5, 5),
-        (4, 3, 1, 100, 0),
-        (2, 2, 2, 0xFFFF_FFF0, 0),
-        (1, 2, 0, 0x7FFF_FFFF, 0x7FFF_FFFF),
-    ];
-    for (case, &(controller, n, sensitivity, zone_a, zone_b)) in cases.iter().enumerate() {
-        for edi_word in [0u32, 1] {
-            let before = Regs {
-                edi: e,
-                ..Regs::SENTINEL
-            };
-            check_state(
-                &mut t,
-                &format!(
-                    "case {case}: controller {controller:#x} of {n}, sensitivity {sensitivity:#x}, dead zones {zone_a:#x} {zone_b:#x}, caller's +0x2C {edi_word}"
-                ),
-                call_original,
-                before,
-                &|| unsafe {
-                    for (k, b) in std::slice::from_raw_parts_mut(p as *mut u8, record_len)
-                        .iter_mut()
-                        .enumerate()
-                    {
-                        *b = (k as u8).wrapping_mul(7);
-                    }
-                    std::ptr::write_bytes(d as *mut u8, 0x5A, device_len);
-                    // No DirectInput device and not acquired, should the input thread act
-                    // on a request before it is put back.
-                    w(d, 4, 0);
-                    w(d, 0x24, 0);
-                    w(p, 0x2C, controller);
-                    w(p, 0x34, sensitivity);
-                    w(p, 0x38, 0x77 + case as u32);
-                    w(p, 0x40, zone_a);
-                    w(p, 0x44, zone_b);
-                    w(e, 0x2C, edi_word);
-                    game_write(PLAYER_INDEX_RVA, 0u32);
-                    game_write(PLAYERS_RVA, p);
-                    game_write(DEVICES_RVA, d);
-                    game_write(COMMAND_RVA, 0u32);
-                    game_write(COUNT_RVA, n);
-                },
-                &regions,
-                rust,
-            );
-        }
-    }
-    restore(&inputs, &saved);
-    drop((record, device, caller));
-    t.finish()
 }

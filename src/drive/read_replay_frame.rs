@@ -20,7 +20,6 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::drive::read_packed::TestFile;
 use crate::errors::{FatalError, Refused};
 use crate::framework::Regs;
 use crate::physics::flow::{a, g, p};
@@ -78,32 +77,4 @@ pub fn regions() -> Vec<Region> {
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-/// A test replay: two frames, plain and packed, at known places; `h`, the tables, the
-/// count and the playing switch set (saved and put back by the caller).
-pub fn test_replay() -> Option<TestFile> {
-    let mut bytes: Vec<u8> = (0..0x20).map(|x| x as u8).collect();
-    bytes.extend([0xFE, 0x11, 0x22, 0x03, 0x99, 0]);
-    let file = TestFile::new("rc2k_replay_frame.tmp", &bytes)?;
-    p(FILE, file.handle);
-    p(PLACES, 0);
-    p(PLACES + 4, 0x20);
-    p(PLACES + 8, 0x20);
-    p(PLACES + 12, (-6i32) as u32);
-    p(0x5BECD0, 2);
-    p(0x5BEC88, 1);
-    Some(file)
-}
-
-/// What the tests set.
-pub fn test_regions() -> Vec<Region> {
-    let mut all = regions();
-    all.extend([
-        (a(FILE), 4),
-        (a(PLACES), 0x18),
-        (a(0x5BECD0), 4),
-        (a(0x5BEC88), 4),
-    ]);
-    all
 }

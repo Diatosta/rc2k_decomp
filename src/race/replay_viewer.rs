@@ -118,34 +118,6 @@ pub const KEYS: [(u8, u32); 30] = [
 const DEVELOPER: [(u8, u32); 4] = [(b'?', 0x26), (b'@', 0x27), (b'A', 0x28), (b'B', 0x25)];
 const MOVES: [u8; 4] = [0x66, 0x6B, 0x68, 0x69];
 
-/// The gate for each frame's work in the game (none in the tests).
-struct Gate {
-    on: bool,
-    held: bool,
-}
-
-impl Gate {
-    fn hold(&mut self) {
-        if self.on && !self.held {
-            crate::framework::hook_enter();
-            self.held = true;
-        }
-    }
-
-    fn release(&mut self) {
-        if self.held {
-            crate::framework::hook_leave();
-            self.held = false;
-        }
-    }
-}
-
-impl Drop for Gate {
-    fn drop(&mut self) {
-        self.release();
-    }
-}
-
 /// Where the stopped viewer's key leads.
 enum Next {
     Sound,
@@ -153,18 +125,11 @@ enum Next {
     Action(u32),
 }
 
-/// The Rust version: the registers it leaves (the entry's). `gate`: pass the gate each
-/// frame (the game; not the tests).
-pub fn replay_viewer(entry: &Regs, part: Part, gate: bool) -> Result<Regs, Refused> {
-    let mut g = Gate {
-        on: gate,
-        held: false,
-    };
+/// The Rust version: the registers it leaves (the entry's).
+pub fn replay_viewer(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
-    g.hold();
-    view(&mut r, part, &mut g)?;
+    view(&mut r, part)?;
     // The end (0x41D436).
-    g.release();
     part(16, &mut r)?;
     part(17, &mut r)?;
     put(STOPPED, 0);
@@ -173,7 +138,7 @@ pub fn replay_viewer(entry: &Regs, part: Part, gate: bool) -> Result<Regs, Refus
 }
 
 /// Up to the end.
-fn view(r: &mut Regs, part: Part, g: &mut Gate) -> Result<(), Refused> {
+fn view(r: &mut Regs, part: Part) -> Result<(), Refused> {
     put(MODE, r.eax);
     put(SLOT, r.ebx);
     put(HOLD_REVS, 1);
@@ -186,9 +151,7 @@ fn view(r: &mut Regs, part: Part, g: &mut Gate) -> Result<(), Refused> {
         2 | 3 => {
             let save = r.eax == 3;
             r.eax = save as u32;
-            g.release();
             part(1, r)?;
-            g.hold();
             if r.eax == u32::MAX {
                 return Ok(());
             }
@@ -216,9 +179,7 @@ fn view(r: &mut Regs, part: Part, g: &mut Gate) -> Result<(), Refused> {
     r.eax = (get(SLOT) == LAST_RACE) as u32;
     put(LAST_RACE_VIEWED, r.eax);
     part(4, r)?;
-    g.release();
     part(5, r)?;
-    g.hold();
     r.edi = a(MENU);
     put(SOUND, 0);
     pb(LIST_SHOWN, 1);
@@ -231,15 +192,12 @@ fn view(r: &mut Regs, part: Part, g: &mut Gate) -> Result<(), Refused> {
     part(7, r)?;
     if get(ONLY_SHOWN) == 1 {
         r.ebx = 6;
-        g.release();
         part(8, r)?;
         return Ok(());
     }
     loop {
-        g.release();
         r.eax = a(FRAME_FUNCTION);
         part(9, r)?;
-        g.hold();
         r.eax = get(CLOCK);
         put(FRAME_CLOCK, r.eax);
         r.eax = get(CHOICE);
@@ -289,9 +247,7 @@ fn view(r: &mut Regs, part: Part, g: &mut Gate) -> Result<(), Refused> {
         let next = match next {
             Next::Action(action) => {
                 r.ebx = action;
-                g.release();
                 part(8, r)?;
-                g.hold();
                 if r.eflags & ZERO_FLAG != 0 {
                     Next::Mark
                 } else {
@@ -462,5 +418,5 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| replay_viewer(r, &mut game_part, true))
+    regs_entry(r, &|r| replay_viewer(r, &mut game_part))
 }

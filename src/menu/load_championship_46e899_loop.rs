@@ -87,18 +87,6 @@ pub const SCREEN: Screen = Screen {
     after_blink: &[],
     restart_action_check: false,
     always_asks: false,
-    also_reads: &[],
-    also_writes: &[
-        rva(0x623FB0),
-        rva(0x623FB4),
-        rva(0x624080),
-        rva(0x6241DC),
-        rva(0x6241E0),
-        rva(0x6241EC),
-        rva(0x6241F0),
-        rva(0x747678),
-        rva(0x7554E4),
-    ],
 };
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
