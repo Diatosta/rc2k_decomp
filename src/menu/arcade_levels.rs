@@ -53,7 +53,7 @@ pub unsafe fn arcade_level(entry: &Regs, level: u32, part: Part) -> Result<Regs,
 
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     match place {
-        0 => crate::sound::play_menu_sound::play_menu_sound_in_game(r),
+        0 => crate::sound::play_menu_sound::play_menu_sound_in_game(r.eax),
         1 => crate::menu::take_player1_units::take_player1_units()?,
         2 => {
             *r = unsafe {

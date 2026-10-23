@@ -18,13 +18,11 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
 use crate::math::x87_run::{lever_share, one_less};
 use crate::physics::lever_push::lever_push;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use std::cmp::Ordering;
 
 fn g(x: usize) -> u32 {
@@ -74,14 +72,4 @@ pub unsafe fn lever_pushes() -> Left {
     p(0x614B4C, x87::loaded(g(0x71ACC8)));
     p(0x614C48, one_less(g(0x614C48)));
     unsafe { lever_push() }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { lever_pushes() })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

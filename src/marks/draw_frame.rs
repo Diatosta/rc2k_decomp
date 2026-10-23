@@ -120,7 +120,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             3 => view_motion::view_motion(r),
             4 => begin_quads::begin_quads(r)?,
             _ => {
-                crate::scene::depth_test_on::depth_test_on(r);
+                crate::scene::depth_test_on::depth_test_on();
                 return Ok(());
             }
         };
@@ -129,19 +129,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             eflags: r.eflags,
             ..left
         };
-    }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    {
-        let left = unsafe { draw_frame(r, &mut game_part) }?;
-        *r = Regs {
-            esp: r.esp,
-            eflags: r.eflags,
-            ..left
-        }
     }
     Ok(())
 }

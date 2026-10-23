@@ -22,7 +22,7 @@
 use crate::errors::Refused;
 use crate::framework::{Regs, game_read, game_write, rva};
 use crate::math::x87_run::{ext_div2, int_80};
-use crate::physics::reset_parts::{NEAREST_IN, reset_entry};
+use crate::physics::reset_parts::NEAREST_IN;
 use rc2k_core::physics::progress;
 
 fn g(x: usize) -> u32 {
@@ -60,10 +60,4 @@ pub unsafe fn find_car_checkpoint(entry: &Regs) -> Result<Regs, Refused> {
         r.eax = r.ebp;
     }
     Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    reset_entry(r, find_car_checkpoint)
 }

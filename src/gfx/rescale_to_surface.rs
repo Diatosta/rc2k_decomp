@@ -17,14 +17,11 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::gfx::components_to_pixel::components_to_pixel;
-use crate::gfx::fill_row_table::{ROW_TABLE_ROOM, ROW_TABLE_RVA, fill_row_table, row_address};
-use crate::gfx::harness::pixels_entry;
-use crate::gfx::pixel_format::{PixelFormat, SCRATCH_RVA};
+use crate::gfx::fill_row_table::{ROW_TABLE_ROOM, fill_row_table, row_address};
+use crate::gfx::pixel_format::PixelFormat;
 use crate::gfx::rescale_picture::STEP_X_RVA;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at};
 
 // ---- game data ----
 
@@ -32,9 +29,6 @@ const DECODED_WIDTH_RVA: usize = rva(0x519124); // g_decodedWidth
 const DECODED_HEIGHT_RVA: usize = rva(0x519128); // g_decodedHeight
 const DECODED_STRIDE_RVA: usize = rva(0x51913C); // g_decodedStride
 const DECODED_PIXELS_RVA: usize = rva(0x519140); // g_decodedPixels
-/// The work variables from `g_rescaleStepX` on: four steps, two weights, two counters,
-/// the components.
-const WORK_LEN: usize = 0x24;
 const COLUMNS_LEFT: usize = 0x18;
 const ROWS_LEFT: usize = 0x1C;
 const COMPONENTS: usize = 0x20;
@@ -115,35 +109,4 @@ pub unsafe fn rescale_to_surface(surface: *const u32) -> Result<(), Refused> {
         game_write(STEP_X_RVA + ROWS_LEFT, 0u32);
         Ok(())
     }
-}
-
-/// What a run writes besides the surface's pixels.
-fn work_regions() -> Vec<Region> {
-    vec![
-        (game_addr(STEP_X_RVA) as u32, WORK_LEN),
-        (game_addr(ROW_TABLE_RVA) as u32, ROW_TABLE_ROOM as usize * 4),
-        at(SCRATCH_RVA),
-    ]
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { rescale_to_surface(game_addr(SURFACE_RVA) as *const u32) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    // The surface's pixels, as far as its description says they go.
-    let surface = game_addr(SURFACE_RVA) as *const u32;
-    let field = |offset: usize| unsafe { surface.byte_add(offset).read_unaligned() };
-    let bytes = if field(BITS) == 0x10 { 2 } else { 4 };
-    let row = (field(WIDTH) as usize)
-        .saturating_mul(bytes)
-        .saturating_add(field(ROW_GAP) as usize);
-    let mut regions = work_regions();
-    if field(PIXELS) != 0 && row.saturating_mul(field(HEIGHT) as usize) < 0x100_0000 {
-        regions.push((field(PIXELS), row * field(HEIGHT) as usize));
-    }
-    pixels_entry(r, &rust)
 }

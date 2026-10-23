@@ -12,11 +12,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::scene::kind_is_hidden::kind_is_hidden;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// The Rust version: whether the record's object is hidden by its kind.
 pub unsafe fn kind_hidden_at(record: u32) -> bool {
@@ -24,14 +20,4 @@ pub unsafe fn kind_hidden_at(record: u32) -> bool {
     let object = unsafe { ((record + 1) as *const u8).read() } as u32;
     // A byte: never past the table.
     unsafe { kind_is_hidden(object) }.is_ok_and(|(hidden, _)| hidden)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(Left::carry(unsafe { kind_hidden_at(r.esi) }))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

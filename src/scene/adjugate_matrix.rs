@@ -16,11 +16,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
 use crate::math::x87;
-use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
 
 /// The Rust version (see the header), the x87's: for `marks::cars_particles`
 /// (unconverted).
@@ -34,25 +30,4 @@ pub unsafe fn adjugate_matrix(matrix: u32, out: u32) {
     for o in [0x30, 0x34, 0x38] {
         put(o, x87::negated(get(o)));
     }
-}
-
-/// The converted `adjugate_matrix` (plain floats): the hook's.
-// Converted: `rc2k_core::scene::matrices::adjugate_matrix`
-pub unsafe fn adjugate_matrix_plain(matrix: u32, out: u32) {
-    let mut p = unsafe { crate::scene::matrix::GamePlaces::new() };
-    rc2k_core::scene::matrices::adjugate_matrix(&mut p, matrix, out);
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    if r.esi == 0 || r.edi == 0 {
-        return Err(BadInput("a null matrix or result").into());
-    }
-    unsafe { adjugate_matrix_plain(r.esi, r.edi) };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

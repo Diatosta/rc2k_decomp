@@ -12,10 +12,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, Regs, game_read, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::{game_read, rva};
 
 // ---- game data ----
 
@@ -27,14 +24,4 @@ pub unsafe fn known_kind_picture(place: u32) -> u32 {
     // Converted: `rc2k_core::scene::kinds::known_place`.
     let place = rc2k_core::scene::kinds::known_place(place);
     unsafe { game_read(TABLE_RVA + place * 4) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(Left::nothing().with(EAX, unsafe { known_kind_picture(r.eax) }))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

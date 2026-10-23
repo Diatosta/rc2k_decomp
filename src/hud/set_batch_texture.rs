@@ -14,32 +14,15 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::hud::batch::SHOWN_TEXTURE_RVA;
 
 const SLOTS_RVA: usize = rva(0x5D1AE8); // g_kindFirstSlots
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version (see the header).
 // Converted: `rc2k_core::hud::batch::texture_slot`
-pub unsafe fn set_batch_texture(entry: &Regs) -> Result<Regs, Refused> {
+pub fn set_batch_texture() -> Result<(), Refused> {
     let n = rc2k_core::hud::batch::texture_slot(unsafe { game_read(SHOWN_TEXTURE_RVA) })?;
-    let mut r = Regs {
-        eax: unsafe { game_read(SLOTS_RVA + 4 * n) },
-        ..*entry
-    };
-    crate::hud::set_batch_texture::game_part(1, &mut r)?;
-    Ok(*entry)
-}
-
-/// In the game: `set_texture`'s Rust version.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { crate::scene::set_texture::set_texture_in_game(r) };
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { set_batch_texture(r) }?;
-    *r = Regs { esp: r.esp, ..left };
+    crate::scene::set_texture::set_texture(unsafe { game_read(SLOTS_RVA + 4 * n) });
     Ok(())
 }

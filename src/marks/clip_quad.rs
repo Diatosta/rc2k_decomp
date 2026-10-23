@@ -27,9 +27,6 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::marks::lines::SETTINGS_RVA;
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const WORK_RVA: usize = rva(0x7687F4); // g_marksClipVertices: TLVertex[6]
 const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
@@ -163,17 +160,4 @@ pub unsafe fn clip_quad(entry: &Regs) -> Result<Regs, Refused> {
         g.set_carry(false);
     }
     Ok(g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let g = unsafe { clip_quad(r) }?;
-    let mut left = left_of(&g);
-    left.carry = Some(g.carry());
-    Ok(left)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

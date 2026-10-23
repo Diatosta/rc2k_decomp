@@ -9,10 +9,7 @@
 //! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::{game_read, game_write, rva};
 
 const ANSWER_RVA: usize = rva(0x75524C); // g_yesNoAnswer
 
@@ -25,15 +22,4 @@ pub fn flip_yes_no() -> u32 {
         game_write(ANSWER_RVA, answer);
         answer
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    flip_yes_no();
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

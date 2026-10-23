@@ -237,10 +237,3 @@ pub unsafe fn draw_object_face_in_game(face: usize, entry: &Regs) -> Result<(), 
         })
     }
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    unsafe { draw_object_face_in_game(entry.ebp as usize, &entry) }?;
-    Ok(())
-}

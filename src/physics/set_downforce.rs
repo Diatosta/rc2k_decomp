@@ -15,12 +15,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87_run::{minus_one, square_times_plus_times};
-use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
-use rc2k_core::physics::drive_forces::downforce;
 
 /// The variables (IDA addresses): the switch, the speed, the offset, and the three
 /// written.
@@ -54,27 +50,6 @@ pub unsafe fn set_downforce_at(v: &[u32; 6]) {
     }
 }
 
-/// The converted version (`rc2k_core::physics::drive_forces`, plain floats) on the
-/// variables at `v`.
-// Converted: `rc2k_core::physics::drive_forces::downforce`.
-pub unsafe fn set_downforce_plain_at(v: &[u32; 6]) {
-    unsafe {
-        if at(v[0]) != 0 {
-            return;
-        }
-        let k = |a: usize| f32::from_bits(game_read(a));
-        let (load, negative) = downforce(
-            f32::from_bits(at(v[1])),
-            k(FACTOR_RVA),
-            f32::from_bits(at(v[2])),
-            k(GRAVITY_RVA),
-        );
-        put(v[3], load.to_bits());
-        put(v[4], negative.to_bits());
-        put(v[5], (-1.0f32).to_bits());
-    }
-}
-
 fn game() -> [u32; 6] {
     VARIABLES.map(|x| game_addr(rva(x)) as u32)
 }
@@ -82,15 +57,4 @@ fn game() -> [u32; 6] {
 /// The Rust version (the exact one, for `physics::car_physics_step`).
 pub unsafe fn set_downforce() {
     unsafe { set_downforce_at(&game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { set_downforce_plain_at(&game()) };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

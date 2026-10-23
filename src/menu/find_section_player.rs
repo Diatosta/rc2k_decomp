@@ -15,9 +15,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_read, rva};
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const SECTION_RVA: usize = rva(0x75595C); // section
 /// The Rust version (see the header): the registers it leaves.
@@ -37,14 +34,4 @@ pub unsafe fn find_section_player(entry: &Regs) -> Result<Regs, Refused> {
     g.edi = player(found.unwrap_or(3));
     g.ecx = found.unwrap_or(u32::MAX);
     Ok(g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { find_section_player(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -13,7 +13,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_write};
+use crate::framework::game_write;
 use crate::gfx::surface::{CLIP_BOTTOM_RVA, CLIP_LEFT_RVA, CLIP_RIGHT_RVA, CLIP_TOP_RVA};
 
 // ---- Rust version ----
@@ -32,15 +32,6 @@ pub unsafe fn set_clip(rectangle: *const [u32; 4]) -> Result<(), BadInput> {
         game_write(CLIP_TOP_RVA, top);
         game_write(CLIP_RIGHT_RVA, right);
         game_write(CLIP_BOTTOM_RVA, bottom);
-    }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let rectangle = r.ebx as *const [u32; 4];
-    if let Err(e) = unsafe { set_clip(rectangle) } {
-        return Err(e.into());
     }
     Ok(())
 }

@@ -20,11 +20,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{ESI, Regs, game_addr, game_ptr, game_read, game_write, rva};
+use crate::framework::{game_ptr, game_read, game_write, rva};
 use crate::scene::draw_polygon::CHECKED_RVA;
-use crate::screens::harness::Left;
-use crate::service::floats::*;
 
 // ---- game data ----
 
@@ -116,39 +113,4 @@ pub unsafe fn reflect_vector() {
         game_write(VECTOR_RVA, [w[0], w[1], w[2]]);
         game_write(CHECKED_RVA, w[6]);
     }
-}
-
-/// The converted version (plain floats): the hook's.
-// Converted: `rc2k_core::scene::reflection::reflect`
-pub unsafe fn reflect_vector_plain() {
-    unsafe {
-        let (v, n): ([u32; 3], [u32; 3]) = (game_read(VECTOR_RVA), game_read(NORMAL_RVA));
-        let m = game_addr(MATRIX_RVA) as u32;
-        // The fourth float of each row is not read.
-        let matrix: [f32; 15] = std::array::from_fn(|i| {
-            if i % 4 == 3 {
-                0.0
-            } else {
-                f32::from_bits(((m + 4 * i as u32) as *const u32).read_unaligned())
-            }
-        });
-        let (r, d) = rc2k_core::scene::reflection::reflect(
-            v.map(f32::from_bits),
-            n.map(f32::from_bits),
-            &matrix,
-        );
-        game_write(VECTOR_RVA, r.map(f32::to_bits));
-        game_write(CHECKED_RVA, d.to_bits());
-    }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { reflect_vector_plain() };
-    Ok(Left::nothing().with(ESI, game_addr(MATRIX_RVA) as u32))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

@@ -18,12 +18,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::floats::*;
 use crate::service::harness::{Region, at};
 
 /// Per axis: (negated, less, plus, plus).
@@ -55,25 +51,6 @@ pub unsafe fn aim_vector(entry: &Regs) -> Regs {
     }
 }
 
-/// The converted version (plain floats): the hook's.
-// Converted: `rc2k_core::marks::view::{aim, unit_and_length}`
-pub unsafe fn aim_vector_plain(entry: &Regs) -> Regs {
-    use rc2k_core::marks::view::{aim, unit_and_length};
-    unsafe {
-        let terms = TERMS.map(|t| t.map(|a| f32::from_bits(game_read(a))));
-        let v = aim(terms);
-        game_write(VECTOR_RVA, v.map(f32::to_bits));
-        let u = unit_and_length(v);
-        game_write(LENGTH_RVA, u.length.to_bits());
-        game_write(UNIT_RVA, u.unit.map(f32::to_bits));
-        Regs {
-            esi: game_addr(VECTOR_RVA) as u32,
-            edi: game_addr(UNIT_RVA) as u32,
-            ..*entry
-        }
-    }
-}
-
 fn written() -> Vec<usize> {
     let mut w: Vec<usize> = (0..3).map(|k| VECTOR_RVA + 4 * k).collect();
     w.extend((0..3).map(|k| UNIT_RVA + 4 * k));
@@ -84,14 +61,4 @@ fn written() -> Vec<usize> {
 /// What it writes.
 pub fn regions() -> Vec<Region> {
     written().into_iter().map(at).collect()
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { aim_vector_plain(r) }))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

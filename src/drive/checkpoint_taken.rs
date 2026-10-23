@@ -17,7 +17,6 @@
 //! and the self-test was the hook's.
 
 use crate::drive::car_near_checkpoint::near_at;
-use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::physics::flag_result::FlagResult;
 use rc2k_core::physics::line_places;
@@ -45,13 +44,4 @@ pub unsafe fn taken_at(cars: [u32; 4], count: u32, r: &Regs) -> FlagResult {
 pub unsafe fn checkpoint_taken(r: &Regs) -> FlagResult {
     let cars = CARS.map(|a| game_addr(rva(a)) as u32);
     unsafe { taken_at(cars, game_read(COUNT_RVA), r) }
-}
-
-fn rust(r: &Regs) -> Result<FlagResult, Refused> {
-    Ok(unsafe { checkpoint_taken(r) })
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::physics::flag_result::flags_entry(r, &rust)
 }

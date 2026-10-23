@@ -288,10 +288,10 @@ pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused
                 let left = crate::marks::place_view::place_view(r)?;
                 *r = Regs { esp: r.esp, ..left };
             }
-            2 => crate::scene::depth_buffer_on::depth_buffer(r, false),
+            2 => crate::scene::depth_buffer_on::depth_buffer(false),
             3 => {
                 let (value, state) = (r.eax, r.ebx);
-                crate::scene::set_render_state::set_render_state(r, value, state);
+                crate::scene::set_render_state::set_render_state(value, state);
             }
             4 => crate::scene::clear_texture::clear_texture_in_game(r),
             5 => {
@@ -305,12 +305,5 @@ pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused
             }
         }
     }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { run_rain(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

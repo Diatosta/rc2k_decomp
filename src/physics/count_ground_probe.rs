@@ -20,7 +20,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_read, game_write, rva};
-use crate::physics::reset_parts::{FIND_GROUND, reset_entry};
+use crate::physics::reset_parts::FIND_GROUND;
 use rc2k_core::physics::walls::ProbeCounts;
 
 fn g(x: usize) -> u32 {
@@ -53,10 +53,4 @@ pub unsafe fn count_ground_probe(entry: &Regs) -> Result<Regs, Refused> {
         p(0x608C44, counts.same);
     }
     Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    reset_entry(r, count_ground_probe)
 }

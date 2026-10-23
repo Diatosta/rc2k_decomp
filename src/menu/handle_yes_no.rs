@@ -12,13 +12,10 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
+use crate::errors::BadInput;
 use crate::input::yes_no_for_key::yes_no_for_key;
 use crate::input::yes_no_key::{NO, YES};
 use crate::menu::leaving::{question, with_question};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 // ---- game data ----
 
@@ -38,15 +35,4 @@ pub unsafe fn handle_yes_no(eax: u32) -> Result<(), BadInput> {
     };
     with_question(|q, l| q.answer_key(l, said));
     Ok(())
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { handle_yes_no(r.eax) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

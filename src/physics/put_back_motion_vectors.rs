@@ -14,12 +14,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::physics::car_frame_motion::car_frame_motion_at;
 use crate::physics::turn_by_inverse::INVERSE_RVA;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// Where the vectors are: the game's or a test's.
 #[derive(Clone, Copy)]
@@ -64,15 +61,4 @@ pub unsafe fn put_back_motion_vectors_at(p: &MotionPlaces) {
 /// The Rust version.
 pub unsafe fn put_back_motion_vectors() {
     unsafe { put_back_motion_vectors_at(&MotionPlaces::game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { put_back_motion_vectors() };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

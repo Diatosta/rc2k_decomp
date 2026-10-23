@@ -13,10 +13,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::{game_addr, rva};
 
 /// The switch, six from, six to (IDA addresses).
 const VARIABLES: [usize; 13] = [
@@ -45,15 +42,4 @@ fn game() -> Vec<u32> {
 /// The Rust version.
 pub unsafe fn keep_motion_vectors() {
     unsafe { core(&game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { keep_motion_vectors() };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -20,10 +20,9 @@
 
 use crate::errors::Refused;
 use crate::files::read_whole_file::read_whole_file;
-use crate::framework::{Regs, game_addr, game_ptr, rva};
+use crate::framework::{game_addr, game_ptr, rva};
 use crate::scene::set_object_material::{MATERIAL_LEN, MATERIALS_RVA};
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::Region;
 
 // ---- game data ----
 
@@ -73,15 +72,4 @@ pub unsafe fn read_kind_records() -> Result<(), Refused> {
         unsafe { read_whole_file(game_ptr(file.path), to as *mut u8, room as u32, 0) }?;
     }
     Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { read_kind_records() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

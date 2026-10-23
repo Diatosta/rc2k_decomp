@@ -44,106 +44,77 @@ fn tables() -> KeyTables {
     }
 }
 
-/// `input::unpack_mouse` (0x4081FC): `g_mouseWord` as ebx the buttons (low byte), ecx the
-/// x (bits 8 .. 19), edx the y (bits 20 .. 31), both signed.
-pub unsafe fn unpack_mouse(entry: &Regs) -> Regs {
-    let (buttons, x, y) =
-        rc2k_core::input::frame::unpack_mouse(unsafe { game_read(MOUSE_WORD_RVA) });
-    Regs {
-        ebx: buttons,
-        ecx: x as u32,
-        edx: y as u32,
-        ..*entry
-    }
+/// `input::unpack_mouse` (0x4081FC): `g_mouseWord` as the buttons (low byte), the x
+/// (bits 8 .. 19) and the y (bits 20 .. 31), both signed (the original's ebx, ecx, edx).
+pub fn unpack_mouse() -> (u32, i32, i32) {
+    rc2k_core::input::frame::unpack_mouse(unsafe { game_read(MOUSE_WORD_RVA) })
 }
 
 /// `input::take_mouse` (0x42019C): `unpack_mouse` into `g_mouseX`, `g_mouseY`,
-/// `g_mouseButtons`, `g_leftButton` (bit 0), `g_rightButton` (bit 1). Leaves the
-/// registers as `unpack_mouse`.
-pub unsafe fn take_mouse(entry: &Regs) -> Regs {
-    let g = unsafe { unpack_mouse(entry) };
+/// `g_mouseButtons`, `g_leftButton` (bit 0), `g_rightButton` (bit 1); what `unpack_mouse`
+/// gives.
+pub fn take_mouse() -> (u32, i32, i32) {
+    let (buttons, x, y) = unpack_mouse();
     unsafe {
-        game_write(MOUSE_RVA, [g.ecx, g.edx]);
-        game_write(BUTTONS_RVA, rc2k_core::input::frame::buttons(g.ebx));
+        game_write(MOUSE_RVA, [x as u32, y as u32]);
+        game_write(BUTTONS_RVA, rc2k_core::input::frame::buttons(buttons));
     }
-    g
+    (buttons, x, y)
 }
 
-/// `input::copy_keys` (0x4201EC): `g_keysDown` to `g_keysNow`. Leaves esi and edi past
-/// them, ecx 0.
-pub unsafe fn copy_keys(entry: &Regs) -> Regs {
+/// `input::copy_keys` (0x4201EC): `g_keysDown` to `g_keysNow` (the original leaves esi and
+/// edi past them, ecx 0).
+pub fn copy_keys() {
     unsafe {
         let mut t = tables();
         t.copy_keys(&game_read(DOWN_RVA));
         game_write(NOW_RVA, t.now);
     }
-    Regs {
-        esi: game_addr(NOW_RVA) as u32,
-        edi: game_addr(BEFORE_RVA) as u32,
-        ecx: 0,
-        ..*entry
-    }
 }
 
 /// `input::buttons_to_keys` (0x420200): `g_leftButton` and `g_rightButton` (their low
-/// bytes) as keys 0x73 and 0x74. Leaves eax `g_rightButton`.
-pub unsafe fn buttons_to_keys(entry: &Regs) -> Regs {
+/// bytes) as keys 0x73 and 0x74; `g_rightButton` (the original's eax).
+pub fn buttons_to_keys() -> u32 {
     unsafe {
         let [_, left, right]: [u32; 3] = game_read(BUTTONS_RVA);
         let mut t = tables();
         t.buttons_to_keys(left, right);
         game_write(NOW_RVA, t.now);
-        Regs {
-            eax: right,
-            ..*entry
-        }
+        right
     }
 }
 
 /// `input::find_pressed_keys` (0x420215): `g_keysPressed` the keys down now and not
-/// before (their low bits only, a dword at a time), `g_keysBefore` = `g_keysNow`. Leaves
-/// ebx 0x80, ecx 0, eax and edx the last dword's pressed and now.
-pub unsafe fn find_pressed_keys(entry: &Regs) -> Regs {
+/// before (their low bits only, a dword at a time), `g_keysBefore` = `g_keysNow`; the last
+/// dword's pressed and now (the original's eax, edx; ebx 0x80, ecx 0).
+pub fn find_pressed_keys() -> (u32, u32) {
     let mut t = tables();
-    let (eax, edx) = t.find_pressed();
+    let found = t.find_pressed();
     unsafe {
         game_write(BEFORE_RVA, t.before);
         game_write(PRESSED_RVA, t.pressed);
     }
-    Regs {
-        eax,
-        edx,
-        ebx: KEYS,
-        ecx: 0,
-        ..*entry
-    }
+    found
 }
 
 /// `input::repeat_keys` (0x420247): for keys 1 .. 0x7F, the count of frames held (0 when
-/// up); at 0x41 the key is pressed again and the count goes back to 0x40. Leaves ebx
-/// 0x80.
-pub unsafe fn repeat_keys(entry: &Regs) -> Regs {
+/// up); at 0x41 the key is pressed again and the count goes back to 0x40 (the original
+/// leaves ebx 0x80).
+pub fn repeat_keys() {
     let mut t = tables();
     t.repeat();
     unsafe {
         game_write(REPEAT_RVA, t.repeat);
         game_write(PRESSED_RVA, t.pressed);
     }
-    Regs {
-        ebx: KEYS,
-        ..*entry
-    }
 }
 
 /// `input::take_mouse_clicks` (0x42028C): `g_leftClick` and `g_rightClick` from keys
-/// 0x73 and 0x74 pressed (low bits). Leaves eax the right.
-pub unsafe fn take_mouse_clicks(entry: &Regs) -> Regs {
+/// 0x73 and 0x74 pressed (low bits); the right (the original's eax).
+pub fn take_mouse_clicks() -> u32 {
     let clicks = tables().clicks();
     unsafe { game_write(CLICKS_RVA, clicks) };
-    Regs {
-        eax: clicks[1],
-        ..*entry
-    }
+    clicks[1]
 }
 
 /// `screenshot_if_key`'s call of `gfx::take_screenshot`.
@@ -173,26 +144,40 @@ pub unsafe fn end_frame(check: Screenshot) {
 /// `input::update` (0x420115): the mouse kept as last frame's, the clicks and
 /// `g_keysPressed` 0; `take_mouse`, `copy_keys`, each pair of keys (0x1D and 0x61, 0x2A
 /// and 0x36) made one (both the `or` of the two), `buttons_to_keys`,
-/// `find_pressed_keys`, `repeat_keys`, `take_mouse_clicks`, `end_frame`. Leaves eax the
-/// right click, ebx 0x80, ecx 0, edx the last key dword, esi `g_keysNow`, edi
-/// `g_keysBefore`.
-pub unsafe fn update(entry: &Regs, shot: Screenshot) -> Regs {
+/// `find_pressed_keys`, `repeat_keys`, `take_mouse_clicks`, `end_frame`. The right click
+/// and the last key dword (the original's eax and edx).
+pub fn update_input(shot: Screenshot) -> (u32, u32) {
     unsafe {
         let mouse: [u32; 2] = game_read(MOUSE_RVA);
         game_write(LAST_MOUSE_RVA, mouse);
         game_write(CLICKS_RVA, [0u32; 2]);
         game_write(PRESSED_RVA, [0u8; KEYS as usize]);
-        let mut g = take_mouse(entry);
-        g = copy_keys(&g);
+        take_mouse();
+        copy_keys();
         let mut t = tables();
         t.join_pairs();
         game_write(NOW_RVA, t.now);
-        g = buttons_to_keys(&g);
-        g = find_pressed_keys(&g);
-        g = repeat_keys(&g);
-        g = take_mouse_clicks(&g);
+        buttons_to_keys();
+        let (_, edx) = find_pressed_keys();
+        repeat_keys();
+        let right = take_mouse_clicks();
         end_frame(&mut || screenshot_if_key(&mut *shot));
-        g
+        (right, edx)
+    }
+}
+
+/// `update_input` with the registers the original leaves: eax the right click, ebx 0x80,
+/// ecx 0, edx the last key dword, esi `g_keysNow`, edi `g_keysBefore`.
+pub fn update(entry: &Regs, shot: Screenshot) -> Regs {
+    let (eax, edx) = update_input(shot);
+    Regs {
+        eax,
+        ebx: KEYS,
+        ecx: 0,
+        edx,
+        esi: game_addr(NOW_RVA) as u32,
+        edi: game_addr(BEFORE_RVA) as u32,
+        ..*entry
     }
 }
 

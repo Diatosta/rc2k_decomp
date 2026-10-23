@@ -2,14 +2,11 @@
 
 pub mod check_developer_machine;
 pub mod find_entry;
-pub mod find_entry_by_value;
-pub mod find_entry_with_any_bit;
 pub mod find_entry_with_bits;
 pub mod find_running_game;
 pub mod keep_start_time;
 pub mod load_game_data;
 pub mod main_loop;
-pub mod next_argument;
 pub mod next_entry;
 pub mod packed_local_time;
 pub mod read_command_line;

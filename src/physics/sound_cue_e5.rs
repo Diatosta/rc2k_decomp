@@ -15,9 +15,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::listed_cars::{CUE_E5, cue_e5_object};
 
 unsafe fn at(a: u32) -> u32 {
@@ -50,14 +49,4 @@ pub unsafe fn sound_cue_e5_at(current: u32, listed: u32, objects: u32) -> Result
 pub unsafe fn sound_cue_e5() -> Result<Left, Refused> {
     let g = |a: usize| game_addr(rva(a)) as u32;
     unsafe { sound_cue_e5_at(g(0x71B3F8), g(0x641680), g(0x512A10)) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { sound_cue_e5() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

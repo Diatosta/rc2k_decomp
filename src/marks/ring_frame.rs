@@ -63,10 +63,10 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         match place {
             1 => {
                 let (value, state) = (r.eax, r.ebx);
-                crate::scene::set_render_state::set_render_state(r, value, state);
+                crate::scene::set_render_state::set_render_state(value, state);
             }
-            2 => crate::scene::set_texture::set_texture_in_game(r),
-            3 => crate::scene::depth_test_off::depth_test_off(r),
+            2 => crate::scene::set_texture::set_texture(r.eax),
+            3 => crate::scene::depth_test_off::depth_test_off(),
             4 => {
                 use crate::marks::run_ring as ring;
                 let left = ring::run_ring(r, &mut ring::game_part)?;
@@ -79,12 +79,5 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             }
         }
     }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { ring_frame(r) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

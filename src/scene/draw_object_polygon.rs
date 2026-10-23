@@ -29,11 +29,9 @@
 
 use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::scene::clip::{NEXT_ENTRY_RVA, NEXT_RECORD_RVA, POOL_RVA};
-use crate::scene::draw_clipped_polygon::draw_clipped_polygon_in_game;
 use crate::scene::polygon::{ENTRIES_RVA, ENTRY_LEN, LIST_RVA, dword};
-use crate::scene::project_polygon::project_polygon;
 
 // ---- game data ----
 
@@ -130,17 +128,4 @@ pub unsafe fn draw_object_polygon(
         }
         Ok(())
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    let done = unsafe {
-        draw_object_polygon(&mut |step| match step {
-            Step::Project => project_polygon().map(|_| ()),
-            Step::Draw => draw_clipped_polygon_in_game(&entry),
-        })
-    };
-    done?;
-    Ok(())
 }

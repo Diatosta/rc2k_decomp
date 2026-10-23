@@ -19,16 +19,17 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::Regs;
 use crate::input::devices::{at, put};
 use crate::input::types::InputDevice;
 
-/// The Rust version (see the header): the registers it leaves (`popa`'s: the entry's).
-pub unsafe fn set_up_device(entry: &Regs) -> Result<Regs, Refused> {
-    let (record, controls) = (entry.esi, entry.edi);
+/// The device `record` set up from its controls at `controls` (see the header).
+pub unsafe fn set_up_device(record: u32, controls: u32) -> Result<(), Refused> {
     unsafe {
         crate::system::zero_memory::zero_memory((record + 0x414) as *mut u8, 0xC8)?;
     }
@@ -49,11 +50,7 @@ pub unsafe fn set_up_device(entry: &Regs) -> Result<Regs, Refused> {
         put(record, field!(InputDevice, sensitivity), kind);
         let kind = rc2k_core::input::devices::device_kind(kind);
         put(record, field!(InputDevice, kind), kind);
-        let mut r = Regs {
-            eax: kind,
-            ..*entry
-        };
-        crate::input::set_up_device::game_part(0, &mut r)?;
+        crate::input::acquire_device::acquire_device(record)?;
     }
     // Converted: `rc2k_core::input::devices::binding` over `DEVICE_BINDINGS`.
     for (key, word, to) in rc2k_core::input::devices::DEVICE_BINDINGS {
@@ -67,18 +64,5 @@ pub unsafe fn set_up_device(entry: &Regs) -> Result<Regs, Refused> {
             put(record, to as u32 + 4 * n as u32, v);
         }
     }
-    Ok(*entry)
-}
-
-/// In the game: the acquiring through the game.
-/// In the game: `input::acquire_device`'s Rust version.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    crate::input::acquire_device::acquire_device(r.esi)
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { set_up_device(r) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

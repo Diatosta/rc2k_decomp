@@ -12,10 +12,8 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::menu::car_description::{read, shown_description};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use crate::strings::append_string_by_id::append_string_by_id;
 
 // ---- game data ----
@@ -45,15 +43,4 @@ pub unsafe fn car_caption() -> Result<(), Refused> {
         let id = read(shown_description()?).name;
         put_string(id, CAPTION_RVA, CAPTION_LEN)
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { car_caption() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

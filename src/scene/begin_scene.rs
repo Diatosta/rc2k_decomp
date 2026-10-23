@@ -24,12 +24,9 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (1, 0x1C), (5, 0x13), (6, 0x14), (1,
 /// `begin` stands for `d3d::begin_scene`.
 pub unsafe fn begin_scene(r: &mut Regs, begin: &mut dyn FnMut(&mut Regs)) {
     begin(r);
-    let mut work = *r;
-    unsafe {
-        set_filters(&mut work);
-        for (value, state) in STATES {
-            set_render_state(&mut work, value, state);
-        }
+    set_filters();
+    for (value, state) in STATES {
+        set_render_state(value, state);
     }
 }
 

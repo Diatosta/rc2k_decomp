@@ -23,11 +23,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::marks::emitters::*;
 use crate::math::x87;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const POINTS_RVA: usize = rva(0x769312); // flt_769312: 3 floats by the car's model
 const MODELS: u32 = 34;
@@ -131,15 +129,4 @@ pub unsafe fn emit_particle_13(object: u32) -> Result<(), Refused> {
         put(0x60, x87::int_times(size, game_read(SIZE_K[2])));
     }
     Ok(())
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { emit_particle_13(r.esi) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

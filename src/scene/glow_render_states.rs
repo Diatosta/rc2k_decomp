@@ -16,14 +16,14 @@ use crate::framework::Regs;
 
 /// The Rust version (see the header): the registers it leaves on `r`.
 // Converted: `rc2k_core::scene::render_states::GLOW`
-pub unsafe fn glow_render_states(r: &mut Regs) {
+pub fn glow_render_states() {
     for s in rc2k_core::scene::render_states::GLOW {
-        unsafe { crate::scene::set_render_state::set_render_state(r, s.value, s.state) };
+        crate::scene::set_render_state::set_render_state(s.value, s.state);
     }
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { glow_render_states(r) };
+pub fn entry(_r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    glow_render_states();
     Ok(())
 }

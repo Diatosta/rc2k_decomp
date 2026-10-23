@@ -33,11 +33,6 @@ use crate::scene::set_object_fade::set_object_fade;
 use crate::scene::set_object_light::set_object_light_in_game;
 use crate::scene::set_object_material::set_object_material;
 use crate::scene::sort_listed_faces::sort_listed_faces;
-use std::sync::atomic::{AtomicU32, Ordering};
-
-/// Counts the calls that came through the hook: `scene::draw_shown_object`'s shadow
-/// comparison asks it whether the original drew.
-pub static ENTERED: AtomicU32 = AtomicU32::new(0);
 
 // ---- game data ----
 
@@ -112,15 +107,4 @@ pub unsafe fn draw_object_in_game(r: &mut Regs) -> Result<(), Refused> {
             Ok(())
         })
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    ENTERED.fetch_add(1, Ordering::Relaxed);
-    let entry = *r;
-    if let Err(e) = unsafe { draw_object_in_game(r) } {
-        *r = entry;
-        return Err(e);
-    }
-    Ok(())
 }

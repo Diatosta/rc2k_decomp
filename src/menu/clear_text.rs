@@ -8,11 +8,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::menu::text_entry::{Text, put_field, with_entry};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 // ---- Rust version ----
 
@@ -21,15 +17,4 @@ pub unsafe fn clear_text(at: *mut u8) {
     let mut text = Text::default();
     with_entry(|e| e.clear(&mut text));
     unsafe { put_field(at, &text) };
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { clear_text(r.edi as *mut u8) };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

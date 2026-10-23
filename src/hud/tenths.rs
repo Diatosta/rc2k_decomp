@@ -11,32 +11,15 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_write, rva};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::{game_write, rva};
 
 const OUT_RVA: usize = rva(0x75C074); // dword_75C074 .. dword_75C088
 const FIELDS: [u32; 6] = [0x24, 0x2C, 0x20, 0x54, 0x58, 0x50];
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn tenths(entry: &Regs) -> Regs {
+/// The Rust version (see the header): the record's six times in tenths.
+pub unsafe fn tenths(record: u32) {
     // Converted: `rc2k_core::hud::tenths::tenths`.
-    let mut g = *entry;
-    let times = FIELDS.map(|f| unsafe { ((g.ebp + f) as *const i32).read_unaligned() });
-    let (tenths, remainder) = rc2k_core::hud::tenths::tenths(times);
+    let times = FIELDS.map(|f| unsafe { ((record + f) as *const i32).read_unaligned() });
+    let (tenths, _) = rc2k_core::hud::tenths::tenths(times);
     unsafe { game_write(OUT_RVA, tenths) };
-    [g.eax, g.edx, g.ebx] = [tenths[5] as u32, remainder as u32, 10];
-    g
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { tenths(r) }))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

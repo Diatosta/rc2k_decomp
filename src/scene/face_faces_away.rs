@@ -21,12 +21,10 @@
 
 use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{EAX, Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::math::normalise_vector::VECTOR_RVA;
 use crate::scene::polygon::dword;
 use crate::scene::project_point::RECORDS_RVA;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 // ---- game data ----
 
@@ -123,15 +121,4 @@ pub unsafe fn face_faces_away(face: usize) -> Result<bool, Refused> {
         }
         Ok(true)
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let away = unsafe { face_faces_away(r.ebp as usize) }?;
-    Ok(Left::nothing().with(EAX, away as u32))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

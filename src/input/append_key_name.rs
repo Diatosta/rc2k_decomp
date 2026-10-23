@@ -15,7 +15,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read};
+use crate::framework::game_read;
 use crate::input::key_to_char::LAYOUT_RVA;
 use crate::strings::append_string_by_id::append_string_by_id;
 use crate::strings::hex_append::hex_append;
@@ -54,13 +54,4 @@ pub unsafe fn append_key_name(key: u32) -> Result<(Vec<u8>, u32), Refused> {
             }
         }
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let (text, eax) = unsafe { append_key_name(r.eax) }?;
-    unsafe { std::ptr::copy_nonoverlapping(text.as_ptr(), r.ebx as *mut u8, text.len()) };
-    r.ebx += text.len() as u32;
-    r.eax = eax;
-    Ok(())
 }

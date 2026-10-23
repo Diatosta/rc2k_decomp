@@ -14,9 +14,6 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn reset_player_totals(entry: &Regs) -> Result<Regs, Refused> {
@@ -25,14 +22,4 @@ pub unsafe fn reset_player_totals(entry: &Regs) -> Result<Regs, Refused> {
         put_all(p, &rc2k_core::menu::event::PLAYER_TOTALS);
     }
     Ok(*entry)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { reset_player_totals(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -38,7 +38,7 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::field;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::input::devices::{at, put};
 use crate::input::di_harness::{
     CONTROLLER_COUNT_RVA, DIRECT_INPUT_RVA, DWORD_PROP_RVA, HWND_RVA, IID_DEVICE2_RVA,
@@ -267,11 +267,5 @@ pub fn acquire_device(record: u32) -> Result<(), Refused> {
     method(device, slot::ACQUIRE, &[]);
     crate::input::clear_device_readings::clear_device_readings(record);
     put(record, field!(D, acquired), 1);
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    acquire_device(r.esi)?;
     Ok(())
 }

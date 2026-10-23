@@ -26,9 +26,7 @@ use crate::marks::lines::SETTINGS_RVA;
 use crate::marks::pick_shapes::pick_shapes;
 use crate::marks::shape_points::turn_all_shapes;
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
+use crate::service::harness::{Region, at};
 
 const CLOCK_RVA: usize = rva(0x613830); // g_sceneClock
 const NEXT_RVA: usize = rva(0x844E30); // dword_844E30
@@ -124,14 +122,4 @@ unsafe fn run(entry: &Regs, settings: u32) -> Result<Regs, Refused> {
         g = pick_shapes(&g)?;
     }
     Ok(g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { run_shapes(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

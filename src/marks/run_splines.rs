@@ -26,9 +26,7 @@ use crate::marks::place_spline::{self, place_spline};
 use crate::marks::setup::SEED_RVA;
 use crate::marks::splines::{MADE_RVA, PLACE_RVA};
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
+use crate::service::harness::{Region, at};
 
 const TICKS_RVA: usize = rva(0x764FD0); // g_marksFrameTicks
 const ANGLE_RVA: usize = rva(0x7695B6); // flt_7695B6
@@ -136,14 +134,4 @@ unsafe fn run(entry: &Regs, settings: u32, places: i32) -> Result<Regs, Refused>
         }
     }
     Ok(g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { run_splines(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

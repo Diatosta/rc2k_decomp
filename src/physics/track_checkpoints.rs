@@ -79,20 +79,4 @@ pub fn track_checkpoints_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let mut g = *r;
-    match track_checkpoints_in(&mut g, &mut game_part) {
-        Ok(()) => {
-            *r = Regs {
-                esp: r.esp,
-                eflags: r.eflags,
-                ..g
-            }
-        }
-        Err(e) => return Err(e),
-    }
-    Ok(())
-}
-
 // ---- for the self-test ----

@@ -95,13 +95,3 @@ pub unsafe fn load_number_plates_in_game(r: &mut Regs) -> Result<(), Refused> {
         load_number_plates(r, &mut |r| upload_plate_in_game(r))
     }
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    if let Err(e) = unsafe { load_number_plates_in_game(r) } {
-        *r = entry;
-        return Err(e);
-    }
-    Ok(())
-}

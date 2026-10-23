@@ -9,11 +9,8 @@
 //! original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{EDI, Regs};
 use crate::menu::player::Player;
 use crate::menu::player_settings::*;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 fn field(player: &mut Player) -> &mut u32 {
     &mut player.codriver_sex
@@ -26,15 +23,4 @@ pub fn flip_codriver() -> Result<(), Refused> {
     change(field, |value| {
         rc2k_core::menu::player::stepped(rc2k_core::menu::player::Setting::CodriverSex, value, true)
     })
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    flip_codriver()?;
-    Ok(Left::nothing().with(EDI, current()? as u32))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

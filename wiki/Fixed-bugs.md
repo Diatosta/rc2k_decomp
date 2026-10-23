@@ -59,6 +59,20 @@ Each entry says:
 - **Seen**: no; found by reading the code.
 - **Fix**: the Rust version always asks for a stop (`audio::set_mode`).
 
+## Some cars' marks lose their depth bias
+
+*Original*: `marks::init_marks` (0x4D12F7). *Fixed*: 2026-10-23.
+
+- **What**: a stage's marks get a depth bias from a table indexed by the car's kind, but
+  the table has 0x17 entries and the kinds go to 0x21; for the cars past it the original
+  reads the variables after the table (the bias itself, a flag, the number 9), a bias of
+  about 0.
+- **In game**: with those cars, the marks' depth is off (marks drawn as if without their
+  bias).
+- **Seen**: the standalone refused this read at a stage's loading (2026-10-23); the effect
+  in the original was not looked at.
+- **Fix**: kinds past the table get 18240.0, the value of most kinds (`marks::init_marks`).
+
 ## Quitting leaves the music and the stream playing
 
 *Original*: `audio::close_all` (0x409DD5, the audio thread's end). *Fixed*: 2026-10-23.
@@ -120,3 +134,21 @@ Each entry says:
   registers, as the intended exit does (`src/marks/emit_bursts.rs`). (For the hooked
   game, removed on 2026-10-23, the original's two exits were mended at start-up:
   `lea esp, [esp+4]` became `lea esp, [esp+8]` at 0x4CD741 and 0x4CDC6E.)
+
+## Split-screen divider left in a replay
+
+*Original*: `hud::overlay_pass` (0x45A893), `hud::draw_view_strips` (0x45B7B1),
+`hud::draw_view_strip` (0x45B9AA tail).
+*Fixed*: 2026-10-23.
+
+- **What**: the race draws its views by `dword_63DB98` (1 or 2 views), the HUD by its
+  split layout `dword_6238A4` (0 one player, 1 / 2 the two splits). A replay sets the
+  views back to one (`drive::choose_shown_cars`), but outside a race it leaves the layout
+  as the split-screen race had it, so the HUD still draws the two-player layout over the
+  one view.
+- **In game**: after a split-screen race, the replay shows the black divider across the
+  middle (with the two players' HUD) until the HUD is hidden.
+- **Seen**: yes, by the owner in the converted game (2026-10-23); the Rust code was the
+  original's, read from the disassembly.
+- **Fix**: the HUD takes its layout as 0 while one view is drawn
+  (`hud::overlay_pass::shown_layout`), for the HUD, the view strips and their tail.

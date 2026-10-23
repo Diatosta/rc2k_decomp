@@ -385,22 +385,15 @@ pub unsafe fn draw_plane(entry: &Regs) -> Result<Regs, Refused> {
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         match place {
-            1 => crate::scene::depth_test_off::depth_test_off(r),
+            1 => crate::scene::depth_test_off::depth_test_off(),
             2 => {
                 let (value, state) = (r.eax, r.ebx);
-                crate::scene::set_render_state::set_render_state(r, value, state);
+                crate::scene::set_render_state::set_render_state(value, state);
             }
-            3 => crate::scene::set_texture::set_texture_in_game(r),
+            3 => crate::scene::set_texture::set_texture(r.eax),
             4 => crate::scene::draw_fan::draw_fan(r, &mut crate::scene::draw_fan::game_part),
-            _ => crate::scene::depth_test_on::depth_test_on(r),
+            _ => crate::scene::depth_test_on::depth_test_on(),
         }
     }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_plane(r) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

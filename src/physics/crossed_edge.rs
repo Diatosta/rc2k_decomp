@@ -25,7 +25,6 @@ use crate::physics::crossed_edge_contact::{CROSSED, check_probe};
 use crate::physics::flow::{g, p};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// The steps, not guarded (the probe checked before).
 // Converted: `rc2k_core::physics::walls::{NONE_CROSSED, raised_hit}`.
@@ -68,14 +67,4 @@ pub unsafe fn crossed_edge(entry: &Regs) -> Result<Left, Refused> {
         steps(&mut r)?;
         Ok(left_of(&r))
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { crossed_edge(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

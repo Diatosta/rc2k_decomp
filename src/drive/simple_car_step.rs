@@ -25,7 +25,6 @@ use crate::framework::Regs;
 use crate::physics::flow::{a, g, p};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::drive::roaming::{roam_distance, roam_turn};
 
 const B: usize = 0x70F3EC; // g_carBlockStore
@@ -75,14 +74,4 @@ pub unsafe fn simple_car_step(entry: &Regs) -> Result<Left, Refused> {
     p(B + 0x9C8, 0);
     r = unsafe { crate::race::stage_prefs::get_mat_crash(&r) };
     Ok(left_of(&r))
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { simple_car_step(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

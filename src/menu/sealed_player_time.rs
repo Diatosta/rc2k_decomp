@@ -23,36 +23,34 @@ const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
 const SLOT_RVA: usize = rva(0x7559EC); // dword_7559EC
 const HHMM_RVA: usize = rva(0x7559F0); // hhmm
 const SEAL_BYTE_RVA: usize = rva(0x75ACD8); // dword_75ACD8
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn sealed_player_time(entry: &Regs) -> Result<Regs, Refused> {
+/// The Rust version (see the header): `byte` the original's eax (its low byte sealed);
+/// the sealed block's two dwords (its eax, ebx) out.
+pub unsafe fn sealed_player_time(byte: u32) -> Result<[u32; 2], Refused> {
     let n: u32 = unsafe { game_read(CURRENT_RVA) };
     if n >= 4 || player(n) == 0 {
         return Err(BadInput("a current player past 3 or missing").into());
     }
     let p = player(n);
     let sealed = unsafe {
-        crate::records::seal_time::seal_time(&Regs {
-            eax: get(p + 0x88),
-            ebx: get(p + 8),
-            ecx: game_read(SEAL_BYTE_RVA),
-            edx: entry.eax,
-            edi: p,
-            ..*entry
-        })
+        crate::records::seal_time::seal_time(
+            get(p + 0x88),
+            [
+                get(p + 8) as u8,
+                game_read::<u32>(SEAL_BYTE_RVA) as u8,
+                byte as u8,
+            ],
+        )
     };
     unsafe {
-        game_write(SLOT_RVA, sealed.eax);
-        game_write(HHMM_RVA, sealed.ebx);
+        game_write(SLOT_RVA, sealed[0]);
+        game_write(HHMM_RVA, sealed[1]);
     }
-    Ok(Regs {
-        eax: sealed.eax,
-        ebx: sealed.ebx,
-        ..*entry
-    })
+    Ok(sealed)
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { sealed_player_time(r) }?))
+    let [eax, ebx] = unsafe { sealed_player_time(r.eax) }?;
+    Ok(left_of(&Regs { eax, ebx, ..*r }))
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

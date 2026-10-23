@@ -14,11 +14,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
 use crate::framework::{Regs, game_read, rva};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 pub const MUD_COLOUR_RVA: usize = rva(0x60AD00); // dword_60AD00 .. dword_60AD08: red, green, blue
 
@@ -38,14 +34,4 @@ pub fn tint_to_mud_colour(entry: &Regs) -> Regs {
         edx: t.high,
         ..*entry
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&tint_to_mud_colour(r)))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

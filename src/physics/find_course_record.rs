@@ -23,7 +23,6 @@
 use crate::errors::Refused;
 use crate::framework::{EAX, EBP, EBX, EDX, ESI, Regs, game_addr};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::course_records::{Search, find_record, kind_of};
 
 /// The tables' addresses and the records' count: the game's, or a test's.
@@ -83,14 +82,4 @@ pub unsafe fn find_course_record_at(p: &RecordPlaces, r: &Regs) -> Result<Left, 
 /// The Rust version.
 pub unsafe fn find_course_record(r: &Regs) -> Result<Left, Refused> {
     unsafe { find_course_record_at(&RecordPlaces::game(), r) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { find_course_record(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

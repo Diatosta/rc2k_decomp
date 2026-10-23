@@ -28,7 +28,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::physics::reset_parts::{FIND_GROUND, reset_entry};
+use crate::physics::reset_parts::FIND_GROUND;
 use rc2k_core::physics::lighting;
 
 fn g(x: usize) -> u32 {
@@ -145,10 +145,4 @@ pub unsafe fn car_lighting(entry: &Regs) -> Result<Regs, Refused> {
         Ok(()) => Ok(r),
         Err(e) => Err(e),
     }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    reset_entry(r, car_lighting)
 }

@@ -24,9 +24,6 @@
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
 
 /// One of the two near-copies' variables (`place_view`'s and `place_view_2`'s).
 pub struct ViewPlace {
@@ -77,46 +74,7 @@ pub unsafe fn place_view_with(entry: &Regs, v: &ViewPlace) -> Result<Regs, Refus
     Ok(g)
 }
 
-/// The converted shared body (plain floats), on `v`'s variables.
-// Converted: `rc2k_core::marks::view::view_place`
-pub unsafe fn place_view_with_plain(entry: &Regs, v: &ViewPlace) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    let start = [0, 0, v.start_z];
-    unsafe {
-        game_write(v.point, start);
-        g.esi = game_addr(v.point) as u32;
-        g.edi = g.esi;
-        g.ecx = 1;
-        g.ebp = game_addr(v.matrix) as u32;
-        g = crate::scene::matrix3::transform_int_points_plain(&g)?;
-        let out = rc2k_core::marks::view::view_place(
-            game_read(v.point),
-            game_read(v.place),
-            f32::from_bits(game_read(v.height)),
-        );
-        game_write(v.out, out);
-        game_write(v.matrix_copy, game_read::<[u32; 9]>(v.matrix));
-        game_write(v.point, start);
-    }
-    Ok(g)
-}
-
 /// The Rust version (see the header). Refuses as `transform_int_points` (never, ecx 1).
 pub unsafe fn place_view(entry: &Regs) -> Result<Regs, Refused> {
     unsafe { place_view_with(entry, &FIRST) }
-}
-
-/// The converted version (plain floats): the hook's.
-pub unsafe fn place_view_plain(entry: &Regs) -> Result<Regs, Refused> {
-    unsafe { place_view_with_plain(entry, &FIRST) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { place_view_plain(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

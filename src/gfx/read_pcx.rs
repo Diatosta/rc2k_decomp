@@ -15,7 +15,7 @@
 
 use crate::errors::BadInput;
 use crate::files::read_file::read_file;
-use crate::framework::{Regs, game_addr, game_read};
+use crate::framework::{game_addr, game_read};
 use crate::gfx::pcx::{HEADER_LEN, HEADER_RVA};
 use crate::gfx::read_pcx_8bit::read_pcx_8bit;
 use crate::gfx::read_pcx_24bit::read_pcx_24bit;
@@ -39,14 +39,4 @@ pub unsafe fn read_pcx(path: *const u8) -> Result<bool, BadInput> {
             None => Ok(false),
         }
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    {
-        let worked = unsafe { read_pcx(r.eax as *const u8) }?;
-        r.set_carry(!worked);
-        r.set_zero(worked);
-    }
-    Ok(())
 }

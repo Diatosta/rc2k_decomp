@@ -13,16 +13,13 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
 const FLAG_RVA: usize = rva(0x755918); // dword_755918
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn beat_target_time(entry: &Regs) -> Result<Regs, Refused> {
+/// The Rust version (see the header).
+pub unsafe fn beat_target_time() -> Result<(), Refused> {
     let event = current_event()?;
     let n: u32 = unsafe { game_read(CURRENT_RVA) };
     if n >= 4 || player(n) == 0 {
@@ -32,15 +29,5 @@ pub unsafe fn beat_target_time(entry: &Regs) -> Result<Regs, Refused> {
     let beaten =
         rc2k_core::menu::bests::makes_time(get(player(n) + 0x88), get(event + 0x57C + 0x14));
     unsafe { game_write(FLAG_RVA, u32::from(beaten)) };
-    Ok(*entry)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { beat_target_time(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    Ok(())
 }

@@ -123,10 +123,3 @@ pub unsafe fn blit_map_tiles_in_game(r: &mut Regs) -> Result<(), Refused> {
     *r = unsafe { blit_map_tiles(r) }?;
     Ok(())
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { blit_map_tiles(r) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
-}

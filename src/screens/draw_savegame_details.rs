@@ -36,12 +36,11 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::records::find_record::find_record_in;
 use crate::saves::gather_savegame::CAR_LEN;
 use crate::saves::write_savegame_slot::FILE_RVA;
 use crate::screens::draw_stage_info::RECORD_TABLE_RVA;
-use crate::screens::harness::{Left, draw_entry};
 use crate::screens::stage_panel::{dword, table_dword};
 use crate::text::draw_text::Canvas;
 
@@ -107,14 +106,4 @@ pub unsafe fn draw_savegame_details(canvas: &mut dyn Canvas) -> Result<bool, Ref
             &[car(0), car(1), car(2), car(3)],
         )
     }
-}
-
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    Ok(Left::carry(unsafe { draw_savegame_details(canvas) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_savegame_details", r, &rust)
 }

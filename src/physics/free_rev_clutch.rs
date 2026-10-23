@@ -15,9 +15,9 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::Regs;
-use crate::physics::engine_torque::{engine_entry, g};
-use crate::physics::free_rev::{free_rev, free_rev_plain};
-use crate::physics::gearing::{GearPlaces, wheels_from_revs_at, wheels_from_revs_plain_at};
+use crate::physics::engine_torque::g;
+use crate::physics::free_rev::free_rev;
+use crate::physics::gearing::{GearPlaces, wheels_from_revs_at};
 use crate::screens::harness::Left;
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
@@ -35,31 +35,4 @@ pub unsafe fn free_rev_clutch(entry: &Regs) -> Result<Left, Refused> {
         wheels_from_revs_at(&GearPlaces::game())?.apply(&mut r);
     }
     Ok(crate::race::stage_prefs::left_of(&r))
-}
-
-/// The converted version (`physics::free_rev_plain`, `wheels_from_revs_plain_at`): the
-/// hook's.
-// Converted: `rc2k_core::physics::{engine::free_rev, gearing::wheels_from_revs}`.
-pub unsafe fn free_rev_clutch_plain(entry: &Regs) -> Result<Left, Refused> {
-    let gear = g(0x71A1AC);
-    if gear == 0 || g(0x71A228) == 0 {
-        return Ok(Left::nothing());
-    }
-    rc2k_core::physics::gearing::ratio_index(gear)?;
-    let mut r = *entry;
-    unsafe {
-        free_rev_plain().apply(&mut r);
-        wheels_from_revs_plain_at(&GearPlaces::game())?.apply(&mut r);
-    }
-    Ok(crate::race::stage_prefs::left_of(&r))
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { free_rev_clutch_plain(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    engine_entry(r, &rust)
 }

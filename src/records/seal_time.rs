@@ -11,7 +11,7 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::race::save_seal::{BLOCK_RVA, SEALED_RVA, seal_block};
 
 const CHEATS_RVA: usize = rva(0x75870C); // g_cheats
@@ -24,21 +24,14 @@ pub fn sealed_value(time: u32, cheats: u32, patch_switch: u32) -> u32 {
 /// The block's eight bytes (converted: `rc2k_core::files::records::seal_block`).
 pub use rc2k_core::files::records::seal_block as block;
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn seal_time(entry: &Regs) -> Regs {
+/// The Rust version (see the header): `time` and the block's three bytes (the original's
+/// bl, cl, dl) in; the sealed block's two dwords (its eax, ebx) out. Its callers read
+/// nothing else it leaves (register liveness, 2026-10-23).
+pub unsafe fn seal_time(time: u32, bytes: [u8; 3]) -> [u32; 2] {
     unsafe {
-        let value = sealed_value(
-            entry.eax,
-            game_read(CHEATS_RVA),
-            game_read(PATCH_SWITCH_RVA),
-        );
-        let b = block(value, [entry.ebx as u8, entry.ecx as u8, entry.edx as u8]);
-        game_write(BLOCK_RVA, b);
+        let value = sealed_value(time, game_read(CHEATS_RVA), game_read(PATCH_SWITCH_RVA));
+        game_write(BLOCK_RVA, block(value, bytes));
         seal_block();
-        Regs {
-            eax: game_read(SEALED_RVA[0]),
-            ebx: game_read(SEALED_RVA[1]),
-            ..*entry
-        }
+        SEALED_RVA.map(|r| game_read(r))
     }
 }

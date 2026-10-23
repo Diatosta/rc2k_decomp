@@ -27,15 +27,11 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87_run::{ext_times, ints_diff_80};
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
-use crate::scene::vector3::{read_floats, write_floats};
 use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
-use rc2k_core::physics::sound_places as places;
-use rc2k_core::physics::x87::loaded;
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
@@ -158,69 +154,4 @@ pub unsafe fn car_sound_state() -> Result<Left, Refused> {
         }
     }
     Ok(Left::nothing())
-}
-
-/// The converted version (`rc2k_core::physics::sound_places`, plain floats): the hook's.
-// Converted: `rc2k_core::physics::sound_places::{voices, pitch, volume, place,
-// turned_motion}`.
-pub unsafe fn car_sound_state_plain() -> Result<Left, Refused> {
-    let o = object();
-    if o == 0 {
-        return Err(BadInput("a null sound object").into());
-    }
-    let l = listener();
-    if l == 0 {
-        return Err(BadInput("a null view block").into());
-    }
-    let f = |x: usize| f32::from_bits(g(x));
-    unsafe {
-        put(o + 0x10, 1);
-        put(o + 0x14, g(0x71A1BC));
-        let w = g(0x71A908);
-        for at in [0x54, 0x68, 0x7C, 0x90] {
-            put(o + at, w);
-        }
-        let all_off = g(0x71A22C) != 0;
-        let v = places::voices(f(0x71A260), f(0x613EE0), f(0x71A26C), all_off);
-        p(0x71A264, v.share.to_bits());
-        p(0x71A268, v.full.to_bits());
-        if all_off {
-            p(0x71A26C, 0);
-        }
-        let pitch = places::pitch(f(0x71A264), f(0x5C5E2C));
-        let motion = loaded(f(0x71A26C));
-        for k in 0..4u32 {
-            put(o + 0x4C + 0x14 * k, loaded(f(0x71A268)).to_bits());
-            put(o + 0x50 + 0x14 * k, pitch.to_bits());
-            put(o + 0x44 + 0x14 * k, motion.to_bits());
-        }
-        put(o + 0x18, places::volume(g(0x71A610)));
-        put(o + 0xE8, g(0x71A1AC));
-        put(o + 0x1C, g(0x71A198));
-        put(o + 0xAC, g(0x71A220) & g(0x71A224));
-        put(o + 0x0C, g(0x71A6C8) ^ 1);
-        let whole = |a: u32| [0, 4, 8].map(|k| get(a + k) as i32);
-        let view: [f32; 15] = read_floats(game_addr(rva(0x5EA24C)) as u32);
-        let place = places::place(
-            whole(game_addr(rva(0x71A10C)) as u32),
-            whole(l + 0x6A4),
-            None,
-            &view,
-            f(0x5C5DA0),
-        );
-        write_floats(o + 0x2C, &place);
-        let turned = places::turned_motion(&view, [f(0x71A0AC), f(0x71A0B0), f(0x71A0B4)]);
-        write_floats(o + 0x38, &turned);
-    }
-    Ok(Left::nothing())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { car_sound_state_plain() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

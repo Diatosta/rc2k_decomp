@@ -17,11 +17,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
-use crate::screens::harness::Left;
-use crate::service::floats::*;
 use crate::service::harness::{Region, at};
 
 const NOW_RVA: usize = rva(0x76927A); // flt_76927A .. flt_769282
@@ -44,31 +41,8 @@ pub unsafe fn view_step() {
     }
 }
 
-/// The converted version (plain floats): the hook's.
-// Converted: `rc2k_core::marks::view::step`
-pub unsafe fn view_step_plain() {
-    unsafe {
-        let now: [u32; 3] = game_read(NOW_RVA);
-        let last: [u32; 3] = game_read(LAST_RVA);
-        let step = rc2k_core::marks::view::step(now.map(f32::from_bits), last.map(f32::from_bits));
-        game_write(STEP_RVA, step.map(f32::to_bits));
-        game_write(LAST_RVA, now);
-    }
-}
-
 pub fn regions() -> Vec<Region> {
     (0..3)
         .flat_map(|k| [at(STEP_RVA + 4 * k), at(LAST_RVA + 4 * k)])
         .collect()
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { view_step_plain() };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

@@ -34,10 +34,7 @@ use crate::marks::emitters::*;
 use crate::marks::lines::SETTINGS_RVA;
 use crate::marks::{emit_particle_13, emit_particle_19, emit_particle_22};
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
 use crate::scene::adjugate_matrix::adjugate_matrix;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const CAR_LEN: u32 = 0x4C8;
 const MOST_CARS: u32 = 8;
@@ -204,14 +201,4 @@ unsafe fn run(entry: &Regs, settings: u32) -> Result<Regs, Refused> {
         }
     }
     Ok(g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { cars_particles(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

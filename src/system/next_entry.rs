@@ -13,33 +13,10 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EBX, ECX, Regs};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
-
 // ---- Rust version ----
 
 /// (carry, ebx, ecx).
 pub fn next_entry(entry: u32, left: u32) -> (bool, u32, u32) {
     // Converted: `rc2k_core::system::tables::next`.
     rc2k_core::system::tables::next(entry, left)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let (carry, ebx, ecx) = next_entry(r.ebx, r.ecx);
-    let left = Left::nothing().with(EBX, ebx).with(ECX, ecx);
-    Ok(Left {
-        carry: Some(carry),
-        // `dec ecx`'s: set when it reached 0; with none left at the start `cmp ecx, 1`'s
-        // (clear). Not the carry: an entry that wraps sets that with entries left.
-        zero: Some(r.ecx != 0 && ecx == 0),
-        ..left
-    })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

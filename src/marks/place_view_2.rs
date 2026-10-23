@@ -19,10 +19,8 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_read, game_write, rva};
-use crate::marks::place_view::{ViewPlace, place_view_with, place_view_with_plain};
+use crate::marks::place_view::{ViewPlace, place_view_with};
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
 
 const SECOND: ViewPlace = ViewPlace {
     point: rva(0x8D2208), // dword_8D2208
@@ -46,28 +44,4 @@ pub unsafe fn place_view_2(entry: &Regs) -> Result<Regs, Refused> {
         game_write(FILLED_RVA, [z; 4]);
         Ok(g)
     }
-}
-
-/// The converted version (plain floats): the hook's.
-// Converted: `rc2k_core::marks::view::view_place`
-pub unsafe fn place_view_2_plain(entry: &Regs) -> Result<Regs, Refused> {
-    unsafe {
-        let mut g = place_view_with_plain(entry, &SECOND)?;
-        g.eax = 0;
-        game_write(CLEARED_RVA, [0u32; 8]);
-        // The point is (0, 0, 0x80000) again: the float exact at any rounding.
-        let z = x87::from_int(game_read(SECOND.point + 8));
-        game_write(FILLED_RVA, [z; 4]);
-        Ok(g)
-    }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { place_view_2_plain(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::service::floats::floats_entry(r, &rust)
 }

@@ -115,10 +115,3 @@ pub unsafe fn draw_clipped_polygon_in_game(entry: &Regs) -> Result<(), Refused> 
         })
     }
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    unsafe { draw_clipped_polygon_in_game(&entry) }?;
-    Ok(())
-}

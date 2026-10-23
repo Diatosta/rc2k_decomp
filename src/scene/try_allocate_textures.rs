@@ -32,7 +32,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::BadInput;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::logfile::log_int::log_int;
 use crate::logfile::log_write::log_write;
@@ -132,18 +132,4 @@ pub unsafe fn try_allocate_textures_in_game() -> Result<bool, BadInput> {
             Some(0)
         })
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    match unsafe { try_allocate_textures_in_game() } {
-        Ok(had) => {
-            r.set_carry(!had);
-        }
-        Err(e) => {
-            let e: Refused = e.into();
-            return Err(e);
-        }
-    }
-    Ok(())
 }

@@ -38,7 +38,6 @@ use crate::physics::place_sound_e1::place_sound_e1;
 use crate::physics::restore_saved_car::restore_saved_car;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// Contact record 2 (`g_contactRecords` + 0x40).
 const FORCE: usize = 0x614A90;
@@ -86,14 +85,4 @@ pub unsafe fn ground_contact(entry: &Regs) -> Result<Left, Refused> {
         steps(&mut r)?;
         Ok(left_of(&r))
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { ground_contact(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

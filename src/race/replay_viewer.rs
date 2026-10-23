@@ -387,7 +387,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 let unusable = crate::menu::list_item_unusable::list_item_unusable(r.edi);
                 r.set_carry(unusable);
             }
-            15 => crate::sound::play_menu_sound::play_menu_sound_in_game(r),
+            15 => crate::sound::play_menu_sound::play_menu_sound_in_game(r.eax),
             16 => *r = close_viewed_replay::close_viewed_replay(r)?,
             _ => *r = viewer_tidy_stage::viewer_tidy_stage(r)?,
         }

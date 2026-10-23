@@ -27,8 +27,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_addr, game_read, rva};
-use crate::sound::play_sound::play_sound_in_game;
+use crate::framework::{game_addr, game_read, rva};
 use rc2k_core::sound::placed::{self, MODE_3D};
 
 // ---- game data ----
@@ -89,16 +88,11 @@ fn angle_and_place(y: u32, x: u32, per_angle: u32, centre: u32) -> (u32, u32) {
 
 // ---- Rust version ----
 
-/// The request is at `entry.esi`; `mode` is the sound mode and `samples` the address of
-/// the sample records. `play` gets the registers `sound::play_sound` is called with.
-pub unsafe fn play_placed_sound(
-    entry: &Regs,
-    mode: u32,
-    samples: usize,
-    play: &mut dyn FnMut(&Regs),
-) -> Result<(), BadInput> {
+/// `mode` is the sound mode and `samples` the address of the sample records. Outside the
+/// 3D modes, where `sound::play_sound` replaces it, the original hands on its caller's ebp.
+pub unsafe fn play_placed_sound(request: u32, mode: u32, samples: usize) -> Result<(), BadInput> {
     unsafe {
-        let request = entry.esi as *mut u32;
+        let request = request as *mut u32;
         if request.is_null() {
             return Err(BadInput("no request"));
         }
@@ -126,33 +120,18 @@ pub unsafe fn play_placed_sound(
             put(6, angle);
             put(7, place);
             let place = placed::place(place, get(3), angle, mode);
-            (ebx, ecx, edi, ebp) = (volume, place, record as u32, entry.ebp);
+            (ebx, ecx, edi, ebp) = (volume, place, record as u32, 0);
         } else {
             (ebx, ecx, edi, ebp) = (to_int(get(2)), get(3), get(4), get(5));
         }
         let edx = product_to_int(get(1), get(8));
         put(1, edx);
-        play(&Regs {
-            eax: sound,
-            ebx,
-            ecx,
-            edx,
-            edi,
-            ebp,
-            ..*entry
-        });
+        crate::sound::play_sound::play_sound(sound, ebx, edx, [ecx, edi, ebp]);
         Ok(())
     }
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let (mode, samples) = unsafe { (game_read(MODE_RVA), game_addr(SAMPLES_RVA)) };
-    let entry = *r;
-    let done =
-        unsafe { play_placed_sound(&entry, mode, samples, &mut |with| play_sound_in_game(with)) };
-    if let Err(e) = done {
-        return Err(e.into());
-    }
-    Ok(())
+/// In the game.
+pub fn play_placed_sound_in_game(request: u32) -> Result<(), BadInput> {
+    unsafe { play_placed_sound(request, game_read(MODE_RVA), game_addr(SAMPLES_RVA)) }
 }

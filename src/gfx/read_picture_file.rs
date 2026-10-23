@@ -16,7 +16,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::files::swap_missing_extension::swap_missing_extension;
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::gfx::read_pcx::read_pcx;
 use crate::gfx::read_png::read_png;
 use crate::strings::text_length::text_length;
@@ -51,20 +51,6 @@ pub unsafe fn read_picture_file(path: *mut u8) -> Result<bool, Refused> {
             Reader::Chatzone => Ok(read_pcx(game_addr(CHATZONE_PATH_RVA) as *const u8)?),
         }
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let path = r.eax as *mut u8;
-    let worked = match unsafe { read_picture_file(path) } {
-        Ok(worked) => worked,
-        // A refused picture is not read (the standalone's way since 2026-10-20); a fatal
-        // error is raised.
-        Err(Refused::BadInput(_)) => false,
-        Err(e) => return Err(e),
-    };
-    r.set_carry(!worked);
-    Ok(())
 }
 
 // ---- self-test: a PNG and a PCX file of the test's own, asked for by several paths, with

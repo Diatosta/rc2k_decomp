@@ -166,12 +166,6 @@ pub unsafe fn draw_records_rows(
     }
 }
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    rows_entry("screens::draw_stage_records", r, &STAGE_ROWS)
-}
-
 /// `dispatch_rows` outside shadow mode, without its hook (typed tables, 2026-10-22: the entry the menus' and draw lists' enums run, with no hook).
 pub fn rows_entry(name: &str, r: &mut Regs, rows: &Rows) -> Result<(), Refused> {
     if blanked(name) {

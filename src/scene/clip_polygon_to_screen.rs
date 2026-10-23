@@ -119,13 +119,3 @@ pub unsafe fn unclipped_regs(r: &mut Regs) {
 pub unsafe fn wholly_on_screen() -> bool {
     matches!(unsafe { outside_mask() }, Ok(0))
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let unclipped = unsafe { wholly_on_screen() };
-    unsafe { clip_polygon_to_screen() }?;
-    if unclipped {
-        unsafe { unclipped_regs(r) };
-    }
-    Ok(())
-}

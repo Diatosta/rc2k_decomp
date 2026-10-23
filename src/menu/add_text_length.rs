@@ -11,12 +11,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::errors::Refused;
-use crate::framework::ECX;
-use crate::framework::Regs;
 use crate::menu::text_entry::with_entry;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::menu::text_entry::text_length;
 
 // ---- Rust version ----
@@ -26,15 +21,4 @@ pub unsafe fn add_text_length(text: *const u8) -> Result<(), BadInput> {
     let len = text_length(|i| unsafe { text.add(i).read() })?;
     with_entry(|e| e.add_length(len));
     Ok(())
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { add_text_length(r.edi as *const u8) }?;
-    Ok(Left::nothing().with(ECX, r.ecx.wrapping_add(1)))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

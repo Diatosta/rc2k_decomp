@@ -18,13 +18,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87;
 use crate::math::x87_run::{abs_fidiv, int_fidiv, one_less_times_plus};
-use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
-use rc2k_core::physics::drive_forces::torque_share;
 use std::cmp::Ordering;
 
 /// The variables (IDA addresses), in the order the core takes them.
@@ -72,34 +68,6 @@ pub unsafe fn drive_torque_share_at(v: &[u32]) -> u32 {
     }
 }
 
-/// The converted version (`rc2k_core::physics::drive_forces`, plain floats) on the
-/// variables' addresses: eax as the original leaves it.
-// Converted: `rc2k_core::physics::drive_forces::torque_share`.
-pub unsafe fn drive_torque_share_plain_at(v: &[u32]) -> u32 {
-    unsafe {
-        let s = torque_share(
-            at(v[1]),
-            [k(0x613EEC), k(0x613EF0)],
-            f32::from_bits(at(v[2])),
-            k(0x613EF4) as i32,
-            f32::from_bits(k(0x5C5D38)),
-            at(v[5]),
-            f32::from_bits(at(v[7])),
-        );
-        put(v[0], s.n);
-        put(v[3], s.speed_share.to_bits());
-        put(v[4], s.drive_share.to_bits());
-        put(v[6], s.share.to_bits());
-        put(v[7], s.drive.to_bits());
-        s.less
-    }
-}
-
-/// The variables' addresses in the game (for `physics::drive_force`'s converted version).
-pub fn drive_torque_share_places() -> Vec<u32> {
-    game()
-}
-
 fn game() -> Vec<u32> {
     VARIABLES
         .iter()
@@ -111,15 +79,4 @@ fn game() -> Vec<u32> {
 /// `physics::test_drive_run`): eax as the original leaves it.
 pub unsafe fn drive_torque_share() -> u32 {
     unsafe { drive_torque_share_at(&game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    let eax = unsafe { drive_torque_share_plain_at(&game()) };
-    Ok(Left::nothing().with(crate::framework::EAX, eax))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

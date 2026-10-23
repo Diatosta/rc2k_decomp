@@ -19,12 +19,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87;
-use crate::physics::gearing::{GearPlaces, revs_from_wheels_at, revs_from_wheels_plain_at};
+use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
 use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
-use rc2k_core::physics::gearing::settle_speed;
 
 const FAST_STEP_RVA: usize = rva(0x613F3C); // flt_613F3C, 1.0
 const SLOW_STEP_RVA: usize = rva(0x613F40); // flt_613F40, 0.01
@@ -115,55 +113,7 @@ pub unsafe fn settle_drive_speeds_at(g: &GearPlaces, s: &SettlePlaces) -> Result
     }
 }
 
-/// The converted version (`rc2k_core::physics::gearing`, plain floats): the hook's.
-// Converted: `rc2k_core::physics::gearing::{settle_speed, revs_from_wheels}`.
-pub unsafe fn settle_drive_speeds_plain_at(
-    g: &GearPlaces,
-    s: &SettlePlaces,
-) -> Result<Left, Refused> {
-    unsafe {
-        let gear = at(g.gear);
-        // The gear checked before anything is written, as before.
-        if gear != 0 {
-            rc2k_core::physics::gearing::ratio_index(gear)?;
-        }
-        let step = || {
-            game_read::<u32>(if at(s.fast) != 0 {
-                FAST_STEP_RVA
-            } else {
-                SLOW_STEP_RVA
-            })
-        };
-        let settle = |v: u32, step: u32| {
-            put(s.scratch, step);
-            if let Some(y) = settle_speed(f32::from_bits(at(v)), f32::from_bits(step)) {
-                put(v, y.to_bits());
-            }
-        };
-        if at(s.first) != 0 && gear == 0 {
-            settle(g.drive_speed, step());
-        }
-        if at(s.second) != 0 {
-            settle(g.drive_speed_2, step());
-        }
-        if gear != 0 {
-            return revs_from_wheels_plain_at(g);
-        }
-        Ok(Left::nothing())
-    }
-}
-
 /// The Rust version (the exact one, for `physics::car_physics_step`).
 pub unsafe fn settle_drive_speeds() -> Result<Left, Refused> {
     unsafe { settle_drive_speeds_at(&GearPlaces::game(), &SettlePlaces::game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { settle_drive_speeds_plain_at(&GearPlaces::game(), &SettlePlaces::game()) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

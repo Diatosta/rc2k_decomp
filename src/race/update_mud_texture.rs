@@ -183,12 +183,5 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { update_mud_texture(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
-}
-
 // mov eax, g_kindFirstSlots+400h
 // forget, lock, throw, splash, unlock

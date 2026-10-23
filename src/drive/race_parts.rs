@@ -19,7 +19,7 @@ pub fn restart_clock(r: &mut Regs) {
 
 /// `input::update`.
 pub fn input_update(r: &mut Regs) {
-    *r = unsafe { crate::input::keys::update(r, &mut crate::input::keys::game_screenshot) };
+    *r = crate::input::keys::update(r, &mut crate::input::keys::game_screenshot);
 }
 
 /// `input::take_key`: al the key, ZF when none.

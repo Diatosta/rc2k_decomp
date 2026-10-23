@@ -2,8 +2,8 @@
 //! the picture buffer's freshly decoded pixels, one or three bytes each and one after the
 //! other, out to a dword a pixel, in place, from the last pixel down.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read};
+use crate::errors::BadInput;
+use crate::framework::game_read;
 use crate::gfx::picture::{HEIGHT_RVA, WIDTH_RVA, picture};
 
 /// The number of pixels, `g_pictureWidth` * `g_pictureHeight`.
@@ -18,12 +18,4 @@ pub unsafe fn pixel_count() -> Result<usize, BadInput> {
         return Err(BadInput("a picture of no pixels, or of too many"));
     }
     Ok(count as usize)
-}
-
-pub type Spread = unsafe fn() -> Result<(), BadInput>;
-
-/// `dispatch_spread` without its hook (a refusal is the caller's).
-pub fn spread_entry(_: &mut Regs, rust: Spread) -> Result<(), Refused> {
-    unsafe { rust() }?;
-    Ok(())
 }

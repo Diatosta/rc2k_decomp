@@ -23,9 +23,6 @@ use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::emit_wheel_particles::{Table, emit};
 use crate::marks::emitters::*;
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const SIZE_K_RVA: usize = rva(0x765174); // flt_765174
 const WHICH_RVA: usize = rva(0x935416); // dword_935416: the record's number
@@ -75,14 +72,4 @@ pub unsafe fn emit_body_particles(entry: &Regs) -> Result<Regs, Refused> {
     };
     done?;
     Ok(g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { emit_body_particles(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

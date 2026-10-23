@@ -13,13 +13,11 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{ESI, Regs};
+use crate::framework::ESI;
 use crate::physics::mirror::Mirror;
 use crate::physics::rate_damage::rate_damage_at;
 use crate::physics::reset_car_grades::reset_grades_at;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 pub const MODE: u32 = 0x71A234; // dword_71A234: 2 resets the grades
 /// The Rust core on the variables `m` reaches.
@@ -32,19 +30,4 @@ pub unsafe fn grade_or_reset_at(m: &Mirror) -> Left {
             rate_damage_at(m)
         }
     }
-}
-
-/// The Rust version.
-pub unsafe fn grade_or_reset() -> Left {
-    unsafe { grade_or_reset_at(&Mirror::game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { grade_or_reset() })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

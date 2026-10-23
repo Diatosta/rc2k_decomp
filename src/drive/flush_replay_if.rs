@@ -28,14 +28,3 @@ pub unsafe fn flush_replay_if(entry: &Regs) -> Result<Left, Refused> {
     }
     Ok(Left::nothing())
 }
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { flush_replay_if(r) }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = rust(r)?;
-    left.apply(r);
-    Ok(())
-}

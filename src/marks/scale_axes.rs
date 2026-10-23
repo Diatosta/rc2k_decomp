@@ -16,11 +16,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::floats::*;
+use crate::framework::{Regs, game_addr, rva};
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn scale_axes(entry: &Regs) -> Regs {
@@ -96,42 +92,4 @@ pub unsafe fn scale_axes(entry: &Regs) -> Regs {
         g.esi = game_addr(rva(0x89CF4A)) as u32;
     }
     g
-}
-
-/// The converted version (plain floats): the hook's.
-// Converted: `rc2k_core::marks::scales::scale_axes`
-pub unsafe fn scale_axes_plain(entry: &Regs) -> Regs {
-    use rc2k_core::marks::scales::{Axes, scale_axes};
-    let f = |a: usize| f32::from_bits(unsafe { game_read(rva(a)) });
-    let three = |a: usize| [f(a), f(a + 4), f(a + 8)];
-    let made = scale_axes(&Axes {
-        axes: [three(0x89CF1A), three(0x89CF26)],
-        factor: f(0x89CECA),
-        own: [f(0x89CEEE), f(0x89CEF2)],
-        parts: [three(0x8BC1DE), three(0x8BC1EA)],
-        second_parts: [three(0x8BC1F6), three(0x8BC202)],
-    });
-    let put = |a: usize, v: [[f32; 3]; 2]| {
-        for (n, x) in v.as_flattened().iter().enumerate() {
-            unsafe { game_write(rva(a) + 4 * n, x.to_bits()) };
-        }
-    };
-    put(0x89CF3E, made.scaled);
-    put(0x89CF6E, made.weighted);
-    put(0x89CF56, made.second);
-    Regs {
-        edi: game_addr(rva(0x89CF62)) as u32,
-        esi: game_addr(rva(0x89CF4A)) as u32,
-        ..*entry
-    }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { scale_axes_plain(r) }))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

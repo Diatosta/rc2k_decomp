@@ -18,9 +18,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EDI, Regs, game_addr, rva};
+use crate::framework::{EDI, game_addr, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::engine::shares_figures;
 
 /// The current car, the objects' table, the work car's 0x71A1FC .. 0x71A208, 0x71A1E0.
@@ -67,14 +66,4 @@ fn game() -> Vec<u32> {
 /// The Rust version.
 pub unsafe fn share_engine_sound() -> Result<Left, Refused> {
     unsafe { share_at(&game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { share_engine_sound() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

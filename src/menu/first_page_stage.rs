@@ -14,9 +14,6 @@
 //! and the self-test was the hook's.
 use crate::errors::Refused;
 use crate::framework::{Regs, game_read, game_write, rva};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const COUNT_RVA: usize = rva(0x7556B4); // dword_7556B4
 const FIRST_RVA: usize = rva(0x7556B8); // dword_7556B8
@@ -34,14 +31,4 @@ pub unsafe fn first_page_stage(entry: &Regs) -> Result<Regs, Refused> {
     g.ebp = 10;
     unsafe { game_write(FIRST_RVA, g.eax) };
     Ok(g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { first_page_stage(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

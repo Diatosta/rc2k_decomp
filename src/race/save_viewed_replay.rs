@@ -36,7 +36,7 @@ use crate::physics::flow::a;
 use crate::race::replay_path::{LAST_RACE_PATH, replay_path};
 use crate::race::viewer::{
     BLOCK_DATA, BLOCKS, CAMERAS, HEADER, INDEX, PLACES, Part, TABLE_LEN, UNDO_BLOCKS, UNDO_PLACES,
-    get, move_dwords, put, regs_entry,
+    get, move_dwords, put,
 };
 
 const NAMES: usize = 0x528934; // byte_528934: 32 bytes a slot
@@ -189,10 +189,4 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         }
     }
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| save_viewed_replay(r, &mut game_part))
 }

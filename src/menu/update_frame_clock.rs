@@ -12,7 +12,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_write, rva};
+use crate::framework::{game_write, rva};
 use crate::system::tick_count::tick_count;
 
 // ---- game data ----
@@ -25,11 +25,4 @@ pub fn update_frame_clock() -> u32 {
     let now = tick_count();
     unsafe { game_write(CLOCK_RVA, now) };
     now
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let first = update_frame_clock();
-    r.eax = first;
-    Ok(())
 }

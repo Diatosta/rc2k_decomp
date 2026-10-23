@@ -18,10 +18,6 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::floats::*;
 
 /// The Rust version (see the header).
 pub unsafe fn adjugate3(s: u32, d: u32) -> Result<(), Refused> {
@@ -92,26 +88,4 @@ pub unsafe fn adjugate3(s: u32, d: u32) -> Result<(), Refused> {
         )
     }
     Ok(())
-}
-
-/// The converted version (plain floats): the hook's.
-// Converted: `rc2k_core::marks::turns::adjugate`
-pub unsafe fn adjugate3_plain(s: u32, d: u32) -> Result<(), Refused> {
-    if s == 0 || d == 0 {
-        return Err(BadInput("a null matrix").into());
-    }
-    let p = &mut unsafe { crate::scene::matrix::GamePlaces::new() };
-    rc2k_core::marks::turns::adjugate(p, s, d);
-    Ok(())
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { adjugate3_plain(r.esi, r.edi) }?;
-    Ok(left_of(r))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

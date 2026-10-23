@@ -13,10 +13,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, Regs, game_read, game_write, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::{game_read, game_write, rva};
 
 const WORD_RVA: usize = rva(0x6240C4); // dword_6240C4
 const PLACES_RVA: usize = rva(0x5D3AE8); // dword_5D3AE8
@@ -37,14 +34,4 @@ pub unsafe fn look_up_texture() -> u32 {
         game_write(TEXTURE_RVA, found.texture);
         found.eax
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(Left::nothing().with(EAX, unsafe { look_up_texture() }))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

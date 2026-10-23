@@ -18,12 +18,10 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87_run::{ext_div2, int_80};
 use crate::race::frame_draw::sample_noise;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::ground::{noise_level, rough_floor};
 
 fn g(x: usize) -> u32 {
@@ -73,14 +71,4 @@ pub unsafe fn surface_noise(entry: &Regs) -> Left {
         }
     }
     crate::race::stage_prefs::left_of(&r)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { surface_noise(r) })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

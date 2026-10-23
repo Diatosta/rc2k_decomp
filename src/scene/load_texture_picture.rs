@@ -34,7 +34,7 @@
 
 use crate::errors::Refused;
 use crate::files::file_exists::file_exists;
-use crate::framework::{Regs, game_addr, game_ptr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_ptr, game_read, game_write, rva};
 use crate::gfx::load_picture_to_texture::load_picture_to_texture_in_game;
 use crate::logfile::log_int::log_int;
 use crate::logfile::log_write::log_write;
@@ -140,10 +140,4 @@ pub unsafe fn load_texture_picture_in_game(number: u32, texture: u32) -> Result<
         });
     }
     refused.map_or(Ok(()), Err)
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { load_texture_picture_in_game(r.eax, r.ebx) }?;
-    Ok(())
 }

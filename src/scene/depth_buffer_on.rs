@@ -12,17 +12,17 @@ use crate::framework::Regs;
 use crate::scene::set_render_state::set_render_state;
 
 /// `scene::depth_buffer_on` (`on`) or `scene::depth_buffer_off`: states 7 and 14 1 or 0,
-/// then 23 4.
-pub unsafe fn depth_buffer(r: &mut Regs, on: bool) {
-    unsafe {
-        set_render_state(r, on as u32, 7);
-        set_render_state(r, on as u32, 0xE);
-        set_render_state(r, 4, 0x17);
-    }
+/// then 23 4. What they leave in eax and ebx is read by none of the original's callers
+/// (register liveness, 2026-10-23; one `depth_buffer_on` in `race::draw_screen_quad`
+/// reaches the loading bar's callback, which its caller runs inside `pusha` / `popa`).
+pub fn depth_buffer(on: bool) {
+    set_render_state(on as u32, 7);
+    set_render_state(on as u32, 0xE);
+    set_render_state(4, 0x17);
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { depth_buffer(r, true) };
+/// For the typed tables' calls by address.
+pub fn entry(_r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    depth_buffer(true);
     Ok(())
 }

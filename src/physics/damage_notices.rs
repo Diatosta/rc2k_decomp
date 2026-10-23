@@ -28,7 +28,6 @@ use crate::physics::flow::{g, p};
 use crate::physics::queue_notice::queue_notice;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::damage_notices::{LEVELS, damage_notices as damage_notices_core};
 
 /// `flt_75B36C`: the threshold being compared.
@@ -65,14 +64,4 @@ pub unsafe fn damage_notices(entry: &Regs) -> Result<Left, Refused> {
         steps(&mut r)?;
         Ok(left_of(&r))
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { damage_notices(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

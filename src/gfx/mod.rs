@@ -51,7 +51,6 @@ pub mod mmx_converters;
 pub mod palette_pixels_to_dwords;
 pub mod palette_to_dwords;
 pub mod pcx;
-pub mod pcx_reader;
 pub mod picture;
 pub mod picture_as_surface;
 pub mod pixel_format;

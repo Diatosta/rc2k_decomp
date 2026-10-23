@@ -17,7 +17,7 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::net::{APPLY_RECEIVED, FOLLOW, ON, PLAYER, Part, SEND_TURN, a, net_entry};
+use crate::net::{APPLY_RECEIVED, FOLLOW, ON, PLAYER, Part, SEND_TURN, a};
 
 /// g_currentCar.
 const CURRENT: usize = 0x71B3F8;
@@ -53,10 +53,4 @@ pub fn race_step(r: &mut Regs, part: Part) -> Result<(), Refused> {
         player: a(PLAYER),
     };
     race_step_with(r, &v, part)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    net_entry(r, race_step)
 }

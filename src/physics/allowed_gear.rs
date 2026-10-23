@@ -19,10 +19,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::physics::gear_bit::bits_at;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -46,14 +44,4 @@ pub unsafe fn allowed_gear_at(locked: u32, open: u32, bits: u32, eax: u32) -> Re
 pub unsafe fn allowed_gear(eax: u32) -> Result<u32, Refused> {
     let g = |a: usize| game_addr(rva(a)) as u32;
     unsafe { allowed_gear_at(g(0x71A290), g(0x71A3CC), g(0x71A40C), eax) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(Left::nothing().with(EAX, unsafe { allowed_gear(r.eax) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -14,10 +14,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::{game_read, rva};
 
 const TABLE_RVA: usize = rva(0x63661C); // g_fogTable: 0x1000 bytes
 const LENGTH_RVA: usize = rva(0x63761C); // g_fogTableLength
@@ -30,15 +27,4 @@ pub unsafe fn fog_at(depth: u32) -> Result<u32, Refused> {
         unsafe { game_read(LENGTH_RVA) },
         |n| unsafe { game_read(TABLE_RVA + n) },
     )?)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let eax = unsafe { fog_at(r.eax) }?;
-    Ok(left_of(&Regs { eax, ..*r }))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

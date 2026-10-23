@@ -94,10 +94,3 @@ pub fn game_part(_place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refuse
     unsafe { fp::draw_flare_part(r, [v[0], v[1]]) }?;
     Ok(())
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_lens_flare(r) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
-}

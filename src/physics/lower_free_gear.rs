@@ -20,8 +20,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr};
-use crate::physics::flag_result::{FlagResult, flags_entry};
+use crate::framework::game_addr;
+use crate::physics::flag_result::FlagResult;
 use crate::physics::gear_bit::{GEAR_BITS_RVA, bits_at};
 
 /// The Rust version on the bits at `bits`; `eax` what eax held at entry.
@@ -40,14 +40,4 @@ pub unsafe fn lower_free_gear_at(bits: u32, gear: u32, eax: u32) -> Result<FlagR
 /// The Rust version.
 pub unsafe fn lower_free_gear(gear: u32, eax: u32) -> Result<FlagResult, Refused> {
     unsafe { lower_free_gear_at(game_addr(GEAR_BITS_RVA) as u32, gear, eax) }
-}
-
-fn rust(r: &Regs) -> Result<FlagResult, Refused> {
-    unsafe { lower_free_gear(r.ebx, r.eax) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    flags_entry(r, &rust)
 }

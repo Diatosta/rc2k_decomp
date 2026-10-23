@@ -60,10 +60,3 @@ pub unsafe fn load_slot_texture_in_game(slot: u32, entry_regs: &Regs) -> Result<
         })
     }
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry_regs = *r;
-    unsafe { load_slot_texture_in_game(r.ecx, &entry_regs) }?;
-    Ok(())
-}

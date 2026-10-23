@@ -14,11 +14,9 @@
 //! and the self-test was the hook's.
 
 use crate::drive::save_replay_cars::piece_at;
-use crate::errors::Refused;
-use crate::framework::{ECX, EDI, ESI, Regs};
+use crate::framework::{ECX, EDI, ESI};
 use crate::physics::flow::a;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::drive::replay_frames::{START_DWORDS, start_layout};
 
 const SAVED: usize = 0x7172EC; // unk_7172EC
@@ -34,14 +32,4 @@ pub fn load_replay_cars() -> Left {
     }
     let past = a(SAVED) + 4 * START_DWORDS as u32;
     Left::nothing().with(ECX, 0).with(EDI, end).with(ESI, past)
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(load_replay_cars())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

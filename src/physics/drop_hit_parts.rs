@@ -22,8 +22,6 @@ use crate::framework::{Regs, game_read, game_write, rva};
 use crate::math::x87;
 use crate::physics::fill_slot_on_bit::fill_slot_on_bit_in;
 use crate::physics::test_car_word::test_word;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::parts::{self, DROP_TESTS, Hit, HitTest};
 
 pub fn g(x: usize) -> u32 {
@@ -72,23 +70,4 @@ pub fn drop_hit_parts_in(r: &mut Regs) -> Result<(), Refused> {
         return Ok(());
     }
     hit_tests(r, &DROP_TESTS, &TIMERS, &mut |r| fill_slot_on_bit_in(r))
-}
-
-/// The Rust version.
-pub unsafe fn drop_hit_parts(entry: &Regs) -> Result<Left, Refused> {
-    let mut r = *entry;
-    match drop_hit_parts_in(&mut r) {
-        Ok(()) => Ok(crate::race::stage_prefs::left_of(&r)),
-        Err(e) => Err(e),
-    }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { drop_hit_parts(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

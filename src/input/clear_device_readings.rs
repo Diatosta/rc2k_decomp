@@ -11,11 +11,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::input::devices::put;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// The Rust version (see the header).
 pub fn clear_device_readings(record: u32) {
@@ -23,15 +19,4 @@ pub fn clear_device_readings(record: u32) {
     for (offset, value) in rc2k_core::input::devices::CLEARED_READINGS {
         put(record, offset as u32, value);
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    clear_device_readings(r.esi);
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

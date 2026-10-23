@@ -25,9 +25,7 @@ use crate::marks::splines::{
     CHOSEN_RVA, MOST_POINTS, SPLINE_LEN, transform_int_points_from, turn_record, turnable_record,
     work_regions, write_point,
 };
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::Region;
 
 const SWITCH_RVA: usize = rva(0x7695CA); // dword_7695CA
 const POINTERS: u32 = 0x454;
@@ -104,14 +102,4 @@ pub fn regions(spline: u32) -> Vec<Region> {
         }
     }
     r
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { place_graded_points(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

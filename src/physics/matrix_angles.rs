@@ -17,14 +17,11 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::math::x87_run::{neg_rounded, over_cos_80, patan};
 use crate::physics::clamped_asin::clamped_asin_at;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const TURNED_RVA: usize = rva(0x5C70E0); // flt_5C70E0, E4, E8
 const ANGLES_RVA: usize = rva(0x5C70D4); // flt_5C70D4 (pitch), D8 (heading), DC (roll)
@@ -85,20 +82,4 @@ pub unsafe fn matrix_angles_at(m: u32, p: &AnglePlaces) {
         let roll = clamped_asin_at(sine, p.scratch, p.limit);
         put(p.angles + 8, rounded(roll));
     }
-}
-
-/// The Rust version.
-pub unsafe fn matrix_angles(m: u32) {
-    unsafe { matrix_angles_at(m, &AnglePlaces::game()) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { matrix_angles(r.esi) };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

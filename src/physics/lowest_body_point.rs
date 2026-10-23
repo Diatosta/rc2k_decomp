@@ -18,11 +18,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, Regs, game_addr, game_read, rva};
+use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::math::x87;
-use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
-use rc2k_core::physics::motion::{lowest_point, lowest_share};
 
 /// The count, the lowest, its number, the share, then the 0x40 depths.
 fn variables() -> Vec<usize> {
@@ -61,28 +58,6 @@ pub unsafe fn lowest_at(v: &[u32], r: &mut Regs) -> Result<(), Refused> {
     }
 }
 
-/// The converted version (`rc2k_core::physics::motion`) on the variables at `v`; `r` as
-/// the original leaves it.
-// Converted: `rc2k_core::physics::motion::{lowest_point, lowest_share}`.
-pub unsafe fn lowest_at_plain(v: &[u32], r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        let get = |k: usize| (v[k] as *const u32).read_unaligned();
-        let put = |k: usize, x: u32| (v[k] as *mut u32).write_unaligned(x);
-        let (mut lowest, mut number) = (get(1), get(2));
-        if let Some((eax, ebx)) =
-            lowest_point(get(0), |n| get(4 + n as usize), &mut lowest, &mut number)?
-        {
-            r.eax = eax;
-            r.ebx = ebx;
-            put(1, lowest);
-            put(2, number);
-        }
-        let scale = f32::from_bits(game_read(rva(0x5C5D98)));
-        put(3, lowest_share(lowest, scale).to_bits());
-        Ok(())
-    }
-}
-
 fn game() -> Vec<u32> {
     variables()
         .iter()
@@ -94,16 +69,4 @@ fn game() -> Vec<u32> {
 /// `find_clear_place`, `crash_contact`); `r` as the original leaves it.
 pub unsafe fn lowest_body_point(r: &mut Regs) -> Result<(), Refused> {
     unsafe { lowest_at(&game(), r) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let mut g = *r;
-    unsafe { lowest_at_plain(&game(), &mut g) }?;
-    Ok(Left::nothing().with(EAX, g.eax).with(EBX, g.ebx))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

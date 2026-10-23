@@ -36,7 +36,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::scene::draw_object::draw_object_in_game;
 
 // ---- game data ----
 
@@ -125,10 +124,4 @@ pub unsafe fn draw_shown_object(
         game_write(DRAWING_RVA, 0u32);
         Ok(show)
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { draw_shown_object(r, &mut |r| draw_object_in_game(r)) }?;
-    Ok(())
 }

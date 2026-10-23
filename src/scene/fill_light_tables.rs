@@ -18,14 +18,12 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EDI, ESI, Regs, game_addr, game_ptr, game_read, rva};
+use crate::framework::{EDI, ESI, game_addr, game_ptr, game_read, rva};
 use crate::scene::light_tables::{
     CAR_LIGHT_TABLE_RVA, LAMP_TABLE_A_RVA, LAMP_TABLE_B_RVA, LAMP_TABLE_C_RVA, LIGHT_TABLE_RVA,
     fill_light_ramp, fill_light_scale,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 // ---- game data ----
 
@@ -60,14 +58,4 @@ pub unsafe fn fill_light_tables() -> Left {
         }
         left
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { fill_light_tables() })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

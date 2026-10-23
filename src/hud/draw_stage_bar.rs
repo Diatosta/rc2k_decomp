@@ -23,7 +23,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::hud::add_quad::QUAD_RVA;
 
 pub const MILES_RVA: usize = rva(0x6D150C); // g_overlayPartMiles: 0x40
@@ -33,40 +33,33 @@ const COLOUR_RVA: usize = rva(0x75BFA0); // dword_75BFA0
 pub const PLACES_RVA: [usize; 2] = [rva(0x75BFF0), rva(0x75BFF4)];
 pub const ENDS_RVA: [usize; 2] = [rva(0x75BFF8), rva(0x75BFFC)]; // start, end
 pub const WIDTH_RVA: usize = rva(0x75C000); // dword_75C000
-/// A call by place: 1 `add_solid_quad`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 pub fn set(n: usize, v: u32) {
     unsafe { game_write(QUAD_RVA + 4 * n, v) };
 }
 
 /// The record's corners (left, top, right, bottom) and, with `Some`, its colour; a quad.
-pub fn quad(g: &Regs, colour: Option<u32>, c: [u32; 4], part: &mut Part) -> Result<(), Refused> {
+pub fn quad(colour: Option<u32>, c: [u32; 4]) -> Result<(), Refused> {
     if let Some(colour) = colour {
         set(5, colour);
     }
     for (n, v) in c.into_iter().enumerate() {
         set(1 + n, v);
     }
-    let mut r = *g;
-    part(1, &mut r)
+    unsafe { crate::hud::add_solid_quad::add_solid_quad() }
 }
 
 /// The bars of `kinds`' players (each player's colour into `colour_vars`), `dy` lower
-/// (see the header and `hud::draw_stage_bars_1`'s): the registers they leave.
+/// (see the header and `hud::draw_stage_bars_1`'s).
 // Converted: `rc2k_core::hud::stage_bars`
 pub unsafe fn bars(
-    entry: &Regs,
+    record: u32,
     kinds: &[usize],
     colour_vars: &[usize],
     dy: u32,
-    part: Part,
-) -> Result<Regs, Refused> {
+) -> Result<(), Refused> {
     use rc2k_core::hud::stage_bars as sb;
-    let mut part = part;
-    let mut g = *entry;
     unsafe {
-        let get = |o: u32| ((entry.ebp + o) as *const u32).read_unaligned();
+        let get = |o: u32| ((record + o) as *const u32).read_unaligned();
         let f = |r: usize| f32::from_bits(game_read(r));
         let count = get(0x74);
         sb::check(count, kinds.len() as u32, |p, n| {
@@ -74,11 +67,10 @@ pub unsafe fn bars(
         })?;
         set(0, sb::SOLID);
         for (colour, c) in sb::frame(dy, kinds.len() == 2) {
-            quad(&g, Some(colour), c, &mut part)?;
+            quad(Some(colour), c)?;
         }
-        g.ecx = count;
         if count == 0 {
-            return Ok(g);
+            return Ok(());
         }
         game_write(WIDTH_RVA, sb::WIDTH);
         game_write(ENDS_RVA[0], 0u32);
@@ -107,40 +99,20 @@ pub unsafe fn bars(
             game_write(PLACES_RVA[0], a);
             let b = sb::place(sb::WIDTH, end, total);
             game_write(PLACES_RVA[1], b);
-            let mut r = Regs { ecx: left, ..g };
             for q in sb::part_quads(a, b, &colours, left == 1, dy) {
                 if let Some(alpha) = q.alpha {
                     set(0, alpha);
                 }
-                [r.eax, r.ebx] = [q.eax, q.ebx];
-                if let Some(edx) = q.edx {
-                    r.edx = edx;
-                }
-                quad(&r, q.colour, q.corners, &mut part)?;
+                quad(q.colour, q.corners)?;
             }
             game_write(ENDS_RVA[0], end.to_bits());
         }
-        g.ebx = count;
-        g.ecx = 0;
     }
-    Ok(g)
+    Ok(())
 }
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version (see the header).
 // Converted: `rc2k_core::hud::stage_bars` (through `bars`)
-pub unsafe fn draw_stage_bar(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    unsafe { bars(entry, &[KINDS_RVA], &[COLOUR_RVA], 0, part) }
-}
-
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::hud::add_solid_quad as sq;
-    *r = unsafe { sq::add_solid_quad(r) }?;
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_stage_bar(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
+pub unsafe fn draw_stage_bar(record: u32) -> Result<(), Refused> {
+    unsafe { bars(record, &[KINDS_RVA], &[COLOUR_RVA], 0) }
 }

@@ -20,7 +20,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, rva};
-use crate::menu::parts::{Part, parted_entry};
+use crate::menu::parts::Part;
 
 const CALLEES: [usize; 4] = [
     0x425CA9, // 0 scene::load_front_end_objects
@@ -67,14 +67,4 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         }
     }
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    parted_entry(
-        r,
-        &|r, part| unsafe { load_front_end_objects_logged(r, part) },
-        game_part,
-    )
 }

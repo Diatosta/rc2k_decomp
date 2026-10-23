@@ -17,9 +17,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::scene::draw_polygon::{Game, draw_polygon};
-use crate::scene::submit_polygon;
+use crate::framework::{game_read, game_write, rva};
 
 // ---- game data ----
 
@@ -39,16 +37,4 @@ pub unsafe fn draw_marked_polygon(
         game_write(MARK_RVA, 0u32);
         done
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    let done = unsafe {
-        draw_marked_polygon(&mut || draw_polygon(&mut Game(submit_polygon::Game(&entry))))
-    };
-    if let Err(e) = done {
-        return Err(e.into());
-    }
-    Ok(())
 }

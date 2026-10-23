@@ -20,12 +20,11 @@
 
 use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, ECX, EDX, ESI, Regs, game_read, game_write, rva};
+use crate::framework::{EAX, EBX, ECX, EDX, ESI, game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::polygon::dword;
 use crate::scene::project_point::RECORDS_RVA;
 use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
 
 // ---- game data ----
 
@@ -60,41 +59,4 @@ pub unsafe fn face_sort_key(face: usize, count: u32) -> Result<Left, Refused> {
             .with(EDX, record)
             .with(ESI, (face + 0x10 + count as usize * 0x10) as u32))
     }
-}
-
-/// The converted `face_sort_key` (plain floats): the hook's. The x87 version above stays
-/// for `scene::list_object_face`.
-// Converted: `rc2k_core::scene::sort_keys`
-pub unsafe fn face_sort_key_plain(face: usize, count: u32) -> Result<Left, Refused> {
-    use rc2k_core::scene::sort_keys as keys;
-    unsafe {
-        let records: u32 = game_read(RECORDS_RVA);
-        let vertices: u32 = game_read(COUNT_RVA);
-        keys::check(face != 0, records != 0, count, vertices)?;
-        let (mut offset, mut record) = (0, 0);
-        let mut depths = Vec::with_capacity(count as usize);
-        for n in 0..count as usize {
-            offset = keys::record_offset(dword(face + 0x10 + n * 0x10));
-            record = records.wrapping_add(offset);
-            depths.push(f32::from_bits(dword(record as usize + 0x18)));
-        }
-        let factor = f32::from_bits(game_read(FACTORS_RVA + vertices as usize * 4));
-        game_write(KEY_RVA, keys::key(depths, factor));
-        Ok(Left::nothing()
-            .with(EAX, offset)
-            .with(EBX, vertices)
-            .with(ECX, 0)
-            .with(EDX, record)
-            .with(ESI, (face + 0x10 + count as usize * 0x10) as u32))
-    }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { face_sort_key_plain(r.ebp as usize, r.ecx) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

@@ -46,10 +46,3 @@ pub unsafe fn race_tick(entry: &Regs) -> Result<Left, Refused> {
     left.apply(&mut r);
     Ok(left_of(&r))
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { race_tick(r) }?;
-    left.apply(r);
-    Ok(())
-}

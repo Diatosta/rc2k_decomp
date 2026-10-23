@@ -26,10 +26,3 @@ const PLACES_RVA: usize = rva(0x769222); // dword_769222 .. dword_76922E
 pub unsafe fn pong_setup(entry: &Regs) -> Result<Regs, Refused> {
     unsafe { setup_with(entry, PLACES_RVA) }
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { pong_setup(r) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
-}

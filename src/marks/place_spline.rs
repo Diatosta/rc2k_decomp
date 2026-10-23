@@ -26,10 +26,8 @@ use crate::marks::place_graded_points::{self, place_graded_points};
 use crate::marks::place_shape_points;
 use crate::marks::splines::{OFFSET_RVA, SPLINE_LEN, TABLES, place_shape_points as place_shape};
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
 use crate::scene::vector3::STATUS_RVA;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
+use crate::service::harness::{Region, at};
 
 const SPLINES: u32 = 8;
 const SWITCH_RVA: usize = rva(0x7695CA); // dword_7695CA
@@ -125,14 +123,4 @@ unsafe fn run(entry: &Regs, settings: u32) -> Result<Regs, Refused> {
         g = place_graded_points(&g)?;
     }
     Ok(g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { place_spline(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

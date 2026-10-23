@@ -14,12 +14,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87_run::div_mul3_to_int;
-use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
-use rc2k_core::physics::motion::spin;
 
 /// Speed 1, speed 2, turn 1, turn 2, scratch.
 const VARIABLES: [usize; 5] = [0x71A190, 0x71A194, 0x71A1D0, 0x71A1D4, 0x62400C];
@@ -47,29 +43,6 @@ pub unsafe fn spin_at(v: &[u32]) -> u32 {
     }
 }
 
-/// The converted version (`rc2k_core::physics::motion`, plain floats) on the variables
-/// at `v`: the last turn added.
-// Converted: `rc2k_core::physics::motion::spin`.
-pub unsafe fn spin_at_plain(v: &[u32]) -> u32 {
-    unsafe {
-        let k = |x: usize| f32::from_bits(game_read::<u32>(rva(x)));
-        let speeds = [0, 1].map(|n| f32::from_bits(get(v, n)));
-        let mut turns = [get(v, 2), get(v, 3)];
-        let last = spin(
-            speeds,
-            &mut turns,
-            k(0x613EBC),
-            k(0x61388C),
-            k(0x5C5D98),
-            k(0x5C5DC8),
-        );
-        put(v, 4, last as u32);
-        put(v, 2, turns[0]);
-        put(v, 3, turns[1]);
-        last as u32
-    }
-}
-
 fn game() -> Vec<u32> {
     VARIABLES
         .iter()
@@ -80,14 +53,4 @@ fn game() -> Vec<u32> {
 /// The Rust version (the exact one, for `physics::car_physics_step`).
 pub unsafe fn spin_wheels() -> u32 {
     unsafe { spin_at(&game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(Left::nothing().with(EAX, unsafe { spin_at_plain(&game()) }))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

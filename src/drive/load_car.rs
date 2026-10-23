@@ -19,9 +19,7 @@
 
 use crate::drive::car::*;
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// The Rust core on the variables at `p`: what it leaves in the registers.
 // Converted: `rc2k_core::drive::work_car::{car_slot, car_block}`.
@@ -36,14 +34,4 @@ pub unsafe fn load_car_at(p: CarPlaces) -> Result<Left, Refused> {
 /// The Rust version, on the game's variables.
 pub unsafe fn load_car() -> Result<Left, Refused> {
     unsafe { load_car_at(CarPlaces::game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { load_car() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

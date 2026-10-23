@@ -19,7 +19,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::scene::load_texture_picture::load_texture_picture_in_game;
 
 // ---- game data ----
@@ -60,10 +60,4 @@ pub unsafe fn load_changed_texture_picture_in_game(texture: u32) -> Result<(), R
             load_texture_picture_in_game(picture, texture)
         })
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { load_changed_texture_picture_in_game(r.ecx) }?;
-    Ok(())
 }

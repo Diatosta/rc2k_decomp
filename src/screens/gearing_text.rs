@@ -11,12 +11,11 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::player::{Player, player_at};
 use crate::menu::take_shown_car::CURRENT_PLAYER_RVA;
 use crate::screens::car_caption::put_string;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
+use crate::service::harness::{Region, at};
 
 pub const KEPT_RVA: usize = rva(0x7554F0); // dword_7554F0
 pub const TEXT_RVA: usize = rva(0xA8BF54); // byte_A8BF54
@@ -60,15 +59,4 @@ pub unsafe fn step_gearing(on: bool) -> Result<(), Refused> {
 
 pub fn regions() -> [Region; 2] {
     [at(KEPT_RVA), (game_addr(TEXT_RVA) as u32, TEXT_LEN)]
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { gearing_text() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -15,7 +15,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_write};
+use crate::framework::game_write;
 use crate::hud::add_quad::QUAD_RVA;
 use rc2k_core::hud::quads;
 
@@ -39,24 +39,13 @@ pub unsafe fn put_corners(x: u32, y: u32, w: u32, h: u32) {
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version (see the header): the sprite whose rectangle is at `rect` with its
+/// corner at `x`, `y` (ebx, ecx, esi; every register kept).
 // Converted: `rc2k_core::hud::quads::{sprite_places, sprite_corners}`
-pub unsafe fn add_sprite(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn add_sprite(x: u32, y: u32, rect: u32) -> Result<(), Refused> {
     unsafe {
-        let [_, _, w, h] = put_places(entry.esi);
-        put_corners(entry.ebx, entry.ecx, w, h);
+        let [_, _, w, h] = put_places(rect);
+        put_corners(x, y, w, h);
+        crate::hud::add_quad::add_quad()
     }
-    let mut r = Regs {
-        eax: unsafe { crate::framework::game_read(QUAD_RVA + 4 * quads::BOTTOM) },
-        ..*entry
-    };
-    crate::hud::add_triangle::game_part_quad(1, &mut r)?;
-    Ok(*entry)
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { add_sprite(r) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
 }

@@ -26,10 +26,7 @@ use crate::framework::{Regs, game_read, game_write, rva};
 use crate::race::mud::MUD_RVA;
 use crate::race::mud_texel::mud_texel;
 use crate::race::put_mud_texel::put_mud_texel;
-use crate::race::stage_prefs::left_of;
 use crate::race::tint_to_mud_colour::tint_to_mud_colour;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 pub const TEXTURE_RVA: usize = rva(0x623D5C); // dword_623D5C: the mud texture worked on
 pub const STRENGTH_RVA: usize = rva(0x62400C); // dword_62400C, a scratch
@@ -98,14 +95,4 @@ pub unsafe fn muddy_texel(entry: &Regs) -> Result<Regs, Refused> {
         }
     };
     Ok(r)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { muddy_texel(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

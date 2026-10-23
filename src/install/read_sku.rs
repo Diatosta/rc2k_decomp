@@ -14,10 +14,8 @@
 //! and the self-test was the hook's.
 
 use crate::bridge::Raw;
-use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_write, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::errors::BadInput;
+use crate::framework::{game_write, rva};
 use crate::settings::read_text::read_text;
 use crate::strings::same_text::case_table;
 use rc2k_core::install::config;
@@ -57,15 +55,4 @@ pub unsafe fn read_sku(path: *const u8) -> Result<(), BadInput> {
         }
         Ok(())
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { read_sku(game_addr(PATH_RVA) as *const u8) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -481,17 +481,17 @@ pub fn own_car_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 Ok(())
             }),
             2 => {
-                crate::scene::depth_buffer_on::depth_buffer(r, true);
+                crate::scene::depth_buffer_on::depth_buffer(true);
                 Ok(())
             }
             3 => crate::race::car_draw::draw_car_shined(r),
             4 => {
-                crate::scene::set_texture::set_texture_in_game(r);
+                crate::scene::set_texture::set_texture(r.eax);
                 Ok(())
             }
             5 => {
                 let (v, s) = (r.eax, r.ebx);
-                crate::scene::set_render_state::set_render_state(r, v, s);
+                crate::scene::set_render_state::set_render_state(v, s);
                 Ok(())
             }
             _ => draw_marks_overlays(r),

@@ -23,8 +23,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{ECX, ESI, Regs, game_read, rva};
-use crate::scene::add_car_light::add_car_light;
+use crate::framework::{ECX, ESI, game_read, rva};
 use crate::screens::harness::Left;
 
 // ---- game data ----
@@ -90,11 +89,4 @@ pub unsafe fn add_car_lights(
         }
         Ok(Left::nothing().with(ECX, cars).with(ESI, block))
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { add_car_lights(&mut |car| Ok(add_car_light(car)?)) }?;
-    left.apply(r);
-    Ok(())
 }

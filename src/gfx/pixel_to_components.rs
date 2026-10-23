@@ -15,7 +15,6 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, rva};
 use crate::gfx::pixel_format::PixelFormat;
 
 // ---- Rust version ----
@@ -27,14 +26,3 @@ pub fn pixel_to_components(format: &PixelFormat, pixel: u32) -> u32 {
 
 // Written out instead of going through `dispatch_state`, which allocates: this is called per
 // pixel.
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    if r.ebx == 0 {
-        unsafe { crate::framework::call_game(r, crate::framework::game_addr(rva(0x405CFA))) };
-        return Ok(());
-    }
-    let format = unsafe { (r.ebx as *const PixelFormat).read_unaligned() };
-    let mine = pixel_to_components(&format, r.eax);
-    r.eax = mine;
-    Ok(())
-}

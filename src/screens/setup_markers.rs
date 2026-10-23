@@ -129,11 +129,4 @@ pub unsafe fn draw_marker(
 
 // ---- hook ----
 
-/// `dispatch_marker` without its hook (a refusal is the caller's).
-pub fn marker_entry(name: &str, r: &mut Regs, marker: Marker) -> Result<(), Refused> {
-    crate::screens::harness::draw_entry(name, r, &|r, canvas| unsafe {
-        draw_marker(marker, r, canvas)
-    })
-}
-
 // ---- self-test ----

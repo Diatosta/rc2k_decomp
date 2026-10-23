@@ -24,8 +24,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBP, ECX, ESI, Regs, game_addr, game_read, game_write, rva};
-use crate::scene::draw_object_face::draw_object_face_in_game;
+use crate::framework::{EAX, EBP, ECX, ESI, game_addr, game_read, game_write, rva};
 use crate::scene::polygon::dword;
 use crate::screens::harness::Left;
 
@@ -101,12 +100,4 @@ pub unsafe fn draw_object_faces(
             .with(ESI, entry as u32)
             .with(EBP, face as u32))
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    let left = unsafe { draw_object_faces(&mut |face| draw_object_face_in_game(face, &entry)) }?;
-    left.apply(r);
-    Ok(())
 }

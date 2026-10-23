@@ -19,12 +19,11 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87_run::{ext_times, ints_diff_80};
 use crate::scene::matrix3::rounded;
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
@@ -63,30 +62,4 @@ pub unsafe fn place_car_sound() -> Result<Left, Refused> {
         put(o + 0x10, 1);
     }
     Ok(Left::nothing())
-}
-
-/// The converted version (`rc2k_core::physics::sound_places::place`, plain floats): the
-/// hook's.
-// Converted: `rc2k_core::physics::sound_places::place`.
-pub unsafe fn place_car_sound_plain() -> Result<Left, Refused> {
-    let o = object();
-    if o == 0 {
-        return Err(BadInput("a null sound object").into());
-    }
-    unsafe {
-        put(o + 0x224, 1);
-        crate::physics::car_sounds::place_plain(o, 0x214, None);
-        put(o + 0x10, 1);
-    }
-    Ok(Left::nothing())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { place_car_sound_plain() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

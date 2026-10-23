@@ -43,9 +43,3 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
 pub unsafe fn face_contacts_around(entry: &Regs) -> Result<Left, Refused> {
     guarded(entry, steps)
 }
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::physics::face_contact::faces_entry(r, steps)
-}

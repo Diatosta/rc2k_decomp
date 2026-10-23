@@ -36,7 +36,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::next_random::next_random;
 use crate::math::x87;
 
@@ -136,56 +136,4 @@ pub unsafe fn set_object_material() -> Result<(), BadInput> {
         game_write(FACE_COUNT_RVA, game_read::<u32>(FACE_COUNTS_RVA + slot));
         Ok(())
     }
-}
-
-/// The converted `set_object_material` (plain floats): the hook's. The x87 version above
-/// stays for the Rust callers in unconverted code.
-// Converted: `rc2k_core::scene::materials`
-pub unsafe fn set_object_material_plain() -> Result<(), BadInput> {
-    use rc2k_core::scene::materials::{LENGTHS, MOVING, ShapeClock, move_by};
-    unsafe {
-        let object: u32 = game_read(OBJECT_RVA);
-        if object >= OBJECTS {
-            return Err(BadInput("an object's number past the tables"));
-        }
-        let slot = object as usize * 4;
-        let kind: u32 = game_read(KINDS_RVA + slot);
-        let material =
-            game_addr(MATERIALS_RVA).wrapping_add((kind as usize).wrapping_mul(MATERIAL_LEN));
-        let way = ((material + 0x20) as *const u8).read() as u32;
-        let state = state();
-        if way == MOVING && state.is_none() {
-            return Err(BadInput("a moving object without its state"));
-        }
-        game_write(MOVE_BY_RVA, 0u32);
-        game_write(COLOUR_RVA, 0x00FF_FFFFu32);
-        game_write(WAY_RVA, way);
-        if let (MOVING, Some(state)) = (way, state) {
-            game_write(MOVE_BY_RVA, move_by(game_read(FIRST_POINT_RVA + slot)));
-            let [last, time, length, phase]: [u32; 4] = (state as *const [u32; 4]).read_unaligned();
-            let mut c = ShapeClock {
-                last,
-                time,
-                length,
-                phase,
-            };
-            game_write(LENGTHS_RVA, LENGTHS);
-            let fraction = c.step(game_read(CLOCK_RVA), || next_random());
-            game_write(MOVE_FRACTION_RVA, fraction.to_bits());
-            game_write(LAST_RVA, c.last);
-            game_write(PHASE_WORK_RVA, [c.length, c.time, c.phase]);
-            (state as *mut [u32; 4]).write_unaligned([c.last, c.time, c.length, c.phase]);
-        }
-        game_write(FIRST_FACE_RVA, game_read::<u32>(FIRST_FACES_RVA + slot));
-        game_write(FACE_COUNT_RVA, game_read::<u32>(FACE_COUNTS_RVA + slot));
-        Ok(())
-    }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    if let Err(e) = unsafe { set_object_material_plain() } {
-        return Err(e.into());
-    }
-    Ok(())
 }

@@ -18,7 +18,6 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::physics::flow::a;
-use crate::race::viewer::regs_entry;
 
 pub const LAST_RACE_PATH: usize = 0x5295F0; // "var\tmprpl"
 const SAVED_TEMPLATE: usize = 0x52974B; // "savedata\replay\replay00"
@@ -49,10 +48,4 @@ pub fn replay_path(entry: &Regs) -> Result<Regs, Refused> {
     r.eax = path as u32;
     r.set_zero(r.eax == 0);
     Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &replay_path)
 }

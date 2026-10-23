@@ -15,13 +15,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87;
 use crate::math::x87_run::mul2_plus;
-use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
-use rc2k_core::physics::drive_forces::add_drive_forces as add_drive_forces_core;
 
 /// The variables (IDA addresses), in the order the core takes them.
 pub const VARIABLES: [usize; 11] = [
@@ -59,31 +55,6 @@ pub unsafe fn add_drive_forces_at(v: &[u32]) {
     }
 }
 
-/// The converted version (`rc2k_core::physics::drive_forces`, plain floats) on the
-/// variables' addresses.
-// Converted: `rc2k_core::physics::drive_forces::add_drive_forces`.
-pub unsafe fn add_drive_forces_plain_at(v: &[u32]) {
-    unsafe {
-        let f = |n: usize| f32::from_bits(at(v[n]));
-        let kind = at(v[1]);
-        let factors = [f32::from_bits(k(0x613EE4)), f32::from_bits(k(0x613EE8))];
-        let d = add_drive_forces_core(
-            kind,
-            factors,
-            [f(2), f(3), f(4), f(5)],
-            [f(7), f(8)],
-            f32::from_bits(k(0x6140B8)),
-            [f(9), f(10)],
-        );
-        if let Some(kept) = d.kept {
-            put(v[0], kept.to_bits());
-        }
-        put(v[6], d.drive.to_bits());
-        put(v[9], d.forces[0].to_bits());
-        put(v[10], d.forces[1].to_bits());
-    }
-}
-
 fn game() -> Vec<u32> {
     VARIABLES
         .iter()
@@ -94,15 +65,4 @@ fn game() -> Vec<u32> {
 /// The Rust version (the exact one, for `physics::drive_wheels_step`).
 pub unsafe fn add_drive_forces() {
     unsafe { add_drive_forces_at(&game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { add_drive_forces_plain_at(&game()) };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

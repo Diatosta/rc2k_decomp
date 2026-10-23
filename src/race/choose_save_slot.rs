@@ -18,7 +18,6 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::race::viewer::regs_entry;
 
 /// The Rust version: the registers it leaves.
 pub fn choose_save_slot(entry: &Regs) -> Result<Regs, Refused> {
@@ -38,10 +37,4 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         _ => load::viewer_load_stage(r)?,
     };
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| choose_save_slot(r))
 }

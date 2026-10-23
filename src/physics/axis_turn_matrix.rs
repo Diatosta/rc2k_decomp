@@ -16,13 +16,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::math::x87;
 use crate::math::x87_run::{abs_sqrt_times_plus, one_less, sine_cosine_of};
 use crate::physics::mirror::Mirror;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// The Rust core on the variables `m` reaches; the matrix at `out`.
 pub unsafe fn axis_turn_at(m: &Mirror, out: u32) {
@@ -62,15 +58,4 @@ pub unsafe fn axis_turn_at(m: &Mirror, out: u32) {
 /// The Rust version.
 pub unsafe fn axis_turn_matrix(out: u32) {
     unsafe { axis_turn_at(&Mirror::game(), out) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { axis_turn_matrix(r.edi) };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

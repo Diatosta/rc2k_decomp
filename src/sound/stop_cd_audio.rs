@@ -9,7 +9,6 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, rva};
 
 // ---- game data ----
@@ -19,19 +18,15 @@ const STOPS: u32 = 5;
 
 // ---- Rust version ----
 
-pub unsafe fn stop_cd_audio(entry: &Regs, track: u32) -> Result<(), Refused> {
-    unsafe { (track as *mut u32).write_unaligned(0) };
-    let mut r = *entry;
+pub fn stop_cd_audio() {
+    unsafe { (game_addr(TRACK_RVA) as *mut u32).write_unaligned(0) };
     for _ in 0..STOPS {
-        crate::sound::stop_cd_track::game_part(0, &mut r)?;
+        crate::sound::stop_cd_track::stop_cd_track_in_game();
     }
-    Ok(())
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    let track = game_addr(TRACK_RVA) as u32;
-    unsafe { stop_cd_audio(&entry, track) }?;
+pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+    stop_cd_audio();
     Ok(())
 }

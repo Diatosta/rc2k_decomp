@@ -20,7 +20,6 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::physics::camera_ground::carry_entry;
 use crate::physics::flow::{base, g, hold_high, hold_low, negate, p, x87_run};
 use crate::race::car_starts::Part;
 
@@ -66,10 +65,4 @@ pub unsafe fn camera_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         steps(&mut r, part)?;
         Ok(r)
     }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    carry_entry(r, camera_frame)
 }

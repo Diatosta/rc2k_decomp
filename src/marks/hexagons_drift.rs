@@ -26,10 +26,7 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::marks::adjugate3::adjugate3;
 use crate::marks::setup::SETTINGS_RVA;
-use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::{Axis, extended, turn_matrix3};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const DRIFT_RVA: usize = rva(0x811BDF); // flt_811BDF ..
 const FIRST_RVA: usize = rva(0x8161AE); // dword_8161AE
@@ -269,14 +266,4 @@ pub unsafe fn hexagons_drift(entry: &Regs) -> Result<Regs, Refused> {
         }
     }
     Ok(g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { hexagons_drift(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

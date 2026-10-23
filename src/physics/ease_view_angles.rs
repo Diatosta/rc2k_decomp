@@ -15,13 +15,10 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
 use crate::framework::{EAX, ESI, Regs};
-use crate::physics::camera_view::{rd, record, record_plain, share_done, share_done_plain};
+use crate::physics::camera_view::{rd, record, share_done};
 use crate::physics::flow::{base, g, p, x87_run};
 use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
-use rc2k_core::physics::camera_view::ease_angles;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
 pub unsafe fn ease_view_angles(entry: &Regs) -> Left {
@@ -44,37 +41,4 @@ pub unsafe fn ease_view_angles(entry: &Regs) -> Left {
         p(*to, g(*to).wrapping_add(eax));
     }
     left.with(EAX, eax)
-}
-
-/// The converted version (`rc2k_core::physics::camera_view`, plain floats): the hook's.
-// Converted: `rc2k_core::physics::camera_view::{share_done, ease_angles}`.
-pub unsafe fn ease_view_angles_plain(_: &Regs) -> Left {
-    let esi = record_plain();
-    let left = Left::nothing().with(ESI, esi);
-    if rd(esi + 0x3C) == 0 {
-        return left;
-    }
-    share_done_plain(esi);
-    let changes = [0x40, 0x44, 0x48].map(|k| f32::from_bits(rd(esi + k)));
-    let mut angles = ANGLES.map(g);
-    let share = f32::from_bits(g(0x605260));
-    let (n, added) = ease_angles(changes, share, f32::from_bits(g(0x5C5D98)), &mut angles);
-    p(0x62400C, n as u32);
-    for (x, v) in ANGLES.iter().zip(angles) {
-        p(*x, v);
-    }
-    left.with(EAX, added)
-}
-
-/// The three angles (`unk_71A694` ..).
-const ANGLES: [usize; 3] = [0x71A694, 0x71A698, 0x71A69C];
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { ease_view_angles_plain(r) })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

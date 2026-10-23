@@ -21,14 +21,13 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{EAX, game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::math::x87_run::ext_to_int;
 use crate::physics::car_sound_state::car_sound_state;
 use crate::physics::gear_change_sound::gear_change_sound;
 use crate::scene::matrix3::extended;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::engine::ease_revs;
 use rc2k_core::physics::x87::hold_low;
 
@@ -95,14 +94,4 @@ pub unsafe fn engine_sound() -> Result<Left, Refused> {
     unsafe { car_sound_state() }?;
     let left = unsafe { gear_change_sound() }?;
     Ok(left.with(EAX, step))
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { engine_sound() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

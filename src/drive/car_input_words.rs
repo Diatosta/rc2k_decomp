@@ -22,7 +22,6 @@ use crate::errors::Refused;
 use crate::framework::{EAX, EBX, ECX, EDX, ESI, Regs};
 use crate::physics::flow::{g, p};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const WORDS: usize = 0x6138C4;
 const CURRENT: usize = 0x71B3F8;
@@ -66,14 +65,4 @@ pub unsafe fn car_input_words(entry: &Regs) -> Result<Left, Refused> {
         .with(ECX, r.ecx)
         .with(EDX, r.edx)
         .with(ESI, r.esi))
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { car_input_words(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

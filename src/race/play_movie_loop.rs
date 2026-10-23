@@ -24,7 +24,7 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::physics::flow::a;
-use crate::race::viewer::{BLOCK, PLAY_END, Part, gb, get, put, regs_entry};
+use crate::race::viewer::{BLOCK, PLAY_END, Part, gb, get, put};
 
 const STATE: usize = 0x5C5CE0; // dword_5C5CE0
 const SCENE_CLOCK: usize = 0x613830; // g_sceneClock
@@ -80,10 +80,4 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         }
     }
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| play_movie_loop(r, &mut game_part))
 }

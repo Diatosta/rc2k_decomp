@@ -26,7 +26,6 @@ use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::race::viewer::{
     BLOCK, BLOCKS, FRAME, MARK_IN, MARK_OUT, PLAY_END, PLAY_FROM_HERE, Part, STOPPED, get, put,
-    regs_entry,
 };
 
 /// The shared tail (0x41E231): eax the block, ebx the block to stop at, ecx the frame.
@@ -74,10 +73,4 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         *r = crate::race::play_replay_range::play_replay_range(r)?;
     }
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| play_marked(r, &mut game_part))
 }

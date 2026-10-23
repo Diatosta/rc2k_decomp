@@ -18,12 +18,10 @@
 
 use crate::errors::BadInput;
 use crate::field;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::input::devices::put;
 use crate::input::input_tick::COMMAND_RVA;
 use crate::input::types::InputDevice;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 pub const DEVICES_RVA: usize = rva(0x4F6EE8); // g_inputDevices
 /// The Rust version (see the header).
@@ -49,15 +47,4 @@ pub unsafe fn request_device_setup(
     put(record, field!(InputDevice, end_zone), s.end_zone);
     unsafe { game_write(COMMAND_RVA, 1u32) };
     Ok(())
-}
-
-fn rust(r: &Regs) -> Result<Left, crate::errors::Refused> {
-    unsafe { request_device_setup(r.eax, r.ebx, r.ecx, r.edx, r.ebp) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

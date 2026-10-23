@@ -11,7 +11,7 @@
 //! for `place_sound_e1`'s exact version (its Rust callers).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87_run::ext_times;
 use crate::scene::matrix3::rounded;
 use crate::scene::rotate_point::rotate_point;
@@ -119,9 +119,4 @@ fn offset_part(offset: u32, car: u32, listener: u32) -> [u8; 10] {
         "fstp tbyte ptr [{o}]";
         v = v.as_ptr(), o = out.as_mut_ptr());
     out
-}
-
-/// `dispatch_placed` without its hook (Rust callers; a refusal is the caller's).
-pub fn placed_entry(r: &mut Regs, rust: crate::service::harness::Rust) -> Result<(), Refused> {
-    crate::service::harness::state_entry(r, rust)
 }

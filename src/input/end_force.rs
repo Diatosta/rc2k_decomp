@@ -18,7 +18,6 @@
 //! and the self-test was the hook's.
 
 use crate::field;
-use crate::framework::Regs;
 use crate::input::devices::{at, put};
 use crate::input::di_harness::{EFFECT_LEN, EFFECTS_AT, entry_of, method, slot};
 use crate::input::types::{Controller, ForceEffect, InputDevice};
@@ -39,10 +38,4 @@ pub fn end_force(record: u32) {
         crate::input::effect_objects::release_effect(e);
         put(e, field!(ForceEffect, found), 0);
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    end_force(r.esi);
-    Ok(())
 }

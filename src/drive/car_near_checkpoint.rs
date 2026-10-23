@@ -12,7 +12,6 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::physics::flag_result::FlagResult;
 use rc2k_core::physics::line_places::car_near;
@@ -29,13 +28,4 @@ pub unsafe fn near_at(car: u32, r: &Regs) -> FlagResult {
         carry: near.is_some_and(|n| n.1),
         zero: None,
     }
-}
-
-fn rust(r: &Regs) -> Result<FlagResult, Refused> {
-    Ok(unsafe { near_at(r.esi, r) })
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::physics::flag_result::flags_entry(r, &rust)
 }

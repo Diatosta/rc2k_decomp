@@ -31,9 +31,7 @@ use crate::race::mud::COLOURS_RVA;
 use crate::race::mud_texel::mud_texel;
 use crate::race::muddy_texel::{strength_at, texture_and_mud};
 use crate::race::put_mud_texel::put_mud_texel;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
+use crate::service::harness::{Region, at};
 
 pub const SPLASHED_RVA: usize = rva(0x623D90); // dword_623D90: each texture's count
 pub const LAST_SPLASHED: u32 = 0x1000;
@@ -105,14 +103,4 @@ pub unsafe fn splash_mud(entry: &Regs) -> Result<Regs, Refused> {
             Ok(r)
         }
     })()
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { splash_mud(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

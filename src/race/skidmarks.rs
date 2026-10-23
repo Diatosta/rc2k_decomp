@@ -247,9 +247,9 @@ pub unsafe fn draw_skidmarks(entry: &Regs) -> Result<Regs, Refused> {
 pub fn skid_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         match place {
-            1 => crate::scene::depth_test_off::depth_test_off(r),
+            1 => crate::scene::depth_test_off::depth_test_off(),
             2 => crate::scene::draw_polygon::draw_polygon_in_game(r)?,
-            _ => crate::scene::depth_test_on::depth_test_on(r),
+            _ => crate::scene::depth_test_on::depth_test_on(),
         }
     }
     Ok(())

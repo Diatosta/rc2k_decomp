@@ -22,9 +22,7 @@ use crate::marks::{
     aim_vector, keep_vectors, run_splines, scale_kept_vectors, shapes_frame, turn_kept_vectors,
     view_step,
 };
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::Region;
 
 /// What its first five steps write (the last two put back their own).
 fn early_regions() -> Vec<Region> {
@@ -58,14 +56,4 @@ pub unsafe fn view_frame(entry: &Regs) -> Result<Regs, Refused> {
         let g = aim_vector::aim_vector(entry);
         shapes_frame::shapes_frame(&g).and_then(|g| run_splines::run_splines(&g))
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { view_frame(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

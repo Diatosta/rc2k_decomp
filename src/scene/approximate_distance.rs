@@ -13,11 +13,6 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, EBX, ECX, Regs};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
-
 // ---- Rust version ----
 
 /// Returns the length and what is left in ebx and ecx. Converted:
@@ -25,18 +20,4 @@ use crate::service::harness::state_entry;
 pub fn approximate_distance(differences: [u32; 3]) -> [u32; 3] {
     let d = rc2k_core::scene::distance::approximate(differences.map(|d| d as i32));
     [d.length, d.middle, d.least]
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let [length, middle, least] = approximate_distance([r.eax, r.ebx, r.ecx]);
-    Ok(Left::nothing()
-        .with(EAX, length)
-        .with(EBX, middle)
-        .with(ECX, least))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

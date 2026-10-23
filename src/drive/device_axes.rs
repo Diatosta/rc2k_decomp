@@ -16,10 +16,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, ECX, EDX, Regs};
 use crate::physics::flow::g;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::drive::controls::device_curve;
 
 const DEVICES: usize = 0x4F6EE8; // g_inputDevices
@@ -40,19 +37,4 @@ pub unsafe fn device_axes(device: u32) -> Result<[u32; 4], Refused> {
         eax = device_curve(eax);
     }
     Ok([eax, ebx, ecx, edx])
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let [eax, ebx, ecx, edx] = unsafe { device_axes(r.esi) }?;
-    Ok(Left::nothing()
-        .with(EAX, eax)
-        .with(EBX, ebx)
-        .with(ECX, ecx)
-        .with(EDX, edx))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

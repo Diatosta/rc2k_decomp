@@ -22,7 +22,7 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::race::viewer::{
-    BLOCK, BLOCKS, FRAME, KEY_AFTER_PLAY, RECORDING, STOPPED, WAIT_RELEASE, get, put, regs_entry,
+    BLOCK, BLOCKS, FRAME, KEY_AFTER_PLAY, RECORDING, STOPPED, WAIT_RELEASE, get, put,
 };
 
 /// The Rust version: the registers it leaves (the entry's).
@@ -57,10 +57,4 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         _ => crate::race::viewer_load_stage::take_key(r),
     }
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| play_replay_range(r))
 }

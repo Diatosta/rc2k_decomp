@@ -10,7 +10,7 @@
 //! `sub_40B016` with eax; 9 `sub_40C194` with eax, ecx, edx; 0xB `sub_40C4DD` with eax,
 //! ebx, ecx, edx; 0xA ends the thread's taking for this turn.
 
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 pub const RECORDS: u32 = 0x400;
@@ -23,8 +23,6 @@ pub const RECORDS_RVA: usize = rva(0x9566F8); // unk_9566F8
 /// Command numbers used by the ported senders.
 pub const START_3: u32 = 3;
 pub const END_OF_TURN: u32 = 0xA;
-pub const COMMAND_B: u32 = 0xB;
-
 /// Where a queue is: the game's own, or a test's.
 #[derive(Clone, Copy)]
 pub struct Queue {
@@ -43,11 +41,6 @@ impl Queue {
             records: game_addr(RECORDS_RVA) as *mut u32,
         }
     }
-}
-
-/// The registers a record holds, in its order.
-pub fn sent(r: &Regs) -> [u32; 7] {
-    [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp]
 }
 
 /// `sound::send_command` (0x409C45). Without audio the count is cleared and nothing is

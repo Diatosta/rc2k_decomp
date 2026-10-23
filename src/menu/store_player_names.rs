@@ -15,11 +15,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
+use crate::errors::BadInput;
 use crate::menu::player_names::{CAR_NAME, NAME_LEN, cars, name};
-use crate::menu::text_entry::log_l1;
-use crate::screens::harness::Left;
 
 // ---- Rust version ----
 
@@ -33,14 +30,4 @@ pub unsafe fn store_player_names(log: &mut dyn FnMut(*const u8)) -> Result<(), B
         }
         Ok(())
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { store_player_names(&mut |line| log_l1(line, true)) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::service::harness::state_entry(r, &rust)
 }

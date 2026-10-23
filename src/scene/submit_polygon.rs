@@ -142,10 +142,3 @@ impl Outside for Game<'_> {
         self.call(LOG_HEX8_L1, result);
     }
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    unsafe { submit_polygon(&mut Game(&entry)) };
-    Ok(())
-}

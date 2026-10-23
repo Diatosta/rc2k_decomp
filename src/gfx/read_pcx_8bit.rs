@@ -27,12 +27,11 @@ use crate::files::handle::{read, seek};
 use crate::files::open_stream::open_stream;
 use crate::files::read_stream_block::read_stream_block;
 use crate::files::read_stream_byte::read_stream_byte;
-use crate::framework::{Regs, game_addr, game_read, game_write};
+use crate::framework::{game_addr, game_read, game_write};
 use crate::gfx::lay_out_pcx::lay_out_pcx;
 use crate::gfx::pcx::{
     FILE_PALETTE_LEN, FILE_PALETTE_RVA, HEADER_LEN, HEADER_RVA, PALETTE_RVA, PIXELS_RVA, stream,
 };
-use crate::gfx::pcx_reader::reader_entry;
 use crate::gfx::picture::FLAGS_RVA;
 
 // ---- Rust version ----
@@ -81,10 +80,4 @@ pub unsafe fn read_pcx_8bit(path: *const u8) -> Result<bool, BadInput> {
         let closed = close_stream(stream())?;
         Ok(rows? && closed)
     }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    reader_entry(r, read_pcx_8bit)
 }

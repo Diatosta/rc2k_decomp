@@ -13,18 +13,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::hud::draw_signs::signs_with;
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version (see the header).
 // Converted: `rc2k_core::hud::signs` (through `signs_with`)
-pub unsafe fn draw_signs_1b(entry: &Regs) -> Result<Regs, Refused> {
-    unsafe { signs_with(entry, 0xB8, 0xC8, 0xC8, 0x70, 0x20) }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_signs_1b(r) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
+pub unsafe fn draw_signs_1b(record: u32) -> Result<(), Refused> {
+    unsafe { signs_with(record, 0xB8, 0xC8, 0xC8, 0x70, 0x20) }
 }

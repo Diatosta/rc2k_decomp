@@ -14,10 +14,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EBX, EDI, Regs, game_addr, rva};
+use crate::framework::{EBX, EDI, game_addr, rva};
 use crate::physics::apply_torques::apply_torques;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const RECORDS_RVA: usize = rva(0x614770);
 const COUNT: u32 = 0x17;
@@ -27,14 +26,4 @@ pub unsafe fn apply_wheel_torques() -> Result<Left, Refused> {
     let first = game_addr(RECORDS_RVA) as u32;
     unsafe { apply_torques(first, COUNT) }?;
     Ok(Left::nothing().with(EDI, first).with(EBX, COUNT))
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { apply_wheel_torques() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

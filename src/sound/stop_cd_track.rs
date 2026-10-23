@@ -14,8 +14,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 
 // ---- game data ----
 
@@ -56,14 +55,7 @@ pub fn game_send(_device: u32, _message: u32, _a: u32, _b: u32) -> u32 {
     0
 }
 
-/// For callers with parts: the game's variables and MCI.
-pub fn game_part(_place: u32, _r: &mut Regs) -> Result<(), Refused> {
+/// In the game: its variables and MCI.
+pub fn stop_cd_track_in_game() {
     unsafe { stop_cd_track(&CdVars::game(), &mut game_send) };
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { stop_cd_track(&CdVars::game(), &mut game_send) };
-    Ok(())
 }

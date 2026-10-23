@@ -11,15 +11,16 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, rva};
+use crate::framework::rva;
 
 const VERTICES_RVA: usize = rva(0x764F2C); // off_764F2C: g_hudVertices
 const INDICES_RVA: usize = rva(0x764F30); // off_764F30: g_hudIndices
 const VERTEX_COUNT_RVA: usize = rva(0x764F24); // g_hudVertexCount
 const INDEX_COUNT_RVA: usize = rva(0x764F28); // g_hudIndexCount
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+/// Draws the HUD's batch. Its leftovers (eax 0, ecx, edx) are read by none of the
+/// original's callers (register liveness, 2026-10-23).
+pub fn draw_hud_batch() {
     unsafe {
         use crate::framework::game_read;
         // The two pointers are the game's: in the standalone's image they were moved
@@ -31,6 +32,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
             game_read(INDEX_COUNT_RVA),
         )
     };
-    r.eax = 0;
-    Ok(())
 }

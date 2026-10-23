@@ -23,13 +23,11 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::marks::emitters::*;
 use crate::marks::setup::SEED_RVA;
 use crate::math::x87;
 use crate::scene::matrix3::rounded;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const RATE_K: [usize; 4] = [rva(0x93A41A), rva(0x93A41E), rva(0x93A422), rva(0x93A426)];
 const SIDE_RANDOM_RVA: usize = rva(0x93A42A);
@@ -150,15 +148,4 @@ pub unsafe fn emit_particle_6(wheel: u32, object: u32) -> Result<(), Refused> {
         );
     }
     Ok(())
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { emit_particle_6(r.edi, r.esi) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

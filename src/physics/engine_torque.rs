@@ -18,12 +18,10 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EBX, Regs, game_read, game_write, rva};
+use crate::framework::{EBX, game_read, game_write, rva};
 use crate::math::x87;
 use crate::math::x87_run::{div_then_mul, lerp_table, trunc_mul_to_int};
 use crate::screens::harness::Left;
-use rc2k_core::physics::engine::{Engine, engine_torque as engine_torque_core};
 use std::cmp::Ordering;
 
 pub fn g(x: usize) -> u32 {
@@ -40,39 +38,6 @@ pub fn below(a: u32, b: u32) -> bool {
         f32::from_bits(a).partial_cmp(&f32::from_bits(b)),
         Some(Ordering::Greater | Ordering::Equal)
     )
-}
-
-/// The converted version (`rc2k_core::physics::engine`, plain floats): the hook's; ebx
-/// when the curve was read.
-// Converted: `rc2k_core::physics::engine::engine_torque`.
-pub unsafe fn engine_torque_plain() -> Left {
-    let f = |x: usize| f32::from_bits(g(x));
-    let engine = Engine {
-        speed: f(0x71A1B0),
-        top: f(0x71A1B4),
-        zero: f(0x5C5D90),
-        one: f(0x5C5D38),
-        steps: f(0x5C5D50),
-        quarter: f(0x613F94),
-        factor: f(0x71A3CC),
-    };
-    let curve = |i: u32| {
-        let k = 4 * i as usize;
-        (
-            [f(0x613FF0 + k), f(0x613FF4 + k)],
-            [f(0x614B7C + k), f(0x614B80 + k)],
-        )
-    };
-    let t = engine_torque_core(&engine, curve, || f(0x614B7C));
-    p(0x62400C, t.share.to_bits());
-    let mut left = Left::nothing();
-    if let Some(i) = t.entry {
-        p(0x623FB8, i);
-        left = left.with(EBX, i);
-    }
-    p(0x614744, t.revs.to_bits());
-    p(0x614748, t.torque.to_bits());
-    left
 }
 
 /// The Rust version (the exact one, for `physics::engine_torque_or_cut`, `drive_force`,
@@ -105,22 +70,4 @@ pub unsafe fn engine_torque() -> Left {
     );
     p(0x614748, x87::mul(g(0x614748), g(0x71A3CC)));
     left
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { engine_torque_plain() })
-}
-
-/// `dispatch_engine` without its hook (Rust callers; a refusal is the caller's).
-pub fn engine_entry(
-    r: &mut Regs,
-    rust: &dyn Fn(&Regs) -> Result<Left, Refused>,
-) -> Result<(), Refused> {
-    crate::service::harness::state_entry(r, rust)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    engine_entry(r, &rust)
 }

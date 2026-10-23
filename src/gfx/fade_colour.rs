@@ -13,11 +13,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// One byte's step: (the byte, the high dword of the `imul`). Converted:
 /// `rc2k_core::gfx::pixels::fade_step`.
@@ -47,14 +43,4 @@ pub fn fade_colour(entry: &Regs) -> Regs {
         [t0.into(), t1.into(), t2.into()],
         entry.ebp,
     )
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&fade_colour(r)))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

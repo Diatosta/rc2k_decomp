@@ -29,7 +29,6 @@ use crate::errors::Refused;
 use crate::framework::{EDX, Regs, game_addr, rva};
 use crate::physics::cells::{get, get_list, put_changed, put_list_changed};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::notices::NoticeQueue;
 
 /// The variables' addresses: the game's, or a test's.
@@ -92,14 +91,4 @@ pub unsafe fn queue_notice_at(p: &Contacts, r: &Regs) -> Result<Left, Refused> {
 /// The Rust version.
 pub unsafe fn queue_notice(r: &Regs) -> Result<Left, Refused> {
     unsafe { queue_notice_at(&Contacts::game(), r) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { queue_notice(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

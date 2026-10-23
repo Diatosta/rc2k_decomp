@@ -19,7 +19,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, Regs, game_addr, game_ptr, game_read, game_write, rva};
+use crate::framework::{EAX, EBX, game_addr, game_ptr, game_read, game_write, rva};
 use crate::memory::allocate::allocate;
 use crate::scene::objects::{FACE_MEMORY_RVA, FACE_ROOM_RVA, POINTS_ROOM_RVA, POINTS_RVA};
 use crate::screens::harness::Left;
@@ -61,10 +61,4 @@ pub unsafe fn allocate_object_memory_in_game() -> Result<Left, Refused> {
     unsafe {
         allocate_object_memory(&mut |bytes, _| Ok(allocate(game_ptr(LIST_RVA), bytes)? as u32))
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { allocate_object_memory_in_game() }?.apply(r);
-    Ok(())
 }

@@ -16,12 +16,11 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, rva};
-use crate::physics::car_sounds::{cue_plain, g, listed, object, place, placed_entry, put};
+use crate::framework::rva;
+use crate::physics::car_sounds::{g, listed, object, place, put};
 use crate::physics::sound_band_1::TWIN;
-use crate::physics::sound_bands::{band_value, band_value_plain};
+use crate::physics::sound_bands::band_value;
 use crate::screens::harness::Left;
-use rc2k_core::physics::sound_places::{FIRST, SOUND_E1};
 
 /// The Rust version (the exact one, for `physics::wall_push_back` and
 /// `physics::wall_edge_contact`).
@@ -49,37 +48,4 @@ pub unsafe fn place_sound_e1() -> Result<Left, Refused> {
         put(o + 0x10, 1);
     }
     Ok(Left::nothing())
-}
-
-/// The converted version (`rc2k_core::physics::sound_places`, plain floats): the hook's.
-// Converted: `rc2k_core::physics::sound_places`.
-pub unsafe fn place_sound_e1_plain() -> Result<Left, Refused> {
-    if !listed(g(0x71B3F8))? {
-        return Ok(Left::nothing());
-    }
-    let scratch = g(0x6D1AEC);
-    let b = unsafe { band_value_plain(TWIN) };
-    if b == 0 {
-        return Ok(Left::nothing());
-    }
-    // The band left `dword_6D1AEC` written: put back if the object refuses.
-    let o = match object() {
-        Ok(o) => o,
-        Err(e) => {
-            unsafe { crate::framework::game_write(rva(0x6D1AEC), scratch) };
-            return Err(e);
-        }
-    };
-    unsafe { cue_plain(o, FIRST, SOUND_E1, b, None) };
-    Ok(Left::nothing())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { place_sound_e1_plain() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    placed_entry(r, &rust)
 }

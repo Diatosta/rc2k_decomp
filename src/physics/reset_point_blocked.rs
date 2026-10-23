@@ -19,9 +19,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, rva};
-use crate::physics::flag_result::{FlagResult, flags_entry};
+use crate::physics::flag_result::FlagResult;
 use rc2k_core::physics::line_places::{self, Blocked};
 
 const CANDIDATE_RVA: usize = rva(0x614C50); // dword_614C50: the checkpoint tried
@@ -67,14 +66,4 @@ pub unsafe fn reset_point_blocked(r: &Regs) -> FlagResult {
             r,
         )
     }
-}
-
-fn rust(r: &Regs) -> Result<FlagResult, Refused> {
-    Ok(unsafe { reset_point_blocked(r) })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    flags_entry(r, &rust)
 }

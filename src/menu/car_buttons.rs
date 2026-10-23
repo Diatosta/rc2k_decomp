@@ -49,10 +49,8 @@ pub unsafe fn press(
     Ok(())
 }
 
-const CALLEES: [usize; 3] = [rva(0x468482), rva(0x469AA1), rva(0x4684F5)];
-
 /// The game's: each call through the Rust version.
-pub unsafe fn call_in_game(call: Call, r: &Regs) -> Result<(), Refused> {
+pub unsafe fn call_in_game(call: Call, _r: &Regs) -> Result<(), Refused> {
     unsafe {
         match call {
             Call::Background => load_car_background(&mut |path, car| {
@@ -63,7 +61,7 @@ pub unsafe fn call_in_game(call: Call, r: &Regs) -> Result<(), Refused> {
                 )?;
                 Ok(false)
             }),
-            Call::Stream => play_car_stream(r, &mut |r| crate::calls::call(CALLEES[1], r)),
+            Call::Stream => play_car_stream(&mut crate::sound::start_stream::start_stream),
             Call::Picture(way) => load_slideshow_picture_in_game(way),
         }
     }

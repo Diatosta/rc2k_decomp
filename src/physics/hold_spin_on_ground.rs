@@ -16,10 +16,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EBX, ECX, Regs, game_addr, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::{Regs, game_addr, rva};
 use rc2k_core::physics::motion::hold_spin;
 
 /// The four wheels, the limit, x, z, the flag.
@@ -60,16 +57,4 @@ fn game() -> Vec<u32> {
 /// as the original leaves it.
 pub unsafe fn hold_spin_on_ground(r: &mut Regs) {
     unsafe { hold_at(&game(), r) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let mut g = *r;
-    unsafe { hold_at(&game(), &mut g) };
-    Ok(Left::nothing().with(ECX, g.ecx).with(EBX, g.ebx))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

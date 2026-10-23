@@ -22,16 +22,14 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EDX, ESI, Regs, game_addr, game_read, game_write, rva};
+use crate::errors::BadInput;
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::normalise_vector::{VECTOR_RVA, normalise_vector};
 use crate::math::x87;
 use crate::scene::project_point::RECORDS_RVA;
 use crate::scene::reflect_vector::{
     MATRIX_RVA, NORMAL_RVA, VECTOR_RVA as MIRRORED_RVA, reflect_vector,
 };
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 // ---- game data ----
 
@@ -135,18 +133,4 @@ pub unsafe fn reflection_coordinates() -> Result<Leftovers, BadInput> {
             esi: game_addr(MATRIX_RVA) as u32,
         })
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    let left = unsafe { reflection_coordinates() }?;
-    Ok(Left::nothing()
-        .with(EAX, left.eax)
-        .with(EDX, left.edx)
-        .with(ESI, left.esi))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

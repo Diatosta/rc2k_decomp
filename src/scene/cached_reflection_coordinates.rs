@@ -19,12 +19,11 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, EDX, ESI, Regs, game_read, game_write, rva};
+use crate::framework::{EAX, EBX, EDX, ESI, game_read, game_write, rva};
 use crate::scene::reflection_coordinates::{
     COORDINATES_RVA, NORMAL_NUMBER_RVA, POINT_NUMBER_RVA, reflection_coordinates,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 // ---- game data ----
 
@@ -72,14 +71,4 @@ pub unsafe fn cached_reflection_coordinates() -> Result<Left, Refused> {
         }
         Ok(left.with(EBX, place as u32).with(EAX, coordinates[1]))
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { cached_reflection_coordinates() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -17,9 +17,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EDI, Regs, game_addr, rva};
+use crate::framework::{EDI, game_addr, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::gearbox::{GearChange, gear_change};
 
 unsafe fn at(a: u32) -> u32 {
@@ -54,14 +53,4 @@ pub unsafe fn gear_change_sound_at(current: u32, table: u32, word: u32) -> Resul
 pub unsafe fn gear_change_sound() -> Result<Left, Refused> {
     let g = |a: usize| game_addr(rva(a)) as u32;
     unsafe { gear_change_sound_at(g(0x71B3F8), g(0x512A10), g(0x71A210)) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { gear_change_sound() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -11,16 +11,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::Regs;
 use crate::scene::set_render_state::set_render_state;
 
 /// The Rust version (see the header).
-pub unsafe fn depth_test_on(r: &mut Regs) {
-    unsafe { set_render_state(r, 1, 0xE) };
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { depth_test_on(r) };
-    Ok(())
+pub fn depth_test_on() {
+    set_render_state(1, 0xE);
 }

@@ -10,13 +10,10 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::errors::Refused;
-use crate::framework::{Regs, game_write};
+use crate::framework::game_write;
 use crate::menu::backup_text::backup_text;
 use crate::menu::clear_text::clear_text;
 use crate::menu::text_entry::{ENTERING_RVA, set_length};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use crate::service::load_setup_slot::highlighted_slot;
 use crate::service::read_setup_slot::{SLOT_COUNT, slot_name};
 
@@ -34,15 +31,4 @@ pub unsafe fn begin_setup_name() -> Result<(), BadInput> {
     }
     set_length(0);
     Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { begin_setup_name() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

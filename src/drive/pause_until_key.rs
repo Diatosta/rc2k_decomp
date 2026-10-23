@@ -97,10 +97,3 @@ pub unsafe fn pause_until_key(entry: &Regs) -> Result<Left, Refused> {
     p(B + 0x468, 0);
     Ok(left_of(&r))
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { pause_until_key(r) }?;
-    left.apply(r);
-    Ok(())
-}

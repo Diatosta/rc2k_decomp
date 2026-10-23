@@ -14,16 +14,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
-use crate::physics::turn_by_inverse::INVERSE_RVA;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
-
-const MOTION_RVA: usize = rva(0x71A170); // dword_71A170, g_car + 0x198
-const LOCAL_RVA: usize = rva(0x71A17C); // dword_71A17C, g_car + 0x1A4
 
 /// The Rust core: the motion at `from` turned by the matrix at `m` into `to`.
 pub unsafe fn car_frame_motion_at(from: u32, m: u32, to: u32) {
@@ -40,26 +32,4 @@ pub unsafe fn car_frame_motion_at(from: u32, m: u32, to: u32) {
             q.add(k).write_unaligned(rounded(*e));
         }
     }
-}
-
-/// The Rust version.
-pub unsafe fn car_frame_motion() {
-    unsafe {
-        car_frame_motion_at(
-            game_addr(MOTION_RVA) as u32,
-            game_addr(INVERSE_RVA) as u32,
-            game_addr(LOCAL_RVA) as u32,
-        )
-    }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { car_frame_motion() };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

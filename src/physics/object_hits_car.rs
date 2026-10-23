@@ -30,7 +30,6 @@ use crate::physics::object_turn_matrix::object_turn_matrix;
 use crate::physics::point_hits_car::point_hits_car;
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::contacts;
 
 const OBJECT: usize = 0x6D321C; // dword_6D321C
@@ -71,14 +70,4 @@ pub unsafe fn object_hits_car(entry: &Regs) -> Result<Left, Refused> {
         .with(EBX, object)
         .with(ECX, walk.left)
         .with(EDX, walk.address))
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { object_hits_car(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -18,8 +18,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_write, rva};
-use crate::screens::harness::{Left, draw_entry};
+use crate::framework::{game_addr, game_write, rva};
 use crate::text::draw_text::{Canvas, draw_text_at};
 use crate::text::font::Font;
 
@@ -51,24 +50,4 @@ pub unsafe fn draw_spaced_number(
         }
         Ok(())
     }
-}
-
-fn rust(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    unsafe {
-        draw_spaced_number(
-            r.eax as *mut Font,
-            r.ebx as *const u8,
-            r.ebp as *const u8,
-            r.ecx as i32,
-            r.edx as i32,
-            canvas,
-        )
-    }?;
-    Ok(Left::carry(false))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_spaced_number", r, &rust)
 }

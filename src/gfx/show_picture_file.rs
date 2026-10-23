@@ -24,7 +24,7 @@
 //! on); of the registers only eax is kept for the callers (see Out).
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_ptr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_ptr, game_read, game_write, rva};
 use crate::gfx::copy_picture_to_surface::{GameSurface, copy_picture_to_surface};
 use crate::platform::{lock_surface, pump_messages_now, show_frame_now, unlock_surface};
 use rc2k_core::gfx::picture_size as sizes;
@@ -101,10 +101,4 @@ pub unsafe fn show_picture_file(path: *mut u8) -> Result<u32, Refused> {
         }
         Ok(eax)
     }
-}
-
-/// The Rust version where Rust callers run it (a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), Refused> {
-    r.eax = unsafe { show_picture_file(r.eax as *mut u8) }?;
-    Ok(())
 }

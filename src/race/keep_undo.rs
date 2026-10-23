@@ -13,11 +13,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::race::viewer::{
-    BLOCKS, CAMERAS, PLACES, TABLE_LEN, UNDO_BLOCKS, UNDO_CAMERAS, UNDO_PLACES, get, put,
-    regs_entry, table,
+    BLOCKS, CAMERAS, PLACES, TABLE_LEN, UNDO_BLOCKS, UNDO_CAMERAS, UNDO_PLACES, get, put, table,
 };
 
 /// The Rust version.
@@ -31,15 +28,4 @@ pub fn keep_undo() {
             (table(PLACES, n), table(CAMERAS, n)),
         );
     }
-}
-
-fn rust(r: &Regs) -> Result<Regs, Refused> {
-    keep_undo();
-    Ok(*r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &rust)
 }

@@ -119,10 +119,3 @@ pub unsafe fn draw_tinted_quad(entry: &Regs) -> Result<Regs, Refused> {
     }
     Ok(g)
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_tinted_quad(r) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
-}

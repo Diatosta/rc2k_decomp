@@ -14,23 +14,11 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::p;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// The Rust version.
 pub unsafe fn store_first_car() -> Result<Left, Refused> {
     p(0x71B3F8, 0);
     unsafe { crate::drive::store_car::store_car() }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { store_first_car() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -26,13 +26,11 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, ESI, Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{EAX, EBX, ESI, game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
 use rc2k_core::physics::car_specs::{
-    OWN_FIGURES_FROM, RECORD_LEN, SpecConstants, SpecRecord, check_drive, gear_count, record_of,
-    specs,
+    OWN_FIGURES_FROM, RECORD_LEN, check_drive, gear_count, record_of,
 };
 use std::cmp::Ordering;
 
@@ -95,68 +93,6 @@ unsafe fn words(s: u32) -> u32 {
             p(to, at(s + from));
         }
         count
-    }
-}
-
-/// The converted version (`rc2k_core::physics::car_specs`, plain floats): the hook's.
-// Converted: `rc2k_core::physics::car_specs::specs`.
-pub unsafe fn load_car_specs_plain() -> Result<Left, Refused> {
-    let s = record();
-    let f = |x: usize| f32::from_bits(g(x));
-    unsafe {
-        let drive = check_drive(at(s + 0x18))?;
-        p(0x71A018, drive);
-        let i = |o: u32| at(s + o) as i32;
-        let r = SpecRecord {
-            drive,
-            figures: [i(0x64), i(0x68), i(0x6C), i(0x70)],
-            top: i(0x74),
-            over_top: i(0x78),
-            shifts: [0xA4, 0xA8, 0xAC].map(|o| f32::from_bits(at(s + o))),
-            whole: [i(0x40), i(0x44), i(0x48)],
-            weights: [0x38, 0x3C].map(|o| f32::from_bits(at(s + o))),
-        };
-        let k = SpecConstants {
-            f613f10: f(0x613F10),
-            f613e88: f(0x613E88),
-            f5c5ddc: f(0x5C5DDC),
-            f613eb8: f(0x613EB8),
-            f613fe4: f(0x613FE4),
-            f5c5d18: f(0x5C5D18),
-            f5c5d50: f(0x5C5D50),
-            f5c5d98: f(0x5C5D98),
-            gravity: f(0x613FC8),
-            hundred: f(0x5C5D14),
-            own: [0x613F04, 0x613F08, 0x613F0C].map(|x| g(x) as i32),
-        };
-        let out = specs(&r, g(0x719FFC), &k, f(0x613FB8 + 4 * drive as usize));
-        for (n, v) in out.figures.iter().enumerate() {
-            p(0x5CB96C + 4 * n, v.to_bits());
-        }
-        p(0x71A1B4, out.top.to_bits());
-        p(0x71A1B8, out.w1e0.to_bits());
-        for (n, v) in out.shifts.iter().enumerate() {
-            p(0x5CB958 + 4 * n, v.to_bits());
-        }
-        p(0x5CB968, out.f5cb968.to_bits());
-        p(0x614104, out.f614104.to_bits());
-        let count = words(s);
-        for (n, v) in out.whole.iter().enumerate() {
-            p(0x614BC0 + 4 * n, *v as u32);
-        }
-        p(0x614BA0, g(0x613EFC));
-        p(0x614BA4, g(0x613F00));
-        p(0x614BA8, g(0x613F14));
-        p(0x614BAC, out.weights[0].to_bits());
-        p(0x614BB0, out.weights[1].to_bits());
-        p(0x62400C, at(s + 0x5C));
-        p(0x61476C, at(s + 0x60));
-        p(0x6140F8, out.drive[0].to_bits());
-        p(0x6140FC, out.drive[1].to_bits());
-        Ok(Left::nothing()
-            .with(EAX, count)
-            .with(EBX, drive)
-            .with(ESI, s))
     }
 }
 
@@ -276,14 +212,4 @@ pub unsafe fn load_car_specs() -> Result<Left, Refused> {
             .with(EBX, drive)
             .with(ESI, s))
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { load_car_specs_plain() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

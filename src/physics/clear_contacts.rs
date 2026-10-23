@@ -13,10 +13,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::physics::clear_records::clear_records;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const RECORDS_RVA: usize = rva(0x614A50);
 const COUNT: u32 = 7;
@@ -24,14 +23,4 @@ const COUNT: u32 = 7;
 /// The Rust version.
 pub unsafe fn clear_contacts() -> Result<Left, Refused> {
     unsafe { clear_records(game_addr(RECORDS_RVA) as u32, COUNT) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { clear_contacts() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

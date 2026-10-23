@@ -24,12 +24,10 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::marks::blend_corner::{self, blend_corner};
 use crate::marks::lines::{SETTINGS_RVA, line_regions, measure_lines};
-use crate::race::stage_prefs::left_of;
 use crate::scene::objects::{
     FIRST_POINT_RVA, POINT_COUNTS_RVA, POINTS_ROOM_RVA, POINTS_RVA, SLOTS,
 };
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
+use crate::service::harness::{Region, at};
 
 const CAR_LEN: u32 = 0x4C8;
 const BLOCK: u32 = 0x29C;
@@ -194,14 +192,4 @@ unsafe fn run(entry: &Regs, settings: u32) -> Result<Regs, Refused> {
         g = measure_lines(&g)?;
     }
     Ok(g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { morph_object_points(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

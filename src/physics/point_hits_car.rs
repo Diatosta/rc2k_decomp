@@ -22,14 +22,10 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::{a, base, g, p, x87_run};
 use crate::physics::turn_by_heading::turn_by_heading;
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::rounded;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::contacts;
 
 /// `dword_6D3624`: the kind of contact being looked at.
@@ -109,14 +105,4 @@ pub unsafe fn point_hits_car(point: u32, object: u32) -> bool {
         p(0x71A1CC, 0x32);
     }
     true
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(Left::carry(unsafe { point_hits_car(r.esi, r.ebp) }))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

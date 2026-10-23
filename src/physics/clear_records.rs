@@ -16,9 +16,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{ECX, EDI, Regs};
+use crate::framework::{ECX, EDI};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::pushes::{record_count, CLEARED_DWORDS}`.
@@ -31,14 +30,4 @@ pub unsafe fn clear_records(at: u32, count: u32) -> Result<Left, Refused> {
         }
     }
     Ok(Left::nothing().with(EDI, at + 0x20 * count).with(ECX, 0))
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { clear_records(r.edi, r.ecx) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

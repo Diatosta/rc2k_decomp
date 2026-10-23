@@ -15,13 +15,10 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
 use crate::framework::{EAX, ESI, Regs};
-use crate::physics::camera_view::{rd, record, record_plain};
+use crate::physics::camera_view::{rd, record};
 use crate::physics::flow::{base, g, hold_high, hold_low, p, x87_run};
 use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
-use rc2k_core::physics::camera_view::height_bias;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
 pub unsafe fn camera_height_bias(_: &Regs) -> Left {
@@ -57,38 +54,4 @@ pub unsafe fn camera_height_bias(_: &Regs) -> Left {
     p(0x606288, eax);
     p(0x71A680, g(0x71A680).wrapping_add(eax));
     left.with(EAX, eax)
-}
-
-/// The converted version (`rc2k_core::physics::camera_view`, plain floats): the hook's.
-// Converted: `rc2k_core::physics::camera_view::height_bias`.
-pub unsafe fn camera_height_bias_plain(_: &Regs) -> Left {
-    let esi = record_plain();
-    let left = Left::nothing().with(ESI, esi);
-    if rd(esi + 0x54) == 0 {
-        return left;
-    }
-    let f = |x: usize| f32::from_bits(g(x));
-    let n = height_bias(
-        f(0x60631C),
-        f(0x606290),
-        f(0x5C5D90),
-        f(0x5C5D38),
-        (rd(esi + 0x54) as i32) < 0,
-        f(0x5C5D98),
-        f(0x60628C),
-    ) as u32;
-    p(0x62400C, n);
-    p(0x606288, n);
-    p(0x71A680, g(0x71A680).wrapping_add(n));
-    left.with(EAX, n)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { camera_height_bias_plain(r) })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

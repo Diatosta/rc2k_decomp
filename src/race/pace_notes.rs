@@ -153,21 +153,6 @@ impl Machine {
             .with(EBP, r.ebp)
     }
 
-    /// `sub_441A37` (`race::pace_note_code`).
-    pub fn code(&mut self) -> Result<(), Refused> {
-        Ok(self.0.code()?)
-    }
-
-    /// `sub_441C78` (`race::pace_distance_word`).
-    pub fn distance_word(&mut self) -> Result<(), Refused> {
-        Ok(self.0.distance_word()?)
-    }
-
-    /// `sub_441CB4` (`race::pace_note_calls`).
-    pub fn note_calls(&mut self) -> Result<(), Refused> {
-        Ok(self.0.note_calls()?)
-    }
-
     /// `sub_441A66` (`race::init_pace_notes`).
     pub fn init(&mut self) -> Result<(), Refused> {
         Ok(self.0.init()?)

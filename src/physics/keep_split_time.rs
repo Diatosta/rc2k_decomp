@@ -17,9 +17,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, Regs, game_addr, rva};
+use crate::framework::{EAX, EBX, game_addr, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::splits::kept_split_slot;
 
 /// Where the variables are: the time, the checks, the count, the table.
@@ -61,14 +60,4 @@ pub unsafe fn keep_split_time_at(p: &SplitPlaces) -> Result<Left, Refused> {
 /// The Rust version.
 pub unsafe fn keep_split_time() -> Result<Left, Refused> {
     unsafe { keep_split_time_at(&SplitPlaces::game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { keep_split_time() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

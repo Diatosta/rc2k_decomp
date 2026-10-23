@@ -14,7 +14,6 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::framework::{Regs, game_read, game_write, rva};
-use crate::sound::play_sound::play_sound_in_game;
 use crate::system::tick_count::tick_count;
 
 // ---- game data ----
@@ -26,20 +25,15 @@ const VOLUME_C_RVA: usize = rva(0x755690); // dword_755690
 
 // ---- Rust version ----
 
-/// `now` is asked for the clock; `play` gets the registers `sound::play_sound` is
-/// called with.
-pub unsafe fn play_menu_sound(
-    entry: &Regs,
-    now: &mut dyn FnMut() -> u32,
-    play: &mut dyn FnMut(&Regs),
-) {
+/// `sound` the menu's sound (0: none); `now` is asked for the clock.
+pub unsafe fn play_menu_sound(sound: u32, now: &mut dyn FnMut() -> u32) {
     unsafe {
         // Converted: `rc2k_core::sound::senders::menu_sound`.
         use rc2k_core::sound::senders::{MenuVolume, menu_sound};
-        if entry.eax == 0 {
+        if sound == 0 {
             return;
         }
-        let Some((next, pick)) = menu_sound(entry.eax, now(), game_read(NEXT_TIME_RVA)) else {
+        let Some((next, pick)) = menu_sound(sound, now(), game_read(NEXT_TIME_RVA)) else {
             return;
         };
         game_write(NEXT_TIME_RVA, next);
@@ -51,25 +45,17 @@ pub unsafe fn play_menu_sound(
             MenuVolume::B => VOLUME_B_RVA,
             MenuVolume::C => VOLUME_C_RVA,
         };
-        play(&Regs {
-            eax: sound,
-            ebx: game_read(volume),
-            ecx: 0,
-            edx: 0xFFFF_FF91,
-            edi: 0,
-            ebp: 0,
-            ..*entry
-        });
+        crate::sound::play_sound::play_sound(sound, game_read(volume), 0xFFFF_FF91, [0; 3]);
     }
 }
 
-/// With the game's clock and queue: what other Rust code calls.
-pub fn play_menu_sound_in_game(entry: &Regs) {
-    unsafe { play_menu_sound(entry, &mut tick_count, &mut |with| play_sound_in_game(with)) };
+/// With the game's clock: what other Rust code calls.
+pub fn play_menu_sound_in_game(sound: u32) {
+    unsafe { play_menu_sound(sound, &mut tick_count) };
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    play_menu_sound_in_game(r);
+    play_menu_sound_in_game(r.eax);
     Ok(())
 }

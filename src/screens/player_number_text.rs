@@ -11,10 +11,8 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::menu::take_shown_car::CURRENT_PLAYER_RVA;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use crate::strings::append_string_by_id::append_string_by_id;
 
 const TEXT_RVA: usize = rva(0xA8C054); // byte_A8C054
@@ -38,15 +36,4 @@ pub unsafe fn player_number_text() -> Result<(), Refused> {
         std::ptr::copy_nonoverlapping(text.as_ptr(), game_addr(TEXT_RVA) as *mut u8, text.len());
     }
     Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { player_number_text() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

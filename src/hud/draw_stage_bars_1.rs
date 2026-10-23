@@ -19,34 +19,27 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, rva};
+use crate::framework::rva;
 use crate::hud::draw_stage_bar::*;
 
 const KINDS_2_RVA: usize = rva(0x6D170C); // dword_6D170C: 0x40
 const COLOUR_A_RVA: usize = rva(0x75BFA4); // dword_75BFA4
 const COLOUR_B_RVA: usize = rva(0x75BFA8); // dword_75BFA8
-/// The two players' bars `dy` lower (see the header): the registers they leave.
-pub unsafe fn bars_with(entry: &Regs, dy: u32, part: Part) -> Result<Regs, Refused> {
+
+/// The two players' bars `dy` lower (see the header).
+pub unsafe fn bars_with(record: u32, dy: u32) -> Result<(), Refused> {
     unsafe {
         bars(
-            entry,
+            record,
             &[KINDS_RVA, KINDS_2_RVA],
             &[COLOUR_A_RVA, COLOUR_B_RVA],
             dy,
-            part,
         )
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version (see the header).
 // Converted: `rc2k_core::hud::stage_bars` (through `draw_stage_bar::bars`)
-pub unsafe fn draw_stage_bars_1(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    unsafe { bars_with(entry, 0, part) }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_stage_bars_1(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
+pub unsafe fn draw_stage_bars_1(record: u32) -> Result<(), Refused> {
+    unsafe { bars_with(record, 0) }
 }

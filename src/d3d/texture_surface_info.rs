@@ -12,10 +12,7 @@
 //! of the test's, the surface and the clip compared.
 
 use crate::d3d::texture_lock::{DESCRIPTION_RVA, SURFACE_RVA, get, put};
-use crate::framework::{Regs, game_addr};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::game_addr;
 
 /// The Rust version (see the header).
 pub fn texture_surface_info(record: u32) -> Result<(), crate::errors::BadInput> {
@@ -46,15 +43,4 @@ pub fn texture_surface_info(record: u32) -> Result<(), crate::errors::BadInput> 
         put(s + at, v);
     }
     unsafe { crate::gfx::set_clip::set_clip(s as *const [u32; 4]) }
-}
-
-fn rust(r: &Regs) -> Result<Left, crate::errors::Refused> {
-    texture_surface_info(r.esi)?;
-    Ok(left_of(r))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -32,7 +32,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBP, EBX, ECX, EDI, EDX, Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::math::x87_run::{abs_compare, abs_of, mul2_to_int, neg_mul, neg_product_plus};
 use crate::physics::axis_turn_matrix::axis_turn_matrix;
@@ -40,8 +40,6 @@ use crate::physics::ground::Ground;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::matrix3::rounded;
 use crate::scene::view_matrix::{square_matrix, unit_vector};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 pub const SLOT_LEN: u32 = 0x78;
 fn a(x: u32) -> u32 {
@@ -167,27 +165,4 @@ pub unsafe fn move_slot_at(r: &mut Regs) -> Result<(), Refused> {
         game_write(rva(0x62400C), abs_of(at(s + 0x54)));
         Ok(())
     }
-}
-
-/// The Rust version: `r` as the original leaves it.
-pub unsafe fn move_slot(r: &mut Regs) -> Result<(), Refused> {
-    unsafe { move_slot_at(r) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let mut g = *r;
-    unsafe { move_slot(&mut g) }?;
-    Ok(Left::nothing()
-        .with(EAX, g.eax)
-        .with(EBX, g.ebx)
-        .with(ECX, g.ecx)
-        .with(EDX, g.edx)
-        .with(EDI, g.edi)
-        .with(EBP, g.ebp))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -27,14 +27,28 @@ const BLOCK_RVA: [usize; 2] = [rva(0x710394), rva(0x711374)]; // the car blocks'
 const CLEARED_RVA: [usize; 2] = [rva(0x6D1486), rva(0x6D1496)];
 const ON_RVA: [usize; 2] = [rva(0x63E168), rva(0x63E16C)];
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn overlay_pass(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The HUD's layout: `dword_6238A4`, or 0 while one view is drawn (`dword_63DB98` 1).
+/// The original reads `dword_6238A4` alone, which a replay after a split-screen race
+/// leaves at 1 / 2 while its one view fills the screen: the divider, the second
+/// player's bars and strip stayed drawn (section 16, fixed 2026-10-23).
+pub fn shown_layout() -> u32 {
     unsafe {
-        g.eax = game_read(PLAYERS_RVA);
-        game_write(PLAYERS_COPY_RVA, g.eax);
-        crate::hud::overlay_pass::game_part(1, &mut g)?;
-        crate::hud::overlay_pass::game_part(2, &mut g)?;
+        if game_read::<u32>(MODE_RVA) == 1 {
+            0
+        } else {
+            game_read(PLAYERS_RVA)
+        }
+    }
+}
+
+/// The Rust version (see the header). What the original leaves in the registers is read
+/// by none of its callers (register liveness, 2026-10-23).
+pub unsafe fn overlay_pass() -> Result<(), Refused> {
+    use crate::scene::depth_buffer_on::depth_buffer;
+    unsafe {
+        game_write(PLAYERS_COPY_RVA, shown_layout());
+        depth_buffer(false);
+        crate::hud::overlay_states::overlay_states();
         let kept: [u32; 2] = FLAGS_RVA.map(|r| game_read(r));
         if game_read::<u32>(MODE_RVA) == 2 {
             for n in 0..2 {
@@ -44,43 +58,23 @@ pub unsafe fn overlay_pass(entry: &Regs) -> Result<Regs, Refused> {
                 }
             }
         }
-        let done = crate::hud::overlay_pass::game_part(3, &mut g);
+        let done = crate::hud::draw_hud::draw_hud();
         game_write(FLAGS_RVA[1], kept[1]);
         game_write(FLAGS_RVA[0], kept[0]);
         done?;
-        crate::hud::overlay_pass::game_part(4, &mut g)?;
-        crate::scene::full_view_window::full_view_window().apply(&mut g);
-        [g.eax, g.ebx] = [3, 3];
-        crate::hud::overlay_pass::game_part(5, &mut g)?;
+        depth_buffer(true);
+        crate::scene::full_view_window::full_view_window();
+        crate::scene::set_render_state::set_render_state(3, 3);
         game_write(ON_RVA[0], 1u32);
         game_write(ON_RVA[1], 1u32);
-        crate::hud::overlay_pass::game_part(6, &mut g)?;
-        crate::hud::overlay_pass::game_part(1, &mut g)?;
-        crate::hud::overlay_pass::game_part(7, &mut g)?;
-    }
-    Ok(g)
-}
-
-/// In the game: the calls' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::hud::*;
-    unsafe {
-        match place {
-            1 => crate::scene::depth_buffer_on::depth_buffer(r, false),
-            2 => *r = overlay_states::overlay_states(r)?,
-            3 => *r = draw_hud::draw_hud(r)?,
-            4 => crate::scene::depth_buffer_on::depth_buffer(r, true),
-            5 => overlay_states::game_part(place, r)?,
-            6 => *r = draw_view_strips::draw_view_strips(r)?,
-            _ => crate::scene::set_filters::set_filters(r),
-        }
+        crate::hud::draw_view_strips::draw_view_strips()?;
+        depth_buffer(false);
+        crate::scene::set_filters::set_filters();
     }
     Ok(())
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { overlay_pass(r) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
+/// For the typed tables' calls by address.
+pub fn entry(_r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { overlay_pass() }
 }

@@ -13,8 +13,6 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::Canvas;
 
 // ---- Rust version ----
@@ -25,14 +23,4 @@ pub unsafe fn draw_empty_savegame(canvas: &mut dyn Canvas) -> Result<bool, Refus
     rc2k_core::screens::savegame_preview::empty(
         &mut crate::screens::game_screen::PreviewScreen::new(canvas),
     )
-}
-
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    Ok(Left::carry(unsafe { draw_empty_savegame(canvas) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_empty_savegame", r, &rust)
 }

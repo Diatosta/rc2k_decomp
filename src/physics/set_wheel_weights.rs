@@ -17,13 +17,10 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{ESI, Regs, game_addr, game_read, rva};
+use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, weight_force};
 use crate::physics::turn_by_inverse::turn_by_inverse;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// The share, the scratch, the weight, the records (0x80 bytes).
 pub struct Places {
@@ -97,16 +94,4 @@ pub unsafe fn weights_at(p: &Places, r: &mut Regs) {
 /// The Rust version; `r` as the original leaves it.
 pub unsafe fn set_wheel_weights(r: &mut Regs) {
     unsafe { weights_at(&Places::game(), r) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let mut g = *r;
-    unsafe { set_wheel_weights(&mut g) };
-    Ok(Left::nothing().with(ESI, g.esi))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -16,10 +16,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_ptr, rva};
+use crate::framework::{game_ptr, rva};
 use crate::menu::player_names::{PLAYERS, name};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use crate::text::draw_text::GameCanvas;
 use crate::text::font::Font;
 use crate::text::measure_string_by_id::MEASURING_FONT;
@@ -54,17 +52,6 @@ pub unsafe fn fit_player_names(x: u32) -> Result<(), Refused> {
         x = unsafe { fit_name(name(player), x) }?;
     }
     Ok(())
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { fit_player_names(r.ecx) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }
 
 // ---- self-test: names of the test's in the game's place, measured with the game's

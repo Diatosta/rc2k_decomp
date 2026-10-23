@@ -42,9 +42,3 @@ pub unsafe fn write_replay_frames(entry: &Regs) -> Result<(), Refused> {
     p(0x5C252C, 0);
     Ok(())
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { write_replay_frames(r) }?;
-    Ok(())
-}

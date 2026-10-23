@@ -12,7 +12,7 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use rc2k_core::files::log::Started;
 
 // ---- game data ----
@@ -55,11 +55,4 @@ pub unsafe fn write_date_text(cursor: *mut u8) -> Result<*mut u8, BadInput> {
         (end as *mut u32).write_unaligned(0x0A0D);
         Ok(end)
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { date_text() }?;
-    r.ebx = unsafe { write_date_text(r.ebx as *mut u8) }.map_or(r.ebx, |end| end as u32);
-    Ok(())
 }

@@ -17,7 +17,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EBX, Regs, game_addr, rva};
+use crate::framework::{EBX, game_addr, rva};
 use crate::physics::queue_car_event::{QueuePlaces, queue_car_event_at};
 use crate::screens::harness::Left;
 use rc2k_core::physics::car_events::listed_event;
@@ -44,13 +44,4 @@ pub unsafe fn queue_listed_event_at(
 /// The Rust version.
 pub unsafe fn queue_listed_event(ebx: u32) -> Result<Left, Refused> {
     unsafe { queue_listed_event_at(game_addr(TABLE_RVA) as u32, &QueuePlaces::game(), ebx) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { queue_listed_event(r.ebx) }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::service::harness::state_entry(r, &rust)
 }

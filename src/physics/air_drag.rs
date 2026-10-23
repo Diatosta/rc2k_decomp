@@ -15,13 +15,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87;
 use crate::math::x87_run::{abs_of, compare_full, square_times_over};
-use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
-use rc2k_core::physics::motion::air_drag as air_drag_core;
 
 const VARIABLES: [usize; 6] = [0x71A17C, 0x71A180, 0x71A184, 0x614810, 0x614814, 0x614818];
 
@@ -44,25 +40,6 @@ pub unsafe fn drag_at(v: &[u32]) {
     }
 }
 
-/// The converted version (`rc2k_core::physics::motion`, plain floats) on the variables
-/// at `v`.
-// Converted: `rc2k_core::physics::motion::air_drag`.
-pub unsafe fn drag_at_plain(v: &[u32]) {
-    unsafe {
-        let get = |k: usize| f32::from_bits((v[k] as *const u32).read_unaligned());
-        let k = |x: usize| f32::from_bits(game_read::<u32>(rva(x)));
-        let drag = air_drag_core(
-            [get(0), get(1), get(2)],
-            k(0x613FCC),
-            k(0x5C5E34),
-            k(0x5C5D90),
-        );
-        for (n, d) in drag.iter().enumerate() {
-            (v[3 + n] as *mut u32).write_unaligned(d.to_bits());
-        }
-    }
-}
-
 fn game() -> Vec<u32> {
     VARIABLES
         .iter()
@@ -73,15 +50,4 @@ fn game() -> Vec<u32> {
 /// The Rust version (the exact one, for `physics::car_physics_step`).
 pub unsafe fn air_drag() {
     unsafe { drag_at(&game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { drag_at_plain(&game()) };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

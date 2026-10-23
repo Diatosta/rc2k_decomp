@@ -20,7 +20,6 @@ use crate::framework::Regs;
 use crate::physics::drop_hit_parts::{drop_hit_parts_in, g, p};
 use crate::physics::sound_hit_parts::sound_hit_parts_in;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::parts::parts_left;
 
 /// The steps on `r`.
@@ -42,14 +41,4 @@ pub unsafe fn hit_part_checks(entry: &Regs) -> Result<Left, Refused> {
         Ok(()) => Ok(crate::race::stage_prefs::left_of(&r)),
         Err(e) => Err(e),
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { hit_part_checks(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

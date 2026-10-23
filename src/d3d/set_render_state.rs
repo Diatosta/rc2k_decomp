@@ -16,13 +16,15 @@ const KEPT_RVA: usize = rva(0x5AB6BC); // dword_5AB6BC
 /// The states the game uses are all below this.
 const STATES: u32 = 0x40;
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's). In the
-/// hooked game it goes to the game's function, whose hook notes the call for the tests'
-/// recorder (`d3d::recorder`) and runs the original: noted here as well, a call would be
-/// noted twice.
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    if r.ebx < STATES {
-        unsafe { game_write(KEPT_RVA + r.ebx as usize * 4, r.eax) };
+/// Render state `state` set to `value` (the standalone keeps the value).
+pub fn set_render_state(value: u32, state: u32) {
+    if state < STATES {
+        unsafe { game_write(KEPT_RVA + state as usize * 4, value) };
     }
+}
+
+/// For the typed tables' calls by address: eax the value, ebx the state.
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    set_render_state(r.eax, r.ebx);
     Ok(())
 }

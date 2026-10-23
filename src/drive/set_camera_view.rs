@@ -18,10 +18,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, Regs, game_addr, rva};
+use crate::framework::{EAX, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::drive::camera_views::CameraView;
 
 pub const STEP_RVA: usize = rva(0x719FE0); // dword_719FE0
@@ -45,19 +43,4 @@ pub unsafe fn set_view_at(s: u32, step: u32) -> Left {
         put(s + 0x690, v.taken_at);
         Left::nothing().with(EAX, n)
     }
-}
-
-/// The Rust version.
-pub unsafe fn set_camera_view(s: u32) -> Left {
-    unsafe { set_view_at(s, game_addr(STEP_RVA) as u32) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { set_camera_view(r.esi) })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

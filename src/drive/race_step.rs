@@ -37,10 +37,3 @@ pub unsafe fn race_step(entry: &Regs) -> Result<Left, Refused> {
     }
     Ok(left_of(&r))
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { race_step(r) }?;
-    left.apply(r);
-    Ok(())
-}

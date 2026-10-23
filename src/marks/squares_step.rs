@@ -18,9 +18,6 @@ use crate::errors::Refused;
 use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::expire_squares::expire_squares;
 use crate::marks::pick_shapes::pick_shapes;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const CLEARED_RVA: usize = rva(0x81623A); // dword_81623A
 const CLOCK_RVA: usize = rva(0x814714); // dword_814714
@@ -48,14 +45,4 @@ unsafe fn run(entry: &Regs) -> Result<Regs, Refused> {
         game_write(CLOCK_RVA, game_read::<u32>(LATEST_RVA));
     }
     Ok(g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { squares_step(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

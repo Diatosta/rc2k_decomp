@@ -68,8 +68,3 @@ pub unsafe fn reset_request(entry: &Regs) -> Result<Regs, Refused> {
     crate::physics::reset_parts::game_part(RESET_CAR, &mut r)?;
     Ok(r)
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::physics::reset_parts::reset_entry(r, reset_request)
-}

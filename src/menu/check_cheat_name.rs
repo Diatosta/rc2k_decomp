@@ -80,7 +80,7 @@ pub unsafe fn check_cheat_name(entry: &Regs, part: Part) -> Result<Regs, Refused
 /// In the game: the menu sound's and `apply_cheats`' Rust versions (its log lines too).
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     if place == 0 {
-        crate::sound::play_menu_sound::play_menu_sound_in_game(r);
+        crate::sound::play_menu_sound::play_menu_sound_in_game(r.eax);
     } else {
         unsafe {
             crate::menu::apply_cheats::apply_cheats(&mut |line| {

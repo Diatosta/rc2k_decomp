@@ -21,9 +21,6 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::lines::SETTINGS_RVA;
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::floats::*;
 use crate::service::harness::at;
 
 const NUMBER_AT: u32 = 0x2750;
@@ -44,34 +41,7 @@ pub unsafe fn scale_setting(entry: &Regs) -> Result<Regs, Refused> {
     Ok(g)
 }
 
-/// The converted version (plain floats): the hook's.
-// Converted: `rc2k_core::marks::scales::scaled_setting`
-pub unsafe fn scale_setting_plain(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    unsafe {
-        g.esi = game_read(SETTINGS_RVA);
-        if g.esi == 0 {
-            return Err(BadInput("no marks settings").into());
-        }
-        let n = ((g.esi + NUMBER_AT) as *const i32).read_unaligned();
-        let factor = f32::from_bits(game_read(FACTOR_RVA));
-        let scaled = rc2k_core::marks::scales::scaled_setting(n, factor);
-        game_write(RESULT_RVA, scaled.to_bits());
-    }
-    Ok(g)
-}
-
 /// What it writes.
 pub fn regions() -> Vec<crate::service::harness::Region> {
     vec![at(RESULT_RVA)]
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { scale_setting_plain(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

@@ -15,12 +15,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::marks::setup::{SLOT_LEN, SLOTS, SLOTS_RVA};
 use crate::math::x87;
-use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
 
 const RANDOM_RVA: usize = rva(0x93540A); // g_marksSlotRandom
 const BASE_RVA: usize = rva(0x93540E); // flt_93540E
@@ -43,35 +40,4 @@ pub unsafe fn add_mark_slot(what: u32, at_esi: u32) {
             return;
         }
     }
-}
-
-/// The converted `add_mark_slot` (plain floats): the hook's. The x87 version above stays
-/// for `marks::draw_mark_slots` (unconverted).
-// Converted: `rc2k_core::marks::slots`
-pub unsafe fn add_mark_slot_plain(what: u32, at_esi: u32) {
-    use rc2k_core::marks::slots;
-    unsafe {
-        let first = |n: usize| game_read::<i32>(SLOTS_RVA + SLOT_LEN as usize * n);
-        let Some(n) = slots::free_slot(first) else {
-            return;
-        };
-        let random = slots::next_random(game_read(RANDOM_RVA));
-        game_write(RANDOM_RVA, random);
-        let base = f32::from_bits(game_read(BASE_RVA));
-        game_write(
-            SLOTS_RVA + SLOT_LEN as usize * n,
-            slots::new_slot(what, at_esi, random, base),
-        );
-    }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { add_mark_slot_plain(r.eax, r.esi) };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

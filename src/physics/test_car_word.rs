@@ -15,11 +15,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
-use crate::physics::flag_result::{FlagResult, flags_entry};
-
-const WORD_RVA: usize = rva(0x719FE4); // dword_719FE4: g_car + 0xC
+use crate::physics::flag_result::FlagResult;
 
 /// The Rust version on the word itself.
 // Converted: `rc2k_core::physics::car_word::test_car_word`.
@@ -32,19 +28,4 @@ pub fn test_word(word: u32, cl: u8) -> FlagResult {
         carry: t.carry,
         zero: Some(t.zero),
     }
-}
-
-/// The Rust version.
-pub fn test_car_word(cl: u8) -> FlagResult {
-    test_word(unsafe { game_read(WORD_RVA) }, cl)
-}
-
-fn rust(r: &Regs) -> Result<FlagResult, Refused> {
-    Ok(test_car_word(r.ecx as u8))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    flags_entry(r, &rust)
 }

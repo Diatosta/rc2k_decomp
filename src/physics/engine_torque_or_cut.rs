@@ -13,25 +13,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::physics::engine_torque::{
-    below, engine_entry, engine_torque, engine_torque_plain, g, p,
-};
+use crate::physics::engine_torque::{below, engine_torque, g, p};
 use crate::screens::harness::Left;
-use rc2k_core::physics::engine::torque_cut;
-
-/// The converted version (`rc2k_core::physics::engine`, plain floats): the hook's.
-// Converted: `rc2k_core::physics::engine::torque_cut`.
-pub unsafe fn engine_torque_or_cut_plain() -> Left {
-    let f = |x: usize| f32::from_bits(g(x));
-    let Some(cut) = torque_cut(f(0x71A1B0), f(0x71A1B4), g(0x71A1C8)) else {
-        return unsafe { engine_torque_plain() };
-    };
-    p(0x71A1C8, cut);
-    p(0x614748, 0);
-    Left::nothing()
-}
 
 /// The Rust version (the exact one, for `physics::drive_force`).
 pub unsafe fn engine_torque_or_cut() -> Left {
@@ -44,14 +27,4 @@ pub unsafe fn engine_torque_or_cut() -> Left {
     }
     p(0x614748, 0);
     Left::nothing()
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { engine_torque_or_cut_plain() })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    engine_entry(r, &rust)
 }

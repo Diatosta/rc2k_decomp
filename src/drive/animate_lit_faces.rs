@@ -39,9 +39,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, ECX, EDX, ESI, Regs, game_read, game_write, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::{Regs, game_read, game_write, rva};
 use rc2k_core::drive::lit_faces::{
     COUNTDOWN_OBJECT, FaceBytes, RISE_TOP, align, blink, count_down, fall_turn, pace, rise,
 };
@@ -233,21 +231,4 @@ unsafe fn animate_faces(r: &mut Regs) -> Result<(), Refused> {
 /// The Rust version: `r` as the original leaves it.
 pub unsafe fn animate_lit_faces(r: &mut Regs) -> Result<(), Refused> {
     unsafe { animate_at(r) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let mut g = *r;
-    unsafe { animate_lit_faces(&mut g) }?;
-    Ok(Left::nothing()
-        .with(EAX, g.eax)
-        .with(EBX, g.ebx)
-        .with(ECX, g.ecx)
-        .with(EDX, g.edx)
-        .with(ESI, g.esi))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -18,16 +18,12 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87;
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::turn_by_car_matrix::turn_by_car_matrix;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
-use crate::scene::vector3::{read_floats, write_floats};
-use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
 
 unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -64,26 +60,6 @@ pub unsafe fn apply_at(rec: u32, car: u32, work: u32, scratch: u32) {
     }
 }
 
-/// The converted version (`rc2k_core::physics::pushes`, plain floats): the record at
-/// `rec`, the car at `car`, the work vector at `work`, the scratch at `scratch`.
-// Converted: `rc2k_core::physics::pushes::apply_force`.
-pub unsafe fn apply_at_plain(rec: u32, car: u32, work: u32, scratch: u32) {
-    unsafe {
-        let crash = game_addr(rva(0x71A08C)) as u32; // g_crashMatrix
-        let push = rc2k_core::physics::pushes::apply_force(
-            read_floats(rec),
-            f32::from_bits(game_read(rva(0x61388C))),
-            &read_floats(crash),
-            read_floats(car + 0x198),
-            &read_floats(car + 0x9CC),
-        );
-        write_floats(work, &push.work);
-        write_floats(scratch, &[push.step]);
-        write_floats(car + 0x198, &push.motion);
-        write_floats(car + 0x1A4, &push.local);
-    }
-}
-
 /// The Rust version (the exact one, for `physics::apply_forces`).
 pub unsafe fn apply_force(rec: u32, car: u32) {
     unsafe {
@@ -94,22 +70,4 @@ pub unsafe fn apply_force(rec: u32, car: u32) {
             game_addr(rva(0x62400C)) as u32,
         )
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe {
-        apply_at_plain(
-            r.esi,
-            r.edi,
-            game_addr(rva(0x614B30)) as u32,
-            game_addr(rva(0x62400C)) as u32,
-        )
-    };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

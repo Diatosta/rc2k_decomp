@@ -20,9 +20,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{ECX, EDI, ESI, Regs, game_addr, rva};
+use crate::framework::{ECX, EDI, ESI, game_addr, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::saved_car::{restore_count, restored};
 
 /// The variables' addresses: the game's, or a test's.
@@ -80,14 +79,4 @@ pub unsafe fn restore_saved_car_at(p: &SavedCar) -> Result<Left, Refused> {
 /// The Rust version.
 pub unsafe fn restore_saved_car() -> Result<Left, Refused> {
     unsafe { restore_saved_car_at(&SavedCar::game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { restore_saved_car() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -17,8 +17,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::Regs;
 use crate::physics::fill_race_slot::{fill_race_slot_in, g, p};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::parts::{part_number, take_bit};
 
 const BITS: usize = 0x71A270; // g_car + 0x298
@@ -37,23 +35,4 @@ pub fn fill_slot_on_bit_in(r: &mut Regs) -> Result<(), Refused> {
     p(BITS, cleared);
     r.eax = part;
     fill_race_slot_in(r)
-}
-
-/// The Rust version.
-pub unsafe fn fill_slot_on_bit(entry: &Regs) -> Result<Left, Refused> {
-    let mut r = *entry;
-    match fill_slot_on_bit_in(&mut r) {
-        Ok(()) => Ok(crate::race::stage_prefs::left_of(&r)),
-        Err(e) => Err(e),
-    }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { fill_slot_on_bit(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -19,11 +19,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, rva};
-use crate::marks::scale_vectors_by::{results_of, scale_triples, scale_triples_plain};
-use crate::screens::harness::Left;
-use crate::service::floats::*;
+use crate::framework::rva;
+use crate::marks::scale_vectors_by::{results_of, scale_triples};
 use crate::service::harness::at;
 
 /// (the factor, the vector, the result).
@@ -38,18 +35,7 @@ pub unsafe fn scale_kept_vectors() {
     unsafe { scale_triples(&PAIRS) }
 }
 
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { scale_triples_plain(&PAIRS) };
-    Ok(Left::nothing())
-}
-
 /// What it writes.
 pub fn regions() -> Vec<crate::service::harness::Region> {
     results_of(&PAIRS).into_iter().map(at).collect()
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

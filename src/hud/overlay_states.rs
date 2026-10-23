@@ -10,30 +10,19 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::errors::Refused;
 use crate::framework::Regs;
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version (see the header).
 // Converted: `rc2k_core::scene::render_states::OVERLAY`
-pub unsafe fn overlay_states(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+pub fn overlay_states() {
     for s in rc2k_core::scene::render_states::OVERLAY {
-        [g.eax, g.ebx] = [s.value, s.state];
-        crate::hud::overlay_states::game_part(1, &mut g)?;
+        crate::scene::set_render_state::set_render_state(s.value, s.state);
     }
-    Ok(g)
 }
 
-/// In the game: `set_render_state`'s Rust version.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    let (value, state) = (r.eax, r.ebx);
-    unsafe { crate::scene::set_render_state::set_render_state(r, value, state) };
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { overlay_states(r) }?;
-    *r = Regs { esp: r.esp, ..left };
+/// For the typed tables' calls by address. What the original leaves in eax and ebx is
+/// read by none of its callers (register liveness, 2026-10-23).
+pub fn entry(_r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    overlay_states();
     Ok(())
 }

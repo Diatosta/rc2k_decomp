@@ -15,27 +15,17 @@
 use crate::framework::{Regs, game_read, rva};
 
 const SWITCH_RVA: usize = rva(0x5CDA8C); // dword_5CDA8C
-const LAYER_RVA: usize = rva(0x41ACF5); // d3d::set_texture
 
-/// The Rust version (see the header); `part` makes the layer's call.
-pub unsafe fn set_texture(r: &mut Regs, part: &mut dyn FnMut(&mut Regs)) {
+/// `d3d::set_texture` with the texture, unless the switch is 0. What it leaves in the
+/// registers is read by none of its callers (register liveness, 2026-10-23).
+pub fn set_texture(texture: u32) {
     if unsafe { game_read::<u32>(SWITCH_RVA) } != 0 {
-        part(r);
+        crate::d3d::set_texture::set_texture(texture);
     }
 }
 
-/// In the game: the layer through its hook.
-pub fn game_part(r: &mut Regs) {
-    crate::calls::call(LAYER_RVA, r);
-}
-
-/// `set_texture` with the game's layer, for Rust callers.
-pub unsafe fn set_texture_in_game(r: &mut Regs) {
-    unsafe { set_texture(r, &mut game_part) };
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+/// For the typed tables' calls by address: eax the texture.
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { set_texture_in_game(r) };
+    set_texture(r.eax);
     Ok(())
 }

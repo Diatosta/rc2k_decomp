@@ -11,12 +11,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
+use crate::errors::BadInput;
 use crate::menu::name_lists::{NAME_LEN, savegame_name};
 use crate::menu::text_entry::{entry as text_entry, length, put_entry};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 // ---- Rust version ----
 
@@ -32,15 +29,4 @@ pub unsafe fn backspace_savegame_name() -> Result<(), BadInput> {
         unsafe { name.add(at).write(0) };
     }
     Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { backspace_savegame_name() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

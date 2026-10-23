@@ -107,12 +107,3 @@ pub unsafe fn find_clear_place(entry: &Regs) -> Result<Left, Refused> {
     steps(&mut r)?;
     Ok(left_of(&r))
 }
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { find_clear_place(r) }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::service::harness::state_entry(r, &rust)
-}

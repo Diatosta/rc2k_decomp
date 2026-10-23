@@ -26,12 +26,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::marks::emitters::*;
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const FLAGS2_RVA: usize = rva(0x939BAA); // g_marksWheelFlags2: the wheel's +0x24 kept
 const DIRECTION_RVA: usize = rva(0x935688); // flt_935688 .. flt_935690
@@ -254,15 +252,4 @@ pub unsafe fn emit_bursts_with(set: &BurstSet, wheel: u32, object: u32) -> Resul
         }
     }
     Ok(())
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { emit_bursts(r.edi, r.esi) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -25,7 +25,6 @@ use crate::errors::Refused;
 use crate::framework::{EAX, ESI, Regs};
 use crate::physics::flow::{a, g, p};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::drive::replay_views::{WishStep, wish_step};
 
 const B: usize = 0x70F3EC; // g_carBlockStore
@@ -89,14 +88,4 @@ fn steps(entry: &Regs) -> Result<Left, Refused> {
 /// The Rust version.
 pub unsafe fn replay_cameras(entry: &Regs) -> Result<Left, Refused> {
     steps(entry)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { replay_cameras(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

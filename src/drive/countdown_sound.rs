@@ -13,28 +13,11 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::Regs;
-
 /// The Rust version.
 // Converted: `rc2k_core::drive::countdown::beep_sound`.
 pub fn countdown_sound(slot: u32, sound: u32) {
     let Some(beep) = rc2k_core::drive::countdown::beep_sound(slot, sound) else {
         return;
     };
-    let play = Regs {
-        eax: beep.sound,
-        ebx: beep.volume,
-        edx: beep.volume,
-        ecx: 0,
-        edi: 0,
-        ebp: 0,
-        ..Regs::default()
-    };
-    crate::sound::play_sound::play_sound_in_game(&play);
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    countdown_sound(r.eax, r.ebx);
-    Ok(())
+    crate::sound::play_sound::play_sound(beep.sound, beep.volume, beep.volume, [0; 3]);
 }

@@ -16,8 +16,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
-use crate::screens::harness::{Left, draw_entry};
+use crate::framework::{game_read, rva};
 use crate::text::draw_text::{Canvas, Outcome};
 
 // ---- game data ----
@@ -44,14 +43,4 @@ pub unsafe fn draw_repair_times(canvas: &mut dyn Canvas) -> Result<Outcome, Refu
         x,
         y: last.y,
     })
-}
-
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    Ok(Left::of_text(&unsafe { draw_repair_times(canvas) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_repair_times", r, &rust)
 }

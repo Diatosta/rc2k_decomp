@@ -12,10 +12,10 @@
 //! and the self-test was the hook's.
 
 use crate::framework::Regs;
-use crate::race::music::{game_music_8, game_tune};
+use crate::race::music::game_music_8;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    game_music_8(r, &mut game_tune)?;
+pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+    game_music_8();
     Ok(())
 }

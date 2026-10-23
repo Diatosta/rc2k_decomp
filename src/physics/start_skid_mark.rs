@@ -14,11 +14,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, Regs, game_addr, rva};
+use crate::framework::{Regs, game_addr, rva};
 use crate::physics::cells::{get, put_changed};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::ground::SkidStart;
 
 const VARIABLES: [usize; 11] = [
@@ -66,16 +63,4 @@ fn game() -> Vec<u32> {
 /// The Rust version; `r` as the original leaves it.
 pub unsafe fn start_skid_mark(r: &mut Regs) {
     unsafe { start_at(&game(), r) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let mut g = *r;
-    unsafe { start_skid_mark(&mut g) };
-    Ok(Left::nothing().with(EAX, g.eax))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

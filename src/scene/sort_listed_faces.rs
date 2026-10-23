@@ -23,7 +23,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_addr, game_read};
+use crate::framework::{game_addr, game_read};
 use crate::scene::draw_object_faces::{LIST_RVA, LISTED_RVA};
 
 const MOST: u32 = 0x1000;
@@ -43,12 +43,4 @@ pub unsafe fn sort_listed_faces() -> Result<(), BadInput> {
         );
         Ok(rc2k_core::scene::face_order::sort_listed_faces(list)?)
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    if let Err(e) = unsafe { sort_listed_faces() } {
-        return Err(e.into());
-    }
-    Ok(())
 }

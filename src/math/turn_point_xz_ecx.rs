@@ -11,16 +11,10 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::math::turn_point_xz::{turn_point_xz, turn_point_xz_plain};
+use crate::math::turn_point_xz::turn_point_xz;
 
 /// The Rust version: x', z' and the entry left in edx.
 pub unsafe fn turn_point_xz_ecx(x: i32, y: i32, z: i32, angle: u32) -> [u32; 3] {
     let [x, _, z, entry] = unsafe { turn_point_xz(x, y, z, angle) };
-    [x, z, entry]
-}
-
-/// The converted version (`turn_point_xz_plain`).
-pub unsafe fn turn_point_xz_ecx_plain(x: i32, y: i32, z: i32, angle: u32) -> [u32; 3] {
-    let [x, _, z, entry] = unsafe { turn_point_xz_plain(x, y, z, angle) };
     [x, z, entry]
 }

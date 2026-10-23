@@ -33,10 +33,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::{game_read, game_write, rva};
 use rc2k_core::physics::patches::{Patches, apply_patches as apply_patches_core};
 
 // ---- game data ----
@@ -122,15 +119,4 @@ pub unsafe fn apply_patches() {
         apply_patches_core(&mut after, game_read(HUNDRED_RVA));
         store(&before, &after);
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { apply_patches() };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

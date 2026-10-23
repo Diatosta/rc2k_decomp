@@ -17,8 +17,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::race::viewer::{BLOCK, BLOCKS, MARK_IN, MARK_OUT, get, put, regs_entry};
+use crate::race::viewer::{BLOCK, BLOCKS, MARK_IN, MARK_OUT, get, put};
 
 /// The Rust version.
 pub fn reset_marks() -> Result<(), Refused> {
@@ -32,15 +31,4 @@ pub fn reset_marks() -> Result<(), Refused> {
         unsafe { crate::drive::read_replay_frame_0::read_replay_frame_0(get(BLOCK)) }?;
         Ok(())
     }
-}
-
-fn rust(r: &Regs) -> Result<Regs, Refused> {
-    reset_marks()?;
-    Ok(*r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &rust)
 }

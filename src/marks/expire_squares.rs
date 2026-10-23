@@ -15,11 +15,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 pub const ITEMS_RVA: usize = rva(0x89E18A); // g_marksSquareItems
 pub const ITEMS: u32 = 0x800;
@@ -60,14 +56,4 @@ pub unsafe fn expire_squares(entry: &Regs) -> Regs {
         g.ebp = base + ITEMS * ITEM_LEN;
     }
     g
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { expire_squares(r) }))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

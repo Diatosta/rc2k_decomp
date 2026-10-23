@@ -24,10 +24,12 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::Regs;
 use crate::input::devices::{at, put};
 use crate::input::di_harness::{method, slot};
 use crate::input::types::{ForceEffect as F, InputDevice};
@@ -83,18 +85,18 @@ pub fn fill_parameters(e: u32) {
     }
 }
 
-/// The Rust version (see the header).
-pub fn make_effect(entry: &Regs) -> Result<(), Refused> {
-    let e = entry.edi;
+/// The device `record`'s effect `n` at `effect` made (see the header).
+pub fn make_effect(record: u32, effect: u32, n: u32) -> Result<(), Refused> {
+    let e = effect;
     if at(e, field!(F, object)) != 0 {
         crate::input::effect_objects::release_effect(e);
     }
     fill_parameters(e);
-    let mut r = Regs { eax: 1, ..*entry };
-    crate::input::make_effect::game_part(at(e, field!(F, change)) as usize, &mut r)?;
+    // The effect's function with a change of 1, ecx the effect's number, edx 0.
+    crate::input::effect_changes::effect_change_at(at(e, field!(F, change)), record, e, 1, n, 0)?;
     if at(e, field!(F, found)) == 1 {
         method(
-            at(entry.esi, field!(InputDevice, device)),
+            at(record, field!(InputDevice, device)),
             slot::CREATE_EFFECT,
             &[
                 e.wrapping_add(field!(F, guid)),
@@ -104,17 +106,5 @@ pub fn make_effect(entry: &Regs) -> Result<(), Refused> {
             ],
         );
     }
-    Ok(())
-}
-
-/// In the game: the effect's function through the game.
-pub fn game_part(function: usize, r: &mut Regs) -> Result<(), Refused> {
-    crate::menu::table_calls::call_any(function as u32, r);
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    make_effect(r)?;
     Ok(())
 }

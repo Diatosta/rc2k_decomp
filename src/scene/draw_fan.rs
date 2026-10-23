@@ -58,9 +58,3 @@ pub fn game_part(place: u32, r: &mut Regs) {
     };
     crate::calls::call(at, r);
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { draw_fan(r, &mut game_part) };
-    Ok(())
-}

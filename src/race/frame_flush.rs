@@ -119,17 +119,15 @@ pub unsafe fn flush_batch(
 /// The batches' parts in the game: 1 `scene::set_texture`, 2 `scene::set_render_state`,
 /// 3 the device (`sub_41ADF5`), 4 / 5 the log's text and code (`sub_401427`, `sub_401622`).
 pub fn batch_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            1 => crate::scene::set_texture::set_texture_in_game(r),
-            2 => {
-                let (v, s) = (r.eax, r.ebx);
-                crate::scene::set_render_state::set_render_state(r, v, s)
-            }
-            p => {
-                let at = [0x41ADF5usize, 0x401427, 0x401622][p as usize - 3];
-                crate::calls::call(rva(at), r);
-            }
+    match place {
+        1 => crate::scene::set_texture::set_texture(r.eax),
+        2 => {
+            let (v, s) = (r.eax, r.ebx);
+            crate::scene::set_render_state::set_render_state(v, s)
+        }
+        p => {
+            let at = [0x41ADF5usize, 0x401427, 0x401622][p as usize - 3];
+            crate::calls::call(rva(at), r);
         }
     }
     Ok(())
@@ -228,13 +226,11 @@ pub unsafe fn draw_view_backdrop(r: &mut Regs) -> Result<(), Refused> {
 
 /// Its parts in the game.
 pub fn backdrop_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            1 => crate::scene::glow_render_states::glow_render_states(r),
-            2 => crate::scene::set_texture::set_texture_in_game(r),
-            3 => crate::calls::call(rva(0x41AD9C), r),
-            _ => crate::scene::depth_buffer_on::depth_buffer(r, true),
-        }
+    match place {
+        1 => crate::scene::glow_render_states::glow_render_states(),
+        2 => crate::scene::set_texture::set_texture(r.eax),
+        3 => crate::calls::call(rva(0x41AD9C), r),
+        _ => crate::scene::depth_buffer_on::depth_buffer(true),
     }
     Ok(())
 }

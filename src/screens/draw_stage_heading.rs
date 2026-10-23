@@ -16,12 +16,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::Regs;
 use crate::records::trakpak_entry::record_entry;
-use crate::screens::blanked;
 use crate::screens::stage_panel::PanelScreen;
 use crate::strings::append_string_by_id::push_string;
-use crate::text::draw_text::{Canvas, GameCanvas};
+use crate::text::draw_text::Canvas;
 use rc2k_core::screens::stage_panel::stage_line;
 
 // ---- game data ----
@@ -64,17 +62,6 @@ pub unsafe fn draw_stage_heading(
             &name,
         )
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    if blanked("screens::draw_stage_heading") {
-        return Ok(());
-    }
-    let too_wide = unsafe { draw_stage_heading(r.edi as *const u8, &mut GameCanvas) }?;
-    r.set_carry(too_wide);
-    r.set_zero(!too_wide);
-    Ok(())
 }
 
 //

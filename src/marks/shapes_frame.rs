@@ -17,9 +17,7 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_read};
 use crate::marks::lines::SETTINGS_RVA;
 use crate::marks::{copy_first_point, run_shapes, scale_setting, tilt_shape};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::Region;
 
 /// What it may write.
 pub fn regions() -> Vec<Region> {
@@ -41,14 +39,4 @@ pub unsafe fn shapes_frame(entry: &Regs) -> Result<Regs, Refused> {
         let g = tilt_shape::tilt_shape(entry);
         scale_setting::scale_setting(&g).and_then(|g| run_shapes::run_shapes(&g))
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { shapes_frame(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -12,11 +12,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::math::x87;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// The Rust version.
 pub unsafe fn multiply_parts(a: u32, b: u32, out: u32) {
@@ -27,25 +23,4 @@ pub unsafe fn multiply_parts(a: u32, b: u32, out: u32) {
             ((out + 4 * k) as *mut u32).write_unaligned(x87::mul(x, y));
         }
     }
-}
-
-/// The converted version (`rc2k_core::math::vector`, plain floats): the hook's. A product of
-/// two floats rounded once to a float: the same bits at every precision.
-pub unsafe fn multiply_parts_plain(a: u32, b: u32, out: u32) {
-    use crate::scene::vector3::{read_floats, write_floats};
-    unsafe {
-        let product = rc2k_core::math::vector::multiply_parts(read_floats(a), read_floats(b));
-        write_floats(out, &product);
-    }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { multiply_parts_plain(r.ebx, r.ecx, r.edx) };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

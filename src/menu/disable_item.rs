@@ -15,10 +15,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr};
+use crate::framework::game_addr;
 use crate::menu::item_at::item_at;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 use rc2k_core::menu::items::{Font, choosable};
 
@@ -46,15 +44,4 @@ pub fn set_item(number: u32, on: bool) -> Result<(), Refused> {
 
 pub fn disable_item(number: u32) -> Result<(), Refused> {
     set_item(number, false)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    disable_item(r.ebx)?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

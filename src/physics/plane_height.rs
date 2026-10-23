@@ -16,11 +16,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
-use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
-use rc2k_core::physics::ground::plane_height as plane_height_core;
+use crate::framework::{game_addr, rva};
 
 /// The variables' addresses: the game's, or a test's.
 #[derive(Clone, Copy)]
@@ -65,35 +61,8 @@ pub unsafe fn plane_height_at(p: &Plane) {
     }
 }
 
-/// The converted version (`rc2k_core::physics::ground`, plain floats) on the variables
-/// at `p`: the hook's.
-// Converted: `rc2k_core::physics::ground::plane_height`.
-pub unsafe fn plane_height_plain_at(p: &Plane) {
-    unsafe {
-        let h = plane_height_core(
-            at(p.a) as i32,
-            at(p.b) as i32,
-            at(p.c) as i32,
-            f32::from_bits(at(p.f)),
-            f32::from_bits(at(p.g)),
-        );
-        (p.out as *mut i32).write_unaligned(h);
-    }
-}
-
 /// The Rust version (the exact one, for `physics::ground`, `face_under_point` and the
 /// race's shadows).
 pub unsafe fn plane_height() {
     unsafe { plane_height_at(&Plane::game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { plane_height_plain_at(&Plane::game()) };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

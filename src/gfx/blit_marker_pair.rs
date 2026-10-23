@@ -10,9 +10,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::FatalError;
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::gfx::blit_glyph::{BlitCall, blit_glyph_on_surface};
+use crate::framework::{game_read, game_write, rva};
+use crate::gfx::blit_glyph::BlitCall;
 
 // ---- game data ----
 
@@ -44,33 +43,4 @@ pub unsafe fn set_marker_position(call: &BlitCall) {
         game_write(MARKER_X_RVA, call.x);
         game_write(MARKER_Y_RVA, call.y);
     }
-}
-
-/// Draws both markers on the game's surface.
-pub unsafe fn blit_marker_pair(object: *const u8, palette: u32) -> Result<(), FatalError> {
-    for call in unsafe { marker_calls(object, palette, sprite_table()) } {
-        unsafe {
-            game_write(MARKER_X_RVA, call.x);
-            game_write(MARKER_Y_RVA, call.y);
-            blit_glyph_on_surface(
-                call.glyph,
-                call.table as *const u8,
-                call.x,
-                call.y,
-                call.palette as *const u32,
-            )?;
-        }
-    }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let (object, palette) = (r.edi as *const u8, r.ebx);
-
-    // A fatal error in the blitter: the original, run from the start, meets the same one.
-    if let Err(e) = unsafe { blit_marker_pair(object, palette) } {
-        return Err(e.into());
-    }
-    Ok(())
 }

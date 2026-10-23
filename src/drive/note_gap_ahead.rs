@@ -12,10 +12,8 @@
 //! and the self-test was the hook's.
 
 use crate::drive::note_gaps::note_gap_at;
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const BEST_RVA: usize = rva(0x70FA14);
 const LEAD_RVA: usize = rva(0x70F484); // dword_70F484: car block 0's +0x98
@@ -30,14 +28,4 @@ pub unsafe fn note_gap_ahead(car: u32) -> Left {
             false,
         )
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { note_gap_ahead(r.esi) })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

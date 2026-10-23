@@ -30,12 +30,14 @@
 //! original's `idiv` traps). Shadow mode runs the original alone (DirectInput). Manual
 //! patches with private copies (a `jnz` in the first bytes). Self-test: a copy whose calls
 //! go to stand-ins, against the Rust version, each change, values of both signs.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::field;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::input::types::{ForceEffect, InputDevice};
-use crate::menu::parts::Part;
 
 // sub_409AEE
 // sub_409B1F
@@ -49,19 +51,27 @@ fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
 
-/// The Rust version: the registers it leaves.
-pub unsafe fn effect_change(entry: &Regs, number: u32, part: Part) -> Result<Regs, Refused> {
+/// The change `what` (with `a`, `b`) of the effect at `effect` of the device `record`, by
+/// the effect's function `number` (`input::effect_N_change`).
+pub unsafe fn effect_change(
+    number: u32,
+    record: u32,
+    effect: u32,
+    what: u32,
+    a: u32,
+    b: u32,
+) -> Result<(), Refused> {
+    use crate::input::effect_objects::{set_effect_parameters, start_effect, stop_effect};
     use rc2k_core::input::effect_changes::{Call, Field, plan};
-    let mut r = *entry;
-    let e = entry.edi;
+    let e = effect;
     let row_at = |n: u32| game_addr(ROWS_RVA) as u32 + 16 * n;
     // Converted: `rc2k_core::input::effect_changes::plan`.
     let p = plan(
         number,
-        entry.eax,
-        entry.ecx,
-        entry.edx,
-        || get(entry.esi + field!(InputDevice, sensitivity)),
+        what,
+        a,
+        b,
+        || get(record + field!(InputDevice, sensitivity)),
         |n| std::array::from_fn(|k| get(row_at(n) + 4 * k as u32)),
     )
     .map_err(BadInput::from)?;
@@ -79,40 +89,34 @@ pub unsafe fn effect_change(entry: &Regs, number: u32, part: Part) -> Result<Reg
         };
         put(e, at, v);
     }
-    if let Some((divisor, remainder)) = p.division {
-        // The registers at the call: the row, the divisor and the `idiv`'s remainder.
-        r.ebx = row_at(entry.ecx);
-        r.ecx = divisor;
-        r.edx = remainder;
-    }
     match p.call {
-        Some(Call::Start) => part(0, &mut r)?,
-        Some(Call::Set(flags)) => {
-            r.eax = flags;
-            part(1, &mut r)?;
-        }
-        Some(Call::Stop) => part(2, &mut r)?,
+        Some(Call::Start) => start_effect(e),
+        Some(Call::Set(flags)) => set_effect_parameters(e, flags),
+        Some(Call::Stop) => stop_effect(e),
         None => {}
-    }
-    Ok(*entry)
-}
-
-/// In the game: the Rust versions of the effect's calls (`input::effect_objects`).
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::input::effect_objects::{set_effect_parameters, start_effect, stop_effect};
-    match place {
-        0 => start_effect(r.edi),
-        1 => set_effect_parameters(r.edi, r.eax),
-        _ => stop_effect(r.edi),
     }
     Ok(())
 }
 
-/// `dispatch_effect` without its hook (a refusal is the caller's).
-pub fn effect_entry(r: &mut Regs, number: u32) -> Result<(), Refused> {
-    crate::menu::parts::parted_entry(
-        r,
-        &|r, part| unsafe { effect_change(r, number, part) },
-        game_part,
-    )
+/// The six functions' addresses (`input::effect_0_change` .. `_5_`), in number order.
+const FUNCTIONS: [u32; 6] = [0x409708, 0x4097FA, 0x409754, 0x4097B4, 0x409871, 0x4098BF];
+
+/// The effect's function (`ForceEffect::change`, the game's address of one of the six)
+/// with the change.
+pub fn effect_change_at(
+    function: u32,
+    record: u32,
+    effect: u32,
+    what: u32,
+    a: u32,
+    b: u32,
+) -> Result<(), Refused> {
+    // As IDA shows it.
+    let at = (function as usize)
+        .wrapping_sub(crate::framework::game_addr(0))
+        .wrapping_add(crate::framework::IMAGE_BASE) as u32;
+    let Some(number) = FUNCTIONS.iter().position(|&f| f == at) else {
+        return Err(BadInput("an effect's function that is none of the six").into());
+    };
+    unsafe { effect_change(number as u32, record, effect, what, a, b) }
 }

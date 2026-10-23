@@ -17,11 +17,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
-use crate::screens::harness::Left;
-use crate::service::floats::*;
 use crate::service::harness::{Region, at};
 
 /// (the factor, the vector, the result).
@@ -47,19 +44,6 @@ pub unsafe fn scale_triples(pairs: &[(usize, usize, usize)]) {
     }
 }
 
-/// The converted `scale_triples` (plain floats): the two hooks'.
-// Converted: `rc2k_core::marks::view::scaled`
-pub unsafe fn scale_triples_plain(pairs: &[(usize, usize, usize)]) {
-    unsafe {
-        for &(factor, from, to) in pairs {
-            let k = f32::from_bits(game_read(factor));
-            let v: [u32; 3] = game_read(from);
-            let made = rc2k_core::marks::view::scaled(v.map(f32::from_bits), k);
-            game_write(to, made.map(f32::to_bits));
-        }
-    }
-}
-
 /// The results' dwords.
 pub fn results_of(pairs: &[(usize, usize, usize)]) -> Vec<usize> {
     pairs
@@ -70,15 +54,4 @@ pub fn results_of(pairs: &[(usize, usize, usize)]) -> Vec<usize> {
 
 pub fn regions() -> Vec<Region> {
     results_of(&PAIRS).into_iter().map(at).collect()
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { scale_triples_plain(&PAIRS) };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

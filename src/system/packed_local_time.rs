@@ -12,7 +12,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_ptr, rva};
+use crate::framework::{game_ptr, rva};
 use windows_sys::Win32::Foundation::SYSTEMTIME;
 use windows_sys::Win32::System::SystemInformation::GetLocalTime;
 
@@ -36,11 +36,4 @@ pub unsafe fn packed_local_time() -> u32 {
         GetLocalTime(system_time());
         pack(&system_time().read_unaligned())
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let first = unsafe { packed_local_time() };
-    r.eax = first;
-    Ok(())
 }

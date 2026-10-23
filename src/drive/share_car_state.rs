@@ -35,7 +35,6 @@ use crate::math::x87;
 use crate::math::x87_run::{compare_full, sub_div_to_int};
 use crate::race::mud::car_file_number;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::drive::sharing;
 
 const SCRATCH: usize = 0x62400C; // dword_62400C
@@ -149,14 +148,4 @@ pub unsafe fn share_car_state_at(s: u32, o: u32, p: u32, scratch: u32) -> Result
 /// The Rust version.
 pub unsafe fn share_car_state(r: &Regs) -> Result<Left, Refused> {
     unsafe { share_car_state_at(r.esi, r.edi, r.ebp, game_addr(rva(SCRATCH)) as u32) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { share_car_state(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

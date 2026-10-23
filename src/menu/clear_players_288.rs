@@ -13,9 +13,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::Regs;
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn clear_players_288(entry: &Regs) -> Result<Regs, Refused> {
@@ -26,14 +23,4 @@ pub unsafe fn clear_players_288(entry: &Regs) -> Result<Regs, Refused> {
         put(player(n) + 0x288, 0);
     }
     Ok(*entry)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { clear_players_288(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

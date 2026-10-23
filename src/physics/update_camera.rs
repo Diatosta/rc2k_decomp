@@ -42,7 +42,6 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::physics::camera_ground::carry_entry;
 use crate::physics::camera_view::{rd, record};
 use crate::physics::flow::{a, base, g, hold_high, hold_low, p, x87_run};
 use crate::physics::touch_face::FACES;
@@ -308,19 +307,4 @@ pub fn steps(r: &mut Regs, part: Part) -> Result<(), Refused> {
     r.eax = g(0x6062BC);
     p(0x5CCD40, r.eax);
     Ok(())
-}
-
-/// The Rust version, the probes through `part`; everything written put back on a refusal.
-pub unsafe fn update_camera(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    {
-        let mut r = *entry;
-        steps(&mut r, part)?;
-        Ok(r)
-    }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    carry_entry(r, update_camera)
 }

@@ -62,14 +62,3 @@ pub unsafe fn step_loading_bar(r: &Regs, show: &mut dyn FnMut(&mut Regs)) -> Res
         Ok(())
     }
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe {
-        step_loading_bar(r, &mut |inner| {
-            let show = inner.esi as usize;
-            crate::menu::table_calls::call_any(show as u32, inner);
-        })
-    }?;
-    Ok(())
-}

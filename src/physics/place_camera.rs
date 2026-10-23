@@ -18,13 +18,11 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
 use crate::framework::{EAX, EBX, ECX, EDX, ESI, Regs};
 use crate::physics::camera_view::rd;
 use crate::physics::flow::{a, base, g, p, x87_run};
 use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
-use rc2k_core::physics::camera_place::{SECOND_RECORD_MODE, add_offset, turned_offset};
+use rc2k_core::physics::camera_place::{SECOND_RECORD_MODE, add_offset};
 
 /// The turns: `math::turn_point_xz_ebx`, `_ecx` and `turn_point_xz`, exact or plain.
 type Turns = (
@@ -123,35 +121,4 @@ pub unsafe fn place_camera(_: &Regs) -> Left {
             &second,
         )
     }
-}
-
-/// The converted version (`rc2k_core::physics::camera_place`, plain floats): the hook's.
-// Converted: `rc2k_core::physics::camera_place::{turned_offset, add_offset}`.
-pub unsafe fn place_camera_plain(_: &Regs) -> Left {
-    use crate::math::{turn_point_xz, turn_point_xz_ebx, turn_point_xz_ecx};
-    let second = || {
-        let m = unsafe { crate::scene::vector3::read_floats::<15>(a(0x71A08C)) };
-        let offset = [0x608B74usize, 0x608B78, 0x608B7C].map(|x| g(x) as i32);
-        turned_offset(&m, offset, f32::from_bits(g(0x5C5D98)))
-    };
-    unsafe {
-        place_with(
-            (
-                turn_point_xz_ebx::turn_point_xz_ebx_plain,
-                turn_point_xz_ecx::turn_point_xz_ecx_plain,
-                turn_point_xz::turn_point_xz_plain,
-            ),
-            &second,
-        )
-    }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { place_camera_plain(r) })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

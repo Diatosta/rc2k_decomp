@@ -22,17 +22,13 @@ const STREAM_RVA: usize = rva(0xA8C184); // dword_A8C184
 const PLACE_RVA: usize = rva(0xA8C180); // dword_A8C180
 const VOLUME_RVA: usize = rva(0x755698); // dword_755698
 const PLAYING_RVA: usize = rva(0x506960); // dword_506960
-const START_RVA: usize = rva(0x40F743); // sound::start_stream
 // sub_40C4D5
 
 // ---- Rust version ----
 
-/// `playing` stands for `sub_40C4D5`, `start` for `sound::start_stream`.
-pub unsafe fn step_car_stream(
-    r: &Regs,
-    playing: &mut dyn FnMut() -> bool,
-    start: &mut dyn FnMut(&mut Regs),
-) {
+/// `playing` stands for `sub_40C4D5`, `start` for `sound::start_stream` (the part, the
+/// volume).
+pub unsafe fn step_car_stream(playing: &mut dyn FnMut() -> bool, start: &mut dyn FnMut(u32, u32)) {
     unsafe {
         // Converted: `rc2k_core::sound::race::stream_step`.
         use rc2k_core::sound::race::{StreamStep, stream_step};
@@ -53,22 +49,17 @@ pub unsafe fn step_car_stream(
             StreamStep::Start { place, part } => (place, part),
         };
         game_write(PLACE_RVA, place);
-        let mut inner = Regs {
-            eax: part,
-            ebx: place,
-            ecx: game_read(VOLUME_RVA),
-            ..*r
-        };
-        start(&mut inner);
+        start(part, game_read(VOLUME_RVA));
     }
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
     unsafe {
-        step_car_stream(r, &mut || game_read::<u32>(PLAYING_RVA) == 1, &mut |r| {
-            crate::calls::call(START_RVA, r)
-        })
+        step_car_stream(
+            &mut || game_read::<u32>(PLAYING_RVA) == 1,
+            &mut crate::sound::start_stream::start_stream,
+        )
     };
     Ok(())
 }

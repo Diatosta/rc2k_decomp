@@ -19,8 +19,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
-use crate::physics::car_sounds::{cue_plain, g, listed, object, placed_entry};
+use crate::framework::{game_addr, rva};
+use crate::physics::car_sounds::{cue_plain, g, listed, object};
 use crate::physics::sound_band_2::TWIN;
 use crate::physics::sound_bands::band_value_plain;
 use crate::screens::harness::Left;
@@ -54,14 +54,4 @@ pub unsafe fn place_sound_object() -> Result<Left, Refused> {
     let offset = Some([g(0x6D3B4C), g(0x6D3B50), g(0x6D3B54)]);
     unsafe { cue_plain(o, FIRST, sound, b, offset) };
     Ok(Left::nothing())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { place_sound_object() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    placed_entry(r, &rust)
 }

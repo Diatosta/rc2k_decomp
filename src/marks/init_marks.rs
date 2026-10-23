@@ -8,8 +8,9 @@
 //!
 //! One caller, init mark's end (0x457030). Shadow mode runs the original alone (its steps
 //! take memory and read files). Refuses (section 15) no settings, and a kind (the
-//! settings' +0x26A8, which step 1 makes `g_marksKind`) past `dword_765240`'s 0x17
-//! entries; both before anything. Self-test: a redirected copy whose 30 calls go to
+//! settings' +0x26A8, which step 1 makes `g_marksKind`) of 0x22 or more (the kinds'
+//! tables); both before anything. Kinds 0x17 .. 0x21 are past `g_marksKindFloatTable`'s
+//! 0x17 entries: fixed (section 16, 2026-10-23), they get 18240.0. Self-test: a redirected copy whose 30 calls go to
 //! stand-ins noting every register, against the Rust version on the same stand-ins
 //! (settings of the test's; three kinds and two screen sizes); put back afterwards.
 //!
@@ -31,8 +32,12 @@ const SCREEN_HEIGHT_RVA: usize = rva(0x4F4950); // g_screenHeight
 /// flt_7687E4 .. flt_7687F0: the screen's middle x, it less `flt_76516C`, the same for y.
 const MIDDLE_RVA: usize = rva(0x7687E4);
 const LESS_RVA: usize = rva(0x76516C); // flt_76516C
-const KIND_FLOATS_RVA: usize = rva(0x765240); // dword_765240: 0x17 floats by kind
-const KINDS: u32 = 0x17;
+const KIND_FLOATS_RVA: usize = rva(0x765240); // g_marksKindFloatTable: 0x17 floats by kind
+/// The table's entries; the kinds go to 0x21 (the other kinds' tables have 0x22).
+const KIND_FLOATS: u32 = 0x17;
+const KINDS: u32 = rc2k_core::marks::kind_values::KINDS;
+/// 18240.0, the value of most of the table's kinds: the kinds past it get it (section 16).
+const KIND_FLOAT_PAST: u32 = 0x468E_8000;
 const KIND_FLOAT_RVA: usize = rva(0x76529C); // flt_76529C
 /// The place of `nullsub_1` (before each step, eax the step's number).
 const NUMBERED: u32 = 16;
@@ -48,7 +53,7 @@ pub unsafe fn init_marks(entry: &Regs) -> Result<Regs, Refused> {
             return Err(BadInput("no marks settings").into());
         }
         if ((g.esi + KIND_AT) as *const u32).read_unaligned() >= KINDS {
-            return Err(BadInput("a marks kind past dword_765240's entries").into());
+            return Err(BadInput("a marks kind of 0x22 or more").into());
         }
         game_write(SETTINGS_RVA, g.esi);
         game_write(crate::marks::setup::SEED_RVA, g.eax);
@@ -78,7 +83,14 @@ pub unsafe fn init_marks(entry: &Regs) -> Result<Regs, Refused> {
             game_write(to + 4, x87::int_less(g.eax as i32, less));
         }
         g.ebp = game_read(crate::marks::kind_values::KIND_RVA);
-        g.eax = game_read(KIND_FLOATS_RVA + 4 * g.ebp as usize);
+        // Fixed (section 16, 2026-10-23): the original reads past the table for kinds
+        // 0x17 .. 0x21 (the next variables: `g_marksKindFloat` itself, a 0/1 flag, 9, ..),
+        // so those cars' marks lose their depth bias.
+        g.eax = if g.ebp < KIND_FLOATS {
+            game_read(KIND_FLOATS_RVA + 4 * g.ebp as usize)
+        } else {
+            KIND_FLOAT_PAST
+        };
         game_write(KIND_FLOAT_RVA, g.eax);
     }
     Ok(g)

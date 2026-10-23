@@ -36,9 +36,6 @@ use crate::physics::flow::{a, base, copy3, g, p, x87_run};
 use crate::physics::scene_point_hits_car::SCENE_POINTS;
 use crate::physics::touch_face::FACES;
 use crate::physics::wall_contacts::WALL_RECORD;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::walls;
 
 fn rd(x: u32) -> u32 {
@@ -120,23 +117,4 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
     unsafe { contact_force() }.apply(r);
     unsafe { crate::physics::place_sound_e1::place_sound_e1() }?;
     Ok(())
-}
-
-/// The Rust version.
-pub unsafe fn wall_edge_contact(entry: &Regs) -> Result<Left, Refused> {
-    {
-        let mut r = *entry;
-        steps(&mut r)?;
-        Ok(left_of(&r))
-    }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { wall_edge_contact(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

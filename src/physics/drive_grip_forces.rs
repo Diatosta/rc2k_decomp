@@ -29,13 +29,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, EBX, EDX, Regs};
 use crate::math::x87;
 use crate::math::x87_run::{abs_compare, mul_status};
 use crate::physics::flow::{a, base, c3, ease_zero, g, hold_high, hold_low, negate, p, x87_run};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// `edx` = the steer angle's table index (+0x64C >> 20).
 fn steer_index() -> u32 {
@@ -296,15 +292,4 @@ pub unsafe fn drive_grip_forces(ebx: u32) -> [u32; 3] {
         b = base(), o = held.as_ptr()
     );
     [eax, ebx, edx]
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let [eax, ebx, edx] = unsafe { drive_grip_forces(r.ebx) };
-    Ok(Left::nothing().with(EAX, eax).with(EBX, ebx).with(EDX, edx))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

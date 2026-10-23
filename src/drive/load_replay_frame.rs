@@ -15,10 +15,9 @@
 
 use crate::drive::read_replay_frame::FRAME;
 use crate::errors::Refused;
-use crate::framework::{EAX, ECX, EDI, ESI, Regs};
+use crate::framework::{EAX, ECX, EDI, ESI};
 use crate::physics::flow::{a, g};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const SAVED: usize = 0x7172EC;
 const DWORDS: usize = 0xA04;
@@ -34,14 +33,4 @@ pub unsafe fn load_replay_frame() -> Result<Left, Refused> {
         .with(ECX, 0)
         .with(ESI, a(FRAME) + 4 * DWORDS as u32)
         .with(EDI, a(SAVED) + 4 * DWORDS as u32))
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { load_replay_frame() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

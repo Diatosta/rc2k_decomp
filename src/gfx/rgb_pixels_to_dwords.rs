@@ -13,9 +13,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::Regs;
 use crate::gfx::picture::picture;
-use crate::gfx::pixels_to_dwords::{pixel_count, spread_entry};
+use crate::gfx::pixels_to_dwords::pixel_count;
 
 // ---- Rust version ----
 
@@ -25,10 +24,4 @@ pub unsafe fn rgb_pixels_to_dwords() -> Result<(), BadInput> {
     let buffer = unsafe { std::slice::from_raw_parts_mut(picture(), count * 4) };
     rc2k_core::gfx::pixels::rgb_to_dwords(buffer, count).expect("the slice holds the dwords");
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    spread_entry(r, rgb_pixels_to_dwords)
 }

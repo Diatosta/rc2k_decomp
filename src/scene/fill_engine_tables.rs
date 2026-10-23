@@ -142,9 +142,3 @@ pub unsafe fn fill_engine_tables(r: &mut Regs) {
         r.edi = (game_addr(ARCTANGENTS_RVA) + 0x2000) as u32;
     }
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { fill_engine_tables(r) };
-    Ok(())
-}

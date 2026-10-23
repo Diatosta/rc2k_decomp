@@ -19,8 +19,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
-use crate::physics::flag_result::{FlagResult, flags_entry};
+use crate::framework::{game_addr, rva};
+use crate::physics::flag_result::FlagResult;
 use rc2k_core::physics::gearbox::GearBits;
 
 pub const GEAR_BITS_RVA: usize = rva(0x71A40C); // g_carGearBits
@@ -46,14 +46,4 @@ pub unsafe fn gear_bit_at(bits: u32, gear: u32) -> Result<FlagResult, Refused> {
 /// The Rust version.
 pub unsafe fn gear_bit(gear: u32) -> Result<FlagResult, Refused> {
     unsafe { gear_bit_at(game_addr(GEAR_BITS_RVA) as u32, gear) }
-}
-
-fn rust(r: &Regs) -> Result<FlagResult, Refused> {
-    unsafe { gear_bit(r.ecx) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    flags_entry(r, &rust)
 }

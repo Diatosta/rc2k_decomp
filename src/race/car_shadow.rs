@@ -942,13 +942,11 @@ pub unsafe fn cast_car_shadows(
 }
 
 /// `cast_car_shadows`' depth-test parts in the game: the Rust versions.
-pub fn depth_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        if place == 1 {
-            crate::scene::depth_test_off::depth_test_off(r);
-        } else {
-            crate::scene::depth_test_on::depth_test_on(r);
-        }
+pub fn depth_part(place: u32, _r: &mut Regs) -> Result<(), Refused> {
+    if place == 1 {
+        crate::scene::depth_test_off::depth_test_off();
+    } else {
+        crate::scene::depth_test_on::depth_test_on();
     }
     Ok(())
 }

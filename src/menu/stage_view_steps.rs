@@ -192,7 +192,7 @@ pub fn style_stage_item(b: bool) -> Result<Left, Refused> {
 /// `play_stage_speech` (the pages).
 pub fn speech_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     match place {
-        0 => crate::sound::senders::send_in_game(&crate::sound::start_stream::SENDER, r),
+        0 => crate::sound::start_stream::start_stream(r.eax, r.ecx),
         _ => r.eax = r.eax & !0xFF | crate::input::take_key::take_key() as u32,
     }
     Ok(())

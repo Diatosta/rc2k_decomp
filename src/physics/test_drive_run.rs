@@ -29,7 +29,6 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{EAX, EBX, ECX, EDX, Regs};
 use crate::physics::flow::{a, base, c0, g, p, x87_run};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const DRIVE: usize = 0x71A190; // g_carDriveSpeed
 const GEAR: usize = 0x71A1AC; // g_carGear
@@ -123,14 +122,4 @@ fn steps(entry: &Regs) -> Result<Left, Refused> {
 /// The Rust version; everything written put back when it refuses.
 pub unsafe fn test_drive_run(entry: &Regs) -> Result<Left, Refused> {
     steps(entry)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { test_drive_run(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

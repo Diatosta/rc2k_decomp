@@ -26,9 +26,6 @@ use crate::physics::flow::{a, copy3, fill3, g, negate, p};
 use crate::physics::vector_length::vector_length;
 use crate::physics::wall_contacts::{WALL_RECORD, WORK};
 use crate::race::norms::normalise_work_vector;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// The steps, not guarded.
 pub fn steps(r: &mut Regs) -> Result<(), Refused> {
@@ -50,23 +47,4 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
     unsafe { crate::physics::place_sound_e1::place_sound_e1() }?;
     p(0x6141C8, u32::MAX);
     Ok(())
-}
-
-/// The Rust version.
-pub unsafe fn wall_push_back(entry: &Regs) -> Result<Left, Refused> {
-    {
-        let mut r = *entry;
-        steps(&mut r)?;
-        Ok(left_of(&r))
-    }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { wall_push_back(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

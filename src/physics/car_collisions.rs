@@ -30,7 +30,6 @@ use crate::physics::corner_hits_car::corner_hits_car;
 use crate::physics::flow::{a, g, p};
 use crate::scene::matrix::{multiply_matrices, set_place};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const BLOCKS: usize = 0x71B3B8; // g_carBlocks (eight)
 const CARS: usize = 0x63DB90; // g_raceCars
@@ -98,14 +97,4 @@ pub unsafe fn car_collisions(entry: &Regs) -> Result<Left, Refused> {
         }
         Ok(Left::nothing().with(EBX, n))
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { car_collisions(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

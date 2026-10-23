@@ -18,9 +18,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
-use crate::physics::flag_result::{FlagResult, flags_entry};
+use crate::physics::flag_result::FlagResult;
 use rc2k_core::physics::faces;
 
 /// The point's and the scratch value's addresses: the game's, or a test's.
@@ -31,16 +29,7 @@ pub struct EdgePlaces {
     pub product: u32,
 }
 
-impl EdgePlaces {
-    pub fn game() -> Self {
-        let p = |x: usize| game_addr(rva(x)) as u32;
-        Self {
-            x: p(0x639824),
-            z: p(0x63982C),
-            product: p(0x620460),
-        }
-    }
-}
+impl EdgePlaces {}
 
 unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -66,19 +55,4 @@ pub unsafe fn edge_side_at(p: &EdgePlaces, from: u32, to: u32) -> FlagResult {
             }
         }
     }
-}
-
-/// The Rust version.
-pub unsafe fn edge_side(from: u32, to: u32) -> FlagResult {
-    unsafe { edge_side_at(&EdgePlaces::game(), from, to) }
-}
-
-fn rust(r: &Regs) -> Result<FlagResult, Refused> {
-    Ok(unsafe { edge_side(r.ebp, r.edi) })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    flags_entry(r, &rust)
 }

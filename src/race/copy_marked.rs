@@ -21,7 +21,7 @@ use crate::framework::Regs;
 use crate::physics::flow::a;
 use crate::race::viewer::{
     CAMERAS, CLIP_BLOCKS, CLIP_CAMERAS, CLIP_PLACES, MARK_IN, MARK_OUT, PLACES, get, move_dwords,
-    put, regs_entry,
+    put,
 };
 
 /// The Rust version: the registers it leaves.
@@ -42,10 +42,4 @@ pub fn copy_marked(entry: &Regs) -> Result<Regs, Refused> {
     r.esi = a(CAMERAS + 8 * r.eax as usize) + 4 * dwords as u32;
     r.edi = a(CLIP_CAMERAS) + 4 * dwords as u32;
     Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &copy_marked)
 }

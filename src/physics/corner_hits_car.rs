@@ -26,7 +26,6 @@ use crate::physics::flow::{a, base, g, p, x87_run};
 use crate::scene::matrix3::extended;
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// Whether the corner is inside (`flt_6D3BC8` .. written either way).
 pub fn corner_inside() -> bool {
@@ -54,14 +53,4 @@ pub unsafe fn corner_hits_car(entry: &Regs) -> Result<Left, Refused> {
         unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
         unsafe { crate::physics::bump_cars::bump_cars(entry.edi) }
     })()
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { corner_hits_car(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

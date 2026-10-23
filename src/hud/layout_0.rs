@@ -24,7 +24,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::hud::add_quad::QUAD_RVA;
 use crate::hud::batch::TEXTURE_RVA;
 use crate::hud::draw_marker::RECTS_RVA;
@@ -38,27 +38,20 @@ pub const PICK_RVA: usize = rva(0x75C040); // dword_75C040
 pub const NEEDLE_KIND_RVA: usize = rva(0x75BFAC); // dword_75BFAC
 pub const LEADING_RVA: usize = rva(0x75C03C); // dword_75C03C
 
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// A time made digits (`dword_75C08C` ..: `rc2k_core::hud::panels::time_digits`), each
-/// plus `base`; eax, ebx and edx as the divisions leave them.
-pub unsafe fn time_digits(g: &mut Regs, value: u32, base: u32) -> [u32; 6] {
+/// plus `base`.
+pub unsafe fn time_digits(value: u32, base: u32) -> [u32; 6] {
     let d = panels::time_digits(value, base);
     for (n, v) in d.into_iter().enumerate() {
         unsafe { game_write(DIGITS_RVA + 4 * n, v) };
     }
-    [g.eax, g.ebx, g.edx] = panels::division_registers(&d);
     d
 }
 
 /// A sprite: rectangle `rect` of `dword_75B940` at (x, y).
-pub fn sprite(g: &mut Regs, rect: u32, x: u32, y: u32, part: &mut Part) -> Result<(), Refused> {
-    g.eax = panels::rect_offset(rect);
-    g.ebx = x;
-    g.ecx = y;
-    g.esi = (game_addr(RECTS_RVA) as u32).wrapping_add(g.eax);
-    part(1, g)
+pub fn sprite(rect: u32, x: u32, y: u32) -> Result<(), Refused> {
+    let at = (game_addr(RECTS_RVA) as u32).wrapping_add(panels::rect_offset(rect));
+    unsafe { crate::hud::add_sprite::add_sprite(x, y, at) }
 }
 
 /// The sign of a time into `dword_75C0A4`: `plus` or `minus`.
@@ -72,39 +65,27 @@ pub fn set(r: usize, v: u32) {
     unsafe { game_write(r, v) };
 }
 
-/// A sprite drawer for the shared panels: (registers, rectangle, x, y).
-pub type Draw<'a> = &'a mut dyn FnMut(&mut Regs, u32, u32, u32) -> Result<(), Refused>;
+/// A sprite drawer for the shared panels: (rectangle, x, y).
+pub type Draw<'a> = &'a mut dyn FnMut(u32, u32, u32) -> Result<(), Refused>;
 
 /// A clock panel: the time `t` (digits from 0x18), its sign 0x22 / 0x23, then its
 /// rectangles (`panels::clock_rects`) at `xs`, row `y`.
-pub unsafe fn clock_panel(
-    g: &mut Regs,
-    t: u32,
-    xs: [u32; 8],
-    y: u32,
-    draw: Draw,
-) -> Result<(), Refused> {
-    unsafe { time_digits(g, t, panels::CLOCK_BASE) };
+pub unsafe fn clock_panel(t: u32, xs: [u32; 8], y: u32, draw: Draw) -> Result<(), Refused> {
+    unsafe { time_digits(t, panels::CLOCK_BASE) };
     sign(t, 0x22, 0x23);
     for (rect, x) in panels::clock_rects(t).into_iter().zip(xs) {
-        draw(g, rect, x, y)?;
+        draw(rect, x, y)?;
     }
     Ok(())
 }
 
 /// A split-time panel: the time `t` (digits from 0xC, sign 0 / 1), then its rectangles
 /// (`panels::lap_rects`) at `xs`, row `y`.
-pub unsafe fn lap_panel(
-    g: &mut Regs,
-    t: u32,
-    xs: [u32; 8],
-    y: u32,
-    draw: Draw,
-) -> Result<(), Refused> {
-    unsafe { time_digits(g, t, panels::LAP_BASE) };
+pub unsafe fn lap_panel(t: u32, xs: [u32; 8], y: u32, draw: Draw) -> Result<(), Refused> {
+    unsafe { time_digits(t, panels::LAP_BASE) };
     sign(t, 0, 1);
     for (rect, x) in panels::lap_rects(t).into_iter().zip(xs) {
-        draw(g, rect, x, y)?;
+        draw(rect, x, y)?;
     }
     Ok(())
 }
@@ -112,22 +93,15 @@ pub unsafe fn lap_panel(
 /// The time `v` (digits from 0xC, sign 0 / 1) as its last three digits at `xs`, row `y`,
 /// the leading ones left out while they are 0 (`dword_75C03C`;
 /// `panels::leading_digits`).
-pub unsafe fn leading_time(
-    g: &mut Regs,
-    v: u32,
-    xs: [u32; 3],
-    y: u32,
-    draw: Draw,
-) -> Result<(), Refused> {
-    unsafe { time_digits(g, v, panels::LAP_BASE) };
+pub unsafe fn leading_time(v: u32, xs: [u32; 3], y: u32, draw: Draw) -> Result<(), Refused> {
+    unsafe { time_digits(v, panels::LAP_BASE) };
     sign(v, 0, 1);
     set(LEADING_RVA, 1);
     for (digit, slot, drawn) in panels::leading_digits(v) {
-        g.eax = digit;
         if !drawn {
             continue;
         }
-        draw(g, digit, xs[slot], y)?;
+        draw(digit, xs[slot], y)?;
         if slot < 2 {
             set(LEADING_RVA, 0);
         }
@@ -149,55 +123,51 @@ pub fn needle_sign(field: u32) -> u32 {
     pick
 }
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version (see the header): the HUD of one player, `record` the HUD's record.
 // Converted: `rc2k_core::hud::panels` (the digits, signs, panels, leading digits, the
 // stage panel and the needle's sign)
-pub unsafe fn layout_0(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut part = part;
-    let mut g = *entry;
-    let get = |o: u32| unsafe { ((entry.ebp + o) as *const u32).read_unaligned() };
+pub unsafe fn layout_0(record: u32) -> Result<(), Refused> {
+    use crate::hud::*;
+    let get = |o: u32| unsafe { ((record + o) as *const u32).read_unaligned() };
     let flags = get(0xF8);
     set(QUAD_RVA, 0xE0);
     set(TEXTURE_RVA, 0xC6);
     if flags & 0x10 != 0 {
-        part(2, &mut g)?;
+        unsafe { dials::disc(record, &disc_0::SETUP) }?;
     }
     set(TEXTURE_RVA, 0xC0);
     if flags & 0x40 != 0 {
-        part(3, &mut g)?;
+        unsafe { draw_stage_bar::draw_stage_bar(record) }?;
     }
     set(QUAD_RVA + 0x14, 0xFFFF_FFFF);
     set(QUAD_RVA, 0xFF);
-    if flags & 8 != 0 {
-        g.ecx = 0;
-    }
     set(TEXTURE_RVA, 0xDC);
-    part(4, &mut g)?;
+    unsafe { icons_0::icons_0(record) }?;
     set(QUAD_RVA + 0x14, 0xFFFF_FFFF);
     set(QUAD_RVA, 0xFF);
     set(TEXTURE_RVA, 0xC1);
     if flags & 0x20 != 0 {
-        sprite(&mut g, 0x49, 9, 0x215, &mut part)?;
-        sprite(&mut g, get(0x18).wrapping_add(0x41), 0x11, 0x21D, &mut part)?;
+        sprite(0x49, 9, 0x215)?;
+        sprite(get(0x18).wrapping_add(0x41), 0x11, 0x21D)?;
     }
     let pick = needle_sign(get(0xCC));
     if flags & 1 != 0 {
-        sprite(&mut g, pick, 0x21, 0x1B8, &mut part)?;
+        sprite(pick, 0x21, 0x1B8)?;
     }
     set(TEXTURE_RVA, 0xC0);
     if flags & 0x10 != 0 {
-        sprite(&mut g, 0x5F, 0x282, 0x1B8, &mut part)?;
+        sprite(0x5F, 0x282, 0x1B8)?;
     }
     if flags & 0x40 != 0 {
-        part(5, &mut g)?;
+        unsafe { draw_marker::draw_marker(record) }?;
     }
     set(QUAD_RVA + 0x14, 0xFFFF_FFFF);
     if flags & 0x80 != 0 {
-        part(6, &mut g)?;
+        unsafe { draw_signs::draw_signs(record) }?;
     }
     set(TEXTURE_RVA, 0xC1);
     if flags & 1 != 0 {
-        part(7, &mut g)?;
+        unsafe { dials::needle(record, &needle_0::SETUP) }?;
     }
     if flags & 0x40 != 0 {
         let panels = [
@@ -218,64 +188,28 @@ pub unsafe fn layout_0(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             let Some(rect) = panels::stage_rect(get(field)) else {
                 continue;
             };
-            sprite(&mut g, rect, x, 1, &mut part)?;
+            sprite(rect, x, 1)?;
             let t: u32 = unsafe { game_read(time) };
-            unsafe {
-                clock_panel(&mut g, t, xs, 0x13, &mut |g, r, x, y| {
-                    sprite(g, r, x, y, &mut part)
-                })
-            }?;
+            unsafe { clock_panel(t, xs, 0x13, &mut sprite) }?;
         }
     }
     if flags & 2 != 0 {
         let v = get(0x1C);
         if v != 0xFFFF_FFFF {
-            let d = unsafe { time_digits(&mut g, v, 2) };
+            let d = unsafe { time_digits(v, 2) };
             sign(v, 0, 1);
-            sprite(&mut g, d[4], 0x60, row(0x36), &mut part)?;
-            sprite(&mut g, d[5], 0x8C, row(0x36), &mut part)?;
+            sprite(d[4], 0x60, row(0x36))?;
+            sprite(d[5], 0x8C, row(0x36))?;
         }
-        sprite(&mut g, 0, 0xE, row(0x33), &mut part)?;
-        sprite(&mut g, 0x4A, 0xF, row(0x58), &mut part)?;
+        sprite(0, 0xE, row(0x33))?;
+        sprite(0x4A, 0xF, row(0x58))?;
         let t: u32 = unsafe { game_read(TIMES_RVA[2]) };
         let xs = [0x2E, 0x42, 0x56, 0x5E, 0x72, 0x86, 0x8E, 0xA2];
-        unsafe {
-            lap_panel(&mut g, t, xs, row(0x63), &mut |g, r, x, y| {
-                sprite(g, r, x, y, &mut part)
-            })
-        }?;
+        unsafe { lap_panel(t, xs, row(0x63), &mut sprite) }?;
     }
     if flags & 0x20 != 0 {
         let v = get(0x14);
-        unsafe {
-            leading_time(&mut g, v, [0x43, 0x57, 0x6B], 0x23F, &mut |g, r, x, y| {
-                sprite(g, r, x, y, &mut part)
-            })
-        }?;
+        unsafe { leading_time(v, [0x43, 0x57, 0x6B], 0x23F, &mut sprite) }?;
     }
-    Ok(g)
-}
-
-/// In the game: the draws' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::hud::*;
-    unsafe {
-        *r = match place {
-            1 => return draw_marker::game_part(place, r),
-            2 => dials::set_up(r, &disc_0::SETUP, &mut add_triangle::game_part_disc)?,
-            3 => draw_stage_bar::draw_stage_bar(r, &mut draw_stage_bar::game_part)?,
-            4 => icons_0::icons_0(r, &mut icons_0::game_part)?,
-            5 => draw_marker::draw_marker(r, &mut draw_marker::game_part)?,
-            6 => draw_signs::draw_signs(r)?,
-            _ => dials::set_up(r, &needle_0::SETUP, &mut draw_needle::game_part_needle)?,
-        };
-    }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { layout_0(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

@@ -32,7 +32,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBP, EBX, ECX, EDI, EDX, ESI, Regs};
+use crate::framework::{EAX, EBP, EBX, ECX, EDI, EDX, ESI};
 use crate::math::x87;
 use crate::math::x87_run::{ext_to_int, int_80, int_over_int_plus};
 use crate::physics::mirror::Mirror;
@@ -40,7 +40,6 @@ use crate::race::mud::car_file_number;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::drive::listener;
 
 const TURNED: u32 = 0x5EA10C; // g_turnedMatrix
@@ -162,14 +161,4 @@ pub unsafe fn set_listener_at(m: &Mirror) -> Result<Left, Refused> {
 /// The Rust version.
 pub unsafe fn set_listener() -> Result<Left, Refused> {
     unsafe { set_listener_at(&Mirror::game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { set_listener() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -16,14 +16,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::rounded;
-use crate::scene::vector3::read_floats;
-use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
-use rc2k_core::physics::motion::motion_length;
 
 const MOTION_RVA: usize = rva(0x71A170); // dword_71A170: three floats
 const LENGTH_RVA: usize = rva(0x71A19C); // dword_71A19C
@@ -33,26 +28,8 @@ pub unsafe fn store_length(v: u32, out: u32) {
     unsafe { (out as *mut u32).write_unaligned(rounded(vector_length(v))) }
 }
 
-/// The converted version (`rc2k_core::physics::motion`, plain floats) on the vector at
-/// `v` and the length at `out`.
-// Converted: `rc2k_core::physics::motion::motion_length`.
-pub unsafe fn store_length_plain(v: u32, out: u32) {
-    unsafe { (out as *mut u32).write_unaligned(motion_length(read_floats(v)).to_bits()) }
-}
-
 /// The Rust version (the exact one, for `physics::car_physics_step` and
 /// `physics::keep_motion_vectors`).
 pub unsafe fn store_motion_length() {
     unsafe { store_length(game_addr(MOTION_RVA) as u32, game_addr(LENGTH_RVA) as u32) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { store_length_plain(game_addr(MOTION_RVA) as u32, game_addr(LENGTH_RVA) as u32) };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

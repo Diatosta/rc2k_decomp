@@ -10,8 +10,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::{Regs, rva};
-use crate::hud::dials::{From, Setup, set_up};
+use crate::framework::rva;
+use crate::hud::dials::{From, Setup};
 
 pub static SETUP: Setup = Setup {
     copies: &[
@@ -24,10 +24,3 @@ pub static SETUP: Setup = Setup {
         (From::Var(rva(0x75C154)), rva(0x75C048), false),
     ],
 };
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { set_up(r, &SETUP, &mut crate::hud::add_triangle::game_part_disc) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
-}

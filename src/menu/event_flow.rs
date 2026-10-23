@@ -370,9 +370,7 @@ pub fn game_call(callee: usize, r: &mut Regs) -> Result<(), Refused> {
             }
             NEXT_RECORD_KIND => *r = keep_esp(r, m::next_record_kind::next_record_kind(r)?),
             KEEP_RECORD_BEST => *r = keep_esp(r, m::keep_record_best::keep_record_best(r)?),
-            RECORD_ENTRIES_PASS => {
-                *r = keep_esp(r, m::record_entries_pass::record_entries_pass(r)?)
-            }
+            RECORD_ENTRIES_PASS => m::record_entries_pass::record_entries_pass()?,
             INSPECTION_PASS => {
                 use m::inspection_pass as f;
                 *r = keep_esp(r, f::inspection_pass(r, &mut f::game_part)?)
@@ -412,9 +410,11 @@ pub fn game_call(callee: usize, r: &mut Regs) -> Result<(), Refused> {
             KEEP_STAGE_BEST => m::keep_stage_best::keep_stage_best()?,
             TIME_TRIAL_QUALIFIES => m::time_trial_qualifies::time_trial_qualifies()?,
             CLEAR_TIME_TRIAL_MARKS => m::clear_time_trial_marks::clear_time_trial_marks()?,
-            ENTER_TIME_TRIAL_BEST => m::enter_time_trial_best::enter_time_trial_best(r)?,
+            ENTER_TIME_TRIAL_BEST => m::enter_time_trial_best::enter_time_trial_best()?,
             RANK_TIME_TRIAL_BEST => m::rank_time_trial_best::rank_time_trial_best()?,
-            SEALED_PLAYER_TIME => *r = keep_esp(r, m::sealed_player_time::sealed_player_time(r)?),
+            SEALED_PLAYER_TIME => {
+                [r.eax, r.ebx] = m::sealed_player_time::sealed_player_time(r.eax)?
+            }
             INSPECTION_SCREEN => m::inspection_pass::game_part(5, r)?,
             FADE_IN => m::inspection_pass::game_part(3, r)?,
             SLEEP => crate::system::sleep::sleep(r.eax),

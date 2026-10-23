@@ -22,7 +22,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use rc2k_core::hud::strips;
 
 const TOPS_RVA: usize = rva(0x6D1880); // dword_6D1880: 12
@@ -36,35 +36,26 @@ const ALPHA_RVA: usize = rva(0x6240D0); // g_polygonAlpha
 pub const TEXTURE_RVA: usize = rva(0x6240BC); // dword_6240BC
 const SIDES_RVA: [usize; 2] = [rva(0x6240E0), rva(0x6240E4)];
 const SHOWN_RVA: usize = rva(0x6D14F6); // dword_6D14F6
-const PLAYERS_RVA: usize = rva(0x6238A4); // dword_6238A4
-
-/// A call by place: 1 `draw_flat_quad`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 fn set(r: usize, v: u32) {
     unsafe { game_write(r, v) };
 }
 
-/// The strip's sizes into `dword_6D1870` .. (`strips::sizes`); eax, edx, ebx as the last
-/// division leaves them.
-fn sizes(g: &mut Regs, v: [u32; 4]) {
-    let (sizes, [eax, edx, ebx]) =
-        unsafe { strips::sizes(v, game_read(WIDTH_RVA), game_read(HEIGHT_RVA)) };
-    [g.eax, g.edx, g.ebx] = [eax, edx, ebx];
+/// The strip's sizes into `dword_6D1870` .. (`strips::sizes`).
+fn sizes(v: [u32; 4]) {
+    let (sizes, _) = unsafe { strips::sizes(v, game_read(WIDTH_RVA), game_read(HEIGHT_RVA)) };
     for (n, x) in sizes.into_iter().enumerate() {
         set(SIZES_RVA + 4 * n, x);
     }
 }
 
-/// One flat quad: its inputs from ebx (left), ebp (width), ecx (texture rows) and the
+/// One flat quad: its inputs from `left`, `width`, `rows` (the texture's rows) and the
 /// sizes (`strips::quad_inputs`), the texture when given, then the device's settings.
-fn quad(g: &Regs, texture: Option<u32>, part: &mut Part) -> Result<(), Refused> {
-    let mut r = *g;
+fn quad(left: u32, width: u32, rows: u32, texture: Option<u32>) -> Result<(), Refused> {
     let sizes: [u32; 4] = unsafe { game_read(SIZES_RVA) };
-    for (o, v) in strips::quad_inputs(r.ebx, r.ebp, &sizes, r.ecx) {
+    for (o, v) in strips::quad_inputs(left, width, &sizes, rows) {
         set(QUAD_IN_RVA + o, v);
     }
-    r.eax = r.ecx.wrapping_add(strips::ROWS_STEP);
     if let Some(t) = texture {
         set(TEXTURE_RVA, t);
     }
@@ -72,60 +63,47 @@ fn quad(g: &Regs, texture: Option<u32>, part: &mut Part) -> Result<(), Refused> 
     set(QUAD_IN_RVA, 0xFFFF_FFFF);
     set(SIDES_RVA[0], 1);
     set(SIDES_RVA[1], 0);
-    part(1, &mut r)
+    unsafe { crate::scene::draw_flat_quad::draw_flat_quad() }
 }
 
 /// The shared tail (0x45B9AA, see the header).
 // Converted: `rc2k_core::hud::strips::{tail_shown, TAIL}`
-pub unsafe fn overlay_tail(g: &mut Regs, part: &mut Part) -> Result<(), Refused> {
-    let (shown, players) = unsafe { (game_read(SHOWN_RVA), game_read(PLAYERS_RVA)) };
+pub unsafe fn overlay_tail() -> Result<(), Refused> {
+    let (shown, players) = unsafe {
+        (
+            game_read(SHOWN_RVA),
+            crate::hud::overlay_pass::shown_layout(),
+        )
+    };
     if !strips::tail_shown(shown, players) {
         return Ok(());
     }
     for (v, rows) in strips::TAIL {
-        sizes(g, v);
+        sizes(v);
         let get = |n: usize| unsafe { game_read::<u32>(SIZES_RVA + 4 * n) };
-        [g.ebx, g.ebp, g.edx, g.ecx] = [get(2), get(3), 0, rows];
-        quad(g, Some(strips::TAIL_TEXTURE), part)?;
+        quad(get(2), get(3), rows, Some(strips::TAIL_TEXTURE))?;
     }
     Ok(())
 }
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version (see the header): view `view`'s strip, then the shared tail.
 // Converted: `rc2k_core::hud::strips::{VIEWS, top_entry, sizes, quad_inputs}`
-pub unsafe fn draw_view_strip(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut part = part;
-    let mut g = *entry;
-    if g.ebp >= strips::VIEWS {
+pub unsafe fn draw_view_strip(view: u32) -> Result<(), Refused> {
+    if view >= strips::VIEWS {
         return Err(BadInput("a view past the overlay's tables").into());
     }
     unsafe {
-        let top = strips::top_entry(g.ebp, game_read(FLAT_RVA));
+        let top = strips::top_entry(view, game_read(FLAT_RVA));
         let top: u32 = game_read(TOPS_RVA + 4 * top);
-        let left: u32 = game_read(LEFTS_RVA + 4 * g.ebp as usize);
-        sizes(&mut g, [top, strips::HEIGHT, left, strips::WIDTH]);
+        let left: u32 = game_read(LEFTS_RVA + 4 * view as usize);
+        sizes([top, strips::HEIGHT, left, strips::WIDTH]);
         let get = |n: usize| game_read::<u32>(SIZES_RVA + 4 * n);
-        [g.ebx, g.ebp, g.ecx, g.edx] = [get(2), get(3), 0, 0];
+        let (mut left, width, mut rows) = (get(2), get(3), 0);
         for _ in 0..3 {
-            quad(&g, None, &mut part)?;
-            g.ebx = g.ebx.wrapping_add(get(3));
-            g.ecx = g.ecx.wrapping_add(strips::ROWS_STEP);
-            g.edx += 1;
+            quad(left, width, rows, None)?;
+            left = left.wrapping_add(width);
+            rows = rows.wrapping_add(strips::ROWS_STEP);
         }
-        overlay_tail(&mut g, &mut part)?;
+        overlay_tail()
     }
-    Ok(g)
-}
-
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::scene::draw_flat_quad as fq;
-    *r = unsafe { fq::draw_flat_quad(r) }?;
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_view_strip(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
 }

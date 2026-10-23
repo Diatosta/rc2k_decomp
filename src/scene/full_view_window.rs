@@ -11,11 +11,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_write};
+use crate::framework::game_write;
 use crate::scene::choose_view_window::{MODE_RVA, choose_view_window};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// The Rust version (see the header): what it leaves in the registers.
 pub unsafe fn full_view_window() -> Left {
@@ -25,14 +23,4 @@ pub unsafe fn full_view_window() -> Left {
         game_write(MODE_RVA, 0u16);
         left
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { full_view_window() })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

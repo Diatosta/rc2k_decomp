@@ -16,13 +16,10 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
 use crate::framework::{EAX, ESI, Regs};
-use crate::physics::camera_view::{rd, record, record_plain, share_done, share_done_plain};
-use crate::physics::flow::{base, g, p, x87_run};
+use crate::physics::camera_view::{rd, record, share_done};
+use crate::physics::flow::{base, x87_run};
 use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
-use rc2k_core::physics::camera_view::ease_blend;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
 pub unsafe fn ease_view_blend(_: &Regs) -> Left {
@@ -56,36 +53,4 @@ pub unsafe fn ease_view_blend(_: &Regs) -> Left {
         b = base()
     );
     left.with(EAX, eax)
-}
-
-/// The converted version (`rc2k_core::physics::camera_view`, plain floats): the hook's.
-// Converted: `rc2k_core::physics::camera_view::{share_done, ease_blend}`.
-pub unsafe fn ease_view_blend_plain(_: &Regs) -> Left {
-    let esi = record_plain();
-    let left = Left::nothing().with(ESI, esi);
-    if rd(esi + 0x58) == 0 || rd(esi + 0x3C) == 0 {
-        return left;
-    }
-    let eax = share_done_plain(esi);
-    let f = |x: usize| f32::from_bits(g(x));
-    let b = ease_blend(
-        f(0x605260),
-        (rd(esi + 0x58) as i32) < 0,
-        [f(0x608B20), f(0x608B24), f(0x608B28), f(0x608B2C)],
-        f(0x5C5D98),
-    );
-    p(0x605260, b.share.to_bits());
-    p(0x71A6A0, b.between.to_bits());
-    p(0x608B38, b.tilt as u32);
-    left.with(EAX, eax)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { ease_view_blend_plain(r) })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

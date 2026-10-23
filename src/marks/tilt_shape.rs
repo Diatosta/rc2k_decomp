@@ -18,12 +18,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::floats::*;
 use crate::service::harness::{Region, at};
 
 const TILT_RVA: usize = rva(0x811BC3); // g_marksShapeTilt
@@ -53,29 +49,6 @@ pub unsafe fn tilt_shape(entry: &Regs) -> Regs {
     }
 }
 
-/// The converted version (plain floats): the hook's.
-// Converted: `rc2k_core::marks::view::tilt`
-pub unsafe fn tilt_shape_plain(entry: &Regs) -> Regs {
-    unsafe {
-        let point: [u32; 3] = game_read(POINT_RVA);
-        let t = rc2k_core::marks::view::tilt(
-            f32::from_bits(game_read(TILT_RVA)),
-            point.map(f32::from_bits),
-        );
-        game_write(COSINE_RVA, t.turn.cosine.to_bits());
-        game_write(SINE_RVA, t.turn.sine.to_bits());
-        game_write(POINT_RVA + 4, t.y.to_bits());
-        game_write(POINT_RVA + 8, t.z.to_bits());
-        game_write(LENGTH_RVA, t.unit.length.to_bits());
-        game_write(UNIT_RVA, t.unit.unit.map(f32::to_bits));
-        Regs {
-            esi: game_addr(POINT_RVA) as u32,
-            edi: game_addr(UNIT_RVA) as u32,
-            ..*entry
-        }
-    }
-}
-
 fn written() -> Vec<usize> {
     let mut w = vec![
         SINE_RVA,
@@ -91,14 +64,4 @@ fn written() -> Vec<usize> {
 /// What it writes.
 pub fn regions() -> Vec<Region> {
     written().into_iter().map(at).collect()
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { tilt_shape_plain(r) }))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

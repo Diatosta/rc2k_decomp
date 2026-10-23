@@ -11,7 +11,6 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::Regs;
 use crate::gfx::picture::{PICTURE_DWORDS, picture};
 
 // ---- Rust version ----
@@ -28,10 +27,3 @@ pub unsafe fn clear_picture() -> Result<(), BadInput> {
 // Written out: the buffer is nearly two megabytes, and what the function leaves is known
 // without running the Rust version beside it. In shadow mode the original runs and the
 // buffer is checked for what the Rust version writes, zeros.
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    if let Err(e) = unsafe { clear_picture() } {
-        return Err(e.into());
-    }
-    Ok(())
-}

@@ -22,16 +22,13 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{ECX, ESI, Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{ECX, ESI, game_addr, game_read, game_write, rva};
 use crate::logfile::log_float::log_float;
 use crate::logfile::log_write::log_write;
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::rounded;
 use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
-use rc2k_core::physics::limits::Moving;
 use std::cmp::Ordering;
 
 fn g(x: usize) -> u32 {
@@ -79,50 +76,6 @@ unsafe fn hold(v: u32, l: u32) {
             options(nostack),
         );
     }
-}
-
-fn floats3(x: usize) -> [f32; 3] {
-    [0, 1, 2].map(|k| f32::from_bits(g(x + 4 * k)))
-}
-
-fn put3(x: usize, v: [f32; 3]) {
-    for (k, f) in v.iter().enumerate() {
-        p(x + 4 * k, f.to_bits());
-    }
-}
-
-/// The converted version (`rc2k_core::physics::limits`, plain floats): the hook's.
-// Converted: `rc2k_core::physics::limits::limit_motion`.
-pub fn limit_motion_plain() -> Left {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let f = |x: usize| f32::from_bits(g(x));
-    let mut m = Moving {
-        spin: floats3(0x71A15C),
-        motion: floats3(0x71A170),
-        local: floats3(0x71A17C),
-        spin_limit: f(0x613E70),
-        motion_limit: f(0x613E74),
-    };
-    let log = |motion: [f32; 3]| unsafe {
-        log_write(game_addr(rva(0x4DBB2C)) as *const u8, false, 1);
-        log_write(game_addr(rva(0x4DBB39)) as *const u8, false, 1);
-        for (k, v) in motion.iter().enumerate() {
-            log_float(*v, 5, k == 2, 1);
-        }
-    };
-    let out = rc2k_core::physics::limits::limit_motion(&mut m, f(0x614100), log);
-    put3(0x71A15C, m.spin);
-    put3(0x71A170, m.motion);
-    put3(0x71A17C, m.local);
-    p(0x613E70, m.spin_limit.to_bits());
-    p(0x613E74, m.motion_limit.to_bits());
-    p(0x623FBC, out.length.to_bits());
-    let mut esi = a(0x71A170);
-    if let Some(factor) = out.factor {
-        p(0x62400C, factor.to_bits());
-        esi = a(0x71A17C);
-    }
-    Left::nothing().with(ECX, out.exponent).with(ESI, esi)
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step` and
@@ -177,14 +130,4 @@ pub unsafe fn limit_motion() -> Left {
         }
         Left::nothing().with(ECX, ecx).with(ESI, esi)
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(limit_motion_plain())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

@@ -22,11 +22,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, ECX, Regs, game_addr, rva};
+use crate::framework::{EAX, EBX, ECX, game_addr, rva};
 use crate::physics::gear_bit::gear_bit_at;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at, wheels_from_revs_at};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::gear_shifts::Change;
 
 /// The other places: the asked gear, the gear bits, the two words set.
@@ -112,14 +111,4 @@ pub unsafe fn change_gear_at(gp: &GearPlaces, c: &ChangePlaces) -> Result<Left, 
 /// The Rust version.
 pub unsafe fn change_gear() -> Result<Left, Refused> {
     unsafe { change_gear_at(&GearPlaces::game(), &ChangePlaces::game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { change_gear() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

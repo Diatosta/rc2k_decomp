@@ -14,11 +14,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
 use crate::framework::{Regs, game_read, game_write, rva};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const SETS_RVA: usize = rva(0x920738); // dword_920738: sets of four texture places
 const SET: u32 = 0xC60;
@@ -29,7 +25,7 @@ const VERTEX: usize = 0x20;
 pub unsafe fn set_quad_uvs(entry: &Regs) -> Regs {
     let mut g = *entry;
     unsafe {
-        crate::scene::depth_test_off::depth_test_off(&mut g);
+        crate::scene::depth_test_off::depth_test_off();
         g.eax = SET;
         for n in 0..4 {
             let from = SETS_RVA + SET as usize + 8 * n;
@@ -39,14 +35,4 @@ pub unsafe fn set_quad_uvs(entry: &Regs) -> Regs {
         }
     }
     g
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { set_quad_uvs(r) }))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

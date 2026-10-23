@@ -181,21 +181,8 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         match place {
             1 => crate::marks::add_mark_slot::add_mark_slot(r.eax, r.esi),
-            2 => crate::scene::set_texture::set_texture_in_game(r),
+            2 => crate::scene::set_texture::set_texture(r.eax),
             _ => crate::scene::draw_fan::draw_fan(r, &mut crate::scene::draw_fan::game_part),
-        }
-    }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    {
-        let left = unsafe { draw_mark_slots(r) }?;
-        *r = Regs {
-            esp: r.esp,
-            eflags: r.eflags,
-            ..left
         }
     }
     Ok(())

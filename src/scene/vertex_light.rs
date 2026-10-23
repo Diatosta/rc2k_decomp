@@ -39,7 +39,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::light_dot::{INPUTS_RVA, light_dot};
 use crate::scene::project_point::RECORDS_RVA;
@@ -195,14 +195,4 @@ pub unsafe fn vertex_light(number: u32) -> Result<u32, BadInput> {
             _ => Ok(number),
         }
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let number = r.eax;
-    {
-        let colour = unsafe { vertex_light(number) }?;
-        (r.eax, r.ebp) = (colour, number)
-    }
-    Ok(())
 }

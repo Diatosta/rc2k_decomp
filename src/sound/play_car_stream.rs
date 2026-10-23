@@ -23,12 +23,11 @@ const ON_RVA: usize = rva(0xA8C188); // dword_A8C188
 const STREAM_RVA: usize = rva(0xA8C184); // dword_A8C184
 const PLACE_RVA: usize = rva(0xA8C180); // dword_A8C180
 const VOLUME_RVA: usize = rva(0x755698); // dword_755698
-const START_RVA: usize = rva(0x40F743); // sound::start_stream
 
 // ---- Rust version ----
 
-/// `start` gets the registers `sound::start_stream` is called with.
-pub unsafe fn play_car_stream(r: &Regs, start: &mut dyn FnMut(&mut Regs)) -> Result<(), Refused> {
+/// `start` is `sound::start_stream` (the file, the volume).
+pub unsafe fn play_car_stream(start: &mut dyn FnMut(u32, u32)) -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::set_up::car_stream`.
     unsafe {
         let car = shown_car()?;
@@ -40,19 +39,12 @@ pub unsafe fn play_car_stream(r: &Regs, start: &mut dyn FnMut(&mut Regs)) -> Res
         game_write(ON_RVA, s.on);
         game_write(STREAM_RVA, s.list);
         game_write(PLACE_RVA, s.place);
-        let mut inner = Regs {
-            eax: s.first,
-            ecx: s.volume,
-            ..*r
-        };
-        start(&mut inner);
+        start(s.first, s.volume);
         Ok(())
     }
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let done = unsafe { play_car_stream(r, &mut |r| crate::calls::call(START_RVA, r)) };
-    done?;
-    Ok(())
+pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { play_car_stream(&mut crate::sound::start_stream::start_stream) }
 }

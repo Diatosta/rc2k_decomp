@@ -13,8 +13,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::FatalError;
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::gfx::blit_glyph::{BlitCall, blit_glyph_on_surface};
+use crate::framework::{game_read, game_write, rva};
+use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::blit_marker_pair::sprite_table;
 use crate::gfx::surface::{CLIP_RIGHT_RVA, clip};
 
@@ -82,20 +82,6 @@ pub fn set_bar_x(x: i32) {
 /// Where a blitter call goes: the game's surface, or a list.
 pub type Blit<'a> = &'a mut dyn FnMut(BlitCall) -> Result<(), FatalError>;
 
-/// Draws on the game's surface.
-pub fn on_surface(call: BlitCall) -> Result<(), FatalError> {
-    unsafe {
-        blit_glyph_on_surface(
-            call.glyph,
-            call.table as *const u8,
-            call.x,
-            call.y,
-            call.palette as *const u32,
-        )
-    }
-    .map(|_| ())
-}
-
 /// The game's side of a bar: the blits through `blit`, the clip and the bar's globals.
 pub struct GameBar<'a>(pub Blit<'a>);
 
@@ -138,13 +124,4 @@ impl Bar {
 /// The bar described by the bar globals. Converted: `rc2k_core::gfx::bars::bar`.
 pub unsafe fn blit_bar(blit: Blit) -> Result<(), FatalError> {
     rc2k_core::gfx::bars::bar(&mut GameBar(blit), &Bar::read().core())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    // A fatal error: the original, run from the start, meets the same one.
-    if let Err(e) = unsafe { blit_bar(&mut on_surface) } {
-        return Err(e.into());
-    }
-    Ok(())
 }

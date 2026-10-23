@@ -17,69 +17,36 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::{Regs, game_addr};
 use crate::input::clear_device_readings::clear_device_readings;
-use crate::input::device_effects::{CONTROLLERS_RVA, controller};
+use crate::input::device_effects::controller;
 use crate::input::devices::{at, com_call, put};
 use crate::input::types::InputDevice;
 
-/// The Rust version (see the header): the registers it leaves (`popa`'s: the entry's).
-pub unsafe fn release_device(entry: &Regs) -> Result<Regs, Refused> {
-    let record = entry.esi;
+/// The device `record` given back.
+pub unsafe fn release_device(record: u32) -> Result<(), Refused> {
     let device = at(record, field!(InputDevice, device));
     if device != 0 {
         let effects = controller(record, 0x1C)? == 1;
-        let mut r = Regs {
-            eax: device,
-            ..*entry
-        };
-        crate::input::release_device::game_part(0, &mut r)?;
+        unsafe { com_call(device, 0x20, &[]) };
         if effects {
-            let mut e = Regs {
-                edi: game_addr(CONTROLLERS_RVA) as u32
-                    + crate::input::di_harness::CONTROLLER_LEN
-                        * at(record, field!(InputDevice, controller)),
-                ..r
-            };
-            crate::input::release_device::game_part(1, &mut e)?;
+            crate::input::end_force::end_force(record);
         }
-        r.eax = device;
-        crate::input::release_device::game_part(2, &mut r)?;
+        unsafe { com_call(device, 0x08, &[]) };
         put(record, field!(InputDevice, device), 0);
     }
     put(record, field!(InputDevice, acquired), 0);
     put(record, field!(InputDevice, effects_on), 0);
     clear_device_readings(record);
-    Ok(*entry)
-}
-
-/// In the game: the device's methods, `input::end_force`.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            0 => r.eax = com_call(r.eax, 0x20, &[]),
-            1 => crate::input::end_force::end_force(r.esi),
-            _ => r.eax = com_call(r.eax, 0x08, &[]),
-        }
-    }
     Ok(())
 }
 
-/// The Rust version with the game's calls: for Rust callers.
+/// The Rust version for Rust callers.
 pub unsafe fn release_device_in_game(record: u32) -> Result<(), Refused> {
-    let r = Regs {
-        esi: record,
-        ..Regs::default()
-    };
-    unsafe { release_device(&r) }.map(|_| ())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { release_device(r) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
+    unsafe { release_device(record) }
 }

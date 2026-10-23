@@ -82,22 +82,13 @@ pub unsafe fn setup_with(entry: &Regs, places: usize) -> Result<Regs, Refused> {
 
 /// In the game: the device calls' Rust versions.
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            1 => crate::scene::depth_buffer_on::depth_buffer(r, true),
-            2 => crate::scene::set_texture::set_texture_in_game(r),
-            _ => {
-                let (value, state) = (r.eax, r.ebx);
-                crate::scene::set_render_state::set_render_state(r, value, state);
-            }
+    match place {
+        1 => crate::scene::depth_buffer_on::depth_buffer(true),
+        2 => crate::scene::set_texture::set_texture(r.eax),
+        _ => {
+            let (value, state) = (r.eax, r.ebx);
+            crate::scene::set_render_state::set_render_state(value, state);
         }
     }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { squares_setup(r) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

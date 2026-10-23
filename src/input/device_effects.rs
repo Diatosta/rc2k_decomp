@@ -18,10 +18,13 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::field;
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::input::devices::{at, put};
 use crate::input::types::{ForceEffect, InputDevice};
 
@@ -39,16 +42,15 @@ pub fn controller(record: u32, offset: usize) -> Result<u32, Refused> {
     Ok(unsafe { game_read(CONTROLLERS_RVA + 0x50 * n as usize + offset) })
 }
 
-/// The Rust version (see the header): the registers it leaves (`popa`'s: the entry's).
-pub unsafe fn device_effects(entry: &Regs) -> Result<Regs, Refused> {
-    let record = entry.esi;
+/// The pending changes of the device `record`'s effects.
+pub unsafe fn device_effects(record: u32) -> Result<(), Refused> {
     if at(record, field!(InputDevice, effects_on)) != 1
         || at(record, field!(InputDevice, device)) == 0
     {
-        return Ok(*entry);
+        return Ok(());
     }
     if controller(record, 0x1C)? != 1 {
-        return Ok(*entry);
+        return Ok(());
     }
     for k in 0..6 {
         let effect = record + EFFECTS + EFFECT_LEN * k;
@@ -62,29 +64,10 @@ pub unsafe fn device_effects(entry: &Regs) -> Result<Regs, Refused> {
         }
         // Converted: `rc2k_core::input::effects::change`.
         let (what, a, b) = rc2k_core::input::effects::change(change);
-        let mut r = Regs {
-            eax: what,
-            ecx: a as u32,
-            edx: b as u32,
-            esi: record,
-            edi: effect,
-            ..*entry
-        };
-        crate::input::device_effects::game_part(0, &mut r)?;
+        let function = at(effect, field!(ForceEffect, change));
+        crate::input::effect_changes::effect_change_at(
+            function, record, effect, what, a as u32, b as u32,
+        )?;
     }
-    Ok(*entry)
-}
-
-/// In the game: the effect's function (`[edi]`) through the game.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    let function = at(r.edi, 0);
-    crate::menu::table_calls::call_any(function, r);
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { device_effects(r) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

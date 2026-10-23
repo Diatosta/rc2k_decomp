@@ -16,13 +16,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
 use crate::framework::{Regs, game_read, game_write};
 use crate::marks::setup::SEED_RVA;
-use crate::marks::spawn_hexagon::{self, spawn_hexagon};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::marks::spawn_hexagon::spawn_hexagon;
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn pick_hexagon(entry: &Regs) -> Regs {
@@ -38,30 +34,4 @@ pub unsafe fn pick_hexagon(entry: &Regs) -> Regs {
         spawn_hexagon(g.eax, g.ebx, g.ecx);
     }
     g
-}
-
-/// The converted version: the hook's.
-// Converted: `rc2k_core::marks::items::pick_hexagon`
-pub unsafe fn pick_hexagon_plain(entry: &Regs) -> Regs {
-    unsafe {
-        let p = rc2k_core::marks::items::pick_hexagon(game_read(SEED_RVA));
-        game_write(SEED_RVA, p.random);
-        spawn_hexagon::spawn_hexagon_plain(p.x, p.z, p.kind);
-        Regs {
-            eax: p.x,
-            ebx: p.z,
-            ecx: p.kind,
-            ..*entry
-        }
-    }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { pick_hexagon_plain(r) }))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

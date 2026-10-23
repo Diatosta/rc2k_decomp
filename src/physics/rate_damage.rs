@@ -33,14 +33,12 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, ECX, ESI, Regs};
+use crate::framework::{EAX, ECX, ESI};
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, ext_times, mul3, one_less_products, ramp, square};
 use crate::physics::mirror::Mirror;
 use crate::scene::matrix3::rounded;
 use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
 use rc2k_core::physics::handling::{At, Figures};
 
 const K: u32 = 0x75B388;
@@ -230,14 +228,4 @@ pub unsafe fn rate_damage_at(m: &Mirror) -> Left {
 /// The Rust version (the exact one, for `physics::rate_current_car`).
 pub unsafe fn rate_damage() -> Left {
     unsafe { rate_damage_at(&Mirror::game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(rate_damage_plain_at(&Mirror::game()))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

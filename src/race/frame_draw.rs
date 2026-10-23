@@ -2335,8 +2335,8 @@ pub unsafe fn draw_sky(entry: &crate::framework::Regs) -> Result<crate::framewor
 pub fn sky_part(place: u32, r: &mut crate::framework::Regs) -> Result<(), Refused> {
     unsafe {
         match place {
-            4 => crate::scene::depth_buffer_on::depth_buffer(r, true),
-            1 => crate::scene::glow_render_states::glow_render_states(r),
+            4 => crate::scene::depth_buffer_on::depth_buffer(true),
+            1 => crate::scene::glow_render_states::glow_render_states(),
             2 => return crate::scene::draw_scene_object::draw_scene_object_in_game(r),
             3 => return crate::race::flush_draw_batch::flush_draw_batch_in_game(r),
             _ => {
@@ -2581,9 +2581,9 @@ pub unsafe fn draw_screen_quad_regs(
 pub fn quad_part(place: u32, r: &mut crate::framework::Regs) -> Result<(), Refused> {
     unsafe {
         match place {
-            1 => crate::scene::depth_buffer_on::depth_buffer(r, false),
+            1 => crate::scene::depth_buffer_on::depth_buffer(false),
             2 => crate::scene::draw_polygon::draw_polygon_in_game(r)?,
-            _ => crate::scene::depth_buffer_on::depth_buffer(r, true),
+            _ => crate::scene::depth_buffer_on::depth_buffer(true),
         }
     }
     Ok(())

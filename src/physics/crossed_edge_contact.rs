@@ -34,9 +34,6 @@ use crate::physics::flow::{a, copy3, g, p};
 use crate::physics::scene_point_hits_car::SCENE_POINTS;
 use crate::physics::touch_face::FACES;
 use crate::physics::wall_edge_contact::edge_normal;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::walls;
 
 /// `dword_6D3B84`: the probe point that crossed an edge (-1 for none).
@@ -123,24 +120,4 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
 /// The probe checked: refused past 0x3F.
 pub fn check_probe() -> Result<(), Refused> {
     Ok(walls::check_probe(g(CROSSED))?)
-}
-
-/// The Rust version.
-pub unsafe fn crossed_edge_contact(entry: &Regs) -> Result<Left, Refused> {
-    check_probe()?;
-    {
-        let mut r = *entry;
-        steps(&mut r)?;
-        Ok(left_of(&r))
-    }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { crossed_edge_contact(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -22,11 +22,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read};
 use crate::hud::add_quad::QUAD_RVA;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::floats::*;
 
 pub use rc2k_core::hud::disc::ENTRIES;
 
@@ -66,65 +63,16 @@ unsafe fn place(b: u32, k: u32, e: u32) {
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn disc_vertex(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    if g.ecx >= ENTRIES {
+/// The Rust version (see the header): ring entry `entry` into the vertex at `vertex`.
+pub unsafe fn disc_vertex(entry: u32, vertex: u32) -> Result<(), Refused> {
+    if entry >= ENTRIES {
         return Err(BadInput("a disc entry past the ring").into());
     }
     unsafe {
-        place(game_addr(0) as u32, g.ecx * 4, g.edi);
-        g.eax = (game_read::<u32>(QUAD_RVA) << 24) | 0xFF_FFFF;
-        ((g.edi + 0x10) as *mut u32).write_unaligned(g.eax);
-        ((g.edi + 0x14) as *mut u32).write_unaligned(0);
+        place(game_addr(0) as u32, entry * 4, vertex);
+        let colour = (game_read::<u32>(QUAD_RVA) << 24) | 0xFF_FFFF;
+        ((vertex + 0x10) as *mut u32).write_unaligned(colour);
+        ((vertex + 0x14) as *mut u32).write_unaligned(0);
     }
-    Ok(g)
-}
-
-/// The converted version (plain floats): the hook's.
-// Converted: `rc2k_core::hud::disc::vertex`
-pub unsafe fn disc_vertex_plain(entry: &Regs) -> Result<Regs, Refused> {
-    use rc2k_core::hud::disc::{Disc, RingEntry, vertex, white_under};
-    let mut g = *entry;
-    if g.ecx >= ENTRIES {
-        return Err(BadInput("a disc entry past the ring").into());
-    }
-    unsafe {
-        let f = |a: usize| f32::from_bits(game_read(rva(a)));
-        let ring = |table: usize| f32::from_bits(game_read(rva(table) + 4 * g.ecx as usize));
-        let e = RingEntry {
-            x: ring(0x75C188),
-            y: ring(0x75C1CC),
-            u: ring(0x75C210),
-            v: ring(0x75C254),
-        };
-        let d = Disc {
-            radius: f(0x75C050),
-            texture_scale: f(0x75C04C),
-            texture_middle: f(0x75C01C),
-            texture_shift: [f(0x75C054), f(0x75C058)],
-            texture_size: f(0x75C020),
-            centre: [f(0x75C044), f(0x75C048)],
-        };
-        let v = vertex(e, &d);
-        let put = |o: u32, x: u32| ((g.edi + o) as *mut u32).write_unaligned(x);
-        put(0x18, v.texture[0].to_bits());
-        put(0x1C, v.texture[1].to_bits());
-        put(0, v.place[0].to_bits());
-        put(4, v.place[1].to_bits());
-        g.eax = white_under(game_read(QUAD_RVA));
-        put(0x10, g.eax);
-        put(0x14, 0);
-    }
-    Ok(g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { disc_vertex_plain(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
+    Ok(())
 }

@@ -28,8 +28,6 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
 
 use crate::menu::scale_stage_times::{TIMES_RVA, held_section, scaled};
 
@@ -145,13 +143,4 @@ pub unsafe fn calc_cpu_times(entry: &Regs) -> Result<Regs, Refused> {
         log_write(game_addr(TEXTS_RVA[1]) as *const u8, true, 1);
     }
     Ok(*entry)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { calc_cpu_times(r) }?))
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::service::harness::state_entry(r, &rust)
 }

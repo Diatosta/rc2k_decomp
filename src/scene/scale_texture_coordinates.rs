@@ -18,11 +18,10 @@
 
 use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::Refused;
-use crate::framework::{EAX, ECX, ESI, Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{EAX, ECX, ESI, game_addr, game_read, game_write, rva};
 use crate::scene::draw_polygon::{SWITCH_A_RVA, SWITCH_B_RVA};
 use crate::scene::polygon::{ENTRIES_RVA, dword, listed, put};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 // ---- game data ----
 
@@ -64,14 +63,4 @@ pub unsafe fn scale_texture_coordinates() -> Result<Left, Refused> {
                 *entries.last().expect("the polygon has a vertex") as u32,
             ))
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { scale_texture_coordinates() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

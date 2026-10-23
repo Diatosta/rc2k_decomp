@@ -16,11 +16,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr};
+use crate::framework::game_addr;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
-use crate::screens::harness::Left;
 
 pub use crate::race::stage_prefs::CRASH_MATRIX_RVA; // g_crashMatrix
 
@@ -54,20 +52,4 @@ pub unsafe fn turn_point_by_plain(m: u32, v: u32) {
 /// The Rust version.
 pub unsafe fn turn_by_car_matrix(v: u32) {
     unsafe { turn_point_by(game_addr(CRASH_MATRIX_RVA) as u32, v) }
-}
-
-/// The converted version.
-pub unsafe fn turn_by_car_matrix_plain(v: u32) {
-    unsafe { turn_point_by_plain(game_addr(CRASH_MATRIX_RVA) as u32, v) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { turn_by_car_matrix_plain(r.esi) };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::service::floats::floats_entry(r, &rust)
 }

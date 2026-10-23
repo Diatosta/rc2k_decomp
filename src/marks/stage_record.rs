@@ -15,9 +15,6 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_read, rva};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const NUMBER_RVA: usize = rva(0x64165C); // dword_64165C
 const RECORDS_RVA: usize = rva(0x606320); // off_606320: 0x34 pointers
@@ -32,14 +29,4 @@ pub unsafe fn stage_record(entry: &Regs) -> Result<Regs, Refused> {
         g.esi = game_read(RECORDS_RVA + 4 * n);
     }
     Ok(g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { stage_record(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

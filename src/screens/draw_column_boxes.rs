@@ -49,13 +49,3 @@ pub unsafe fn draw_column_boxes(entry: &Regs, part: Part) -> Result<Regs, Refuse
 pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     quad_part(r)
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    if crate::screens::blanked("screens::draw_column_boxes") {
-        return Ok(());
-    }
-    let left = unsafe { draw_column_boxes(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
-}

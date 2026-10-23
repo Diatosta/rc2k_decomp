@@ -20,7 +20,6 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::gfx::read_texture_picture::read_texture_picture;
 use crate::gfx::texture_upload::{Record, keep_second_picture};
 use crate::gfx::upload_texture_picture::{GameSurfaces, upload_texture_picture};
@@ -59,15 +58,6 @@ pub unsafe fn load_picture_to_texture_in_game(
             },
         )
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    match unsafe { load_picture_to_texture_in_game(r.eax, r.ecx, r.ebx) } {
-        Ok(()) => r.set_carry(false),
-        Err(e) => return Err(e),
-    }
-    Ok(())
 }
 
 // gfx::upload_texture_picture

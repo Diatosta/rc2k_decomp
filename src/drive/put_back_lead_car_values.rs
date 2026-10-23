@@ -13,10 +13,7 @@
 //! and the self-test was the hook's.
 
 use crate::drive::lead_car_values::{PAIRS, move_pairs};
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::{game_addr, rva};
 
 fn game() -> Vec<(u32, u32)> {
     let a = |x: usize| game_addr(rva(x)) as u32;
@@ -26,15 +23,4 @@ fn game() -> Vec<(u32, u32)> {
 /// The Rust version.
 pub unsafe fn put_back_lead_car_values() {
     unsafe { move_pairs(&game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { put_back_lead_car_values() };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

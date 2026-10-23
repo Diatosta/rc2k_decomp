@@ -19,7 +19,6 @@ use crate::errors::Refused;
 use crate::framework::{EDI, ESI, Regs};
 use crate::physics::flow::{a, p};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const B: usize = 0x70F3EC;
 
@@ -35,14 +34,4 @@ pub unsafe fn countdown_beeps(entry: &Regs) -> Result<Left, Refused> {
     Ok(crate::race::stage_prefs::left_of(&r)
         .with(ESI, r.esi)
         .with(EDI, r.edi))
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { countdown_beeps(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

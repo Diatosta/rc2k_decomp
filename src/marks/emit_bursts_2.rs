@@ -15,10 +15,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, rva};
+use crate::framework::rva;
 use crate::marks::emit_bursts::{BurstSet, FIRST, Half, emit_bursts_with};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// `emit_bursts_2`'s: `emit_bursts`' with its own factors and randoms.
 pub const SECOND: BurstSet = BurstSet {
@@ -43,15 +41,4 @@ pub const SECOND: BurstSet = BurstSet {
 /// The Rust version (see the header).
 pub unsafe fn emit_bursts_2(wheel: u32, object: u32) -> Result<(), Refused> {
     unsafe { emit_bursts_with(&SECOND, wheel, object) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { emit_bursts_2(r.edi, r.esi) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

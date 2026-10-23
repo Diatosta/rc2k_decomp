@@ -14,8 +14,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_ptr, game_read, game_write};
+use crate::framework::{game_addr, game_ptr, game_read, game_write};
 use crate::gfx::palette_to_dwords::palette_to_dwords;
 use crate::gfx::pcx::{
     DECODED_HEIGHT_RVA, DECODED_ROW_BYTES_RVA, DECODED_ROW_DWORDS_RVA, DECODED_WIDTH_RVA,
@@ -23,8 +22,6 @@ use crate::gfx::pcx::{
 };
 use crate::gfx::picture::{FLAGS_RVA, PICTURE_RVA};
 use crate::gfx::png::{INFO_RVA, PngInfo};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 // ---- Rust version ----
 
@@ -59,17 +56,6 @@ pub unsafe fn lay_out_png() {
             game_addr(PALETTE_RVA) as *mut u32,
         );
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { lay_out_png() };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }
 
 // ---- self-test: info blocks and settings of the test's own in the game's variables, which

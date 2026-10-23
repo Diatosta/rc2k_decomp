@@ -17,9 +17,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_read, game_write, rva};
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
 const FLAGS_RVA: usize = rva(0x759B6E); // dword_759B6E
@@ -44,14 +41,4 @@ pub unsafe fn inspection_verdict(entry: &Regs) -> Result<Regs, Refused> {
         put(p + 0xD0, v.kind);
     }
     Ok(*entry)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { inspection_verdict(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

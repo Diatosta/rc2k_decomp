@@ -63,13 +63,3 @@ pub unsafe fn draw_menu_object_in_game(r: &mut Regs) -> Result<(), Refused> {
         })
     }
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    if let Err(e) = unsafe { draw_menu_object_in_game(r) } {
-        *r = entry;
-        return Err(e);
-    }
-    Ok(())
-}

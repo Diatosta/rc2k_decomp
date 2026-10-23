@@ -13,9 +13,12 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::framework::{Regs, game_read, rva};
-use crate::sound::queue::{Queue, send_command, sent};
+use crate::framework::{game_read, rva};
+use crate::sound::queue::{Queue, send_command};
 
 // ---- game data ----
 
@@ -25,30 +28,15 @@ const PLAY_1: u32 = 1;
 
 // ---- Rust version ----
 
-/// The registers command 1 is sent with, or None if nothing is sent.
-pub fn play_sound(entry: &Regs, held_back: u32, mode: u32) -> Option<Regs> {
-    // Converted: `rc2k_core::sound::senders::sound_place`.
-    let [esi, ecx, edi, ebp] =
-        rc2k_core::sound::senders::sound_place(held_back, mode, [entry.ecx, entry.edi, entry.ebp])?;
-    Some(Regs {
-        esi,
-        ecx,
-        edi,
-        ebp,
-        ..*entry
-    })
-}
-
-/// With the game's variables and queue: what other Rust code calls.
-pub fn play_sound_in_game(entry: &Regs) {
+/// `sound` at `volume` and `rate`; `place` its ecx, edi and ebp (the pan, or in the 3D
+/// modes the place). The audio thread reads every register of command 1.
+pub fn play_sound(sound: u32, volume: u32, rate: u32, place: [u32; 3]) {
     let (held_back, mode) = unsafe { (game_read(HELD_BACK_RVA), game_read(MODE_RVA)) };
-    if let Some(with) = play_sound(entry, held_back, mode) {
-        unsafe { send_command(&Queue::game(), PLAY_1, sent(&with)) };
+    // Converted: `rc2k_core::sound::senders::sound_place`.
+    if let Some([esi, ecx, edi, ebp]) =
+        rc2k_core::sound::senders::sound_place(held_back, mode, place)
+    {
+        let registers = [sound, volume, ecx, rate, esi, edi, ebp];
+        unsafe { send_command(&Queue::game(), PLAY_1, registers) };
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    play_sound_in_game(r);
-    Ok(())
 }

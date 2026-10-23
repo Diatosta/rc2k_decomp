@@ -83,14 +83,3 @@ pub unsafe fn start_car_on_line(entry: &Regs) -> Result<Regs, Refused> {
         Ok(r)
     }
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let g = unsafe { start_car_on_line(r) }?;
-    *r = Regs {
-        esp: r.esp,
-        eflags: r.eflags,
-        ..g
-    };
-    Ok(())
-}

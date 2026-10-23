@@ -69,9 +69,9 @@ pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused
         match place {
             1 => {
                 let (value, state) = (r.eax, r.ebx);
-                crate::scene::set_render_state::set_render_state(r, value, state);
+                crate::scene::set_render_state::set_render_state(value, state);
             }
-            2 => crate::scene::set_texture::set_texture_in_game(r),
+            2 => crate::scene::set_texture::set_texture(r.eax),
             _ => {
                 use crate::marks::draw_turned_sprite as sprite;
                 let left = sprite::draw_turned_sprite(r, [v[0], v[1], v[2]])?;
@@ -79,12 +79,5 @@ pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused
             }
         }
     }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_glow(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

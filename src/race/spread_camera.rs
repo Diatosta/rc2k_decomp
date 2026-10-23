@@ -19,7 +19,7 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::race::viewer::{BLOCK, BLOCKS, get, regs_entry};
+use crate::race::viewer::{BLOCK, BLOCKS, get};
 
 /// The Rust version: the registers it leaves.
 pub unsafe fn spread_camera(entry: &Regs) -> Result<Regs, Refused> {
@@ -37,14 +37,4 @@ pub unsafe fn spread_camera(entry: &Regs) -> Result<Regs, Refused> {
     r.ecx = s.left;
     r.edx = r.edx & !0xFF | dl as u32;
     Ok(r)
-}
-
-fn rust(r: &Regs) -> Result<Regs, Refused> {
-    unsafe { spread_camera(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &rust)
 }

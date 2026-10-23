@@ -83,10 +83,3 @@ pub unsafe fn finish_run(entry: &Regs) -> Result<Left, Refused> {
     }
     Ok(left_of(&r))
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { finish_run(r) }?;
-    left.apply(r);
-    Ok(())
-}

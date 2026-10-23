@@ -28,7 +28,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::hud::batch::POLYGON_COUNT_RVA;
 use crate::math::x87;
 use crate::scene::matrix3::extended;
@@ -60,12 +60,12 @@ fn turn_of(v: u32, less: Option<u32>, over: u32, plus: u32, k: [u32; 2]) -> u32 
     out
 }
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version (see the header).
 // Converted: `rc2k_core::hud::disc::{needle_turn, needle_edx, needle_corners}`
-pub unsafe fn draw_needle(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+pub unsafe fn draw_needle() -> Result<(), Refused> {
     unsafe {
         use rc2k_core::hud::disc::{needle_corners, needle_edx, needle_turn};
+        use rc2k_core::math::extended::to_f64;
         let f = |r: usize| f32::from_bits(game_read(r));
         let kind = game_read::<u32>(KIND_RVA) != 0;
         let value = f32::from_bits(x87::from_int(game_read(VALUE_RVA)));
@@ -80,41 +80,16 @@ pub unsafe fn draw_needle(entry: &Regs) -> Result<Regs, Refused> {
             tk,
         );
         game_write(SCRATCH_RVA, turn);
-        g.edx = needle_edx(turn);
+        let angle = needle_edx(turn);
         for (n, (x, y)) in needle_corners(CORNERS_RVA.map(|r| game_read::<u32>(r)))
             .into_iter()
             .enumerate()
         {
-            g.edi = game_addr(VERTICES_RVA) as u32 + 0x20 * n as u32;
-            crate::hud::draw_needle::game_part(1, &mut g, &[extended(y), extended(x)])?;
+            let vertex = game_addr(VERTICES_RVA) as u32 + 0x20 * n as u32;
+            let point = [extended(y), extended(x)].map(to_f64);
+            crate::hud::turned_vertex::turned_vertex(vertex, angle, point);
         }
         game_write(POLYGON_COUNT_RVA, 4u32);
-        crate::hud::draw_needle::game_part(2, &mut g, &[])?;
+        crate::hud::add_polygon::add_polygon()
     }
-    Ok(g)
-}
-
-/// In the game: the corner's and the polygon's Rust versions.
-pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused> {
-    use crate::hud::{add_polygon as ap, turned_vertex as tv};
-    unsafe {
-        *r = match place {
-            1 => tv::turned_vertex(r, [v[0], v[1]].map(rc2k_core::math::extended::to_f64))?,
-            _ => ap::add_polygon(r)?,
-        };
-    }
-    Ok(())
-}
-
-/// In the game, for the needles' set-ups: this function's Rust version.
-pub fn game_part_needle(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    *r = unsafe { draw_needle(r) }?;
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_needle(r) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
 }

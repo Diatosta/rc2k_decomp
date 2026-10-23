@@ -18,7 +18,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::hud::add_quad::QUAD_RVA;
 use crate::hud::draw_marker::RECTS_RVA;
 use rc2k_core::hud::quads;
@@ -43,10 +43,9 @@ pub fn taken_off(v: [u8; 10]) -> u32 {
 
 /// The two markers at rows `rows` (see the header).
 // Converted: `rc2k_core::hud::quads::{marker_x, int_over}`
-pub unsafe fn markers_with(entry: &Regs, rows: [u32; 2]) -> Result<Regs, Refused> {
-    let mut g = *entry;
+pub unsafe fn markers_with(record: u32, rows: [u32; 2]) -> Result<(), Refused> {
     unsafe {
-        let get = |o: u32| ((entry.ebp + o) as *const u32).read_unaligned();
+        let get = |o: u32| ((record + o) as *const u32).read_unaligned();
         let k: u32 = game_read(UV_SCALE_RVA);
         for (n, field) in [0x6Cu32, 0x70].into_iter().enumerate() {
             game_write(QUAD_RVA + 0x14, game_read::<u32>(COLOURS_RVA[n]));
@@ -58,38 +57,21 @@ pub unsafe fn markers_with(entry: &Regs, rows: [u32; 2]) -> Result<Regs, Refused
                 f(game_read(K_RVA[1])),
             );
             game_write(SCRATCH_RVA, x);
-            g.eax = RECT * 0x10;
-            g.ebx = x;
-            g.ecx = rows[n];
-            g.esi = game_addr(RECTS_RVA) as u32 + g.eax;
+            let rect = game_addr(RECTS_RVA) as u32 + RECT * 0x10;
             game_write(SCRATCH_RVA, 0x78u32);
             let st1 = int_over_80(0x78, k);
             game_write(SCRATCH_RVA, 0x100u32);
             let st0 = int_over_80(0x100, k);
-            crate::hud::draw_markers_1::game_part(1, &mut g, &[st0, st1])?;
+            crate::hud::add_scaled_sprite::add_scaled_sprite(x, rows[n], rect, [st0, st1])?;
             // the two scales taken off into dword_75C060 (st(0), then st(1))
             game_write(SCRATCH_RVA, taken_off(st1));
         }
     }
-    Ok(g)
+    Ok(())
 }
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version (see the header).
 // Converted: `rc2k_core::hud::quads::{marker_x, int_over}` (through `markers_with`)
-pub unsafe fn draw_markers_1(entry: &Regs) -> Result<Regs, Refused> {
-    unsafe { markers_with(entry, [1, 0xE]) }
-}
-
-/// In the game: `add_scaled_sprite`'s Rust version.
-pub fn game_part(_place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused> {
-    use crate::hud::add_scaled_sprite as s;
-    *r = unsafe { s::add_scaled_sprite(r, [v[0], v[1]]) }?;
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_markers_1(r) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
+pub unsafe fn draw_markers_1(record: u32) -> Result<(), Refused> {
+    unsafe { markers_with(record, [1, 0xE]) }
 }

@@ -25,8 +25,6 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87_run::{ext_to_int, int_80, int_mul_add};
 use crate::scene::rotate_point::rotate_point;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::parts::{LAST_PART, choose_slot};
 
 pub const SLOTS: usize = 0x71BAC8; // g_raceSlots
@@ -105,21 +103,4 @@ pub fn fill_race_slot_in(r: &mut Regs) -> Result<(), Refused> {
         }
     }
     Ok(())
-}
-
-/// The Rust version.
-pub unsafe fn fill_race_slot(entry: &Regs) -> Result<Left, Refused> {
-    let mut r = *entry;
-    fill_race_slot_in(&mut r)?;
-    Ok(crate::race::stage_prefs::left_of(&r))
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { fill_race_slot(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

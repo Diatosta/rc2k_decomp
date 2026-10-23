@@ -22,7 +22,6 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{EAX, EBX, EDX, Regs};
 use crate::physics::flow::g;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::drive::replay_views::{MODES as MODE_COUNT, draw, fits, kept_mode, wish_kind};
 
 const MODES: usize = 0x606320; // off_606320
@@ -56,14 +55,4 @@ pub unsafe fn pick_replay_camera(entry: &Regs) -> Result<Left, Refused> {
         || g(B + 0xFE0 + 0x24),
     );
     Ok(Left::nothing().with(EAX, eax).with(EBX, ebx).with(EDX, edx))
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { pick_replay_camera(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

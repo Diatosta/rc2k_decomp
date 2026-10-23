@@ -50,9 +50,3 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
     })?;
     Ok(())
 }
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::physics::face_contact::faces_entry(r, steps)
-}

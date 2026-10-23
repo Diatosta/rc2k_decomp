@@ -19,16 +19,16 @@ const SETTING_RVA: usize = rva(0x623898); // dword_623898
 // ---- Rust version ----
 
 // Converted: `rc2k_core::scene::render_states::filters`
-pub unsafe fn set_filters(r: &mut Regs) {
+pub fn set_filters() {
     unsafe {
         for s in rc2k_core::scene::render_states::filters(game_read(SETTING_RVA)) {
-            set_render_state(r, s.value, s.state);
+            set_render_state(s.value, s.state);
         }
     }
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { set_filters(r) };
+pub fn entry(_r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    set_filters();
     Ok(())
 }

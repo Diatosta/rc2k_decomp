@@ -111,10 +111,3 @@ pub unsafe fn finish_race(entry: &Regs) -> Result<Left, Refused> {
     log_line(0x4DDAC8);
     Ok(left_of(&r))
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { finish_race(r) }?;
-    left.apply(r);
-    Ok(())
-}

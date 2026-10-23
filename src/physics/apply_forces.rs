@@ -14,10 +14,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::physics::apply_force::apply_force;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// Refused before anything?
 // Converted: `rc2k_core::physics::pushes::record_count`.
@@ -37,15 +35,4 @@ pub unsafe fn apply_forces(first: u32, count: u32) -> Result<(), Refused> {
         unsafe { apply_force(first + 0x20 * k, car) };
     }
     Ok(())
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { apply_forces(r.esi, r.ecx) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

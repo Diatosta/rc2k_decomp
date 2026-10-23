@@ -11,10 +11,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EDI, Regs, game_read, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::errors::BadInput;
+use crate::framework::{game_read, rva};
 
 // ---- game data ----
 
@@ -28,15 +26,4 @@ pub fn item_at(number: u32) -> Result<u32, BadInput> {
     Ok(rc2k_core::menu::items::item_at(number, || unsafe {
         game_read(CURRENT_MENU_RVA)
     })?)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let item = item_at(r.ebx)?;
-    Ok(Left::nothing().with(EDI, item).with(EAX, r.ebx))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

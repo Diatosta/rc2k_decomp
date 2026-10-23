@@ -12,10 +12,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{ECX, ESI, Regs, game_addr, rva};
+use crate::framework::{ECX, ESI, game_addr, rva};
 use crate::physics::apply_forces::apply_forces;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const RECORDS_RVA: usize = rva(0x614A50);
 const COUNT: u32 = 7;
@@ -25,14 +24,4 @@ pub unsafe fn apply_contact_forces() -> Result<Left, Refused> {
     let first = game_addr(RECORDS_RVA) as u32;
     unsafe { apply_forces(first, COUNT) }?;
     Ok(Left::nothing().with(ESI, first).with(ECX, COUNT))
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { apply_contact_forces() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

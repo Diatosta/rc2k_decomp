@@ -56,10 +56,3 @@ pub fn game_part(_place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refuse
     unsafe { pb::draw_pong_box(r, [v[0], v[1], v[2], v[3]]) }?;
     Ok(())
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { pong_cell(r) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
-}

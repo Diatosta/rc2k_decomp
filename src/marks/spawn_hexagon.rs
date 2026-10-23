@@ -18,13 +18,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::expire_hexagons::{ITEM_LEN, ITEMS, ITEMS_RVA};
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 pub const CURSOR_RVA: usize = rva(0x81517E); // dword_81517E: an offset into the items
 const WINDOW: u32 = 32;
@@ -60,39 +56,4 @@ pub unsafe fn spawn_hexagon(x: u32, z: u32, kind: u32) {
         }
         game_write(CURSOR_RVA, at);
     }
-}
-
-/// The converted version: the hook's (and `pick_hexagon`'s).
-// Converted: `rc2k_core::marks::items::find_free`
-pub unsafe fn spawn_hexagon_plain(x: u32, z: u32, kind: u32) {
-    use rc2k_core::marks::items::{HEXAGON_LEN, find_free};
-    unsafe {
-        let base = game_addr(ITEMS_RVA) as u32;
-        let found = find_free(game_read(CURSOR_RVA), HEXAGON_LEN, |at| {
-            (base.wrapping_add(at) as *const u32).read_unaligned() == 0
-        });
-        if let Some(at) = found.at {
-            let e = base.wrapping_add(at);
-            let put = |o: u32, v: u32| ((e + o) as *mut u32).write_unaligned(v);
-            put(0, 1);
-            put(0x14, (x as i32 as f32).to_bits());
-            put(0x18, (z as i32 as f32).to_bits());
-            put(4, kind);
-            for o in [0x1C, 0x20, 0x2C, 8, 0xC, 0x10, 0x24, 0x28] {
-                put(o, 0);
-            }
-        }
-        game_write(CURSOR_RVA, found.cursor);
-    }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { spawn_hexagon_plain(r.eax, r.ebx, r.ecx) };
-    Ok(left_of(r))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

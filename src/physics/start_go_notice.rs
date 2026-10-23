@@ -17,10 +17,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::physics::listed_car_flags::{CURRENT_CAR, TABLE, set_flag_at};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::progress::{GO_NOTICE, GoFacts};
 
 /// The variables (IDA addresses) in the order the core takes them.
@@ -71,14 +70,4 @@ fn game() -> (Vec<u32>, [u32; 3]) {
 pub unsafe fn start_go_notice() -> Result<Left, Refused> {
     let (v, twin) = game();
     unsafe { start_go_notice_at(&v, twin) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { start_go_notice() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

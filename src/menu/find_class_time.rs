@@ -15,10 +15,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, Regs};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::errors::BadInput;
 
 pub const ENTRY_LEN: u32 = 0x9C;
 const LIMIT: u32 = 0x400;
@@ -51,15 +48,4 @@ pub fn class_entry(list: u32, class: u32) -> Result<u32, BadInput> {
 pub fn find_class_time(list: u32, class: u32, second: bool) -> Result<u32, BadInput> {
     let e = class_entry(list, class)?;
     Ok(get(e + if second { 0x18 } else { 0x14 }))
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let v = find_class_time(r.edi, r.eax, r.ebx == 1)?;
-    Ok(Left::nothing().with(EAX, v))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

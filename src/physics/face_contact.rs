@@ -200,12 +200,6 @@ pub fn guarded(
     Ok(left_of(&r))
 }
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    faces_entry(r, steps)
-}
-
 /// `dispatch_faces` without its hook (Rust callers; a refusal is the caller's).
 pub fn faces_entry(
     r: &mut Regs,

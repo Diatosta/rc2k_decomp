@@ -33,9 +33,3 @@ pub unsafe fn set_fog_colour(colour: u32) {
         crate::calls::call(LAYER_RVA, &mut r);
     }
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { set_fog_colour(r.eax) };
-    Ok(())
-}

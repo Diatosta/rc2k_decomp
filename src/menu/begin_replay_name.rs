@@ -10,12 +10,10 @@
 //! draw lists run its `entry` (`menu::table_calls`); the registers above are the original's,
 //! for reference.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, rva};
+use crate::errors::BadInput;
+use crate::framework::{game_addr, rva};
 use crate::menu::name_lists::replay_name;
 use crate::menu::text_entry::{begin_logged, log_l1};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 // ---- Rust version ----
 
@@ -31,15 +29,4 @@ pub unsafe fn begin_replay_name(log: bool) -> Result<(), BadInput> {
         begin_logged(name, log);
     }
     Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { begin_replay_name(true) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

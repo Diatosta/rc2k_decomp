@@ -15,7 +15,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::hud::add_quad::QUAD_RVA;
 use rc2k_core::hud::quads::marker_x;
 
@@ -25,16 +25,12 @@ const SCRATCH_RVA: usize = rva(0x75C060); // dword_75C060
 pub const RECTS_RVA: usize = rva(0x75B940); // dword_75B940: 0x10 a rectangle
 const RECT: u32 = 0x5C;
 
-/// A call by place: 1 `add_sprite`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version (see the header).
 // Converted: `rc2k_core::hud::quads::marker_x`
-pub unsafe fn draw_marker(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut g = *entry;
+pub unsafe fn draw_marker(record: u32) -> Result<(), Refused> {
     unsafe {
         game_write(QUAD_RVA + 0x14, game_read::<u32>(COLOUR_RVA));
-        let get = |o: u32| ((g.ebp + o) as *const u32).read_unaligned();
+        let get = |o: u32| ((record + o) as *const u32).read_unaligned();
         let f = f32::from_bits;
         let x = marker_x(
             f(get(0x6C)),
@@ -43,25 +39,6 @@ pub unsafe fn draw_marker(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             f(game_read(K_RVA[1])),
         );
         game_write(SCRATCH_RVA, x);
-        g.eax = RECT * 0x10;
-        g.ebx = x;
-        g.ecx = 0;
-        g.esi = game_addr(RECTS_RVA) as u32 + g.eax;
-        part(1, &mut g)?;
+        crate::hud::add_sprite::add_sprite(x, 0, game_addr(RECTS_RVA) as u32 + RECT * 0x10)
     }
-    Ok(g)
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_marker(r, &mut crate::hud::draw_marker::game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
-}
-
-/// In the game: `add_sprite`'s Rust version.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::hud::add_sprite as s;
-    *r = unsafe { s::add_sprite(r) }?;
-    Ok(())
 }

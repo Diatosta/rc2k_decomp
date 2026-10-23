@@ -26,7 +26,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::menu::parts::{Part, parted_entry};
+use crate::menu::parts::Part;
 
 const WRITE: u32 = 0;
 const HEX8: u32 = 1;
@@ -142,10 +142,4 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         }
     }
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    parted_entry(r, &|r, part| unsafe { log_bad_polygon(r, part) }, game_part)
 }

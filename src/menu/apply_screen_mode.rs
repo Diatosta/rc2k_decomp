@@ -70,7 +70,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         match place {
             2 => crate::gfx::free_glyph_tables::entry(r)?,
             9 => crate::scene::set_up_front_end_scene::set_up_front_end_scene_in_game(r)?,
-            11 => crate::sound::play_menu_sound::play_menu_sound_in_game(r),
+            11 => crate::sound::play_menu_sound::play_menu_sound_in_game(r.eax),
             _ => crate::calls::call(rva(CALLEES[place as usize]), r),
         }
     }

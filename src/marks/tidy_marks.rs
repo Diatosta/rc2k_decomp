@@ -99,16 +99,3 @@ pub unsafe fn tidy_marks(entry: &Regs) -> Result<Regs, Refused> {
     }
     Ok(g)
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    {
-        let left = unsafe { tidy_marks(r) }?;
-        *r = Regs {
-            esp: r.esp,
-            eflags: r.eflags,
-            ..left
-        }
-    }
-    Ok(())
-}

@@ -13,11 +13,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{ECX, EDI, ESI, Regs};
+use crate::framework::{ECX, EDI, ESI};
 use crate::physics::flow::a;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::drive::replay_frames::{START_DWORDS, StartPiece, start_layout};
 
 const B: usize = 0x70F3EC; // g_carBlockStore (four blocks of 0xFE0)
@@ -43,14 +41,4 @@ pub fn save_replay_cars() -> Left {
     }
     let past = a(SAVED) + 4 * START_DWORDS as u32;
     Left::nothing().with(ECX, 0).with(ESI, end).with(EDI, past)
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(save_replay_cars())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

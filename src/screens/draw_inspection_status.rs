@@ -22,8 +22,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EDI, ESI, Regs, game_addr, rva};
-use crate::screens::harness::{Left, draw_entry};
+use crate::framework::{EDI, ESI, game_addr, rva};
+use crate::screens::harness::Left;
 use crate::service::state::{current_player, repair_flag, repair_flag_addr};
 use crate::text::draw_text::Canvas;
 
@@ -88,14 +88,4 @@ pub unsafe fn draw_inspection_status(
         }
         Ok(left)
     }
-}
-
-fn rust(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    unsafe { draw_inspection_status(r.ebx, canvas) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_inspection_status", r, &rust)
 }

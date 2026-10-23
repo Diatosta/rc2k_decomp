@@ -18,14 +18,10 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr};
+use crate::framework::game_addr;
 use crate::math::x87;
-use crate::physics::engine_torque::{
-    below, engine_entry, engine_torque, engine_torque_plain, g, p,
-};
+use crate::physics::engine_torque::{below, engine_torque, g, p};
 use crate::screens::harness::Left;
-use rc2k_core::physics::engine::{FreeRev, free_rev as free_rev_core};
 
 /// 0x43EA85 .. 0x43EAE7, as the original.
 unsafe fn run() {
@@ -57,29 +53,6 @@ unsafe fn run() {
     }
 }
 
-/// The converted version (`rc2k_core::physics::engine`, plain floats): the hook's.
-// Converted: `rc2k_core::physics::engine::free_rev`.
-pub unsafe fn free_rev_plain() -> Left {
-    let left = unsafe { engine_torque_plain() };
-    let f = |x: usize| f32::from_bits(g(x));
-    let (push, engine, drag) = free_rev_core(&FreeRev {
-        drive: f(0x614740),
-        drive_factor: f(0x5CB968),
-        ratio: f(0x6140C0),
-        k10000: f(0x5C5E34),
-        gearing: g(0x71A610) as i32,
-        k256: f(0x5C5E2C),
-        step: f(0x61388C),
-        engine: f(0x71A1B0),
-        drag_factor: f(0x613FD8),
-        drag_base: f(0x613FD4),
-    });
-    p(0x614750, push.to_bits());
-    p(0x71A1B0, engine.to_bits());
-    p(0x62400C, drag.to_bits());
-    left
-}
-
 /// The Rust version (the exact one, for `physics::free_rev_in_neutral`,
 /// `free_rev_clutch` and their callers).
 pub unsafe fn free_rev() -> Left {
@@ -104,14 +77,4 @@ pub unsafe fn free_rev() -> Left {
         }
     }
     left
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { free_rev_plain() })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    engine_entry(r, &rust)
 }

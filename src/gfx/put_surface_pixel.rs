@@ -19,9 +19,6 @@ use crate::framework::{Regs, game_read, rva};
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::pixel_format::PixelFormat;
 use crate::gfx::surface::{BASE_RVA, BITS_PER_PIXEL_RVA, PITCH_RVA};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// `g_surface`'s format pointer.
 pub const FORMAT_POINTER_RVA: usize = rva(0x4F49B8);
@@ -64,14 +61,4 @@ pub unsafe fn put_surface_pixel(entry: &Regs) -> Result<Regs, Refused> {
         }
     }
     Ok(g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { put_surface_pixel(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -18,10 +18,13 @@
 //! (platform, section 15).
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::{Regs, game_addr, game_read};
+use crate::framework::{game_addr, game_read};
 use crate::input::devices::{STATE_LEN, STATE_RVA, at, com_call, put};
 use crate::input::types::InputDevice;
 
@@ -29,26 +32,27 @@ fn state(n: u32) -> u32 {
     unsafe { game_read(STATE_RVA + 4 * n as usize) }
 }
 
-/// The Rust version (see the header): the registers it leaves (`popa`'s: the entry's).
-pub unsafe fn poll_device(entry: &Regs) -> Result<Regs, Refused> {
-    let record = entry.esi;
+/// The device `record` polled (see the header).
+pub unsafe fn poll_device(record: u32) -> Result<(), Refused> {
     let device = at(record, field!(InputDevice, device));
     if at(record, field!(InputDevice, acquired)) != 1 || device == 0 {
-        return Ok(*entry);
+        return Ok(());
     }
-    let mut r = Regs {
-        eax: device,
-        ..*entry
+    unsafe {
+        com_call(device, 0x64, &[]);
+    }
+    let failed = unsafe {
+        com_call(
+            device,
+            0x24,
+            &[STATE_LEN as u32, game_addr(STATE_RVA) as u32],
+        )
     };
-    crate::input::poll_device::game_part(0, &mut r)?;
-    r.eax = device;
-    crate::input::poll_device::game_part(1, &mut r)?;
     // The `rep movsd` of a failed read moves esi on by 0x50 as well: what follows reads
     // and writes the record from there (sic) until the `popa`.
     let mut record = record;
-    if r.eax != 0 {
-        r.eax = device;
-        crate::input::poll_device::game_part(2, &mut r)?;
+    if failed != 0 {
+        unsafe { com_call(device, 0x1C, &[]) };
         unsafe {
             std::ptr::copy(
                 record as *const u8,
@@ -70,30 +74,5 @@ pub unsafe fn poll_device(entry: &Regs) -> Result<Regs, Refused> {
     put(record, field!(InputDevice, axes) + 8, z);
     let buttons = poll_buttons(&unsafe { game_read(STATE_RVA + 0x30) });
     put(record, field!(InputDevice, buttons), buttons);
-    Ok(*entry)
-}
-
-/// In the game: the device's own methods (DirectInput).
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            0 => r.eax = com_call(r.eax, 0x64, &[]),
-            1 => {
-                r.eax = com_call(
-                    r.eax,
-                    0x24,
-                    &[STATE_LEN as u32, game_addr(STATE_RVA) as u32],
-                )
-            }
-            _ => r.eax = com_call(r.eax, 0x1C, &[]),
-        }
-    }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { poll_device(r) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

@@ -28,7 +28,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EDI, ESI, Regs};
+use crate::framework::{EDI, ESI};
 use crate::math::x87::loaded;
 use crate::physics::flow::{a, base, fill3, g, p, x87_run};
 use crate::physics::scale_vector::scale_vector;
@@ -36,7 +36,6 @@ use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// `g_car`: the work car's block.
 pub const CAR: usize = 0x719FD8;
@@ -182,14 +181,4 @@ pub unsafe fn bump_cars(edi: u32) -> Result<Left, Refused> {
         return Err(BadInput("a null car block").into());
     }
     steps(edi)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { bump_cars(r.edi) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

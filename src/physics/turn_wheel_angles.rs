@@ -19,12 +19,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
 use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
-use rc2k_core::physics::wheels::{add_turn as add_turn_core, slip, turns_wheels};
 use std::cmp::Ordering;
 
 fn g(x: usize) -> u32 {
@@ -76,39 +73,4 @@ pub unsafe fn turn_wheel_angles() -> Left {
     let slip = || x87::sub(g(0x71A190), g(0x71A184));
     add_turn((!still).then(slip), 0x623DAC, 0x623DB4, 0x623D70);
     Left::nothing()
-}
-
-/// The converted version (`rc2k_core::physics::wheels`, plain floats): the hook's.
-// Converted: `rc2k_core::physics::wheels::{turns_wheels, add_turn, slip}`.
-pub unsafe fn turn_wheel_angles_plain() -> Left {
-    if !turns_wheels(g(KIND), |k| g(KINDS + 4 * k as usize)) {
-        return Left::carry(true);
-    }
-    let f = |x: usize| f32::from_bits(g(x));
-    let still = g(STILL) != 0;
-    let half = |speed: Option<f32>, f1: usize, f2: usize, to: usize| {
-        let mut angles = [0, 1, 2, 3].map(|k| f(to + 4 * k));
-        let step = add_turn_core(speed, f(ZERO), f(f1), f(f2), &mut angles);
-        p(SCRATCH, step.to_bits());
-        for (k, v) in angles.iter().enumerate() {
-            p(to + 4 * k, v.to_bits());
-        }
-    };
-    let drive = (!still).then(|| f(0x71A190));
-    half(drive, 0x623DA8, 0x623DB0, 0x623D60);
-    let slip = (!still).then(|| slip(f(0x71A190), f(0x71A184)));
-    half(slip, 0x623DAC, 0x623DB4, 0x623D70);
-    Left::nothing()
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    let left = unsafe { turn_wheel_angles_plain() };
-    // Flags are only compared on the skipped path (`Left::carry`).
-    Ok(left)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

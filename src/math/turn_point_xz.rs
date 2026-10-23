@@ -11,18 +11,12 @@
 //! registers above are the original's, for reference.
 
 use crate::framework::{game_read, game_write};
-use crate::math::turn_scratch_xz::{X_RVA, Y_RVA, Z_RVA, turn_scratch_xz, turn_scratch_xz_plain};
+use crate::math::turn_scratch_xz::{X_RVA, Y_RVA, Z_RVA, turn_scratch_xz};
 
 /// `math::turn_point_xz`: x', y (as it comes back through a float, left only in the
 /// scratch point), z' and the entry left in edx.
 pub unsafe fn turn_point_xz(x: i32, y: i32, z: i32, angle: u32) -> [u32; 4] {
     unsafe { turn_point_with(x, y, z, angle, turn_scratch_xz) }
-}
-
-/// The converted version: the turn in plain floats (the conversions in and out are the
-/// same bits at every precision).
-pub unsafe fn turn_point_xz_plain(x: i32, y: i32, z: i32, angle: u32) -> [u32; 4] {
-    unsafe { turn_point_with(x, y, z, angle, turn_scratch_xz_plain) }
 }
 
 unsafe fn turn_point_with(

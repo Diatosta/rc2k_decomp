@@ -12,11 +12,9 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::menu::player_name::{kept, name};
 use crate::menu::text_entry::{Text, field, put_field, with_entry};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const ENTER_WITH_4_RVA: usize = rva(0x7554D4); // dword_7554D4
 
@@ -36,15 +34,4 @@ pub unsafe fn begin_player_name() -> Result<(), Refused> {
         }
     }
     Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { begin_player_name() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

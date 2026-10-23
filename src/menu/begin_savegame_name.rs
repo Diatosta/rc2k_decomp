@@ -9,12 +9,9 @@
 //! draw lists run its `entry` (`menu::table_calls`); the registers above are the original's,
 //! for reference.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
+use crate::errors::BadInput;
 use crate::menu::name_lists::savegame_name;
 use crate::menu::text_entry::begin_logged;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 // ---- Rust version ----
 
@@ -26,15 +23,4 @@ pub unsafe fn begin_savegame_name(log: bool) -> Result<(), BadInput> {
         begin_logged(name, log);
     }
     Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { begin_savegame_name(true) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

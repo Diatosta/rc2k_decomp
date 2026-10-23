@@ -17,7 +17,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::hud::batch::{POLYGON_COUNT_RVA, POLYGON_RVA};
 use rc2k_core::hud::icons;
 
@@ -26,23 +26,22 @@ pub const SCALE_RVA: usize = rva(0x75C06C); // dword_75C06C
 pub const SHIFT_RVA: usize = rva(0x75C070); // dword_75C070
 const SCRATCH_RVA: usize = rva(0x75C060); // dword_75C060
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version (see the header): the icon of the record's entry at `entry` (edi),
+/// `bottom` (ebx) its row.
 // Converted: `rc2k_core::hud::icons`
-pub unsafe fn draw_icon(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+pub unsafe fn draw_icon(record: u32, bottom: u32, entry: u32) -> Result<(), Refused> {
     unsafe {
-        let e = g.ebp.wrapping_add(g.edi);
+        let e = record.wrapping_add(entry);
         let get = |o: u32| ((e + o) as *const u32).read_unaligned();
         if !icons::shown(get(0x84)) {
-            return Ok(g);
+            return Ok(());
         }
         let scale = f32::from_bits(game_read(SCALE_RVA));
         let width = get(0x88);
         game_write(SIZE_RVA[0], icons::scaled(width, scale));
         let drop = get(0x90);
         game_write(SIZE_RVA[1], icons::scaled(drop, scale));
-        let i = icons::icon(width, get(0x8C), drop, scale, game_read(SHIFT_RVA), g.ebx);
-        [g.ebx, g.edx, g.esi, g.edi] = [i.bottom, i.colour, i.left, i.right];
+        let i = icons::icon(width, get(0x8C), drop, scale, game_read(SHIFT_RVA), bottom);
         for (n, u, v, x, y) in icons::corners(&i) {
             let at = POLYGON_RVA + 0x20 * n;
             game_write(at + 0x18, [u, v].map(|k| (k as i32 as f32).to_bits()));
@@ -52,15 +51,6 @@ pub unsafe fn draw_icon(entry: &Regs) -> Result<Regs, Refused> {
             game_write(SCRATCH_RVA, y);
         }
         game_write(POLYGON_COUNT_RVA, 4u32);
-        let mut r = g;
-        crate::hud::add_quad::game_part(1, &mut r)?;
+        crate::hud::add_polygon::add_polygon()
     }
-    Ok(g)
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_icon(r) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
 }

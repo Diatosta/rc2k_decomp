@@ -26,11 +26,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, ECX, EDX, ESI, Regs, game_read, game_write, rva};
+use crate::framework::{EAX, ECX, EDX, ESI, game_read, game_write, rva};
 use crate::scene::polygon::{dword, listed, put};
-use crate::scene::project_point::{
-    NEAR, POINTS_RVA, RECORDS_RVA, project_point, project_point_plain, record_offset,
-};
+use crate::scene::project_point::{NEAR, POINTS_RVA, RECORDS_RVA, project_point, record_offset};
 use crate::screens::harness::Left;
 
 // ---- game data ----
@@ -80,53 +78,4 @@ pub unsafe fn project_polygon() -> Result<Left, Refused> {
             .with(EDX, done.record)
             .with(ESI, last as u32))
     }
-}
-
-/// The converted `project_polygon` (plain floats): the hook's. The x87 version above stays
-/// for the Rust callers in unconverted code.
-// Converted: `rc2k_core::scene::projection::outside_depths`
-pub unsafe fn project_polygon_plain() -> Result<Left, Refused> {
-    unsafe {
-        let entries = listed()?;
-        let Some(&last) = entries.last() else {
-            return Err(BadInput("a polygon of no vertices").into());
-        };
-        let scene_point = entries.iter().any(|&entry| dword(entry) as i32 >= 0);
-        if game_read::<u32>(RECORDS_RVA) == 0 || (scene_point && game_read::<u32>(POINTS_RVA) == 0)
-        {
-            return Err(BadInput("no points or no records for them").into());
-        }
-        for &entry in &entries {
-            record_offset(dword(entry))?;
-        }
-        let far = f32::from_bits(game_read(FAR_RVA));
-        let mut outside = 0u32;
-        let mut done = None;
-        for &entry in &entries {
-            let point = project_point_plain(dword(entry))?;
-            put(entry + 4, point.record);
-            let depth = f32::from_bits(dword(point.record as usize + 0x18));
-            if rc2k_core::scene::projection::outside_depths(depth, far) {
-                outside += 1;
-            }
-            done = Some(point);
-        }
-        game_write(OUTSIDE_RVA, outside);
-        let done = done.expect("the polygon has a vertex");
-        Ok(Left::nothing()
-            .with(EAX, done.eax)
-            .with(ECX, entries.len() as u32)
-            .with(EDX, done.record)
-            .with(ESI, last as u32))
-    }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { project_polygon_plain() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::service::floats::floats_entry(r, &rust)
 }

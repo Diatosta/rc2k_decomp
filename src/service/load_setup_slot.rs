@@ -19,16 +19,14 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::menu::go_back;
-use crate::screens::harness::Left;
 use crate::service::clear_repair_flags::clear_repair_flags;
 use crate::service::clear_repair_marks::clear_repair_marks;
 use crate::service::edit_gear_ratio::edit_gear_ratio;
 use crate::service::edit_ride_height::edit_ride_height;
 use crate::service::edit_suspension_stiffness::edit_suspension_stiffness;
 use crate::service::edit_tyre::edit_tyre;
-use crate::service::harness::state_entry;
 use crate::service::pages::{
     BRAKE_BALANCE, ChangePage, GEAR_RATIO, RIDE_HEIGHT, STEERING_SENSITIVITY, SUSPENSION_STIFFNESS,
     TYRE,
@@ -112,17 +110,6 @@ pub unsafe fn load_setup_slot() -> Result<(), Refused> {
         go_back::go_back();
     }
     Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { load_setup_slot() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }
 
 //

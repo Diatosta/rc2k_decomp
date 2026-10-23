@@ -23,20 +23,20 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::hud::batch::*;
 
 const WIDTH_RVA: usize = rva(0x4F494C); // g_screenWidth
 const HEIGHT_RVA: usize = rva(0x4F4950); // g_screenHeight
 const VIRTUAL_RVA: [usize; 2] = [rva(0x75C02C), rva(0x75C030)]; // flt_75C02C, flt_75C030
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version (see the header). What the original leaves in eax, ecx, esi and edi
+/// is read by none of its callers (register liveness, 2026-10-23).
 // Converted: `rc2k_core::hud::batch::{flushes, check_polygon, polygon_indices}`,
 // `rc2k_core::hud::quads::screen_scaled`
-pub unsafe fn add_polygon(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn add_polygon() -> Result<(), Refused> {
     use rc2k_core::hud::batch::{self, MOST_VERTICES};
     use rc2k_core::hud::quads::screen_scaled;
-    let mut g = *entry;
     unsafe {
         let count: u32 = game_read(POLYGON_COUNT_RVA);
         let texture: u32 = game_read(TEXTURE_RVA);
@@ -55,17 +55,11 @@ pub unsafe fn add_polygon(entry: &Regs) -> Result<Regs, Refused> {
             game_write(v, screen_scaled(f(v), w, kx).to_bits());
             game_write(v + 4, screen_scaled(f(v + 4), h, ky).to_bits());
         }
-        g.ecx = count;
         if flushes {
-            // Not full: the flush is reached from the texture's compare (eax the texture).
-            if game_read::<u32>(VERTEX_COUNT_RVA) <= batch::FULL {
-                g.eax = texture;
-            }
-            crate::hud::add_polygon::game_part(1, &mut g)?;
+            crate::hud::flush_batch::flush_batch();
             game_write(SHOWN_TEXTURE_RVA, texture);
             game_write(BATCH_TEXTURE_RVA, texture);
-            g.eax = texture;
-            crate::hud::add_polygon::game_part(2, &mut g)?;
+            crate::hud::set_batch_texture::set_batch_texture()?;
         }
         let vc: u32 = game_read(VERTEX_COUNT_RVA);
         std::ptr::copy(
@@ -73,36 +67,14 @@ pub unsafe fn add_polygon(entry: &Regs) -> Result<Regs, Refused> {
             (game_addr(VERTICES_RVA) as u32 + vc * 0x20) as *mut u8,
             (count * 0x20) as usize,
         );
-        g.esi = game_addr(POLYGON_RVA) as u32 + count * 0x20;
-        g.ecx = 0;
         let ic: u32 = game_read(INDEX_COUNT_RVA);
-        g.edi = game_addr(INDICES_RVA) as u32 + ic * 2;
+        let at = game_addr(INDICES_RVA) as u32 + ic * 2;
         let indices = batch::polygon_indices(vc, count);
         for (k, &i) in indices.iter().enumerate() {
-            ((g.edi + 2 * k as u32) as *mut u16).write_unaligned(i);
+            ((at + 2 * k as u32) as *mut u16).write_unaligned(i);
         }
         game_write(INDEX_COUNT_RVA, ic + indices.len() as u32);
-        g.eax = count;
         game_write(VERTEX_COUNT_RVA, vc + count);
     }
-    Ok(g)
-}
-
-/// In the game: the flush's and the texture's Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::hud::{flush_batch, set_batch_texture};
-    unsafe {
-        *r = match place {
-            1 => flush_batch::flush_batch(r, &mut flush_batch::game_part)?,
-            _ => set_batch_texture::set_batch_texture(r)?,
-        };
-    }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { add_polygon(r) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

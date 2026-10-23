@@ -20,12 +20,11 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, ECX, EDX, ESI, Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{EAX, ECX, EDX, ESI, game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::polygon::{dword, listed};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 // ---- game data ----
 
@@ -75,14 +74,4 @@ pub unsafe fn fog_polygon() -> Result<Left, Refused> {
             .with(EDX, record)
             .with(ESI, last as u32))
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { fog_polygon() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

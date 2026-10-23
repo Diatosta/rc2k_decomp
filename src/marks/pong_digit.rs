@@ -42,10 +42,3 @@ pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     *r = unsafe { pc::pong_cell(r) }?;
     Ok(())
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { pong_digit(r) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
-}

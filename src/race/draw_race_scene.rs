@@ -319,6 +319,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             16 => crate::race::draw_view_scene::draw_view_scene_in_game(r)?,
             18 => *r = crate::race::draw_view_overlays::draw_view_overlays(r)?,
             19 => *r = crate::race::draw_mirror_view::draw_mirror_view(r)?,
+            28 => crate::hud::overlay_pass::overlay_pass()?,
             _ => crate::calls::call(rva(CALLEES[place as usize]), r),
         }
     }

@@ -27,7 +27,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::polygon::dword;
 use crate::scene::project_point::{POINTS_RVA, RECORDS_RVA, make_scene_record};
@@ -118,12 +118,4 @@ pub unsafe fn set_object_fade() -> Result<(), BadInput> {
         }
         Ok(())
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    if let Err(e) = unsafe { set_object_fade() } {
-        return Err(e.into());
-    }
-    Ok(())
 }

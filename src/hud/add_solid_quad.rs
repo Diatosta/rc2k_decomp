@@ -13,23 +13,14 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_write};
+use crate::framework::game_write;
 use crate::hud::add_quad::QUAD_RVA;
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version (see the header).
 // Converted: `rc2k_core::hud::quads::SOLID_PLACES`
-pub unsafe fn add_solid_quad(entry: &Regs) -> Result<Regs, Refused> {
+pub unsafe fn add_solid_quad() -> Result<(), Refused> {
     for (n, v) in rc2k_core::hud::quads::SOLID_PLACES {
         unsafe { game_write(QUAD_RVA + 4 * n, v) };
     }
-    let mut g = *entry;
-    crate::hud::add_triangle::game_part_quad(1, &mut g)?;
-    Ok(g)
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { add_solid_quad(r) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
+    unsafe { crate::hud::add_quad::add_quad() }
 }

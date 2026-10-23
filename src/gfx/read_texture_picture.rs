@@ -21,11 +21,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EBX, ECX, EDX, Regs, game_read};
+use crate::framework::game_read;
 use crate::gfx::pcx::{DECODED_HEIGHT_RVA, DECODED_WIDTH_RVA, PIXELS_RVA};
 use crate::gfx::picture::{HEIGHT_RVA, WIDTH_RVA, picture};
 use crate::gfx::read_picture_file::read_picture_file;
-use crate::screens::harness::Left;
 use rc2k_core::gfx::picture_size as sizes;
 
 // ---- Rust version ----
@@ -60,17 +59,4 @@ pub unsafe fn read_texture_picture(path: *mut u8) -> Result<(u32, u32, u32, bool
             failed,
         ))
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    match unsafe { read_texture_picture(r.eax as *mut u8) } {
-        Ok((pixels, width, height, failed)) => Left::carry(failed)
-            .with(EBX, pixels)
-            .with(ECX, width)
-            .with(EDX, height)
-            .apply(r),
-        Err(e) => return Err(e),
-    }
-    Ok(())
 }

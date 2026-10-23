@@ -14,7 +14,7 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::screens::service_boxes::{Part, addr, at_esi, quad, quad_part, rd};
+use crate::screens::service_boxes::{Part, addr, at_esi, quad, rd};
 
 /// The Rust version (see the header): the registers it leaves.
 #[allow(unused_assignments, clippy::needless_late_init)] // the translator's flags, one per `cmp`
@@ -123,19 +123,4 @@ pub unsafe fn service_box_frame_2(entry: &Regs, part: Part) -> Result<Regs, Refu
     }
     let _ = (&mut g, &mut part);
     Ok(*entry)
-}
-
-/// In the game: the quads' Rust version.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    quad_part(r)
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    if crate::screens::blanked("screens::service_box_frame_2") {
-        return Ok(());
-    }
-    let left = unsafe { service_box_frame_2(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
 }

@@ -15,13 +15,11 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{ESI, Regs, game_addr, game_read, rva};
+use crate::framework::{ESI, game_addr, game_read, rva};
 use crate::math::x87_run::mul3_to_int;
 use crate::physics::matrix_angles::{AnglePlaces, matrix_angles_at};
 use crate::race::stage_prefs::CRASH_MATRIX_RVA;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const INTS_RVA: usize = rva(0x71A998); // dword_71A998 (from D8), 99C (from D4), 9A0 (from DC)
 
@@ -52,14 +50,4 @@ pub unsafe fn car_angles() -> Left {
     let m = game_addr(CRASH_MATRIX_RVA) as u32;
     unsafe { car_angles_at(m, &AnglePlaces::game(), game_addr(INTS_RVA) as u32) };
     Left::nothing().with(ESI, m)
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { car_angles() })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

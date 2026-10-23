@@ -141,9 +141,3 @@ pub fn run_installer(entry: &Regs) -> Result<Regs, Refused> {
 fn GAME_DIR_INSTALLED() -> usize {
     0x95E7F8
 }
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::race::viewer::regs_entry(r, &|r| run_installer(r))
-}

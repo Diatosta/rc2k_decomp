@@ -51,7 +51,7 @@
 //! in 0x28 (0x30 for `off_75A12E`) entries, a shown car past the list.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::menu::player::player_at;
 use crate::menu::standings::{bytes, table};
 use crate::screens::harness::Left;
@@ -253,18 +253,10 @@ pub fn enter_arcade_stage_time() -> Result<(), Refused> {
     let course = get(record + 0x3C);
     p(SLOT_RVA, course);
     let cheats = g(CHEATS_RVA);
-    let sealed = unsafe {
-        crate::menu::sealed_player_time::sealed_player_time(&Regs {
-            eax: course,
-            ..Regs::SENTINEL
-        })
-    }?;
+    let sealed = unsafe { crate::menu::sealed_player_time::sealed_player_time(course) }?;
     // Converted: `rc2k_core::menu::bests::enter_tenth`, then
     // `rc2k_core::menu::standings::sort_arcade_times`.
-    let seal = bests::Seal {
-        cheats,
-        sealed: [sealed.eax, sealed.ebx],
-    };
+    let seal = bests::Seal { cheats, sealed };
     let best = new_best(
         player,
         get(player + 0x88),

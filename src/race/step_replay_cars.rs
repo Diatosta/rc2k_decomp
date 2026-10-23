@@ -24,7 +24,6 @@
 use crate::errors::Refused;
 use crate::framework::{EAX, ESI, Regs};
 use crate::physics::flow::{g, p};
-use crate::race::viewer::regs_entry;
 use crate::screens::harness::Left;
 
 pub const CURRENT: usize = 0x71B3F8; // g_currentCar
@@ -115,10 +114,4 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         }
     }
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| step_replay_cars(r))
 }

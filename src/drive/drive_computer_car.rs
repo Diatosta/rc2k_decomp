@@ -37,15 +37,13 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::math::x87_run::{
     compare_full, float_hypot_to_int, int_toward_to_int, mul2_to_int, times_fist_compare,
 };
 use crate::race::norms::normalise_work_vector;
 use crate::scene::view_matrix::cross_product;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::drive::computer_driver as driver;
 
 fn g(x: u32) -> u32 {
@@ -288,15 +286,4 @@ pub unsafe fn drive_computer_car() -> Result<(), Refused> {
         p(0x71C060 + 4 * s, tries);
         Ok(())
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { drive_computer_car() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

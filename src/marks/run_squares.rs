@@ -126,15 +126,8 @@ pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused
         match place {
             1 => *r = squares_setup::squares_setup(r)?,
             2 => *r = draw_square::draw_square(r, [v[0], v[1]])?,
-            _ => crate::scene::depth_buffer_on::depth_buffer(r, true),
+            _ => crate::scene::depth_buffer_on::depth_buffer(true),
         }
     }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { run_squares(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

@@ -14,11 +14,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, Regs, game_addr, rva};
+use crate::framework::{Regs, game_addr, rva};
 use crate::physics::cells::{get, put_changed};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::easing::ease_value;
 
 /// The variables (IDA addresses): the block, the jump switch, the target, the value.
@@ -44,16 +41,4 @@ fn game() -> [u32; 4] {
 /// The Rust version.
 pub unsafe fn ease_car_value(r: &mut Regs) {
     unsafe { ease_at(&game(), r) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let mut g = *r;
-    unsafe { ease_car_value(&mut g) };
-    Ok(Left::nothing().with(EAX, g.eax))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

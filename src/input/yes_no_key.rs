@@ -15,14 +15,12 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, Regs, game_addr, game_ptr, game_read, game_write, rva};
+use crate::errors::BadInput;
+use crate::framework::{game_addr, game_ptr, game_read, game_write, rva};
 use crate::input::key_to_char::{
     LAYOUT_A_RVA, LAYOUT_MODE_RVA, LAYOUT_RVA, has_layout, key_to_char,
 };
 use crate::input::take_key::take_key;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::text_from_ids::{TEXT_LEN, text};
 
@@ -84,14 +82,4 @@ pub unsafe fn yes_no_key(given: u32) -> Result<u32, BadInput> {
         };
         answer_for_key(eax)
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(Left::nothing().with(EAX, unsafe { yes_no_key(r.eax) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

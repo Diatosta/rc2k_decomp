@@ -35,12 +35,11 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read};
+use crate::framework::game_read;
 use crate::menu::item_at::{ITEM_LEN, MENU_HEAD_LEN};
 use crate::menu::update_blink::{BLINK_OFF_RVA, LAST_KEY_TIME_RVA};
 use crate::menu::update_frame_clock::CLOCK_RVA;
 use crate::screens::buttons::dword;
-use crate::screens::harness::{Left, draw_entry};
 use crate::service::state::MENU_ITEM_RVA;
 use crate::text::draw_text::Canvas;
 
@@ -110,17 +109,6 @@ pub unsafe fn draw_menu_items(
             &|n| *line.add(n),
         )
     }
-}
-
-fn rust(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    unsafe { draw_menu_items(r.edi, r.ebx, r.ecx, canvas) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_menu_items", r, &rust)
 }
 
 // ---- self-test: a menu of its own with one item of each kind, each of them highlighted in

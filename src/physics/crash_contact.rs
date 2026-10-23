@@ -43,7 +43,6 @@ use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::contacts;
 
 /// Force record 21 (`g_forceRecords` + 0x2A0).
@@ -149,14 +148,4 @@ pub unsafe fn crash_contact(entry: &Regs) -> Result<Left, Refused> {
         steps(&mut r)?;
         Ok(left_of(&r))
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { crash_contact(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

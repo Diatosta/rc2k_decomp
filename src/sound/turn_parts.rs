@@ -12,7 +12,7 @@
 //! are 0 now.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, rva};
 
 /// unk_5124BC: the request the turn's sounds go with.
 pub const REQUEST: usize = 0x5124BC;
@@ -30,49 +30,18 @@ pub fn request() -> u32 {
     game_addr(rva(REQUEST)) as u32
 }
 
-/// `sound::play_sound`: `sound` at `volume` and `rate`, `place` its ecx, edi and ebp
-/// (the place in the 3D modes).
-pub fn play(sound: u32, volume: u32, rate: u32, place: [u32; 3]) {
-    let [ecx, edi, ebp] = place;
-    crate::sound::play_sound::play_sound_in_game(&Regs {
-        eax: sound,
-        ebx: volume,
-        ecx,
-        edx: rate,
-        edi,
-        ebp,
-        ..Regs::default()
-    });
-}
+pub use crate::sound::play_sound::play_sound as play;
 
-/// `sound::stop_sound`: the request's sound stopped (`play_sound` with a volume of 0)
-/// unless it has bit 0x8000.
+/// `sound::stop_sound`: the request's sound stopped unless it has bit 0x8000.
 pub fn stop(request: u32) -> Result<(), Refused> {
-    let r = Regs {
-        esi: request,
-        ..Regs::default()
-    };
-    if let Some(with) = unsafe { crate::sound::stop_sound::stop_sound(&r) }? {
-        crate::sound::play_sound::play_sound_in_game(&with);
-    }
-    Ok(())
+    Ok(unsafe { crate::sound::stop_sound::stop_sound(request) }?)
 }
 
-/// `sound::play_placed_sound` with the request (its ebp, used only outside the 3D
-/// modes where `play_sound` replaces it, is 0).
+/// `sound::play_placed_sound` with the request.
 pub fn placed(request: u32) -> Result<(), Refused> {
-    let r = Regs {
-        esi: request,
-        ..Regs::default()
-    };
-    unsafe {
-        let mode = game_read(crate::sound::play_placed_sound::MODE_RVA);
-        let samples = game_addr(crate::sound::play_placed_sound::SAMPLES_RVA);
-        crate::sound::play_placed_sound::play_placed_sound(&r, mode, samples, &mut |w| {
-            crate::sound::play_sound::play_sound_in_game(w)
-        })?;
-    }
-    Ok(())
+    Ok(crate::sound::play_placed_sound::play_placed_sound_in_game(
+        request,
+    )?)
 }
 
 /// `sound::step_race_clock`: true when a turn is due (the original's carry clear).

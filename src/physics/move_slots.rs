@@ -20,7 +20,6 @@ use crate::errors::Refused;
 use crate::framework::{ECX, ESI, Regs, game_addr, rva};
 use crate::physics::move_slot::{SLOT_LEN, move_slot_at, slot_refusal};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const SLOTS_RVA: usize = rva(0x71BAC8); // g_raceSlots
 const COUNT_RVA: usize = rva(0x71BE88); // dword_71BE88
@@ -58,14 +57,4 @@ pub unsafe fn move_slots_at(slots: u32, count: u32, r: &Regs) -> Result<Left, Re
 /// The Rust version.
 pub unsafe fn move_slots(r: &Regs) -> Result<Left, Refused> {
     unsafe { move_slots_at(game_addr(SLOTS_RVA) as u32, game_addr(COUNT_RVA) as u32, r) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { move_slots(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

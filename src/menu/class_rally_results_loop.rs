@@ -24,7 +24,7 @@
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::menu::class_stage_results_loop::LOAD_BACKGROUND;
 use crate::menu::run_draw_list::DRAW_LIST_RVA;
-use crate::menu::screen_loop::{Env, FRAME_CALLBACK, List, Screen, Step, screen_entry};
+use crate::menu::screen_loop::{Env, FRAME_CALLBACK, List, Screen, Step};
 
 // ---- game data ----
 
@@ -106,9 +106,3 @@ pub const SCREEN: Screen = Screen {
     restart_action_check: false,
     always_asks: false,
 };
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::class_rally_results_loop", r, &SCREEN)
-}

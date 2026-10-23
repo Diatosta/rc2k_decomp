@@ -22,9 +22,7 @@ use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::next_random::{STATE_RVA as RANDOM_RVA, next_random};
 use crate::race::muddy_texel::{STRENGTH_RVA, muddy_texel, texture_and_mud};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
+use crate::service::harness::{Region, at};
 
 pub const THROWN_RVA: usize = rva(0x623D80); // dword_623D80: each texture's count
 pub use rc2k_core::race::mud::LAST_THROWN;
@@ -65,14 +63,4 @@ pub unsafe fn throw_mud_texel(entry: &Regs) -> Result<Regs, Refused> {
             muddy_texel(&r)
         }
     })()
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { throw_mud_texel(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

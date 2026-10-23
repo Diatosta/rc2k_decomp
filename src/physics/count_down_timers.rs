@@ -16,10 +16,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, Regs, game_addr, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::{Regs, game_addr, rva};
 use rc2k_core::physics::motion::{StepCounters, StepFacts, count_down};
 
 const VARIABLES: [usize; 16] = [
@@ -80,16 +77,4 @@ fn game() -> Vec<u32> {
 /// the original leaves it.
 pub unsafe fn count_down_timers(r: &mut Regs) {
     unsafe { count_at(&game(), r) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let mut g = *r;
-    unsafe { count_at(&game(), &mut g) };
-    Ok(Left::nothing().with(EAX, g.eax))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -13,12 +13,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
 
 const COLOUR_RVA: usize = rva(0x6415E4); // dword_6415E4
 const FADES_RVA: usize = rva(0x8DB464); // g_marksFadeColours: 0x11 dwords
@@ -53,35 +49,4 @@ pub unsafe fn make_fade_colours(entry: &Regs) -> Regs {
         }
     }
     g
-}
-
-/// The converted `make_fade_colours` (plain floats): the hook's. The x87 version above
-/// stays for `marks::run_snow` (unconverted).
-// Converted: `rc2k_core::marks::fades`
-pub unsafe fn make_fade_colours_plain(entry: &Regs) -> Regs {
-    use rc2k_core::marks::fades;
-    let mut g = *entry;
-    unsafe {
-        let colour: u32 = game_read(COLOUR_RVA);
-        let inverses = fades::inverses(colour);
-        [g.eax, g.ebx, g.ecx] = inverses;
-        game_write(INVERSES_RVA, inverses);
-        let f = fades::fades(colour, f32::from_bits(game_read(GROWTH_RVA)));
-        game_write(FADES_RVA, f.colours);
-        game_write(SCALED_RVA, f.scaled);
-        game_write(STEP_RVA, f.step.to_bits());
-        g.eax = f.colours[FADES as usize - 1];
-        g.esi = game_addr(FADES_RVA) as u32 + 4 * FADES;
-    }
-    g
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { make_fade_colours_plain(r) }))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

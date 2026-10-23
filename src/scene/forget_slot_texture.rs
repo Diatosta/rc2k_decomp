@@ -13,10 +13,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, rva};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::rva;
 
 const LOADED_RVA: usize = rva(0x5DB968); // g_slotLoadedTextures
 const SLOTS: u32 = 0x400;
@@ -28,15 +25,4 @@ pub unsafe fn forget_slot_texture(slot: u32) -> Result<(), Refused> {
     Ok(rc2k_core::scene::textures::forget_slot_texture(
         loaded, slot,
     )?)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { forget_slot_texture(r.eax) }?;
-    Ok(left_of(r))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

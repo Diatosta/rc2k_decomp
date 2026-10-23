@@ -19,7 +19,6 @@ use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::physics::flow::{g, p};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::race_steps::play_frame`.
@@ -38,14 +37,4 @@ pub unsafe fn play_replay_frame(entry: &Regs) -> Result<Left, Refused> {
     }
     unsafe { crate::drive::replay_cameras::replay_cameras(&r) }?.apply(&mut r);
     Ok(crate::race::stage_prefs::left_of(&r))
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { play_replay_frame(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

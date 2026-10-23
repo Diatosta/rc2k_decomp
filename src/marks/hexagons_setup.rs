@@ -136,14 +136,12 @@ pub unsafe fn hexagons_setup(entry: &Regs) -> Result<Regs, Refused> {
 
 /// In the game: the device calls' Rust versions.
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            1 => crate::scene::depth_buffer_on::depth_buffer(r, true),
-            2 => crate::scene::set_texture::set_texture_in_game(r),
-            _ => {
-                let (value, state) = (r.eax, r.ebx);
-                crate::scene::set_render_state::set_render_state(r, value, state);
-            }
+    match place {
+        1 => crate::scene::depth_buffer_on::depth_buffer(true),
+        2 => crate::scene::set_texture::set_texture(r.eax),
+        _ => {
+            let (value, state) = (r.eax, r.ebx);
+            crate::scene::set_render_state::set_render_state(value, state);
         }
     }
     Ok(())

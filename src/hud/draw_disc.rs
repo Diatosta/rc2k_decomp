@@ -24,7 +24,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::hud::disc_vertex::disc_vertex;
 use crate::math::x87;
 use rc2k_core::hud::disc::SEGMENTS;
@@ -47,10 +47,9 @@ fn negated_times_times_to_int(a: u32, b: u32, c: u32) -> u32 {
     out
 }
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version (see the header).
 // Converted: `rc2k_core::hud::disc::{ring_angles, disc_triangle}`
-pub unsafe fn draw_disc(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+pub unsafe fn draw_disc() -> Result<(), Refused> {
     unsafe {
         use rc2k_core::hud::disc::{disc_triangle, ring_angles};
         // The texture's turn follows the x87's control word: the x87's.
@@ -66,30 +65,15 @@ pub unsafe fn draw_disc(entry: &Regs) -> Result<Regs, Refused> {
             game_write(RING_RVA[1] + n, table(COSINES_RVA, a));
             game_write(TEXTURE_RING_RVA[0] + n, table(SINES_RVA, b));
             game_write(TEXTURE_RING_RVA[1] + n, table(COSINES_RVA, b));
-            g.eax = b;
         }
         game_write(SCRATCH_RVA, t);
-        // as the first loop leaves them (`div ebx`, then `mov edx, 0`)
-        [g.ebx, g.ecx, g.edx] = [SEGMENTS, SEGMENTS, 0];
         let base = game_addr(VERTICES_RVA) as u32;
         for k in 0..SEGMENTS {
-            let mut r = g;
-            r.edx = k;
             for (n, e) in disc_triangle(k).into_iter().enumerate() {
-                r.edi = base + 0x20 * n as u32;
-                r.ecx = e;
-                r = disc_vertex(&r)?;
+                disc_vertex(e, base + 0x20 * n as u32)?;
             }
-            crate::hud::add_triangle::game_part_triangle(1, &mut r)?;
+            crate::hud::add_triangle::add_triangle()?;
         }
-        [g.ebx, g.ecx, g.edx] = [SEGMENTS; 3];
     }
-    Ok(g)
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_disc(r) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

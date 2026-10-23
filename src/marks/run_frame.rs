@@ -114,10 +114,10 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 match place {
                     3 => {
                         let (value, state) = (r.eax, r.ebx);
-                        crate::scene::set_render_state::set_render_state(r, value, state);
+                        crate::scene::set_render_state::set_render_state(value, state);
                     }
-                    13 => crate::scene::depth_buffer_on::depth_buffer(r, true),
-                    _ => crate::scene::depth_test_on::depth_test_on(r),
+                    13 => crate::scene::depth_buffer_on::depth_buffer(true),
+                    _ => crate::scene::depth_test_on::depth_test_on(),
                 }
                 return Ok(());
             }

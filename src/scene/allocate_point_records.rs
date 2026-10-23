@@ -16,7 +16,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, Regs, game_addr, game_ptr, game_read, game_write, rva};
+use crate::framework::{EAX, EBX, game_addr, game_ptr, game_read, game_write, rva};
 use crate::memory::allocate::allocate;
 use crate::scene::allocate_object_memory::TAKEN_RVA;
 use crate::scene::project_point::RECORDS_RVA;
@@ -46,11 +46,4 @@ pub unsafe fn allocate_point_records_in_game() -> Result<Left, Refused> {
     unsafe {
         allocate_point_records(&mut |bytes, _| Ok(allocate(game_ptr(LIST_RVA), bytes)? as u32))
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { allocate_point_records_in_game() }?;
-    left.apply(r);
-    Ok(())
 }

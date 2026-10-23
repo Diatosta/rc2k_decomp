@@ -307,26 +307,19 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             7 => crate::marks::draw_snow::draw_snow(r)?,
             _ => {
                 match place {
-                    3 => crate::scene::set_texture::set_texture_in_game(r),
-                    4 => crate::scene::depth_buffer_on::depth_buffer(r, true),
-                    5 => crate::scene::depth_test_off::depth_test_off(r),
+                    3 => crate::scene::set_texture::set_texture(r.eax),
+                    4 => crate::scene::depth_buffer_on::depth_buffer(true),
+                    5 => crate::scene::depth_test_off::depth_test_off(),
                     6 => {
                         let (value, state) = (r.eax, r.ebx);
-                        crate::scene::set_render_state::set_render_state(r, value, state);
+                        crate::scene::set_render_state::set_render_state(value, state);
                     }
-                    _ => crate::scene::depth_test_on::depth_test_on(r),
+                    _ => crate::scene::depth_test_on::depth_test_on(),
                 }
                 return Ok(());
             }
         };
         *r = Regs { esp: r.esp, ..left };
     }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { run_snow(r) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

@@ -39,7 +39,6 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{EAX, EBX, ECX, EDI, EDX, ESI, Regs, game_addr, game_read, game_write, rva};
 use crate::physics::flip_cell_index::flip_cell_index;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use std::cmp::Ordering;
 
 fn g(x: usize) -> u32 {
@@ -364,14 +363,4 @@ unsafe fn steps() -> Result<Left, Refused> {
 /// The Rust version: what was written is put back on a refusal.
 pub unsafe fn wheel_surfaces() -> Result<Left, Refused> {
     unsafe { steps() }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { wheel_surfaces() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -20,10 +20,6 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::floats::*;
 
 /// The Rust version (see the header).
 pub unsafe fn cross_product3(a: u32, b: u32, out: u32) -> Result<(), Refused> {
@@ -50,26 +46,4 @@ pub unsafe fn cross_product3(a: u32, b: u32, out: u32) -> Result<(), Refused> {
         )
     }
     Ok(())
-}
-
-/// The converted version (plain floats): the hook's.
-// Converted: `rc2k_core::scene::matrices::cross3`
-pub unsafe fn cross_product3_plain(a: u32, b: u32, out: u32) -> Result<(), Refused> {
-    if a == 0 || b == 0 || out == 0 {
-        return Err(BadInput("a null vector").into());
-    }
-    let p = &mut unsafe { crate::scene::matrix::GamePlaces::new() };
-    rc2k_core::scene::matrices::cross3(p, a, b, out);
-    Ok(())
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { cross_product3_plain(r.esi, r.edi, r.ebp) }?;
-    Ok(left_of(r))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

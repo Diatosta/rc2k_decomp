@@ -23,9 +23,7 @@ use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::marks::blend_points::blend_points;
 use crate::marks::splines::{CHOSEN_RVA, MADE_RVA, MOST_POINTS, ORDERED_COORDS_RVA};
 use crate::math::x87_run::ext_to_int;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::service::harness::Region;
 
 const SWITCH_RVA: usize = rva(0x7695CA); // dword_7695CA
 const A_RVA: usize = rva(0x76A1D2);
@@ -100,14 +98,4 @@ pub fn regions(spline: u32) -> Vec<Region> {
             12 * MOST_POINTS as usize,
         ),
     ]
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { bend_points(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

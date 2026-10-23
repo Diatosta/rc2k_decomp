@@ -11,7 +11,7 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::framework::{Regs, game_read, rva};
-use crate::sound::queue::{END_OF_TURN, Queue, pending, send_command, sent};
+use crate::sound::queue::{END_OF_TURN, Queue, pending, send_command};
 
 // ---- game data ----
 
@@ -49,7 +49,7 @@ impl Parts for Game {
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    wait_for_commands(&mut Game(sent(r)));
+pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+    wait_for_commands(&mut Game([0; 7]));
     Ok(())
 }

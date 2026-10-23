@@ -17,7 +17,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::hud::draw_marker::RECTS_RVA;
 
 const WIDTHS_RVA: usize = rva(0x75BF80); // dword_75BF80: 8
@@ -33,59 +33,36 @@ pub fn row_by(y: u32, lift: u32) -> u32 {
     rc2k_core::hud::signs::row(y, lift, unsafe { game_read(FLAT_RVA) })
 }
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version (see the header).
 // Converted: `rc2k_core::hud::signs` (through `signs_with`)
-pub unsafe fn draw_signs(entry: &Regs) -> Result<Regs, Refused> {
-    unsafe { signs_with(entry, 0xA4, 0xB4, 0, 0x36, 0x20) }
+pub unsafe fn draw_signs(record: u32) -> Result<(), Refused> {
+    unsafe { signs_with(record, 0xA4, 0xB4, 0, 0x36, 0x20) }
 }
 
 /// Four signs from the record's `first` .. on, the places from its `start` field plus
 /// `shift`, at row `y` (shared with `hud::draw_signs_1a` / `_1b`).
 // Converted: `rc2k_core::hud::signs::{sign, place, row}`
 pub unsafe fn signs_with(
-    entry: &Regs,
+    record: u32,
     first: u32,
     start: u32,
     shift: u32,
     y: u32,
     lift: u32,
-) -> Result<Regs, Refused> {
+) -> Result<(), Refused> {
     use rc2k_core::hud::signs;
-    let mut g = *entry;
     unsafe {
-        let get = |o: u32| ((g.ebp + o) as *const u32).read_unaligned();
+        let get = |o: u32| ((record + o) as *const u32).read_unaligned();
         let places = get(start).wrapping_add(shift);
         for n in 0..signs::SIGNS as u32 {
-            g.ebx = signs::place(places, n);
             let v = get(first + 4 * n);
-            g.ecx = v;
             let Some(sign) = signs::sign(places, n, v, |k| game_read(WIDTHS_RVA + 4 * k as usize))
             else {
                 continue;
             };
-            g.eax = sign.rectangle;
-            let mut r = Regs {
-                ebx: sign.x,
-                ecx: row_by(y, lift),
-                esi: game_addr(RECTS_RVA) as u32 + g.eax,
-                ..g
-            };
-            crate::hud::draw_signs::game_part(1, &mut r)?;
-            g.ecx = r.ecx;
-            g.esi = r.esi;
+            let rect = game_addr(RECTS_RVA) as u32 + sign.rectangle;
+            crate::hud::add_sprite::add_sprite(sign.x, row_by(y, lift), rect)?;
         }
     }
-    Ok(g)
-}
-
-/// In the game: `add_sprite`'s Rust version.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    crate::hud::draw_marker::game_part(place, r)
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_signs(r) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

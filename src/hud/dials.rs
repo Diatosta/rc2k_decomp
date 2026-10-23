@@ -4,31 +4,27 @@
 //! the copies by `push` / `pop`, so no register changes before the call. The layouts are
 //! the HUD's three (the record's +0xF4, `sub_4B1CD0`).
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 
 /// Where a copy reads.
 #[derive(Clone, Copy)]
 pub enum From {
-    /// A field of the record at ebp.
+    /// A field of the HUD's record.
     Field(u32),
     /// A variable (its RVA).
     Var(usize),
 }
 
-/// One set-up: its copies (from, to, only when `dword_6D1502` is 0) and, for the test,
-/// the original's length, first bytes, call offset and callee.
+/// One set-up: its copies (from, to, only when `dword_6D1502` is 0).
 pub struct Setup {
     pub copies: &'static [(From, usize, bool)],
 }
 
 const FLAT_RVA: usize = rva(0x6D1502); // dword_6D1502
 
-/// A call by place: 1 the shape.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-/// The Rust version of a set-up (see the header): the registers the shape leaves.
-pub unsafe fn set_up(entry: &Regs, s: &Setup, part: Part) -> Result<Regs, Refused> {
+/// The Rust version of a set-up's copies (see the header); its caller then draws the
+/// shape (`hud::draw_disc` or `hud::draw_needle`).
+pub unsafe fn set_up(record: u32, s: &Setup) {
     unsafe {
         let flat = game_read::<u32>(FLAT_RVA) == 0;
         for &(from, to, only_flat) in s.copies {
@@ -36,13 +32,26 @@ pub unsafe fn set_up(entry: &Regs, s: &Setup, part: Part) -> Result<Regs, Refuse
                 continue;
             }
             let v = match from {
-                From::Field(o) => ((entry.ebp + o) as *const u32).read_unaligned(),
+                From::Field(o) => ((record + o) as *const u32).read_unaligned(),
                 From::Var(r) => game_read(r),
             };
             game_write(to, v);
         }
     }
-    let mut g = *entry;
-    part(1, &mut g)?;
-    Ok(g)
+}
+
+/// A disc's set-up and the disc.
+pub unsafe fn disc(record: u32, s: &Setup) -> Result<(), crate::errors::Refused> {
+    unsafe {
+        set_up(record, s);
+        crate::hud::draw_disc::draw_disc()
+    }
+}
+
+/// A needle's set-up and the needle.
+pub unsafe fn needle(record: u32, s: &Setup) -> Result<(), crate::errors::Refused> {
+    unsafe {
+        set_up(record, s);
+        crate::hud::draw_needle::draw_needle()
+    }
 }

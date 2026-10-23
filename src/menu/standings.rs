@@ -202,23 +202,6 @@ pub fn sort_table_a(key: u32) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// The last best score of `group` moved up its ten (the original's nine compares from the
-/// bottom: a later entry not below the one above it moves up). Refused without a table or
-/// past the five groups.
-pub fn rank_in_group(group: u32) -> Result<(), BadInput> {
-    let table: u32 = unsafe { game_read(BEST_SCORES_RVA) };
-    if table == 0 || group >= 5 {
-        return Err(BadInput("no best-score table, or a group past 4"));
-    }
-    // Converted: `rc2k_core::menu::standings::rank_in_group`.
-    let mut ten = Entries {
-        bytes: unsafe { table_bytes(table + group * 0x258, 0x258) },
-        size: 0x3C,
-    };
-    standings::rank_in_group(&mut ten, kept_name());
-    Ok(())
-}
-
 /// The current player's (`dword_75598C`) best score entered at the bottom of `group`'s ten
 /// (`dword_7556D4`, entry 9): +0x38 its score (the record's `score_at`), +4 the player and
 /// 1, +0x14 1, +8 / +0xC its +4 / +8, +0x10 its group (+0x90), +0 its name pointer and

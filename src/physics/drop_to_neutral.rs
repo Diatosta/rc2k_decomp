@@ -15,10 +15,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::{game_addr, rva};
 use rc2k_core::physics::gearing::drops_to_neutral;
 
 /// The variables' addresses (game RVAs as IDA shows them, in this order): the switch,
@@ -60,15 +57,4 @@ fn game() -> [u32; 10] {
 /// The Rust version.
 pub unsafe fn drop_to_neutral() {
     unsafe { drop_to_neutral_at(&game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { drop_to_neutral() };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -16,8 +16,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, EBX, EDX, Regs};
+use crate::framework::{EAX, EBX, EDX};
 use crate::physics::flow::{g, p};
 use crate::screens::harness::Left;
 use rc2k_core::drive::clocks::RaceClock;
@@ -40,14 +39,4 @@ pub fn tick_from(now: u32) -> Left {
 pub unsafe fn race_clock_tick() -> Left {
     let now = crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
     tick_from(now)
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { race_clock_tick() })
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    rust(r)?.apply(r);
-    Ok(())
 }

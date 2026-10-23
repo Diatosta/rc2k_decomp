@@ -16,15 +16,12 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EBX, Regs};
+use crate::framework::EBX;
 use crate::math::x87_run::{mul_div2, sum_times_int_over_minus};
-use crate::physics::drive_torque_share::{
-    drive_torque_share, drive_torque_share_places, drive_torque_share_plain_at,
-};
-use crate::physics::engine_torque::{engine_entry, g, p};
-use crate::physics::engine_torque_or_cut::{engine_torque_or_cut, engine_torque_or_cut_plain};
+use crate::physics::drive_torque_share::drive_torque_share;
+use crate::physics::engine_torque::{g, p};
+use crate::physics::engine_torque_or_cut::engine_torque_or_cut;
 use crate::screens::harness::Left;
-use rc2k_core::physics::engine::{Drive, drive};
 
 /// The Rust version (the exact one, for the Rust callers' exact comparisons).
 pub unsafe fn drive_force() -> Result<Left, Refused> {
@@ -51,39 +48,4 @@ pub unsafe fn drive_force() -> Result<Left, Refused> {
     }
     let eax = unsafe { drive_torque_share() };
     Ok(left.with(EBX, gear).with(crate::framework::EAX, eax))
-}
-
-/// The converted version (`rc2k_core::physics::engine::drive` and the converted
-/// `engine_torque_or_cut`, `drive_torque_share`): the hook's.
-// Converted: `rc2k_core::physics::engine::drive`.
-pub unsafe fn drive_force_plain() -> Result<Left, Refused> {
-    let gear = g(0x71A1AC);
-    // The ratio's place from reverse (neutral's is `g_gearRatios[0]`, as the original).
-    let index = rc2k_core::physics::gearing::ratio_index(gear)?.unwrap_or(1);
-    let left = unsafe { engine_torque_or_cut_plain() };
-    let f = |x: usize| f32::from_bits(g(x));
-    let (engine, drive) = drive(&Drive {
-        torque: f(0x614748),
-        base: f(0x614744),
-        gearing: g(0x71A610) as i32,
-        k256: f(0x5C5E2C),
-        factor: f(0x5CB968),
-        ratio: f(0x6140BC + 4 * index),
-        k10000: f(0x5C5E34),
-        cut: g(0x71A1A8) != 0,
-    });
-    p(0x614740, engine.to_bits());
-    p(0x614750, drive.to_bits());
-    let eax = unsafe { drive_torque_share_plain_at(&drive_torque_share_places()) };
-    Ok(left.with(EBX, gear).with(crate::framework::EAX, eax))
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { drive_force_plain() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    engine_entry(r, &rust)
 }

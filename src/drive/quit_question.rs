@@ -72,10 +72,3 @@ pub unsafe fn quit_question(entry: &Regs) -> Result<Left, Refused> {
     }
     Ok(left_of(&r).with(EAX, answer))
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { quit_question(r) }?;
-    left.apply(r);
-    Ok(())
-}

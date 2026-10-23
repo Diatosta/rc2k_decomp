@@ -20,7 +20,6 @@ use crate::framework::Regs;
 use crate::physics::fill_race_slot::g;
 use crate::physics::fill_slot_on_bit::fill_slot_on_bit_in;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::parts::{BROKEN_BITS, breaks, broken_checked};
 
 /// The steps on `r`.
@@ -50,14 +49,4 @@ pub unsafe fn drop_broken_parts(entry: &Regs) -> Result<Left, Refused> {
         Ok(()) => Ok(crate::race::stage_prefs::left_of(&r)),
         Err(e) => Err(e),
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { drop_broken_parts(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

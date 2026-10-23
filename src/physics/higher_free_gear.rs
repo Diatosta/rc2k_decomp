@@ -21,8 +21,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
-use crate::physics::flag_result::{FlagResult, flags_entry};
+use crate::framework::{game_addr, rva};
+use crate::physics::flag_result::FlagResult;
 use crate::physics::gear_bit::{GEAR_BITS_RVA, bits_at};
 
 pub const GEAR_COUNT_RVA: usize = rva(0x614C10); // g_gearCount: forward gears
@@ -49,14 +49,4 @@ pub unsafe fn higher_free_gear(gear: u32) -> Result<FlagResult, Refused> {
             gear,
         )
     }
-}
-
-fn rust(r: &Regs) -> Result<FlagResult, Refused> {
-    unsafe { higher_free_gear(r.ebx) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    flags_entry(r, &rust)
 }

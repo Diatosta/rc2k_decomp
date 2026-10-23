@@ -32,8 +32,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, EBX, ECX, EDI, EDX, ESI, Regs};
+use crate::framework::{EAX, EBX, ECX, EDI, EDX, ESI};
 use crate::math::x87_run::{compare_80, neg_rounded};
 use crate::physics::dot_product::dot_product;
 use crate::physics::flow::{a, base, copy3, fill3, g, hold_low, negate, p, x87_run};
@@ -45,7 +44,6 @@ use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::view_matrix::cross_product;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// `dword_614B40`: the record the force goes to.
 pub const RECORD: usize = 0x614B40;
@@ -238,14 +236,4 @@ pub unsafe fn contact_force() -> Left {
         .with(EDX, a(0x6D31E4))
         .with(ESI, a(0x6D3090))
         .with(EDI, edi)
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { contact_force() })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

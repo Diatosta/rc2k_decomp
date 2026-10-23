@@ -201,19 +201,10 @@ pub unsafe fn race_keys(
 
 /// `race_keys`' sound calls in the game: the Rust versions, sent as the originals send.
 pub fn key_sound_part(place: u32, r: &mut crate::framework::Regs) -> Result<(), Refused> {
-    use crate::sound::queue::{Queue, send_command, sent};
-    use crate::sound::wait_for_commands::{Game, wait_for_commands};
-    unsafe {
-        match place {
-            // `pusha`, `push 8`, `send_command`, `pop eax`, `popa`.
-            1 => send_command(&Queue::game(), 8, sent(r)),
-            _ => {
-                if let Some(with) = crate::sound::set_music_volume::set_music_volume(r) {
-                    send_command(&Queue::game(), 0xB, sent(&with));
-                    wait_for_commands(&mut Game(sent(&with)));
-                }
-            }
-        }
+    match place {
+        // `pusha`, `push 8`, `send_command`, `pop eax`, `popa`.
+        1 => crate::sound::send_command_8::send_command_8(r.eax),
+        _ => crate::sound::set_music_volume::set_music_volume(r.eax),
     }
     Ok(())
 }

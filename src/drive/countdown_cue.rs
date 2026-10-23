@@ -13,7 +13,6 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::g;
 
 /// The Rust version: eax.
@@ -26,13 +25,4 @@ pub fn countdown_cue(sound: u32) -> Result<u32, Refused> {
         crate::drive::countdown_sound::countdown_sound(slot, sound);
     }
     Ok(slot)
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    {
-        let eax = countdown_cue(r.ebx)?;
-        r.eax = eax
-    }
-    Ok(())
 }

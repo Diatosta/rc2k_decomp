@@ -15,10 +15,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::{game_addr, game_read, rva};
 use rc2k_core::physics::drive_forces::cap_reverse;
 
 const CAP_RVA: usize = rva(0x5C5D3C); // flt_5C5D3C, 2.0
@@ -60,16 +57,4 @@ fn game() -> (u32, u32, [u32; 2]) {
 pub unsafe fn cap_reverse_inputs() {
     let (gear, speed, values) = game();
     unsafe { cap_reverse_inputs_at(gear, speed, values) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    let (gear, speed, values) = game();
-    unsafe { cap_reverse_inputs_at(gear, speed, values) };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -26,14 +26,12 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, Regs};
+use crate::framework::Regs;
 use crate::math::x87;
 use crate::math::x87_run::{abs_compare, abs_of, neg_rounded};
 use crate::physics::flow::{a, base, c0, ease_zero, g, hold_high, hold_low, p, x87_run};
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
 use crate::scene::matrix3::extended;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// `fld v; fabs; fsub one; fchs; fstp to` (0x43DFB1, 0x43E00B): 1 less |v|.
 fn one_less_abs(v: usize, to: usize) {
@@ -505,15 +503,4 @@ pub unsafe fn drive_wheels_step(eax: u32, ebx: u32) -> Result<[u32; 2], Refused>
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
     steps(eax, ebx)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let [eax, ebx] = unsafe { drive_wheels_step(r.eax, r.ebx) }?;
-    Ok(Left::nothing().with(EAX, eax).with(EBX, ebx))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

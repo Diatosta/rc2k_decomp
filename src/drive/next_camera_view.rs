@@ -17,10 +17,8 @@
 //! and the self-test was the hook's.
 
 use crate::drive::set_camera_view::set_view_at;
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::drive::camera_views::next_view;
 
 const PLAYERS_RVA: usize = rva(0x63DB94); // dword_63DB94
@@ -57,14 +55,4 @@ pub unsafe fn next_camera_view(s: u32) -> Left {
             game_addr(crate::drive::set_camera_view::STEP_RVA) as u32,
         )
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { next_camera_view(r.esi) })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

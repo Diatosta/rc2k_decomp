@@ -13,9 +13,6 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 // dword_75598C
 
@@ -23,14 +20,4 @@ use crate::service::harness::state_entry;
 pub unsafe fn sort_standings_by_total(entry: &Regs) -> Result<Regs, Refused> {
     sort_table_a(0x18)?;
     Ok(*entry)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { sort_standings_by_total(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

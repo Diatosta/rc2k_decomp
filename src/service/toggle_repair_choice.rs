@@ -15,9 +15,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::framework::{game_read, game_write};
 use crate::service::state::{
     EDIT_MODE_RVA, REPAIR_TOTAL_RVA, STATUS_RVA, TIME_BUDGET_RVA, flagged_item,
 };
@@ -41,15 +39,4 @@ pub unsafe fn toggle_repair_choice() -> Result<(), Refused> {
         game_write(REPAIR_TOTAL_RVA, total);
     }
     Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { toggle_repair_choice() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

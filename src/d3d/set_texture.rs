@@ -15,12 +15,15 @@ use crate::framework::{Regs, game_write, rva};
 
 pub const CURRENT_RVA: usize = rva(0x5AB93C); // g_currentTexture
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's). In the
-/// hooked game it goes to the game's function, whose hook notes the call for the tests'
-/// recorder (`d3d::recorder`) and runs the original: noted here as well, a call would be
-/// noted twice.
+/// The texture polygons are drawn with from now on (the standalone keeps its number).
+/// Its leftover ecx (0) is read by none of the original's callers (register liveness,
+/// 2026-10-23).
+pub fn set_texture(texture: u32) {
+    unsafe { game_write(CURRENT_RVA, texture) };
+}
+
+/// For the typed tables' calls by address: eax the texture.
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { game_write(CURRENT_RVA, r.eax) };
-    r.ecx = 0;
+    set_texture(r.eax);
     Ok(())
 }

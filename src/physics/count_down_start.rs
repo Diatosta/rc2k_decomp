@@ -19,10 +19,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, EDX, Regs, game_addr, rva};
+use crate::framework::{EAX, EBX, EDX, game_addr, rva};
 use crate::physics::listed_car_flags::{CURRENT_CAR, TABLE, set_flag_at};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::start::{CarStart, StartCount};
 
 unsafe fn at(a: u32) -> u32 {
@@ -87,14 +86,4 @@ pub unsafe fn count_down_start_at(p: &CountPlaces) -> Result<Left, Refused> {
 /// The Rust version.
 pub unsafe fn count_down_start() -> Result<Left, Refused> {
     unsafe { count_down_start_at(&CountPlaces::game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { count_down_start() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

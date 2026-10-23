@@ -25,7 +25,8 @@
 //! self-test's pause holds the thread between ticks. Refuses what its steps refuse (the
 //! original then runs: its flag is set, so it goes to its end).
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! `routes.rs`). Plain since 2026-10-23 (phase 3): its steps called directly; the two log
+//! lines, which the standalone had dropped, written again.
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
@@ -49,31 +50,31 @@ fn g(a: usize) -> u32 {
     unsafe { game_read(a) }
 }
 
+/// "INPUTTDB:.." to the game's log (level 2, a line).
+fn log(text: usize) {
+    unsafe { crate::logfile::log_write::log_write(game_addr(text) as *const u8, true, 2) };
+}
+
 /// The thread's work up to its `ExitThread` (see the header).
 pub unsafe fn input_thread() -> Result<(), Refused> {
+    use crate::threading::set_priority::set_priority;
     let slot = game_addr(SLOT_RVA) as u32;
     let flag = (slot + 0xC) as *mut u8;
-    let mut r = Regs {
-        esi: slot,
-        ..Regs::default()
-    };
     'work: {
         if unsafe { *flag } == 1 {
             break 'work;
         }
         unsafe { *flag = 1 };
-        r.eax = game_addr(START_TEXT_RVA) as u32;
-        crate::input::input_thread::game_part(0, &mut r)?;
-        r.eax = 0;
-        crate::input::input_thread::game_part(1, &mut r)?;
-        if r.eax != 1 {
+        log(START_TEXT_RVA);
+        // DirectInput made (in Rust, on SDL's joysticks); the keyboard and the mouse are
+        // SDL's events: nothing to make for them.
+        let input = crate::input::di_objects::create_input();
+        unsafe { game_write(DIRECT_INPUT_RVA, input) };
+        if input == 0 {
             break 'work;
         }
-        for place in [2, 3, 4] {
-            crate::input::input_thread::game_part(place, &mut r)?;
-        }
-        r.eax = 2;
-        crate::input::input_thread::game_part(5, &mut r)?;
+        crate::input::list_joysticks::list_joysticks();
+        set_priority(2);
         let mut last = crate::system::tick_count::tick_count();
         unsafe { game_write(LAST_TICK_RVA, last) };
         loop {
@@ -86,9 +87,6 @@ pub unsafe fn input_thread() -> Result<(), Refused> {
                     break;
                 }
             }
-            // One gate a tick, before anything is written: a self-test's pause waits for this
-            // one and holds the next (2026-10-23: the gate began after the count, so a pause
-            // begun during the wait let one count through; `install::run_page`'s test saw it).
             loop {
                 unsafe { game_write(TICKS_RVA, g(TICKS_RVA).wrapping_add(1)) };
                 gone -= TICK_MS;
@@ -98,12 +96,7 @@ pub unsafe fn input_thread() -> Result<(), Refused> {
                 }
             }
             unsafe { game_write(LAST_TICK_RVA, last) };
-            let ticked = (|| {
-                crate::input::input_thread::game_part(6, &mut r)?;
-                crate::input::input_thread::game_part(7, &mut r)?;
-                unsafe { crate::input::input_tick::input_tick_in_game() }
-            })();
-            ticked?;
+            unsafe { crate::input::input_tick::input_tick_in_game() }?;
             if g(ACTIVE_RVA) != 1 {
                 crate::system::sleep::sleep(1000);
             }
@@ -115,52 +108,14 @@ pub unsafe fn input_thread() -> Result<(), Refused> {
     for record in RECORDS {
         unsafe { crate::input::release_device::release_device_in_game(game_addr(record) as u32) }?;
     }
-    for place in [8, 9, 10] {
-        crate::input::input_thread::game_part(place, &mut r)?;
+    let input = g(DIRECT_INPUT_RVA);
+    if input != 0 {
+        crate::input::di_harness::method(input, crate::input::di_harness::slot::RELEASE, &[]);
+        unsafe { game_write(DIRECT_INPUT_RVA, 0u32) };
     }
-    r.eax = game_addr(QUIT_TEXT_RVA) as u32;
-    crate::input::input_thread::game_part(0, &mut r)?;
-    r.esi = slot;
-    r.eax = 0;
-    crate::input::input_thread::game_part(5, &mut r)?;
+    log(QUIT_TEXT_RVA);
+    set_priority(0);
     unsafe { *flag = 0 };
-    Ok(())
-}
-
-/// In the game: through the game (place 1 then says whether DirectInput was made), but the
-/// priority (5), which is `threading::set_priority`'s Rust version, and the joysticks' list
-/// (4), `input::list_joysticks`'s. In the standalone program DirectInput is made in Rust
-/// (`input::di_objects`, on SDL's joysticks) and given back at the end (10); the keyboard
-/// and the mouse are SDL's events: nothing is made, read or given back for them.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    if place == 5 {
-        // `threading::set_priority`'s Rust version (eax, ecx, edx kept, as there).
-        crate::threading::set_priority::set_priority(r.eax as i32);
-        return Ok(());
-    }
-    if place == 4 {
-        crate::input::list_joysticks::list_joysticks();
-        return Ok(());
-    }
-    match place {
-        1 => {
-            let input = crate::input::di_objects::create_input();
-            unsafe { game_write(DIRECT_INPUT_RVA, input) };
-            r.eax = (input != 0) as u32;
-        }
-        10 => {
-            let input = g(DIRECT_INPUT_RVA);
-            if input != 0 {
-                crate::input::di_harness::method(
-                    input,
-                    crate::input::di_harness::slot::RELEASE,
-                    &[],
-                );
-                unsafe { game_write(DIRECT_INPUT_RVA, 0u32) };
-            }
-        }
-        _ => {}
-    }
     Ok(())
 }
 

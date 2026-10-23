@@ -183,8 +183,8 @@ pub fn option_item(entry: &Regs, item: Item, part: Part) -> Result<Regs, Refused
 /// In the game: the callees' Rust versions.
 pub fn game_part(callee: usize, r: &mut Regs) -> Result<(), Refused> {
     match callee {
-        SEND_COMMAND_8 => crate::sound::plain_sender::send_in_game(8, r),
-        PLAY_MENU_SOUND => crate::sound::play_menu_sound::play_menu_sound_in_game(r),
+        SEND_COMMAND_8 => crate::sound::send_command_8::send_command_8(r.eax),
+        PLAY_MENU_SOUND => crate::sound::play_menu_sound::play_menu_sound_in_game(r.eax),
         SCREEN_MODE_CHOICES => {
             use crate::gfx::screen_mode_choices::{apply, screen_mode_choices};
             apply(screen_mode_choices(r.eax != 0)?, r);

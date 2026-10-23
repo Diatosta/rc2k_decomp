@@ -13,11 +13,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, ECX, EDX, Regs, game_read, rva};
+use crate::framework::{EAX, ECX, EDX, game_read, rva};
 use crate::math::turn_float_point_xz::turn_float_point_xz;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const HEADING_RVA: usize = rva(0x71A998); // g_car + 0x9C0
 
@@ -32,14 +30,4 @@ pub unsafe fn turn_by_heading(point: u32, ebx: u32) -> Left {
         p.add(2).write_unaligned(z);
         Left::nothing().with(EAX, x).with(ECX, z).with(EDX, entry)
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { turn_by_heading(r.esi, r.ebx) })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

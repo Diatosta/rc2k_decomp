@@ -20,7 +20,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{EAX, ECX, Regs, game_read, game_write, rva};
+use crate::framework::{EAX, ECX, game_read, game_write, rva};
 use crate::logfile::log_int::log_int;
 use crate::logfile::log_write::log_write;
 use crate::scene::texture_needs::{LEVEL_SIZES_RVA, SYSTEM_LEVELS_RVA, TEXTURES, VIDEO_LEVELS_RVA};
@@ -77,10 +77,4 @@ pub unsafe fn count_texture_needs_in_game() -> Result<Left, BadInput> {
             Err(number) => log_int(number as i32, newline, 1),
         })
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { count_texture_needs_in_game() }?.apply(r);
-    Ok(())
 }

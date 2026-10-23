@@ -19,7 +19,7 @@
 
 use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::scene::clip::{
     DEPTH_CLIPPED_RVA, Edge, PLANE_RVA, clip_pass, listed_with_records, or_undone,
 };
@@ -49,12 +49,4 @@ pub unsafe fn clip_polygon_by_depth() -> Result<(), BadInput> {
             Ok(())
         })
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { clip_polygon_by_depth() }?;
-    // Its passes end `mov g_polygonVertexCount, ebx`: ebx the count left.
-    r.ebx = unsafe { crate::framework::game_read(crate::d3d::draw_fan_unclipped::COUNT_RVA) };
-    Ok(())
 }

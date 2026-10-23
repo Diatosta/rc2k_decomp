@@ -218,7 +218,7 @@ pub fn call(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 r.set_zero(r.eax as u8 == 1);
             }
             TAKE_KEY => crate::race::viewer_load_stage::take_key(r),
-            STOP_MUSIC => crate::sound::stop_music::stop_music_in_game(r),
+            STOP_MUSIC => crate::sound::stop_music::stop_music(),
             SLEEP => crate::system::sleep::sleep(r.eax),
             TICK => r.eax = crate::system::tick_count::tick_count(),
             PARSE_NUMBER => r.eax = crate::settings::parse_number::parse_number(r.eax as *const u8),

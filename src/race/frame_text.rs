@@ -69,8 +69,7 @@ pub struct Rolled {
 pub unsafe fn roll_credits(
     eax: u32,
     canvas: &mut dyn Canvas,
-    sound: &mut dyn FnMut(&Regs),
-    entry: &Regs,
+    sound: &mut dyn FnMut(),
 ) -> Result<Rolled, Refused> {
     // Converted: `rc2k_core::race::credits::{start_top, lay_out, catch_up, rolled_off}`.
     use crate::system::tick_count::tick_count;
@@ -84,7 +83,7 @@ pub unsafe fn roll_credits(
             game_write(rva(0x52984C), top);
             game_write(rva(0x529854), 0u32);
             // eax holds the top when the tune is sent, and is tested on the way out.
-            sound(&Regs { eax: top, ..*entry });
+            sound();
             return Ok(Rolled {
                 carry: false,
                 zero: top == 0,
@@ -136,13 +135,8 @@ pub unsafe fn roll_credits(
 }
 
 /// `roll_credits`' tune in the game: `sound::play_tune_2`'s command, sent and waited for.
-pub fn credits_tune(entry: &Regs) {
-    use crate::sound::queue::{Queue, send_command, sent};
-    use crate::sound::wait_for_commands::{Game, wait_for_commands};
-    if let Some(with) = crate::sound::play_tune_2::play_tune_2(entry) {
-        unsafe { send_command(&Queue::game(), 0xB, sent(&with)) };
-        wait_for_commands(&mut Game(sent(&with)));
-    }
+pub fn credits_tune() {
+    crate::sound::play_tune_2::play_tune_2();
 }
 
 /// `credit_line` for the hook of 0x4161BA (`race::credit_line`).

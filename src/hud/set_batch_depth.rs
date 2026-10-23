@@ -11,13 +11,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::hud::batch::POLYGON_RVA;
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const DEPTH_RVA: usize = rva(0x75BFE8); // flt_75BFE8
 const RHW_RVA: usize = rva(0x75BFEC); // flt_75BFEC
@@ -34,15 +30,4 @@ pub unsafe fn set_batch_depth() {
             game_write(v + 8, depth);
         }
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { set_batch_depth() };
-    Ok(left_of(r))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

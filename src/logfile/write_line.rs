@@ -182,12 +182,6 @@ pub unsafe fn write_line_regs(r: &mut Regs) {
     }
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { write_line_regs(r) };
-    Ok(())
-}
-
 /// Takes the lock the way `log_lock_acquire` does.
 pub fn acquire() {
     while lock().swap(1, Ordering::Acquire) != 0 {

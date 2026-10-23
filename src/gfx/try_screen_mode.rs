@@ -15,7 +15,7 @@
 //! three calls (set the mode, allocate, release: the platform's) are direct (2026-10-23).
 
 use crate::errors::Refused;
-use crate::framework::{Flags, Regs, game_addr, rva};
+use crate::framework::{Flags, game_addr, rva};
 use crate::race::viewer::{get, put};
 
 // ---- game data (IDA addresses) ----
@@ -70,10 +70,4 @@ pub fn try_screen_mode(mode: u32) -> Result<Flags, Refused> {
         },
         Err(zero) => Flags { carry: true, zero },
     })
-}
-
-/// The Rust version where the typed tables run it (a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), Refused> {
-    try_screen_mode(r.eax)?.apply(r);
-    Ok(())
 }

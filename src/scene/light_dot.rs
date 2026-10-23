@@ -15,11 +15,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::scene::draw_polygon::CHECKED_RVA;
-use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
 
 // ---- game data ----
 
@@ -53,27 +50,4 @@ pub unsafe fn light_dot() -> i32 {
         game_write(CHECKED_RVA, out);
         out
     }
-}
-
-/// The converted `light_dot` (plain floats): the hook's. The x87 version above stays for
-/// `scene::vertex_light` (unconverted).
-// Converted: `rc2k_core::scene::light::light_dot`
-pub unsafe fn light_dot_plain() -> i32 {
-    unsafe {
-        let v: [u32; 7] = game_read(INPUTS_RVA);
-        let f = |n: usize| f32::from_bits(v[n]);
-        let out = rc2k_core::scene::light::light_dot([f(0), f(1), f(2)], [f(3), f(4), f(5)], f(6));
-        game_write(CHECKED_RVA, out);
-        out
-    }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(Left::nothing().with(EAX, unsafe { light_dot_plain() } as u32))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

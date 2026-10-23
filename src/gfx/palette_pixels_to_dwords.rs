@@ -13,10 +13,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_read};
+use crate::framework::game_read;
 use crate::gfx::pcx::PALETTE_RVA;
 use crate::gfx::picture::picture;
-use crate::gfx::pixels_to_dwords::{pixel_count, spread_entry};
+use crate::gfx::pixels_to_dwords::pixel_count;
 
 // ---- Rust version ----
 
@@ -29,10 +29,4 @@ pub unsafe fn palette_pixels_to_dwords() -> Result<(), BadInput> {
         rc2k_core::gfx::pixels::palette_to_dwords(buffer, count, &palette)
             .ok_or(BadInput("a picture buffer shorter than its dwords"))
     }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    spread_entry(r, palette_pixels_to_dwords)
 }

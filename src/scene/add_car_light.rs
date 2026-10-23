@@ -29,7 +29,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::scene::add_point_lights::{LIGHT_COLOUR_RVA, LIT_PLACE_RVA, MMX_RVA};
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::polygon::dword;
@@ -182,13 +182,4 @@ pub unsafe fn add_car_light(car: usize) -> Result<(), BadInput> {
         );
         Ok(())
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let car = r.esi as usize;
-    if let Err(e) = unsafe { add_car_light(car) } {
-        return Err(e.into());
-    }
-    Ok(())
 }

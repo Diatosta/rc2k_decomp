@@ -15,11 +15,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, Regs, game_read, rva};
+use crate::framework::{Regs, game_read, rva};
 use crate::gfx::put_surface_pixel::put_surface_pixel;
 use crate::race::mud_texel::texel_place;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const WIDTH_RVA: usize = rva(0x4F49A0); // g_surface.width
 const HEIGHT_RVA: usize = rva(0x4F49A4); // g_surface.height
@@ -41,14 +39,4 @@ pub unsafe fn put_mud_texel(entry: &Regs) -> Result<u32, Refused> {
         };
         Ok(put_surface_pixel(&put)?.eax)
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(Left::nothing().with(EAX, unsafe { put_mud_texel(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

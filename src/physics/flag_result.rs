@@ -4,7 +4,6 @@
 //! in shadow mode the original runs on a copy of the registers, the two are compared
 //! (the registers and the flags named), and the original's are used.
 
-use crate::errors::Refused;
 use crate::framework::Regs;
 
 /// What such a function leaves: eax (the value it had, where it is not changed), ecx and
@@ -32,13 +31,4 @@ impl FlagResult {
             r.set_zero(z);
         }
     }
-}
-
-/// `dispatch_flags` without its hook (Rust callers; a refusal is the caller's).
-pub fn flags_entry(
-    r: &mut Regs,
-    rust: &dyn Fn(&Regs) -> Result<FlagResult, Refused>,
-) -> Result<(), Refused> {
-    rust(r)?.apply(r);
-    Ok(())
 }

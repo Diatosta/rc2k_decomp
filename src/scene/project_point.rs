@@ -33,11 +33,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{EAX, ECX, EDX, Regs, game_ptr, game_read, game_write, rva};
+use crate::framework::{game_ptr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::polygon::{dword, put};
-use crate::screens::harness::Left;
 
 // ---- game data ----
 
@@ -227,96 +226,4 @@ pub unsafe fn project_point(point: u32) -> Result<Projected, Refused> {
             ecx: Some(from),
         })
     }
-}
-
-/// The view's screen from the game's variables.
-pub fn screen() -> rc2k_core::scene::projection::Screen {
-    unsafe {
-        let f = |r: usize| f32::from_bits(game_read(r));
-        rc2k_core::scene::projection::Screen {
-            scale: f(SCALE_RVA),
-            centre: [f(CENTRE_X_RVA), f(CENTRE_Y_RVA)],
-            flat: (game_read::<u32>(FLAT_RVA) != 0).then(|| game_read(FLAT_DEPTH_RVA)),
-        }
-    }
-}
-
-/// The converted `make_scene_record` (plain floats).
-// Converted: `rc2k_core::scene::projection::make_record`
-pub(crate) unsafe fn make_scene_record_plain(point: u32, record: u32) -> Result<u32, BadInput> {
-    unsafe {
-        let at = record as usize;
-        let points: u32 = game_read(POINTS_RVA);
-        if points == 0 {
-            return Err(BadInput("no points"));
-        }
-        let from = points.wrapping_add(point.wrapping_mul(12));
-        let place = (from as *const [i32; 3]).read_unaligned();
-        let matrix: [u32; 16] = game_read(MATRIX_RVA);
-        let made = rc2k_core::scene::projection::make_record(
-            place,
-            &matrix.map(f32::from_bits),
-            screen,
-            game_read::<u32>(LOWERED_RVA) == 1,
-        );
-        put(at, point);
-        for (k, v) in made.view.into_iter().enumerate() {
-            put(at + 0x10 + 4 * k, v.to_bits());
-        }
-        put(at + 0xC, made.screen[0].to_bits());
-        put(at + 0x1C, made.screen[1].to_bits());
-        if let Some(checked) = made.checked {
-            game_write(CHECKED_RVA, checked.to_bits());
-        }
-        Ok(from)
-    }
-}
-
-/// The converted `project_point` (plain floats): the hook's, and `project_polygon_plain`'s.
-/// The x87 version above stays for the Rust callers in unconverted code.
-// Converted: `rc2k_core::scene::projection`
-pub unsafe fn project_point_plain(point: u32) -> Result<Projected, Refused> {
-    unsafe {
-        let offset = record_offset(point)?;
-        let records: u32 = game_read(RECORDS_RVA);
-        if records == 0 {
-            return Err(BadInput("no records for the points").into());
-        }
-        let record = records.wrapping_add(offset);
-        if (point as i32) < 0 {
-            return Ok(Projected {
-                record,
-                eax: offset,
-                ecx: None,
-            });
-        }
-        if dword(record as usize) == point {
-            return Ok(Projected {
-                record,
-                eax: point,
-                ecx: Some(game_read::<u32>(POINT_COUNT_RVA).wrapping_add(0x40)),
-            });
-        }
-        let from = make_scene_record_plain(point, record)?;
-        Ok(Projected {
-            record,
-            eax: point,
-            ecx: Some(from),
-        })
-    }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let done = unsafe { project_point_plain(r.eax) }?;
-    let left = Left::nothing().with(EAX, done.eax).with(EDX, done.record);
-    Ok(match done.ecx {
-        Some(ecx) => left.with(ECX, ecx),
-        None => left,
-    })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::service::floats::floats_entry(r, &rust)
 }

@@ -16,9 +16,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
+use crate::service::harness::{Region, at};
 
 const INDEX_RVA: usize = rva(0x84460C); // dword_84460C
 const TABLE_RVA: usize = rva(0x844610); // dword_844610: 256 entries
@@ -49,14 +47,4 @@ pub unsafe fn pick_shapes(entry: &Regs) -> Result<Regs, Refused> {
 
 pub fn regions() -> Vec<Region> {
     PAIRS.iter().flat_map(|&(f, s)| [at(f), at(s)]).collect()
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { pick_shapes(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

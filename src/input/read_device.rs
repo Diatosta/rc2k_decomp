@@ -29,45 +29,27 @@
 //! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, rva};
 use crate::input::devices::put;
 use crate::input::devices::{joy_state, key_table, record_bytes};
 
-const POLL_RVA: usize = rva(0x408869); // sub_408869: the device polled (DirectInput)
-/// A call by place: 0 the poll (esi the record).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-/// The Rust version (see the header): the registers it leaves (`popa`'s: the entry's).
-/// Converted: `rc2k_core::input::devices::read_device`; the bindings are checked before the poll,
+/// The device `record` read (see the header). Converted: `rc2k_core::input::devices::read_device`; the bindings are checked before the poll,
 /// the record read again after it.
-pub unsafe fn read_device(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub unsafe fn read_device(record: u32) -> Result<(), Refused> {
     use rc2k_core::input::devices;
-    let record = entry.esi;
     devices::check_bindings(&record_bytes(record))?;
-    let mut poll = *entry;
-    part(0, &mut poll)?;
+    unsafe { crate::input::poll_device::poll_device(record) }?;
     let Some(r) = devices::read_device(&record_bytes(record), &key_table(), &joy_state())? else {
-        return Ok(*entry);
+        return Ok(());
     };
     let readings = devices::READINGS as u32;
     put(record, readings, r.steering);
     put(record, readings + 4, r.brake);
     put(record, readings + 8, r.throttle);
     put(record, devices::BITS as u32, r.bits);
-    Ok(*entry)
-}
-
-/// In the game: the poll through the game (DirectInput).
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    crate::calls::call(POLL_RVA, r);
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { read_device(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

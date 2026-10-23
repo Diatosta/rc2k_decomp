@@ -290,15 +290,8 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 let left = hexagons_step::hexagons_step(r);
                 *r = Regs { esp: r.esp, ..left };
             }
-            _ => crate::scene::set_texture::set_texture_in_game(r),
+            _ => crate::scene::set_texture::set_texture(r.eax),
         }
     }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { hexagons_top(r) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

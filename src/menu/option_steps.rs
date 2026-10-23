@@ -79,15 +79,15 @@ pub unsafe fn volume_step(entry: &Regs, v: Volume, part: Part) -> Result<Regs, R
 /// In the game: the senders' and the menu sound's Rust versions.
 pub fn volume_part(then: Then) -> fn(u32, &mut Regs) -> Result<(), Refused> {
     fn music(_: u32, r: &mut Regs) -> Result<(), Refused> {
-        crate::sound::senders::send_in_game(&crate::sound::set_music_volume::SENDER, r);
+        crate::sound::set_music_volume::set_music_volume(r.eax);
         Ok(())
     }
     fn speech(_: u32, r: &mut Regs) -> Result<(), Refused> {
-        crate::sound::senders::send_in_game(&crate::sound::start_stream::SENDER, r);
+        crate::sound::start_stream::start_stream(r.eax, r.ecx);
         Ok(())
     }
     fn sound(_: u32, r: &mut Regs) -> Result<(), Refused> {
-        crate::sound::play_menu_sound::play_menu_sound_in_game(r);
+        crate::sound::play_menu_sound::play_menu_sound_in_game(r.eax);
         Ok(())
     }
     match then {

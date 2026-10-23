@@ -14,12 +14,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
 use crate::framework::{EAX, Regs};
 use crate::physics::flow::{base, g, p, x87_run};
 use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
-use rc2k_core::physics::camera_view::ease_turns;
 
 /// The Rust version (the exact one, for `physics::camera_avoid_ground`).
 pub unsafe fn ease_view_turn(_: &Regs) -> Left {
@@ -45,41 +42,4 @@ pub unsafe fn ease_view_turn(_: &Regs) -> Left {
         p(turn, g(turn).wrapping_add(eax));
     }
     Left::nothing().with(EAX, eax)
-}
-
-/// The converted version (`rc2k_core::physics::camera_view`, plain floats): the hook's.
-// Converted: `rc2k_core::physics::camera_view::ease_turns`.
-pub unsafe fn ease_view_turn_plain(_: &Regs) -> Left {
-    if g(0x6EF7CC) != 0 {
-        for x in [0x608BE4, 0x608BE8, 0x608BEC] {
-            p(x, 0x3F80_0000);
-        }
-    }
-    // (target, turn, share), in the original's order.
-    const TURNS: [(usize, usize, usize); 3] = [
-        (0x608B50, 0x71A688, 0x608BE8),
-        (0x608B58, 0x71A690, 0x608BE4),
-        (0x608B54, 0x71A68C, 0x608BEC),
-    ];
-    let mut turns = TURNS.map(|t| g(t.1));
-    let step = ease_turns(
-        TURNS.map(|t| g(t.0)),
-        &mut turns,
-        TURNS.map(|t| f32::from_bits(g(t.2))),
-    ) as u32;
-    p(0x62400C, step);
-    for (t, v) in TURNS.iter().zip(turns) {
-        p(t.1, v);
-    }
-    Left::nothing().with(EAX, step)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { ease_view_turn_plain(r) })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

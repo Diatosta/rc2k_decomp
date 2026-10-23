@@ -195,8 +195,8 @@ fn step_part(callee: u32, r: &mut Regs) -> Result<(), Refused> {
                     &mut crate::race::loadlevel::game_part,
                 )?
             }
-            5 => crate::race::music::game_music(r, &mut crate::race::music::game_tune)?,
-            6 => crate::race::music::game_music_8(r, &mut crate::race::music::game_tune)?,
+            5 => crate::race::music::game_music(),
+            6 => crate::race::music::game_music_8(),
             7 => crate::race::create_controls::create_controls(),
             8 => crate::calls::call(rva(CALLEES[8]), r),
             _ => {

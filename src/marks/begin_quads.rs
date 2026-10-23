@@ -69,28 +69,13 @@ pub unsafe fn begin_quads(entry: &Regs) -> Result<Regs, Refused> {
 
 /// In the game: the calls' Rust versions.
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            1 => crate::scene::set_texture::set_texture_in_game(r),
-            2 => crate::scene::depth_buffer_on::depth_buffer(r, true),
-            3 => crate::scene::depth_test_off::depth_test_off(r),
-            _ => {
-                let (value, state) = (r.eax, r.ebx);
-                crate::scene::set_render_state::set_render_state(r, value, state);
-            }
-        }
-    }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    {
-        let left = unsafe { begin_quads(r) }?;
-        *r = Regs {
-            esp: r.esp,
-            eflags: r.eflags,
-            ..left
+    match place {
+        1 => crate::scene::set_texture::set_texture(r.eax),
+        2 => crate::scene::depth_buffer_on::depth_buffer(true),
+        3 => crate::scene::depth_test_off::depth_test_off(),
+        _ => {
+            let (value, state) = (r.eax, r.ebx);
+            crate::scene::set_render_state::set_render_state(value, state);
         }
     }
     Ok(())

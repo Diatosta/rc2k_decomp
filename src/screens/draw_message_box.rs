@@ -19,9 +19,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::screens::font_at;
-use crate::text::draw_text::{Canvas, GameCanvas};
+use crate::text::draw_text::Canvas;
 use rc2k_core::screens::message_box::{FILL, FRAME, STRING, layout};
 
 const BOX: usize = 0x52983C; // dword_52983C .. dword_529848
@@ -62,13 +62,4 @@ pub unsafe fn draw_message_box(x: i32, canvas: &mut dyn Canvas) -> Result<(), Re
         draw_string_by_id_at(STRING, font, b.text_x, b.text_y, canvas)?;
         Ok(())
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    if crate::screens::blanked("screens::draw_message_box") {
-        return Ok(());
-    }
-    unsafe { draw_message_box(r.ecx as i32, &mut GameCanvas) }?;
-    Ok(())
 }

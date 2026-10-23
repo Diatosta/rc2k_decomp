@@ -15,24 +15,11 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::race::viewer::{Part, regs_entry};
+use crate::race::viewer::Part;
 
 /// The Rust version.
 pub fn replay_mode_2(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = Regs { eax: 2, ..*entry };
     part(1, &mut r)?;
     Ok(r)
-}
-
-/// In the game: the viewer's Rust version.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::race::replay_viewer::{game_part, replay_viewer};
-    *r = replay_viewer(r, &mut game_part)?;
-    Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| replay_mode_2(r, &mut game_part))
 }

@@ -30,11 +30,8 @@ use crate::marks::emit_body_particles::emit_body_particles;
 use crate::marks::emit_wheel_particles::emit_wheel_particles;
 use crate::marks::emitters::*;
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// flt_9354EE .. flt_935506: the places' factors and bases.
 const K: [usize; 7] = [
@@ -130,14 +127,4 @@ unsafe fn run(entry: &Regs) -> Result<Regs, Refused> {
         g = emit_body_particles(&g)?;
     }
     Ok(g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { emit_car_particles(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

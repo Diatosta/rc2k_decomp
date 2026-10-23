@@ -30,10 +30,11 @@ use crate::service::harness::state_entry;
 const STAGE_SLOT: usize = 0x7559EC; // dword_7559EC
 // hhmm
 
-pub unsafe fn enter_time_trial_best(entry: &Regs) -> Result<(), Refused> {
+/// The Rust version (see the header).
+pub unsafe fn enter_time_trial_best() -> Result<(), Refused> {
     use rc2k_core::menu::bests;
     let record = stage_record()?;
-    let tenth = stage_times()? + crate::menu::time_trial_qualifies::TENTH;
+    stage_times()?; // a stage the tables do not give: refused
     let p = current_player()?;
     let name = dword(p + 0x18);
     if name == 0 {
@@ -42,15 +43,7 @@ pub unsafe fn enter_time_trial_best(entry: &Regs) -> Result<(), Refused> {
     let slot = dword(record + 0x3C);
     set(STAGE_SLOT, slot);
     let cheats = get(CHEATS);
-    let sealed = unsafe {
-        crate::menu::sealed_player_time::sealed_player_time(&Regs {
-            eax: slot,
-            ebx: get(STAGE_SUB),
-            esi: p,
-            edi: tenth,
-            ..*entry
-        })?
-    };
+    let sealed = unsafe { crate::menu::sealed_player_time::sealed_player_time(slot)? };
     // Converted: `rc2k_core::menu::bests::enter_tenth`, then `rank_time_trial_best`.
     use crate::menu::standings::bytes;
     let best = bests::NewBest {
@@ -62,10 +55,7 @@ pub unsafe fn enter_time_trial_best(entry: &Regs) -> Result<(), Refused> {
         group: dword(p + 0x90),
         name: bytes(name),
         entered: None,
-        seal: Some(bests::Seal {
-            cheats,
-            sealed: [sealed.eax, sealed.ebx],
-        }),
+        seal: Some(bests::Seal { cheats, sealed }),
         line: Some(bytes(p + 0x20C)),
     };
     bests::enter_tenth(&mut crate::menu::rank_time_trial_best::stage_list()?, &best);
@@ -73,7 +63,8 @@ pub unsafe fn enter_time_trial_best(entry: &Regs) -> Result<(), Refused> {
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { enter_time_trial_best(r)? };
+    let _ = r;
+    unsafe { enter_time_trial_best()? };
     Ok(Left::nothing())
 }
 

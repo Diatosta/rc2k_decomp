@@ -12,9 +12,6 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::sound::queue::{Queue, send_command, sent};
-use crate::sound::stop_music::stop_music_in_game;
-use crate::sound::wait_for_commands::{Game, wait_for_commands};
 
 // ---- game data ----
 
@@ -28,19 +25,21 @@ const SECOND_RVA: usize = rva(0x755684); // dword_755684
 
 pub use rc2k_core::sound::set_up::Step;
 
-/// The steps with the registers each gets: the caller's, eax set by each command for it
-/// and those after it.
-pub fn run_steps(entry: &Regs, steps: &[Step], step: &mut dyn FnMut(Step, &Regs)) {
-    let mut r = *entry;
-    for &s in steps {
-        if let Step::Send { eax, .. } = s {
-            r.eax = eax;
-        }
-        step(s, &r);
+/// A step run: each command sent with its eax, all the audio thread reads of it (the
+/// original carries eax on to the steps after it, which read no more).
+pub fn run_step(step: Step) -> Result<(), crate::errors::Refused> {
+    match step {
+        Step::StopMusic => crate::sound::stop_music::stop_music(),
+        Step::Send { command, eax } => crate::sound::senders::send(command, [eax, 0, 0, 0]),
+        Step::LoadRaceSounds => crate::sound::load_race_sounds::load_race_sounds_in_game()?,
+        Step::Wait => crate::sound::wait_for_commands::wait_for_commands(
+            &mut crate::sound::wait_for_commands::Game([0; 7]),
+        ),
     }
+    Ok(())
 }
 
-pub unsafe fn apply_settings(entry: &Regs, step: &mut dyn FnMut(Step, &Regs)) {
+pub fn apply_settings() -> Result<(), crate::errors::Refused> {
     // Converted: `rc2k_core::sound::set_up::menus`.
     use rc2k_core::sound::set_up::{MENUS, menus};
     unsafe {
@@ -50,20 +49,15 @@ pub unsafe fn apply_settings(entry: &Regs, step: &mut dyn FnMut(Step, &Regs)) {
             game_addr(THIRD_RVA) as u32,
             game_read(SECOND_RVA),
         );
-        run_steps(entry, &steps, step);
+        for s in steps {
+            run_step(s)?;
+        }
         game_write(CLEARED_RVA, 0u32);
     }
+    Ok(())
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe {
-        apply_settings(r, &mut |step, regs| match step {
-            Step::StopMusic => stop_music_in_game(regs),
-            Step::Send { command, .. } => send_command(&Queue::game(), command, sent(regs)),
-            Step::LoadRaceSounds => {}
-            Step::Wait => wait_for_commands(&mut Game(sent(regs))),
-        });
-    }
-    Ok(())
+pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+    apply_settings()
 }

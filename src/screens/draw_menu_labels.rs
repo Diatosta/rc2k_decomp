@@ -16,8 +16,6 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
-use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::Canvas;
 
 const LABEL_LEN: u32 = 0x10;
@@ -58,15 +56,4 @@ pub unsafe fn draw_menu_labels(menu: u32, canvas: &mut dyn Canvas) -> Result<(),
         }
         rc2k_core::screens::menus::labels(&mut MenuScreen::new(canvas), &list)
     }
-}
-
-fn rust(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    unsafe { draw_menu_labels(r.edi, canvas) }?;
-    Ok(Left::carry(false))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_menu_labels", r, &rust)
 }

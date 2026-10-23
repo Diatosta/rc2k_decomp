@@ -16,11 +16,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::physics::allowed_gear::allowed_gear;
 use crate::physics::change_gear::change_gear;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::gearbox::asked_gear`.
@@ -37,14 +36,4 @@ pub unsafe fn take_asked_gear() -> Result<Left, Refused> {
     };
 
     run()
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { take_asked_gear() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

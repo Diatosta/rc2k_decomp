@@ -98,23 +98,3 @@ pub unsafe fn angle_between_vectors(a: u32, b: u32) -> [u8; 10] {
         crate::scene::matrix3::extended(angle)
     }
 }
-
-/// The converted `angle_between_vectors`: the hook's. The vectors normalised through
-/// memory in the original's order (so that overlapping ones behave as there).
-pub unsafe fn angle_between_vectors_plain(a: u32, b: u32) -> [u8; 10] {
-    use rc2k_core::math::vector::{Search, dot, search_angle};
-    unsafe {
-        normalise_vector3_plain(b);
-        normalise_vector3_plain(a);
-        let cosine = dot(read_floats(a), read_floats(b)) as f32;
-        let float = |r: usize| f32::from_bits(game_read(r));
-        let search = Search {
-            start: float(START_RVA),
-            step: float(STEP_RVA),
-            half: float(HALF_RVA),
-        };
-        let (angle, status) = search_angle(cosine, search);
-        game_write(STATUS_RVA, status);
-        rc2k_core::math::extended::from_f64(angle as f64)
-    }
-}

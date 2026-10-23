@@ -30,15 +30,11 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, EBX, Regs, game_read, game_write, rva};
+use crate::framework::{EAX, EBX, game_read, game_write, rva};
 use crate::math::x87;
 use crate::math::x87_run::{ext_div2, int_80, neg_mul2, neg_rounded, sub_mul, wheel_int};
 use crate::scene::matrix3::extended;
 use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
-use rc2k_core::physics::springs::{SpringFactors, spring, wheel_place};
-use rc2k_core::physics::x87::{loaded, negated};
 use std::cmp::Ordering;
 
 fn g(x: usize) -> u32 {
@@ -138,67 +134,6 @@ pub unsafe fn wheel_springs() -> Left {
     Left::nothing().with(EAX, eax).with(EBX, 4)
 }
 
-/// The converted version (`rc2k_core::physics::springs`, plain floats): the hook's.
-// Converted: `rc2k_core::physics::springs::{spring, wheel_place}`.
-pub unsafe fn wheel_springs_plain() -> Left {
-    let f = |x: usize| f32::from_bits(g(x));
-    let factors = SpringFactors {
-        scale: f(0x5C5D98),
-        range: f(0x614BF8),
-        zero: f(ZERO),
-        one: f(ONE),
-        stiffness: f(0x613F90),
-        load: f(0x614774),
-        damping: f(0x614C00),
-        rebound: f(0x614BEC),
-    };
-    let mut eax = 0;
-    for k in 0..4 {
-        let q = SQUEEZE + 4 * k;
-        let last = f(q);
-        let old = loaded(last).to_bits();
-        p(0x623FB8, old);
-        p(LAST + 4 * k, old);
-        let height = g(HEIGHTS + 4 * k);
-        eax = height.wrapping_neg();
-        p(0x62400C, eax);
-        let s = spring(height, last, &factors);
-        p(q, s.squeeze.to_bits());
-        p(FORCE + 4 * k, s.force.to_bits());
-        p(DAMPING + 4 * k, s.damping.to_bits());
-    }
-    let abcd = [f(0x70FFF4), f(0x614BF4), f(0x613EC0), f(0x613F8C)];
-    for k in 0..4 {
-        let v = wheel_place(abcd, f(SQUEEZE + 4 * k), factors.range, factors.scale);
-        p(0x71A8E8 + 4 * k, v as u32);
-    }
-    // The wheel records: the forces and the wheels' places, copied on (`fld; fstp`).
-    let copy = |to: usize, from: usize| p(to, loaded(f(from)).to_bits());
-    for k in 0..4 {
-        copy(0x614834 + 0x20 * k, FORCE + 4 * k);
-    }
-    for (row, from) in [0x71AAC8usize, 0x71ABC8, 0x71ACC8].into_iter().enumerate() {
-        for k in 0..4 {
-            copy(0x61483C + 4 * row + 0x20 * k, from + 4 * k);
-        }
-    }
-    for (from, to) in RECORD_COPIES {
-        for t in to {
-            copy(t, from);
-        }
-    }
-    p(0x6148C0, 0);
-    let n = negated(f(0x6141D4)).to_bits();
-    for t in [0x6148E0, 0x614900, 0x614920, 0x614940] {
-        p(t, n);
-    }
-    let n = negated(f(0x6141D8)).to_bits();
-    for t in [0x614960, 0x614980, 0x6149A0, 0x6149C0] {
-        p(t, n);
-    }
-    Left::nothing().with(EAX, eax).with(EBX, 4)
-}
-
 /// The records' places copied on into the records at 0x6148DC .. and 0x61495C ...
 const RECORD_COPIES: [(usize, [usize; 2]); 8] = [
     (0x61483C, [0x6148DC, 0x61495C]),
@@ -210,13 +145,3 @@ const RECORD_COPIES: [(usize, [usize; 2]); 8] = [
     (0x61489C, [0x61493C, 0x6149BC]),
     (0x6148A4, [0x614944, 0x6149C4]),
 ];
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { wheel_springs_plain() })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
-}

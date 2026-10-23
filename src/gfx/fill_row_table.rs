@@ -12,10 +12,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::errors::BadInput;
+use crate::framework::{game_addr, rva};
 
 // ---- game data ----
 
@@ -46,15 +44,4 @@ pub unsafe fn fill_row_table(first: u32, step: u32, rows: u32) -> Result<(), Bad
         unsafe { table.add(row).write_unaligned(address) };
     }
     Ok(())
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { fill_row_table(r.eax, r.ebx, r.ecx) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -26,15 +26,13 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::gfx::fill_row_table::{ROW_TABLE_ROOM, fill_row_table, row_address};
-use crate::gfx::harness::pixels_entry;
 use crate::gfx::pcx::{DECODED_HEIGHT_RVA, DECODED_WIDTH_RVA, PIXELS_RVA, ROW_GAP_RVA};
 use crate::gfx::picture::{HEIGHT_RVA, WIDTH_RVA, picture};
 use crate::memory::MemoryList;
 use crate::memory::allocate::allocate;
 use crate::memory::free_list::free_list;
-use crate::screens::harness::Left;
 
 // ---- game data ----
 
@@ -107,17 +105,6 @@ pub unsafe fn rescale_picture() -> Result<(), Refused> {
         free_list(list)?;
         Ok(())
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { rescale_picture() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    pixels_entry(r, &rust)
 }
 
 // ---- self-test: small pictures of the test's own stretched and shrunk into the game's

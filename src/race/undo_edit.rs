@@ -20,8 +20,7 @@ use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::physics::flow::a;
 use crate::race::viewer::{
-    BLOCKS, CAMERAS, PLACES, TABLE_LEN, UNDO_BLOCKS, UNDO_CAMERAS, UNDO_PLACES, get, put,
-    regs_entry, table,
+    BLOCKS, CAMERAS, PLACES, TABLE_LEN, UNDO_BLOCKS, UNDO_CAMERAS, UNDO_PLACES, get, put, table,
 };
 
 /// The Rust version: the registers it leaves.
@@ -49,10 +48,4 @@ pub fn undo_edit(entry: &Regs) -> Result<Regs, Refused> {
         crate::race::reset_marks::reset_marks()?;
         Ok(r)
     }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &undo_edit)
 }

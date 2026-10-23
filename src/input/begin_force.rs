@@ -24,7 +24,7 @@
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::input::devices::{at, put};
 use crate::input::di_harness::{
     DWORD_PROP_RVA, EFFECT_LEN, EFFECTS_AT, a, entry_of, fatal, method, slot,
@@ -91,20 +91,9 @@ pub fn begin_force(record: u32) -> Result<(), Refused> {
         as usize as u32;
     method(device, slot::ENUM_EFFECTS, &[found, record, 0]);
     for n in 0..6 {
-        let r = Regs {
-            ecx: n,
-            esi: record,
-            edi: record.wrapping_add(EFFECTS_AT + n * EFFECT_LEN),
-            ..Regs::default()
-        };
-        crate::input::make_effect::make_effect(&r)?;
+        let effect = record.wrapping_add(EFFECTS_AT + n * EFFECT_LEN);
+        crate::input::make_effect::make_effect(record, effect, n)?;
     }
     put(record, field!(InputDevice, effects_on), 1);
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    begin_force(r.esi)?;
     Ok(())
 }

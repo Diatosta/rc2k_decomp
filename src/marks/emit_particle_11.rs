@@ -14,10 +14,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, rva};
+use crate::framework::rva;
 use crate::marks::emit_particle_5::{JitterSet, emit_particle_5_with};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// Kind 0xB's variables.
 pub const ELEVENTH: JitterSet = JitterSet {
@@ -35,15 +33,4 @@ pub const ELEVENTH: JitterSet = JitterSet {
 /// The Rust version (see the header).
 pub unsafe fn emit_particle_11(wheel: u32, object: u32) -> Result<(), Refused> {
     unsafe { emit_particle_5_with(&ELEVENTH, wheel, object) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { emit_particle_11(r.edi, r.esi) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

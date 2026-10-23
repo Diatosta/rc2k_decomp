@@ -13,11 +13,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// The Rust version.
 pub unsafe fn damage_step(entry: &Regs) -> Left {
@@ -26,14 +24,4 @@ pub unsafe fn damage_step(entry: &Regs) -> Left {
     crate::physics::damage_wear::steps(&mut r);
     crate::physics::damage_gauges::steps(&mut r);
     left_of(&r)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { damage_step(r) })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

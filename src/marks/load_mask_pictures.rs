@@ -201,16 +201,3 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     }
     Ok(())
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    {
-        let left = unsafe { load_mask_pictures(r, &mut game_part) }?;
-        *r = Regs {
-            esp: r.esp,
-            eflags: r.eflags,
-            ..left
-        }
-    }
-    Ok(())
-}

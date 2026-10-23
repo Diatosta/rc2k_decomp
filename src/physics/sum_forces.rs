@@ -15,12 +15,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87_run::sum_over;
-use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
-use rc2k_core::physics::motion::sum_forces as sum_forces_core;
 
 /// The thirteen read, the five written.
 const VARIABLES: [usize; 18] = [
@@ -46,21 +42,6 @@ pub unsafe fn sum_at(v: &[u32]) {
     }
 }
 
-/// The converted version (`rc2k_core::physics::motion`, plain floats) on the variables
-/// at `v`.
-// Converted: `rc2k_core::physics::motion::sum_forces`.
-pub unsafe fn sum_at_plain(v: &[u32]) {
-    unsafe {
-        let get = |k: usize| f32::from_bits((v[k] as *const u32).read_unaligned());
-        let forces: [f32; 13] = std::array::from_fn(get);
-        let k = |x: usize| f32::from_bits(game_read(rva(x)));
-        let sums = sum_forces_core(&forces, k(0x613FC8), k(0x61388C));
-        for (n, s) in sums.iter().enumerate() {
-            (v[13 + n] as *mut u32).write_unaligned(s.to_bits());
-        }
-    }
-}
-
 fn game() -> Vec<u32> {
     VARIABLES
         .iter()
@@ -71,15 +52,4 @@ fn game() -> Vec<u32> {
 /// The Rust version (the exact x87 one, for `physics::car_physics_step`).
 pub unsafe fn sum_forces() {
     unsafe { sum_at(&game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { sum_at_plain(&game()) };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

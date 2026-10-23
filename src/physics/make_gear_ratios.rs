@@ -22,13 +22,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EBX, Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87;
 use crate::math::x87_run::{ext_add, gear_step_80, lerp_int_over2};
 use crate::scene::matrix3::{extended, rounded};
-use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
-use rc2k_core::physics::gearing::{GearSetup, RATIOS, make_ratios};
 
 /// The count, the four setup ends, the setup's gearing, the divisor, then the ratios from
 /// reverse (0x6140BC) to gear 7 (0x6140DC), the scratch, neutral's.
@@ -79,36 +76,6 @@ pub unsafe fn ratios_at(v: &[u32]) -> Result<u32, Refused> {
     }
 }
 
-/// The converted version (`rc2k_core::physics::gearing`, plain floats) on the variables
-/// at `v`: the gear count.
-// Converted: `rc2k_core::physics::gearing::make_ratios`.
-pub unsafe fn ratios_at_plain(v: &[u32]) -> Result<u32, Refused> {
-    unsafe {
-        let get = |k: usize| (v[k] as *const u32).read_unaligned();
-        let f = |k: usize| f32::from_bits(get(k));
-        let k = |x: usize| f32::from_bits(game_read::<u32>(rva(x)));
-        let count = get(0);
-        let setup = GearSetup {
-            count,
-            top: [f(1), f(2)],
-            first: [f(3), f(4)],
-            gearing: get(5) as i32,
-            factor: k(0x5C5DA4),
-            divisor: k(0x5C5D00),
-            divisor_2: f(6),
-            one: k(0x5C5D38),
-            neutral: f(17),
-        };
-        let mut ratios = [0.0f32; RATIOS];
-        let step = make_ratios(&setup, &mut ratios)?;
-        for (n, r) in ratios.iter().enumerate() {
-            (v[7 + n] as *mut u32).write_unaligned(r.to_bits());
-        }
-        (v[16] as *mut u32).write_unaligned(step.to_bits());
-        Ok(count)
-    }
-}
-
 fn game() -> Vec<u32> {
     VARIABLES
         .iter()
@@ -120,14 +87,4 @@ fn game() -> Vec<u32> {
 /// `physics::test_drive`): the gear count.
 pub unsafe fn make_gear_ratios() -> Result<u32, Refused> {
     unsafe { ratios_at(&game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(Left::nothing().with(EBX, unsafe { ratios_at_plain(&game()) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

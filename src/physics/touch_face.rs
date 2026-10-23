@@ -28,12 +28,11 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, EDX, ESI, Regs};
+use crate::framework::{EAX, EBX, EDX, ESI};
 use crate::math::next_random::next_random;
 use crate::physics::flow::{a, c0, g, p};
 use crate::physics::place_sound_object::place_sound_object;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::drive::lit_faces::{LIST_ROOM, Touch, fall_mark, lucky, touch};
 
 /// `g_courseFaces`: the pointer to the course's faces.
@@ -108,14 +107,4 @@ pub unsafe fn touch_face() -> Result<Left, Refused> {
         Ok(eax)
     })()?;
     Ok(left.with(EAX, eax))
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { touch_face() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

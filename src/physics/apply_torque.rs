@@ -20,15 +20,11 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87_run::neg_product2_plus;
 use crate::physics::turn_by_inverse_at::turn_by_inverse_at;
 use crate::physics::turn_by_matrix_at::turn_by_matrix_at;
-use crate::scene::vector3::{read_floats, write_floats};
 use crate::scene::view_matrix::cross_product;
-use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
 
 const WORK_RVA: usize = rva(0x6D30B4); // dword_6D30B4
 const CROSS_RVA: usize = rva(0x614274); // flt_614274
@@ -70,25 +66,6 @@ pub unsafe fn apply_torque_at(rec: u32, car: u32, work: u32, cross: u32) {
     }
 }
 
-/// The converted version (`rc2k_core::physics::pushes`, plain floats): the record at
-/// `rec`, the car at `car`, the work vector at `work`, the cross product at `cross`.
-// Converted: `rc2k_core::physics::pushes::apply_torque`.
-pub unsafe fn apply_torque_at_plain(rec: u32, car: u32, work: u32, cross: u32) {
-    unsafe {
-        let twist = rc2k_core::physics::pushes::apply_torque(
-            read_floats(rec),
-            read_floats(car + SPIN_OFFSET),
-            f32::from_bits(game_read(STEP_RVA)),
-            game_read::<[f32; 3]>(INERTIA_RVA),
-            &read_floats(car + crate::physics::turn_by_inverse_at::INVERSE_OFFSET),
-            &read_floats(car + crate::physics::turn_by_matrix_at::MATRIX_OFFSET),
-        );
-        write_floats(cross, &twist.cross);
-        write_floats(work, &twist.spin);
-        write_floats(car + SPIN_OFFSET, &twist.spin);
-    }
-}
-
 /// The Rust version (the exact one, for `physics::apply_torques`).
 pub unsafe fn apply_torque(rec: u32, car: u32) {
     unsafe {
@@ -99,22 +76,4 @@ pub unsafe fn apply_torque(rec: u32, car: u32) {
             game_addr(CROSS_RVA) as u32,
         )
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe {
-        apply_torque_at_plain(
-            r.esi,
-            r.edi,
-            game_addr(WORK_RVA) as u32,
-            game_addr(CROSS_RVA) as u32,
-        )
-    };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

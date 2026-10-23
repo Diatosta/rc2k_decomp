@@ -33,14 +33,3 @@ pub unsafe fn flush_replay(entry: &Regs) -> Result<Left, Refused> {
     unsafe { crate::drive::write_replay_frames::write_replay_frames(&r) }?;
     Ok(left)
 }
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { flush_replay(r) }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = rust(r)?;
-    left.apply(r);
-    Ok(())
-}

@@ -33,7 +33,6 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::physics::camera_clear_of_ground::camera_clear_of_ground;
-use crate::physics::camera_ground::carry_entry;
 use crate::physics::camera_over_ground::camera_over_ground;
 use crate::physics::camera_view::{rd, record};
 use crate::physics::flow::{g, p};
@@ -173,17 +172,4 @@ pub fn steps(r: &mut Regs, part: Part) -> Result<(), Refused> {
         place(r);
         up = !clear(r, part)?;
     }
-}
-
-/// The Rust version, the probes through `part`.
-pub unsafe fn camera_avoid_ground(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    steps(&mut r, part)?;
-    Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    carry_entry(r, camera_avoid_ground)
 }

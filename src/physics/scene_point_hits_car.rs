@@ -14,12 +14,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EBX, ESI, Regs};
 use crate::physics::flow::{fill3, g, p};
 use crate::physics::point_hits_car::point_hits_car;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// `g_scenePoints`: the pointer to the scene's points (three whole numbers each).
 pub const SCENE_POINTS: usize = 0x5CCCC0;
@@ -31,15 +27,4 @@ pub unsafe fn scene_point_hits_car(record: u32, object: u32) -> (bool, u32, u32)
     p(0x614108, g(0x614108).wrapping_add(1));
     fill3(0x6D3B40, 0);
     (unsafe { point_hits_car(point, object) }, number, point)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let (inside, ebx, esi) = unsafe { scene_point_hits_car(r.esi, r.ebp) };
-    Ok(Left::carry(inside).with(EBX, ebx).with(ESI, esi))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

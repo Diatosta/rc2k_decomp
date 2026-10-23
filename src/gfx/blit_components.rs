@@ -24,10 +24,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_read, rva};
-use crate::gfx::harness::pixels_entry;
 use crate::gfx::pixel_format::PixelFormat;
 use crate::gfx::surface::{BASE_RVA, BYTES_PER_PIXEL_RVA, PITCH_RVA};
-use crate::screens::harness::Left;
 use crate::service::harness::Region;
 
 // ---- game data ----
@@ -116,15 +114,4 @@ pub unsafe fn blit_components(r: &Regs, to: &Target) -> Result<(), Refused> {
         }
     }
     Ok(())
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { blit_components(r, &game_target()) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    pixels_entry(r, &rust)
 }

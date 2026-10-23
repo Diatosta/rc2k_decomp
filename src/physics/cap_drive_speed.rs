@@ -14,13 +14,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::math::x87;
 use crate::math::x87_run::over_abs_plus_minus;
-use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
-use rc2k_core::physics::drive_forces::cap_drive_speed as cap_drive_speed_core;
 use std::cmp::Ordering;
 
 /// C0 of comparing `a` with `b`: below, or unordered.
@@ -64,28 +60,6 @@ pub unsafe fn cap_drive_speed_at(v: CapPlaces) {
     }
 }
 
-/// The converted version (`rc2k_core::physics::drive_forces`, plain floats).
-// Converted: `rc2k_core::physics::drive_forces::cap_drive_speed`.
-pub unsafe fn cap_drive_speed_plain_at(v: CapPlaces) {
-    unsafe {
-        let f = |a: u32| f32::from_bits(at(a));
-        let kf = |a: usize| f32::from_bits(k(a));
-        let (allowance, cap, drive) = cap_drive_speed_core(
-            kf(0x613E48),
-            f(v[1]),
-            kf(0x613E4C),
-            kf(0x613E50),
-            kf(0x5C5D90),
-            f(v[3]),
-        );
-        put(v[0], allowance.to_bits());
-        put(v[2], cap.to_bits());
-        if at(v[3]) != drive.to_bits() {
-            put(v[3], drive.to_bits());
-        }
-    }
-}
-
 fn game() -> CapPlaces {
     let g = |a: usize| game_addr(rva(a)) as u32;
     [g(0x614168), g(0x71A184), g(0x62400C), g(0x71A190)]
@@ -94,15 +68,4 @@ fn game() -> CapPlaces {
 /// The Rust version (the exact one, for `physics::drive_wheels_step`).
 pub unsafe fn cap_drive_speed() {
     unsafe { cap_drive_speed_at(game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { cap_drive_speed_plain_at(game()) };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

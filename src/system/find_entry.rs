@@ -15,7 +15,6 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::Regs;
 
 pub const ENTRY_LEN: u32 = 8;
 
@@ -42,38 +41,4 @@ pub unsafe fn entries(
     (0..count).map(move |n| unsafe {
         ((table.wrapping_add(8 * n)) as *const rc2k_core::system::tables::Entry).read_unaligned()
     })
-}
-
-/// (ebx, ecx, carry, zero) for a result.
-fn left(r: &Regs, found: Option<u32>) -> (u32, u32, bool, bool) {
-    match found {
-        Some(entry) => (
-            entry,
-            r.ecx - entry.wrapping_sub(r.ebx) / ENTRY_LEN,
-            false,
-            true,
-        ),
-        None if r.ecx == 0 => (r.ebx, 0, true, false),
-        None => (
-            r.ebx.wrapping_add(r.ecx.wrapping_mul(ENTRY_LEN)),
-            0,
-            true,
-            true,
-        ),
-    }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let found = match unsafe { find_entry(r.eax, r.ebx, r.ecx) } {
-        Ok(found) => found,
-        Err(e) => {
-            return Err(e.into());
-        }
-    };
-    let mine = left(r, found);
-    (r.ebx, r.ecx) = (mine.0, mine.1);
-    r.set_carry(mine.2);
-    r.set_zero(mine.3);
-    Ok(())
 }

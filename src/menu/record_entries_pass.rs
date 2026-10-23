@@ -18,7 +18,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_read, game_write, rva};
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
 use crate::service::harness::state_entry;
 
@@ -29,16 +28,13 @@ const ENTERED_RVA: usize = rva(0x755920); // dword_755920
 const BEATEN_RVA: usize = rva(0x755918); // dword_755918
 // g_cheats
 /// The steps of `rc2k_core::menu::bests::record_entries`: their Rust versions.
-struct Entries<'a> {
-    entry: &'a Regs,
-}
+struct Entries;
 
-impl rc2k_core::menu::bests::RecordEntries for Entries<'_> {
+impl rc2k_core::menu::bests::RecordEntries for Entries {
     type Error = Refused;
 
     fn clear(&mut self) -> Result<(), Refused> {
-        unsafe { crate::menu::clear_record_entries::clear_record_entries(self.entry)? };
-        Ok(())
+        unsafe { crate::menu::clear_record_entries::clear_record_entries() }
     }
 
     fn set_entered(&mut self, on: u32) {
@@ -50,38 +46,32 @@ impl rc2k_core::menu::bests::RecordEntries for Entries<'_> {
     }
 
     fn beats(&mut self, n: u32) -> Result<bool, Refused> {
-        let g = Regs {
-            ecx: n,
-            ..*self.entry
-        };
-        unsafe { crate::menu::beat_target_time::beat_target_time(&g)? };
+        let _ = n;
+        unsafe { crate::menu::beat_target_time::beat_target_time()? };
         Ok(unsafe { game_read::<u32>(BEATEN_RVA) } == 1)
     }
 
     fn enter(&mut self, n: u32) -> Result<(), Refused> {
-        let g = Regs {
-            ecx: n,
-            ..*self.entry
-        };
-        unsafe { crate::menu::enter_record_entry::enter_record_entry(&g)? };
-        Ok(())
+        let _ = n;
+        unsafe { crate::menu::enter_record_entry::enter_record_entry() }
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn record_entries_pass(entry: &Regs) -> Result<Regs, Refused> {
+/// The Rust version (see the header).
+pub unsafe fn record_entries_pass() -> Result<(), Refused> {
     let players = counted_players()?;
     current_event()?;
     if players.iter().any(|&p| get(p + 0x18) == 0) {
         return Err(BadInput("a player without a name").into());
     }
     // Converted: `rc2k_core::menu::bests::record_entries`.
-    rc2k_core::menu::bests::record_entries(players.len() as u32, &mut Entries { entry })?;
-    Ok(*entry)
+    rc2k_core::menu::bests::record_entries(players.len() as u32, &mut Entries)
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { record_entries_pass(r) }?))
+    let _ = r;
+    unsafe { record_entries_pass() }?;
+    Ok(Left::nothing())
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the

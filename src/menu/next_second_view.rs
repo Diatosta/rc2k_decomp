@@ -8,11 +8,8 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::menu::player::Player;
 use crate::menu::player_settings::*;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 fn field(player: &mut Player) -> &mut u32 {
     &mut player.second_view
@@ -25,15 +22,4 @@ pub fn next_second_view() -> Result<(), Refused> {
     change(field, |value| {
         rc2k_core::menu::player::stepped(rc2k_core::menu::player::Setting::SecondView, value, true)
     })
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    next_second_view()?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

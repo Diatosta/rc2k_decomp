@@ -42,16 +42,6 @@ pub fn share_done(record: u32) -> u32 {
     eax
 }
 
-/// The share done, converted (`rc2k_core::physics::camera_view::share_done`): eax as
-/// left (the time held); the time held into `dword_62400C`, the share into
-/// `flt_605260`.
-pub fn share_done_plain(record: u32) -> u32 {
-    let (held, share) = view::share_done(g(0x719FE0), g(0x71A668), rd(record + 0x3C));
-    p(0x62400C, held);
-    p(0x605260, share.to_bits());
-    held
-}
-
 /// esi as the original leaves it, through the core's `mode_index`.
 pub fn record_plain() -> u32 {
     g(MODES + 4 * view::mode_index(g(0x71A65C)) as usize)

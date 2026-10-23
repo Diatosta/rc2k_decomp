@@ -14,13 +14,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EDX, Regs, game_addr, game_read, rva};
+use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, toward_one};
-use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
-use rc2k_core::physics::motion::{LoadBlend, blend_load};
 
 /// The figure, its three signs, the scratch, then the eight slots.
 const VARIABLES: [usize; 13] = [
@@ -57,37 +53,6 @@ pub unsafe fn blend_at(v: &[u32], r: &mut Regs) {
     }
 }
 
-/// The converted version (`rc2k_core::physics::motion`, plain floats) on the variables
-/// at `v`; `r` as the original leaves it.
-// Converted: `rc2k_core::physics::motion::blend_load`.
-pub unsafe fn blend_at_plain(v: &[u32], r: &mut Regs) {
-    unsafe {
-        let get = |k: usize| f32::from_bits((v[k] as *const u32).read_unaligned());
-        let put = |k: usize, x: f32| (v[k] as *mut u32).write_unaligned(x.to_bits());
-        let k = |x: usize| f32::from_bits(game_read::<u32>(rva(x)));
-        let figure = get(0);
-        let threshold = k(0x614C64);
-        // The signs, the constants and the slots read only past the first compare.
-        if rc2k_core::physics::x87::below(figure as f64, threshold as f64) {
-            return;
-        }
-        let b = LoadBlend {
-            figure,
-            signs: [get(1), get(2), get(3)],
-            threshold,
-            divisor: k(0x5C5D60),
-            zero: k(0x5C5D90),
-            one: k(0x5C5D38),
-        };
-        let mut slots: [f32; 8] = std::array::from_fn(|n| get(5 + n));
-        if let Some((slot, share)) = blend_load(&b, &mut slots) {
-            r.edx = slot;
-            put(4, share);
-            put(5 + slot as usize, slots[slot as usize]);
-        }
-    }
-}
-
 fn game() -> Vec<u32> {
     VARIABLES
         .iter()
@@ -99,16 +64,4 @@ fn game() -> Vec<u32> {
 /// original leaves it.
 pub unsafe fn blend_wheel_load(r: &mut Regs) {
     unsafe { blend_at(&game(), r) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let mut g = *r;
-    unsafe { blend_at_plain(&game(), &mut g) };
-    Ok(Left::nothing().with(EDX, g.edx))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

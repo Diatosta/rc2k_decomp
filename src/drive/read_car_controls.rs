@@ -30,10 +30,8 @@ use crate::drive::drive_computer_car::drive_computer_car;
 use crate::drive::next_camera_view::next_camera_view;
 use crate::drive::start_blend::start_blend;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, ESI, Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::drive::controls::{FLIP_BIT, VIEW_BIT, computer_drives, flipped, read_keys};
 
 fn g(x: u32) -> u32 {
@@ -125,16 +123,4 @@ pub unsafe fn read_car_controls(r: &mut Regs) -> Result<(), Refused> {
         }
         Ok(())
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let mut g = *r;
-    unsafe { read_car_controls(&mut g) }?;
-    Ok(Left::nothing().with(EAX, g.eax).with(ESI, g.esi))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

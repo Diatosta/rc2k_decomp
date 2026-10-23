@@ -14,12 +14,8 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
 use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::expire_hexagons::{LATEST_RVA, STEPS_RVA, expire_hexagons};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const CLOCK_RVA: usize = rva(0x814714); // dword_814714
 
@@ -40,14 +36,4 @@ pub unsafe fn hexagons_step(entry: &Regs) -> Regs {
         game_write(CLOCK_RVA, g.eax & 0xFF);
         g
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { hexagons_step(r) }))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

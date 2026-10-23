@@ -24,9 +24,6 @@ use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::blocks::{RING_FREE_RVA, RING_USED_RVA};
 use crate::marks::setup::SEED_RVA;
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const FLAG_RVA: usize = rva(0x5165E8); // dword_5165E8
 const RADIUS_RVA: usize = rva(0x93A5E4); // g_marksBurstRadius
@@ -133,14 +130,4 @@ pub unsafe fn burst_particles(entry: &Regs) -> Result<Regs, Refused> {
         }
     }
     Ok(g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { burst_particles(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

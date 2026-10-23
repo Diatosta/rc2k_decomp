@@ -12,11 +12,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::physics::flow::g;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::plays_inputs`.
@@ -25,14 +23,4 @@ pub unsafe fn play_inputs_if(entry: &Regs) -> Left {
         return unsafe { crate::drive::play_inputs::play_inputs(entry) };
     }
     Left::nothing()
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { play_inputs_if(r) })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

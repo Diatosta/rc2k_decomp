@@ -12,8 +12,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::FatalError;
-use crate::framework::Regs;
-use crate::gfx::blit_bar::{Bar, Blit, on_surface};
+use crate::gfx::blit_bar::Blit;
 
 // ---- Rust version ----
 
@@ -23,16 +22,4 @@ pub unsafe fn blit_bar_marker(palette_at_start: u32, blit: Blit) -> Result<(), F
     // Converted: `rc2k_core::gfx::bars::marker`.
     use crate::gfx::blit_bar::{Bar, GameBar};
     rc2k_core::gfx::bars::marker(&mut GameBar(blit), &Bar::read().core(), palette_at_start)
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    // The bar's x is only changed once the length is known to be valid, so on an error
-    // the original still starts from the same globals.
-    let before = Bar::read();
-    if let Err(e) = unsafe { blit_bar_marker(r.ebx, &mut on_surface) } {
-        before.write();
-        return Err(e.into());
-    }
-    Ok(())
 }

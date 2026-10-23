@@ -20,10 +20,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, ECX, EDX, ESI, Regs, game_read, game_write, rva};
+use crate::framework::{EAX, EBX, ECX, EDX, ESI, game_read, game_write, rva};
 use crate::math::turn_point_xz::turn_point_xz;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::progress::checkpoint_ahead;
 
 fn g(x: usize) -> u32 {
@@ -78,14 +77,4 @@ pub unsafe fn checkpoint_offset() -> Result<Left, Refused> {
             .with(EDX, entry)
             .with(ESI, pt))
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { checkpoint_offset() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

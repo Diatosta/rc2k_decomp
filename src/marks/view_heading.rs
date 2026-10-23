@@ -18,14 +18,10 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::rounded;
-use crate::scene::vector3::{angle_between_vectors, angle_between_vectors_plain};
-use crate::screens::harness::Left;
-use crate::service::floats::*;
+use crate::scene::vector3::angle_between_vectors;
 
 const VIEW_RVA: usize = rva(0x5EA3CC); // flt_5EA3CC: the view's matrix
 const LEVEL_RVA: usize = rva(0x91FF7E); // flt_91FF7E: three floats
@@ -48,34 +44,4 @@ pub unsafe fn view_heading(entry: &Regs) -> Regs {
         game_write(HEADING_RVA, heading);
     }
     g
-}
-
-/// The converted version (plain floats): the hook's. The angle through the converted
-/// `scene::angle_between_vectors`.
-// Converted: `rc2k_core::marks::view::heading`
-pub unsafe fn view_heading_plain(entry: &Regs) -> Regs {
-    let mut g = *entry;
-    unsafe {
-        use rc2k_core::scene::places::loaded;
-        let x = loaded(game_read(VIEW_RVA + 8));
-        let z = loaded(game_read(VIEW_RVA + 0x28));
-        game_write(LEVEL_RVA, [x, 0, z]);
-        g.esi = game_addr(LEVEL_RVA) as u32;
-        g.edi = game_addr(OTHER_RVA) as u32;
-        let angle = rounded(angle_between_vectors_plain(g.esi, g.edi));
-        let level_x = f32::from_bits(game_read(LEVEL_RVA));
-        let heading = rc2k_core::marks::view::heading(f32::from_bits(angle), level_x);
-        game_write(HEADING_RVA, heading.to_bits());
-    }
-    g
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { view_heading_plain(r) }))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

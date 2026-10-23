@@ -18,9 +18,6 @@
 
 use crate::bridge::Raw;
 use crate::errors::Refused;
-use crate::framework::{ECX, Regs};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::drive::rle;
 
 /// The Rust version: the bytes written.
@@ -30,14 +27,4 @@ pub unsafe fn unpack_rle(from: u32, to: u32) -> Result<u32, Refused> {
     Ok(rle::unpack_rle(&packed, |k, b| unsafe {
         ((to + k) as *mut u8).write(b)
     })?)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(Left::nothing().with(ECX, unsafe { unpack_rle(r.esi, r.edi) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

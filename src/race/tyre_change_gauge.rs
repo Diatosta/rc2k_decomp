@@ -236,13 +236,3 @@ pub fn gauge_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     }
     Ok(())
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let mut w = *r;
-    match tyre_change_gauge_in(&mut w, &mut gauge_part) {
-        Ok(()) => r.eax = w.eax,
-        Err(e) => return Err(e),
-    }
-    Ok(())
-}

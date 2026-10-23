@@ -22,7 +22,6 @@ use crate::framework::Regs;
 use crate::physics::flow::a;
 use crate::race::viewer::{
     PICTURE_RATE, PICTURE_TIME, PICTURES_STARTED, PICTURES_STARTED_2, RECORDING, get, put,
-    regs_entry,
 };
 
 const FOLDER: usize = 0x5C2CD8; // "rpl"
@@ -55,10 +54,4 @@ pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
         )
     };
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| start_frame_pictures(r))
 }

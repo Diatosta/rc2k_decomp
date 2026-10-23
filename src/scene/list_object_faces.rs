@@ -20,9 +20,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBP, ECX, Regs, game_read, game_write, rva};
+use crate::framework::{EAX, EBP, ECX, game_read, game_write, rva};
 use crate::scene::draw_object_faces::LISTED_RVA;
-use crate::scene::list_object_face::list_object_face;
 use crate::screens::harness::Left;
 
 // ---- game data ----
@@ -56,11 +55,4 @@ pub unsafe fn list_object_faces(
             .with(ECX, count)
             .with(EBP, faces[count as usize - 1]))
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { list_object_faces(&mut |face| list_object_face(face)) }?;
-    left.apply(r);
-    Ok(())
 }

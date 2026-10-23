@@ -31,7 +31,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::scene::add_car_light::add_car_light;
 use crate::scene::add_car_lights::{DRAWN_CAR_RVA, add_car_lights};
 use crate::scene::add_point_lights::{LIGHT_COLOUR_RVA, LIT_PLACE_RVA, MMX_RVA, add_point_lights};
@@ -99,10 +99,4 @@ pub unsafe fn set_object_light_in_game() -> Result<(), Refused> {
             Ok(())
         })
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { set_object_light_in_game() }?;
-    Ok(())
 }

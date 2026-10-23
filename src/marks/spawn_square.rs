@@ -19,13 +19,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::marks::expire_squares::{ITEM_LEN, ITEMS, ITEMS_RVA};
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 pub const CURSOR_RVA: usize = rva(0x89D166); // dword_89D166: an offset into the items
 const SIZE_K: [usize; 3] = [rva(0x8BC23A), rva(0x8BC23E), rva(0x8BC242)];
@@ -71,47 +67,4 @@ pub unsafe fn spawn_square(x: u32, z: u32, kind: u32) -> u32 {
         game_write(CURSOR_RVA, at);
         kind
     }
-}
-
-/// The converted version: the hook's (and `pick_square`'s).
-// Converted: `rc2k_core::marks::items::{find_free, new_square}`
-pub unsafe fn spawn_square_plain(x: u32, z: u32, kind: u32) -> u32 {
-    use rc2k_core::marks::items::{SQUARE_LEN, find_free, new_square};
-    unsafe {
-        let base = game_addr(ITEMS_RVA) as u32;
-        let found = find_free(game_read(CURSOR_RVA), SQUARE_LEN, |at| {
-            (base.wrapping_add(at) as *const u32).read_unaligned() == 0
-        });
-        let mut ecx = kind;
-        if let Some(at) = found.at {
-            let e = base.wrapping_add(at);
-            let size = [game_read::<u32>(SIZE_K[0]), game_read(SIZE_K[1])].map(f32::from_bits);
-            let s = new_square(x, z, kind, size);
-            let put = |o: u32, v: u32| ((e + o) as *mut u32).write_unaligned(v);
-            put(0, 1);
-            put(0x20, s.x.to_bits());
-            put(0x24, s.z.to_bits());
-            put(0xC, s.size.to_bits());
-            put(0x10, rc2k_core::scene::places::loaded(game_read(SIZE_K[2])));
-            for o in [0x28, 0x2C, 0x38, 0x14, 0x18, 0x1C, 0x30, 0x34] {
-                put(o, 0);
-            }
-            put(4, game_read(CLOCK_RVA));
-            put(8, 0);
-            ecx = s.kind;
-        }
-        game_write(CURSOR_RVA, found.cursor);
-        ecx
-    }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let ecx = unsafe { spawn_square_plain(r.eax, r.ebx, r.ecx) };
-    Ok(left_of(&Regs { ecx, ..*r }))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

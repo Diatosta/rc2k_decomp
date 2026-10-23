@@ -16,11 +16,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, EBX, Regs};
+use crate::framework::{EAX, EBX};
 use crate::physics::flow::{g, p};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::drive::controls::{BRAKE_KEY, THROTTLE_KEY, handbrake, pedal};
 
 /// One pedal: by the keys' `bit`, stepped from `input`, or set to it.
@@ -36,14 +34,4 @@ pub unsafe fn pedal_inputs() -> Left {
     let hand = g(0x61389C);
     p(0x71A618, handbrake(hand, || g(0x71A400)));
     Left::nothing().with(EAX, hand).with(EBX, g(0x71A440))
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { pedal_inputs() })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

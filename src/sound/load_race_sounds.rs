@@ -23,8 +23,8 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_addr, rva};
-use crate::sound::queue::{Queue, START_3, send_command, sent};
+use crate::framework::{game_addr, rva};
+use crate::sound::queue::START_3;
 
 // ---- game data ----
 
@@ -102,12 +102,8 @@ unsafe fn lengths(list: usize) -> Result<Vec<u32>, BadInput> {
 
 // ---- Rust version ----
 
-/// `send` gets the registers each command 3 is sent with.
-pub unsafe fn load_race_sounds(
-    entry: &Regs,
-    places: &Places,
-    send: &mut dyn FnMut(&Regs),
-) -> Result<(), BadInput> {
+/// `send` gets each command 3's list (its eax, all the audio thread reads of it).
+pub unsafe fn load_race_sounds(places: &Places, send: &mut dyn FnMut(u32)) -> Result<(), BadInput> {
     unsafe {
         let object = |number: usize| -> Result<usize, BadInput> {
             let number = dword(number);
@@ -146,26 +142,13 @@ pub unsafe fn load_race_sounds(
         let (mut ebx, mut edx) = (list(a), list(b));
         let (of_first, of_second) = (lengths(ebx)?, lengths(edx)?);
         // Nothing has been written or sent up to here.
-        let (mut esi, mut ecx) = (0, 0);
         for n in 0..NAMES {
-            esi = places.samples + (FIRST_SAMPLE + n * 2) * SAMPLE_LEN;
-            ((esi + 0x0C) as *mut u32).write_unaligned(ebx as u32);
-            ((esi + 0x4C) as *mut u32).write_unaligned(edx as u32);
+            let record = places.samples + (FIRST_SAMPLE + n * 2) * SAMPLE_LEN;
+            ((record + 0x0C) as *mut u32).write_unaligned(ebx as u32);
+            ((record + 0x4C) as *mut u32).write_unaligned(edx as u32);
             ebx += of_first[n] as usize + 1;
-            ecx = of_second[n];
-            edx += ecx as usize + 1;
+            edx += of_second[n] as usize + 1;
         }
-        let mut send = |set: u32| {
-            send(&Regs {
-                eax: set,
-                ebx: ebx as u32,
-                ecx,
-                edx: edx as u32,
-                esi: esi as u32,
-                edi: second as u32,
-                ..*entry
-            })
-        };
         let (first_kind, second_kind) = kinds.unwrap_or((0, None));
         for set in sets(
             kinds.is_none(),
@@ -187,16 +170,11 @@ pub unsafe fn load_race_sounds(
     }
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    let done = unsafe {
-        load_race_sounds(&entry, &Places::game(), &mut |with| {
-            send_command(&Queue::game(), START_3, sent(with))
+/// In the game: each list sent as command 3.
+pub fn load_race_sounds_in_game() -> Result<(), BadInput> {
+    unsafe {
+        load_race_sounds(&Places::game(), &mut |list| {
+            crate::sound::senders::send(START_3, [list, 0, 0, 0])
         })
-    };
-    if let Err(e) = done {
-        return Err(e.into());
     }
-    Ok(())
 }

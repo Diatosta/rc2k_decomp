@@ -21,11 +21,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EBX, Regs, game_read, game_write, rva};
+use crate::framework::{EBX, game_read, game_write, rva};
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::project_point::POINTS_RVA;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 // ---- game data ----
 
@@ -78,14 +77,4 @@ pub unsafe fn add_point_lights() -> Result<Left, Refused> {
         }
         Ok(Left::nothing().with(EBX, lamps))
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { add_point_lights() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

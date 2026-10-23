@@ -10,7 +10,7 @@
 //! `try_screen_mode` (2026-10-23).
 
 use crate::errors::Refused;
-use crate::framework::{Flags, Regs};
+use crate::framework::Flags;
 use crate::race::viewer::put;
 
 pub const RACE_MODE: usize = 0x4F4948; // g_raceScreenMode
@@ -26,10 +26,4 @@ pub fn keep_race_screen_mode(mode: u32) -> Result<Flags, Refused> {
         put(MENU_MODE, menu);
     }
     Ok(flags)
-}
-
-/// The Rust version where the typed tables run it (a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), Refused> {
-    keep_race_screen_mode(r.eax)?.apply(r);
-    Ok(())
 }

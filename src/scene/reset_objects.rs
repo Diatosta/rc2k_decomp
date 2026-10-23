@@ -16,14 +16,13 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, ECX, EDI, Regs, game_addr, game_read, game_write};
+use crate::errors::BadInput;
+use crate::framework::{EAX, ECX, EDI, game_addr, game_read, game_write};
 use crate::scene::objects::{
     FACE_COUNT_RVA, FACE_CURSOR_RVA, FIRST_POINT_RVA, OBJECT_KINDS_RVA, POINT_COUNT_RVA,
     POINTS_ROOM_RVA, POINTS_RVA, SLOTS,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// The five tables of 0x100 dwords from `g_objectFirstPoint` on.
 const TABLES_LEN: usize = SLOTS as usize * 4 * 5;
@@ -47,14 +46,4 @@ pub unsafe fn reset_objects() -> Result<Left, BadInput> {
             .with(ECX, 0)
             .with(EDI, game_addr(OBJECT_KINDS_RVA) as u32 + SLOTS * 4))
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { reset_objects() }?)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -26,7 +26,7 @@
 use crate::errors::Refused;
 use crate::files::file_size::file_size;
 use crate::files::read_file::read_file;
-use crate::framework::{Regs, game_addr, game_ptr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_ptr, game_read, game_write, rva};
 use crate::gfx::decode_png::{FILE_LEN_RVA, FILE_RVA, decode_png};
 use crate::gfx::lay_out_png::lay_out_png;
 use crate::gfx::palette_pixels_to_dwords::palette_pixels_to_dwords;
@@ -112,16 +112,6 @@ pub unsafe fn read_png(path: *const u8) -> Result<bool, Refused> {
         free();
         worked
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let path = r.eax as *const u8;
-    {
-        let worked = unsafe { read_png(path) }?;
-        r.set_carry(!worked);
-    }
-    Ok(())
 }
 
 // ---- self-test: PNG files made for the purpose, read into the game's own picture buffer,

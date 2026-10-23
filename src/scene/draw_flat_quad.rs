@@ -50,9 +50,11 @@ fn set(r: usize, v: u32) {
     unsafe { game_write(r, v) };
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_flat_quad(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header). It reads no register, and what it leaves is read by
+/// none of its callers (register liveness, 2026-10-23); `g` carries the registers the
+/// scene calls not yet plain are given.
+pub unsafe fn draw_flat_quad() -> Result<(), Refused> {
+    let mut g = Regs::default();
     unsafe {
         set(DRAWN_RVA, 0);
         for n in 0..4 {
@@ -116,7 +118,7 @@ pub unsafe fn draw_flat_quad(entry: &Regs) -> Result<Regs, Refused> {
         }
         set(COLOUR_RVA, 0xFF_FFFF);
     }
-    Ok(g)
+    Ok(())
 }
 
 /// In the game: the calls' Rust versions.
@@ -126,17 +128,10 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         match place {
             1 => scale_texture_coordinates::scale_texture_coordinates()?.apply(r),
             2 => clip_polygon_to_screen::clip_polygon_to_screen()?,
-            3 => depth_buffer_on::depth_buffer(r, false),
+            3 => depth_buffer_on::depth_buffer(false),
             4 => draw_polygon::draw_polygon_in_game(r)?,
-            _ => depth_buffer_on::depth_buffer(r, true),
+            _ => depth_buffer_on::depth_buffer(true),
         }
     }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_flat_quad(r) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

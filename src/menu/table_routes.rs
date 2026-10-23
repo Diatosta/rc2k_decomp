@@ -9,23 +9,74 @@ use rc2k_core::menu::tables::{ItemFn, ScreenFn};
 /// Runs `f` with the registers in `r`.
 pub fn item_fn(f: ItemFn, r: &mut Regs) -> Result<(), Refused> {
     match f {
-        ItemFn::NextNationality => crate::menu::next_nationality::entry(r),
-        ItemFn::PreviousNationality => crate::menu::previous_nationality::entry(r),
-        ItemFn::NextView => crate::menu::next_view::entry(r),
-        ItemFn::PreviousView => crate::menu::previous_view::entry(r),
-        ItemFn::NextSecondView => crate::menu::next_second_view::entry(r),
-        ItemFn::PreviousSecondView => crate::menu::previous_second_view::entry(r),
-        ItemFn::FlipCodriver => crate::menu::flip_codriver::entry(r),
-        ItemFn::BeginPlayerName => crate::menu::begin_player_name::entry(r),
-        ItemFn::ToggleMapArea => crate::menu::toggle_map_area::entry(r),
-        ItemFn::ToggleRearMirror => crate::menu::toggle_rear_mirror::entry(r),
-        ItemFn::ToggleRevCounter => crate::menu::toggle_rev_counter::entry(r),
-        ItemFn::ToggleCarInfo => crate::menu::toggle_car_info::entry(r),
-        ItemFn::ToggleMessageDisplay => crate::menu::toggle_message_display::entry(r),
-        ItemFn::ToggleProgressBar => crate::menu::toggle_progress_bar::entry(r),
-        ItemFn::ToggleDriverInfo => crate::menu::toggle_driver_info::entry(r),
-        ItemFn::TogglePaceNotes => crate::menu::toggle_pace_notes::entry(r),
-        ItemFn::ToggleMetricUnits => crate::menu::toggle_metric_units::entry(r),
+        ItemFn::NextNationality => {
+            crate::menu::next_nationality::next_nationality()?;
+            Ok(())
+        }
+        ItemFn::PreviousNationality => {
+            crate::menu::previous_nationality::previous_nationality()?;
+            Ok(())
+        }
+        ItemFn::NextView => {
+            crate::menu::next_view::next_view()?;
+            Ok(())
+        }
+        ItemFn::PreviousView => {
+            crate::menu::previous_view::previous_view()?;
+            Ok(())
+        }
+        ItemFn::NextSecondView => {
+            crate::menu::next_second_view::next_second_view()?;
+            Ok(())
+        }
+        ItemFn::PreviousSecondView => {
+            crate::menu::previous_second_view::previous_second_view()?;
+            Ok(())
+        }
+        ItemFn::FlipCodriver => {
+            crate::menu::flip_codriver::flip_codriver()?;
+            Ok(())
+        }
+        ItemFn::BeginPlayerName => {
+            unsafe { crate::menu::begin_player_name::begin_player_name() }?;
+            Ok(())
+        }
+        ItemFn::ToggleMapArea => {
+            crate::menu::toggle_map_area::toggle_map_area()?;
+            Ok(())
+        }
+        ItemFn::ToggleRearMirror => {
+            crate::menu::toggle_rear_mirror::toggle_rear_mirror()?;
+            Ok(())
+        }
+        ItemFn::ToggleRevCounter => {
+            crate::menu::toggle_rev_counter::toggle_rev_counter()?;
+            Ok(())
+        }
+        ItemFn::ToggleCarInfo => {
+            crate::menu::toggle_car_info::toggle_car_info()?;
+            Ok(())
+        }
+        ItemFn::ToggleMessageDisplay => {
+            crate::menu::toggle_message_display::toggle_message_display()?;
+            Ok(())
+        }
+        ItemFn::ToggleProgressBar => {
+            crate::menu::toggle_progress_bar::toggle_progress_bar()?;
+            Ok(())
+        }
+        ItemFn::ToggleDriverInfo => {
+            crate::menu::toggle_driver_info::toggle_driver_info()?;
+            Ok(())
+        }
+        ItemFn::TogglePaceNotes => {
+            crate::menu::toggle_pace_notes::toggle_pace_notes()?;
+            Ok(())
+        }
+        ItemFn::ToggleMetricUnits => {
+            crate::menu::toggle_metric_units::toggle_metric_units()?;
+            Ok(())
+        }
         ItemFn::Toggle5180f4 => crate::menu::option_items::toggle_5180f4::entry(r),
         ItemFn::MasterVolumeDown => crate::menu::option_items::master_volume_down::entry(r),
         ItemFn::MasterVolumeUp => crate::menu::option_items::master_volume_up::entry(r),
@@ -53,18 +104,54 @@ pub fn item_fn(f: ItemFn, r: &mut Regs) -> Result<(), Refused> {
         ItemFn::Next75880e => crate::menu::option_items::next_75880e::entry(r),
         ItemFn::Previous758812 => crate::menu::option_items::previous_758812::entry(r),
         ItemFn::Next758812 => crate::menu::option_items::next_758812::entry(r),
-        ItemFn::ChooseKey0 => crate::menu::choose_key_0::entry(r),
-        ItemFn::ChooseKey1 => crate::menu::choose_key_1::entry(r),
-        ItemFn::ChooseKey2 => crate::menu::choose_key_2::entry(r),
-        ItemFn::ChooseKey3 => crate::menu::choose_key_3::entry(r),
-        ItemFn::ChooseKey4 => crate::menu::choose_key_4::entry(r),
-        ItemFn::ChooseKey5 => crate::menu::choose_key_5::entry(r),
-        ItemFn::ChooseKey6 => crate::menu::choose_key_6::entry(r),
-        ItemFn::ChooseKey7 => crate::menu::choose_key_7::entry(r),
-        ItemFn::ChooseKey9 => crate::menu::choose_key_9::entry(r),
-        ItemFn::ChooseKey10 => crate::menu::choose_key_10::entry(r),
-        ItemFn::ChooseKey11 => crate::menu::choose_key_11::entry(r),
-        ItemFn::FlipGearing => crate::menu::flip_gearing::entry(r),
+        ItemFn::ChooseKey0 => {
+            crate::menu::choose_key::choose_key(0);
+            Ok(())
+        }
+        ItemFn::ChooseKey1 => {
+            crate::menu::choose_key::choose_key(1);
+            Ok(())
+        }
+        ItemFn::ChooseKey2 => {
+            crate::menu::choose_key::choose_key(2);
+            Ok(())
+        }
+        ItemFn::ChooseKey3 => {
+            crate::menu::choose_key::choose_key(3);
+            Ok(())
+        }
+        ItemFn::ChooseKey4 => {
+            crate::menu::choose_key::choose_key(4);
+            Ok(())
+        }
+        ItemFn::ChooseKey5 => {
+            crate::menu::choose_key::choose_key(5);
+            Ok(())
+        }
+        ItemFn::ChooseKey6 => {
+            crate::menu::choose_key::choose_key(6);
+            Ok(())
+        }
+        ItemFn::ChooseKey7 => {
+            crate::menu::choose_key::choose_key(7);
+            Ok(())
+        }
+        ItemFn::ChooseKey9 => {
+            crate::menu::choose_key::choose_key(9);
+            Ok(())
+        }
+        ItemFn::ChooseKey10 => {
+            crate::menu::choose_key::choose_key(10);
+            Ok(())
+        }
+        ItemFn::ChooseKey11 => {
+            crate::menu::choose_key::choose_key(11);
+            Ok(())
+        }
+        ItemFn::FlipGearing => {
+            unsafe { crate::menu::flip_gearing::flip_gearing() };
+            Ok(())
+        }
         ItemFn::NextGearing => crate::menu::next_gearing::entry(r),
         ItemFn::PreviousGearing => crate::menu::previous_gearing::entry(r),
         ItemFn::PreviousCar => crate::menu::previous_car::entry(r),
@@ -75,8 +162,14 @@ pub fn item_fn(f: ItemFn, r: &mut Regs) -> Result<(), Refused> {
         ItemFn::NextCarPage => crate::menu::next_car_page::entry(r),
         ItemFn::PreviousSlideshowPicture => crate::menu::previous_slideshow_picture::entry(r),
         ItemFn::NextSlideshowPicture => crate::menu::next_slideshow_picture::entry(r),
-        ItemFn::NextController => crate::menu::next_controller::entry(r),
-        ItemFn::PreviousController => crate::menu::previous_controller::entry(r),
+        ItemFn::NextController => {
+            unsafe { crate::menu::controller_items::next_controller() }?;
+            Ok(())
+        }
+        ItemFn::PreviousController => {
+            unsafe { crate::menu::controller_items::previous_controller() }?;
+            Ok(())
+        }
         ItemFn::KeepPlayerKeys => crate::menu::player_actions::keep_player_keys_hook::entry(r),
         ItemFn::LearnBinding1 => crate::menu::learn_bindings::learn_binding_1::entry(r),
         ItemFn::LearnBinding2 => crate::menu::learn_bindings::learn_binding_2::entry(r),
@@ -92,7 +185,10 @@ pub fn item_fn(f: ItemFn, r: &mut Regs) -> Result<(), Refused> {
         ItemFn::RaiseDeadZoneA => crate::menu::raise_dead_zone_a::entry(r),
         ItemFn::LowerPlayer44 => crate::menu::player_actions::lower_player_44_hook::entry(r),
         ItemFn::RaiseDeadZoneB => crate::menu::raise_dead_zone_b::entry(r),
-        ItemFn::LowerControllerSensitivity => crate::menu::lower_controller_sensitivity::entry(r),
+        ItemFn::LowerControllerSensitivity => {
+            unsafe { crate::menu::controller_items::lower_controller_sensitivity() }?;
+            Ok(())
+        }
         ItemFn::RaiseControllerSensitivity => crate::menu::raise_controller_sensitivity::entry(r),
         ItemFn::RaisePlayer48 => crate::menu::player_actions::raise_player_48_hook::entry(r),
         ItemFn::LowerPlayer48 => crate::menu::player_actions::lower_player_48_hook::entry(r),
@@ -104,26 +200,50 @@ pub fn item_fn(f: ItemFn, r: &mut Regs) -> Result<(), Refused> {
         ItemFn::BeginSuspensionStiffnessEdit => {
             crate::service::begin_suspension_stiffness_edit::entry(r)
         }
-        ItemFn::ToggleRepairChoice => crate::service::toggle_repair_choice::entry(r),
+        ItemFn::ToggleRepairChoice => {
+            unsafe { crate::service::toggle_repair_choice::toggle_repair_choice() }?;
+            Ok(())
+        }
         ItemFn::NextScoresPage => crate::menu::player_actions::next_scores_page_hook::entry(r),
         ItemFn::PreviousScoresPage => {
             crate::menu::player_actions::previous_scores_page_hook::entry(r)
         }
         ItemFn::PreviousSavePage => crate::menu::item_actions::previous_save_page_hook::entry(r),
-        ItemFn::NextSavegamePage => crate::menu::next_savegame_page::entry(r),
+        ItemFn::NextSavegamePage => {
+            crate::menu::next_savegame_page::next_savegame_page();
+            Ok(())
+        }
         ItemFn::PreviousReplayRange => {
             crate::menu::player_actions::previous_replay_range_hook::entry(r)
         }
         ItemFn::NextReplayRange => crate::menu::player_actions::next_replay_range_hook::entry(r),
-        ItemFn::BeginSavegameName => crate::menu::begin_savegame_name::entry(r),
+        ItemFn::BeginSavegameName => {
+            unsafe { crate::menu::begin_savegame_name::begin_savegame_name(true) }?;
+            Ok(())
+        }
         ItemFn::LoadSavegame => crate::saves::load_savegame::entry(r),
         ItemFn::LoadChampionship46e899Loop => crate::menu::load_championship_46e899_loop::entry(r),
         ItemFn::SaveSetupLoop => crate::menu::save_setup_loop::entry(r),
-        ItemFn::BeginSetupName => crate::service::begin_setup_name::entry(r),
-        ItemFn::LoadSetupSlot => crate::service::load_setup_slot::entry(r),
-        ItemFn::NextSetupPage => crate::service::next_setup_page::entry(r),
-        ItemFn::BeginReplayName => crate::menu::begin_replay_name::entry(r),
-        ItemFn::FlipYesNo => crate::menu::flip_yes_no::entry(r),
+        ItemFn::BeginSetupName => {
+            unsafe { crate::service::begin_setup_name::begin_setup_name() }?;
+            Ok(())
+        }
+        ItemFn::LoadSetupSlot => {
+            unsafe { crate::service::load_setup_slot::load_setup_slot() }?;
+            Ok(())
+        }
+        ItemFn::NextSetupPage => {
+            crate::service::next_setup_page::next_setup_page();
+            Ok(())
+        }
+        ItemFn::BeginReplayName => {
+            unsafe { crate::menu::begin_replay_name::begin_replay_name(true) }?;
+            Ok(())
+        }
+        ItemFn::FlipYesNo => {
+            crate::menu::flip_yes_no::flip_yes_no();
+            Ok(())
+        }
         ItemFn::PreviousStagePage => crate::menu::previous_stage_page::entry(r),
         ItemFn::NextStagePage => crate::menu::next_stage_page::entry(r),
         ItemFn::Player0CarSpecs => crate::menu::player_actions::player_0_car_specs::entry(r),
@@ -158,16 +278,31 @@ pub fn item_fn(f: ItemFn, r: &mut Regs) -> Result<(), Refused> {
             crate::menu::player_actions::toggle_caption_choice_hook::entry(r)
         }
         ItemFn::ShowIntro => crate::menu::item_actions::show_intro_hook::entry(r),
-        ItemFn::NextCarNumber => crate::menu::next_car_number::entry(r),
-        ItemFn::PreviousCarNumber => crate::menu::previous_car_number::entry(r),
-        ItemFn::RaiseSensitivity => crate::menu::raise_sensitivity::entry(r),
-        ItemFn::LowerSensitivity => crate::menu::lower_sensitivity::entry(r),
+        ItemFn::NextCarNumber => {
+            crate::menu::next_car_number::next_car_number()?;
+            Ok(())
+        }
+        ItemFn::PreviousCarNumber => {
+            crate::menu::previous_car_number::previous_car_number()?;
+            Ok(())
+        }
+        ItemFn::RaiseSensitivity => {
+            crate::menu::raise_sensitivity::raise_sensitivity()?;
+            Ok(())
+        }
+        ItemFn::LowerSensitivity => {
+            crate::menu::lower_sensitivity::lower_sensitivity()?;
+            Ok(())
+        }
         ItemFn::NextColourA => crate::menu::next_colour_a::entry(r),
         ItemFn::PreviousColourA => crate::menu::previous_colour_a::entry(r),
         ItemFn::NextColourB => crate::menu::next_colour_b::entry(r),
         ItemFn::PreviousColourB => crate::menu::previous_colour_b::entry(r),
         ItemFn::Nothing => Ok(()),
-        ItemFn::GoBack => crate::menu::go_back::entry(r),
+        ItemFn::GoBack => {
+            crate::menu::go_back::go_back();
+            Ok(())
+        }
         ItemFn::LeaveWithCarry => crate::menu::player_actions::leave_with_carry_hook::entry(r),
         ItemFn::NextStageLoop => crate::menu::next_stage_loop::entry(r),
         ItemFn::StartRallyLoop => crate::menu::start_rally_loop::entry(r),
@@ -197,10 +332,19 @@ pub fn item_fn(f: ItemFn, r: &mut Regs) -> Result<(), Refused> {
         ItemFn::VisualPreferencesLoop => crate::menu::visual_preferences_loop::entry(r),
         ItemFn::CarSpecificationLoop => crate::menu::car_specification_loop::entry(r),
         ItemFn::SlideshowLoop => crate::menu::slideshow_loop::entry(r),
-        ItemFn::PreviousChoiceCar => crate::menu::previous_choice_car::entry(r),
-        ItemFn::NextChoiceCar => crate::menu::next_choice_car::entry(r),
+        ItemFn::PreviousChoiceCar => {
+            unsafe { crate::menu::car_choice::previous_choice_car() };
+            Ok(())
+        }
+        ItemFn::NextChoiceCar => {
+            unsafe { crate::menu::car_choice::next_choice_car() };
+            Ok(())
+        }
         ItemFn::InGameOptionsLoop => crate::menu::in_game_options_loop::entry(r),
-        ItemFn::AskToLeave => crate::menu::ask_to_leave::entry(r),
+        ItemFn::AskToLeave => {
+            crate::menu::ask_to_leave::ask_to_leave();
+            Ok(())
+        }
         ItemFn::LoadChampionshipLoop => crate::menu::load_championship_loop::entry(r),
         ItemFn::SaveChampionshipLoop => crate::menu::save_championship_loop::entry(r),
         ItemFn::VisualOptionsLoop => crate::menu::visual_options_loop::entry(r),
@@ -273,29 +417,77 @@ pub fn screen_fn(f: ScreenFn, r: &mut Regs) -> Result<(), Refused> {
         ScreenFn::DrawSectionBestTimes => crate::screens::draw_section_best_times::entry(r),
         ScreenFn::DrawPlayer2Details => crate::screens::draw_player2_details::entry(r),
         ScreenFn::DrawPlayer34Details => crate::screens::draw_player34_details::entry(r),
-        ScreenFn::StageOptionsTexts => crate::screens::stage_options_texts::entry(r),
-        ScreenFn::SetStageChoiceTitles => crate::screens::set_stage_choice_titles::entry(r),
-        ScreenFn::StageChoiceTexts => crate::screens::stage_choice_texts::entry(r),
+        ScreenFn::StageOptionsTexts => {
+            unsafe { crate::screens::page_settings::stage_options_texts() }?;
+            Ok(())
+        }
+        ScreenFn::SetStageChoiceTitles => {
+            unsafe { crate::screens::set_stage_choice_titles::set_stage_choice_titles() }?;
+            Ok(())
+        }
+        ScreenFn::StageChoiceTexts => {
+            unsafe { crate::screens::page_settings::stage_choice_texts() }?;
+            Ok(())
+        }
         ScreenFn::DrawHighlightedCaption => crate::screens::draw_highlighted_caption::entry(r),
-        ScreenFn::CarCaption2 => crate::screens::car_caption_2::entry(r),
+        ScreenFn::CarCaption2 => {
+            unsafe { crate::screens::car_caption::car_caption() }?;
+            Ok(())
+        }
         ScreenFn::StepCarousel => crate::menu::step_carousel::entry(r),
         ScreenFn::DrawBackgroundBand => crate::screens::draw_background_band::entry(r),
-        ScreenFn::GearingText => crate::screens::gearing_text::entry(r),
-        ScreenFn::CarCaption => crate::screens::car_caption::entry(r),
-        ScreenFn::CarPageTitle => crate::screens::car_page_title::entry(r),
-        ScreenFn::SlideshowTitle => crate::screens::slideshow_title::entry(r),
-        ScreenFn::PlayerNumberText => crate::screens::player_number_text::entry(r),
+        ScreenFn::GearingText => {
+            unsafe { crate::screens::gearing_text::gearing_text() }?;
+            Ok(())
+        }
+        ScreenFn::CarCaption => {
+            unsafe { crate::screens::car_caption::car_caption() }?;
+            Ok(())
+        }
+        ScreenFn::CarPageTitle => {
+            unsafe { crate::screens::car_page_title::car_page_title() }?;
+            Ok(())
+        }
+        ScreenFn::SlideshowTitle => {
+            unsafe { crate::screens::slideshow_title::slideshow_title() }?;
+            Ok(())
+        }
+        ScreenFn::PlayerNumberText => {
+            unsafe { crate::screens::player_number_text::player_number_text() }?;
+            Ok(())
+        }
         ScreenFn::DrawControllerPage => crate::screens::draw_controller_page::entry(r),
         ScreenFn::DrawControlBindings => crate::screens::draw_control_bindings::entry(r),
-        ScreenFn::PickPlayer1 => crate::screens::pick_player_1::entry(r),
-        ScreenFn::PickPlayer2 => crate::screens::pick_player_2::entry(r),
-        ScreenFn::PickPlayer3 => crate::screens::pick_player_3::entry(r),
-        ScreenFn::PickPlayer4 => crate::screens::pick_player_4::entry(r),
+        ScreenFn::PickPlayer1 => {
+            unsafe { crate::screens::page_settings::pick_player(0) }?;
+            Ok(())
+        }
+        ScreenFn::PickPlayer2 => {
+            unsafe { crate::screens::page_settings::pick_player(1) }?;
+            Ok(())
+        }
+        ScreenFn::PickPlayer3 => {
+            unsafe { crate::screens::page_settings::pick_player(2) }?;
+            Ok(())
+        }
+        ScreenFn::PickPlayer4 => {
+            unsafe { crate::screens::page_settings::pick_player(3) }?;
+            Ok(())
+        }
         ScreenFn::LearnAxis => crate::screens::learn_axis::entry(r),
-        ScreenFn::HandleEditKeys => crate::service::handle_edit_keys::entry(r),
-        ScreenFn::BestScoresCaption => crate::screens::best_scores_caption::entry(r),
+        ScreenFn::HandleEditKeys => {
+            unsafe { crate::service::handle_edit_keys::handle_edit_keys() }?;
+            Ok(())
+        }
+        ScreenFn::BestScoresCaption => {
+            unsafe { crate::screens::best_scores::best_scores_caption() }?;
+            Ok(())
+        }
         ScreenFn::DrawBestScoresPage => crate::screens::draw_best_scores_page::entry(r),
-        ScreenFn::SavegamePageNumbers => crate::screens::savegame_page_numbers::entry(r),
+        ScreenFn::SavegamePageNumbers => {
+            crate::screens::savegame_page_numbers::savegame_page_numbers()?;
+            Ok(())
+        }
         ScreenFn::DrawSavegameNames => crate::screens::draw_savegame_names::entry(r),
         ScreenFn::DrawSavegamePreview => crate::screens::draw_savegame_preview::entry(r),
         ScreenFn::DrawSaveSetupList => crate::screens::draw_save_setup_list::entry(r),
@@ -306,9 +498,15 @@ pub fn screen_fn(f: ScreenFn, r: &mut Regs) -> Result<(), Refused> {
         ScreenFn::DrawLeaveQuestion => crate::screens::draw_leave_question::entry(r),
         ScreenFn::DrawGraphicsSettings => crate::screens::draw_graphics_settings::entry(r),
         ScreenFn::DrawSoundSettings => crate::screens::draw_sound_settings::entry(r),
-        ScreenFn::ReplayRangeCaption => crate::screens::replay_range_caption::entry(r),
+        ScreenFn::ReplayRangeCaption => {
+            unsafe { crate::screens::best_scores::replay_range_caption() };
+            Ok(())
+        }
         ScreenFn::LoadSetupValues => crate::service::load_setup_values::entry(r),
-        ScreenFn::LoadAudioSettings => crate::screens::load_audio_settings::entry(r),
+        ScreenFn::LoadAudioSettings => {
+            unsafe { crate::screens::page_settings::load_audio_settings() };
+            Ok(())
+        }
         ScreenFn::DrawItinerary => crate::screens::draw_itinerary::entry(r),
         ScreenFn::DrawStageInfo => crate::screens::draw_stage_info::entry(r),
         ScreenFn::DrawVolumeSettings => crate::screens::draw_volume_settings::entry(r),
@@ -343,7 +541,10 @@ pub fn screen_fn(f: ScreenFn, r: &mut Regs) -> Result<(), Refused> {
         ScreenFn::DrawHighlightedObject => crate::scene::draw_highlighted_object::entry(r),
         ScreenFn::DrawMainMenuObjects => crate::scene::draw_main_menu_objects::entry(r),
         ScreenFn::DrawCarObject => crate::scene::draw_car_object::entry(r),
-        ScreenFn::ClearChoiceMarks => crate::menu::clear_choice_marks::entry(r),
+        ScreenFn::ClearChoiceMarks => {
+            crate::menu::clear_choice_marks::clear_choice_marks();
+            Ok(())
+        }
         ScreenFn::DrawServiceBoxes => crate::screens::draw_service_boxes::entry(r),
         ScreenFn::DrawBottomPanel => crate::screens::draw_bottom_panel::entry(r),
         ScreenFn::DrawTwoColumnPanel => crate::screens::draw_two_column_panel::entry(r),

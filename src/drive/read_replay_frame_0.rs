@@ -12,21 +12,8 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// The Rust version: CF.
 pub unsafe fn read_replay_frame_0(frame: u32) -> Result<bool, Refused> {
     unsafe { crate::drive::read_replay_frame::read_replay_frame(frame, 0) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(Left::carry(unsafe { read_replay_frame_0(r.eax) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

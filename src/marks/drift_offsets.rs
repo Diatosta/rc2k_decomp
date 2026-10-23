@@ -23,13 +23,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
 use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::setup::{CLOCK_RVA, SEED_RVA};
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
 
 const SINCE_RVA: usize = rva(0x8BC409); // dword_8BC409: the clock at the last targets
 const WAIT_RVA: usize = rva(0x8BC40D); // dword_8BC40D
@@ -89,60 +85,4 @@ pub unsafe fn drift_offsets(entry: &Regs) -> Regs {
         }
     }
     g
-}
-
-/// The converted version (plain floats): the hook's. The x87 version above stays for the
-/// Rust callers in unconverted code; the offsets' rounding stays the x87's (it follows the
-/// control word).
-// Converted: `rc2k_core::marks::drift::Drift::step`
-pub unsafe fn drift_offsets_plain(entry: &Regs) -> Regs {
-    let mut g = *entry;
-    unsafe {
-        let f2 = |r: [usize; 2]| r.map(|r| f32::from_bits(game_read(r)));
-        let mut d = rc2k_core::marks::drift::Drift {
-            since: game_read(SINCE_RVA),
-            wait: game_read(WAIT_RVA),
-            target: f2(TARGET_RVA),
-            pace: f2(PACE_RVA),
-            halves: [0; 2],
-            offset: OFFSET_RVA.map(|r| game_read(r)),
-        };
-        let r = d.step(
-            game_read(CLOCK_RVA),
-            || {
-                let seed = rc2k_core::marks::noise::next_seed(game_read(SEED_RVA));
-                game_write(SEED_RVA, seed);
-                seed
-            },
-            || f2(SCALE_RVA),
-            f2(EASE_RVA),
-            |o, p| x87::int_plus_to_int(o, p.to_bits()),
-        );
-        g.eax = r.eax;
-        g.ebx = r.ebx.unwrap_or(g.ebx);
-        g.ecx = r.ecx.unwrap_or(g.ecx);
-        if r.ecx.is_some() {
-            for n in 0..2 {
-                game_write(TARGET_RVA[n], d.target[n].to_bits());
-                game_write(HALVES_RVA[n], d.halves[n]);
-            }
-            game_write(WAIT_RVA, d.wait);
-            game_write(SINCE_RVA, d.since);
-        }
-        for n in 0..2 {
-            game_write(PACE_RVA[n], d.pace[n].to_bits());
-            game_write(OFFSET_RVA[n], d.offset[n]);
-        }
-    }
-    g
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { drift_offsets_plain(r) }))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }

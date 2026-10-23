@@ -18,10 +18,9 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, EDX, Regs};
+use crate::framework::{EAX, EBX, EDX};
 use crate::physics::flow::{g, p};
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::drive::countdown::{self, Beep};
 
 /// The Rust version: the block at `block`, the second into `to`.
@@ -52,14 +51,4 @@ pub unsafe fn countdown_beep(block: u32, to: u32) -> Result<Left, Refused> {
             .with(EAX, crate::drive::countdown_cue::countdown_cue(sound)?);
     }
     Ok(left)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { countdown_beep(r.esi, r.edi) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

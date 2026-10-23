@@ -15,13 +15,11 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::menu::item_at::{ITEM_LEN, MENU_HEAD_LEN};
 use crate::screens::draw_stage_records::selection;
 use crate::screens::draw_time_trial_stage_info::GROUP_TITLES_RVA;
-use crate::screens::harness::Left;
 use crate::screens::stage_panel::{build_second_heading, dword, table_dword};
-use crate::service::harness::state_entry;
 
 const MENU_RVA: usize = rva(0x748620); // off_748620: the stage choice's menu
 /// Where item 0's string goes, and where the original puts "item 1"'s.
@@ -49,15 +47,4 @@ pub unsafe fn set_stage_choice_titles() -> Result<(), Refused> {
         (item_1 as *mut u32).write_unaligned(dword(s.table.wrapping_add(0x38)));
     }
     Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { set_stage_choice_titles() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

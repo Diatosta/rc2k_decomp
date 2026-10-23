@@ -22,11 +22,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, ECX, EDI, ESI, Regs};
+use crate::framework::{EAX, ECX, EDI, ESI};
 use crate::physics::cells::get;
 use crate::physics::queue_car_event::QueuePlaces;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 /// The Rust version on the variables at `p` (esi and edi after a shift: the events'
 /// eighth slot and the one after).
@@ -44,19 +43,4 @@ pub unsafe fn expire_car_events_at(p: &QueuePlaces) -> Result<Left, Refused> {
             left
         })
     }
-}
-
-/// The Rust version.
-pub unsafe fn expire_car_events() -> Result<Left, Refused> {
-    unsafe { expire_car_events_at(&QueuePlaces::game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { expire_car_events() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

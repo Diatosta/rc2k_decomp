@@ -13,9 +13,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const NAMES_RVA: usize = rva(0x741E88); // g_driverNames
 
@@ -46,14 +43,4 @@ pub unsafe fn standings_from_drivers(entry: &Regs) -> Result<Regs, Refused> {
         rc2k_core::menu::standings::fill_a_from_driver(&mut t, n, &all, n, id, &text);
     }
     Ok(*entry)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { standings_from_drivers(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

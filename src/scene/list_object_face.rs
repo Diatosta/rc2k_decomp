@@ -41,7 +41,7 @@
 
 use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::scene::draw_object_faces::{LIST_RVA, LISTED_RVA};
 use crate::scene::face_faces_away::face_faces_away;
 use crate::scene::face_sort_key::{KEY_RVA, face_sort_key};
@@ -216,11 +216,4 @@ pub unsafe fn list_object_face(face: usize) -> Result<(), Refused> {
         game_write(LISTED_RVA, listed + 1);
         Ok(())
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let face = r.ebp as usize;
-    unsafe { list_object_face(face) }?;
-    Ok(())
 }

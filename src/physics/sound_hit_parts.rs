@@ -18,8 +18,6 @@ use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::physics::drop_hit_parts::{Timers, g, hit_tests};
 use crate::physics::sound_on_bit::sound_on_bit;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::parts::{SOUND_TESTS, has_hit_sounds};
 
 const TIMERS: Timers = [0x71A32C, 0x71A330, 0x71A334, 0x71A338];
@@ -35,22 +33,4 @@ pub fn sound_hit_parts_in(r: &mut Regs) -> Result<(), Refused> {
         unsafe { sound_on_bit(r.ecx & 0xFF) }?.apply(r);
         Ok(())
     })
-}
-
-/// The Rust version.
-pub unsafe fn sound_hit_parts(entry: &Regs) -> Result<Left, Refused> {
-    let mut r = *entry;
-    sound_hit_parts_in(&mut r)?;
-    let left = crate::race::stage_prefs::left_of(&r);
-    Ok(left)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { sound_hit_parts(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

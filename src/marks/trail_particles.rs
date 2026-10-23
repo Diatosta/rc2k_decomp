@@ -27,10 +27,7 @@ use crate::marks::blocks::{RING_FREE_RVA, RING_USED_RVA};
 use crate::marks::jitter_point::jitter_point;
 use crate::marks::setup::SEED_RVA;
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::{extended, rounded};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 const FULL: u32 = 0xFFF;
 const COUNT: u32 = 8;
@@ -141,14 +138,4 @@ pub unsafe fn trail_particles(entry: &Regs) -> Result<Regs, Refused> {
         }
     }
     Ok(g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { trail_particles(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

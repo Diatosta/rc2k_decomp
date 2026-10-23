@@ -44,7 +44,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         match place {
             0 => *r = replay_mode(r, 1, &mut viewer)?,
             1 => crate::system::sleep::sleep(r.eax),
-            2 => crate::sound::play_menu_sound::play_menu_sound_in_game(r),
+            2 => crate::sound::play_menu_sound::play_menu_sound_in_game(r.eax),
             3 => *r = replay_mode(r, 3, &mut viewer)?,
             _ => crate::calls::call(rva(CALLEES[place as usize]), r),
         }

@@ -15,11 +15,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, Regs, game_read, game_write, rva};
+use crate::framework::{EAX, game_read, game_write, rva};
 use crate::physics::car_sounds::object;
 use crate::physics::place_car_sound::place_car_sound;
 use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::physics::parts::take_bit;
 
 const BITS_RVA: usize = rva(0x71A270); // g_car + 0x298
@@ -36,14 +35,4 @@ pub unsafe fn sound_on_bit(cl: u32) -> Result<Left, Refused> {
     unsafe { game_write(BITS_RVA, cleared) };
     unsafe { place_car_sound() }?;
     Ok(left)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { sound_on_bit(r.ecx & 0xFF) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

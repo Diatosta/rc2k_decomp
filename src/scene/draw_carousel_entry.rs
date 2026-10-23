@@ -35,7 +35,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_read, game_write, rva};
-use crate::scene::draw_menu_object::draw_menu_object_in_game;
 
 // ---- game data ----
 
@@ -133,10 +132,4 @@ pub unsafe fn draw_carousel_entry(
         };
         draw(&mut inner)
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { draw_carousel_entry(r, &mut |r| draw_menu_object_in_game(r)) }?;
-    Ok(())
 }

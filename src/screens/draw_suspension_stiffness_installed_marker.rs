@@ -9,8 +9,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::Regs;
-use crate::screens::setup_markers::{LOWER_RIGHT_INSTALLED_RVA, Marker, RIGHT_X, marker_entry};
+use crate::screens::setup_markers::{LOWER_RIGHT_INSTALLED_RVA, Marker, RIGHT_X};
 
 // ---- Rust version: `setup_markers::draw_marker` with this ----
 
@@ -18,13 +17,3 @@ pub const MARKER: Marker = Marker::Always {
     x: RIGHT_X,
     percent_rva: LOWER_RIGHT_INSTALLED_RVA,
 };
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    marker_entry(
-        "screens::draw_suspension_stiffness_installed_marker",
-        r,
-        MARKER,
-    )
-}

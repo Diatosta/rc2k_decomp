@@ -13,12 +13,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::physics::flow::{base, g, p, x87_run};
-use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
-use rc2k_core::drive::finish_camera::{FinishLines, finish_camera as finish_camera_core};
+use crate::physics::flow::{base, p, x87_run};
 
 /// The Rust version (the exact one, for `drive::finish_run`).
 pub fn finish_camera() {
@@ -46,37 +41,4 @@ pub fn finish_camera() {
         "fstp dword ptr [{b} + 0x206744]";
         b = base()
     );
-}
-
-/// The converted version (`rc2k_core::drive::finish_camera`, plain floats): the hook's.
-// Converted: `rc2k_core::drive::finish_camera::finish_camera`.
-pub fn finish_camera_plain() {
-    let f = |x: usize| f32::from_bits(g(x));
-    let [a748, a730, a734, a744] = finish_camera_core(&FinishLines {
-        k4c: f(0x64BB4C),
-        k50: f(0x64BB50),
-        k54: f(0x64BB54),
-        k58: f(0x64BB58),
-        k5c: f(0x64BB5C),
-        time: f(0x64BB68),
-        share: f(0x64BB6C),
-        k78: f(0x64BB78),
-        k7c: f(0x64BB7C),
-    });
-    p(0x606748, a748.to_bits());
-    p(0x606730, a730.to_bits());
-    p(0x606734, a734.to_bits());
-    p(0x60672C, 0);
-    p(0x606744, a744.to_bits());
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    finish_camera_plain();
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
 }
