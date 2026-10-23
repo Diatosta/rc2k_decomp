@@ -11,7 +11,7 @@
 //! original and the Rust version from the same mode, both variables compared; the mode and
 //! the variables put back.
 
-use crate::framework::{Regs, rva};
+use crate::framework::rva;
 use windows_sys::Win32::System::Diagnostics::Debug::{SEM_FAILCRITICALERRORS, SetErrorMode};
 
 // ---- game data ----
@@ -27,10 +27,4 @@ pub unsafe fn set_error_mode() {
         crate::framework::game_write(KEPT_MODE_RVA, was);
         crate::framework::game_write(MODE_SET_RVA, 1u32);
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { set_error_mode() };
-    Ok(())
 }

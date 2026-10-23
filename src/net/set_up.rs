@@ -15,7 +15,7 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{Regs, game_addr, rva, standalone};
+use crate::framework::{Regs, game_addr, rva};
 use crate::threading::create_event::{create_event, handle_flags};
 use crate::threading::create_mutex::create_mutex;
 
@@ -25,9 +25,6 @@ const NOTICE_KIND_RVA: usize = rva(0x4E07A0); // g_noticeKind
 const PLAYERS_RVA: usize = rva(0x52ABD0); // dword_52ABD0: held to 4 with notice kind 2
 pub const EVENT_RVA: usize = rva(0x52AB68); // dword_52AB68: the receiving thread's event
 const MUTEX_RVA: usize = rva(0x52AB6C); // dword_52AB6C
-/// The calls by place: 0 `threading::create_event` (eax, ebx -> eax, carry), 1
-/// `threading::create_mutex` (-> eax, carry), 2 `sub_418E23` (the lobby).
-const CALLEES: [usize; 3] = [0x41103C, 0x41107F, 0x418E23];
 const NO_EVENT: FatalError = FatalError {
     code: 0x8016_8501,
     message: "",
@@ -104,8 +101,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             };
             r.set_carry(handle_flags(r.eax).0);
         }
-        _ if standalone() => {}
-        _ => crate::calls::call(rva(CALLEES[2]), r),
+        _ => {}
     }
     Ok(())
 }

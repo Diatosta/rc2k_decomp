@@ -6,10 +6,10 @@
 //! Out: every register preserved (`pusha` .. `popa`)
 //! One caller, `start` (0x40101F); in the game this never gets a call (the hook DLL is loaded
 //! later). The Win32 call is made from Rust (the same in both programs).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! `start` calls it directly (2026-10-23); the registers above are the original's, for
+//! reference.
 
-use crate::framework::{Regs, game_write, rva};
+use crate::framework::{game_write, rva};
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetKeyboardType;
 
 // ---- game data ----
@@ -29,10 +29,4 @@ pub unsafe fn read_keyboard_type() {
     if let Some(kind) = keyboard_type(subtype) {
         unsafe { game_write(KEYBOARD_TYPE_RVA, kind) };
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { read_keyboard_type() };
-    Ok(())
 }

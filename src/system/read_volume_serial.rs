@@ -10,8 +10,8 @@
 //! One caller, `start` (0x40100B), before `math::stir_random`, which stirs in eax. In the
 //! game this never gets a call (the hook DLL is loaded later); the standalone program needs
 //! it. The Win32 call is made from Rust (it is the same call in both programs).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! `start` calls it directly (2026-10-23); the registers above are the original's, for
+//! reference.
 
 use crate::framework::{Regs, game_addr, rva};
 use windows_sys::Win32::Storage::FileSystem::GetVolumeInformationA;
@@ -54,11 +54,4 @@ pub unsafe fn read_volume_serial(entry: &Regs) -> Regs {
         }
         r
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let mine = unsafe { read_volume_serial(r) };
-    *r = Regs { esp: r.esp, ..mine };
-    Ok(())
 }

@@ -92,6 +92,10 @@ for path, lines in wanted.items():
             end = semi + 1
         else:
             end = strip_hook.cut_item(s, start)
+        # a comment on the item's last line goes with it
+        trailing = re.match(r'[ \t]*//[^\n]*', s[end:])
+        if trailing:
+            end += trailing.end()
         s = s[:start] + s[end:].lstrip('\n')
         removed += 1
     # the `impl` blocks of a struct never built go with it

@@ -133,7 +133,6 @@ pub unsafe fn handle_keys(entry: &Regs, out: &mut dyn Outside) -> Result<Left, R
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::fatal::raise::raise_test_if_armed(r);
     crate::menu::navigation::outside_entry(r, &|r: &Regs, out: &mut dyn Outside| unsafe {
         handle_keys(r, out)
     })

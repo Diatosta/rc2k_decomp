@@ -306,29 +306,23 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 i::install_from_command::install_from_command(r, &mut game_part).map(|_| ())?
             }
             0x4130CD => {
-                let trace = crate::framework::standalone();
-                INSTALL_TRACE.store(trace, std::sync::atomic::Ordering::Relaxed);
+                INSTALL_TRACE.store(true, std::sync::atomic::Ordering::Relaxed);
                 let done = i::install_files::install_files(r, &mut game_part);
                 INSTALL_TRACE.store(false, std::sync::atomic::Ordering::Relaxed);
-                if trace {
-                    crate::framework::log(&format!(
-                        "install: the install ended: {:?}",
-                        done.as_ref().map(|_| ())
-                    ));
-                }
+                crate::framework::log(&format!(
+                    "install: the install ended: {:?}",
+                    done.as_ref().map(|_| ())
+                ));
                 done.map(|_| ())?
             }
             0x4134DF => {
-                let trace = crate::framework::standalone();
-                INSTALL_TRACE.store(trace, std::sync::atomic::Ordering::Relaxed);
+                INSTALL_TRACE.store(true, std::sync::atomic::Ordering::Relaxed);
                 let done = i::uninstall::uninstall(r, &mut game_part);
                 INSTALL_TRACE.store(false, std::sync::atomic::Ordering::Relaxed);
-                if trace {
-                    crate::framework::log(&format!(
-                        "install: the uninstall ended: {:?}",
-                        done.as_ref().map(|_| ())
-                    ));
-                }
+                crate::framework::log(&format!(
+                    "install: the uninstall ended: {:?}",
+                    done.as_ref().map(|_| ())
+                ));
                 done.map(|_| ())?
             }
             0x413629 => *r = i::open_installed::open_installed(r, &mut game_part)?,
@@ -645,9 +639,7 @@ pub const GET_DISK_FREE: u32 = 0x4D5D2E; // GetDiskFreeSpaceA (5)
 pub fn game_api(place: u32, x: &[u32]) -> u32 {
     use windows_sys::Win32::System::Registry as reg;
     // The standalone is portable: no registry (`install::portable`).
-    if crate::framework::standalone()
-        && let Some(answer) = crate::install::portable::api(place, x)
-    {
+    if let Some(answer) = crate::install::portable::api(place, x) {
         return answer;
     }
     unsafe {

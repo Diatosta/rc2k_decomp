@@ -11,7 +11,7 @@
 //! each triangle (`platform_3d::draw_indexed_list`) and the result is 0 (before 2026-10-19
 //! the standalone skipped it). No self-test.
 
-use crate::framework::{Regs, rva, standalone};
+use crate::framework::{Regs, rva};
 
 const VERTICES_RVA: usize = rva(0x625A44); // unk_625A44
 const VERTEX_COUNT_RVA: usize = rva(0x625A40); // dword_625A40
@@ -20,19 +20,15 @@ const INDEX_COUNT_RVA: usize = rva(0x62423C); // dword_62423C
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    if standalone() {
-        unsafe {
-            use crate::framework::{game_addr, game_read};
-            crate::platform_3d::draw_indexed_list(
-                game_addr(VERTICES_RVA) as u32,
-                game_read(VERTEX_COUNT_RVA),
-                game_addr(INDICES_RVA) as u32,
-                game_read(INDEX_COUNT_RVA),
-            )
-        };
-        r.eax = 0;
-        return Ok(());
-    }
-    unsafe { crate::framework::call_game(r, crate::framework::game_addr(rva(0x41ADB9))) };
+    unsafe {
+        use crate::framework::{game_addr, game_read};
+        crate::platform_3d::draw_indexed_list(
+            game_addr(VERTICES_RVA) as u32,
+            game_read(VERTEX_COUNT_RVA),
+            game_addr(INDICES_RVA) as u32,
+            game_read(INDEX_COUNT_RVA),
+        )
+    };
+    r.eax = 0;
     Ok(())
 }

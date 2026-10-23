@@ -16,14 +16,11 @@
 //! to stand-ins noting eax, against the Rust version, both switches.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva, standalone};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::gfx::mark_3d_modes::{ModeVars, mark_3d_modes};
 
 // ---- game data ----
 
-/// The calls by place: 0 `sub_4048EC` (eax the GUID or 0), 1 `sub_404A31` (eax the kind),
-/// 2 `gfx::mark_3d_modes` (eax the kind), 3 `sub_404935`.
-const CALLEES: [usize; 4] = [0x4048EC, 0x404A31, 0x40442C, 0x404935];
 pub const PRIMARY: u32 = 0x1000;
 
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
@@ -82,9 +79,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             )
         };
     }
-    if !standalone() {
-        crate::calls::call(rva(CALLEES[place as usize]), r);
-    } else if place == 1 {
+    if place == 1 {
         unsafe { standalone_modes(r.eax) };
     }
     Ok(())

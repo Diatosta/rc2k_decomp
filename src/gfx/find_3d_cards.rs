@@ -16,13 +16,11 @@
 //! enumeration's notes its arguments), against the Rust version, the setting 0 and not.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva, standalone};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 
 // ---- game data ----
 
 const FINDING_TEXT_RVA: usize = rva(0x5C2CF7); // "Finding 3d hardware"
-const CALLBACK_RVA: usize = rva(0x4042AE); // Callback
-const ENUMERATE: usize = rva(0x4D5E96); // DirectDrawEnumerateA's thunk
 /// The calls by place: 0 `logfile::log_write_l1_nl` (eax), 1 the enumeration, 2
 /// `logfile::log_newline_l1`.
 const CALLEES: [usize; 2] = [0x40142B, 0x4013DE];
@@ -77,15 +75,10 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     match place {
         // DirectDraw's drivers: the standalone program's is its rasteriser, a 3D primary
         // card (as the enumeration's callback sets it, unless `dword_5AB950` says not to).
-        1 if standalone() => unsafe {
+        1 => unsafe {
             if game_read::<u32>(rva(0x5AB950)) == 0 {
                 game_write(rva(0x5AB4AC), 1u32);
             }
-        },
-        1 => unsafe {
-            let f: unsafe extern "system" fn(u32, u32) -> i32 =
-                std::mem::transmute(game_addr(ENUMERATE));
-            f(game_addr(CALLBACK_RVA) as u32, 0);
         },
         _ => crate::calls::call(rva(CALLEES[(place / 2) as usize]), r),
     }

@@ -7,72 +7,33 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! One caller, `start`'s way out. `MessageBoxA` through `api` (the same function in the
-//! standalone); the log's call through `part`.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! One caller, `start`'s way out, which calls it directly (2026-10-23). The registers
+//! above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
-use crate::system::api_stand_ins::Api;
-use crate::system::exit_parts::{LOG_2_NL, MESSAGE_BOX, Part, exit_entry};
+use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::logfile::write_line::log_text;
 
-const REPORTED: usize = 0x4F67BC; // g_fatalReported (a byte)
-const CODE: usize = 0x4F52A4; // g_fatalCode
-const CAPTION: usize = 0x4F66FD; // Caption; byte_4F6702 its sixth byte
-const TEXT: usize = 0x9526F8; // Text: the report
-const END: usize = 0x4DA4A6; // "END PROCESS"
+const REPORTED_RVA: usize = rva(0x4F67BC); // g_fatalReported (a byte)
+const CODE_RVA: usize = rva(0x4F52A4); // g_fatalCode
+const CAPTION_RVA: usize = rva(0x4F66FD); // Caption; byte_4F6702 its sixth byte
+const TEXT_RVA: usize = rva(0x9526F8); // Text: the report
 
-/// Where the variables are.
-#[derive(Clone, Copy)]
-pub struct Vars {
-    pub reported: u32,
-    pub code: u32,
-    pub caption: u32,
-    pub text: u32,
-}
-
-impl Vars {
-    pub fn game() -> Self {
-        let a = |x: usize| game_addr(rva(x)) as u32;
-        Self {
-            reported: a(REPORTED),
-            code: a(CODE),
-            caption: a(CAPTION),
-            text: a(TEXT),
-        }
-    }
-}
-
-/// The Rust version on the variables in `v`.
-pub fn show_report_at_exit_with(
-    r: &mut Regs,
-    v: &Vars,
-    part: Part,
-    api: Api,
-) -> Result<(), Refused> {
+/// The Rust version (see the header).
+pub fn show_report_at_exit() {
+    use windows_sys::Win32::UI::WindowsAndMessaging::MessageBoxA;
     unsafe {
-        if (v.reported as *const u8).read_volatile() == 1 {
+        if game_read::<u8>(REPORTED_RVA) == 1 {
             // Converted: `rc2k_core::fatal::caption_cut`.
-            if rc2k_core::fatal::caption_cut((v.code as *const u32).read_volatile()) {
-                ((v.caption + rc2k_core::fatal::CAPTION_CUT as u32) as *mut u8).write_volatile(0);
+            if rc2k_core::fatal::caption_cut(game_read(CODE_RVA)) {
+                game_write(CAPTION_RVA + rc2k_core::fatal::CAPTION_CUT, 0u8);
             }
-            api(MESSAGE_BOX, &[0, v.text, v.caption, 0x2030]);
+            MessageBoxA(
+                std::ptr::null_mut(),
+                game_addr(TEXT_RVA) as _,
+                game_addr(CAPTION_RVA) as _,
+                0x2030,
+            );
         }
     }
-    let mut l = Regs {
-        eax: game_addr(rva(END)) as u32,
-        ..*r
-    };
-    part(LOG_2_NL, &mut l)
-}
-
-fn in_game(r: &mut Regs, part: Part, api: Api) -> Result<(), Refused> {
-    show_report_at_exit_with(r, &Vars::game(), part, api)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    exit_entry(r, in_game)
+    log_text(b"END PROCESS", true, 2);
 }

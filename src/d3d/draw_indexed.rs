@@ -9,15 +9,11 @@
 //! Platform: the original always runs. In the standalone program the rasteriser draws
 //! each triangle (`platform_3d::draw_indexed_list`) and the result is 0. No self-test.
 
-use crate::framework::{Regs, rva, standalone};
+use crate::framework::Regs;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    if standalone() {
-        unsafe { crate::platform_3d::draw_indexed_list(r.ebx, r.eax, r.ecx, r.edx) };
-        r.eax = 0;
-        return Ok(());
-    }
-    unsafe { crate::framework::call_game(r, crate::framework::game_addr(rva(0x41ADF5))) };
+    unsafe { crate::platform_3d::draw_indexed_list(r.ebx, r.eax, r.ecx, r.edx) };
+    r.eax = 0;
     Ok(())
 }

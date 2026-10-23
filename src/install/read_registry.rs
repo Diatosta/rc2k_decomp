@@ -19,9 +19,6 @@ use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, rva};
 use crate::screens::harness::Left;
 use crate::service::harness::state_entry;
-use windows_sys::Win32::System::Registry::{
-    HKEY, HKEY_LOCAL_MACHINE, RegCloseKey, RegOpenKeyA, RegQueryValueExA,
-};
 
 // ---- game data ----
 
@@ -52,27 +49,6 @@ pub trait Registry {
         size: *mut u32,
     ) -> u32;
     unsafe fn close(&mut self, key: u32);
-}
-
-pub struct Windows;
-
-impl Registry for Windows {
-    unsafe fn open(&mut self, name: *const u8, key: *mut u32) -> u32 {
-        unsafe { RegOpenKeyA(HKEY_LOCAL_MACHINE, name, key as *mut HKEY) }
-    }
-    unsafe fn query(
-        &mut self,
-        key: u32,
-        name: *const u8,
-        kind: *mut u32,
-        data: *mut u8,
-        size: *mut u32,
-    ) -> u32 {
-        unsafe { RegQueryValueExA(key as HKEY, name, std::ptr::null(), kind, data, size) }
-    }
-    unsafe fn close(&mut self, key: u32) {
-        unsafe { RegCloseKey(key as HKEY) };
-    }
 }
 
 pub unsafe fn read_registry(registry: &mut dyn Registry) {
@@ -114,11 +90,7 @@ pub unsafe fn read_registry(registry: &mut dyn Registry) {
 
 /// The registry, or in the standalone the portable record (`install::portable`).
 pub unsafe fn read_registry_here() {
-    if crate::framework::standalone() {
-        unsafe { read_registry(&mut crate::install::portable::Portable) };
-    } else {
-        unsafe { read_registry(&mut Windows) };
-    }
+    unsafe { read_registry(&mut crate::install::portable::Portable) };
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {

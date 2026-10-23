@@ -6,52 +6,29 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! One caller, `start`'s way out. Its call through `part` (in the game `VirtualFree` with
-//! `MEM_RELEASE`, as `virtual_free`).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! One caller, `start`'s way out, which calls it directly (2026-10-23). `VirtualFree`
+//! with `MEM_RELEASE`, as `memory::virtual_free`; the registers above are the original's,
+//! for reference.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
-use crate::system::api_stand_ins::Api;
-use crate::system::exit_parts::{Part, VIRTUAL_FREE, exit_entry};
+use crate::framework::{game_read, game_write, rva};
 
-const OWN_HEAP: usize = 0x4E0584; // g_ownHeap (altmemenable)
-const HEAP: usize = 0x4E058C; // dword_4E058C: the heap's memory
-const HEAP_MORE: usize = 0x4E0590; // dword_4E0590
+const OWN_HEAP_RVA: usize = rva(0x4E0584); // g_ownHeap (altmemenable)
+const HEAP_RVA: usize = rva(0x4E058C); // dword_4E058C: the heap's memory
+const HEAP_MORE_RVA: usize = rva(0x4E0590); // dword_4E0590
 
-/// The Rust version on the switch at `on` and the heap's two dwords at `heap`, `more`.
-pub fn free_own_heap_with(
-    r: &mut Regs,
-    on: u32,
-    heap: u32,
-    more: u32,
-    part: Part,
-) -> Result<(), Refused> {
-    let rd = |at: u32| unsafe { (at as *const u32).read_volatile() };
-    // Converted: `rc2k_core::memory::own_heap_on`.
-    if !rc2k_core::memory::own_heap_on(rd(on)) {
-        return Ok(());
-    }
-    let mut g = Regs {
-        eax: rd(heap),
-        ..*r
-    };
-    part(VIRTUAL_FREE, &mut g)?;
+/// The Rust version (see the header).
+pub fn free_own_heap() {
+    use windows_sys::Win32::System::Memory::{MEM_RELEASE, VirtualFree};
     unsafe {
-        (heap as *mut u32).write_volatile(0);
-        (more as *mut u32).write_volatile(0);
+        // Converted: `rc2k_core::memory::own_heap_on`.
+        if !rc2k_core::memory::own_heap_on(game_read(OWN_HEAP_RVA)) {
+            return;
+        }
+        let heap: u32 = game_read(HEAP_RVA);
+        if heap != 0 {
+            VirtualFree(heap as _, 0, MEM_RELEASE);
+        }
+        game_write(HEAP_RVA, 0u32);
+        game_write(HEAP_MORE_RVA, 0u32);
     }
-    Ok(())
-}
-
-fn in_game(r: &mut Regs, part: Part, _api: Api) -> Result<(), Refused> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    free_own_heap_with(r, a(OWN_HEAP), a(HEAP), a(HEAP_MORE), part)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    exit_entry(r, in_game)
 }

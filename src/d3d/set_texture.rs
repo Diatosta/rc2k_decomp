@@ -11,7 +11,7 @@
 //! program, and for a recording that swallows, the number is kept and nothing more.
 //! No self-test.
 
-use crate::framework::{Regs, game_write, rva, standalone};
+use crate::framework::{Regs, game_write, rva};
 
 pub const CURRENT_RVA: usize = rva(0x5AB93C); // g_currentTexture
 
@@ -20,10 +20,6 @@ pub const CURRENT_RVA: usize = rva(0x5AB93C); // g_currentTexture
 /// recorder (`d3d::recorder`) and runs the original: noted here as well, a call would be
 /// noted twice.
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    if !standalone() {
-        unsafe { crate::framework::call_game(r, crate::framework::game_addr(rva(0x41ACF5))) };
-        return Ok(());
-    }
     unsafe { game_write(CURRENT_RVA, r.eax) };
     r.ecx = 0;
     Ok(())

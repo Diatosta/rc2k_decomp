@@ -27,7 +27,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{
-    CALL_REDIRECT, GameHook, LOG_PATH, Regs, STANDALONE, game_addr, game_read, game_write, log, rva,
+    CALL_REDIRECT, GameHook, LOG_PATH, Regs, game_addr, game_read, game_write, log, rva,
 };
 use crate::registry::ALL;
 use std::path::Path;
@@ -234,7 +234,6 @@ unsafe fn install_and_lock(image: &Image) -> Result<(), String> {
         hooked.push((address, hook.name()));
     }
     let _ = CALL_REDIRECT.set(thunks);
-    STANDALONE.store(true, Ordering::Relaxed);
     log(&format!(
         "standalone: {} hooks in place, {} of them the platform's; the game's image is data only",
         hooked.len(),
@@ -313,7 +312,7 @@ pub fn leave_from_race() -> ! {
     finish("the game was closed during a race", 0)
 }
 
-fn finish(why: &str, code: u32) -> ! {
+pub fn finish(why: &str, code: u32) -> ! {
     log(&format!("standalone: ending: {why}"));
     menu_watch::report();
     // No game code runs here, so a hook's thunk is entered only by a call by address
@@ -479,6 +478,17 @@ fn rust(name: &str) {
     log(&format!("standalone: start calls {name}"));
 }
 
+/// `start`'s call of a Rust version that still takes registers (`entry`): a refusal ends
+/// the program, a fatal error is raised.
+unsafe fn run_entry(name: &str, entry: fn(&mut Regs) -> Result<(), Refused>, r: &mut Regs) {
+    rust(name);
+    match entry(r) {
+        Ok(()) => {}
+        Err(Refused::Fatal(error)) => unsafe { crate::fatal::raise::raise(error, r) },
+        Err(Refused::BadInput(why)) => finish(&format!("{name} refused: {}", why.0), 1),
+    }
+}
+
 unsafe fn stand_in(what: &str, address: usize, value: u32) {
     log(&format!(
         "standalone: stand-in: {what} ({address:#x} = {value})"
@@ -492,27 +502,47 @@ unsafe fn stand_in(what: &str, address: usize, value: u32) {
 unsafe fn start() {
     unsafe {
         let mut r = Regs::default();
-        call(0x410F29, &mut r);
+        rust("system::keep_start_time");
+        crate::system::keep_start_time::keep_start_time();
         rust("math::seed_random");
         crate::math::seed_random::seed_random();
-        call(0x403131, &mut r);
+        rust("system::read_volume_serial");
+        r = Regs {
+            esp: r.esp,
+            ..crate::system::read_volume_serial::read_volume_serial(&r)
+        };
         // eax: `system::read_volume_serial`'s serial.
         rust("math::stir_random");
         crate::math::stir_random::stir_random(r.eax);
-        for address in [0x410D4C, 0x410883, 0x410AA3, 0x410AC5] {
-            call(address, &mut r);
-        }
+        // `system::set_exception_filter` (0x410D4C) sets nothing in the standalone.
+        run_entry(
+            "system::test_processor",
+            crate::system::test_processor::entry,
+            &mut r,
+        );
+        rust("system::read_keyboard_type");
+        crate::system::read_keyboard_type::read_keyboard_type();
+        rust("system::read_windows_version");
+        crate::system::read_windows_version::read_windows_version();
         CoInitialize(std::ptr::null());
-        for address in [0x40298A, 0x402B7C] {
-            call(address, &mut r);
-        }
+        run_entry(
+            "memory::open_own_heap",
+            crate::memory::open_own_heap::entry,
+            &mut r,
+        );
+        rust("system::set_error_mode");
+        crate::system::set_error_mode::set_error_mode();
         rust("settings::read_settings");
         if let Err(why) = crate::settings::read_settings::read_settings() {
             finish(&format!("settings::read_settings refused: {}", why.0), 1);
         }
         rust("settings::apply_feature_switches");
         crate::settings::apply_feature_switches::apply_feature_switches();
-        call(0x401135, &mut r);
+        run_entry(
+            "logfile::start_log",
+            crate::logfile::start_log::entry,
+            &mut r,
+        );
         // The folders the game saves into but never makes (`notes`: `sub_413A97` makes
         // them only from the installer's script): made here when missing, in the game's
         // folder, as the path templates at 0x5296FB .. 0x52974B name them; not in the
@@ -541,7 +571,20 @@ unsafe fn start() {
         if game_read::<u32>(rva(0x5183EC)) != 1 {
             finish("fatal error 0x900010FF, FPU is required", 1);
         }
-        for address in [0x410684, 0x416653, 0x416477, 0x416292, 0x413908, 0x4110C9] {
+        run_entry(
+            "system::read_command_line",
+            crate::system::read_command_line::entry,
+            &mut r,
+        );
+        for address in [0x416653, 0x416477] {
+            call(address, &mut r);
+        }
+        run_entry(
+            "system::check_developer_machine",
+            crate::system::check_developer_machine::entry,
+            &mut r,
+        );
+        for address in [0x413908, 0x4110C9] {
             call(address, &mut r);
         }
         // `strings::load_language` (0x40331F): Rust, its hook gone (it keeps every register).
@@ -554,21 +597,20 @@ unsafe fn start() {
                 finish(&format!("strings::load_language refused: {}", why.0), 1)
             }
         }
-        for address in [0x411239, 0x4103BE] {
-            call(address, &mut r);
-        }
-        if r.carry() {
+        call(0x411239, &mut r);
+        rust("system::find_running_game");
+        if crate::system::find_running_game::find_running_game() {
             finish("the game is running already (0x4103BE)", 0);
         }
         for address in [0x4103DE, 0x404981, 0x404270, 0x4043DA, 0x404401, 0x41848E] {
             call(address, &mut r);
         }
-        r.eax = 0x80;
-        call(0x410B68, &mut r);
+        rust("system::set_priority_class");
+        crate::system::set_priority_class::set_priority_class(0x80);
         call(0x410B84, &mut r);
         call(0x409C1E, &mut r);
-        r.eax = 1000;
-        call(0x41100C, &mut r);
+        rust("system::sleep");
+        crate::system::sleep::sleep(1000);
         call(0x404481, &mut r);
         if r.carry() {
             finish("fatal error 0x90201101, no screen mode (0x404481)", 1);
@@ -586,16 +628,24 @@ unsafe fn start() {
         );
         stand_in("the key thread runs", 0x518998, 1);
         call(0x415383, &mut r);
-        for address in [0x4184D6, 0x404CD6, 0x40FA8B, 0x4060B7, 0x410509] {
+        for address in [0x4184D6, 0x404CD6, 0x40FA8B] {
             call(address, &mut r);
         }
-        r.eax = 0x20;
-        call(0x410B68, &mut r);
-        for address in [0x412FA2, 0x402B95, 0x4029DB] {
-            call(address, &mut r);
+        rust("gfx::free_picture_buffer");
+        if let Err(why) = crate::gfx::free_picture_buffer::free_picture_buffer() {
+            finish(&format!("gfx::free_picture_buffer refused: {}", why.0), 1);
         }
+        call(0x410509, &mut r);
+        rust("system::set_priority_class");
+        crate::system::set_priority_class::set_priority_class(0x20);
+        call(0x412FA2, &mut r);
+        rust("system::restore_error_mode");
+        crate::system::restore_error_mode::restore_error_mode();
+        rust("memory::free_own_heap");
+        crate::memory::free_own_heap::free_own_heap();
         CoUninitialize();
-        call(0x407855, &mut r);
+        rust("fatal::show_report_at_exit");
+        crate::fatal::show_report_at_exit::show_report_at_exit();
     }
 }
 

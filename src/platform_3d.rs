@@ -718,12 +718,7 @@ static ALLOCATE: RawHook = RawHook::new(
     allocate_thunk,
     &ALLOCATE_ORIGINAL,
 );
-hook_asm!(
-    allocate_thunk,
-    allocate_original,
-    dispatch = allocate,
-    original = ALLOCATE_ORIGINAL
-);
+hook_asm!(allocate_thunk, dispatch = allocate);
 
 fn fatal(code: u32) -> FatalError {
     FatalError { code, message: "" }
@@ -845,12 +840,7 @@ extern "C" fn allocate(r: &mut Regs) {
             r.set_carry(false);
         },
         Err(e) => unsafe {
-            crate::fatal::raise::refused(
-                &ALLOCATE,
-                crate::errors::Refused::Fatal(e),
-                r,
-                allocate_original,
-            )
+            crate::fatal::raise::refused(&ALLOCATE, crate::errors::Refused::Fatal(e), r)
         },
     }
 }
@@ -864,12 +854,7 @@ static RELEASE: RawHook = RawHook::new(
     release_thunk,
     &RELEASE_ORIGINAL,
 );
-hook_asm!(
-    release_thunk,
-    release_original,
-    dispatch = release,
-    original = RELEASE_ORIGINAL
-);
+hook_asm!(release_thunk, dispatch = release);
 
 /// `sub_41A3B2` for every texture of a pool, and the count 0.
 unsafe fn release_pool(pool: usize) {
@@ -927,12 +912,7 @@ static LOAD: RawHook = RawHook::new(
     load_thunk,
     &LOAD_ORIGINAL,
 );
-hook_asm!(
-    load_thunk,
-    load_original,
-    dispatch = load,
-    original = LOAD_ORIGINAL
-);
+hook_asm!(load_thunk, dispatch = load);
 
 /// eax = the system texture, ebx = the video one: the video one holds it, level for
 /// level where both have the level.
@@ -983,12 +963,7 @@ static BEGIN: RawHook = RawHook::new(
     begin_thunk,
     &BEGIN_ORIGINAL,
 );
-hook_asm!(
-    begin_thunk,
-    begin_original,
-    dispatch = begin,
-    original = BEGIN_ORIGINAL
-);
+hook_asm!(begin_thunk, dispatch = begin);
 
 /// The layer's own states at a scene's beginning: (value, state).
 const BEGIN_STATES: [(u32, u32); 12] = [
@@ -1031,12 +1006,7 @@ extern "C" fn begin(r: &mut Regs) {
 
 static END_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 static END: RawHook = RawHook::new("d3d::end_scene", rva(0x41AB8A), end_thunk, &END_ORIGINAL);
-hook_asm!(
-    end_thunk,
-    end_original,
-    dispatch = end,
-    original = END_ORIGINAL
-);
+hook_asm!(end_thunk, dispatch = end);
 
 extern "C" fn end(r: &mut Regs) {
     END.count_call();
@@ -1060,12 +1030,7 @@ static CLEAR: RawHook = RawHook::new(
     clear_thunk,
     &CLEAR_ORIGINAL,
 );
-hook_asm!(
-    clear_thunk,
-    clear_original,
-    dispatch = clear,
-    original = CLEAR_ORIGINAL
-);
+hook_asm!(clear_thunk, dispatch = clear);
 
 /// The depth buffer, a float a pixel of the screen: 1.0 is the farthest.
 pub struct Depth {
@@ -1105,14 +1070,5 @@ extern "C" fn clear(r: &mut Regs) {
     note(Noted::Clear([c(left), c(top), c(right), c(bottom)]));
     r.eax = 0;
 }
-
-// None of these has an original to go back to.
-const _: [unsafe extern "C" fn(*mut Regs); 5] = [
-    release_original,
-    load_original,
-    begin_original,
-    end_original,
-    clear_original,
-];
 
 pub static HOOKS: &[&dyn GameHook] = &[&ALLOCATE, &RELEASE, &LOAD, &BEGIN, &END, &CLEAR];

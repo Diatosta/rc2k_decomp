@@ -7,10 +7,10 @@
 //! and hundredths to `dword_5183A4`: what `logfile::date_text` and `math::seed_random`
 //! read. One caller, `start`, as its first call: the hook DLL is not loaded then, so in the
 //! game this never gets a call; the standalone program needs it.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! `start` calls it directly (2026-10-23); the registers above are the original's, for
+//! reference.
 
-use crate::framework::{Regs, game_ptr, game_write, rva};
+use crate::framework::{game_ptr, game_write, rva};
 use windows_sys::Win32::Foundation::SYSTEMTIME;
 use windows_sys::Win32::System::SystemInformation::GetLocalTime;
 
@@ -44,10 +44,4 @@ pub unsafe fn keep_start_time() {
         GetLocalTime(time);
         game_write(KEPT_RVA, kept(&time.read_unaligned()));
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { keep_start_time() };
-    Ok(())
 }

@@ -8,7 +8,7 @@
 //! original and the Rust version with the switch 0 and 1, from the class there and to
 //! another, the class after each read back; the class and the switch put back.
 
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use windows_sys::Win32::System::Threading::{GetCurrentProcess, SetPriorityClass};
 
 // ---- game data ----
@@ -23,10 +23,4 @@ pub unsafe fn set_priority_class(class: u32) {
             SetPriorityClass(GetCurrentProcess(), class);
         }
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { set_priority_class(r.eax) };
-    Ok(())
 }

@@ -5,43 +5,22 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! One caller, `start`'s way out (0x401116, also the short one). `SetErrorMode` through
-//! `api` (the same function in the standalone).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! One caller, `start`'s way out (0x401116, also the short one), which calls it directly
+//! (2026-10-23); the registers above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
-use crate::system::api_stand_ins::Api;
-use crate::system::exit_parts::{Part, SET_ERROR_MODE, exit_entry};
+use crate::framework::{game_read, game_write, rva};
 
-const CHANGED: usize = 0x4E059C; // dword_4E059C: 1 after `sub_402B7C` set the mode
-const MODE: usize = 0x4E05A0; // uMode: the mode before
+const CHANGED_RVA: usize = rva(0x4E059C); // dword_4E059C: 1 after `sub_402B7C` set the mode
+const MODE_RVA: usize = rva(0x4E05A0); // uMode: the mode before
 
-/// The Rust version on the switch at `changed` and the mode at `mode`.
-pub fn restore_error_mode_with(
-    _r: &mut Regs,
-    changed: u32,
-    mode: u32,
-    api: Api,
-) -> Result<(), Refused> {
+/// The Rust version (see the header).
+pub fn restore_error_mode() {
+    use windows_sys::Win32::System::Diagnostics::Debug::{SetErrorMode, THREAD_ERROR_MODE};
     unsafe {
-        if (changed as *const u32).read_volatile() != 1 {
-            return Ok(());
+        if game_read::<u32>(CHANGED_RVA) != 1 {
+            return;
         }
-        (changed as *mut u32).write_volatile(0);
-        api(SET_ERROR_MODE, &[(mode as *const u32).read_volatile()]);
+        game_write(CHANGED_RVA, 0u32);
+        SetErrorMode(game_read::<THREAD_ERROR_MODE>(MODE_RVA));
     }
-    Ok(())
-}
-
-fn in_game(r: &mut Regs, _part: Part, api: Api) -> Result<(), Refused> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    restore_error_mode_with(r, a(CHANGED), a(MODE), api)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    exit_entry(r, in_game)
 }

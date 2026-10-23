@@ -6,12 +6,10 @@
 //! `menu::navigation`'s moves, and every function the screen loops and the frame callback
 //! call (`screen_loop::Real`, through `call_any`: their lists, and their own calls).
 //!
-//! In shadow mode the call goes to the game's function, as before (through its hook while
-//! there is one, so the hook compares). A refused input (`BadInput`) is logged once per
-//! function and reason and runs the game's function with the registers as they were (its
-//! hook, while there is one, or the original); a fatal error is raised from Rust. An
-//! address in no table goes to the game, logged once. Each call passes the hooks' gate, as
-//! a call through a gated hook did, so that `selftest`'s pause holds the thread here.
+//! A refused input (`BadInput`) ends the program, saying which function refused and why
+//! (2026-10-23); a fatal error is raised from Rust. An address in no table goes to the
+//! game, logged once: the standalone's fault handler routes it to a platform hook or ends
+//! with "not ported".
 
 use crate::errors::Refused;
 use crate::framework::{IMAGE_BASE, Regs, call_game, game_addr, log};
@@ -35,7 +33,6 @@ fn run(function: u32, r: &mut Regs, only_tables: bool) {
     let ral = (function as usize)
         .wrapping_sub(game_addr(0))
         .wrapping_add(IMAGE_BASE) as u32;
-    let entry = *r;
     let result = if let Some(f) = ItemFn::from_ral(ral) {
         Some((Named::Item(f), item_fn(f, r)))
     } else if let Some(f) = ScreenFn::from_ral(ral) {
@@ -46,16 +43,10 @@ fn run(function: u32, r: &mut Regs, only_tables: bool) {
     };
     match result {
         Some((_, Ok(()))) => {}
-        Some((name, Err(Refused::BadInput(why)))) => {
-            if first(ral, why.0) {
-                log(&format!(
-                    "menu::table_calls: {name:?} ({ral:#x}) refused (first time, the game's runs): {}",
-                    why.0
-                ));
-            }
-            *r = entry;
-            unsafe { call_game(r, function as usize) };
-        }
+        Some((name, Err(Refused::BadInput(why)))) => crate::standalone::finish(
+            &format!("menu::table_calls: {name:?} ({ral:#x}) refused: {}", why.0),
+            1,
+        ),
         Some((name, Err(Refused::Fatal(error)))) => {
             log(&format!(
                 "menu::table_calls: {name:?} ({ral:#x}): the Rust version raises fatal error {:#x} {:?}",
@@ -64,7 +55,7 @@ fn run(function: u32, r: &mut Regs, only_tables: bool) {
             unsafe { crate::fatal::raise::raise(error, r) };
         }
         None => {
-            if only_tables && first(ral, "") {
+            if only_tables && first(ral) {
                 log(&format!(
                     "menu::table_calls: {ral:#x} is in no menu or draw list; the game's runs"
                 ));
@@ -92,13 +83,13 @@ impl std::fmt::Debug for Named {
     }
 }
 
-/// True the first time for a function and reason.
-fn first(ral: u32, why: &'static str) -> bool {
-    static SEEN: Mutex<Vec<(u32, &'static str)>> = Mutex::new(Vec::new());
+/// True the first time for a function.
+fn first(ral: u32) -> bool {
+    static SEEN: Mutex<Vec<u32>> = Mutex::new(Vec::new());
     let mut seen = SEEN.lock().unwrap();
-    if seen.contains(&(ral, why)) {
+    if seen.contains(&ral) {
         return false;
     }
-    seen.push((ral, why));
+    seen.push(ral);
     true
 }

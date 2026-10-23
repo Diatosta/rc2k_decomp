@@ -53,7 +53,6 @@ const COMMAND: usize = 0x518BA8; // dword_518BA8 the program's name, dword_518BA
 // Texts.
 const DXSETUP: usize = 0x51BE54; // "redist\directx\dxsetup.exe"
 const EREG: usize = 0x51B9EE; // "ereg\eregip.exe"
-const RAL: usize = 0x51BE3E; // ".\ral.exe"
 
 const ROOM: u32 = 0x100;
 
@@ -175,33 +174,11 @@ pub fn run_after_exit_with(r: &mut Regs, v: &Vars, part: Part) -> Result<(), Ref
     if !checked(NORMALISE, &mut g, part)? || !checked(SET_CD, &mut g, part)? {
         return Ok(());
     }
-    let program = if crate::framework::standalone() {
-        RC2K.as_ptr() as u32
-    } else {
-        text(RAL)
-    };
-    if crate::framework::standalone() {
-        // The program and its DLLs from its own folder (not a CD's copy of `ral.exe`).
-        crate::install::shortcuts::copy_program();
-        g.eax = 1000;
-        part(SLEEP, &mut g)?;
-    } else if rd(v.from_cd) == 1 {
-        g.ecx = rd(v.command + 4);
-        g.esi = rd(v.command);
-        g.edi = v.program;
-        g.eax = g.edi;
-        unsafe {
-            std::ptr::copy(g.esi as *const u8, g.edi as *mut u8, g.ecx as usize);
-            ((g.edi + g.ecx) as *mut u8).write(0);
-        }
-        g.esi += g.ecx;
-        g.edi += g.ecx;
-        g.ecx = 0;
-        g.ebx = program;
-        part(COPY_FILE, &mut g)?;
-        g.eax = 1000;
-        part(SLEEP, &mut g)?;
-    }
+    let program = RC2K.as_ptr() as u32;
+    // The program and its DLLs from its own folder (not a CD's copy of `ral.exe`).
+    crate::install::shortcuts::copy_program();
+    g.eax = 1000;
+    part(SLEEP, &mut g)?;
     g.eax = program;
     g.ebx = 1;
     part(RUN, &mut g)
@@ -213,18 +190,17 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         match place {
             // The standalone: shell shortcuts and its own start (`install/shortcuts.rs`).
-            ADD_ITEMS if crate::framework::standalone() => {
+            ADD_ITEMS => {
                 use crate::install::shortcuts::{add_start_menu_items, c_path};
                 add_start_menu_items(&c_path(game_addr(rva(INSTALLED)) as *const u8));
             }
-            REMOVE_ITEMS if crate::framework::standalone() => {
+            REMOVE_ITEMS => {
                 crate::install::shortcuts::remove_start_menu_items();
             }
-            RUN if crate::framework::standalone() => {
+            RUN => {
                 let command = crate::install::shortcuts::c_path(r.eax as *const u8);
                 crate::install::shortcuts::run_program(&command);
             }
-            ADD_ITEMS | REMOVE_ITEMS | RUN => crate::calls::call(rva(place as usize), r),
             SET_CD => {
                 r.eax = SetCurrentDirectoryA(r.edx as *const u8) as u32;
                 r.set_carry(r.eax == 0);

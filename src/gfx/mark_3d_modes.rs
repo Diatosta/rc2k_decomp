@@ -25,12 +25,10 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_write, rva, standalone};
+use crate::framework::{Regs, game_addr, game_write, rva};
 
 // ---- game data ----
 
-/// The call: 0 `sub_419853` (the carry: no Direct3D device fits).
-const DETECT_RVA: usize = rva(0x419853);
 pub use rc2k_core::gfx::screen_modes::MODES_ROOM;
 
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
@@ -109,19 +107,15 @@ pub unsafe fn mark_3d_modes(entry: &Regs, v: &ModeVars, part: Part) -> Result<()
 /// `g_depthFormatBits`, `g_depthExtraFlags` and the `caps3d..` switches 0x5AB98C ..
 /// 0x5AB9AC that the graphics options read).
 pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    if standalone() {
-        unsafe {
-            // 16 and 32 bits (`g_pixelKinds`' 0x200 and 0x800) for both
-            game_write(rva(0x4F492C), 0xA00u32);
-            game_write(rva(0x4F4930), 0xA00u32);
-            for at in (0x5AB98C..=0x5AB9AC).step_by(4) {
-                game_write(rva(at), 1u32);
-            }
+    unsafe {
+        // 16 and 32 bits (`g_pixelKinds`' 0x200 and 0x800) for both
+        game_write(rva(0x4F492C), 0xA00u32);
+        game_write(rva(0x4F4930), 0xA00u32);
+        for at in (0x5AB98C..=0x5AB9AC).step_by(4) {
+            game_write(rva(at), 1u32);
         }
-        r.set_carry(false);
-        return Ok(());
     }
-    crate::calls::call(DETECT_RVA, r);
+    r.set_carry(false);
     Ok(())
 }
 

@@ -11,17 +11,13 @@
 //! screen) and the result is 0. No self-test.
 
 use crate::d3d::draw_fan_unclipped::polygon;
-use crate::framework::{Regs, rva, standalone};
+use crate::framework::Regs;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's). In the
 /// hooked game it goes to the game's function, whose hook notes the call for the tests'
 /// recorder (`d3d::recorder`) and runs the original: noted here as well, a call would be
 /// noted twice.
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    if !standalone() {
-        unsafe { crate::framework::call_game(r, crate::framework::game_addr(rva(0x41AD7F))) };
-        return Ok(());
-    }
     crate::platform_3d::draw_fan(&polygon());
     r.eax = 0;
     Ok(())

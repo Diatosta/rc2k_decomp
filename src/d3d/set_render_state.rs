@@ -10,7 +10,7 @@
 //! the standalone program the value is kept and nothing more, until a renderer is
 //! there. No self-test: there is nothing of ours to compare.
 
-use crate::framework::{Regs, game_write, rva, standalone};
+use crate::framework::{Regs, game_write, rva};
 
 const KEPT_RVA: usize = rva(0x5AB6BC); // dword_5AB6BC
 /// The states the game uses are all below this.
@@ -21,10 +21,6 @@ const STATES: u32 = 0x40;
 /// recorder (`d3d::recorder`) and runs the original: noted here as well, a call would be
 /// noted twice.
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    if !standalone() {
-        unsafe { crate::framework::call_game(r, crate::framework::game_addr(rva(0x41AB5B))) };
-        return Ok(());
-    }
     if r.ebx < STATES {
         unsafe { game_write(KEPT_RVA + r.ebx as usize * 4, r.eax) };
     }

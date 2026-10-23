@@ -15,13 +15,12 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva, standalone};
+use crate::framework::{Regs, game_addr, rva};
 
 // ---- game data ----
 
 const CD_OPEN_RVA: usize = rva(0x518108); // dword_518108: the CD audio is open
 const MCI_ID_RVA: usize = rva(0x518118); // mciId
-const MCI_SEND_COMMAND: usize = rva(0x4D5E7E); // mciSendCommandA's thunk
 const MCI_STOP: u32 = 0x808;
 
 /// `mciSendCommandA(device, message, parameter 1, parameter 2)`.
@@ -52,16 +51,9 @@ pub unsafe fn stop_cd_track(v: &CdVars, send: SendCommand) {
     }
 }
 
-/// In the game: the import's thunk (winmm); in the standalone program nothing.
-pub fn game_send(device: u32, message: u32, a: u32, b: u32) -> u32 {
-    if standalone() {
-        return 0;
-    }
-    unsafe {
-        let f: unsafe extern "system" fn(u32, u32, u32, u32) -> u32 =
-            std::mem::transmute(game_addr(MCI_SEND_COMMAND));
-        f(device, message, a, b)
-    }
+/// `mciSendCommandA`: the standalone plays no CD, so nothing.
+pub fn game_send(_device: u32, _message: u32, _a: u32, _b: u32) -> u32 {
+    0
 }
 
 /// For callers with parts: the game's variables and MCI.

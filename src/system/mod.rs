@@ -1,8 +1,6 @@
 //! Operating system services other than files.
 
-pub mod api_stand_ins;
 pub mod check_developer_machine;
-pub mod exit_parts;
 pub mod find_entry;
 pub mod find_entry_by_value;
 pub mod find_entry_with_any_bit;
@@ -22,7 +20,6 @@ pub mod restore_error_mode;
 pub mod restore_window;
 pub mod same_guid;
 pub mod set_error_mode;
-pub mod set_exception_filter;
 pub mod set_priority_class;
 pub mod sleep;
 pub mod test_processor;

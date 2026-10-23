@@ -41,13 +41,7 @@ static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 pub static HOOK: crate::framework::RawHook =
     crate::framework::RawHook::new("gfx::play_film", rva(0x41AE39), thunk, &ORIGINAL);
 
-crate::framework::hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
+crate::framework::hook_asm!(thunk, dispatch = dispatch);
 
 const NO_FMV_RVA: usize = rva(0x5BE870); // g_noFmv
 const REPORTS_RVA: usize = rva(0x4F52AC); // dword_4F52AC
@@ -813,7 +807,6 @@ extern "C" fn dispatch(r: &mut Regs) {
                 &HOOK,
                 crate::errors::BadInput("a function to call each frame (game code)"),
                 r,
-                call_original,
             );
             return;
         }

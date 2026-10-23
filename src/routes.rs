@@ -48,10 +48,6 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x402735 => Some(crate::race::seal_block::entry(r)), // race::seal_block
         0x402848 => Some(crate::race::permute_bits::entry(r)), // race::permute_bits
         0x40298A => Some(crate::memory::open_own_heap::entry(r)), // memory::open_own_heap
-        0x4029DB => Some(crate::memory::free_own_heap::entry(r)), // memory::free_own_heap
-        0x402B7C => Some(crate::system::set_error_mode::entry(r)), // system::set_error_mode
-        0x402B95 => Some(crate::system::restore_error_mode::entry(r)), // system::restore_error_mode
-        0x403131 => Some(crate::system::read_volume_serial::entry(r)), // system::read_volume_serial
         0x404270 => Some(crate::gfx::find_3d_cards::entry(r)), // gfx::find_3d_cards
         0x4043DA => Some(crate::gfx::list_primary_modes::entry(r)), // gfx::list_primary_modes
         0x404401 => Some(crate::gfx::list_secondary_modes::entry(r)), // gfx::list_secondary_modes
@@ -79,7 +75,6 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x405F0A => Some(crate::gfx::blend_palette::entry(r)), // gfx::blend_palette
         0x405FE7 => Some(crate::gfx::picture_as_surface::entry(r)), // gfx::picture_as_surface
         0x40608F => Some(crate::gfx::allocate_picture_buffer::entry(r)), // gfx::allocate_picture_buffer
-        0x4060B7 => Some(crate::gfx::free_picture_buffer::entry(r)), // gfx::free_picture_buffer
         0x4060D1 => Some(crate::gfx::clear_picture::entry(r)), // gfx::clear_picture
         0x4060E3 => Some(crate::gfx::copy_picture_to_surface::entry(r)), // gfx::copy_picture_to_surface
         0x406126 => Some(crate::gfx::convert_picture::entry(r)), // gfx::convert_picture
@@ -98,7 +93,6 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x40750D => Some(crate::gfx::components_to_4444_rows::entry(r)), // gfx::components_to_4444_rows
         0x407540 => Some(crate::gfx::copy_pixel_rows::entry(r)), // gfx::copy_pixel_rows
         0x4075F3 => Some(crate::gfx::load_jade::entry(r)), // gfx::load_jade
-        0x407855 => Some(crate::fatal::show_report_at_exit::entry(r)), // fatal::show_report_at_exit
         0x407897 => Some(crate::gfx::take_screenshot::entry(r)), // gfx::take_screenshot
         0x4078DA => Some(crate::input::input_thread::entry(r)), // input::input_thread
         0x407D71 => Some(crate::input::yes_no_key::entry(r)), // input::yes_no_key
@@ -233,18 +227,12 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x40F9DE => Some(crate::sound::open_cd_audio::entry(r)), // sound::open_cd_audio
         0x40FCAA => Some(crate::sound::stop_cd_audio::entry(r)), // sound::stop_cd_audio
         0x40FCC8 => Some(crate::sound::stop_cd_track::entry(r)), // sound::stop_cd_track
-        0x4103BE => Some(crate::system::find_running_game::entry(r)), // system::find_running_game
         0x410684 => Some(crate::system::read_command_line::entry(r)), // system::read_command_line
         0x4107B8 => Some(crate::system::next_argument::entry(r)), // system::next_argument
         0x410883 => Some(crate::system::test_processor::entry(r)), // system::test_processor
-        0x410AA3 => Some(crate::system::read_keyboard_type::entry(r)), // system::read_keyboard_type
-        0x410AC5 => Some(crate::system::read_windows_version::entry(r)), // system::read_windows_version
-        0x410B68 => Some(crate::system::set_priority_class::entry(r)), // system::set_priority_class
         0x410B84 => Some(crate::threading::start_threads::entry(r)), // threading::start_threads
         0x410BF9 => Some(crate::threading::request_quit::entry(r)), // threading::request_quit
         0x410C17 => Some(crate::threading::shutdown_thread::entry(r)), // threading::shutdown_thread
-        0x410D4C => Some(crate::system::set_exception_filter::entry(r)), // system::set_exception_filter
-        0x410F29 => Some(crate::system::keep_start_time::entry(r)), // system::keep_start_time
         0x410F99 => Some(crate::system::packed_local_time::entry(r)), // system::packed_local_time
         0x41100C => Some(crate::system::sleep::entry(r)), // system::sleep
         0x411019 => Some(crate::menu::update_frame_clock::entry(r)), // menu::update_frame_clock

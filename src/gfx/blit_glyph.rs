@@ -315,23 +315,3 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     (r.eax, r.ebx, r.ecx, r.edx) = (exit.eax, exit.ebx, exit.ecx, exit.edx);
     Ok(())
 }
-
-//
-// The original reads the surface and clip globals, which the game's own drawing uses all the
-// time, so they cannot be pointed at a test surface. Instead the test runs a private copy of
-// the original's code in which every reference to those globals is redirected to
-// `TEST_GLOBALS`. The copy never touches game state.
-
-mod patched {
-    #![allow(dead_code)]
-    use crate::framework::{Regs, hook_asm};
-    use std::sync::atomic::AtomicUsize;
-
-    /// Address of the patched copy of the original; 0 until it is built.
-    pub static COPY: AtomicUsize = AtomicUsize::new(0);
-
-    extern "C" fn unused(_: &mut Regs) {}
-
-    // Only `call_copy` is used: it runs the code at COPY with a full register set.
-    hook_asm!(unused_thunk, call_copy, dispatch = unused, original = COPY);
-}

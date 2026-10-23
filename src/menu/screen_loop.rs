@@ -265,12 +265,9 @@ impl Env for Real {
                 RUN_ITEM_ACTION => run_item_action(regs.edi, &entry, &mut table_call).is_ok(),
                 // `nullsub_83`, `nullsub_84` (the review options' set-up and leaving).
                 NULLSUB_83 | NULLSUB_84 => true,
-                HANDLE_KEYS => {
-                    crate::fatal::raise::raise_test_if_armed(regs);
-                    handle_keys(&entry, &mut Game)
-                        .map(|left| left.apply(regs))
-                        .is_ok()
-                }
+                HANDLE_KEYS => handle_keys(&entry, &mut Game)
+                    .map(|left| left.apply(regs))
+                    .is_ok(),
                 f => crate::menu::set_up_calls::call(f, regs),
             }
         };

@@ -198,12 +198,7 @@ static CHOOSE: RawHook = RawHook::new(
     choose_thunk,
     &CHOOSE_ORIGINAL,
 );
-hook_asm!(
-    choose_thunk,
-    choose_original,
-    dispatch = choose,
-    original = CHOOSE_ORIGINAL
-);
+hook_asm!(choose_thunk, dispatch = choose);
 
 extern "C" fn choose(r: &mut Regs) {
     CHOOSE.count_call();
@@ -242,12 +237,7 @@ static SET_MODE: RawHook = RawHook::new(
     set_mode_thunk,
     &SET_MODE_ORIGINAL,
 );
-hook_asm!(
-    set_mode_thunk,
-    set_mode_original,
-    dispatch = set_mode,
-    original = SET_MODE_ORIGINAL
-);
+hook_asm!(set_mode_thunk, dispatch = set_mode);
 
 /// The value of a table's entry for a key.
 unsafe fn looked_up(key: u32, table: usize, entries: u32) -> Option<u32> {
@@ -369,12 +359,7 @@ static MENU_MODE: RawHook = RawHook::new(
     menu_mode_thunk,
     &MENU_MODE_ORIGINAL,
 );
-hook_asm!(
-    menu_mode_thunk,
-    menu_mode_original,
-    dispatch = menu_mode,
-    original = MENU_MODE_ORIGINAL
-);
+hook_asm!(menu_mode_thunk, dispatch = menu_mode);
 
 /// `gfx::set_screen_mode` with the menus' mode; every register kept, the flags its.
 extern "C" fn menu_mode(r: &mut Regs) {
@@ -398,12 +383,7 @@ static LOCK: RawHook = RawHook::new(
     lock_thunk,
     &LOCK_ORIGINAL,
 );
-hook_asm!(
-    lock_thunk,
-    lock_original,
-    dispatch = lock,
-    original = LOCK_ORIGINAL
-);
+hook_asm!(lock_thunk, dispatch = lock);
 
 /// The flags of `cmp g_surfaceLocked, 1`.
 fn compared_with_one(r: &mut Regs, locked: u32) {
@@ -450,12 +430,7 @@ static UNLOCK: RawHook = RawHook::new(
     unlock_thunk,
     &UNLOCK_ORIGINAL,
 );
-hook_asm!(
-    unlock_thunk,
-    unlock_original,
-    dispatch = unlock,
-    original = UNLOCK_ORIGINAL
-);
+hook_asm!(unlock_thunk, dispatch = unlock);
 
 extern "C" fn unlock(r: &mut Regs) {
     UNLOCK.count_call();
@@ -475,12 +450,7 @@ extern "C" fn unlock(r: &mut Regs) {
 
 static SHOW_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 static SHOW: RawHook = RawHook::new("gfx::show_frame", rva(0x4057D1), show_thunk, &SHOW_ORIGINAL);
-hook_asm!(
-    show_thunk,
-    show_original,
-    dispatch = show,
-    original = SHOW_ORIGINAL
-);
+hook_asm!(show_thunk, dispatch = show);
 
 // ---- where the time goes: the main thread and the rasteriser's sampled every millisecond ----
 
@@ -789,12 +759,7 @@ static PUMP: RawHook = RawHook::new(
     pump_thunk,
     &PUMP_ORIGINAL,
 );
-hook_asm!(
-    pump_thunk,
-    pump_original,
-    dispatch = pump_messages,
-    original = PUMP_ORIGINAL
-);
+hook_asm!(pump_thunk, dispatch = pump_messages);
 
 extern "C" fn pump_messages(r: &mut Regs) {
     PUMP.count_call();
@@ -809,13 +774,7 @@ static RUN_FRAME: RawHook = RawHook::new(
     run_frame_thunk,
     &RUN_FRAME_ORIGINAL,
 );
-hook_asm!(
-    run_frame_thunk,
-    run_frame_original,
-    dispatch = run_frame,
-    original = RUN_FRAME_ORIGINAL,
-    ungated
-);
+hook_asm!(run_frame_thunk, dispatch = run_frame);
 
 /// The messages, then the frame's function in eax, whose registers and flags are what
 /// the caller gets. (The original also waits for the window to be the active one and
@@ -839,18 +798,6 @@ extern "C" fn run_frame(r: &mut Regs) {
         r.set_zero(r.eax == 0);
     }
 }
-
-// None of these has an original to go back to.
-const _: [unsafe extern "C" fn(*mut Regs); 8] = [
-    menu_mode_original,
-    choose_original,
-    set_mode_original,
-    lock_original,
-    unlock_original,
-    show_original,
-    pump_original,
-    run_frame_original,
-];
 
 pub static HOOKS: &[&dyn GameHook] = &[
     &CHOOSE,

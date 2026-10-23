@@ -47,7 +47,6 @@ thread_local! {
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::fatal::raise::raise_test_if_armed(r);
     let key = take_key();
     LAST_TAKEN.set(Some(key));
     r.eax = (r.eax & !0xFF) | key as u32;

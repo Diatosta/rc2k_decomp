@@ -58,8 +58,9 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let path = r.eax as *mut u8;
     let worked = match unsafe { read_picture_file(path) } {
         Ok(worked) => worked,
-        // The standalone has no original to hand a refusal to: the picture is not read.
-        Err(_) if crate::framework::standalone() => false,
+        // A refused picture is not read (the standalone's way since 2026-10-20); a fatal
+        // error is raised.
+        Err(Refused::BadInput(_)) => false,
         Err(e) => return Err(e),
     };
     r.set_carry(!worked);

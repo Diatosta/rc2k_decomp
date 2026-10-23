@@ -132,8 +132,8 @@ pub unsafe fn main_loop(vars: &Vars, stack: u32, outside: Outside) -> Result<(),
         // installed folder, so the uninstall runs from there (the original's ran from the
         // CD, through the update's mark).
         if (vars.0[6] as *const u16).read_unaligned() == INSTALLER_MARK
-            || (crate::framework::standalone()
-                && (crate::install::portable::is_source_folder() || vars.get(8) == 1))
+            || crate::install::portable::is_source_folder()
+            || vars.get(8) == 1
         {
             outside(Call::Installer)?;
             return quit_and_leave(outside);

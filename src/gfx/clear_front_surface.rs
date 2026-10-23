@@ -17,12 +17,10 @@
 //! lock failing or not), on a buffer of the test's, against the Rust version.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, rva, standalone};
+use crate::framework::{Regs, game_addr, rva};
 
 // ---- game data ----
 
-/// The calls by place: 0 the lock (carry: failed), 1 the unlock.
-const CALLEES: [usize; 2] = [0x405996, 0x4059D5];
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 /// Where the variables are (the game's, or a test's).
@@ -99,11 +97,7 @@ pub unsafe fn clear_front_surface(entry: &Regs, v: &FrontVars, part: Part) -> Re
 /// In the game: the lock and unlock through the game (DirectDraw). In the standalone
 /// program the lock fails.
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    if standalone() {
-        r.set_carry(place == 0);
-        return Ok(());
-    }
-    crate::calls::call(rva(CALLEES[place as usize]), r);
+    r.set_carry(place == 0);
     Ok(())
 }
 

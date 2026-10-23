@@ -2,20 +2,15 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::OnceLock;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub static BASE: AtomicUsize = AtomicUsize::new(0);
 /// The program's log (`rc2k.log`), set by `standalone::run`. Nothing is written before that.
 pub static LOG_PATH: OnceLock<PathBuf> = OnceLock::new();
-/// True in the program that runs the ported code without the game (`standalone.rs`).
-pub static STANDALONE: AtomicBool = AtomicBool::new(false);
 /// Set by `standalone.rs`: for a hook's address in the game's image, its thunk.
 /// `call_game` goes there straight away; the image itself cannot be executed there.
 pub static CALL_REDIRECT: OnceLock<std::collections::HashMap<usize, usize>> = OnceLock::new();
 
-pub fn standalone() -> bool {
-    STANDALONE.load(Ordering::Relaxed)
-}
 pub const IMAGE_BASE: usize = 0x400000;
 
 /// RVA of an address as IDA shows it.
@@ -253,16 +248,12 @@ impl Regs {
     }
 }
 
-/// Case and failure counting for a hook's self-test. Only failures are logged.
+/// A hook's thunk (`hook_asm!(thunk, dispatch = dispatch)`): where `standalone.rs` sends a
+/// call of the hooked address. It saves the registers and flags as `Regs`, calls `dispatch`
+/// with them and returns with what `dispatch` left there (`epilogue = "..."`: instructions
+/// run before the `ret`, e.g. "test esi, esi" when the caller reads ZF).
 macro_rules! hook_asm {
-    // `ungated` is accepted as before (the gate went with the self-tests, 2026-10-23).
-    ($thunk:ident, $call_original:ident, dispatch = $dispatch:ident, original = $orig:ident, ungated) => {
-        $crate::framework::hook_asm!($thunk, $call_original, dispatch = $dispatch, original = $orig);
-    };
-
-    ($thunk:ident, $call_original:ident, dispatch = $dispatch:ident, original = $orig:ident
-     $(, epilogue = $epilogue:literal)?) => {
-        /// Where `standalone.rs` sends a call of the hooked address.
+    ($thunk:ident, dispatch = $dispatch:ident $(, epilogue = $epilogue:literal)?) => {
         #[unsafe(naked)]
         pub(crate) unsafe extern "C" fn $thunk() {
             core::arch::naked_asm!(
@@ -275,55 +266,9 @@ macro_rules! hook_asm {
                 "add esp, 4",
                 "popad",
                 "popfd",               // the caller's flags, or what dispatch set
-                $($epilogue,)?         // e.g. "test esi, esi" when the caller reads ZF
+                $($epilogue,)?
                 "ret",
                 dispatch = sym $dispatch,
-            )
-        }
-
-        $crate::framework::hook_asm!(@call_original $call_original, $orig);
-    };
-
-    (@call_original $call_original:ident, $orig:ident) => {
-        /// Runs the original with the registers in `regs`; stores the resulting registers back.
-        #[unsafe(naked)]
-        pub(crate) unsafe extern "C" fn $call_original(_regs: *mut $crate::framework::Regs) {
-            core::arch::naked_asm!(
-                "push ebx", "push esi", "push edi", "push ebp",
-                "mov eax, [esp + 20]",           // eax = regs
-                "push eax",                      // remember regs across the call
-                "mov ecx, [eax + {o_ecx}]",
-                "mov edx, [eax + {o_edx}]",
-                "mov ebx, [eax + {o_ebx}]",
-                "mov esi, [eax + {o_esi}]",
-                "mov edi, [eax + {o_edi}]",
-                "mov ebp, [eax + {o_ebp}]",
-                "mov eax, [eax + {o_eax}]",
-                "call dword ptr [{t}]",
-                "pushfd",                        // the flags the original returned with
-                "cld",
-                "push eax",
-                "mov eax, [esp + 8]",            // eax = regs again
-                "mov [eax + {o_ecx}], ecx",
-                "mov [eax + {o_edx}], edx",
-                "mov [eax + {o_ebx}], ebx",
-                "mov [eax + {o_esi}], esi",
-                "mov [eax + {o_edi}], edi",
-                "mov [eax + {o_ebp}], ebp",
-                "pop dword ptr [eax + {o_eax}]", // the original's eax
-                "pop dword ptr [eax + {o_eflags}]",
-                "add esp, 4",
-                "pop ebp", "pop edi", "pop esi", "pop ebx",
-                "ret",
-                t = sym $orig,
-                o_eax = const core::mem::offset_of!($crate::framework::Regs, eax),
-                o_eflags = const core::mem::offset_of!($crate::framework::Regs, eflags),
-                o_ecx = const core::mem::offset_of!($crate::framework::Regs, ecx),
-                o_edx = const core::mem::offset_of!($crate::framework::Regs, edx),
-                o_ebx = const core::mem::offset_of!($crate::framework::Regs, ebx),
-                o_esi = const core::mem::offset_of!($crate::framework::Regs, esi),
-                o_edi = const core::mem::offset_of!($crate::framework::Regs, edi),
-                o_ebp = const core::mem::offset_of!($crate::framework::Regs, ebp),
             )
         }
     };

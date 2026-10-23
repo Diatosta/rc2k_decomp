@@ -13,7 +13,7 @@
 
 use crate::d3d::recorder::{Call, note};
 use crate::d3d::{VERTEX_LEN, Vertex};
-use crate::framework::{Regs, rva, standalone};
+use crate::framework::Regs;
 
 /// Direct3D takes at most this many vertices in one primitive.
 const MOST: u32 = 0x400;
@@ -31,11 +31,7 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
         r.eax = 0;
         return Ok(());
     }
-    if standalone() {
-        crate::platform_3d::draw_strip(&vertices(r));
-        r.eax = 0;
-        return Ok(());
-    }
-    unsafe { crate::framework::call_game(r, crate::framework::game_addr(rva(0x41ADE1))) };
+    crate::platform_3d::draw_strip(&vertices(r));
+    r.eax = 0;
     Ok(())
 }

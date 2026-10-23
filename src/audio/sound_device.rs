@@ -180,7 +180,6 @@ pub unsafe fn close_sound(direct_sound: u32, window: u32, part: Part) -> Result<
 }
 
 pub const OPENED_MODE_RVA: usize = rva(0x4F82C0); // g_openedSoundMode
-const DIRECT_SOUND_CREATE: usize = rva(0x4D5EA2); // the import's thunk
 const OPEN_TEXT: usize = rva(0x4DA60F); // "AUD: open sound"
 const OPEN_FAILED_TEXT: usize = rva(0x4DA61F); // "AUD: open failed rc="
 
@@ -190,15 +189,8 @@ pub type CreateSound<'a> = &'a mut dyn FnMut(u32, u32) -> i32;
 /// The game's own `DirectSoundCreate` (the ASI loader's dsound.dll), through its thunk; in
 /// the standalone program DirectSound on SDL (`platform_sound`).
 pub fn game_direct_sound_create(guid: u32, out: u32) -> i32 {
-    if crate::framework::standalone() {
-        let _ = guid;
-        return crate::platform_sound::direct_sound_create(out);
-    }
-    unsafe {
-        let f: unsafe extern "system" fn(u32, u32, u32) -> i32 =
-            std::mem::transmute(game_addr(DIRECT_SOUND_CREATE));
-        f(guid, out, 0)
-    }
+    let _ = guid;
+    crate::platform_sound::direct_sound_create(out)
 }
 
 /// Where `open_sound`'s things are.

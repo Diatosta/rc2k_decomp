@@ -38,7 +38,6 @@
 //! Rust-compiled lexicon with everything else it writes blotted out first.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::files::file_exists::file_exists;
 use crate::files::read_first_match::read_first_match;
 use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::input::key_to_char::{LAYOUT_A_RVA, LAYOUT_RVA};
@@ -74,7 +73,6 @@ const NEC_LAYOUT_RVA: usize = rva(0x4F0E10); // unk_4F0E10: its layout
 const NEC_MARK_RVA: usize = rva(0x51BAE4); // dword_51BAE4
 const TABLES_UNITS_RVA: usize = rva(0x51B980); // dword_51B980 (`bundleheapsize`)
 const REGISTRATION_RVA: usize = rva(0x51B9E4); // dword_51B9E4
-const REGISTRATION_PROGRAM_RVA: usize = rva(0x51B9EC); // ";4ereg\eregip.exe"
 
 // ---- Rust version ----
 
@@ -200,13 +198,6 @@ pub unsafe fn load_language(
 
         game_write(REGISTRATION_RVA, 0u32);
         // The standalone offers no registration (owner, 2026-10-19).
-        if kind == 2
-            && !crate::framework::standalone()
-            && !built(0x57C, false)?.is_empty()
-            && file_exists(game_addr(REGISTRATION_PROGRAM_RVA) as *const u8)?
-        {
-            game_write(REGISTRATION_RVA, 1u32);
-        }
         Ok(())
     }
 }

@@ -28,7 +28,7 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva, standalone};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::input::devices::RECORDS;
 
 // Kept for the hooked game (2026-10-23): the game's `start_threads` starts the thread at
@@ -44,21 +44,6 @@ const TICKS_RVA: usize = rva(0x518998); // dword_518998
 const ACTIVE_RVA: usize = rva(0x518378); // dword_518378
 const QUITTING_RVA: usize = rva(0x51837C); // g_quitting
 const TICK_MS: u32 = 20;
-
-/// The calls by place, as IDA shows them (0 the log, 5 the priority).
-const CALLEES: [usize; 11] = [
-    0x401439, // 0 logfile::log_write_l2_nl
-    0x4079DC, // 1 DirectInput made
-    0x407A1F, // 2 the keyboard made
-    0x407FFE, // 3 the mouse made
-    0x408216, // 4 the joysticks made
-    0x410D39, // 5 threading::set_priority
-    0x407AC2, // 6 the keyboard read
-    0x4080F2, // 7 the mouse read
-    0x40809E, // 8 the mouse released
-    0x407A84, // 9 the keyboard released
-    0x4079FE, // 10 DirectInput released
-];
 
 /// A call by place (see the header).
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
@@ -160,31 +145,24 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         crate::input::list_joysticks::list_joysticks();
         return Ok(());
     }
-    if standalone() {
-        match place {
-            1 => {
-                let input = crate::input::di_objects::create_input();
-                unsafe { game_write(DIRECT_INPUT_RVA, input) };
-                r.eax = (input != 0) as u32;
-            }
-            10 => {
-                let input = g(DIRECT_INPUT_RVA);
-                if input != 0 {
-                    crate::input::di_harness::method(
-                        input,
-                        crate::input::di_harness::slot::RELEASE,
-                        &[],
-                    );
-                    unsafe { game_write(DIRECT_INPUT_RVA, 0u32) };
-                }
-            }
-            _ => {}
+    match place {
+        1 => {
+            let input = crate::input::di_objects::create_input();
+            unsafe { game_write(DIRECT_INPUT_RVA, input) };
+            r.eax = (input != 0) as u32;
         }
-        return Ok(());
-    }
-    crate::calls::call(rva(CALLEES[place as usize]), r);
-    if place == 1 {
-        r.eax = (g(DIRECT_INPUT_RVA) != 0) as u32;
+        10 => {
+            let input = g(DIRECT_INPUT_RVA);
+            if input != 0 {
+                crate::input::di_harness::method(
+                    input,
+                    crate::input::di_harness::slot::RELEASE,
+                    &[],
+                );
+                unsafe { game_write(DIRECT_INPUT_RVA, 0u32) };
+            }
+        }
+        _ => {}
     }
     Ok(())
 }
