@@ -8,18 +8,7 @@
 //! The calls by place (the callee's IDA address): in the game the Rust versions, in the
 //! tests the noting stand-ins of `sound::turn_parts`.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, rva};
-
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-pub const SET_EFFECT: u32 = 0x40961F; // input::set_effect
-pub const START_DEVICE: u32 = 0x409672; // input::start_device_effects
-pub const STOP_DEVICE: u32 = 0x40969E; // input::stop_device_effects
-pub const START: u32 = 0x409659; // input::start_effects
-pub const STOP: u32 = 0x409685; // input::stop_effects
-pub const CAR: u32 = 0x40F347; // input::update_car_effects
-pub const TICK: u32 = 0x411024; // system::tick_count
+use crate::framework::rva;
 
 /// dword_518090: 1 while the race runs (`input::device_command` 3 .. 2); "set" requests
 /// (3) are dropped while it is not.
@@ -34,34 +23,3 @@ pub const HAS_EFFECTS: u32 = 0x28;
 pub const EFFECTS: u32 = 0x3C;
 pub const EFFECT_LEN: u32 = 0xA4;
 pub const REQUEST: u32 = 0x2C;
-
-/// The calls in the game: the Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    let on = unsafe { game_read::<u32>(RACE_ON_RVA) };
-    match place {
-        SET_EFFECT => crate::input::set_effect::set_effect(r, on)?,
-        START_DEVICE => crate::input::start_device_effects::start_device_effects(r)?,
-        STOP_DEVICE => crate::input::stop_device_effects::stop_device_effects(r)?,
-        START => crate::input::start_effects::start_effects(r)?,
-        STOP => crate::input::stop_effects::stop_effects(r)?,
-        CAR => crate::input::update_car_effects::update_car_effects(r, &mut game_part)?,
-        TICK => r.eax = crate::system::tick_count::tick_count(),
-        _ => return Err(BadInput("a force feedback call with no version").into()),
-    }
-    Ok(())
-}
-
-/// `dispatch_effects` without its hook (no shadow mode; a refusal is the caller's).
-pub fn effects_entry(
-    r: &mut Regs,
-    rust: fn(&mut Regs) -> Result<(), Refused>,
-) -> Result<(), Refused> {
-    let mut g = *r;
-    rust(&mut g)?;
-    *r = Regs {
-        esp: r.esp,
-        eflags: r.eflags,
-        ..g
-    };
-    Ok(())
-}

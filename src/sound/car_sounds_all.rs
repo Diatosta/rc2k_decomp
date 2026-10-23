@@ -19,14 +19,13 @@
 //! Self-test: a copy whose calls go to a stand-in, the tables pointing at the test's
 //! objects (put back), against the Rust version.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::physics::flow::{base, x87_run};
-use crate::sound::turn_parts::{COUNT, OBJECTS, turn_entry};
+use crate::sound::turn_parts::{COUNT, OBJECTS};
 
 /// dword_514F80, dword_514F84: the nearest and the next of the computer's cars.
 const NEAREST: usize = 0x514F80;
@@ -44,7 +43,9 @@ fn word(o: u32, at: u32) -> u32 {
 
 // ---- Rust version ----
 
-pub fn car_sounds_all_in(r: &mut Regs) -> Result<(), Refused> {
+/// Every car's sounds for the turn: the players' each, of the computer's the two nearest
+/// the listener (each keeping its voice).
+pub fn car_sounds_all() -> Result<(), Refused> {
     let count = g(COUNT);
     if count == 0 {
         return Ok(());
@@ -56,74 +57,48 @@ pub fn car_sounds_all_in(r: &mut Regs) -> Result<(), Refused> {
     if (0..count).any(|n| object(n) == 0) {
         return Err(BadInput("a null sound object").into());
     }
-    // Converted: `rc2k_core::sound::turn::Nearest` (the choice; eax, ebx, ecx and edx
-    // hold it as the original's do).
+    // Converted: `rc2k_core::sound::turn::Nearest` (the choice; `car_sounds` keeps the
+    // registers it is held in).
     use rc2k_core::sound::turn::{NEAREST_MARK, NEXT_MARK, Nearest};
-    let hold = |c: &mut Regs, n: &Nearest| {
-        (c.eax, c.ebx, c.ecx, c.edx) = (n.first, n.second, n.first_distance, n.second_distance)
-    };
-    {
-        let mut c = *r;
-        let mut nearest = Nearest::default();
-        hold(&mut c, &nearest);
-        for n in 0..count {
-            c.ebp = n;
-            c.esi = object(n);
-            if word(c.esi, 8) != 1 {
-                continue;
-            }
-            if word(c.esi, 0) as i32 >= 0 {
-                let kept = c.eax;
-                c.eax = n;
-                crate::sound::car_sounds::car_sounds_in(&mut c)?;
-                c.eax = kept;
-                // The choice goes on from the registers as the call left them.
-                nearest = Nearest {
-                    first: c.eax,
-                    second: c.ebx,
-                    first_distance: c.ecx,
-                    second_distance: c.edx,
-                };
-                continue;
-            }
-            x87_run!(
-                "fld dword ptr [{si} + 0x2C]",
-                "fmul dword ptr [{si} + 0x2C]",
-                "fld dword ptr [{si} + 0x30]",
-                "fmul dword ptr [{si} + 0x30]",
-                "fld dword ptr [{si} + 0x34]",
-                "fmul dword ptr [{si} + 0x34]",
-                ".byte 0xDE, 0xC1",
-                ".byte 0xDE, 0xC1",
-                "fstp dword ptr [{b} + 0x114F88]";
-                si = c.esi, b = base()
-            );
-            nearest.consider(n, g(DISTANCE));
-            hold(&mut c, &nearest);
+    let mut nearest = Nearest::default();
+    for n in 0..count {
+        let o = object(n);
+        if word(o, 8) != 1 {
+            continue;
         }
-        c.ebp = count;
-        (c.eax, c.ebx) = nearest.kept(g(NEAREST), g(NEXT));
-        unsafe {
-            game_write(rva(NEAREST), c.eax);
-            game_write(rva(NEXT), c.ebx);
+        if word(o, 0) as i32 >= 0 {
+            crate::sound::car_sounds::car_sounds(n)?;
+            continue;
         }
-        for (which, mark) in [(NEAREST, NEAREST_MARK), (NEXT, NEXT_MARK)] {
-            c.eax = g(which);
-            if (c.eax as i32) < 0 {
-                continue;
-            }
-            c.esi = object(c.eax);
-            let kept = word(c.esi, 0);
-            unsafe { (c.esi as *mut u32).write_unaligned(mark) };
-            crate::sound::car_sounds::car_sounds_in(&mut c)?;
-            unsafe { (c.esi as *mut u32).write_unaligned(kept) };
-        }
-        Ok(())
+        x87_run!(
+            "fld dword ptr [{si} + 0x2C]",
+            "fmul dword ptr [{si} + 0x2C]",
+            "fld dword ptr [{si} + 0x30]",
+            "fmul dword ptr [{si} + 0x30]",
+            "fld dword ptr [{si} + 0x34]",
+            "fmul dword ptr [{si} + 0x34]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fstp dword ptr [{b} + 0x114F88]";
+            si = o, b = base()
+        );
+        nearest.consider(n, g(DISTANCE));
     }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, car_sounds_all_in)
+    let (first, second) = nearest.kept(g(NEAREST), g(NEXT));
+    unsafe {
+        game_write(rva(NEAREST), first);
+        game_write(rva(NEXT), second);
+    }
+    for (which, mark) in [(NEAREST, NEAREST_MARK), (NEXT, NEXT_MARK)] {
+        let n = g(which);
+        if (n as i32) < 0 {
+            continue;
+        }
+        let o = object(n);
+        let kept = word(o, 0);
+        unsafe { (o as *mut u32).write_unaligned(mark) };
+        crate::sound::car_sounds::car_sounds(n)?;
+        unsafe { (o as *mut u32).write_unaligned(kept) };
+    }
+    Ok(())
 }

@@ -99,8 +99,8 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             4 => *r = crate::input::set_up_device::set_up_device(r)?,
             1 => crate::input::acquire_device::acquire_device(r.esi)?,
             5 => crate::system::sleep::sleep(r.eax),
-            2 => crate::input::end_effects::end_effects(r)?,
-            6 => crate::input::begin_effects::begin_effects(r)?,
+            2 => crate::input::end_effects::end_effects()?,
+            6 => crate::input::begin_effects::begin_effects()?,
             p => crate::calls::call(rva(CALLEES[p as usize]), r),
         }
     }

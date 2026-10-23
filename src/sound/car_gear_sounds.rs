@@ -14,54 +14,40 @@
 //! Shadow mode runs the original alone (it sends sounds).
 //! Self-test: a copy whose calls go to a stand-in, against the Rust version.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
-use crate::sound::turn_parts::turn_entry;
 
 // ---- Rust version ----
 
-pub fn car_gear_sounds_in(r: &mut Regs) -> Result<(), Refused> {
-    if r.ebx == 0 || r.esi == 0 {
+/// The gear sounds of object `o`, through `request`.
+pub fn car_gear_sounds(o: u32, request: u32) -> Result<(), Refused> {
+    if o == 0 || request == 0 {
         return Err(BadInput("no object or no request").into());
     }
-    let o = r.ebx;
     if unsafe { ((o + 0x10C) as *const u32).read_unaligned() } == 3 {
         return Ok(());
     }
-    {
-        // Converted: `rc2k_core::sound::engine::{place_behind, gear_pitch}` (exact at every
-        // precision: one rounding each).
-        use rc2k_core::sound::engine::{gear_pitch, place_behind};
-        let mut c = *r;
-        let float = |at: u32| unsafe { (at as *const f32).read_unaligned() };
-        let place = place_behind(
-            [0x2C, 0x30, 0x34].map(|n| float(c.ebx + n)),
-            [0x38, 0x3C, 0x40].map(|n| float(c.ebx + n)),
-        );
-        for (n, v) in place.into_iter().enumerate() {
-            unsafe { ((c.esi + 0xC + 4 * n as u32) as *mut f32).write_unaligned(v) };
-        }
-        for at in [0x1C4, 0x1DC] {
-            c.ebp = o + at;
-            crate::sound::play_timed_slot::play_timed_slot_in(&mut c)?;
-        }
-        let factor = (c.esi + 0x20) as *mut u32;
-        let kept = unsafe { factor.read_unaligned() };
-        let pitch = gear_pitch(float(c.esi + 0x20), float(c.ebx + 0x210));
-        unsafe { (factor as *mut f32).write_unaligned(pitch) };
-        c.ebp = o + 0x1F8;
-        crate::sound::play_timed_slot::play_timed_slot_in(&mut c)?;
-        unsafe { factor.write_unaligned(kept) };
-        Ok(())
+    // Converted: `rc2k_core::sound::engine::{place_behind, gear_pitch}` (exact at every
+    // precision: one rounding each).
+    use rc2k_core::sound::engine::{gear_pitch, place_behind};
+    let float = |at: u32| unsafe { (at as *const f32).read_unaligned() };
+    let place = place_behind(
+        [0x2C, 0x30, 0x34].map(|n| float(o + n)),
+        [0x38, 0x3C, 0x40].map(|n| float(o + n)),
+    );
+    for (n, v) in place.into_iter().enumerate() {
+        unsafe { ((request + 0xC + 4 * n as u32) as *mut f32).write_unaligned(v) };
     }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, car_gear_sounds_in)
+    for at in [0x1C4, 0x1DC] {
+        crate::sound::play_timed_slot::play_timed_slot(o + at, request)?;
+    }
+    let factor = (request + 0x20) as *mut u32;
+    let kept = unsafe { factor.read_unaligned() };
+    let pitch = gear_pitch(float(request + 0x20), float(o + 0x210));
+    unsafe { (factor as *mut f32).write_unaligned(pitch) };
+    crate::sound::play_timed_slot::play_timed_slot(o + 0x1F8, request)?;
+    unsafe { factor.write_unaligned(kept) };
+    Ok(())
 }

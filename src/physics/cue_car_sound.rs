@@ -13,24 +13,22 @@
 //! Self-test: a copy whose call goes to a stand-in, against the Rust version: which 0, 1,
 //! 2, objects ready or not.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
-use crate::physics::sound_cues::{QUEUE, cue_entry};
-use rc2k_core::physics::listed_cars::{CuePlace, QUEUE_OFFSET, cue_object};
+use crate::framework::{game_read, rva};
+use rc2k_core::physics::listed_cars::{QUEUE_OFFSET, cue_object};
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
 }
 
-/// The steps on `r` (its registers kept).
+/// `cue` queued first for the car `which` (0 or 1: a player's), if it sounds.
 // Converted: `rc2k_core::physics::listed_cars::cue_object`.
-pub fn cue_car_sound_in(r: &mut Regs) -> Result<(), Refused> {
+pub fn cue_car_sound(which: u32, cue: u32) -> Result<(), Refused> {
     let Some(o) = cue_object(
-        r.eax,
+        which,
         |which| g(0x514F70 + 4 * which as usize),
         |car| g(0x512A10 + 4 * car as usize),
         |o| unsafe { ((o + 8) as *const u32).read_unaligned() },
@@ -38,15 +36,5 @@ pub fn cue_car_sound_in(r: &mut Regs) -> Result<(), Refused> {
     else {
         return Ok(());
     };
-    let mut c = *r;
-    c.eax = CuePlace::First as u32;
-    c.esi = o;
-    c.edi = o + QUEUE_OFFSET;
-    crate::physics::sound_cues::game_part(QUEUE, &mut c)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    cue_entry(r, cue_car_sound_in)
+    crate::physics::queue_sound_cue::queue_sound_cue(true, cue, o, o + QUEUE_OFFSET)
 }

@@ -12,33 +12,23 @@
 //! Shadow mode: both, the queue compared.
 //! Self-test: the original against the Rust version on a test queue.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
 
 // ---- Rust version ----
 
-/// Converted: `rc2k_core::sound::cars::drop_cue`.
-pub fn drop_cue_in(c: &mut Regs) -> Result<(), Refused> {
-    use rc2k_core::sound::cars::{CueQueue, Dropped, drop_cue};
-    let q = c.edi as *mut [u32; 0x84];
+/// Converted: `rc2k_core::sound::cars::drop_cue`. The cue at `place` dropped from the
+/// queue at `queue`.
+pub fn drop_cue(queue: u32, place: u32) -> Result<(), Refused> {
+    use rc2k_core::sound::cars::{CueQueue, drop_cue};
+    let q = queue as *mut [u32; 0x84];
     if q.is_null() {
         return Err(BadInput("no queue").into());
     }
-    let mut queue = CueQueue::from_words(&unsafe { q.read_unaligned() });
-    match drop_cue(&mut queue, c.eax).map_err(|e| BadInput(e.0))? {
-        Dropped::None { count } | Dropped::Last { count } => c.ecx = count,
-        // `imul eax, 20h` (the cue's offset) is left in eax; `rep movsd` leaves ecx 0.
-        Dropped::Moved => (c.eax, c.ecx) = (c.eax.wrapping_mul(0x20), 0),
-    }
-    unsafe { q.write_unaligned(queue.to_words()) };
+    let mut cues = CueQueue::from_words(&unsafe { q.read_unaligned() });
+    drop_cue(&mut cues, place).map_err(|e| BadInput(e.0))?;
+    unsafe { q.write_unaligned(cues.to_words()) };
     Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::sound::turn_parts::turn_entry(r, drop_cue_in)
 }

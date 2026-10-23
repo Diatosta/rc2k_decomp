@@ -14,52 +14,38 @@
 //! Shadow mode runs the original alone (it sends sounds).
 //! Self-test: a copy whose nine calls go to stand-ins, against the Rust version.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
-use crate::sound::turn_parts::{OBJECTS, REQUEST, turn_entry};
+use crate::framework::{game_read, rva};
+use crate::sound::turn_parts::OBJECTS;
 
 // ---- Rust version ----
 
-pub fn car_sounds_in(r: &mut Regs) -> Result<(), Refused> {
-    if r.eax > 7 {
+/// Car `n`'s sounds for the turn.
+pub fn car_sounds(n: u32) -> Result<(), Refused> {
+    if n > 7 {
         return Err(BadInput("a car's sound object past 7").into());
     }
-    let object: u32 = unsafe { game_read(rva(OBJECTS + 4 * r.eax as usize)) };
+    let object: u32 = unsafe { game_read(rva(OBJECTS + 4 * n as usize)) };
     if object == 0 {
         return Err(BadInput("a null sound object").into());
     }
-    {
-        let mut c = Regs {
-            ebx: object,
-            esi: game_addr(rva(REQUEST)) as u32,
-            ..*r
-        };
-        crate::sound::car_engine_state::car_engine_state_in(&mut c)?;
-        unsafe {
-            let (o, q) = (c.ebx as *const u32, c.esi as *mut u32);
-            let pitch = o.add(0x13C / 4).read_unaligned();
-            q.add(8).write_unaligned(pitch);
-            c.eax = o.add(0x140 / 4).read_unaligned();
-            q.add(9).write_unaligned(c.eax);
-        }
-        use crate::sound::*;
-        revs_sound::revs_sound_in(&mut c)?;
-        throttle_sound::throttle_sound_in(&mut c)?;
-        speed_sound::speed_sound_in(&mut c)?;
-        surface_sounds::surface_sounds_in(&mut c)?;
-        car_slot_sounds::car_slot_sounds_in(&mut c)?;
-        car_hit_sound::car_hit_sound_in(&mut c)?;
-        car_cue_sound::car_cue_sound_in(&mut c)?;
-        car_gear_sounds::car_gear_sounds_in(&mut c)
+    let request = crate::sound::turn_parts::request();
+    let kind = crate::sound::car_engine_state::car_engine_state(object)?;
+    unsafe {
+        let (o, q) = (object as *const u32, request as *mut u32);
+        q.add(8).write_unaligned(o.add(0x13C / 4).read_unaligned());
+        q.add(9).write_unaligned(o.add(0x140 / 4).read_unaligned());
     }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, car_sounds_in)
+    use crate::sound::*;
+    revs_sound::revs_sound(object, kind, request)?;
+    throttle_sound::throttle_sound(object, kind, request)?;
+    speed_sound::speed_sound(object, kind, request)?;
+    surface_sounds::surface_sounds(object, request)?;
+    car_slot_sounds::car_slot_sounds(object, request)?;
+    car_hit_sound::car_hit_sound(object, request)?;
+    car_cue_sound::car_cue_sound(object, request)?;
+    car_gear_sounds::car_gear_sounds(object, request)
 }

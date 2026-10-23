@@ -12,35 +12,15 @@
 //! Shadow mode: both, the voices compared.
 //! Self-test: the original against the Rust version on the game's voices (put back).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::physics::flow::{base, x87_run};
-use crate::sound::spot_voices::{VOICE_COUNT, load_voices, set, store_voices, voice, vw};
-use crate::sound::turn_parts::turn_entry;
+use crate::sound::spot_voices::{VOICE_COUNT, set, voice, vw};
 
 // ---- Rust version ----
 
-/// The converted version (`rc2k_core::sound::spot_voices::hear`, plain floats): the hook's. The
-/// exact one below stays for the race sound's turn (`turn_parts`), compared exactly.
-pub fn spot_voice_distances_plain(_: &mut Regs) -> Result<(), Refused> {
-    let float = |x: usize| f32::from_bits(crate::sound::spot_voices::g(x));
-    let hearing = rc2k_core::sound::spot_voices::Hearing {
-        turns_a_second: float(0x5124EC),
-        offset: float(0x5124F8),
-        factor: float(0x5124FC),
-        ease: float(0x516360),
-    };
-    let mut voices = load_voices();
-    rc2k_core::sound::spot_voices::hear(&mut voices, &hearing);
-    store_voices(&voices);
-    Ok(())
-}
-
-pub fn spot_voice_distances_in(_: &mut Regs) -> Result<(), Refused> {
+pub fn spot_voice_distances() {
     let b = base();
     for n in 0..VOICE_COUNT {
         let bx = voice(n);
@@ -89,11 +69,4 @@ pub fn spot_voice_distances_in(_: &mut Regs) -> Result<(), Refused> {
         }
         set(bx, 0x20, 0);
     }
-    Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, spot_voice_distances_plain)
 }

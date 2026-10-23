@@ -12,21 +12,19 @@
 //! Self-test: the original against the Rust version on spots and voices of the test's
 //! (the game's tables, put back).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::sound::spot_voices::{
     MOST_KIND, MOST_SPOTS, SOUND_OF_KIND, SPOT_COUNT, SPOT_LEN, SPOTS, g, load_voices,
     store_voices, vw,
 };
-use crate::sound::turn_parts::turn_entry;
 
 // ---- Rust version ----
 
-pub fn match_spot_voices_in(_: &mut Regs) -> Result<(), Refused> {
+pub fn match_spot_voices() -> Result<(), Refused> {
     use rc2k_core::sound::spot_voices::Spot;
     // Converted: `rc2k_core::sound::spot_voices::match_spots`.
     let count = g(SPOT_COUNT);
@@ -50,10 +48,4 @@ pub fn match_spot_voices_in(_: &mut Regs) -> Result<(), Refused> {
     rc2k_core::sound::spot_voices::match_spots(&spots, &mut voices, &kinds)?;
     store_voices(&voices);
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, match_spot_voices_in)
 }

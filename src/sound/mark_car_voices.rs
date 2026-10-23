@@ -13,13 +13,12 @@
 //! Self-test: the original against the Rust version with the two tables pointing at the
 //! test's objects and cars (put back).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, rva};
-use crate::sound::turn_parts::{COUNT, OBJECTS, turn_entry};
+use crate::framework::{game_read, rva};
+use crate::sound::turn_parts::{COUNT, OBJECTS};
 
 /// dword_514F8C: 1 while the cars' voices are to be marked.
 const MARKING: usize = 0x514F8C;
@@ -48,7 +47,7 @@ fn pairs() -> Result<Vec<(u32, u32)>, BadInput> {
 }
 
 /// Converted: `rc2k_core::sound::cars::voice_mark`.
-pub fn mark_car_voices_in(_: &mut Regs) -> Result<(), Refused> {
+pub fn mark_car_voices() -> Result<(), Refused> {
     if g(MARKING) != 1 {
         return Ok(());
     }
@@ -64,10 +63,4 @@ pub fn mark_car_voices_in(_: &mut Regs) -> Result<(), Refused> {
         }
     }
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, mark_car_voices_in)
 }

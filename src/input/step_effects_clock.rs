@@ -14,13 +14,11 @@
 //! Self-test: a copy whose two calls go to stand-ins (the test's clock), against the
 //! Rust version.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::sound::turn_parts::turn_entry;
+use crate::framework::{game_read, game_write, rva};
 
 /// dword_518084 the last time, dword_518088 the rate, dword_51808C the steps counted.
 const LAST: usize = 0x518084;
@@ -37,29 +35,22 @@ fn p(x: usize, v: u32) {
 
 // ---- Rust version ----
 
-pub fn step_effects_clock_in(r: &mut Regs) -> Result<(), Refused> {
-    let mut c = *r;
-    c.ebx = g(LAST);
-    c.eax = crate::system::tick_count::tick_count();
-    c.eax = c.eax.wrapping_sub(c.ebx);
-    if (c.eax.wrapping_sub(0x28) as i32) < 0 {
+/// The force feedback's clock: once 40 ms have gone, the rate (a second over the gap,
+/// held to 1000 ms) kept and `input::update_effects`.
+pub fn step_effects_clock() -> Result<(), Refused> {
+    let last = g(LAST);
+    let gap = crate::system::tick_count::tick_count().wrapping_sub(last);
+    if (gap.wrapping_sub(0x28) as i32) < 0 {
         return Ok(());
     }
-    c.ebx = c.ebx.wrapping_add(c.eax);
-    let divisor = c.ebx.min(1000);
+    let now = last.wrapping_add(gap);
+    let divisor = now.min(1000);
     if divisor == 0 {
         return Err(BadInput("a clock of 0: the original divides by it").into());
     }
-    p(LAST, c.ebx);
-    (c.eax, c.edx, c.ebx) = (1000 / divisor, 1000 % divisor, divisor);
+    p(LAST, now);
     // `fild` / `fstp`: `as f32` at every precision.
-    p(RATE, (c.eax as i32 as f32).to_bits());
+    p(RATE, ((1000 / divisor) as i32 as f32).to_bits());
     p(STEPS, g(STEPS).wrapping_add(1));
-    crate::input::update_effects::update_effects(&mut c)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, step_effects_clock_in)
+    crate::input::update_effects::update_effects()
 }

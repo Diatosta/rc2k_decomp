@@ -19,22 +19,21 @@
 //! Self-test: a copy whose jump to `play_placed_sound` goes to a stand-in, against the
 //! Rust version, on a slot of the test's, real samples.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::sound::sample_duration::sample_duration;
 use crate::sound::sample_settings::sample_settings;
-use crate::sound::turn_parts::{CLOCK, turn_entry};
+use crate::sound::turn_parts::CLOCK;
 
 // ---- Rust version ----
 
 /// Converted: `rc2k_core::sound::cars::slot_turn`.
-pub fn play_timed_slot_in(r: &mut Regs) -> Result<(), Refused> {
+pub fn play_timed_slot(slot: u32, request: u32) -> Result<(), Refused> {
     use rc2k_core::sound::cars::{SlotTurn, TimedSlot, from_int, slot_turn};
-    let (slot, request) = (r.ebp as *mut [u32; 6], r.esi as *mut u32);
+    let (slot, request) = (slot as *mut [u32; 6], request as *mut u32);
     if slot.is_null() || request.is_null() {
         return Err(BadInput("no slot or no request").into());
     }
@@ -51,25 +50,14 @@ pub fn play_timed_slot_in(r: &mut Regs) -> Result<(), Refused> {
     let turn = slot_turn(&mut s, clock, sample_settings, sample_duration)?;
     unsafe { slot.write_unaligned([s.sound, s.start, s.playing, s.ends, s.volume, s.rate]) };
     match turn {
-        SlotTurn::Nothing => Ok(()),
-        SlotTurn::Checked => {
-            r.eax = clock;
-            Ok(())
-        }
-        SlotTurn::Start { volume, rate, ends } => {
+        SlotTurn::Nothing | SlotTurn::Checked => Ok(()),
+        SlotTurn::Start { volume, rate, .. } => {
             unsafe {
                 request.write_unaligned(s.sound);
                 request.add(2).write_unaligned(from_int(volume as i32));
                 request.add(1).write_unaligned(from_int(rate as i32));
             }
-            (r.eax, r.ecx, r.edx) = (ends, volume, rate);
-            crate::sound::turn_parts::placed(r)
+            crate::sound::turn_parts::placed(request as u32)
         }
     }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, play_timed_slot_in)
 }

@@ -15,33 +15,25 @@
 //! test's, against the Rust version: effects 0 .. 5, the four kinds and others, the
 //! switches both ways, numbers past 12 bits.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::input::devices::{at, put};
-use crate::input::effects::{EFFECT_LEN, EFFECTS, HAS_EFFECTS, REQUEST, effects_entry};
+use crate::input::effects::{EFFECT_LEN, EFFECTS, HAS_EFFECTS, RACE_ON_RVA, REQUEST};
 
-/// The Rust version: `race_on` is `dword_518090`.
+/// Effect `effect` (0 .. 5) of the device at `record` told `what` (2 start, 3 set, 4
+/// stop) with the numbers `a` and `b`; "set" only while the race runs (`dword_518090`).
 /// Converted: `rc2k_core::input::effects::wanted` and `request`.
-pub fn set_effect(r: &Regs, race_on: u32) -> Result<(), Refused> {
+pub fn set_effect(record: u32, effect: u32, what: u32, a: u32, b: u32) -> Result<(), Refused> {
     use rc2k_core::input::effects::{request, wanted};
-    if wanted(at(r.esi, HAS_EFFECTS) == 1, race_on == 1, r.eax, r.ebx)? {
+    let race_on: u32 = unsafe { crate::framework::game_read(RACE_ON_RVA) };
+    if wanted(at(record, HAS_EFFECTS) == 1, race_on == 1, effect, what)? {
         put(
-            r.esi,
-            EFFECTS + EFFECT_LEN * r.eax + REQUEST,
-            request(r.ebx, r.ecx, r.edx),
+            record,
+            EFFECTS + EFFECT_LEN * effect + REQUEST,
+            request(what, a, b),
         );
     }
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    effects_entry(r, |r| {
-        crate::input::effects::game_part(crate::input::effects::SET_EFFECT, r)
-    })
 }

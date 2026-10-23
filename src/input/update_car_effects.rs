@@ -30,14 +30,12 @@
 //! test's and whose calls go to the noting stand-ins, against the Rust version, on blocks
 //! and objects of the test's: every kind, both branches of each test.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::{game_addr, game_read, rva};
 use crate::input::devices::{at, put};
-use crate::input::effects::{Part, SET_EFFECT, effects_entry};
 use crate::math::x87::{mul_to_int, x87};
 use crate::sound::turn_parts::SCRATCH;
 
@@ -48,8 +46,6 @@ const TENTH: usize = 0x5180EC; // flt_5180EC: 0.1
 /// dword_51809C: a surface's effect kind, 16 entries.
 const KINDS: usize = 0x51809C;
 const KIND_COUNT: u32 = 16;
-/// g_controllers: 0x50 bytes a controller.
-const CONTROLLERS: usize = 0x4F78E4;
 
 fn k(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
@@ -77,16 +73,28 @@ fn knock(y: u32, x: u32, s: u32, full: u32, d: u32, tenth: u32) -> (u32, i32) {
     (out[0], out[1] as i32)
 }
 
+/// The original's ecx and edx, which carry the numbers from one request to the next.
+#[derive(Default)]
+struct Last {
+    ecx: u32,
+    edx: u32,
+}
+
 /// Exactly as the original (the x87 at its precision), the angle written to `scratch` (an
-/// address): what `input::update_effects` (not converted) calls.
-pub fn update_car_effects_with(r: &mut Regs, scratch: u32, part: Part) -> Result<(), Refused> {
-    let (view, object, device) = (r.ebx, r.edi, r.esi);
+/// address). `view` the view block, `object` the car's sound object, `device` the device's
+/// record; the requests through `input::set_effect`.
+fn update_car_effects_with(
+    view: u32,
+    object: u32,
+    device: u32,
+    scratch: u32,
+) -> Result<(), Refused> {
+    let r = &mut Last::default();
     let surface = at(object, 0x294);
     if surface >= KIND_COUNT {
         return Err(BadInput("a surface number past the effect kinds' 16").into());
     }
-    r.eax = at(view, 0x248);
-    put(object, 0xAC, r.eax);
+    put(object, 0xAC, at(view, 0x248));
     let ten = k(TEN);
     put(object, 0xB0, mul_to_int(at(view, 0x1A4), ten) as u32);
     put(
@@ -110,14 +118,9 @@ pub fn update_car_effects_with(r: &mut Regs, scratch: u32, part: Part) -> Result
     } else {
         put(object, 0xC0, 0);
     }
-    r.eax = 0;
     for o in [0xC4, 0xC8, 0xCC, 0xD0] {
         put(object, o, 0);
     }
-    r.ebx = at(device, 0)
-        .wrapping_mul(0x50)
-        .wrapping_add(game_addr(rva(CONTROLLERS)) as u32);
-    r.eax = surface;
     r.ecx = k(KINDS + 4 * surface as usize);
     r.edx = at(object, 0x284);
     if (r.edx as i32) < 0 {
@@ -131,12 +134,10 @@ pub fn update_car_effects_with(r: &mut Regs, scratch: u32, part: Part) -> Result
     if r.edx > 0x100 {
         r.edx = 0x100;
     }
-    let mut set = |r: &mut Regs, eax: u32, ecx: u32, edx: u32| {
-        r.eax = eax;
-        r.ebx = 3;
+    let set = |r: &mut Last, eax: u32, ecx: u32, edx: u32| {
         r.ecx = ecx;
         r.edx = edx;
-        part(SET_EFFECT, r)
+        crate::input::set_effect::set_effect(device, eax, 3, ecx, edx)
     };
     let d8 = || at(object, 0xD8);
     let (ecx, edx) = (r.ecx, r.edx);
@@ -217,77 +218,9 @@ pub fn update_car_effects_with(r: &mut Regs, scratch: u32, part: Part) -> Result
     set(r, 5, change as u32, edx)
 }
 
-/// The converted version (`rc2k_core::input::feedback`, plain floats), the angle written to
-/// `scratch` (an address): the hook's. Here the fields loaded and stored, the requests sent.
-pub fn update_car_effects_plain_with(r: &mut Regs, scratch: u32) -> Result<(), Refused> {
-    use rc2k_core::input::feedback::{Constants, Feel, View, update_car_effects};
-    let (view, object) = (r.ebx, r.edi);
-    let float = |v: u32| f32::from_bits(v);
-    let mut feel = Feel {
-        speed_14: at(object, 0x14),
-        airborne: at(object, 0xAC),
-        figures: [0xB0, 0xB4, 0xB8, 0xBC].map(|o| at(object, o)),
-        knock: at(object, 0xC0),
-        hit: [0xC4, 0xC8, 0xCC, 0xD0].map(|o| at(object, o)),
-        strength: at(object, 0xD8),
-        knock_count: at(object, 0xDC),
-        landing: at(object, 0x278),
-        last_figure: at(object, 0x27C),
-        speed: at(object, 0x284),
-        surface: at(object, 0x294),
-    };
-    let plan = update_car_effects(
-        &mut feel,
-        &View {
-            airborne: at(view, 0x248),
-            a4: float(at(view, 0x1A4)),
-            ac: float(at(view, 0x1AC)),
-            b8: float(at(view, 0x1B8)),
-        },
-        &Constants {
-            ten: float(k(TEN)),
-            angle_scale: float(k(ANGLE_SCALE)),
-            full: float(k(FULL)),
-            tenth: float(k(TENTH)),
-            kinds: unsafe { game_read(rva(KINDS)) },
-        },
-    )?;
-    put(object, 0xAC, feel.airborne);
-    for (o, v) in [0xB0, 0xB4, 0xB8, 0xBC].into_iter().zip(feel.figures) {
-        put(object, o, v);
-    }
-    put(object, 0xC0, feel.knock);
-    for (o, v) in [0xC4, 0xC8, 0xCC, 0xD0].into_iter().zip(feel.hit) {
-        put(object, o, v);
-    }
-    put(object, 0xDC, feel.knock_count);
-    put(object, 0x278, feel.landing);
-    put(object, 0x27C, feel.last_figure);
-    if let Some(angle) = plan.angle {
-        unsafe { (scratch as *mut u32).write_volatile(angle) };
-    }
-    for request in plan.requests {
-        r.eax = request.effect;
-        r.ebx = 3;
-        r.ecx = request.ecx;
-        r.edx = request.edx;
-        crate::input::effects::game_part(SET_EFFECT, r)?;
-    }
-    Ok(())
-}
-
-/// The Rust version.
-pub fn update_car_effects(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    update_car_effects_with(r, game_addr(rva(SCRATCH)) as u32, part)
-}
-
-/// The converted version: the hook's.
-pub fn update_car_effects_plain(r: &mut Regs) -> Result<(), Refused> {
-    update_car_effects_plain_with(r, game_addr(rva(SCRATCH)) as u32)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    effects_entry(r, update_car_effects_plain)
+/// The car's force feedback for the frame (the original's x87 arithmetic). The
+/// converted version (`rc2k_core::input::feedback::update_car_effects`, plain floats; the
+/// hook's in shadow mode) waits for the float pass.
+pub fn update_car_effects(view: u32, object: u32, device: u32) -> Result<(), Refused> {
+    update_car_effects_with(view, object, device, game_addr(rva(SCRATCH)) as u32)
 }

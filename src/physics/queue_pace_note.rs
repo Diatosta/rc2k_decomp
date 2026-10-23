@@ -100,7 +100,9 @@ pub fn pace_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         match place {
             LOG_WRITE => log_write(r.eax as *const u8, false, 1),
             LOG_INT | LOG_INT_NL => log_int(r.eax as i32, place == LOG_INT_NL, 1),
-            CUE => crate::physics::cue_listed_car_sound_last::cue_listed_car_sound_last_in(r)?,
+            CUE => {
+                r.eax = crate::physics::cue_listed_car_sound_last::cue_listed_car_sound_last(r.ebx)?
+            }
             QUEUE => crate::physics::queue_listed_event::queue_listed_event(r.ebx)?.apply(r),
             PACE => queue_pace_note_in(r)?,
             _ => crate::physics::expire_car_events::expire_car_events_at(

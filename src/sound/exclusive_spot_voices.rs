@@ -9,27 +9,16 @@
 //! Shadow mode: both, the voices compared.
 //! Self-test: the original against the Rust version on the game's voices (put back).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::sound::spot_voices::{load_voices, store_voices};
-use crate::sound::turn_parts::turn_entry;
 
 // ---- Rust version ----
 
-pub fn exclusive_spot_voices_in(_: &mut Regs) -> Result<(), Refused> {
+pub fn exclusive_spot_voices() {
     // Converted: `rc2k_core::sound::spot_voices::keep_exclusive`.
     let mut voices = load_voices();
     rc2k_core::sound::spot_voices::keep_exclusive(&mut voices);
     store_voices(&voices);
-    Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, exclusive_spot_voices_in)
 }

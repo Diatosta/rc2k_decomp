@@ -17,13 +17,11 @@
 //! Self-test: a copy whose calls go to stand-ins (the clock's carry the test's), against
 //! the Rust version; not quitting only (the jump leaves the copy for good).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
-use crate::sound::turn_parts::turn_entry;
+use crate::framework::{game_read, rva};
 
 /// g_quitting.
 const QUITTING: usize = 0x51837C;
@@ -36,7 +34,8 @@ fn g(x: usize) -> u32 {
 
 // ---- Rust version ----
 
-pub fn race_turn_in(r: &mut Regs) -> Result<(), Refused> {
+/// The race's sounds for the frame.
+pub fn race_turn() -> Result<(), Refused> {
     if g(QUITTING) == 1 {
         // The original's quit jump (into `system::main_loop`'s way out): the program
         // ended as `start` ends it.
@@ -45,25 +44,14 @@ pub fn race_turn_in(r: &mut Regs) -> Result<(), Refused> {
     if g(STARTED) != 1 {
         return Ok(());
     }
-    let mut c = *r;
-    // `step_race_clock` leaves no register, the carry set when no turn is due.
-    let due = crate::sound::turn_parts::step_clock();
-    c.set_carry(!due);
-    c.set_zero(false);
-    if due {
+    if crate::sound::turn_parts::step_clock() {
         use crate::sound::*;
-        mark_car_voices::mark_car_voices_in(&mut c)?;
-        car_sounds_all::car_sounds_all_in(&mut c)?;
-        play_cue_queues::play_cue_queues_in(&mut c)?;
-        stage_sounds::stage_sounds_in(&mut c)?;
-        spot_sounds::spot_sounds_in(&mut c)?;
-        send_end_of_turn::send_end_of_turn_in(&mut c)?;
+        mark_car_voices::mark_car_voices()?;
+        car_sounds_all::car_sounds_all()?;
+        play_cue_queues::play_cue_queues()?;
+        stage_sounds::stage_sounds()?;
+        spot_sounds::spot_sounds()?;
+        send_end_of_turn::send_end_of_turn();
     }
-    crate::input::step_effects_clock::step_effects_clock_in(&mut c)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, race_turn_in)
+    crate::input::step_effects_clock::step_effects_clock()
 }

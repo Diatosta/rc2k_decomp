@@ -17,82 +17,69 @@
 //! Self-test: a copy whose calls go to stand-ins (the two leaves' left), against the
 //! Rust version, on the game's voices (put back), real samples.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, rva};
+use crate::framework::{game_read, rva};
 use crate::math::x87::from_int;
 use crate::sound::sample_duration::sample_duration;
 use crate::sound::sample_settings::{OWN, RECORDS, RECORDS_RVA, sample_settings};
-use crate::sound::spot_voices::{VOICE_COUNT, set, voice, voice_regions, vw};
-use crate::sound::turn_parts::{CLOCK, common_regions, turn_entry};
+use crate::sound::spot_voices::{VOICE_COUNT, set, voice, vw};
+use crate::sound::turn_parts::CLOCK;
 use rc2k_core::sound::spot_voices::{Played, REQUEST_FROM, end_time, going_on, played, time_up};
 
 // ---- Rust version ----
 
-pub fn play_spot_voices_in(r: &mut Regs) -> Result<(), Refused> {
-    if r.esi == 0 {
+/// The spots' voices played through `request`.
+pub fn play_spot_voices(request: u32) -> Result<(), Refused> {
+    if request == 0 {
         return Err(BadInput("no request").into());
     }
-    let q = r.esi as *mut u32;
+    let q = request as *mut u32;
     let put = |n: usize, v: u32| unsafe { q.add(n).write_unaligned(v) };
-    let mut all = voice_regions();
-    all.extend(common_regions());
-    (|| -> Result<_, crate::errors::Refused> {
-        let mut c = *r;
-        let clock: u32 = unsafe { game_read(rva(CLOCK)) };
-        for n in 0..VOICE_COUNT {
-            let v = voice(n);
-            (c.ebx, c.ebp) = (v, VOICE_COUNT - n);
-            if vw(v, 4) != 1 {
-                continue;
+    let clock: u32 = unsafe { game_read(rva(CLOCK)) };
+    for n in 0..VOICE_COUNT {
+        let v = voice(n);
+        if vw(v, 4) != 1 {
+            continue;
+        }
+        set(v, 4, 0);
+        let sound = vw(v, 0x14);
+        put(0, sound);
+        // Converted: `rc2k_core::sound::spot_voices` (`played`, `end_time`,
+        // `going_on`, `REQUEST_FROM`, `time_up`).
+        match played(vw(v, 0x24), || vw(v, 0x28)) {
+            Played::Start => {
+                set(v, 0x24, 0);
+                let (volume, rate) = sample_settings(sound, OWN, OWN)?;
+                set(v, 0x3C, from_int(volume as i32));
+                set(v, 0x38, from_int(rate as i32));
+                set(
+                    v,
+                    0x34,
+                    end_time(sample_duration(sound, rate)?, clock, vw(v, 0x30)),
+                );
+                set(v, 0x28, 1);
             }
-            set(v, 4, 0);
-            c.eax = vw(v, 0x14);
-            put(0, c.eax);
-            // Converted: `rc2k_core::sound::spot_voices` (`played`, `end_time`,
-            // `going_on`, `REQUEST_FROM`, `time_up`).
-            match played(vw(v, 0x24), || vw(v, 0x28)) {
-                Played::Start => {
-                    set(v, 0x24, 0);
-                    (c.ecx, c.edx) = sample_settings(c.eax, OWN, OWN)?;
-                    set(v, 0x3C, from_int(c.ecx as i32));
-                    set(v, 0x38, from_int(c.edx as i32));
-                    c.eax = end_time(sample_duration(c.eax, c.edx)?, clock, vw(v, 0x30));
-                    set(v, 0x34, c.eax);
-                    set(v, 0x28, 1);
+            Played::Silent => continue,
+            Played::GoOn => {
+                if sound >= RECORDS {
+                    return Err(BadInput("a sound past the sample records").into());
                 }
-                Played::Silent => continue,
-                Played::GoOn => {
-                    if c.eax >= RECORDS {
-                        return Err(BadInput("a sound past the sample records").into());
-                    }
-                    c.eax = c.eax.wrapping_mul(0x40);
-                    let looping: u32 = unsafe { game_read(RECORDS_RVA + c.eax as usize + 0x14) };
-                    put(0, going_on(unsafe { q.read_unaligned() }, looping));
-                }
-            }
-            for (to, from) in REQUEST_FROM {
-                c.eax = vw(v, from);
-                put(to, c.eax);
-            }
-            crate::sound::turn_parts::placed(&c)?;
-            c.eax = clock;
-            if time_up(clock, vw(v, 0x34)) {
-                c.eax = vw(v, 0x14);
-                put(0, c.eax);
-                crate::sound::turn_parts::stop(&c)?;
-                set(v, 0x28, 0);
+                let looping: u32 = unsafe { game_read(RECORDS_RVA + 0x40 * sound as usize + 0x14) };
+                put(0, going_on(unsafe { q.read_unaligned() }, looping));
             }
         }
-        Ok(())
-    })()
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, play_spot_voices_in)
+        for (to, from) in REQUEST_FROM {
+            put(to, vw(v, from));
+        }
+        crate::sound::turn_parts::placed(request)?;
+        if time_up(clock, vw(v, 0x34)) {
+            put(0, vw(v, 0x14));
+            crate::sound::turn_parts::stop(request)?;
+            set(v, 0x28, 0);
+        }
+    }
+    Ok(())
 }

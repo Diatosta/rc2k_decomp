@@ -19,14 +19,13 @@
 //! Self-test: a copy whose fifteen references to the variables go to the test's and whose
 //! calls go to the noting stand-in, against the Rust version: every way through.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use crate::input::devices::at;
-use crate::input::effects::{CAR, HAS_EFFECTS, effects_entry};
+use crate::input::effects::HAS_EFFECTS;
 
 /// g_playerCarA, g_playerCarB, g_onePlayer, g_raceSoundObjectCount (four dwords).
 const CARS: usize = 0x514F70;
@@ -69,7 +68,7 @@ fn rd(at: u32) -> u32 {
 /// The Rust version on the variables in `v`.
 /// Converted: `rc2k_core::input::effects::loads` (the way worked out before any call:
 /// nothing a call changes decides it).
-pub fn update_effects_with(r: &mut Regs, v: &Vars) -> Result<(), Refused> {
+pub fn update_effects_with(v: &Vars) -> Result<(), Refused> {
     use rc2k_core::input::effects::{Players, loads};
     if rd(v.cars + 0xC) == 0 {
         return Ok(());
@@ -82,23 +81,15 @@ pub fn update_effects_with(r: &mut Regs, v: &Vars) -> Result<(), Refused> {
         one_players_devices: rd(v.two_devices) != 0,
     };
     for load in loads(&p, |device| at(device, HAS_EFFECTS) == 1)? {
-        r.eax = load.car;
-        r.esi = load.device;
-        r.ebx = load.view;
-        r.edi = rd(v.objects + 4 * load.car);
         if load.update {
-            crate::input::effects::game_part(CAR, r)?;
+            let object = rd(v.objects + 4 * load.car);
+            crate::input::update_car_effects::update_car_effects(load.view, object, load.device)?;
         }
     }
     Ok(())
 }
 
-pub fn update_effects(r: &mut Regs) -> Result<(), Refused> {
-    update_effects_with(r, &Vars::game())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    effects_entry(r, update_effects)
+/// The race's force feedback brought up to date.
+pub fn update_effects() -> Result<(), Refused> {
+    update_effects_with(&Vars::game())
 }

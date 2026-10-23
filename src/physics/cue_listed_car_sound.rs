@@ -10,32 +10,23 @@
 //! Self-test: a copy whose call goes to a stand-in, against the Rust version: cars 0 ..
 //! 7 listed and not.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
-use crate::physics::sound_cues::{CUE, cue_entry};
+use crate::framework::{game_read, rva};
 use rc2k_core::physics::listed_cars::listed_entry;
 
 fn g(x: usize) -> u32 {
     unsafe { game_read(rva(x)) }
 }
 
-/// The steps on `r`.
+/// `cue` for the listed car, if it is listed: its entry returned (the original's eax).
 // Converted: `rc2k_core::physics::listed_cars::listed_entry`.
-pub fn cue_listed_car_sound_in(r: &mut Regs) -> Result<(), Refused> {
+pub fn cue_listed_car_sound(cue: u32) -> Result<u32, Refused> {
     let (entry, listed) = listed_entry(g(0x71B3F8), |car| g(0x641680 + 4 * car as usize))?;
-    r.eax = entry;
     if listed {
-        crate::physics::sound_cues::game_part(CUE, r)?;
+        crate::physics::cue_car_sound::cue_car_sound(entry, cue)?;
     }
-    Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    cue_entry(r, cue_listed_car_sound_in)
+    Ok(entry)
 }

@@ -9,22 +9,13 @@
 //! alone. Self-test: a copy whose calls go to the noting stand-ins, against the Rust
 //! version.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::input::effects::effects_entry;
 use crate::input::start_device_effects::all_six;
 
-/// The Rust version.
-pub fn stop_device_effects(r: &mut Regs) -> Result<(), Refused> {
-    all_six(r, 4)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    effects_entry(r, stop_device_effects)
+/// The device at `record`'s effects stopped.
+pub fn stop_device_effects(record: u32) -> Result<(), Refused> {
+    all_six(record, 4)
 }

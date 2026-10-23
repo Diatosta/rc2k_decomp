@@ -41,12 +41,11 @@
 //! Self-test: the original against the Rust version on objects of the test's, the
 //! table's first kind pointing at a kind of the test's (put back).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::math::x87::from_int;
 use crate::physics::flow::{base, x87_run};
 use crate::sound::turn_parts::{CLOCK, SCRATCH};
@@ -85,22 +84,21 @@ impl Words for Object {
     }
 }
 
-pub fn car_engine_state_in(c: &mut Regs) -> Result<(), Refused> {
+/// The object `o` brought up to date; its sound kind returned (the original's edi).
+pub fn car_engine_state(o: u32) -> Result<u32, Refused> {
     // Converted: `rc2k_core::sound::engine` (`extrapolation`, `readings`, `state`,
     // `over_256`); the floats are the original's x87 still.
-    let o = c.ebx;
+    if o == 0 {
+        return Err(BadInput("a null sound object").into());
+    }
     let kind = kind_of(o)?;
     let mut object = Object(o);
     let clock = g(CLOCK);
     let (b, bx, di) = (base(), o, kind);
     // The revs extrapolated, worked out first: its `idiv` may trap.
     let revs = extrapolation(&object, clock, || g(HOLD)).map_err(BadInput::from)?;
-    c.edi = kind;
-    let mut left = Left {
-        eax: c.eax,
-        ecx: c.ecx,
-        edx: c.edx,
-    };
+    // The registers the core models (written before they are read).
+    let mut left = Left::default();
     readings(&mut object, clock, revs, || g(HOLD), &mut left);
     x87_run!(
         "fild dword ptr [{bx} + 0x14]",
@@ -130,7 +128,6 @@ pub fn car_engine_state_in(c: &mut Regs) -> Result<(), Refused> {
             b = b, bx = bx
         );
     }
-    (c.ecx, c.edx) = (left.ecx, left.edx);
     x87_run!(
         "fld dword ptr [{bx} + 0x134]",
         "fld dword ptr [{bx} + 0x2C]",
@@ -160,8 +157,7 @@ pub fn car_engine_state_in(c: &mut Regs) -> Result<(), Refused> {
         bx = bx, b = b
     );
     object.set(0x140, 0x3F80_0000);
-    c.eax = object.get(0x134);
-    if c.eax as i32 > 0x3F80_0000 {
+    if object.get(0x134) as i32 > 0x3F80_0000 {
         x87_run!(
             ".byte 0xD9, 0xE8",
             "fdiv dword ptr [{bx} + 0x134]",
@@ -169,17 +165,5 @@ pub fn car_engine_state_in(c: &mut Regs) -> Result<(), Refused> {
             bx = bx
         );
     }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    if r.ebx == 0 {
-        return crate::sound::turn_parts::turn_entry(r, refuse_null);
-    }
-    crate::sound::turn_parts::turn_entry(r, car_engine_state_in)
-}
-
-fn refuse_null(_: &mut Regs) -> Result<(), Refused> {
-    Err(BadInput("a null sound object").into())
+    Ok(kind)
 }

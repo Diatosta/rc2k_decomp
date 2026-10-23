@@ -12,37 +12,25 @@
 //! Self-test: a copy whose call goes to a stand-in, against the Rust version, on the
 //! game's voices (put back).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
-use crate::sound::spot_voices::{VOICE_COUNT, voice};
-use crate::sound::turn_parts::turn_entry;
 
 // ---- Rust version ----
 
-/// Converted: `rc2k_core::sound::spot_voices::free_unheard`; each stop sent with the
-/// registers the original has there (the request's sound written first).
-pub fn free_spot_voices_in(r: &mut Regs) -> Result<(), Refused> {
+/// Converted: `rc2k_core::sound::spot_voices::free_unheard`; each stop through `request`
+/// (its sound written first).
+pub fn free_spot_voices(request: u32) -> Result<(), Refused> {
     use crate::sound::spot_voices::{load_voices, store_voices};
-    if r.esi == 0 {
+    if request == 0 {
         return Err(BadInput("no request").into());
     }
     let mut voices = load_voices();
-    let mut c = *r;
-    let done = rc2k_core::sound::spot_voices::free_unheard::<Refused>(&mut voices, |n, sound| {
-        (c.ebx, c.ecx, c.eax) = (voice(n as u32), VOICE_COUNT - n as u32, sound);
-        unsafe { (c.esi as *mut u32).write_unaligned(sound) };
-        crate::sound::turn_parts::stop(&c)
+    let done = rc2k_core::sound::spot_voices::free_unheard::<Refused>(&mut voices, |_, sound| {
+        unsafe { (request as *mut u32).write_unaligned(sound) };
+        crate::sound::turn_parts::stop(request)
     });
     store_voices(&voices);
     done
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, free_spot_voices_in)
 }

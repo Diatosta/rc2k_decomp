@@ -11,34 +11,23 @@
 //! Shadow mode runs the original alone (it sends sounds).
 //! Self-test: a copy whose eight calls go to stand-ins, against the Rust version.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
-use crate::sound::turn_parts::{REQUEST, turn_entry};
 
 // ---- Rust version ----
 
-pub fn spot_sounds_in(r: &mut Regs) -> Result<(), Refused> {
-    let mut c = Regs {
-        esi: game_addr(rva(REQUEST)) as u32,
-        ..*r
-    };
+/// The shared spots' voices for the turn.
+pub fn spot_sounds() -> Result<(), Refused> {
+    let request = crate::sound::turn_parts::request();
     use crate::sound::*;
-    match_spot_voices::match_spot_voices_in(&mut c)?;
-    free_spot_voices::free_spot_voices_in(&mut c)?;
-    spot_voice_distances::spot_voice_distances_in(&mut c)?;
-    merge_spot_voices_all::merge_spot_voices_all_in(&mut c)?;
-    thin_spot_voices_all::thin_spot_voices_all_in(&mut c)?;
-    exclusive_spot_voices::exclusive_spot_voices_in(&mut c)?;
-    repeat_spot_voices::repeat_spot_voices_in(&mut c)?;
-    play_spot_voices::play_spot_voices_in(&mut c)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, spot_sounds_in)
+    match_spot_voices::match_spot_voices()?;
+    free_spot_voices::free_spot_voices(request)?;
+    spot_voice_distances::spot_voice_distances();
+    merge_spot_voices_all::merge_spot_voices_all()?;
+    thin_spot_voices_all::thin_spot_voices_all()?;
+    exclusive_spot_voices::exclusive_spot_voices();
+    repeat_spot_voices::repeat_spot_voices()?;
+    play_spot_voices::play_spot_voices(request)
 }

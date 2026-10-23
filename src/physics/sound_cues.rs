@@ -14,25 +14,6 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 
-pub const PLAY: u32 = 0;
-pub const QUEUE: u32 = 1;
-pub const CUE: u32 = 2;
-pub const LISTED: u32 = 3;
-/// The pace notes' pair (`physics::cue_car_sound_last`, `physics::cue_listed_car_sound_last`).
-pub const CUE_LAST: u32 = 4;
-/// The calls in the game.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    match place {
-        PLAY => crate::sound::play_sound::play_sound_in_game(r),
-        QUEUE => crate::physics::queue_sound_cue::queue_sound_cue_in(r)?,
-        CUE => crate::physics::cue_car_sound::cue_car_sound_in(r)?,
-        LISTED => crate::physics::cue_listed_car_sound::cue_listed_car_sound_in(r)?,
-        CUE_LAST => crate::physics::cue_car_sound_last::cue_car_sound_last_in(r)?,
-        _ => crate::physics::cue_listed_car_sound_last::cue_listed_car_sound_last_in(r)?,
-    }
-    Ok(())
-}
-
 /// `dispatch_cue` without its hook (Rust callers; a refusal is the caller's).
 pub fn cue_entry(r: &mut Regs, rust: fn(&mut Regs) -> Result<(), Refused>) -> Result<(), Refused> {
     let mut g = *r;

@@ -23,7 +23,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_read, game_write, rva};
-use crate::physics::sound_cues::{LISTED, cue_entry};
+use crate::physics::sound_cues::cue_entry;
 use rc2k_core::physics::progress::{
     LAST_CHECKPOINT, OFF_LINE_CUE, TURNED_CUE, Warnings, cue_due, off_line, spread,
 };
@@ -94,7 +94,7 @@ pub fn off_line_warnings_in(r: &mut Regs) -> Result<(), Refused> {
         if let Some(next) = cue_due(r.eax, g(time)) {
             p(time, next);
             r.ebx = cue;
-            crate::physics::sound_cues::game_part(LISTED, r)?;
+            r.eax = crate::physics::cue_listed_car_sound::cue_listed_car_sound(cue)?;
         }
     }
     Ok(())

@@ -16,33 +16,26 @@
 //! Self-test: a copy whose call goes to a stand-in (which runs the Rust
 //! `nearest_on_segment`), against the Rust version, on the game's voices (put back).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::sound::spot_voices::{g, p, voice};
-use crate::sound::turn_parts::turn_entry;
+use crate::sound::spot_voices::{g, p};
 
 const ENDS: usize = 0x71C384;
 const RESULT: usize = 0x71C3A8;
 // ---- Rust version ----
 
-/// Converted: `rc2k_core::sound::spot_voices::merge` and `merge_between`.
-pub fn merge_spot_voices_in(c: &mut Regs) -> Result<(), Refused> {
-    use crate::sound::spot_voices::{load_voices, pick_regs, store_picks, store_voices};
+/// Converted: `rc2k_core::sound::spot_voices::merge` and `merge_between`. The voices of
+/// `sound` merged.
+pub fn merge_spot_voices(sound: u32) -> Result<(), Refused> {
+    use crate::sound::spot_voices::{load_voices, store_picks, store_voices};
     use rc2k_core::sound::spot_voices as core;
     let mut voices = load_voices();
-    let (picks, trail) = core::merge(&mut voices, c.eax);
+    let (picks, trail) = core::merge(&mut voices, sound);
     store_voices(&voices);
     store_picks(&picks, &trail);
-    *c = pick_regs(c, &trail);
-    let Some(nearest) = picks.nearest else {
-        return Ok(());
-    };
-    c.ebx = voice(nearest as u32);
-    let Some(next) = picks.next else {
+    let (Some(nearest), Some(next)) = (picks.nearest, picks.next) else {
         return Ok(());
     };
     let (a, b) = (voices[nearest].place, voices[next].place);
@@ -51,17 +44,9 @@ pub fn merge_spot_voices_in(c: &mut Regs) -> Result<(), Refused> {
         p(ENDS + 12 + 4 * m, b[m]);
         p(ENDS + 24 + 4 * m, 0);
     }
-    (c.eax, c.ebx) = (b[2], voice(next as u32));
-    crate::math::nearest_on_segment::nearest_on_segment_in(c)?;
+    crate::math::nearest_on_segment::nearest_on_segment();
     let point = [0, 1, 2].map(|m| g(RESULT + 4 * m));
     core::merge_between(&mut voices, &picks, point);
     store_voices(&voices);
-    (c.eax, c.ebx) = (point[2], voice(nearest as u32));
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, merge_spot_voices_in)
 }

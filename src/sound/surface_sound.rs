@@ -15,67 +15,50 @@
 //! Self-test: a copy whose calls go to stand-ins (the one of `sample_settings` left),
 //! against the Rust version, on an object and sets of the test's.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
 use crate::math::x87::from_int;
 use crate::physics::flow::{base, x87_run};
 use crate::sound::sample_settings::{OWN, record, sample_settings};
-use crate::sound::turn_parts::turn_entry;
 use rc2k_core::sound::surfaces;
 
 // ---- Rust version ----
 
-pub fn surface_sound_in(c: &mut Regs) -> Result<(), Refused> {
-    if c.ebx == 0 || c.ebp == 0 || c.esi == 0 {
+/// Object `o`'s sound of the surface's sound `set`, through `request`.
+pub fn surface_sound(o: u32, set: u32, request: u32) -> Result<(), Refused> {
+    if o == 0 || set == 0 || request == 0 {
         return Err(BadInput("no object, set or request").into());
     }
-    let o = c.ebx;
     let w = |at: u32| unsafe { ((o + at) as *const u32).read_unaligned() };
     let set_word = |at: u32| (o + at) as *mut u32;
-    let set = c.ebp as *const u32;
-    let q = c.esi as *mut u32;
+    let set = set as *const u32;
+    let q = request as *mut u32;
     // Converted: `rc2k_core::sound::surfaces::pick`.
     let eight = unsafe { set.read_unaligned() } == 1;
-    let (n, slot) = surfaces::pick(eight, w(0), || {
-        c.edx = w(0xC);
-        c.edx
-    })
-    .map_err(BadInput::from)?;
-    c.ecx = n;
-    c.eax = unsafe { set.add(1 + c.ecx as usize).read_unaligned() };
-    record(c.eax)?;
-    if c.eax != w(slot) {
+    let (n, slot) = surfaces::pick(eight, w(0), || w(0xC)).map_err(BadInput::from)?;
+    let sound = unsafe { set.add(1 + n as usize).read_unaligned() };
+    record(sound)?;
+    if sound != w(slot) {
         let old = w(slot);
         unsafe {
-            set_word(slot).write_unaligned(c.eax);
+            set_word(slot).write_unaligned(sound);
             q.write_unaligned(old);
         }
-        c.eax = old;
-        crate::sound::turn_parts::stop(c)?;
-        c.eax = w(slot);
+        crate::sound::turn_parts::stop(request)?;
     }
-    unsafe { q.write_unaligned(c.eax) };
-    (c.ecx, c.edx) = sample_settings(c.eax, OWN, OWN)?;
-    unsafe { q.add(1).write_unaligned(from_int(c.edx as i32)) };
+    let sound = w(slot);
+    unsafe { q.write_unaligned(sound) };
+    let (_, rate) = sample_settings(sound, OWN, OWN)?;
+    unsafe { q.add(1).write_unaligned(from_int(rate as i32)) };
     x87_run!(
         "fld dword ptr [{b} + 0x116398]",
         "fstp dword ptr [{si} + 0x8]";
-        b = base(), si = c.esi
+        b = base(), si = request
     );
-    // `mov eax, [ebx+..]; mov [esi+..], eax`: eax is left at the last.
     for k in 0..3 {
-        c.eax = w(0x2C + 4 * k as u32);
-        unsafe { q.add(3 + k).write_unaligned(c.eax) };
+        unsafe { q.add(3 + k).write_unaligned(w(0x2C + 4 * k as u32)) };
     }
-    crate::sound::turn_parts::placed(c)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, surface_sound_in)
+    crate::sound::turn_parts::placed(request)
 }

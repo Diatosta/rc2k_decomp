@@ -21,14 +21,12 @@
 //! Self-test: a copy whose two calls go to a stand-in, against the Rust version, on an
 //! object of the test's.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::physics::flow::{base, x87_run};
-use crate::sound::turn_parts::turn_entry;
 use rc2k_core::sound::surfaces;
 
 /// flt_51638C, flt_516394: the two differences whose signs pick the wheel.
@@ -47,25 +45,18 @@ fn g(x: usize) -> u32 {
 
 // ---- Rust version ----
 
-/// The wheel whose surface counts (eax) and the other of its pair (edx).
-fn wheel(c: &mut Regs) {
-    let (first, second) = surfaces::wheel(g(ACROSS), g(ALONG));
-    (c.eax, c.edx) = (
-        c.ebx + surfaces::WHEELS[first],
-        c.ebx + surfaces::WHEELS[second],
-    );
-}
-
-/// The surface of the wheel picked, its set (ebp) and `sound::surface_sound`.
-fn one(c: &mut Regs, second: usize) -> Result<(), Refused> {
+/// The surface of the wheel picked (of object `o`), its set and `sound::surface_sound`
+/// (the other wheel of the pair, the original's edx, it does not read).
+fn one(o: u32, request: u32, second: usize) -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::surfaces` (`wheel`, `quieter`, `set_pair`).
-    wheel(c);
-    c.eax = unsafe { ((c.eax + 0x10) as *const u32).read_unaligned() };
+    let (first, _) = surfaces::wheel(g(ACROSS), g(ALONG));
+    let wheel = o + surfaces::WHEELS[first];
+    let surface = unsafe { ((wheel + 0x10) as *const u32).read_unaligned() };
     if second == 0 {
-        unsafe { ((c.ebx + 0x294) as *mut u32).write_unaligned(c.eax) };
+        unsafe { ((o + 0x294) as *mut u32).write_unaligned(surface) };
     }
-    unsafe { game_write(rva(SURFACES[second]), c.eax) };
-    if surfaces::quieter(c.eax) {
+    unsafe { game_write(rva(SURFACES[second]), surface) };
+    if surfaces::quieter(surface) {
         let b = base();
         if second == 0 {
             x87_run!(
@@ -85,17 +76,18 @@ fn one(c: &mut Regs, second: usize) -> Result<(), Refused> {
             );
         }
     }
-    c.eax = surfaces::set_pair(c.eax, |n| g(SETS_OF + 4 * n as usize)).map_err(BadInput::from)?;
-    c.ebp = g(SETS + 4 * second + 8 * c.eax as usize);
-    crate::sound::surface_sound::surface_sound_in(c)
+    let pair =
+        surfaces::set_pair(surface, |n| g(SETS_OF + 4 * n as usize)).map_err(BadInput::from)?;
+    let set = g(SETS + 4 * second + 8 * pair as usize);
+    crate::sound::surface_sound::surface_sound(o, set, request)
 }
 
-pub fn surface_sounds_in(r: &mut Regs) -> Result<(), Refused> {
-    if r.ebx == 0 || r.esi == 0 {
+/// The wheels' surface sounds of object `o`, through `request`.
+pub fn surface_sounds(o: u32, request: u32) -> Result<(), Refused> {
+    if o == 0 || request == 0 {
         return Err(BadInput("no object or no request").into());
     }
-    let mut c = *r;
-    let (bx, b) = (c.ebx, base());
+    let (bx, b) = (o, base());
     {
         x87_run!(
             ".byte 0xD9, 0xEE",
@@ -139,7 +131,7 @@ pub fn surface_sounds_in(r: &mut Regs) -> Result<(), Refused> {
             "fstp dword ptr [{b} + 0x116398]";
             bx = bx, b = b
         );
-        one(&mut c, 0)?;
+        one(o, request, 0)?;
         x87_run!(
             ".byte 0xD9, 0xEE",
             "fsub dword ptr [{bx} + 0x50]",
@@ -167,12 +159,6 @@ pub fn surface_sounds_in(r: &mut Regs) -> Result<(), Refused> {
             "fstp dword ptr [{b} + 0x116398]";
             bx = bx, b = b
         );
-        one(&mut c, 1)
+        one(o, request, 1)
     }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, surface_sounds_in)
 }

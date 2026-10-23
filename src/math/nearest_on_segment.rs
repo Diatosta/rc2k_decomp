@@ -11,9 +11,10 @@
 //! Callers: `sound::merge_spot_voices` (and unreached code at 0x463349).
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::math::x87_run::compare_80;
 use crate::physics::flow::{base, hold_high, hold_low, p, x87_run};
 
@@ -25,7 +26,7 @@ const T: usize = 0x71C3B4;
 
 /// Exactly as the original (the x87 at its precision): the sound code's calls by place,
 /// whose own comparisons stay exact until `sound` is converted.
-pub fn nearest_on_segment_in(_: &mut Regs) -> Result<(), Refused> {
+pub fn nearest_on_segment() {
     let b = base();
     let (mut top, mut below) = ([0u8; 10], [0u8; 10]);
     x87_run!(
@@ -94,5 +95,4 @@ pub fn nearest_on_segment_in(_: &mut Regs) -> Result<(), Refused> {
         "fstp dword ptr [{b} + 0x31C3B0]";
         b = b
     );
-    Ok(())
 }

@@ -14,49 +14,34 @@
 //! Shadow mode runs the original alone (it sends sounds).
 //! Self-test: a copy whose calls go to a stand-in, against the Rust version.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
-use crate::sound::turn_parts::turn_entry;
 use rc2k_core::sound::engine::{computers, placed_slots};
 
 // ---- Rust version ----
 
-pub fn car_slot_sounds_in(r: &mut Regs) -> Result<(), Refused> {
-    if r.ebx == 0 || r.esi == 0 {
+/// The timed slots of object `o`, through `request`.
+pub fn car_slot_sounds(o: u32, request: u32) -> Result<(), Refused> {
+    if o == 0 || request == 0 {
         return Err(BadInput("no object or no request").into());
     }
-    let o = r.ebx;
     let w = |at: u32| unsafe { ((o + at) as *const u32).read_unaligned() };
     // Converted: `rc2k_core::sound::engine` (`computers`, `placed_slots`).
     if computers(w(0)) {
         return Ok(());
     }
-    let q = r.esi as *mut u32;
-    {
-        let mut c = *r;
-        let place = |c: &mut Regs, from: u32| {
-            for k in 0..3 {
-                c.eax = w(from + 4 * k);
-                unsafe { q.add(3 + k as usize).write_unaligned(c.eax) };
-            }
-        };
-        place(&mut c, 0x2C);
-        for at in placed_slots(w(0xC) == 0) {
-            c.ebp = o + at;
-            crate::sound::play_timed_slot::play_timed_slot_in(&mut c)?;
+    let q = request as *mut u32;
+    let place = |from: u32| {
+        for k in 0..3 {
+            unsafe { q.add(3 + k as usize).write_unaligned(w(from + 4 * k)) };
         }
-        place(&mut c, 0x214);
-        c.ebp = o + 0x220;
-        crate::sound::play_timed_slot::play_timed_slot_in(&mut c)
+    };
+    place(0x2C);
+    for at in placed_slots(w(0xC) == 0) {
+        crate::sound::play_timed_slot::play_timed_slot(o + at, request)?;
     }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, car_slot_sounds_in)
+    place(0x214);
+    crate::sound::play_timed_slot::play_timed_slot(o + 0x220, request)
 }

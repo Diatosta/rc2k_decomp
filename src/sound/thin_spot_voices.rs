@@ -15,42 +15,30 @@
 //! Self-test: a copy whose call goes to a stand-in (the test's random numbers), against
 //! the Rust version, on the game's voices (put back).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::sound::spot_voices::voice;
-use crate::sound::turn_parts::turn_entry;
 
 // ---- Rust version ----
 
-/// Converted: `rc2k_core::sound::spot_voices::thin` and `thin_choose`.
-pub fn thin_spot_voices_in(c: &mut Regs) -> Result<(), Refused> {
-    use crate::sound::spot_voices::{load_voices, pick_regs, store_picks, store_voices};
+/// Converted: `rc2k_core::sound::spot_voices::thin` and `thin_choose`. The voices of
+/// `sound` thinned.
+pub fn thin_spot_voices(sound: u32) -> Result<(), Refused> {
+    use crate::sound::spot_voices::{load_voices, store_picks, store_voices};
     use rc2k_core::sound::spot_voices as core;
     let mut voices = load_voices();
-    let (picks, trail) = core::thin(&mut voices, c.eax);
+    let (picks, trail) = core::thin(&mut voices, sound);
     store_voices(&voices);
     store_picks(&picks, &trail);
-    *c = pick_regs(c, &trail);
     if trail.ended_at.is_some() {
         return Ok(());
     }
-    let (Some(nearest), Some(next)) = (picks.nearest, picks.next) else {
+    let (Some(_), Some(_)) = (picks.nearest, picks.next) else {
         return Ok(());
     };
-    (c.ebx, c.edx) = (voice(nearest as u32), voice(next as u32));
-    c.eax = unsafe { crate::math::next_random::next_random() };
-    core::thin_choose(&mut voices, &picks, c.eax);
+    let random = unsafe { crate::math::next_random::next_random() };
+    core::thin_choose(&mut voices, &picks, random);
     store_voices(&voices);
-    c.eax = (c.eax & 1) ^ 1;
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, thin_spot_voices_in)
 }

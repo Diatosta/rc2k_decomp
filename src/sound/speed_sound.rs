@@ -17,47 +17,41 @@
 //! Self-test: a copy whose jumps out go to stand-ins, against the Rust version
 //! (`turn_parts::test_car_sound`).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
 use crate::physics::flow::{base, x87_run};
-use crate::sound::turn_parts::turn_entry;
 use rc2k_core::sound::engine::{computers, speed_stopped};
 
 // ---- Rust version ----
 
-pub fn speed_sound_in(c: &mut Regs) -> Result<(), Refused> {
-    if c.ebx == 0 || c.esi == 0 {
+/// A player's sound by the speed for object `o` of sound kind `kind`, through `request`.
+pub fn speed_sound(o: u32, kind: u32, request: u32) -> Result<(), Refused> {
+    if o == 0 || request == 0 {
         return Err(BadInput("no object or no request").into());
     }
-    let o = c.ebx;
     let w = |at: u32| unsafe { ((o + at) as *const u32).read_unaligned() };
-    let q = c.esi as *mut u32;
+    let q = request as *mut u32;
     // Converted: `rc2k_core::sound::engine` (`computers`, `speed_stopped`).
-    c.eax = w(0);
-    if computers(c.eax) {
+    if computers(w(0)) {
         return Ok(());
     }
-    if c.edi == 0 {
+    if kind == 0 {
         return Err(BadInput("no sound kind").into());
     }
-    c.ebp = c.edi + 0x60;
-    c.eax = c
-        .eax
-        .wrapping_add(unsafe { (c.ebp as *const u32).read_unaligned() });
-    unsafe { q.write_unaligned(c.eax) };
+    let set = kind + 0x60;
+    let sound = w(0).wrapping_add(unsafe { (set as *const u32).read_unaligned() });
+    unsafe { q.write_unaligned(sound) };
     if speed_stopped(w(0x10C), || w(0x24), || w(0xF4), || w(0xAC)) {
-        return crate::sound::turn_parts::stop(c);
+        return crate::sound::turn_parts::stop(request);
     }
     x87_run!(
         "fld dword ptr [{bx} + 0x108]",
         "fmul dword ptr [{bp} + 0x18]",
         "fadd dword ptr [{bp} + 0x10]",
         "fstp dword ptr [{si} + 0x4]";
-        bx = c.ebx, bp = c.ebp, si = c.esi
+        bx = o, bp = set, si = request
     );
     if w(0xC) == 0 {
         x87_run!(
@@ -66,7 +60,7 @@ pub fn speed_sound_in(c: &mut Regs) -> Result<(), Refused> {
             "fadd dword ptr [{bp} + 0x1C]",
             "fmul dword ptr [{b} + 0x11637C]",
             "fstp dword ptr [{si} + 0x8]";
-            bx = c.ebx, bp = c.ebp, si = c.esi, b = base()
+            bx = o, bp = set, si = request, b = base()
         );
     } else {
         x87_run!(
@@ -74,19 +68,11 @@ pub fn speed_sound_in(c: &mut Regs) -> Result<(), Refused> {
             "fmul dword ptr [{bp} + 0x24]",
             "fadd dword ptr [{bp} + 0x1C]",
             "fstp dword ptr [{si} + 0x8]";
-            bx = c.ebx, bp = c.ebp, si = c.esi
+            bx = o, bp = set, si = request
         );
     }
-    // `mov eax, [ebx+..]; mov [esi+..], eax`: eax is left at the last.
     for k in 0..3 {
-        c.eax = w(0x2C + 4 * k as u32);
-        unsafe { q.add(3 + k).write_unaligned(c.eax) };
+        unsafe { q.add(3 + k).write_unaligned(w(0x2C + 4 * k as u32)) };
     }
-    crate::sound::turn_parts::placed(c)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, speed_sound_in)
+    crate::sound::turn_parts::placed(request)
 }

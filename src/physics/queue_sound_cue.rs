@@ -16,13 +16,11 @@
 //! Self-test: a copy whose `play_sound` goes to a stand-in, against the Rust version on a
 //! test queue: counts 0, 3, 15, 16, both ends, two cues.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
-use crate::physics::sound_cues::{PLAY, cue_entry};
+use crate::framework::{game_read, rva};
 use rc2k_core::physics::sound_queue::{ENTRY_DWORDS, Place, check_cue, place, sounds};
 
 unsafe fn at(a: u32) -> u32 {
@@ -33,56 +31,41 @@ unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
 }
 
-/// The steps on `r`.
+/// `cue` queued in `object`'s queue (at `queue`), first or last. The registers it leaves
+/// no caller reads (both callers keep theirs); the sound it stops on the way (a queue
+/// begun again) goes as a volume of 0, of which the audio thread reads only the sound.
 // Converted: `rc2k_core::physics::sound_queue::{check_cue, place, sounds}`.
-pub fn queue_sound_cue_in(r: &mut Regs) -> Result<(), Refused> {
-    check_cue(r.ebx)?;
-    let q = r.edi;
+pub fn queue_sound_cue(first: bool, cue: u32, object: u32, queue: u32) -> Result<(), Refused> {
+    check_cue(cue)?;
+    let q = queue;
     unsafe {
         let count = at(q + 0xC);
-        let placed = place(count, r.eax == 0);
-        r.ecx = count;
-        r.edx = q + 0x10;
-        match placed {
+        let mut entry = q + 0x10;
+        match place(count, first) {
             Place::Full => return Ok(()),
             Place::At(n) => {
-                r.ecx = n.wrapping_mul(ENTRY_DWORDS);
-                r.edx = r.edx.wrapping_add(r.ecx.wrapping_mul(4));
+                entry = entry.wrapping_add(n.wrapping_mul(ENTRY_DWORDS).wrapping_mul(4))
             }
             Place::First { count } => {
-                let cue = r.ebx;
-                r.eax = at(q + 4);
-                r.eax = at(q.wrapping_add(r.eax.wrapping_mul(4)).wrapping_add(0x18));
-                r.ebx = 0;
-                crate::physics::sound_cues::game_part(PLAY, r)?;
+                let playing = at(q.wrapping_add(at(q + 4).wrapping_mul(4)).wrapping_add(0x18));
+                crate::sound::turn_parts::play(playing, 0, 0, [0; 3]);
                 put(q + 4, u32::MAX);
-                r.ebx = cue;
-                r.ecx = count.wrapping_mul(ENTRY_DWORDS);
-                let src = r.edx + r.ecx * 4 - 4;
-                let dst = r.edx + r.ecx * 4 + 0x1C;
-                for k in 0..r.ecx {
+                let n = count.wrapping_mul(ENTRY_DWORDS);
+                let src = entry + n * 4 - 4;
+                let dst = entry + n * 4 + 0x1C;
+                for k in 0..n {
                     put(dst - 4 * k, at(src - 4 * k));
                 }
-                r.ecx = 0;
             }
         }
         put(q + 0xC, at(q + 0xC).wrapping_add(1));
-        put(r.edx, r.ebx);
-        r.ebx = game_read(rva(0x512508 + 4 * r.ebx as usize));
-        let list = r.ebx;
-        let (written, n) = sounds(|k| at(list + 4 * k), at(r.esi));
+        put(entry, cue);
+        let list: u32 = game_read(rva(0x512508 + 4 * cue as usize));
+        let (written, n) = sounds(|k| at(list + 4 * k), at(object));
         for (k, &v) in written.iter().enumerate() {
-            put(r.edx + 4 * k as u32 + 8, v);
+            put(entry + 4 * k as u32 + 8, v);
         }
-        r.eax = *written.last().unwrap_or(&r.eax);
-        r.ecx = n;
-        put(r.edx + 4, r.ecx);
+        put(entry + 4, n);
     }
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    cue_entry(r, queue_sound_cue_in)
 }

@@ -10,13 +10,12 @@
 //! Shadow mode runs the original alone (it sends sounds).
 //! Self-test: a copy whose two calls go to a stand-in, against the Rust version.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, rva};
-use crate::sound::turn_parts::{COUNT, OBJECTS, turn_entry};
+use crate::framework::{game_read, rva};
+use crate::sound::turn_parts::{COUNT, OBJECTS};
 
 /// dword_514F70, dword_514F74: the two players' cars; dword_514F78: 1 with one player.
 const FIRST: usize = 0x514F70;
@@ -29,7 +28,8 @@ fn g(x: usize) -> u32 {
 
 // ---- Rust version ----
 
-pub fn play_cue_queues_in(r: &mut Regs) -> Result<(), Refused> {
+/// The players' cars' cue queues played.
+pub fn play_cue_queues() -> Result<(), Refused> {
     if g(COUNT) == 0 {
         return Ok(());
     }
@@ -39,17 +39,8 @@ pub fn play_cue_queues_in(r: &mut Regs) -> Result<(), Refused> {
     if cars.iter().any(|&n| n > 7 || object(n) == 0) {
         return Err(BadInput("a player's car past 7 or without a sound object").into());
     }
-    let mut c = *r;
     for n in cars {
-        c.eax = n;
-        c.ebx = object(n);
-        crate::sound::play_cue_queue::play_cue_queue_in(&mut c)?;
+        crate::sound::play_cue_queue::play_cue_queue(object(n))?;
     }
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, play_cue_queues_in)
 }

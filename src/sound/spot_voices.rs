@@ -10,8 +10,7 @@
 //! +0x3C the volume (floats), +0x40 the distance, +0x44 its change, +0x48 and +0x4C the
 //! pitch and volume factors.
 
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::service::harness::{Region, at};
+use crate::framework::{game_addr, game_read, game_write, rva};
 
 /// unk_5168C0.
 pub const VOICES: usize = 0x5168C0;
@@ -54,15 +53,6 @@ pub fn p(x: usize, v: u32) {
     unsafe { game_write(rva(x), v) }
 }
 
-/// The voices, the pickers' work and the scratch dword.
-pub fn voice_regions() -> Vec<Region> {
-    vec![
-        (voice(0), (VOICE_LEN * VOICE_COUNT) as usize),
-        (game_addr(rva(WORK)) as u32, 0x14),
-        at(rva(crate::sound::turn_parts::SCRATCH)),
-    ]
-}
-
 /// The voices as the core's (`rc2k_core::sound::spot_voices`).
 pub fn load_voices() -> [rc2k_core::sound::spot_voices::Voice; VOICE_COUNT as usize] {
     let words: [[u32; 20]; VOICE_COUNT as usize] = unsafe { game_read(rva(VOICES)) };
@@ -94,21 +84,4 @@ pub fn store_picks(
     if let Some(d) = trail.last_distance {
         p(crate::sound::turn_parts::SCRATCH, d);
     }
-}
-
-/// The registers a pick leaves: ebp the sound; ebx / ecx the end of the voices and 0 (or
-/// where a search ended); eax the last distance (else the sound); edx the next pushed
-/// out last (else as it came).
-pub fn pick_regs(entry: &Regs, trail: &rc2k_core::sound::spot_voices::Trail) -> Regs {
-    let mut c = *entry;
-    c.ebp = entry.eax;
-    c.eax = trail.last_distance.unwrap_or(entry.eax);
-    if let Some(out) = trail.pushed_out {
-        c.edx = voice_or_0(out);
-    }
-    match trail.ended_at {
-        Some(n) => (c.ebx, c.ecx) = (voice(n as u32), VOICE_COUNT - n as u32),
-        None => (c.ebx, c.ecx) = (voice(0) + VOICE_COUNT * VOICE_LEN, 0),
-    }
-    c
 }

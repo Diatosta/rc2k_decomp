@@ -20,7 +20,6 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_read, game_write, rva};
-use crate::sound::turn_parts::turn_entry;
 
 /// g_sceneClock, dword_5CC3B0 the last tick, dword_5CC3B8 the ticks counted.
 const CLOCK: usize = 0x613830;
@@ -40,13 +39,10 @@ pub fn race_sound_tick_in(r: &mut Regs) -> Result<(), Refused> {
     }
     r.eax = g(CLOCK);
     unsafe { game_write(rva(LAST), r.eax) };
-    crate::sound::race_turn_if::race_turn_if_in(r)?;
+    if crate::sound::race_turn_if::race_turn_if()? {
+        // `race_turn_if` leaves a constant in ebx when it calls.
+        r.ebx = 0x531_7707;
+    }
     unsafe { game_write(rva(TICKS), g(TICKS).wrapping_add(1)) };
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, race_sound_tick_in)
 }

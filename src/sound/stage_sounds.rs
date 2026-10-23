@@ -23,14 +23,13 @@
 //! Self-test: a copy whose calls go to stand-ins (the random numbers a sequence of the
 //! test's), against the Rust version.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::{game_addr, game_read, game_write, rva};
 use crate::sound::sample_settings::OWN;
-use crate::sound::turn_parts::{CLOCK, REQUEST, SCRATCH, turn_entry};
+use crate::sound::turn_parts::{CLOCK, REQUEST, SCRATCH};
 
 const ONE_OFFS: [(usize, u32); 3] = [(0x51659C, 0x1AB), (0x5165A0, 0x1AC), (0x5165A4, 0x1AD)];
 const ARM: usize = 0x5165A8;
@@ -57,87 +56,64 @@ fn p(x: usize, v: u32) {
 
 // ---- Rust version ----
 
-pub fn stage_sounds_in(r: &mut Regs) -> Result<(), Refused> {
-    {
-        let mut c = Regs {
-            esi: game_addr(rva(REQUEST)) as u32,
-            ..*r
-        };
-        p(REQUEST + 0x20, ONE);
-        p(REQUEST + 0x24, ONE);
-        for (flag, sound) in ONE_OFFS {
-            if g(flag) == 1 {
-                p(flag, 0);
-                (c.eax, c.ebx, c.edx, c.ecx, c.edi, c.ebp) = (sound, OWN, OWN, 0, 0, MINUS_ONE);
-                crate::sound::turn_parts::play(&c)?;
-            }
-        }
-        // Converted: `rc2k_core::sound::stage::wait_turn`.
-        let clock = g(CLOCK);
-        let mut wait = rc2k_core::sound::stage::Wait {
-            arm: g(ARM),
-            delay: g(DELAY),
-            due: g(DUE),
-            waiting: g(WAITING),
-            start: g(TIMED_SLOT + 4),
-        };
-        let (armed, waited) = (wait.arm == 1, wait.arm == 1 || wait.waiting == 1);
-        let slot = rc2k_core::sound::stage::wait_turn(&mut wait, clock);
-        if armed {
-            c.eax = wait.due;
-        }
-        if waited {
-            c.eax = clock;
-        }
-        for (at, v) in [(ARM, wait.arm), (DUE, wait.due), (WAITING, wait.waiting)] {
-            p(at, v);
-        }
-        if wait.start != g(TIMED_SLOT + 4) {
-            p(TIMED_SLOT + 4, wait.start);
-        }
-        if slot {
-            for k in 0..3 {
-                c.eax = g(PLACE + 4 * k);
-                p(REQUEST + 0xC + 4 * k, c.eax);
-            }
-            c.ebp = game_addr(rva(TIMED_SLOT)) as u32;
-            crate::sound::play_timed_slot::play_timed_slot_in(&mut c)?;
-        }
-        (c.eax, c.ebx, c.edx, c.ecx, c.edi, c.ebp) = (
-            0x1C5,
-            ((g(VOLUME_A) as i32) >> 1) as u32,
-            OWN,
-            0,
-            ONE,
-            MINUS_ONE,
-        );
-        crate::sound::turn_parts::play(&c)?;
-        (c.eax, c.ebx, c.edx, c.ecx, c.edi, c.ebp) = (0x1C6, g(VOLUME_B), OWN, 0, ONE, 0);
-        crate::sound::turn_parts::play(&c)?;
-        for (flag, sound) in RANDOMS {
-            if g(flag) != 1 {
-                continue;
-            }
+/// The stage's own sounds for the turn.
+pub fn stage_sounds() -> Result<(), Refused> {
+    use crate::sound::turn_parts::play;
+    let request = crate::sound::turn_parts::request();
+    p(REQUEST + 0x20, ONE);
+    p(REQUEST + 0x24, ONE);
+    for (flag, sound) in ONE_OFFS {
+        if g(flag) == 1 {
             p(flag, 0);
-            c.eax = unsafe { crate::math::next_random::next_random() };
-            // Converted: `rc2k_core::sound::stage::random`.
-            let n = c.eax;
-            let r = rc2k_core::sound::stage::random(n, g(MIX_RATE));
-            (c.ebx, c.edx) = (r.volume, r.rate);
-            c.ecx = r.across.to_bits();
-            c.eax = (n >> 23) & 0x1FF;
-            c.edi = r.ahead.to_bits();
-            // The scratch dword holds the last float.
-            p(SCRATCH, c.edi);
-            (c.ebp, c.eax) = (ONE, sound);
-            crate::sound::turn_parts::play(&c)?;
+            play(sound, OWN, OWN, [0, 0, MINUS_ONE]);
         }
-        Ok(())
     }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, stage_sounds_in)
+    // Converted: `rc2k_core::sound::stage::wait_turn`.
+    let clock = g(CLOCK);
+    let mut wait = rc2k_core::sound::stage::Wait {
+        arm: g(ARM),
+        delay: g(DELAY),
+        due: g(DUE),
+        waiting: g(WAITING),
+        start: g(TIMED_SLOT + 4),
+    };
+    let slot = rc2k_core::sound::stage::wait_turn(&mut wait, clock);
+    for (at, v) in [(ARM, wait.arm), (DUE, wait.due), (WAITING, wait.waiting)] {
+        p(at, v);
+    }
+    if wait.start != g(TIMED_SLOT + 4) {
+        p(TIMED_SLOT + 4, wait.start);
+    }
+    if slot {
+        for k in 0..3 {
+            p(REQUEST + 0xC + 4 * k, g(PLACE + 4 * k));
+        }
+        let timed = game_addr(rva(TIMED_SLOT)) as u32;
+        crate::sound::play_timed_slot::play_timed_slot(timed, request)?;
+    }
+    play(
+        0x1C5,
+        ((g(VOLUME_A) as i32) >> 1) as u32,
+        OWN,
+        [0, ONE, MINUS_ONE],
+    );
+    play(0x1C6, g(VOLUME_B), OWN, [0, ONE, 0]);
+    for (flag, sound) in RANDOMS {
+        if g(flag) != 1 {
+            continue;
+        }
+        p(flag, 0);
+        let n = unsafe { crate::math::next_random::next_random() };
+        // Converted: `rc2k_core::sound::stage::random`.
+        let r = rc2k_core::sound::stage::random(n, g(MIX_RATE));
+        // The scratch dword holds the last float.
+        p(SCRATCH, r.ahead.to_bits());
+        play(
+            sound,
+            r.volume,
+            r.rate,
+            [r.across.to_bits(), r.ahead.to_bits(), ONE],
+        );
+    }
+    Ok(())
 }
