@@ -86,6 +86,14 @@ extern "C" fn dispatch(r: &mut Regs) {
     });
 }
 
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::race::viewer::regs_entry(r, &|r| {
+        set_hud_options(r, &mut crate::net::lobby::game_part)
+    })
+}
+
 fn self_test() -> (usize, usize) {
     let Some(mut t) = SelfTest::begin(&HOOK) else {
         return (0, 0);

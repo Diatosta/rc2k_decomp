@@ -31,26 +31,27 @@
 //! Shadow mode builds twice (Rust, everything put back, the original) and compares the
 //! whole table and the variables. Self-test: with the game running (the original logs),
 //! a font sheet and the menus' sprite sheets built by both into memory of the test's.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::file_exists::file_exists;
 use crate::files::numbered_path::numbered_path_in_game;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::fill_row_table::fill_row_table;
 use crate::gfx::glyph_builder::{
     DIRECT_COLOUR, Glyph, ONE_FILE, RUN_LENGTHS, RowTable, Sheet, WIDE_HEAD, WITH_ALPHA, append,
     backdrop_of, direct_pixel_size, table_of, transparent_of,
 };
-use crate::gfx::load_picture::LoaderTest;
 use crate::gfx::pcx::{
     DECODED_HEIGHT_RVA, DECODED_WIDTH_RVA, FILE_HEIGHT_RVA, FILE_WIDTH_RVA, PALETTE_RVA,
     PIXEL_BITS_RVA, PIXELS_RVA, PLANES_RVA, STRIDE_RVA,
 };
-use crate::gfx::picture::{FLAGS_RVA, HEIGHT_RVA, ROW_BYTES_RVA, WIDTH_RVA, picture};
-use crate::gfx::pixel_format::{PixelFormat, SURFACE_FORMAT_RVA};
+use crate::gfx::picture::{FLAGS_RVA, picture};
+use crate::gfx::pixel_format::PixelFormat;
 use crate::gfx::read_sheet::read_sheet;
 use crate::logfile::log_hex8::log_hex8;
 use crate::logfile::log_int::log_int;
@@ -58,23 +59,8 @@ use crate::logfile::log_int_fmt::log_int_fmt;
 use crate::logfile::log_write::log_write;
 use crate::logfile::write_line::LOG_LEVEL_RVA;
 use crate::memory::MemoryList;
-use crate::memory::allocate::allocate;
-use crate::memory::free_list::free_list;
 use crate::memory::take_from_list::{rewind_list, take_from_list};
 use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("gfx::build_glyphs", rva(0x412085), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -409,8 +395,6 @@ pub unsafe fn build_glyphs(template: *const u8, list: *mut MemoryList) -> Result
     }
 }
 
-// ---- hook ----
-
 /// The builder's own variables.
 fn variables() -> Vec<Region> {
     [
@@ -470,63 +454,6 @@ impl Before {
     }
 }
 
-/// What a build leaves, for comparing: the variables, the list the table grows on, and the
-/// table.
-unsafe fn left(list: *mut MemoryList) -> Vec<u8> {
-    let mut regions = variables();
-    if !list.is_null() {
-        regions.push((list as u32, 16));
-    }
-    let (table, held): (u32, u32) = unsafe { (game_read(TABLE_RVA), game_read(TABLE_SIZE_RVA)) };
-    if table != 0 && held != 0 && held < 0x1000_0000 {
-        regions.push((table, held as usize));
-    }
-    capture(&regions)
-}
-
-fn difference(theirs: &[u8], mine: &[u8]) -> String {
-    let first = theirs.iter().zip(mine).position(|(a, b)| a != b);
-    format!(
-        "original left {} bytes, rust {}; first different byte {first:?} (the variables are the first {})",
-        theirs.len(),
-        mine.len(),
-        variables().len() * 4
-    )
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    let (template, list) = (r.eax as *const u8, r.ebx as *mut MemoryList);
-    let before = unsafe { Before::capture(list, true) };
-    let mine = unsafe { build_glyphs(template, list) };
-    if !shadow() {
-        if let Err(e) = mine {
-            before.restore();
-            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-        }
-        return;
-    }
-    let mine = mine.map(|()| unsafe { left(list) });
-    before.restore();
-    match mine {
-        Ok(mine) => {
-            let mut o = *r;
-            unsafe { call_original(&mut o) };
-            let theirs = unsafe { left(list) };
-            if theirs != mine || !o.preserved_except(r, 0) {
-                HOOK.mismatch(|| {
-                    format!(
-                        "template={:?}: {}",
-                        unsafe { std::ffi::CStr::from_ptr(template as *const _) },
-                        difference(&theirs, &mine)
-                    )
-                });
-            }
-        }
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let (template, list) = (r.eax as *const u8, r.ebx as *mut MemoryList);
@@ -537,107 +464,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
         return Err(e);
     }
     Ok(())
-}
-
-// ---- self-test: the game's own sheets, built by both into memory of the test's ----
-
-const ROOM: usize = 0x30_0000;
-/// (the builder's flags, the path): a font's sheet coded, uncoded and as one file; the
-/// menus' sprites, two sheets of components.
-const SOFT_FILE: &str = "var\\rc2k_hook_soft_01.pcx";
-const CASES: [(u32, &[u8]); 6] = [
-    // A font with its alpha sheet; and a sheet whose alpha sheet (number 00) is not
-    // there, so that the alpha is made from the glyphs.
-    (RUN_LENGTHS | WITH_ALPHA, b"files\\d\\fnt\\fnt22_00.pcx\0"),
-    (RUN_LENGTHS | WITH_ALPHA, b"var\\rc2k_hook_soft_00.pcx\0"),
-    (RUN_LENGTHS, b"files\\d\\fnt\\fnt13_00.pcx\0"),
-    (0, b"files\\d\\fnt\\fnt13_00.pcx\0"),
-    (RUN_LENGTHS | ONE_FILE, b"files\\d\\fnt\\fnt21_00.pcx\0"),
-    (RUN_LENGTHS, b"files\\g\\graphics\\sprites\\mbuts00.pcx\0"),
-];
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // It changes what the game's frames blit with: their comparisons in the
-    // meantime are not to be trusted (a `blit_glyph` mismatch on 2026-10-15).
-    let _disturbing = crate::screens::harness::Disturbing::begin();
-    let work = game_addr(WORK_MEMORY_RVA) as *mut MemoryList;
-    if unsafe { work.read_unaligned() } != MemoryList::default() {
-        return t.skip("the builder's work memory is in use");
-    }
-    // Everything a picture's reading writes is put back at the end.
-    if std::fs::copy("files\\d\\fnt\\fnt13_00.pcx", SOFT_FILE).is_err() {
-        return t.skip("cannot copy a font sheet into the game's var folder");
-    }
-    let pictures = match LoaderTest::begin() {
-        Ok(test) => test,
-        Err(why) => {
-            let _ = std::fs::remove_file(SOFT_FILE);
-            return t.skip(why);
-        }
-    };
-    let before = unsafe { Before::capture(std::ptr::null_mut(), false) };
-    let format_before: u32 = unsafe { game_read(FORMAT_RVA) };
-    // As the builder's callers set it up (`sub_412014`); the work memory as large as the
-    // largest sheet could need.
-    let ready = unsafe {
-        game_write(WIDTH_RVA, 800u32);
-        game_write(HEIGHT_RVA, 600u32);
-        game_write(ROW_BYTES_RVA, 0xFFFF_FFFDu32);
-        game_write(FORMAT_RVA, game_addr(SURFACE_FORMAT_RVA) as u32);
-        allocate(work, 0x80_0000)
-    };
-    if ready.is_ok() {
-        let mut room = vec![0u8; ROOM];
-        let mut list = MemoryList::default();
-        for (flags, template) in CASES {
-            let mut run = |rust: bool| unsafe {
-                room.fill(0xAA);
-                list = MemoryList {
-                    head: 0,
-                    total: ROOM as u32,
-                    cursor: room.as_mut_ptr() as u32,
-                    remaining: ROOM as u32,
-                };
-                game_write(BUILDER_FLAGS_RVA, flags);
-                game_write(TABLE_RVA, list.cursor);
-                game_write(TABLE_SIZE_RVA, 0u32);
-                let regs = Regs {
-                    eax: template.as_ptr() as u32,
-                    ebx: &mut list as *mut MemoryList as u32,
-                    ..Regs::SENTINEL
-                };
-                let done = if rust {
-                    build_glyphs(template.as_ptr(), &mut list).is_ok()
-                } else {
-                    let mut ro = regs;
-                    call_original(&mut ro);
-                    ro.preserved_except(&regs, 0)
-                };
-                (done, left(&mut list))
-            };
-            let (theirs, mine) = (run(false), run(true));
-            let built = unsafe { game_read::<u32>(TABLE_SIZE_RVA) } != 0;
-            t.check(theirs == mine && theirs.0 && built, || {
-                format!(
-                    "flags={flags:#x} template={:?}: original done={} rust done={} built={built}; {}",
-                    String::from_utf8_lossy(template),
-                    theirs.0,
-                    mine.0,
-                    difference(&theirs.1, &mine.1)
-                )
-            });
-        }
-        let _ = unsafe { free_list(work) };
-    }
-    unsafe { game_write(FORMAT_RVA, format_before) };
-    before.restore();
-    pictures.end();
-    let _ = std::fs::remove_file(SOFT_FILE);
-    if ready.is_err() {
-        return t.skip("no memory for the builder's work");
-    }
-    t.finish()
 }

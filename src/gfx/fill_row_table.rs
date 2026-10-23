@@ -7,24 +7,15 @@
 //! and two picture functions not yet read.
 //! Refuses a count of 0 (the original counts through all 32 bits) and one above the table's
 //! room. The name is a reading.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
+use crate::framework::{Regs, game_addr, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("gfx::fill_row_table", rva(0x40586A), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 // ---- game data ----
 
@@ -57,61 +48,13 @@ pub unsafe fn fill_row_table(first: u32, step: u32, rows: u32) -> Result<(), Bad
     Ok(())
 }
 
-// ---- hook ----
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { fill_row_table(r.eax, r.ebx, r.ecx) }?;
     Ok(Left::nothing())
-}
-
-fn region(rows: u32) -> [(u32, usize); 1] {
-    [(
-        game_addr(ROW_TABLE_RVA) as u32,
-        rows.min(ROW_TABLE_ROOM) as usize * 4,
-    )]
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &region(r.ecx), &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-// ---- self-test: the game's own table, which is put back ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let whole = region(ROW_TABLE_ROOM);
-    let saved = capture(&whole);
-    for (first, step, rows) in [
-        (0x1000u32, 4u32, 1u32),
-        (0x0123_4560, 3200, 600),
-        (0xFFFF_FF00, 0x80, 10),
-        (0x5000, 0, 7),
-        (0x9000, (-64i32) as u32, ROW_TABLE_ROOM),
-    ] {
-        let before = Regs {
-            eax: first,
-            ebx: step,
-            ecx: rows,
-            ..Regs::SENTINEL
-        };
-        check_state(
-            &mut t,
-            &format!("first={first:#x} step={step:#x} rows={rows}"),
-            call_original,
-            before,
-            &|| restore(&whole, &vec![0xAA; whole[0].1]),
-            &whole,
-            &rust,
-        );
-    }
-    restore(&whole, &saved);
-    t.finish()
 }

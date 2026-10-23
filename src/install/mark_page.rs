@@ -20,7 +20,7 @@ use crate::install::installer::{
     CF, CHOICE, FRAME_CLOCK, MOVE_CLOCK, SCRIPT_PATH, ZF, g, list_regions, p, rb, rd, region, wb,
 };
 use crate::install::list_test::TestList;
-use crate::race::viewer::{Saved, check_original, dispatch_regs};
+use crate::race::viewer::{Saved, check_original, dispatch_regs, regs_entry};
 use rc2k_core::install::items::{self, MARKS};
 use rc2k_core::install::pages::UNUSABLE;
 use std::sync::atomic::AtomicUsize;
@@ -106,6 +106,12 @@ fn rust(r: &Regs) -> Result<Regs, Refused> {
 extern "C" fn dispatch(r: &mut Regs) {
     let regions = list_regions(r.edi);
     dispatch_regs(&HOOK, r, call_original, &regions, 0, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

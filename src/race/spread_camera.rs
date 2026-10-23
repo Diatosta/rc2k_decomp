@@ -16,7 +16,7 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::race::viewer::{
-    BLOCK, BLOCKS, MOST_BLOCKS, Saved, check_original, dispatch_regs, dword, get, put,
+    BLOCK, BLOCKS, MOST_BLOCKS, Saved, check_original, dispatch_regs, dword, get, put, regs_entry,
 };
 use std::sync::atomic::AtomicUsize;
 
@@ -58,6 +58,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     // The bytes it may write: the 0x708 blocks' from ebx.
     let regions = [(r.ebx, 8 * MOST_BLOCKS as usize + 1)];
     dispatch_regs(&HOOK, r, call_original, &regions, 0, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

@@ -20,7 +20,7 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, call_game, game_addr, game_read, game_write};
+use crate::framework::{Regs, game_addr, game_read, game_write};
 use crate::gfx::components_to_4444_rows::{COMPONENTS_TO_4444_ROWS, components_to_4444_rows};
 use crate::gfx::copy_pixel_rows::{COPY_PIXEL_ROWS, copy_pixel_rows};
 use crate::gfx::install_converters::CONVERTERS_RVA;
@@ -95,7 +95,21 @@ pub unsafe fn convert_picture(screen_bits: u32, converter: u32) -> Result<(), Ba
                 ebp: 0,
                 ..Regs::default()
             };
-            call_game(&mut g, converter as usize);
+            // The table's converter: an MMX / 3DNow one by its Rust version, any other
+            // through the routes (`calls`).
+            let at = (converter as usize)
+                .wrapping_sub(game_addr(0))
+                .wrapping_add(crate::framework::IMAGE_BASE) as u32;
+            match crate::gfx::mmx_converters::converter_at(at) {
+                Some(c) => match crate::gfx::mmx_converters::convert_rows(&g, c) {
+                    Ok(left) => left.apply(&mut g),
+                    Err(crate::errors::Refused::BadInput(why)) => return Err(why),
+                    Err(crate::errors::Refused::Fatal(_)) => {
+                        return Err(BadInput("a converter's fatal error"));
+                    }
+                },
+                None => crate::menu::table_calls::call_any(converter, &mut g),
+            }
             if screen_bits != 16 {
                 return Ok(());
             }

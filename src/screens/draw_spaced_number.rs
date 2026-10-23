@@ -12,33 +12,16 @@
 //! its drawing loop) and one whose copies pass the 0x100 bytes of `byte_A8BC54`. Compared in
 //! shadow mode (`dispatch_draw`). Self-test: lengths 3 .. 8 of digit texts, two fonts and
 //! places, nothing drawn.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva};
-use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::font_at;
-use crate::screens::harness::{Left, check_draw, dispatch_draw, draw_entry};
-use crate::service::harness::{Region, capture, restore};
+use crate::framework::{Regs, game_addr, game_write, rva};
+use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::{Canvas, draw_text_at};
 use crate::text::font::Font;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_spaced_number",
-    rva(0x468180),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const CELLS_RVA: usize = rva(0xA8BC54); // byte_A8BC54
 const CELLS_LEN: usize = 0x100;
@@ -84,57 +67,8 @@ fn rust(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     Ok(Left::carry(false))
 }
 
-fn state() -> Vec<u8> {
-    capture(&[
-        (game_addr(CELLS_RVA) as u32, CELLS_LEN),
-        (game_addr(LENGTH_RVA) as u32, 4),
-    ])
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_draw(&HOOK, r, call_original, &rust, &state);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     draw_entry("screens::draw_spaced_number", r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = text_unavailable() {
-        return t.skip(why);
-    }
-    let regions: Vec<Region> = vec![
-        (game_addr(CELLS_RVA) as u32, CELLS_LEN),
-        (game_addr(LENGTH_RVA) as u32, 4),
-    ];
-    let saved = capture(&regions);
-    let text = b"1234:56.78\0".to_vec();
-    for n in 3..=8u32 {
-        for (font, x, y) in [(0x51E584usize, 0x100u32, 0x120u32), (0x51E564, 0x20, 0x1D0)] {
-            let start = text.as_ptr() as u32;
-            check_draw(
-                &mut t,
-                &format!("length {n}, font {font:#x}, at {x:#x} {y:#x}"),
-                call_original,
-                Regs {
-                    eax: font_at(font) as u32,
-                    ebx: start,
-                    ebp: start + n,
-                    ecx: x,
-                    edx: y,
-                    ..Regs::SENTINEL
-                },
-                &|| {},
-                &rust,
-                &state,
-            );
-        }
-    }
-    restore(&regions, &saved);
-    t.finish()
 }

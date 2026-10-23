@@ -25,31 +25,13 @@
 //! Shadow mode runs the original alone (it shows frames). Manual patch with a private
 //! copy (0x138 bytes, 24 calls relocated): the function begins with a call.
 //! Self-test: a redirected copy whose eleven kinds of call go to the test.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::install::stand_ins::{act, set_handler, stand_in};
-use crate::redirect::RedirectedCopy;
-use crate::service::harness::{Region, at, capture, restore};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use rc2k_core::gfx::picture_size as sizes;
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("gfx::show_picture_file", rva(0x41172B), thunk, &ORIGINAL)
-    .private_copy(LEN)
-    .relocate_calls(&CALLS)
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -59,7 +41,6 @@ const PICTURE_WIDTH_RVA: usize = rva(0x4F49D0); // g_pictureWidth, height, row b
 const SCREEN_WIDTH_RVA: usize = rva(0x4F494C); // g_screenWidth
 const SCREEN_HEIGHT_RVA: usize = rva(0x4F4950); // g_screenHeight
 const SCREEN_MODE_FLAGS_RVA: usize = rva(0x4F4934); // g_screenModeFlags
-use rc2k_core::gfx::picture_size::THREE_PAGES;
 const DECODED_WIDTH_RVA: usize = rva(0x519124); // g_decodedWidth
 const FONT_PALETTES_RVA: usize = rva(0x51DEB0); // g_fontPalettes
 const LOADING_FONT_RVA: usize = rva(0x51EAA4); // stru_51EAA4
@@ -134,8 +115,6 @@ pub unsafe fn show_picture_file(r: &mut Regs, call: CallAt) {
     }
 }
 
-// ---- hook ----
-
 fn in_game(at: usize, r: &mut Regs) {
     unsafe { game_call(at, r) };
 }
@@ -155,210 +134,10 @@ pub unsafe fn game_call(at: usize, r: &mut Regs) {
     }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    let esp = r.esp;
-    unsafe { show_picture_file(r, &mut in_game) };
-    r.esp = esp;
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let esp = r.esp;
     unsafe { show_picture_file(r, &mut in_game) };
     r.esp = esp;
     Ok(())
-}
-
-// ---- self-test ----
-
-const LEN: usize = 0x138;
-const ENTRY_BYTES: [u8; 8] = [0xE8, 0x05, 0xEE, 0xFF, 0xFF, 0xC7, 0x05, 0xC4];
-const CALLS: [usize; 24] = [
-    0x0, 0x2D, 0x85, 0x9F, 0xB4, 0xBB, 0xC0, 0xC5, 0xCA, 0xD1, 0xD6, 0xDB, 0xEC, 0xF3, 0xF8, 0xFD,
-    0x103, 0x108, 0x10D, 0x112, 0x117, 0x11C, 0x12D, 0x132,
-];
-const CALLEES: [usize; 11] = [
-    PUMP_MESSAGES,
-    READ_PICTURE_FILE,
-    PICTURE_AS_SURFACE,
-    DRAW_STRING_BY_ID,
-    LOCK_SURFACE,
-    RESCALE_TO_SURFACE,
-    UNLOCK_SURFACE,
-    SHOW_FRAME,
-    CLEAR_PICTURE,
-    CONVERT_PICTURE,
-    COPY_PICTURE_TO_SURFACE,
-];
-
-/// What a case's stand-ins do, and what was called.
-struct Script {
-    /// The file cannot be read.
-    unread: bool,
-    /// The decoded picture's width the reading leaves.
-    decoded_width: u32,
-    /// Which locking of the surface fails, from 1 (0: none).
-    lock_fails: u32,
-    locks: u32,
-    /// Each call: its place, the picture's size and row length at it, and for the
-    /// reading and the drawing the registers they are given.
-    calls: Vec<[u32; 8]>,
-}
-
-static SCRIPT: Mutex<Script> = Mutex::new(Script {
-    unread: false,
-    decoded_width: 0,
-    lock_fails: 0,
-    locks: 0,
-    calls: Vec::new(),
-});
-
-fn handler(place: u32, r: &mut Regs) {
-    let mut script = SCRIPT.lock().unwrap();
-    let size: [u32; 3] = unsafe { game_read(PICTURE_WIDTH_RVA) };
-    let given = match place {
-        1 => [r.eax, 0, 0, 0],
-        3 => [r.eax, r.ebx, r.ecx, r.edx],
-        _ => [0; 4],
-    };
-    script.calls.push([
-        place, size[0], size[1], size[2], given[0], given[1], given[2], given[3],
-    ]);
-    match place {
-        1 => {
-            unsafe { game_write(DECODED_WIDTH_RVA, script.decoded_width) };
-            r.set_carry(script.unread);
-        }
-        4 => {
-            script.locks += 1;
-            r.set_carry(script.locks == script.lock_fails);
-        }
-        _ => {}
-    }
-}
-
-fn through_the_test(at: usize, r: &mut Regs) {
-    let place = CALLEES.iter().position(|&known| known == at).unwrap() as u32;
-    act(place, r);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x41172B)),
-            LEN,
-            &ENTRY_BYTES,
-            &CALLS,
-            &|callee| {
-                CALLEES
-                    .iter()
-                    .position(|&known| rva(known) == callee)
-                    .map(|place| stand_in(place as u32))
-            },
-        )
-    };
-    let copy = match copy {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    let regions: [Region; 3] = [
-        at(SHOWING_RVA),
-        at(PICTURE_FLAGS_RVA),
-        (game_addr(PICTURE_WIDTH_RVA) as u32, 12),
-    ];
-    let inputs = [
-        at(DECODED_WIDTH_RVA),
-        at(FONT_PALETTES_RVA),
-        at(SCREEN_MODE_FLAGS_RVA),
-    ];
-    let saved = (capture(&regions), capture(&inputs));
-    let screen: u32 = unsafe { game_read(SCREEN_WIDTH_RVA) };
-    let mode: u32 = unsafe { game_read(SCREEN_MODE_FLAGS_RVA) };
-    let path = c"a\\picture.png".as_ptr() as u32;
-    // (what, unread, another width, the fonts are built, three pages, which lock fails)
-    let cases: [(&str, bool, bool, bool, bool, u32); 10] = [
-        (
-            "the screen's width, two pages",
-            false,
-            false,
-            true,
-            false,
-            0,
-        ),
-        (
-            "the screen's width, three pages",
-            false,
-            false,
-            true,
-            true,
-            0,
-        ),
-        ("no fonts yet", false, false, false, false, 0),
-        ("not read", true, false, true, false, 0),
-        ("not read, three pages", true, true, false, true, 0),
-        ("another width, two pages", false, true, true, false, 0),
-        ("another width, three pages", false, true, false, true, 0),
-        ("the first lock fails", false, true, true, true, 1),
-        ("the second lock fails", false, true, true, true, 2),
-        ("the third lock fails", false, true, true, true, 3),
-    ];
-    for (what, unread, other_width, fonts, three_pages, lock_fails) in cases {
-        let before = Regs {
-            eax: path,
-            ..Regs::SENTINEL
-        };
-        let run = |rust: bool| unsafe {
-            restore(&regions, &vec![0xAA; saved.0.len()]);
-            game_write(DECODED_WIDTH_RVA, 0x5555u32);
-            game_write(FONT_PALETTES_RVA, fonts as u32 * 0x1234);
-            game_write(
-                SCREEN_MODE_FLAGS_RVA,
-                (mode & !THREE_PAGES) | if three_pages { THREE_PAGES } else { 0 },
-            );
-            *SCRIPT.lock().unwrap() = Script {
-                unread,
-                decoded_width: if other_width { screen + 7 } else { screen },
-                lock_fails,
-                locks: 0,
-                calls: Vec::new(),
-            };
-            set_handler(handler);
-            let mut ro = before;
-            if rust {
-                show_picture_file(&mut ro, &mut through_the_test);
-            } else {
-                call_game(&mut ro, copy.addr());
-            }
-            let ended = (ro.eax, ro.preserved_except(&before, crate::framework::EAX));
-            (
-                ended,
-                capture(&regions),
-                SCRIPT.lock().unwrap().calls.clone(),
-            )
-        };
-        let (theirs, mine) = (run(false), run(true));
-        t.check(theirs == mine && theirs.0.1, || {
-            format!(
-                "{what}: original ended {:x?} with {} calls, left {:x?}; rust ended {:x?} with {} calls, left {:x?}; first different call {:?}",
-                theirs.0,
-                theirs.2.len(),
-                theirs.1,
-                mine.0,
-                mine.2.len(),
-                mine.1,
-                theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b),
-            )
-        });
-    }
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
 }

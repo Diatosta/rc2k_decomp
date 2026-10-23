@@ -26,7 +26,7 @@ use crate::install::installer::{
     CF, COLOURS, FONTS, SCRIPT_PATH, ZF, a, append_string_by_id, g, logic, rb, rd, region, rw, wb,
 };
 use crate::install::list_test::TestList;
-use crate::race::viewer::{Saved, check_original, dispatch_regs};
+use crate::race::viewer::{Saved, check_original, dispatch_regs, regs_entry};
 use crate::service::harness::Region;
 use rc2k_core::install::edits::{self, EDITING, EditKey};
 use std::sync::atomic::AtomicUsize;
@@ -191,6 +191,12 @@ fn regions_of(item: u32) -> Vec<Region> {
 extern "C" fn dispatch(r: &mut Regs) {
     let regions = regions_of(r.esi);
     dispatch_regs(&HOOK, r, call_original, &regions, CF | ZF, &edit_key);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &edit_key)
 }
 
 fn self_test() -> (usize, usize) {

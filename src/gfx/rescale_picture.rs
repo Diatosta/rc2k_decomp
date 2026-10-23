@@ -20,31 +20,21 @@
 //! and `dword_4F50B0`, and 0 in the two counters `dword_4F50B4` and `dword_4F50B8`.
 //! Refuses sizes of 0 (the original divides by them or counts through all 32 bits), a
 //! decoded height above the row table's room, and null pointers. The name is a reading.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::gfx::fill_row_table::{ROW_TABLE_ROOM, fill_row_table, row_address};
-use crate::gfx::harness::{check_pixels, dispatch_pixels, pixels_entry};
+use crate::gfx::harness::pixels_entry;
 use crate::gfx::pcx::{DECODED_HEIGHT_RVA, DECODED_WIDTH_RVA, PIXELS_RVA, ROW_GAP_RVA};
-use crate::gfx::picture::{HEIGHT_RVA, PICTURE_DWORDS, WIDTH_RVA, picture};
+use crate::gfx::picture::{HEIGHT_RVA, WIDTH_RVA, picture};
 use crate::memory::MemoryList;
 use crate::memory::allocate::allocate;
 use crate::memory::free_list::free_list;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::{AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("gfx::rescale_picture", rva(0x4061D2), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -120,27 +110,9 @@ pub unsafe fn rescale_picture() -> Result<(), Refused> {
     }
 }
 
-// ---- hook ----
-
 fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { rescale_picture() }?;
     Ok(Left::nothing())
-}
-
-/// What the function writes and leaves: the picture, and its eight work variables. (The
-/// row table holds addresses in the copy's memory, which need not be the same twice.)
-fn regions() -> Vec<Region> {
-    let pixels =
-        unsafe { game_read::<u32>(WIDTH_RVA) as usize * game_read::<u32>(HEIGHT_RVA) as usize };
-    let mut regions = vec![(game_addr(STEP_X_RVA) as u32, 0x20)];
-    if !picture().is_null() && pixels <= PICTURE_DWORDS {
-        regions.push((picture() as u32, pixels * 4));
-    }
-    regions
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_pixels(&HOOK, r, call_original, &regions(), &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
@@ -151,69 +123,3 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
 
 // ---- self-test: small pictures of the test's own stretched and shrunk into the game's
 // picture buffer, which is put back with the variables ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if picture().is_null() {
-        return t.skip("the picture buffer is not allocated");
-    }
-    const PICTURE_BYTES: usize = 0x8000;
-    let inputs = [
-        at(DECODED_WIDTH_RVA),
-        at(DECODED_HEIGHT_RVA),
-        at(PIXELS_RVA),
-        at(ROW_GAP_RVA),
-        at(WIDTH_RVA),
-        at(HEIGHT_RVA),
-        (game_addr(STEP_X_RVA) as u32, 0x20),
-        (
-            game_addr(crate::gfx::fill_row_table::ROW_TABLE_RVA) as u32,
-            ROW_TABLE_ROOM as usize * 4,
-        ),
-        (picture() as u32, PICTURE_BYTES),
-    ];
-    let saved = capture(&inputs);
-    let original = ORIGINAL.load(Ordering::SeqCst);
-    // (decoded width, height, gap in bytes, picture width, height)
-    for (from_width, from_height, gap, width, height) in [
-        (8u32, 6u32, 0u32, 8u32, 6u32),
-        (8, 6, 0, 16, 12),
-        (8, 6, 8, 20, 9),
-        (40, 30, 4, 10, 7),
-        (7, 5, 0, 33, 31),
-        (1, 1, 0, 9, 9),
-        (64, 3, 12, 5, 40),
-        (3, 50, 0, 90, 2),
-    ] {
-        let row_dwords = (from_width + gap / 4) as usize;
-        let source: Vec<u32> = (0..row_dwords as u32 * from_height + 4)
-            .map(|n| n.wrapping_mul(0x9E37_79B1) ^ n << 7)
-            .collect();
-        let prepare = || unsafe {
-            game_write(DECODED_WIDTH_RVA, from_width);
-            game_write(DECODED_HEIGHT_RVA, from_height);
-            game_write(PIXELS_RVA, source.as_ptr() as u32);
-            game_write(ROW_GAP_RVA, gap);
-            game_write(WIDTH_RVA, width);
-            game_write(HEIGHT_RVA, height);
-            std::ptr::write_bytes(game_addr(STEP_X_RVA) as *mut u8, 0xAA, 0x20);
-            std::ptr::write_bytes(picture(), 0x5A, PICTURE_BYTES);
-        };
-        check_pixels(
-            &mut t,
-            &format!("{from_width}x{from_height} gap {gap} to {width}x{height}"),
-            original,
-            Regs::SENTINEL,
-            &prepare,
-            &[
-                (game_addr(STEP_X_RVA) as u32, 0x20),
-                (picture() as u32, PICTURE_BYTES),
-            ],
-            &rust,
-        );
-    }
-    restore(&inputs, &saved);
-    t.finish()
-}

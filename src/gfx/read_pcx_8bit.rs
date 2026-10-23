@@ -16,6 +16,10 @@
 //! One caller, `gfx::read_pcx`. Shadow mode decodes the file twice and compares.
 //! Refuses a decoded height of 0 (the original counts rows through all 32 bits) and what
 //! `open_stream` refuses. The name is a reading.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
 use crate::files::close_stream::close_stream;
@@ -23,28 +27,14 @@ use crate::files::handle::{read, seek};
 use crate::files::open_stream::open_stream;
 use crate::files::read_stream_block::read_stream_block;
 use crate::files::read_stream_byte::read_stream_byte;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write};
 use crate::gfx::lay_out_pcx::lay_out_pcx;
 use crate::gfx::pcx::{
-    FILE_PALETTE_LEN, FILE_PALETTE_RVA, HEADER_LEN, HEADER_RVA, MISSING_PATH, PALETTE_RVA,
-    PIXELS_RVA, TEST_PATH, remove_test_file, stream, test_header, test_palette, test_plane_bytes,
-    test_runs, write_test_file,
+    FILE_PALETTE_LEN, FILE_PALETTE_RVA, HEADER_LEN, HEADER_RVA, PALETTE_RVA, PIXELS_RVA, stream,
+    test_header, test_palette, test_plane_bytes, test_runs,
 };
-use crate::gfx::pcx_reader::{ReaderTest, dispatch_reader};
+use crate::gfx::pcx_reader::reader_entry;
 use crate::gfx::picture::FLAGS_RVA;
-use std::sync::atomic::{AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("gfx::read_pcx_8bit", rva(0x411C6B), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- Rust version ----
 
@@ -94,13 +84,11 @@ pub unsafe fn read_pcx_8bit(path: *const u8) -> Result<bool, BadInput> {
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_reader(&HOOK, r, call_original, read_pcx_8bit);
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    reader_entry(r, read_pcx_8bit)
 }
-
-// ---- self-test: PCX files of the test's own ----
 
 /// A whole file: header, coded rows, palette.
 pub fn test_file(width: u16, height: u16, line_bytes: u16, seed: u32) -> Vec<u8> {
@@ -109,67 +97,4 @@ pub fn test_file(width: u16, height: u16, line_bytes: u16, seed: u32) -> Vec<u8>
     file.extend(test_runs(&rows));
     file.extend(test_palette());
     file
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let Some(test) = ReaderTest::begin() else {
-        return t.skip("the picture buffer is not allocated");
-    };
-    let original = ORIGINAL.load(Ordering::SeqCst);
-    let mut files: Vec<(String, Vec<u8>)> = Vec::new();
-    for (width, height, line_bytes) in [
-        (10u16, 4u16, 10u16),
-        (9, 5, 10),
-        (33, 17, 34),
-        (1, 1, 2),
-        (64, 8, 64),
-        (12, 3, 8),
-    ] {
-        for seed in [1u32, 0xBEEF] {
-            files.push((
-                format!("{width}x{height} line {line_bytes} seed {seed:#x}"),
-                test_file(width, height, line_bytes, seed),
-            ));
-        }
-    }
-    // A file whose rows end early, one that is only a header and a palette, one shorter
-    // than a palette, and one with a run of none in it.
-    let mut short = test_file(20, 6, 20, 7);
-    short.drain(HEADER_LEN + 10..short.len() - FILE_PALETTE_LEN);
-    files.push(("rows that end early".into(), short));
-    let mut none = test_header(0, 0, 8, 2, 1, 8);
-    none.extend(test_palette());
-    files.push(("no rows at all".into(), none));
-    files.push((
-        "a file of 0x90 bytes".into(),
-        test_header(0, 0, 4, 4, 1, 4)
-            .into_iter()
-            .chain([7u8; 0x10])
-            .collect(),
-    ));
-    let mut endless = test_header(0, 0, 6, 3, 1, 6);
-    endless.extend([5, 0xC3, 9, 0xC0, 0x41, 1, 2, 3]);
-    endless.extend(test_palette());
-    files.push(("a run of none".into(), endless));
-
-    for (what, content) in files {
-        if !write_test_file(&content) {
-            test.end();
-            return t.skip("cannot create a test file in the game's var folder");
-        }
-        test.check(&mut t, &what, original, TEST_PATH, read_pcx_8bit);
-    }
-    remove_test_file();
-    test.check(
-        &mut t,
-        "a missing file",
-        original,
-        MISSING_PATH,
-        read_pcx_8bit,
-    );
-    test.end();
-    t.finish()
 }

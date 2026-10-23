@@ -19,7 +19,7 @@ use crate::install::installer::{
     Api, INSTALLED, Part, REG_CLOSE_KEY, REG_CREATE_KEY, REG_KEY, TEXT, a, append_byte, both, fill,
     quiet, rb, rd, region, wb,
 };
-use crate::race::viewer::{Saved, dispatch_parts};
+use crate::race::viewer::{Saved, dispatch_parts, regs_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -82,6 +82,18 @@ extern "C" fn dispatch(r: &mut Regs) {
             &mut crate::install::installer::game_api,
         )
     });
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &|r| {
+        register_lobby(
+            r,
+            &mut crate::install::installer::game_part,
+            &mut crate::install::installer::game_api,
+        )
+    })
 }
 
 const APIS: [(u32, u32, u32); 2] = [(REG_CREATE_KEY, 0, 3), (REG_CLOSE_KEY, 2, 1)];

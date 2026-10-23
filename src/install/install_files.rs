@@ -294,6 +294,14 @@ extern "C" fn dispatch(r: &mut Regs) {
     });
 }
 
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::race::viewer::regs_entry(r, &|r| {
+        install_files(r, &mut crate::install::installer::game_part)
+    })
+}
+
 static KEY_N: std::sync::Mutex<u32> = std::sync::Mutex::new(0);
 
 fn self_test() -> (usize, usize) {

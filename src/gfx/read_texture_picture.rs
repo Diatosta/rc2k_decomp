@@ -15,30 +15,18 @@
 //! Refuses no picture buffer, and what `read_picture_file` refuses.
 //! Shadow mode runs the original alone: the reading is compared in its own hook.
 //! Self-test: `gfx::load_picture`'s files, and no path.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    EBX, ECX, EDX, RawHook, Regs, SelfTest, call_game, game_read, hook_asm, rva, shadow,
-};
-use crate::gfx::load_picture::{LoaderTest, TEST_PATHS};
+use crate::framework::{EBX, ECX, EDX, Regs, game_read};
 use crate::gfx::pcx::{DECODED_HEIGHT_RVA, DECODED_WIDTH_RVA, PIXELS_RVA};
 use crate::gfx::picture::{HEIGHT_RVA, WIDTH_RVA, picture};
 use crate::gfx::read_picture_file::read_picture_file;
 use crate::screens::harness::Left;
 use rc2k_core::gfx::picture_size as sizes;
-use std::sync::atomic::{AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("gfx::read_texture_picture", rva(0x405356), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- Rust version ----
 
@@ -74,24 +62,6 @@ pub unsafe fn read_texture_picture(path: *mut u8) -> Result<(u32, u32, u32, bool
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { read_texture_picture(r.eax as *mut u8) } {
-        Ok((pixels, width, height, failed)) => Left::carry(failed)
-            .with(EBX, pixels)
-            .with(ECX, width)
-            .with(EDX, height)
-            .apply(r),
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     match unsafe { read_texture_picture(r.eax as *mut u8) } {
@@ -103,80 +73,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
         Err(e) => return Err(e),
     }
     Ok(())
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let test = match LoaderTest::begin() {
-        Ok(test) => test,
-        Err(why) => return t.skip(why),
-    };
-    let original = ORIGINAL.load(Ordering::SeqCst);
-    let paths: Vec<Option<&[u8]>> = TEST_PATHS
-        .iter()
-        .map(|&path| Some(path))
-        .chain([None])
-        .collect();
-    for path in paths {
-        let run = |rust: bool| {
-            test.prepare();
-            let mut buffer = path.map(|p| [p, &[0]].concat());
-            let at = buffer
-                .as_mut()
-                .map_or(std::ptr::null_mut(), |b| b.as_mut_ptr());
-            let before = Regs {
-                eax: at as u32,
-                ..Regs::SENTINEL
-            };
-            let left = if rust {
-                unsafe { read_texture_picture(at) }
-                    .ok()
-                    .map(|(b, c, d, f)| {
-                        let mut r = before;
-                        Left::carry(f)
-                            .with(EBX, b)
-                            .with(ECX, c)
-                            .with(EDX, d)
-                            .apply(&mut r);
-                        (r, f)
-                    })
-            } else {
-                let mut ro = before;
-                unsafe { call_game(&mut ro, original) };
-                Some((ro, ro.carry()))
-            };
-            let regs = left.map(|(r, carry)| {
-                (
-                    [
-                        // eax: the path, in a buffer of each side's own
-                        (r.eax == before.eax) as u32,
-                        r.ebx,
-                        r.ecx,
-                        r.edx,
-                        r.esi,
-                        r.edi,
-                        r.ebp,
-                    ],
-                    carry,
-                )
-            });
-            (regs, buffer, test.observed())
-        };
-        let (theirs, mine) = (run(false), run(true));
-        t.check(theirs == mine && theirs.0.is_some(), || {
-            let first = theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b);
-            format!(
-                "path={:?}: original {:x?}, rust {:x?}; first different byte of what they left {first:?}",
-                path.map(String::from_utf8_lossy),
-                theirs.0,
-                mine.0
-            )
-        });
-    }
-    test.end();
-    t.finish()
 }

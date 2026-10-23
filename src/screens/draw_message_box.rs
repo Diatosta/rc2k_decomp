@@ -13,27 +13,16 @@
 //! mode runs the original alone (it draws on the surface). Self-test: a copy (its calls to
 //! the game's, hooked) against the Rust version, both drawing on a test surface; skipped
 //! without the fonts.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::screens::font_at;
 use crate::text::draw_text::{Canvas, GameCanvas};
 use rc2k_core::screens::message_box::{FILL, FRAME, STRING, layout};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("screens::draw_message_box", rva(0x415EA6), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const BOX: usize = 0x52983C; // dword_52983C .. dword_529848
 
@@ -75,20 +64,6 @@ pub unsafe fn draw_message_box(x: i32, canvas: &mut dyn Canvas) -> Result<(), Re
     }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if crate::screens::blanked("screens::draw_message_box") {
-        return;
-    }
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    if let Err(e) = unsafe { draw_message_box(r.ecx as i32, &mut GameCanvas) } {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     if crate::screens::blanked("screens::draw_message_box") {
@@ -96,70 +71,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     }
     unsafe { draw_message_box(r.ecx as i32, &mut GameCanvas) }?;
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::gfx::rect::RectStage;
-    use crate::service::harness::capture;
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = crate::screens::draw_menu_item_text::text_unavailable() {
-        return t.skip(why);
-    }
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x415EA6,
-            len: 0x95,
-            entry: &[0x60, 0xB8, 0xFE, 0x01, 0x00, 0x00, 0x8D, 0x1D],
-            calls: &[0x0C, 0x50, 0x6A, 0x8E],
-            jumps_out: &[],
-        },
-        &|_| None,
-        &[],
-        0,
-    ) {
-        Ok(c) => c,
-        Err(e) => return t.skip(&format!("copy: {e}")),
-    };
-    let stage = RectStage::new();
-    let mut regions = stage.regions();
-    let g = |a: usize, len: usize| (game_addr(rva(a)) as u32, len);
-    regions.extend([
-        g(BOX, 0x10),
-        g(0x4F49A0, 8),
-        (crate::strings::text_from_ids::text() as u32, 0x100),
-    ]);
-    let fonts = [g(0x51E824, 0x20), g(0x51E904, 0x20)];
-    let kept_fonts = capture(&fonts);
-    let saved = capture(&regions);
-    for (bits, size) in [(16u32, (64u32, 32u32)), (32, (40, 30))] {
-        let prepare = || unsafe {
-            crate::service::harness::restore(&fonts, &kept_fonts);
-            stage.prepare(bits, [0, 63, 0, 31]);
-            game_write(rva(0x4F49A0), [size.0, size.1]);
-        };
-        prepare();
-        let mut ro = Regs {
-            ecx: 0,
-            ..Regs::SENTINEL
-        };
-        unsafe { call_game(&mut ro, copy.addr()) };
-        let theirs = capture(&regions);
-        prepare();
-        let done = unsafe { draw_message_box(0, &mut GameCanvas) };
-        let mine = capture(&regions);
-        t.check(done.is_ok() && theirs == mine, || {
-            let at = theirs.iter().zip(&mine).position(|(a, b)| a != b);
-            format!(
-                "bits {bits} size {size:?}: {} first difference at {at:x?}",
-                if done.is_ok() { "done" } else { "refused" }
-            )
-        });
-    }
-    crate::service::harness::restore(&regions, &saved);
-    crate::service::harness::restore(&fonts, &kept_fonts);
-    stage.end();
-    t.finish()
 }

@@ -30,6 +30,10 @@
 //! 2^32). Compared in shadow mode. Self-test: the original against the Rust version on
 //! pictures of the test's, all four formats; the 3DNow originals only where the processor has
 //! 3DNow (a modern AMD or Intel one does not: then those tests skip).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{EBX, ECX, EDI, EDX, ESI, Regs, SelfTest, game_read, rva};
@@ -163,116 +167,76 @@ pub fn test_converter(
     t.finish()
 }
 
-/// A hook for one converter.
-macro_rules! converter {
-    ($module:ident, $name:literal, $address:expr, $format:expr, $constants:expr, $three_dnow:expr) => {
-        pub mod $module {
-            use super::*;
-            use crate::framework::{RawHook, hook_asm};
-            use std::sync::atomic::AtomicUsize;
-
-            const CONVERTER: Converter = Converter {
-                format: $format,
-                constants: $constants,
-                three_dnow: $three_dnow,
-            };
-
-            static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-            pub static HOOK: RawHook =
-                RawHook::new($name, rva($address), thunk, &ORIGINAL).self_test(self_test);
-
-            hook_asm!(
-                thunk,
-                call_original,
-                dispatch = dispatch,
-                original = ORIGINAL
-            );
-
-            extern "C" fn dispatch(r: &mut Regs) {
-                dispatch_converter(&HOOK, r, call_original, CONVERTER);
-            }
-
-            fn self_test() -> (usize, usize) {
-                test_converter(&HOOK, call_original, CONVERTER)
-            }
-        }
-    };
-}
-
-converter!(
-    rows_565_mmx,
-    "gfx::rows_565_mmx",
-    0x4070F9,
-    1,
-    0x4F51F8,
-    false
-);
-converter!(
-    rows_555_mmx,
-    "gfx::rows_555_mmx",
-    0x407171,
-    2,
-    0x4F5218,
-    false
-);
-converter!(
-    rows_1555_mmx,
-    "gfx::rows_1555_mmx",
-    0x4071ED,
-    3,
-    0x4F5238,
-    false
-);
-converter!(
-    rows_4444_mmx,
-    "gfx::rows_4444_mmx",
-    0x407276,
-    4,
-    0x4F5260,
-    false
-);
-converter!(
-    rows_565_3dnow,
-    "gfx::rows_565_3dnow",
-    0x4072FB,
-    1,
-    0x4F51F8,
-    true
-);
-converter!(
-    rows_555_3dnow,
-    "gfx::rows_555_3dnow",
-    0x407377,
-    2,
-    0x4F5218,
-    true
-);
-converter!(
-    rows_1555_3dnow,
-    "gfx::rows_1555_3dnow",
-    0x4073F7,
-    3,
-    0x4F5238,
-    true
-);
-converter!(
-    rows_4444_3dnow,
-    "gfx::rows_4444_3dnow",
-    0x407484,
-    4,
-    0x4F5260,
-    true
-);
-
-/// The eight, for `gfx/mod.rs`.
-pub static HOOKS: [&dyn crate::framework::GameHook; 8] = [
-    &rows_565_mmx::HOOK,
-    &rows_555_mmx::HOOK,
-    &rows_1555_mmx::HOOK,
-    &rows_4444_mmx::HOOK,
-    &rows_565_3dnow::HOOK,
-    &rows_555_3dnow::HOOK,
-    &rows_1555_3dnow::HOOK,
-    &rows_4444_3dnow::HOOK,
+/// The eight converters by their IDA address (hooks removed 2026-10-23: `gfx::convert_picture`
+/// finds the one the game's table names here).
+pub const CONVERTERS: [(u32, Converter); 8] = [
+    (
+        0x4070F9,
+        Converter {
+            format: 1,
+            constants: 0x4F51F8,
+            three_dnow: false,
+        },
+    ), // gfx::rows_565_mmx
+    (
+        0x407171,
+        Converter {
+            format: 2,
+            constants: 0x4F5218,
+            three_dnow: false,
+        },
+    ), // gfx::rows_555_mmx
+    (
+        0x4071ED,
+        Converter {
+            format: 3,
+            constants: 0x4F5238,
+            three_dnow: false,
+        },
+    ), // gfx::rows_1555_mmx
+    (
+        0x407276,
+        Converter {
+            format: 4,
+            constants: 0x4F5260,
+            three_dnow: false,
+        },
+    ), // gfx::rows_4444_mmx
+    (
+        0x4072FB,
+        Converter {
+            format: 1,
+            constants: 0x4F51F8,
+            three_dnow: true,
+        },
+    ), // gfx::rows_565_3dnow
+    (
+        0x407377,
+        Converter {
+            format: 2,
+            constants: 0x4F5218,
+            three_dnow: true,
+        },
+    ), // gfx::rows_555_3dnow
+    (
+        0x4073F7,
+        Converter {
+            format: 3,
+            constants: 0x4F5238,
+            three_dnow: true,
+        },
+    ), // gfx::rows_1555_3dnow
+    (
+        0x407484,
+        Converter {
+            format: 4,
+            constants: 0x4F5260,
+            three_dnow: true,
+        },
+    ), // gfx::rows_4444_3dnow
 ];
+
+/// The converter at `at` (an IDA address), if it is one of the eight.
+pub fn converter_at(at: u32) -> Option<Converter> {
+    CONVERTERS.iter().find(|(a, _)| *a == at).map(|(_, c)| *c)
+}

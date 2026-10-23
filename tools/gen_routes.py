@@ -27,10 +27,13 @@ def found():
     out = {}
     for path in sorted(glob.glob(os.path.join(ROOT, 'src', '**', '*.rs'), recursive=True)):
         s = open(path).read()
-        if not re.search(r'^pub fn entry\(', s, re.M):
+        if not re.search(r'^pub fn entry\((?:r|_): &mut (?:crate::framework::)?Regs\)', s, re.M):
             continue
         hooks = re.findall(r'^pub static HOOK: RawHook =\s*RawHook::new\(\s*"([^"]+)",\s*'
                            r'rva\((0x[0-9A-Fa-f]+)\)', s, re.M)
+        if not hooks:
+            # a hook removed (phase 4): its header still names the function and its address
+            hooks = re.findall(r'\A//! `((?:[a-z0-9_]+::)+[a-z0-9_]+)` \((0x[0-9A-Fa-f]+)[,;)]', s)
         if len(hooks) != 1:
             continue
         name, at = hooks[0]

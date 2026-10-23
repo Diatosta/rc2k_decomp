@@ -13,7 +13,7 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::install::installer::{CF, ZF, rb, rd, wb};
-use crate::race::viewer::dispatch_regs;
+use crate::race::viewer::{dispatch_regs, regs_entry};
 use rc2k_core::install::items::{self, MARKS};
 use std::sync::atomic::AtomicUsize;
 
@@ -61,6 +61,12 @@ pub fn choice_back(entry: &Regs) -> Result<Regs, Refused> {
 extern "C" fn dispatch(r: &mut Regs) {
     let target = (rd(r.esi + 8), 1usize);
     dispatch_regs(&HOOK, r, call_original, &[target], CF | ZF, &choice_back);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &choice_back)
 }
 
 fn self_test() -> (usize, usize) {

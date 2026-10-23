@@ -161,6 +161,13 @@ pub fn dispatch_marker(hook: &RawHook, r: &mut Regs, call_original: CallOriginal
     );
 }
 
+/// `dispatch_marker` without its hook (a refusal is the caller's).
+pub fn marker_entry(name: &str, r: &mut Regs, marker: Marker) -> Result<(), Refused> {
+    crate::screens::harness::draw_entry(name, r, &|r, canvas| unsafe {
+        draw_marker(marker, r, canvas)
+    })
+}
+
 // ---- self-test ----
 
 /// Size of the stand-in for the player: the fields read are at +0x110 and +0x11C.

@@ -11,26 +11,15 @@
 //! `add_sprite`'s Rust version. Shadow mode runs the original alone (it draws).
 //! Self-test: a copy whose call goes to a stand-in, against the Rust version, signs by
 //! lot.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
 use crate::hud::draw_marker::RECTS_RVA;
 use crate::service::harness::{at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("hud::draw_signs", rva(0x4B4F2B), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const WIDTHS_RVA: usize = rva(0x75BF80); // dword_75BF80: 8
 pub const FLAT_RVA: usize = rva(0x6D1502); // dword_6D1502
@@ -158,34 +147,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     crate::hud::draw_marker::game_part(place, r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_signs(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { draw_signs(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    // mov ebx, [ebp+0B4h]
-    let entry: &[u8] = &[0x8B, 0x9D, 0xB4, 0x00, 0x00, 0x00];
-    test_signs(
-        &HOOK,
-        0x4B4F2B,
-        0x154,
-        entry,
-        &[0x51, 0xA5, 0xF9, 0x14D],
-        &|r, p| unsafe { draw_signs(r, p) },
-    )
 }

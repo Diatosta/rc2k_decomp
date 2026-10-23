@@ -18,7 +18,7 @@ use crate::gfx::write_screen_pcx::PICTURE_NAME;
 use crate::physics::flow::a;
 use crate::race::find_snapshot_number::{SNAPSHOT_DIGITS, SNAPSHOT_PATH};
 use crate::race::viewer::{
-    Part, Saved, answer, dispatch_parts, dword, get, put, region, run_both, test_part,
+    Part, Saved, answer, dispatch_parts, dword, get, put, region, regs_entry, run_both, test_part,
 };
 use std::sync::atomic::AtomicUsize;
 
@@ -69,6 +69,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_parts(&HOOK, r, call_original, &|r| {
         viewer_snapshot(r, &mut game_part)
     });
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &|r| viewer_snapshot(r, &mut game_part))
 }
 
 fn self_test() -> (usize, usize) {

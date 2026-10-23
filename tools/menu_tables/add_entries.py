@@ -43,6 +43,11 @@ TWINS = {
     'dispatch_turn': ('turn_entry', [0], False),
     'dispatch_effects': ('effects_entry', [0], False),
     'dispatch_effect': ('effect_entry', [0], False),
+    'dispatch_parts': ('regs_entry', [0], False),
+    'dispatch_regs': ('regs_entry', [2], False),
+    'dispatch_spread': ('spread_entry', [0], False),
+    'dispatch_reader': ('reader_entry', [0], False),
+    'dispatch_marker': ('marker_entry', [0], True),
     'dispatch_turn_floats': ('turn_entry', [0], False),
 }
 # dispatchers of the same name in two modules: by the module the file takes it from

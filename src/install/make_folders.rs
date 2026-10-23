@@ -137,6 +137,14 @@ extern "C" fn dispatch(r: &mut Regs) {
     });
 }
 
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::race::viewer::regs_entry(r, &|r| {
+        make_folders(r, &mut crate::install::installer::game_part)
+    })
+}
+
 // ---- self-test ----
 
 static STEP: Mutex<(usize, Vec<bool>)> = Mutex::new((0, Vec::new()));

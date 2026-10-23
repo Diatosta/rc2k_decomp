@@ -14,25 +14,15 @@
 //! Three callers: `gfx::set_component_format`, the screen mode's set-up at 0x404EF2 and
 //! the textures' at 0x41A1E7.
 //! Refuses a null format.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, hook_asm, rva};
-use crate::gfx::pixel_format::TEST_FORMATS;
+use crate::framework::{Regs, game_read, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, check_state, dispatch_state, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("gfx::describe_format", rva(0x405BB6), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 // ---- game data ----
 
@@ -60,73 +50,13 @@ pub unsafe fn describe_format(format: *mut u32) -> Result<(), BadInput> {
     Ok(())
 }
 
-// ---- hook ----
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { describe_format(r.ebx as *mut u32) }?;
     Ok(Left::nothing())
-}
-
-fn region(r: &Regs) -> [Region; 1] {
-    [(r.ebx, if r.ebx == 0 { 0 } else { FORMAT_LEN })]
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions = region(r);
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-// ---- self-test: formats of the test's ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut cases: Vec<[u32; 4]> = TEST_FORMATS.iter().map(|format| format.masks).collect();
-    cases.extend([
-        [0xFF, 0xFF00, 0xFF_0000, 0xFF00_0000],
-        [0xFF_0000, 0xFF00, 0xFF, 0],
-        [0xFF_0000, 0xFF00, 0xFF, 0xFF00_0000],
-        [0x7C00, 0x03E0, 0x001F, 0x8000],
-        [0xF800, 0x07E0, 0x001F, 0],
-        [0x0F00, 0x00F0, 0x000F, 0xF000],
-        [0, 0, 0, 0],
-        [1, 0, 0, 0],
-        [0x8000_0000, 0, 0, 1],
-        [0x0101, 0xFF00, 0xFF_0000, 0],
-        [0xFF, 0xFF00, 0xFF_0000, 0x8100_0000],
-        [0xFF, 0xFF00, 0, 0xFF00_0000],
-        [0xFFFF_FFFF, 0xFFFF_FFFF, 0xFFFF_FFFF, 0xFFFF_FFFF],
-        [0x5555_5555, 0, 0, 0],
-    ]);
-    let mut format = [0u32; 6];
-    for masks in cases {
-        let at = format.as_mut_ptr();
-        let before = Regs {
-            ebx: at as u32,
-            ..Regs::SENTINEL
-        };
-        check_state(
-            &mut t,
-            &format!("masks {masks:x?}"),
-            call_original,
-            before,
-            &|| unsafe {
-                at.write(0xAAAA_AAAA);
-                for (n, mask) in masks.into_iter().enumerate() {
-                    at.add(1 + n).write(mask);
-                }
-                at.add(5).write(0xAAAA_AAAA);
-            },
-            &region(&before),
-            &rust,
-        );
-    }
-    t.finish()
 }

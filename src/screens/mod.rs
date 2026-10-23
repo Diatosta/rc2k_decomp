@@ -1,6 +1,6 @@
 //! Functions that lay out parts of a screen: fixed positions, fonts and string ids.
 
-use crate::framework::{GameHook, game_ptr, rva};
+use crate::framework::{game_ptr, rva};
 use crate::text::font::Font;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -146,60 +146,6 @@ pub mod stage_options_texts;
 pub mod stage_panel;
 pub mod stage_results;
 pub mod yes_no_caption;
-
-pub static HOOKS: &[&dyn GameHook] = &[
-    &draw_time_trial_records::HOOK,
-    &draw_fade_overlay::HOOK,
-    &draw_stage_heading::HOOK,
-    &draw_stage_records::HOOK,
-    &draw_service_time::HOOK,
-    &draw_repair_times::HOOK,
-    &draw_inspection_status::HOOK,
-    &draw_steering_sensitivity_marker::HOOK,
-    &draw_brake_balance_marker::HOOK,
-    &draw_ride_height_marker::HOOK,
-    &draw_suspension_stiffness_marker::HOOK,
-    &draw_ride_height_installed_marker::HOOK,
-    &draw_suspension_stiffness_installed_marker::HOOK,
-    &draw_setup_slot_names::HOOK,
-    &draw_empty_savegame::HOOK,
-    &draw_savegame_details::HOOK,
-    &draw_menu_labels::HOOK,
-    &draw_button::HOOK,
-    &draw_button_highlighted::HOOK,
-    &draw_button_alt::HOOK,
-    &draw_item_button::HOOK,
-    &draw_item_button_right::HOOK,
-    &draw_item_button_centred::HOOK,
-    &draw_item_button_right_highlighted::HOOK,
-    &draw_item_button_centred_highlighted::HOOK,
-    &draw_menu_item_text::HOOK,
-    &draw_menu_items::HOOK,
-    &service_area_frame::HOOK,
-    &service_box_frame_1::HOOK,
-    &service_box_frame_2::HOOK,
-    &service_box_frame_3::HOOK,
-    &service_box_frame_4::HOOK,
-    &draw_name_cursor::HOOK,
-    &draw_stage_best_and_fastest::HOOK,
-    &find_history_entry::HOOK,
-    &draw_spaced_number::HOOK,
-    &draw_column_rules::HOOK,
-    &draw_column_boxes::HOOK,
-    &draw_message_box::HOOK,
-    &read_controller::HOOK,
-    &classify_controller::HOOK,
-    &draw_no_controller::HOOK,
-    &draw_best_scores::HOOK,
-    &draw_class_times::HOOK,
-    &draw_stage_times_heading::HOOK,
-    &draw_rally_times_heading::HOOK,
-    &draw_record_heading::HOOK,
-    &car_page_description::HOOK,
-    &car_page_engine::HOOK,
-    &car_page_transmission::HOOK,
-    &car_page_dimensions::HOOK,
-];
 
 /// Console switch `blank on [prefix]` / `blank off`, kept for every hook in this module: a
 /// blanked hook returns at once, running neither the original nor the Rust version, so

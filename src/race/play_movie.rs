@@ -14,7 +14,7 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::a;
 use crate::race::viewer::{
-    Part, Saved, answer, dispatch_parts, dword, get, put, run_both, test_part,
+    Part, Saved, answer, dispatch_parts, dword, get, put, regs_entry, run_both, test_part,
 };
 use std::sync::atomic::AtomicUsize;
 
@@ -73,6 +73,12 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_parts(&HOOK, r, call_original, &|r| play_movie(r, &mut game_part));
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &|r| play_movie(r, &mut game_part))
 }
 
 fn self_test() -> (usize, usize) {

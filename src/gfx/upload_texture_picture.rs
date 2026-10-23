@@ -30,44 +30,22 @@
 //! Shadow mode runs the original alone.
 //! Self-test: the original and the Rust version on records of the test's whose
 //! surfaces are objects of the test's, 12 cases.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::gfx::components_to_pixel::components_to_pixel;
-use crate::gfx::pixel_format::{SCRATCH_RVA, TEST_FORMATS};
-use crate::gfx::texture_pixels::{
-    GRADES_RVA, KEPT, READING_RVA, SATURATION_RVA, SCALE_RVA, halvable, halve_texture, test_pixels,
-};
-use crate::gfx::texture_upload::{
-    RECORD_LEN, Record, SYSTEM_RECORDS_RVA, TEXTURES, fatal, halvings_apart, ready_picture,
-};
-use crate::service::harness::{Region, at, capture, restore};
-use rc2k_core::gfx::uploads::{self, MOST_LEVELS as LEVELS};
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "gfx::upload_texture_picture",
-    rva(0x41A68B),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::gfx::texture_pixels::{halvable, halve_texture};
+use crate::gfx::texture_upload::{Record, fatal, halvings_apart, ready_picture};
+use rc2k_core::gfx::uploads::{self};
 
 // ---- game data ----
 
 /// `dword_5ABA18`: the surface description `Lock` fills (0x6C bytes).
 const DESCRIPTION_RVA: usize = rva(0x5ABA18);
-const DESCRIPTION_LEN: usize = 0x6C;
 const PITCH_RVA: usize = rva(0x5ABA28); // dword_5ABA28: its pitch
 const PIXELS_RVA: usize = rva(0x5ABA3C); // dword_5ABA3C: its pixels
 const REPORTS_RVA: usize = rva(0x4F52AC); // dword_4F52AC: Direct3D's errors are fatal
@@ -195,20 +173,6 @@ pub unsafe fn upload_texture_picture(
     Ok(())
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if crate::framework::shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { upload_texture_picture(r.eax, r.ebx, r.ecx, r.edx, &mut GameSurfaces) } {
-        Ok(()) => r.set_carry(false),
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     match unsafe { upload_texture_picture(r.eax, r.ebx, r.ecx, r.edx, &mut GameSurfaces) } {
@@ -216,168 +180,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
         Err(e) => return Err(e),
     }
     Ok(())
-}
-
-// ---- self-test ----
-
-const TEST_TEXTURE: u32 = TEXTURES - 1;
-
-/// The test's surfaces: each a pointer to `VTABLE` and its level's number. Each lock is
-/// noted, with the level, and points the description at the level's pixels.
-struct TestSurfaces {
-    levels: Vec<Vec<u8>>,
-    pitch: u32,
-}
-
-static TEST: Mutex<Option<TestSurfaces>> = Mutex::new(None);
-static CALLED: Mutex<Vec<(u32, u32)>> = Mutex::new(Vec::new());
-
-unsafe extern "system" fn test_lock(
-    this: u32,
-    _: u32,
-    description: u32,
-    flags: u32,
-    _: u32,
-) -> i32 {
-    let level = unsafe { ((this + 4) as *const u32).read_unaligned() };
-    CALLED.lock().unwrap().push((0, level | flags << 8));
-    let mut test = TEST.lock().unwrap();
-    let test = test.as_mut().unwrap();
-    unsafe {
-        ((description + 0x24) as *mut u32)
-            .write_unaligned(test.levels[level as usize].as_mut_ptr() as u32);
-        ((description + 0x10) as *mut u32).write_unaligned(test.pitch);
-    }
-    0
-}
-
-unsafe extern "system" fn test_unlock(this: u32, _: u32) -> i32 {
-    let level = unsafe { ((this + 4) as *const u32).read_unaligned() };
-    CALLED.lock().unwrap().push((1, level));
-    0
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let original = ORIGINAL.load(Ordering::SeqCst);
-    let record = game_addr(SYSTEM_RECORDS_RVA) as u32 + TEST_TEXTURE * RECORD_LEN as u32;
-    let inputs: [Region; 8] = [
-        (record, RECORD_LEN),
-        (game_addr(DESCRIPTION_RVA) as u32, DESCRIPTION_LEN),
-        at(READING_RVA),
-        at(SCALE_RVA),
-        at(SATURATION_RVA),
-        (game_addr(GRADES_RVA) as u32, 0x100),
-        at(SCRATCH_RVA),
-        at(REPORTS_RVA),
-    ];
-    let saved = capture(&inputs);
-    let mut vtable = [0u32; 0x21];
-    vtable[0x64 / 4] = test_lock as *const () as u32;
-    vtable[0x80 / 4] = test_unlock as *const () as u32;
-    let objects: Vec<[u32; 2]> = (0..LEVELS).map(|n| [vtable.as_ptr() as u32, n]).collect();
-    // (picture, texture, levels, bytes a pixel, +0x5C, graded)
-    let cases = [
-        (32u32, 32u32, 1u32, 4u32, 0u32, false),
-        (32, 32, 3, 2, 0, false),
-        (64, 32, 1, 4, 0, false),
-        (128, 32, 2, 2, 1, false),
-        (64, 64, 4, 4, 1, false),
-        (32, 64, 1, 4, 0, false),
-        (32, 32, 0, 2, 0, true),
-        (64, 64, 5, 4, 0, true),
-        (128, 128, 2, 2, 1, true),
-        (256, 128, 3, 4, 0, false),
-        (64, 32, 2, 4, 1, true),
-        (32, 32, 1, 2, 1, false),
-    ];
-    let mut seed = 0x41A6_8B00u32;
-    for (case, &(size, texture, levels, bytes, keeps, graded)) in cases.iter().enumerate() {
-        let n = (size * size) as usize;
-        let picture = test_pixels(&mut seed, n);
-        let kept = test_pixels(&mut seed, n);
-        let format = TEST_FORMATS[[1, 2, 0, 4][case % 4]];
-        let description: [u32; 8] = [
-            0,
-            bytes,
-            format.layout,
-            format.masks[0],
-            format.masks[1],
-            format.masks[2],
-            format.masks[3],
-            0,
-        ];
-        let pitch = texture * bytes + 8;
-        let run = |rust: bool| unsafe {
-            let mut buffer = vec![0xAAAA_AAAAu32; KEPT / 4 + n];
-            buffer[..n].copy_from_slice(&picture);
-            buffer[KEPT / 4..].copy_from_slice(&kept);
-            *TEST.lock().unwrap() = Some(TestSurfaces {
-                levels: vec![vec![0xAAu8; (pitch * texture) as usize]; LEVELS as usize],
-                pitch,
-            });
-            CALLED.lock().unwrap().clear();
-            let mut fields = [0u32; RECORD_LEN / 4];
-            fields[1] = texture;
-            fields[2] = texture;
-            fields[3] = description.as_ptr() as u32;
-            fields[4] = levels;
-            for (level, object) in objects.iter().enumerate() {
-                fields[5 + level] = object.as_ptr() as u32;
-            }
-            fields[0x5C / 4] = keeps;
-            std::ptr::copy_nonoverlapping(
-                fields.as_ptr() as *const u8,
-                record as *mut u8,
-                RECORD_LEN,
-            );
-            crate::framework::game_write(READING_RVA, graded as u32);
-            crate::framework::game_write(SCALE_RVA, 0xA0u32);
-            crate::framework::game_write(SATURATION_RVA, 0x120u32);
-            crate::framework::game_write(GRADES_RVA, [0xAAu8; 0x100]);
-            let ok = if rust {
-                upload_texture_picture(
-                    TEST_TEXTURE,
-                    buffer.as_ptr() as u32,
-                    size,
-                    size,
-                    &mut GameSurfaces,
-                )
-                .is_ok()
-            } else {
-                let before = Regs {
-                    eax: TEST_TEXTURE,
-                    ebx: buffer.as_ptr() as u32,
-                    ecx: size,
-                    edx: size,
-                    ..Regs::SENTINEL
-                };
-                let mut r = before;
-                call_game(&mut r, original);
-                r.preserved_except(&before, 0) && !r.carry()
-            };
-            let levels = TEST.lock().unwrap().take().unwrap().levels;
-            // Where the test's lock put each run's own pixels: not compared.
-            crate::framework::game_write(DESCRIPTION_RVA + 0x24, 0u32);
-            (
-                ok,
-                CALLED.lock().unwrap().clone(),
-                levels,
-                buffer[..n].to_vec(),
-                capture(&inputs[..7]),
-            )
-        };
-        let (theirs, mine) = (run(false), run(true));
-        t.check(theirs == mine && theirs.0, || {
-            let level = theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b);
-            format!(
-                "case {case}: picture {size}, texture {texture}, {levels} levels, {bytes} bytes, keeps {keeps}, graded {graded}: ok {} / {}; calls {:x?} / {:x?}; first different level {level:?}; picture same {}; record, description and the rest same {}",
-                theirs.0, mine.0, theirs.1, mine.1, theirs.3 == mine.3, theirs.4 == mine.4
-            )
-        });
-    }
-    restore(&inputs, &saved);
-    t.finish()
 }

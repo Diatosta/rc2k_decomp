@@ -17,7 +17,9 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::a;
 use crate::race::race_end::{HEADER, setting_place};
-use crate::race::viewer::{Part, Saved, dispatch_parts, dword, get, put, run_both, test_part};
+use crate::race::viewer::{
+    Part, Saved, dispatch_parts, dword, get, put, regs_entry, run_both, test_part,
+};
 use crate::service::harness::Region;
 use rc2k_core::race::replay::{HEADER_SETTINGS, Setting, read_logged};
 use std::sync::atomic::AtomicUsize;
@@ -86,6 +88,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_parts(&HOOK, r, call_original, &|r| {
         read_replay_header(r, &mut game_part)
     });
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &|r| read_replay_header(r, &mut game_part))
 }
 
 fn self_test() -> (usize, usize) {

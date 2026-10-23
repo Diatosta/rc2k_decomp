@@ -22,7 +22,7 @@ use crate::install::installer::{
     DRIVE_COUNT, DRIVE_LETTERS, DRIVE_TYPE, DRIVES, FIRST_DRIVE, FREE_SPACE, Part, a, at, both, g,
     p, quiet, region, wb, wd,
 };
-use crate::race::viewer::{Saved, dispatch_parts};
+use crate::race::viewer::{Saved, dispatch_parts, regs_entry};
 use rc2k_core::install::drives::{self, DriveMenu};
 use std::sync::Mutex;
 use std::sync::atomic::AtomicUsize;
@@ -111,6 +111,14 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_parts(&HOOK, r, call_original, &|r| {
         list_drives(r, &mut crate::install::installer::game_part)
     });
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &|r| {
+        list_drives(r, &mut crate::install::installer::game_part)
+    })
 }
 
 // ---- self-test ----

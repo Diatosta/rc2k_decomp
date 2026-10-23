@@ -11,12 +11,14 @@
 //! Ten callers, `menu::load_background` and `service::load_background` among them.
 //! Shadow mode runs the original alone: everything it calls is compared in its own hook.
 //! Refuses what the functions it calls refuse. The name is a reading.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::files::stream::LastPath;
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::gfx::clear_picture::clear_picture;
 use crate::gfx::fill_row_table::{ROW_TABLE_ROOM, ROW_TABLE_RVA};
 use crate::gfx::pcx::{DECODED_WIDTH_RVA, reader_inputs, reader_regions};
@@ -31,19 +33,6 @@ use crate::gfx::rescale_picture::rescale_picture;
 use crate::gfx::surface::CLIP_LEFT_RVA;
 use crate::service::harness::{Region, at, capture, restore};
 use rc2k_core::gfx::picture_size as sizes;
-use std::sync::atomic::{AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("gfx::load_picture", rva(0x411863), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -76,37 +65,6 @@ pub unsafe fn load_picture(path: *mut u8) -> Result<bool, Refused> {
         }
         Ok(true)
     }
-}
-
-// ---- hook ----
-
-/// The picture's size and row length as the function leaves them, whatever else happens.
-unsafe fn size_is_the_screens() -> bool {
-    unsafe {
-        let screen_width: u32 = game_read(SCREEN_WIDTH_RVA);
-        game_read::<u32>(WIDTH_RVA) == screen_width
-            && game_read::<u32>(HEIGHT_RVA) == game_read::<u32>(SCREEN_HEIGHT_RVA)
-            && game_read::<u32>(ROW_BYTES_RVA) == screen_width << 2
-    }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if !shadow() {
-        match unsafe { load_picture(r.eax as *mut u8) } {
-            Ok(read) => r.set_carry(!read),
-            Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-        }
-        return;
-    }
-    let mut o = *r;
-    unsafe { call_original(&mut o) };
-    if !unsafe { size_is_the_screens() } || !o.preserved_except(r, 0) {
-        HOOK.mismatch(|| {
-            "the original left the picture's size other than the screen's".to_string()
-        });
-    }
-    r.eflags = o.eflags;
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
@@ -228,50 +186,4 @@ impl LoaderTest {
         let _ = std::fs::remove_file(TEST_PNG);
         let _ = std::fs::remove_file(TEST_PCX);
     }
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let test = match LoaderTest::begin() {
-        Ok(test) => test,
-        Err(why) => return t.skip(why),
-    };
-    let original = ORIGINAL.load(Ordering::SeqCst);
-    for path in TEST_PATHS {
-        let run = |rust: bool| {
-            test.prepare();
-            let mut buffer = path.to_vec();
-            buffer.push(0);
-            let before = Regs {
-                eax: buffer.as_mut_ptr() as u32,
-                ..Regs::SENTINEL
-            };
-            let read = if rust {
-                unsafe { load_picture(buffer.as_mut_ptr()) }.ok()
-            } else {
-                let mut ro = before;
-                unsafe { call_game(&mut ro, original) };
-                ro.preserved_except(&before, 0).then_some(!ro.carry())
-            };
-            (read, buffer, test.observed())
-        };
-        let (theirs, mine) = (run(false), run(true));
-        t.check(theirs == mine && theirs.0.is_some(), || {
-            let first = theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b);
-            format!(
-                "path={:?}: original read={:?} left the path {:?}; rust read={:?} left {:?}; first different byte of what they left {first:?}",
-                String::from_utf8_lossy(path),
-                theirs.0,
-                String::from_utf8_lossy(&theirs.1),
-                mine.0,
-                String::from_utf8_lossy(&mine.1)
-            )
-        });
-    }
-    test.end();
-    t.finish()
 }

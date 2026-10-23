@@ -17,27 +17,14 @@
 //! draws). Self-test: a copy whose quads go to a stand-in noting the quad record at each,
 //! against the Rust version, parts by lot, at
 //! both test control words (the test's values are exact at both).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::hud::add_quad::{QUAD_RVA, note_quad, take_quads};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("hud::draw_stage_bar", rva(0x4B5A86), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::hud::add_quad::QUAD_RVA;
 
 pub const MILES_RVA: usize = rva(0x6D150C); // g_overlayPartMiles: 0x40
 pub const KINDS_RVA: usize = rva(0x6D160C); // dword_6D160C: 0x40
@@ -153,96 +140,9 @@ pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_stage_bar(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { draw_stage_bar(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::install::stand_ins::set_handler;
-    use crate::race::mud::copy;
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let calls: Vec<usize> = [
-        0x4B5AD0, 0x4B5B17, 0x4B5B5E, 0x4B5BA5, 0x4B5BEC, 0x4B5CD1, 0x4B5CFE, 0x4B5D35, 0x4B5D6D,
-        0x4B5DB9, 0x4B5E0C,
-    ]
-    .iter()
-    .map(|a| a - 0x4B5A86)
-    .collect();
-    // mov g_hudQuad, 0E0h
-    let entry: &[u8] = &[0xC7, 0x05, 0xB0, 0xBF, 0x75, 0x00, 0xE0, 0x00, 0x00, 0x00];
-    let copy = match copy(0x4B5A86, 0x3A3, entry, &calls, &[(0x4B7216, 1)]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    set_handler(note_quad);
-    let regions: Vec<Region> = vec![
-        (game_addr(QUAD_RVA) as u32, 0x38),
-        at(COLOUR_RVA),
-        (game_addr(PLACES_RVA[0]) as u32, 0x14),
-    ];
-    let mut vars = regions.clone();
-    vars.push((game_addr(MILES_RVA) as u32, 0x200));
-    let saved = capture(&vars);
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for (word, case) in TEST_CONTROL_WORDS
-        .into_iter()
-        .flat_map(|w| (0..4u32).map(move |c| (w, c)))
-    {
-        let mut record = [0u32; 0x40];
-        record[0x74 / 4] = [0u32, 1, 3, 7][case as usize];
-        record[0x68 / 4] = 12.5f32.to_bits();
-        let before = Regs {
-            ebp: record.as_ptr() as u32,
-            ebx: 0x1000,
-            ..Regs::SENTINEL
-        };
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            for n in 0..PARTS as usize {
-                game_write(MILES_RVA + 4 * n, (1.0f32 + n as f32 * 0.5).to_bits());
-                game_write(KINDS_RVA + 4 * n, (n as u32 % 4) * 4);
-            }
-        };
-        prepare();
-        take_quads();
-        let mut ro = before;
-        with_control_word(word, &mut || unsafe {
-            crate::framework::call_game(&mut ro, copy.addr())
-        });
-        let theirs = (Some(regs(&ro)), take_quads(), capture(&regions));
-        prepare();
-        let mine = unsafe {
-            draw_stage_bar(&before, &mut |p, r| {
-                note_quad(p, r);
-                Ok(())
-            })
-        };
-        let mine = (
-            mine.as_ref().ok().map(regs),
-            take_quads(),
-            capture(&regions),
-        );
-        t.check(theirs == mine, || {
-            format!("control word {word:#x}, case {case}: original {:x?} {} quads; rust {:x?} {} quads; same quads {}; same state {}", theirs.0, theirs.1.len(), mine.0, mine.1.len(), theirs.1 == mine.1, theirs.2 == mine.2)
-        });
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

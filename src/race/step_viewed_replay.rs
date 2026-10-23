@@ -21,7 +21,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::{a, guard};
 use crate::race::viewer::{
     AT_END, BLOCK, BLOCKS, CF, FRAME, OPEN, PLAY_END, Saved, ZF, check_original, dispatch_regs,
-    dword, get, put,
+    dword, get, put, regs_entry,
 };
 use crate::service::harness::Region;
 use std::sync::atomic::AtomicUsize;
@@ -99,6 +99,12 @@ fn regions() -> Vec<Region> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_regs(&HOOK, r, call_original, &regions(), CF, &step_viewed_replay);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &step_viewed_replay)
 }
 
 fn self_test() -> (usize, usize) {

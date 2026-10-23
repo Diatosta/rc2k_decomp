@@ -6,30 +6,16 @@
 //! Three callers: `draw_item_button` and the two highlighted text buttons. Same work variables
 //! as `draw_button`. Fatal errors 0x80702022 and 0x80701010.
 //! The drawing itself, the alignments and the two fatal errors are in `screens/buttons.rs`.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::screens::buttons::{HIGHLIGHTED, check_kind, draw_button};
-use crate::screens::harness::{Left, dispatch_draw, draw_entry, drawing_unavailable};
+use crate::framework::Regs;
+use crate::screens::buttons::{HIGHLIGHTED, draw_button};
+use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::Canvas;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_button_highlighted",
-    rva(0x468BBE),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- Rust version: `buttons::draw_button` with `HIGHLIGHTED` ----
 
@@ -48,27 +34,8 @@ fn rust(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_draw(&HOOK, r, call_original, &rust, &|| HIGHLIGHTED.state());
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     draw_entry("screens::draw_button_highlighted", r, &rust)
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = drawing_unavailable() {
-        return t.skip(why);
-    }
-    check_kind(&mut t, &HIGHLIGHTED, call_original, &rust);
-    t.finish()
 }

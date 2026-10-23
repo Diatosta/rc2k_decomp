@@ -32,7 +32,7 @@ use crate::race::replay_path::{LAST_RACE_PATH, replay_path};
 use crate::race::viewer::{
     BLOCK, BLOCK_CURSOR, BLOCK_DATA, BLOCKS, CAMERAS, CAR_HEADER, CF, FRAME, HANDLE, HEADER, INDEX,
     MARK_IN, MARK_OUT, OPEN, Part, Saved, TABLE_LEN, answer, dispatch_parts, dword, get, put,
-    region, run_both, test_part,
+    region, regs_entry, run_both, test_part,
 };
 use crate::service::harness::Region;
 use std::sync::atomic::AtomicUsize;
@@ -221,6 +221,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_parts(&HOOK, r, call_original, &|r| {
         open_viewed_replay(r, &mut game_part)
     });
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &|r| open_viewed_replay(r, &mut game_part))
 }
 
 // ---- self-test ----

@@ -19,11 +19,13 @@
 //! two scales), in the game their Rust versions. Shadow mode runs the original alone (it
 //! draws). Self-test: a copy whose draws go to stand-ins (the scaled sprites' reading
 //! their scales), against the Rust version, flags and times by lot, at both test control words.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
 use crate::hud::add_quad::QUAD_RVA;
 use crate::hud::batch::TEXTURE_RVA;
 use crate::hud::draw_markers_1::{int_over_80, taken_off};
@@ -31,19 +33,6 @@ use crate::hud::draw_signs::row;
 use crate::hud::layout_0::*;
 use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::service::harness::{at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("hud::layout_1", rva(0x4B2743), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const SCRATCH_RVA: usize = rva(0x75C060); // dword_75C060
 const UV_SCALE_RVA: usize = rva(0x75C00C); // flt_75C00C
@@ -260,18 +249,6 @@ pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { layout_1(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { layout_1(r, &mut game_part) }?;
@@ -396,36 +373,4 @@ pub fn test_layout(
     }
     restore(&vars, &saved);
     t.finish()
-}
-
-fn self_test() -> (usize, usize) {
-    const CALLS: [usize; 82] = [
-        0x20, 0x3B, 0x9E, 0xB1, 0xD6, 0xE7, 0xF6, 0x16D, 0x1C5, 0x22A, 0x282, 0x320, 0x38B, 0x429,
-        0x494, 0x4B1, 0x4CC, 0x4DD, 0x4F8, 0x509, 0x5E3, 0x618, 0x63F, 0x719, 0x74E, 0x775, 0x846,
-        0x863, 0x880, 0x89D, 0x8BA, 0x8D7, 0x8F4, 0x911, 0x9C8, 0x9E5, 0xA02, 0xA1F, 0xA3C, 0xA59,
-        0xA76, 0xA93, 0xB64, 0xB81, 0xB9E, 0xBBB, 0xBD8, 0xBF5, 0xC12, 0xC2F, 0xCE6, 0xD03, 0xD20,
-        0xD3D, 0xD5A, 0xD77, 0xD94, 0xDB1, 0xE89, 0xEB2, 0xEDB, 0xF04, 0xFC7, 0xFF0, 0x1019,
-        0x1042, 0x106B, 0x1094, 0x10BD, 0x10E6, 0x11BE, 0x11E7, 0x1210, 0x1239, 0x12FC, 0x1325,
-        0x134E, 0x1377, 0x13A0, 0x13C9, 0x13F2, 0x141B,
-    ];
-    test_layout(
-        &HOOK,
-        0x4B2743,
-        0x1421,
-        &CALLS,
-        &[
-            (0x4B70EE, 1),
-            (0x4B6B5B, 2),
-            (0x4B6BAC, 3),
-            (0x4B7216, 4),
-            (0x4B5E29, 5),
-            (0x4B5839, 6),
-            (0x4B56E3, 7),
-            (0x4B52F7, 8),
-            (0x4B5451, 9),
-            (0x4B6E67, 10),
-            (0x4B6E9A, 11),
-        ],
-        &|r, p| unsafe { layout_1(r, p) },
-    )
 }

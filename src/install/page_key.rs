@@ -19,7 +19,7 @@ use crate::install::installer::{
     quiet, rb, rd, region,
 };
 use crate::install::list_test::TestList;
-use crate::race::viewer::{Saved, dispatch_parts};
+use crate::race::viewer::{Saved, dispatch_parts, regs_entry};
 use rc2k_core::install::items::{self, ItemKey, PageKey};
 use std::sync::atomic::AtomicUsize;
 
@@ -125,6 +125,14 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_parts(&HOOK, r, call_original, &|r| {
         page_key(r, &mut crate::install::installer::game_part)
     });
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &|r| {
+        page_key(r, &mut crate::install::installer::game_part)
+    })
 }
 
 fn self_test() -> (usize, usize) {

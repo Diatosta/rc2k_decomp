@@ -16,9 +16,13 @@
 //!
 //! The sprites are drawn with whatever is in ebx as the palette: a pointer into text, or an
 //! index. That only works because those sprites do not use a palette; it is reproduced as is.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{GameHook, RawHook, Regs, SelfTest, game_read, hook_asm, rva, shadow};
+use crate::framework::{GameHook, RawHook, Regs, SelfTest, game_read, rva, shadow};
 use crate::gfx::blit_glyph::{record_calls, recording_works};
 use crate::screens::stage_panel::PanelScreen;
 use crate::screens::{blanked, font_is_loaded, line_buffer, set_line};
@@ -28,24 +32,6 @@ use crate::strings::units::units;
 use crate::text::draw_text::{Canvas, GameCanvas, RecordingCanvas};
 use crate::text::glyph_kerning::state_ptr;
 use std::slice::from_raw_parts;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_stage_records",
-    rva(0x4742BF),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -193,16 +179,10 @@ pub unsafe fn draw_records_rows(
     }
 }
 
-// ---- hook ----
-
 /// The line buffer as far as these functions use it: the text and the one-character cell of
 /// `draw_time_fixed_pitch`.
 unsafe fn line_area() -> Vec<u8> {
     unsafe { from_raw_parts(line_buffer(), 0x80) }.to_vec()
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_rows(&HOOK, r, call_original, &STAGE_ROWS);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
@@ -283,15 +263,10 @@ pub fn rows_entry(name: &str, r: &mut Regs, rows: &Rows) -> Result<(), Refused> 
     Ok(())
 }
 
-// ---- self-test ----
 //
 // Uses the game's own fonts, strings and selected record, so it only runs when those are
 // there. The blitter's hook swallows the calls; the line buffer and the kerning table are
 // restored.
-
-fn self_test() -> (usize, usize) {
-    test_rows(&HOOK, call_original, &STAGE_ROWS)
-}
 
 /// The self-test of a records drawer.
 pub fn test_rows(

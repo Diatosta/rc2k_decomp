@@ -5,22 +5,13 @@
 //!
 //! The shape through `part` (1), in the game its Rust version. Shadow mode runs the
 //! original alone (it draws). Self-test: `hud::dials::test`.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{RawHook, Regs, hook_asm, rva, shadow};
-use crate::hud::dials::{From, Setup, set_up, test};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("hud::needle_2b", rva(0x4B6E34), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, rva};
+use crate::hud::dials::{From, Setup, set_up};
 
 pub static SETUP: Setup = Setup {
     copies: &[
@@ -35,25 +26,9 @@ pub static SETUP: Setup = Setup {
     callee: &[(0x4B6ECD, 1)],
 };
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { set_up(r, &SETUP, &mut crate::hud::draw_needle::game_part_needle) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { set_up(r, &SETUP, &mut crate::hud::draw_needle::game_part_needle) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    test(&HOOK, 0x4B6E34, &SETUP)
 }

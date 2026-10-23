@@ -13,7 +13,7 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::race::viewer::{
     BLOCKS, CAMERAS, PLACES, Saved, TABLE_LEN, UNDO_BLOCKS, UNDO_CAMERAS, UNDO_PLACES,
-    check_original, dispatch_regs, dword, fill, get, put, region, table,
+    check_original, dispatch_regs, dword, fill, get, put, region, regs_entry, table,
 };
 use crate::service::harness::Region;
 use std::sync::atomic::AtomicUsize;
@@ -58,6 +58,12 @@ fn rust(r: &Regs) -> Result<Regs, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_regs(&HOOK, r, call_original, &regions(), 0, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

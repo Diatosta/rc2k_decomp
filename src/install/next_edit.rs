@@ -14,7 +14,7 @@ use crate::install::installer::{
     CF, CHOICE, SCRIPT_PATH, ZF, cmp, g, list_regions, logic, p, rb, region,
 };
 use crate::install::list_test::TestList;
-use crate::race::viewer::{Saved, check_original, dispatch_regs};
+use crate::race::viewer::{Saved, check_original, dispatch_regs, regs_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -64,6 +64,12 @@ fn rust(r: &Regs) -> Result<Regs, Refused> {
 extern "C" fn dispatch(r: &mut Regs) {
     let regions = list_regions(r.edi);
     dispatch_regs(&HOOK, r, call_original, &regions, CF | ZF, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

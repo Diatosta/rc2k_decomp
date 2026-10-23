@@ -36,6 +36,12 @@ pub fn dispatch_spread(hook: &RawHook, r: &mut Regs, call_original: CallOriginal
     });
 }
 
+/// `dispatch_spread` without its hook (a refusal is the caller's).
+pub fn spread_entry(_: &mut Regs, rust: Spread) -> Result<(), Refused> {
+    unsafe { rust() }?;
+    Ok(())
+}
+
 /// The self-test of either: small pictures in the game's own buffer, which is put back.
 pub fn check_spread(t: &mut SelfTest, original: usize, rust: Spread) {
     const BYTES: usize = 0x1000;

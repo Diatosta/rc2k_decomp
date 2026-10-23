@@ -14,25 +14,14 @@
 //! standalone) and the writer's Rust version. Shadow mode runs the original alone (it
 //! writes a file). Self-test: a copy whose calls go to stand-ins, against the Rust
 //! version: off, on with the surface locked or not, the lock failing.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::race::viewer::{
-    Part, Saved, answer, dispatch_parts, dword, get, put, run_both, test_part,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("gfx::take_screenshot", rva(0x407897), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, rva};
+use crate::race::viewer::{Part, get, put, regs_entry};
 
 const SCREENSHOTS_ON: usize = 0x4F52B4; // g_screenshotsOn
 const LOCKED: usize = 0x4F3870; // g_surfaceLocked
@@ -90,56 +79,8 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_parts(&HOOK, r, call_original, &|r| {
-        take_screenshot(r, &mut game_part)
-    });
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; cmp g_screenshotsOn, 0
-    let copy = match crate::race::viewer::copy(
-        0x407897,
-        0x43,
-        &[0x60, 0x83, 0x3D, 0xB4, 0x52, 0x4F, 0x00, 0x00],
-        &[0x13, 0x24, 0x32],
-        &[(LOCK, 1), (0x411E0C, 2), (UNLOCK, 3)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions = [dword(SCREENSHOTS_ON), dword(LOCKED), dword(LOCKED_HERE)];
-    let saved = Saved::new(&regions);
-    for (on, locked, fails) in [
-        (0u32, 0u32, false),
-        (1, 0, false),
-        (1, 1, false),
-        (1, 0, true),
-    ] {
-        run_both(
-            &mut t,
-            &format!("on {on}, locked {locked}, the lock failing {fails}"),
-            copy.addr(),
-            Regs::SENTINEL,
-            &regions,
-            0,
-            &|| {
-                put(SCREENSHOTS_ON, on);
-                put(LOCKED, locked);
-                put(LOCKED_HERE, 7);
-                answer(Box::new(move |place, r| {
-                    if place == 1 {
-                        r.set_carry(fails);
-                    }
-                }));
-            },
-            &|r| take_screenshot(r, &mut test_part),
-        );
-    }
-    crate::race::viewer::quiet();
-    drop(saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &|r| take_screenshot(r, &mut game_part))
 }

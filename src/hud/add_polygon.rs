@@ -17,26 +17,14 @@
 //! before anything. Shadow mode runs the original alone (it draws). Self-test: a copy
 //! whose two calls go to stand-ins, against the Rust version, batch counts and textures by
 //! lot, at both test control words (the scaled places within `FLOAT` at extended).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::hud::batch::*;
-use crate::service::harness::{at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("hud::add_polygon", rva(0x4B7413), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const WIDTH_RVA: usize = rva(0x4F494C); // g_screenWidth
 const HEIGHT_RVA: usize = rva(0x4F4950); // g_screenHeight
@@ -115,18 +103,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { add_polygon(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { add_polygon(r, &mut game_part) }?;
@@ -164,52 +140,4 @@ pub unsafe fn test_batch(case: u32) {
             *p.add(n) = n as f32 * 7.5 + case as f32;
         }
     }
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, test_part};
-    use crate::service::floats::FLOAT;
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // mov ecx, 0
-    let entry: &[u8] = &[0xB9, 0x00, 0x00, 0x00, 0x00];
-    let copy = match copy(
-        0x4B7413,
-        0xDC,
-        entry,
-        &[0x4F, 0x63],
-        &[(0x4B74EF, 1), (0x45A855, 2)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions = regions();
-    let mut vars = regions.clone();
-    vars.extend([TEXTURE_RVA, VIRTUAL_RVA[0], VIRTUAL_RVA[1]].map(at));
-    let saved = capture(&vars);
-    // The scaled x, y: of the polygon's vertices and of every vertex of the batch.
-    let xy = |at: usize, n: u32| ((game_addr(at) as u32 + 0x20 * n, 8), FLOAT);
-    let places: Vec<_> = (0..0x10)
-        .map(|n| xy(POLYGON_RVA, n))
-        .chain((0..VERTEX_ROOM).map(|n| xy(VERTICES_RVA, n)))
-        .collect();
-    for case in 0..10u32 {
-        run_both_floats(
-            &mut t,
-            &format!("case {case}"),
-            &copy,
-            &regions,
-            &places,
-            &|| unsafe {
-                restore(&vars, &saved);
-                test_batch(case);
-                game_write(POLYGON_COUNT_RVA, 3 + case / 5);
-            },
-            Regs::SENTINEL,
-            &|r| unsafe { add_polygon(r, &mut test_part) },
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

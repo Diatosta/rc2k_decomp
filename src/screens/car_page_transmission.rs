@@ -4,38 +4,16 @@
 //! In:  edi = the car's record
 //! Out: every register kept; the carry of the last text drawn
 //! Self-test: `car_pages::test_page`.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::screens::car_pages::{dispatch_page, page_entry, test_page};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::car_page_transmission",
-    rva(0x46A193),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_page(&HOOK, r, call_original, 2);
-}
+use crate::framework::Regs;
+use crate::screens::car_pages::page_entry;
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     page_entry("screens::car_page_transmission", r, 2)
-}
-
-fn self_test() -> (usize, usize) {
-    test_page(&HOOK, call_original, 2)
 }

@@ -28,7 +28,7 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::a;
 use crate::race::viewer::{
-    OPEN, Part, Saved, answer, dispatch_parts, dword, gb, get, put, run_both, test_part,
+    OPEN, Part, Saved, answer, dispatch_parts, dword, gb, get, put, regs_entry, run_both, test_part,
 };
 use crate::service::harness::Region;
 use std::sync::atomic::AtomicUsize;
@@ -183,6 +183,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_parts(&HOOK, r, call_original, &|r| {
         viewer_load_stage(r, &mut game_part)
     });
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &|r| viewer_load_stage(r, &mut game_part))
 }
 
 fn regions() -> Vec<Region> {

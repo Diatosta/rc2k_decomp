@@ -9,30 +9,19 @@
 //! (among them the marks' snow textures). Refuses no format (with components not 0) and
 //! no surface. Self-test: the original and the Rust version on a surface of the test's
 //! (16 and 32 bits, the test formats), put back afterwards.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, rva};
 use crate::gfx::components_to_pixel::components_to_pixel;
-use crate::gfx::pixel_format::{PixelFormat, SCRATCH_RVA, TEST_FORMATS};
+use crate::gfx::pixel_format::PixelFormat;
 use crate::gfx::surface::{BASE_RVA, BITS_PER_PIXEL_RVA, PITCH_RVA};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("gfx::put_surface_pixel", rva(0x4065BB), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 /// `g_surface`'s format pointer.
 pub const FORMAT_POINTER_RVA: usize = rva(0x4F49B8);
@@ -81,71 +70,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { put_surface_pixel(r) }?))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let (at, wide) = unsafe { place(r.ecx, r.edx) };
-    let regions = [
-        (at, wide as usize),
-        crate::service::harness::at(SCRATCH_RVA),
-    ];
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let inputs: Vec<Region> = vec![
-        at(FORMAT_POINTER_RVA),
-        at(BASE_RVA),
-        at(PITCH_RVA),
-        at(BITS_PER_PIXEL_RVA),
-        at(SCRATCH_RVA),
-    ];
-    let saved = capture(&inputs);
-    let pixels = vec![0xAAu8; 0x400];
-    let p = pixels.as_ptr() as u32;
-    let mut format = TEST_FORMATS[0];
-    let fp = &mut format as *mut PixelFormat as u32;
-    let regions = [(p, pixels.len()), at(SCRATCH_RVA)];
-    for (n, f) in TEST_FORMATS.iter().enumerate() {
-        for bits in [16u32, 32] {
-            for (x, y, components) in [(0u32, 0u32, 0u32), (3, 1, 0x80FF_4020), (7, 3, 0x0102_0304)]
-            {
-                check_state(
-                    &mut t,
-                    &format!("format {n}, {bits} bits, ({x}, {y}), {components:#x}"),
-                    call_original,
-                    Regs {
-                        eax: components,
-                        ecx: x,
-                        edx: y,
-                        ..Regs::SENTINEL
-                    },
-                    &|| unsafe {
-                        std::ptr::write_bytes(p as *mut u8, 0xAA, pixels.len());
-                        (fp as *mut PixelFormat).write_unaligned(*f);
-                        game_write(FORMAT_POINTER_RVA, fp);
-                        game_write(BASE_RVA, p);
-                        game_write(PITCH_RVA, 0x40u32);
-                        game_write(BITS_PER_PIXEL_RVA, bits);
-                    },
-                    &regions,
-                    &rust,
-                );
-            }
-        }
-    }
-    unsafe { game_write(BASE_RVA, 0u32) };
-    t.check(
-        unsafe { put_surface_pixel(&Regs::SENTINEL) }.is_err(),
-        || "no surface: the Rust version went on".into(),
-    );
-    restore(&inputs, &saved);
-    t.finish()
 }

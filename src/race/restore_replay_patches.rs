@@ -9,7 +9,7 @@
 
 use crate::framework::{RawHook, Regs, hook_asm, rva};
 use crate::race::replay_patches::{game_part, regions, restore_replay_patches, test_patches};
-use crate::race::viewer::dispatch_regs;
+use crate::race::viewer::{dispatch_regs, regs_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -33,6 +33,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_regs(&HOOK, r, call_original, &regions(), 0, &|r| {
         restore_replay_patches(r, &mut game_part)
     });
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &|r| restore_replay_patches(r, &mut game_part))
 }
 
 fn self_test() -> (usize, usize) {

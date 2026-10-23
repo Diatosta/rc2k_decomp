@@ -45,7 +45,7 @@ use crate::race::viewer::{
     BLOCK, BLOCKS, CAMERA_EDIT, CAMERAS, CLIP_BLOCKS, CLIP_CAMERAS, CLIP_PLACES, FRAME,
     KEY_AFTER_PLAY, LAST_RACE_VIEWED, LIST_LEAVE, MARK_IN, MARK_OUT, ONE_PLAYER, OPEN, PLACES,
     PLAY_FROM_HERE, Part, SLOT, SNAPSHOT, Saved, TABLE_LEN, dispatch_parts, dword, get,
-    move_dwords, pb, put, region,
+    move_dwords, pb, put, region, regs_entry,
 };
 use crate::service::harness::Region;
 use std::sync::atomic::AtomicUsize;
@@ -399,6 +399,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_parts(&HOOK, r, call_original, &|r| {
         viewer_action(r, &mut game_part)
     });
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &|r| viewer_action(r, &mut game_part))
 }
 
 // ---- self-test ----

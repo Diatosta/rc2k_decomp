@@ -3,8 +3,6 @@
 //! batch (`unk_75C324`, 0x400 vertices; `unk_764324`, 0x600 indices) drawn with one indexed
 //! call per texture.
 
-use crate::framework::GameHook;
-
 pub mod add_polygon;
 pub mod add_quad;
 pub mod add_scaled_sprite;
@@ -54,51 +52,3 @@ pub mod set_batch_depth;
 pub mod set_batch_texture;
 pub mod tenths;
 pub mod turned_vertex;
-
-pub static HOOKS: &[&dyn GameHook] = &[
-    &add_polygon::HOOK,
-    &add_quad::HOOK,
-    &add_scaled_sprite::HOOK,
-    &add_solid_quad::HOOK,
-    &add_sprite::HOOK,
-    &add_triangle::HOOK,
-    &disc_0::HOOK,
-    &disc_1a::HOOK,
-    &disc_1b::HOOK,
-    &disc_2a::HOOK,
-    &disc_2b::HOOK,
-    &disc_vertex::HOOK,
-    &draw_disc::HOOK,
-    &draw_hud::HOOK,
-    &draw_icon::HOOK,
-    &draw_marker::HOOK,
-    &draw_markers_1::HOOK,
-    &draw_markers_2::HOOK,
-    &draw_needle::HOOK,
-    &draw_signs::HOOK,
-    &draw_signs_1a::HOOK,
-    &draw_signs_1b::HOOK,
-    &draw_signs_2a::HOOK,
-    &draw_signs_2b::HOOK,
-    &draw_stage_bar::HOOK,
-    &draw_stage_bars_1::HOOK,
-    &draw_stage_bars_2::HOOK,
-    &draw_view_strip::HOOK,
-    &draw_view_strips::HOOK,
-    &flush_batch::HOOK,
-    &icons_0::HOOK,
-    &icons_1::HOOK,
-    &icons_2::HOOK,
-    &layout_0::HOOK,
-    &layout_1::HOOK,
-    &layout_2::HOOK,
-    &needle_0::HOOK,
-    &needle_1a::HOOK,
-    &needle_1b::HOOK,
-    &needle_2a::HOOK,
-    &needle_2b::HOOK,
-    &set_batch_depth::HOOK,
-    &set_batch_texture::HOOK,
-    &tenths::HOOK,
-    &turned_vertex::HOOK,
-];

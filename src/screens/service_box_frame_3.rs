@@ -7,28 +7,14 @@
 //! original's code written out by `service_boxes`' translator; the quads through `part` (1,
 //! in the game `draw_tinted_quad`'s Rust version). Shadow mode runs the original alone (it
 //! draws). Self-test: `service_boxes::test_boxes` (16 cases).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva, shadow};
-use crate::screens::service_boxes::{Inputs, Part, quad, quad_part, rd, test_boxes};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::service_box_frame_3",
-    rva(0x49252A),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
+use crate::screens::service_boxes::{Inputs, Part, quad, quad_part, rd};
 
 /// What the code tests and reads.
 pub static INPUTS: Inputs = Inputs {
@@ -144,21 +130,6 @@ pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     quad_part(r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if crate::screens::blanked("screens::service_box_frame_3") {
-        return;
-    }
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { service_box_frame_3(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     if crate::screens::blanked("screens::service_box_frame_3") {
@@ -167,23 +138,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { service_box_frame_3(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    test_boxes(
-        &HOOK,
-        0x49252A,
-        0xDAA,
-        &[0x60, 0x83, 0x3D, 0x9C, 0xAA, 0x75, 0x00, 0x01],
-        &[
-            0x59, 0xA0, 0xE7, 0x12E, 0x175, 0x1BC, 0x203, 0x24A, 0x29E, 0x2E5, 0x32C, 0x373, 0x3BA,
-            0x401, 0x448, 0x48F, 0x4E3, 0x52A, 0x571, 0x5B8, 0x5FF, 0x646, 0x68D, 0x6D4, 0x728,
-            0x76F, 0x7B6, 0x7FD, 0x844, 0x88B, 0x8D2, 0x919, 0x96D, 0x9B4, 0x9FB, 0xA42, 0xA89,
-            0xAD0, 0xB17, 0xB5E, 0xBB2, 0xBF9, 0xC40, 0xC87, 0xCCE, 0xD15, 0xD5C, 0xDA3,
-        ],
-        &[(0x44B538, 1)],
-        &INPUTS,
-        16,
-        &|r, p| unsafe { service_box_frame_3(r, p) },
-    )
 }

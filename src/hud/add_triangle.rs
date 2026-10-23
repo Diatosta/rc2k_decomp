@@ -6,24 +6,14 @@
 //! Caller: `sub_4B6D10` (0x4B6D03). The polygon through `part` (1), in the game its Rust
 //! version. Shadow mode runs the original alone (it draws). Self-test: a copy whose call
 //! goes to a stand-in, against the Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_write, hook_asm, rva, shadow};
+use crate::framework::{Regs, game_write};
 use crate::hud::batch::POLYGON_COUNT_RVA;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("hud::add_triangle", rva(0x4B6DA7), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// A call by place: 1 `add_polygon`.
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
@@ -55,48 +45,9 @@ pub fn game_part_disc(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { add_triangle(r, &mut crate::hud::add_quad::game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { add_triangle(r, &mut crate::hud::add_quad::game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; mov g_polygonVertexCount, 3
-    let entry: &[u8] = &[
-        0x60, 0xC7, 0x05, 0xF8, 0x40, 0x62, 0x00, 0x03, 0x00, 0x00, 0x00,
-    ];
-    let copy = match copy(0x4B6DA7, 0x12, entry, &[0xB], &[(0x4B7413, 1)]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions: Vec<Region> = vec![at(POLYGON_COUNT_RVA)];
-    let saved = capture(&regions);
-    run_both(
-        &mut t,
-        "once",
-        &copy,
-        &regions,
-        &|| unsafe { game_write(POLYGON_COUNT_RVA, 9u32) },
-        &|r| unsafe { add_triangle(r, &mut test_part) },
-    );
-    restore(&regions, &saved);
-    t.finish()
 }

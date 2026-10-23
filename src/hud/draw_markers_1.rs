@@ -12,11 +12,13 @@
 //! `add_scaled_sprite`'s Rust version. Shadow mode runs the original alone (it draws).
 //! Self-test: a copy whose calls go to a stand-in reading the scales, against the Rust
 //! version, shares by lot, at both test control words.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
 use crate::hud::add_quad::QUAD_RVA;
 use crate::hud::draw_marker::RECTS_RVA;
 use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
@@ -24,19 +26,6 @@ use crate::service::harness::{Region, at, capture, restore};
 use rc2k_core::hud::quads;
 use rc2k_core::math::extended::{from_f64, to_f64};
 use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("hud::draw_markers_1", rva(0x4B56E3), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const COLOURS_RVA: [usize; 2] = [rva(0x75BF50), rva(0x75BF54)];
 const K_RVA: [usize; 2] = [rva(0x75C0A8), rva(0x75C0AC)];
@@ -108,18 +97,6 @@ pub fn game_part(_place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refuse
         )
     }?;
     Ok(())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_markers_1(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
@@ -258,8 +235,4 @@ pub fn test_markers(
     }
     restore(&vars, &saved);
     t.finish()
-}
-
-fn self_test() -> (usize, usize) {
-    test_markers(&HOOK, 0x4B56E3, &|r, p| unsafe { draw_markers_1(r, p) })
 }

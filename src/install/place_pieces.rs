@@ -13,7 +13,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::install::installer::{LAYOUT, a, g, rd, region, wd};
 use crate::install::lay_out_pieces::{MOST_PIECES, PIECE};
 use crate::install::list_test::TestList;
-use crate::race::viewer::{Saved, check_original, dispatch_regs};
+use crate::race::viewer::{Saved, check_original, dispatch_regs, regs_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -52,6 +52,12 @@ pub fn place_pieces(entry: &Regs) -> Result<Regs, Refused> {
 extern "C" fn dispatch(r: &mut Regs) {
     let regions = [region(LAYOUT, 4 + (PIECE * MOST_PIECES) as usize)];
     dispatch_regs(&HOOK, r, call_original, &regions, 0, &place_pieces);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &place_pieces)
 }
 
 fn self_test() -> (usize, usize) {

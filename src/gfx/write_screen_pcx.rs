@@ -23,25 +23,16 @@
 //! Self-test: a surface of the test's (16 and 32 bits, 64 x 48), the file a name of the
 //! test's in `var` (removed after), against the original: the files' bytes, the header,
 //! the stream and the planes compared.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::files::stream::{BUFFER_LEN, Stream};
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::files::stream::Stream;
+use crate::framework::Regs;
 use crate::gfx::pixel_format::PixelFormat;
-use crate::physics::flow::{a, g, p};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("gfx::write_screen_pcx", rva(0x411E0C), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::physics::flow::{a, g};
 
 const HEADER: usize = 0x51B5F4; // g_pcxHeader
 const STREAM: usize = 0x5195E4; // g_pictureStream
@@ -153,19 +144,6 @@ pub unsafe fn write_screen_pcx_in_game(r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if crate::framework::shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    let mut left = *r;
-    match unsafe { write_screen_pcx_in_game(&mut left) } {
-        Ok(()) => r.eflags = left.eflags,
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let mut left = *r;
@@ -174,67 +152,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
         Err(e) => return Err(e),
     }
     Ok(())
-}
-
-// ---- self-test ----
-
-const FILE_A: &str = "var\\rc2k_hook_pcx_a.pcx";
-const FILE_B: &str = "var\\rc2k_hook_pcx_b.pcx";
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{TestSurface, has_format};
-    use crate::service::harness::{capture, diff_summary};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if !has_format() {
-        return t.skip("no pixel format");
-    }
-    let regions = [
-        (a(HEADER), 0x80),
-        (a(STREAM), 0x10 + BUFFER_LEN),
-        (a(PLANES), 3 * 64),
-        (a(PICTURE_NAME), 4),
-        (a(SCREENSHOT_NAME), 8),
-    ];
-    let saved = crate::race::viewer::Saved::new(&regions);
-    let last = crate::files::stream::LastPath::save();
-    for bits in [16u32, 32] {
-        let surface = TestSurface::new(bits);
-        let (a_path, b_path) = (b"var\\rc2k_hook_pcx_a.pcx\0", b"var\\rc2k_hook_pcx_b.pcx\0");
-        p(PICTURE_NAME, a_path.as_ptr() as u32);
-        let mut ro = Regs::SENTINEL;
-        unsafe { call_original(&mut ro) };
-        let theirs = (
-            ro.carry(),
-            std::fs::read(FILE_A).ok(),
-            capture(&regions[..3]),
-        );
-        p(PICTURE_NAME, b_path.as_ptr() as u32);
-        let mine = unsafe { write_screen_pcx() };
-        let state = (
-            !mine.as_ref().is_ok_and(|&ok| ok),
-            std::fs::read(FILE_B).ok(),
-            capture(&regions[..3]),
-        );
-        let regs_ok = ro.preserved_except(&Regs::SENTINEL, 0);
-        t.check(regs_ok && theirs == state, || {
-            format!(
-                "{bits} bits: regs_ok={regs_ok} carry {} {}; files the same {} ({:?} {:?} bytes); \
-                 memory {}",
-                theirs.0,
-                state.0,
-                theirs.1 == state.1,
-                theirs.1.as_ref().map(|f| f.len()),
-                state.1.as_ref().map(|f| f.len()),
-                diff_summary(&theirs.2, &state.2)
-            )
-        });
-        drop(surface);
-    }
-    let _ = std::fs::remove_file(FILE_A);
-    let _ = std::fs::remove_file(FILE_B);
-    last.restore();
-    drop(saved);
-    t.finish()
 }

@@ -15,34 +15,17 @@
 //! to the third byte, inside what the patch overwrites.
 //! Refuses a row or a row count of 0 (the original counts through all 32 bits). The name
 //! is a reading.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, EDI, EDX, ESI, RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::gfx::copy_pixel_rows::written;
-use crate::gfx::harness::{check_pixels, dispatch_pixels, pixels_entry};
+use crate::framework::{EAX, EBX, EDI, EDX, ESI, Regs, rva};
+use crate::gfx::harness::pixels_entry;
 use crate::screens::harness::Left;
-use std::sync::atomic::{AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
 
 pub const COMPONENTS_TO_4444_ROWS: usize = rva(0x40750D);
-
-pub static HOOK: RawHook = RawHook::new(
-    "gfx::components_to_4444_rows",
-    COMPONENTS_TO_4444_ROWS,
-    thunk,
-    &ORIGINAL,
-)
-.private_copy(0x33)
-.manual_patch()
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- Rust version ----
 
@@ -76,8 +59,6 @@ pub unsafe fn components_to_4444_rows(
     Ok((from, to, ax))
 }
 
-// ---- hook ----
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     let (from, to, ax) = unsafe { components_to_4444_rows(r.esi, r.edi, r.ecx, r.edx, r.ebp) }?;
     Ok(Left::nothing()
@@ -88,83 +69,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
         .with(EDI, to))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    // `written` leaves the case of esi = edi out, which here converts in place.
-    let regions = if r.esi == r.edi && r.ecx != 0 && r.edx != 0 && r.ebp == 0 {
-        vec![(
-            r.edi,
-            (r.ecx as usize)
-                .saturating_mul(r.edx as usize)
-                .saturating_mul(2)
-                .min(0x400_0000),
-        )]
-    } else {
-        written(r, 2)
-    };
-    dispatch_pixels(&HOOK, r, call_original, &regions, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     pixels_entry(r, &rust)
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let original = ORIGINAL.load(Ordering::SeqCst);
-    let from: Vec<u8> = (0..256u32).map(|n| (n * 37 + 11) as u8).collect();
-    for (row_pixels, rows, back) in [
-        (1u32, 1u32, 0u32),
-        (7, 3, 0),
-        (4, 4, (-6i32) as u32),
-        (3, 4, 12),
-        (16, 1, 50),
-    ] {
-        let to = std::cell::RefCell::new(vec![0xAAu8; 256]);
-        let start = to.borrow_mut().as_mut_ptr() as u32 + 96;
-        let before = Regs {
-            esi: from.as_ptr() as u32,
-            edi: start,
-            ecx: row_pixels,
-            edx: rows,
-            ebp: back,
-            ..Regs::SENTINEL
-        };
-        let whole = [(to.borrow().as_ptr() as u32, 256)];
-        check_pixels(
-            &mut t,
-            &format!("row_pixels={row_pixels} rows={rows} back={}", back as i32),
-            original,
-            before,
-            &|| to.borrow_mut().fill(0xAA),
-            &whole,
-            &rust,
-        );
-    }
-    // In place, as `convert_picture` calls it.
-    let picture = std::cell::RefCell::new(from.clone());
-    let at = picture.borrow_mut().as_mut_ptr() as u32;
-    let before = Regs {
-        esi: at,
-        edi: at,
-        ecx: 60,
-        edx: 1,
-        ebp: 0,
-        ..Regs::SENTINEL
-    };
-    check_pixels(
-        &mut t,
-        "60 pixels in place",
-        original,
-        before,
-        &|| picture.borrow_mut().copy_from_slice(&from),
-        &[(at, 256)],
-        &rust,
-    );
-    t.finish()
 }

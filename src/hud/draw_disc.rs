@@ -18,28 +18,16 @@
 //! `rc2k_core::hud::disc` (whole numbers; the sines are copied); the texture's turn stays
 //! the x87's (its rounding follows the control word), worked out once (the original works
 //! the same value out sixteen times into `dword_75C060`).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::hud::disc_vertex::{disc_vertex, tables, test_tables};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::hud::disc_vertex::disc_vertex;
 use crate::math::x87;
-use crate::service::harness::{Region, at, capture, restore};
 use rc2k_core::hud::disc::SEGMENTS;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("hud::draw_disc", rva(0x4B6C4E), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const RING_RVA: [usize; 2] = [rva(0x75C188), rva(0x75C1CC)]; // flt_75C188, flt_75C1CC
 const TEXTURE_RING_RVA: [usize; 2] = [rva(0x75C210), rva(0x75C254)];
@@ -102,68 +90,9 @@ pub unsafe fn draw_disc(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     Ok(g)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_disc(r, &mut crate::hud::add_triangle::game_part_triangle) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { draw_disc(r, &mut crate::hud::add_triangle::game_part_triangle) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // mov ecx, 0
-    let entry: &[u8] = &[0xB9, 0x00, 0x00, 0x00, 0x00];
-    let copy = match copy(
-        0x4B6C4E,
-        0xC2,
-        entry,
-        &[0x8A, 0x98, 0xB0, 0xB5],
-        &[(0x4B6DA7, 1)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions: Vec<Region> = vec![
-        (game_addr(RING_RVA[0]) as u32, 0x44 * 4),
-        (game_addr(VERTICES_RVA) as u32, 0x60),
-        at(SCRATCH_RVA),
-    ];
-    let mut vars = regions.clone();
-    vars.extend(tables());
-    vars.extend(TURN_RVA.map(at));
-    let saved = capture(&vars);
-    for case in 0..4u32 {
-        run_both(
-            &mut t,
-            &format!("case {case}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                restore(&vars, &saved);
-                test_tables(case);
-                game_write(TURN_RVA[0], (case as f32 * 0.7 - 1.0).to_bits());
-                game_write(TURN_RVA[1], 651.9f32.to_bits());
-                game_write(TURN_RVA[2], 1.0f32.to_bits());
-                std::ptr::write_bytes(game_addr(VERTICES_RVA) as *mut u8, 0xAA, 0x60);
-            },
-            &|r| unsafe { draw_disc(r, &mut test_part) },
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

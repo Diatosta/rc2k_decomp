@@ -6,79 +6,24 @@
 //! In `menu::view_best_scores_loop`'s draw list, through `screens::draw_best_scores_page`. Refuses (before anything) no table.
 //! Compared in shadow mode (`dispatch_draw`). Self-test: pages 0 .. 4, nothing drawn (skipped
 //! without the fonts or the tables).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::Regs;
 use crate::screens::best_scores::*;
-use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::harness::{Left, check_draw, dispatch_draw, draw_entry};
-use crate::service::harness::{Region, at, capture, restore};
+use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::Canvas;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("screens::draw_best_scores", rva(0x4A9300), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     unsafe { draw_scores(&BEST_SCORES, canvas) }?;
     Ok(Left::nothing())
 }
 
-fn state() -> Vec<u8> {
-    capture(&[
-        (crate::screens::line_buffer() as u32, 0x20),
-        (game_addr(rva(0x7559AC)) as u32, 8),
-    ])
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_draw(&HOOK, r, call_original, &rust, &state);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     draw_entry("screens::draw_best_scores", r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = text_unavailable() {
-        return t.skip(why);
-    }
-    if unsafe { game_read::<u32>(rva(0x7556D4)) } == 0
-        || unsafe { game_read::<u32>(rva(0x7556DC)) } == 0
-    {
-        return t.skip("no best scores tables");
-    }
-    let regions: [Region; 3] = [
-        at(rva(0x755240)),
-        (crate::screens::line_buffer() as u32, 0x20),
-        (game_addr(rva(0x7559AC)) as u32, 8),
-    ];
-    let saved = capture(&regions);
-    for page in [0u32, 1, 2, 3, 4] {
-        check_draw(
-            &mut t,
-            &format!("page {page}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe { game_write(rva(0x755240), page) },
-            &rust,
-            &state,
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
 }

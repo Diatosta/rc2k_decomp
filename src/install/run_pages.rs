@@ -15,7 +15,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::install::installer::{
     Part, QUITTING, ZF, answer, at, both, cmp, copy, g, quiet, rd, wd,
 };
-use crate::race::viewer::dispatch_parts;
+use crate::race::viewer::{dispatch_parts, regs_entry};
 use rc2k_core::install::pages;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
@@ -66,6 +66,14 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_parts(&HOOK, r, call_original, &|r| {
         run_pages(r, &mut crate::install::installer::game_part)
     });
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &|r| {
+        run_pages(r, &mut crate::install::installer::game_part)
+    })
 }
 
 static TURN: AtomicU32 = AtomicU32::new(0);

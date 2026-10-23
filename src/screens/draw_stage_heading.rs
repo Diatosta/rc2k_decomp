@@ -10,42 +10,22 @@
 //! Screen: it is part of the panel `draw_stage_info` draws, which the owner confirmed on
 //! 2026-10-10 as the stage details screen shown before each stage of a championship. Its other
 //! caller, `sub_480064`, has not been seen in the game.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{GameHook, RawHook, Regs, SelfTest, hook_asm, rva, shadow};
-use crate::gfx::blit_glyph::{record_calls, recording_works};
+use crate::framework::Regs;
 use crate::records::trakpak_entry::record_entry;
+use crate::screens::blanked;
 use crate::screens::stage_panel::PanelScreen;
-use crate::screens::{blanked, font_is_loaded, line_buffer, set_line};
 use crate::strings::append_string_by_id::push_string;
-use crate::strings::string_table::{blob, is_table_id};
-use crate::strings::utils::bytes_str;
-use crate::text::draw_text::{Canvas, GameCanvas, RecordingCanvas};
-use crate::text::glyph_kerning::state_ptr;
+use crate::text::draw_text::{Canvas, GameCanvas};
 use rc2k_core::screens::stage_panel::stage_line;
-use std::slice::from_raw_parts;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_stage_heading",
-    rva(0x466DF3),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
-const FONT: usize = 0x51E9A4;
 const HEADING_STRING: u32 = 0x481;
 
 unsafe fn dword(at: *const u8) -> u32 {
@@ -93,150 +73,18 @@ pub unsafe fn draw_stage_heading(
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if blanked(HOOK.name()) {
-        return;
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    if blanked("screens::draw_stage_heading") {
+        return Ok(());
     }
-    let record = r.edi as *const u8;
-
-    if !shadow() {
-        match unsafe { draw_stage_heading(record, &mut GameCanvas) } {
-            Ok(too_wide) => {
-                r.set_carry(too_wide);
-                r.set_zero(!too_wide);
-            }
-            // A fatal error in the lookup or the blitter: the original, run from the start,
-            // rebuilds the line and meets the same error.
-            Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-        }
-        return;
-    }
-
-    // Shadow: Rust builds the line and lists its blitter calls; the original then builds the
-    // line again and really draws.
-    let mut canvas = RecordingCanvas::new(true);
-    let too_wide = match unsafe { draw_stage_heading(record, &mut canvas) } {
-        Ok(value) => value,
-        Err(e) => {
-            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-            return;
-        }
-    };
-    let line_r = unsafe { line_bytes() };
-
-    let mut o = *r;
-    let calls = record_calls(false, || unsafe { call_original(&mut o) });
-    let line_o = unsafe { line_bytes() };
-
-    let ok = o.preserved_except(r, 0)
-        && o.carry() == too_wide
-        && line_o == line_r
-        && unsafe { *state_ptr() } == canvas.state
-        && (!recording_works() || calls == canvas.calls);
-    if !ok {
-        HOOK.mismatch(|| {
-            format!(
-                "record={:#x}: original carry={} calls={} line={}; rust carry={too_wide} calls={} line={}",
-                r.edi,
-                o.carry(),
-                calls.len(),
-                bytes_str(&line_o),
-                canvas.calls.len(),
-                bytes_str(&line_r)
-            )
-        });
-    }
-    r.eflags = o.eflags;
+    let too_wide = unsafe { draw_stage_heading(r.edi as *const u8, &mut GameCanvas) }?;
+    r.set_carry(too_wide);
+    r.set_zero(!too_wide);
+    Ok(())
 }
 
-/// The text in the line buffer, NUL included (at most 0x200 bytes).
-unsafe fn line_bytes() -> Vec<u8> {
-    let all = unsafe { from_raw_parts(line_buffer(), 0x200) };
-    let len = all
-        .iter()
-        .position(|&b| b == 0)
-        .map_or(all.len(), |n| n + 1);
-    all[..len].to_vec()
-}
-
-// ---- self-test ----
 //
 // Uses the game's own font, strings and loaded track pack, so it only runs when those are
 // there. The blitter's hook swallows the calls; the line buffer and the kerning table are
 // restored.
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if !recording_works() {
-        return t.skip("the gfx::blit_glyph hook is off, so the original would really draw");
-    }
-    if blob().is_null() || !font_is_loaded(FONT) || !is_table_id(HEADING_STRING) {
-        return t.skip("the string table or the font is not loaded");
-    }
-    // A record of the loaded pack: read the pack's id the same way the lookup does.
-    let loaded = unsafe { dword(crate::framework::game_ptr::<u8>(rva(0x734BC6 + 4))) };
-    let saved_line = unsafe { from_raw_parts(line_buffer(), 0x200) }.to_vec();
-    let saved_state = unsafe { *state_ptr() };
-
-    let mut ran = 0;
-    for index in 0..4u32 {
-        for stage in [1u32, 6, 12] {
-            let mut record = [0u8; 0x44];
-            record[4..8].copy_from_slice(&index.to_le_bytes());
-            record[8..12].copy_from_slice(&loaded.to_le_bytes());
-            record[0x40..0x44].copy_from_slice(&stage.to_le_bytes());
-
-            // The entry's first dword is used as a string id: only go on if it is one.
-            let Ok(entry) = (unsafe { record_entry(record.as_ptr()) }) else {
-                continue;
-            };
-            if !is_table_id(unsafe { dword(entry as *const u8) }) {
-                continue;
-            }
-
-            ran += 1;
-            let before = Regs {
-                edi: record.as_ptr() as u32,
-                ..Regs::default()
-            };
-            let mut ro = before;
-            let calls_o = record_calls(true, || unsafe { call_original(&mut ro) });
-            let line_o = unsafe { line_bytes() };
-            let state_o = unsafe { *state_ptr() };
-
-            unsafe { set_line(&saved_line) };
-            let mut canvas = RecordingCanvas::new(false);
-            let mine = unsafe { draw_stage_heading(record.as_ptr(), &mut canvas) };
-            let line_r = unsafe { line_bytes() };
-            unsafe { set_line(&saved_line) };
-
-            let preserved = ro.preserved_except(&before, 0);
-            let ok = mine == Ok(ro.carry())
-                && line_o == line_r
-                && calls_o == canvas.calls
-                && state_o == canvas.state
-                && preserved;
-            t.check(ok, || {
-                format!(
-                    "index={index} stage={stage}: original carry={} calls={} line={} preserved={preserved}; rust {mine:?} calls={} line={}",
-                    ro.carry(),
-                    calls_o.len(),
-                    bytes_str(&line_o),
-                    canvas.calls.len(),
-                    bytes_str(&line_r)
-                )
-            });
-        }
-    }
-
-    unsafe { *state_ptr() = saved_state };
-    if ran == 0 {
-        return t.skip("no track pack entry with a usable name is loaded");
-    }
-    t.finish()
-}

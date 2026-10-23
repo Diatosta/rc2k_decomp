@@ -14,7 +14,7 @@ use crate::install::installer::{
     CF, KEY_TAKEN, LIST_ANSWER, LIST_LEAVE, ZF, logic, pb, rb, region,
 };
 use crate::install::list_test::TestList;
-use crate::race::viewer::{Saved, check_original, dispatch_regs};
+use crate::race::viewer::{Saved, check_original, dispatch_regs, regs_entry};
 use rc2k_core::install::items::FolderKey;
 use std::sync::atomic::AtomicUsize;
 
@@ -77,6 +77,12 @@ extern "C" fn dispatch(r: &mut Regs) {
         CF | ZF,
         &rust,
     );
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

@@ -30,38 +30,21 @@
 //! +0x144 and +0x148; string 0x57A is "-" and string 0x578 is "n/d". The save had one
 //! player, and rows 2 to 4 showed "-", "n/d", "-" and four "-". What each of the two numbers
 //! of a pair is (position and points, say) has not been worked out.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::records::find_record::{find_record_in, has_section};
 use crate::saves::gather_savegame::CAR_LEN;
 use crate::saves::write_savegame_slot::FILE_RVA;
-use crate::screens::draw_empty_savegame::{preview_unavailable, state as text_state};
 use crate::screens::draw_stage_info::RECORD_TABLE_RVA;
-use crate::screens::harness::{Left, check_draw, dispatch_draw, draw_entry, push_dwords};
-use crate::screens::line_buffer;
+use crate::screens::harness::{Left, draw_entry};
 use crate::screens::stage_panel::{dword, table_dword};
-use crate::service::harness::{Region, at, capture, restore};
 use crate::strings::string_table::is_table_id;
 use crate::text::draw_text::Canvas;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_savegame_details",
-    rva(0x46D907),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -127,21 +110,8 @@ pub unsafe fn draw_savegame_details(canvas: &mut dyn Canvas) -> Result<bool, Ref
     }
 }
 
-// ---- hook ----
-
-fn state() -> Vec<u8> {
-    let mut s = text_state();
-    push_dwords(&mut s, &PREVIEW_RVAS);
-    push_dwords(&mut s, &[SAVED_CARS_PTR_RVA]);
-    s
-}
-
 fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     Ok(Left::carry(unsafe { draw_savegame_details(canvas) }?))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_draw(&HOOK, r, call_original, &rust, &state);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
@@ -149,8 +119,6 @@ extern "C" fn dispatch(r: &mut Regs) {
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     draw_entry("screens::draw_savegame_details", r, &rust)
 }
-
-// ---- self-test: the saved game that is in the buffer, if one is ----
 
 /// Why what the buffer holds cannot be drawn safely, or None. The original scans the record
 /// table for the saved section and follows what it finds, without checks.
@@ -175,40 +143,4 @@ pub unsafe fn details_unusable() -> Option<&'static str> {
         }
         None
     }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = preview_unavailable().or_else(|| unsafe { details_unusable() }) {
-        return t.skip(why);
-    }
-    let mut regions: Vec<Region> = PREVIEW_RVAS.map(at).to_vec();
-    regions.push(at(SAVED_CARS_PTR_RVA));
-    regions.push((
-        crate::strings::text_from_ids::text() as u32,
-        crate::strings::text_from_ids::TEXT_LEN,
-    ));
-    regions.push((line_buffer() as u32, 0x80));
-    // The number of players decides what rows 2 to 4 show: every value is tried.
-    let players_at = (game_addr(FILE_RVA) + PAYLOAD_OFFSET) as u32;
-    regions.push((players_at, 4));
-    let saved = capture(&regions);
-    for players in [1u32, 2, 3, 4] {
-        check_draw(
-            &mut t,
-            &format!("players={players}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| {
-                restore(&regions, &saved);
-                unsafe { (players_at as *mut u32).write_unaligned(players) };
-            },
-            &rust,
-            &state,
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
 }

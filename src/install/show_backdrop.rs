@@ -11,7 +11,7 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::install::installer::{Part, RUN_FRAME, ZF, a, at, both, copy, quiet};
-use crate::race::viewer::dispatch_parts;
+use crate::race::viewer::{dispatch_parts, regs_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -47,6 +47,14 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_parts(&HOOK, r, call_original, &|r| {
         show_backdrop(r, &mut crate::install::installer::game_part)
     });
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &|r| {
+        show_backdrop(r, &mut crate::install::installer::game_part)
+    })
 }
 
 fn self_test() -> (usize, usize) {

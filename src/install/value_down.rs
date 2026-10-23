@@ -9,7 +9,7 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::install::installer::{CF, REPEATS, ZF, g, rb, rd, wb};
-use crate::race::viewer::dispatch_regs;
+use crate::race::viewer::{dispatch_regs, regs_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -39,6 +39,12 @@ pub fn value_down(entry: &Regs) -> Result<Regs, Refused> {
 extern "C" fn dispatch(r: &mut Regs) {
     let target = (rd(r.esi + 8), 1usize);
     dispatch_regs(&HOOK, r, call_original, &[target], CF | ZF, &value_down);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &value_down)
 }
 
 fn self_test() -> (usize, usize) {

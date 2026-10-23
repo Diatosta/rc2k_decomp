@@ -4,28 +4,13 @@
 //! In:  edi = player; ebx, passed on as the palette at 0 percent or less
 //! Out: eax = the percentage, or 0x11 if nothing was drawn; everything else preserved
 //! The conditions, the bars and how the screen was confirmed are in `setup_markers.rs`.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::screens::harness::drawing_unavailable;
-use crate::screens::setup_markers::{Marker, RIGHT_X, check_marker, dispatch_marker};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_brake_balance_marker",
-    rva(0x4A707F),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
+use crate::screens::setup_markers::{Marker, RIGHT_X, marker_entry};
 
 // ---- Rust version: `setup_markers::draw_marker` with this ----
 
@@ -35,21 +20,8 @@ pub const MARKER: Marker = Marker::Upper {
     car_offset: 0x110,
 };
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_marker(&HOOK, r, call_original, MARKER);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = drawing_unavailable() {
-        return t.skip(why);
-    }
-    check_marker(&mut t, call_original, MARKER);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    marker_entry("screens::draw_brake_balance_marker", r, MARKER)
 }

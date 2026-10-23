@@ -123,6 +123,14 @@ extern "C" fn dispatch(r: &mut Regs) {
     });
 }
 
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::race::viewer::regs_entry(r, &|r| {
+        run_script(r, &mut crate::install::installer::game_part)
+    })
+}
+
 fn path_of(_place: u32, r: &Regs) -> Vec<u8> {
     crate::install::installer::text_at(r.eax, 0x200)
 }

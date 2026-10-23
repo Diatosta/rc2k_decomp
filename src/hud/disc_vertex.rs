@@ -16,28 +16,18 @@
 //! `rc2k_core::hud::disc::vertex` (plain floats; the x87 version stays for the Rust callers
 //! in unconverted code). Shadow mode and the self-test compare within `service::floats`'
 //! tolerances (the self-test at both test precisions, exact at double).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::hud::add_quad::QUAD_RVA;
 use crate::race::stage_prefs::left_of;
-use crate::scene::matrix::float_places;
 use crate::screens::harness::Left;
 use crate::service::floats::*;
 use crate::service::harness::Region;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("hud::disc_vertex", rva(0x4B6D10), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 pub use rc2k_core::hud::disc::ENTRIES;
 
@@ -130,22 +120,8 @@ pub unsafe fn disc_vertex_plain(entry: &Regs) -> Result<Regs, Refused> {
     Ok(g)
 }
 
-fn regions_at(edi: u32) -> Vec<Region> {
-    vec![(edi, 0x20)]
-}
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { disc_vertex_plain(r) }?))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions = regions_at(r.edi);
-    let places = float_places(&regions);
-    let floats = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &regions, &floats, &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
@@ -182,46 +158,4 @@ pub fn tables() -> Vec<Region> {
     r.push((game_addr(rva(0x75C044)) as u32, 0x18));
     r.push((game_addr(QUAD_RVA) as u32, 4));
     r
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::service::harness::{capture, restore};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut vertex = [0u32; 8];
-    let va = vertex.as_mut_ptr() as u32;
-    let regions = regions_at(va);
-    let vars = tables();
-    let saved = capture(&vars);
-    let tolerant_places = float_places(&regions);
-    let tolerant = Floats {
-        memory: &tolerant_places,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        for n in 0..ENTRIES {
-            check_state_floats(
-                &mut t,
-                "hud::disc_vertex",
-                &format!("control word {word:#x}, entry {n}"),
-                call_original,
-                Regs {
-                    ecx: n,
-                    edi: va,
-                    ..Regs::SENTINEL
-                },
-                &|| unsafe {
-                    restore(&vars, &saved);
-                    test_tables(n % 3);
-                    std::ptr::write_bytes(va as *mut u8, 0xAA, 0x20);
-                },
-                &regions,
-                held,
-                &rust,
-            );
-        }
-    });
-    restore(&vars, &saved);
-    t.finish()
 }

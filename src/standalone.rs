@@ -12,10 +12,9 @@
 //!    0x401EA5 for one, which ported code reads.) So every call to an address of the
 //!    game faults, and `on_exception` decides: a hook's address goes on in the hook's
 //!    thunk, where its jump leads, and so in the Rust version, as the callers written
-//!    with `call_game` need; any other address is a function that is not ported: it is
-//!    noted, the carry flag cleared (the game's "it worked"), the call made to return
-//!    at once, and the list written at the end: what is still the game's on the way
-//!    taken. None of the game's own code runs.
+//!    with `call_game` need; any other address is a function that is not ported: the
+//!    program ends, logging it and its caller (owner, 2026-10-23; it returned at once
+//!    as if it had worked before, which hid it). None of the game's own code runs.
 //! 3. `start` (0x401000) is gone through as the list of calls it is.
 //!
 //! `call_game` knows the hooks' thunks here (`CALL_REDIRECT`), so only a call made some
@@ -32,8 +31,8 @@ use crate::framework::{
 };
 use crate::registry::ALL;
 use std::path::Path;
+use std::sync::OnceLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Mutex, OnceLock};
 use windows_sys::Win32::Foundation::EXCEPTION_ACCESS_VIOLATION;
 use windows_sys::Win32::System::Com::{CoInitialize, CoUninitialize};
 use windows_sys::Win32::System::Diagnostics::Debug::{
@@ -252,11 +251,6 @@ fn thunk_of(hook: usize) -> Option<usize> {
 
 // ---- what the faults catch ----
 
-/// The game's functions that were called and are not ported: address as IDA shows it,
-/// how often, and where the first call came from.
-static UNPORTED: Mutex<Vec<(usize, u32, String)>> = Mutex::new(Vec::new());
-/// Calls of the game's functions that are not ported (each a fault), for the timing line.
-pub static FAULTS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 /// `start`'s way out (0x4010EE after the main loop, 0x401116 the short one), where
 /// `fatal::report` and the `-v` switch jump to.
 const EXITS: [usize; 2] = [0x4010EE, 0x401116];
@@ -321,23 +315,6 @@ pub fn leave_from_race() -> ! {
 
 fn finish(why: &str, code: u32) -> ! {
     log(&format!("standalone: ending: {why}"));
-    // Another thread may be in the handler with the list; not for long.
-    let unported = (0..200)
-        .find_map(|_| {
-            let list = UNPORTED.try_lock().ok().map(|list| list.clone());
-            if list.is_none() {
-                std::thread::sleep(std::time::Duration::from_millis(1));
-            }
-            list
-        })
-        .unwrap_or_default();
-    log(&format!(
-        "standalone: {} functions of the game were called that are not ported, in the order first met:",
-        unported.len()
-    ));
-    for (address, calls, from) in unported {
-        log(&format!("  {address:#x}  {calls} calls, first from {from}"));
-    }
     menu_watch::report();
     // No game code runs here, so a hook's thunk is entered only by a call by address
     // from Rust (`call_game`): these are what keeps each hook (conversion phase 4).
@@ -475,28 +452,14 @@ unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {
                 1,
             );
         }
+        // A function of the game with no Rust version (owner, 2026-10-23: no longer returned
+        // from as if it had worked, which hid it): the program ends, saying which.
         let from = (context.Esp as *const u32).read_unaligned() as usize;
-        FAULTS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        if let Ok(mut unported) = UNPORTED.lock() {
-            match unported.iter_mut().find(|entry| entry.0 == at) {
-                Some(entry) => entry.1 += 1,
-                None => {
-                    let from = match ida(from) {
-                        Some(from) => format!("{from:#x}"),
-                        None => "Rust code".into(),
-                    };
-                    log(&format!(
-                        "standalone: not ported: {at:#x}, called from {from}"
-                    ));
-                    unported.push((at, 1, from));
-                }
-            }
-        }
-        // As if the function had returned at once, saying that it worked.
-        context.Eip = from as u32;
-        context.Esp += 4;
-        context.EFlags &= !1;
-        CONTINUE_EXECUTION
+        let from = match ida(from) {
+            Some(from) => format!("{from:#x}"),
+            None => "Rust code".into(),
+        };
+        finish(&format!("not ported: {at:#x}, called from {from}"), 1);
     }
 }
 

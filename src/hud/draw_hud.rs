@@ -11,29 +11,15 @@
 //! (1 / 2 / 3 the layouts 0 / 1 / 2, 4 the flush), in the game their Rust versions. Shadow
 //! mode runs the original alone (it draws). Self-test: a copy whose layouts and flush go
 //! to stand-ins, against the Rust version, every layout.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva, shadow};
-use crate::hud::batch::{BATCH_TEXTURE_RVA, INDEX_COUNT_RVA, POLYGON_RVA, VERTEX_COUNT_RVA};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
+use crate::framework::{Regs, game_addr, game_write, rva};
+use crate::hud::batch::{BATCH_TEXTURE_RVA, INDEX_COUNT_RVA, VERTEX_COUNT_RVA};
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("hud::draw_hud", rva(0x4B1CD0), thunk, &ORIGINAL)
-    .private_copy(0x5B)
-    .relocate_calls(&CALLS)
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const CALLS: [usize; 6] = [0x0, 0x29, 0x40, 0x47, 0x4E, 0x55];
 pub const RECORD_RVA: usize = rva(0x6D13FE); // unk_6D13FE
 
 /// A call by place (see the header).
@@ -76,71 +62,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_hud(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { draw_hud(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // call hud::set_batch_depth (its first bytes as the original's, not the hook's)
-    let first: [u8; 5] = {
-        let rel = (0x4B726Ci64 - (0x4B1CD0 + 5)) as i32;
-        let b = rel.to_le_bytes();
-        [0xE8, b[0], b[1], b[2], b[3]]
-    };
-    let copy = match copy(
-        0x4B1CD0,
-        0x5B,
-        &first,
-        &CALLS,
-        &[(0x4B1D8C, 1), (0x4B2743, 2), (0x4B3B64, 3), (0x4B74EF, 4)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions: Vec<Region> = vec![
-        (game_addr(POLYGON_RVA) as u32, 0x80),
-        at(BATCH_TEXTURE_RVA),
-        at(VERTEX_COUNT_RVA),
-        at(INDEX_COUNT_RVA),
-        (game_addr(rva(0x75C074)) as u32, 0x18),
-    ];
-    let mut vars = regions.clone();
-    vars.push((game_addr(RECORD_RVA) as u32, 0x100));
-    let saved = capture(&vars);
-    for layout in 0..4u32 {
-        run_both(
-            &mut t,
-            &format!("layout {layout}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                restore(&vars, &saved);
-                game_write(RECORD_RVA + 0xF4, layout);
-                game_write(VERTEX_COUNT_RVA, 9u32);
-                std::ptr::write_bytes(game_addr(POLYGON_RVA) as *mut u8, 0xAA, 0x80);
-            },
-            &|r| unsafe { draw_hud(r, &mut test_part) },
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

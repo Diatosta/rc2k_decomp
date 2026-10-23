@@ -209,6 +209,14 @@ pub fn dispatch_regs(
     r.esp = esp;
 }
 
+/// `dispatch_regs` / `dispatch_parts` without the hook (no shadow mode; a refusal is the
+/// caller's): the Rust version's registers but esp.
+pub fn regs_entry(r: &mut Regs, rust: Rust) -> Result<(), Refused> {
+    let left = rust(r)?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
+}
+
 /// The `dispatch` of a hook whose Rust version calls through `part` and whose calls have
 /// effects that must not happen twice (files, frames, menus): the Rust version outside
 /// shadow mode, the original alone in it.

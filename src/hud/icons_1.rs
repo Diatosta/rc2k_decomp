@@ -6,25 +6,15 @@
 //! The icons through `part` (1), in the game `draw_icon`'s Rust version. Shadow mode runs
 //! the original alone (it draws). Self-test: a copy whose calls go to a stand-in, against
 //! the Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::hud::batch::TEXTURE_RVA;
 use crate::hud::draw_icon::{SCALE_RVA, SHIFT_RVA};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("hud::icons_1", rva(0x4B5839), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// A call by place: 1 `draw_icon`.
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
@@ -55,48 +45,9 @@ pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { icons_1(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { icons_1(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let entry: &[u8] = &[0xFF, 0x35, 0xC0, 0xC0, 0x75, 0x00];
-    let copy = match copy(0x4B5839, 0x45, entry, &[0x20, 0x3F], &[(0x4B587E, 1)]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions: Vec<Region> = [SCALE_RVA, SHIFT_RVA, TEXTURE_RVA].map(at).to_vec();
-    let saved = capture(&regions);
-    run_both(
-        &mut t,
-        "once",
-        &copy,
-        &regions,
-        &|| unsafe {
-            restore(&regions, &saved);
-            game_write(TEXTURE_RVA, 7u32);
-        },
-        &|r| unsafe { icons_1(r, &mut test_part) },
-    );
-    restore(&regions, &saved);
-    t.finish()
 }

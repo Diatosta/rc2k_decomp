@@ -13,7 +13,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::race::viewer::{check_original, dispatch_regs};
+use crate::race::viewer::{check_original, dispatch_regs, regs_entry};
 use crate::service::harness::Region;
 use rc2k_core::menu::list_menu::{has_choices, rounds, unmarked};
 use std::sync::atomic::AtomicUsize;
@@ -84,6 +84,12 @@ pub unsafe fn regions_of(list: u32) -> Vec<Region> {
 extern "C" fn dispatch(r: &mut Regs) {
     let regions = unsafe { regions_of(r.edi) };
     dispatch_regs(&HOOK, r, call_original, &regions, 0, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

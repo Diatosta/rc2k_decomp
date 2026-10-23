@@ -16,27 +16,16 @@
 //! `pusha` .. `popa`). Refuses a view past 5 (the tables' end), before anything. Shadow
 //! mode runs the original alone (it draws). Self-test: a copy whose quads go to a
 //! stand-in noting their inputs, against the Rust version, views and settings by lot.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::service::harness::{Region, at, capture, restore};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::service::harness::{Region, at};
 use rc2k_core::hud::strips;
 use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("hud::draw_view_strip", rva(0x45B86E), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const TOPS_RVA: usize = rva(0x6D1880); // dword_6D1880: 12
 const LEFTS_RVA: usize = rva(0x6D18B0); // dword_6D18B0: 6
@@ -136,18 +125,6 @@ pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_view_strip(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { draw_view_strip(r, &mut game_part) }?;
@@ -199,58 +176,4 @@ pub unsafe fn test_settings(case: u32) {
 
 pub fn settings() -> Vec<Region> {
     [FLAT_RVA, SHOWN_RVA, PLAYERS_RVA].map(at).to_vec()
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::install::stand_ins::set_handler;
-    use crate::race::mud::copy;
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // mov eax, 0
-    let entry: &[u8] = &[0xB8, 0x00, 0x00, 0x00, 0x00];
-    let copy = match copy(
-        0x45B86E,
-        0x38C,
-        entry,
-        &[0x120, 0x26C, 0x385],
-        &[(0x44AF85, 1)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    set_handler(note_quad);
-    let regions = regions();
-    let mut vars = regions.clone();
-    vars.extend(settings());
-    let saved = capture(&vars);
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for case in 0..6u32 {
-        let before = Regs {
-            ebp: case % strips::VIEWS,
-            ..Regs::SENTINEL
-        };
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            test_settings(case);
-        };
-        prepare();
-        take();
-        let mut ro = before;
-        unsafe { crate::framework::call_game(&mut ro, copy.addr()) };
-        let theirs = (Some(regs(&ro)), take(), capture(&regions));
-        prepare();
-        let mine = unsafe {
-            draw_view_strip(&before, &mut |p, r| {
-                note_quad(p, r);
-                Ok(())
-            })
-        };
-        let mine = (mine.as_ref().ok().map(regs), take(), capture(&regions));
-        t.check(theirs == mine, || {
-            format!("case {case}: original {:x?} {} quads; rust {:x?} {} quads; same quads {}; same state {}", theirs.0, theirs.1.len(), mine.0, mine.1.len(), theirs.1 == mine.1, theirs.2 == mine.2)
-        });
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

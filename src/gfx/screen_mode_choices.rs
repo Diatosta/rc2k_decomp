@@ -35,28 +35,17 @@
 //! changes). Self-test: a copy whose three calls go to stand-ins, against the Rust
 //! version, on a mode table of the test's: made or not, eax 0 or not, the trial working
 //! or not, the race's mode in the list or not.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{CARRY_FLAG, RawHook, Regs, SelfTest, ZERO_FLAG, game_addr, hook_asm, rva};
-use crate::race::viewer::{
-    Part, Saved, answer, dispatch_parts, dword, get, put, region, run_both, test_part,
-};
+use crate::framework::{Regs, game_addr, rva};
+use crate::race::viewer::{Part, get, put, regs_entry};
 use crate::system::find_entry_with_bits::find_entry_with_bits;
 use crate::system::next_entry::next_entry;
 use rc2k_core::gfx::mode_choices as mc;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("gfx::screen_mode_choices", rva(0x4045D6), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data (IDA addresses) ----
 
@@ -259,105 +248,8 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_parts(&HOOK, r, call_original, &|r| {
-        screen_mode_choices(r, &mut game_part)
-    });
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let places: &'static [(usize, u32)] = &[(0x404AED, 0), (0x404805, 1), (0x404823, 2)];
-    // pusha; lea esi, unk_4F50C0
-    let copy = match crate::race::viewer::copy(
-        0x4045D6,
-        0x22F,
-        &[0x60, 0x8D, 0x35, 0xC0, 0x50, 0x4F, 0x00],
-        &[
-            0x5A, 0x6C, 0x71, 0x7B, 0xE1, 0x105, 0x12A, 0x142, 0x149, 0x18C, 0x203,
-        ],
-        places,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions = [
-        region(RECORD, 0x130),
-        region(MODE_TABLE, 0x40),
-        dword(MODE_COUNT),
-        dword(RACE_MODE),
-        dword(TEXTURE_FIGURE),
-        dword(PRIMARY_CARD),
-        dword(SECONDARY_CARD),
-    ];
-    let saved = Saved::new(&regions);
-    // Eight modes of the test's: sizes 1 .. 0x80, pixel kinds 0x100 / 0x800, bits of both
-    // kinds (0x1000, 0x2000), thirds 0x10000 .. 0x40000.
-    let table: [u32; 8] = [
-        0x31_1101, 0x32_1102, 0x31_2802, 0x32_1104, 0x34_2808, 0x31_1110, 0x34_2820, 0x32_1180,
-    ];
-    let mut case = 0u32;
-    for made in [false, true] {
-        for eax in [0u32, 1] {
-            for race in [0x32_1102u32, 0x34_2808, 0x31_1140] {
-                for works in [false, true] {
-                    for figure in [0u32, 7] {
-                        case += 1;
-                        run_both(
-                            &mut t,
-                            &format!(
-                                "made {made}, eax {eax}, race mode {race:#x}, the trial works {works}, figure {figure}"
-                            ),
-                            copy.addr(),
-                            Regs {
-                                eax,
-                                ..Regs::SENTINEL
-                            },
-                            &regions,
-                            CARRY_FLAG | ZERO_FLAG,
-                            &|| {
-                                for n in 0..0x130 / 4 {
-                                    put(RECORD + 4 * n, 0xAAAA_AAAA);
-                                }
-                                for (n, &m) in table.iter().enumerate() {
-                                    put(MODE_TABLE + 8 * n, m);
-                                    put(MODE_TABLE + 8 * n + 4, 0);
-                                }
-                                put(MODE_COUNT, 8);
-                                put(RACE_MODE, race);
-                                put(TEXTURE_FIGURE, 5);
-                                put(PRIMARY_CARD, 0x11);
-                                put(SECONDARY_CARD, 0x22);
-                                if made {
-                                    set(0, 1);
-                                    set(4, case & 1);
-                                    set(8, case % 3);
-                                    set(0xC, case % 2);
-                                    set(0x10, figure);
-                                    set(0x24, 3);
-                                    for (n, &m) in table.iter().take(3).enumerate() {
-                                        put(LIST + 16 * n + 0xC, m);
-                                    }
-                                }
-                                answer(Box::new(move |place, r| {
-                                    if place == 0 {
-                                        r.set_carry(!works);
-                                    }
-                                    r.eax = 0x10 * place;
-                                }));
-                            },
-                            &|r| screen_mode_choices(r, &mut test_part),
-                        );
-                    }
-                }
-            }
-        }
-    }
-    crate::race::viewer::quiet();
-    drop(saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &|r| screen_mode_choices(r, &mut game_part))
 }

@@ -12,24 +12,14 @@
 //! 2 the tail), in the game their Rust versions. Shadow mode runs the original alone (it
 //! draws). Self-test: a copy whose strip calls and tail jump go to stand-ins, against the
 //! Rust version, blocks by lot.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::hud::draw_view_strip::TEXTURE_RVA;
-use crate::service::harness::{at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("hud::draw_view_strips", rva(0x45B7B1), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const OFF_RVA: usize = rva(0x5BEC94); // dword_5BEC94
 const BLOCKS_RVA: usize = rva(0x63DBB0); // g_viewBlocks
@@ -90,76 +80,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_view_strips(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { draw_view_strips(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // cmp dword_5BEC94, 0
-    let entry: &[u8] = &[0x83, 0x3D, 0x94, 0xEC, 0x5B, 0x00, 0x00];
-    let copy = match copy(
-        0x45B7B1,
-        0xBD,
-        entry,
-        &[0x57, 0xB3, 0xB8],
-        &[(0x45B86E, 1), (0x45B9AA, 2)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut blocks = vec![0u32; 2 * 0x400];
-    let [b0, b1] = [
-        blocks.as_mut_ptr() as u32,
-        blocks.as_mut_ptr() as u32 + 0x1000,
-    ];
-    let regions = vec![at(TEXTURE_RVA)];
-    let mut vars = regions.clone();
-    vars.extend([OFF_RVA, BLOCKS_RVA, BLOCKS_RVA + 4, PLAYERS_RVA].map(at));
-    let saved = capture(&vars);
-    for case in 0..8u32 {
-        run_both(
-            &mut t,
-            &format!("case {case}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                restore(&vars, &saved);
-                game_write(OFF_RVA, u32::from(case == 7));
-                game_write(BLOCKS_RVA, b0);
-                game_write(BLOCKS_RVA + 4, b1);
-                game_write(PLAYERS_RVA, case & 1);
-                for (n, b) in [b0, b1].into_iter().enumerate() {
-                    let put = |o: u32, v: u32| ((b + o) as *mut u32).write_unaligned(v);
-                    let k = case + n as u32;
-                    put(0xFA8, u32::from(k % 5 == 4));
-                    put(0x728, u32::from(k % 4 != 3));
-                    put(0x730, [0u32, 10, 7, 0xFFFF_FFF0][(k % 4) as usize]);
-                    put(0x72C, 13 * k);
-                }
-            },
-            &|r| unsafe { draw_view_strips(r, &mut test_part) },
-        );
-    }
-    restore(&vars, &saved);
-    drop(blocks);
-    t.finish()
 }

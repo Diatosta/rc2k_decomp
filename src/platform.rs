@@ -634,15 +634,14 @@ fn report_timing() {
     use std::sync::Mutex;
     use std::sync::atomic::Ordering::Relaxed;
     use std::time::Instant;
-    /// When, and the four counts then.
-    type Mark = (Instant, u64, u64, u64, u64, u64, u64);
+    /// When, and the counts then.
+    type Mark = (Instant, u64, u64, u64, u64, u64);
     static LAST: Mutex<Option<Mark>> = Mutex::new(None);
     let now = Instant::now();
-    let (frames, fans, micros, faults, flushes, pixels) = (
+    let (frames, fans, micros, flushes, pixels) = (
         SHOWN.load(Ordering::SeqCst) as u64,
         crate::platform_3d::FANS.load(Relaxed),
         crate::platform_3d::RASTER_MICROS.load(Relaxed),
-        crate::standalone::FAULTS.load(Relaxed),
         crate::platform_3d::FLUSHES.load(Relaxed),
         crate::platform_3d::PIXELS.load(Relaxed),
     );
@@ -654,20 +653,19 @@ fn report_timing() {
         return;
     };
     match *last {
-        Some((at, f0, n0, m0, x0, l0, p0)) if now.duration_since(at).as_secs() >= 5 => {
+        Some((at, f0, n0, m0, l0, p0)) if now.duration_since(at).as_secs() >= 5 => {
             let seconds = now.duration_since(at).as_secs_f64();
             log(&format!(
-                "platform: the last {seconds:.1} s: {} frames ({:.1} a second), {} fans in {} flushes, {:.1} screens of pixels a frame ({:.0} ms in the rasteriser, {:.0}%), {} calls not ported",
+                "platform: the last {seconds:.1} s: {} frames ({:.1} a second), {} fans in {} flushes, {:.1} screens of pixels a frame ({:.0} ms in the rasteriser, {:.0}%)",
                 frames - f0,
                 (frames - f0) as f64 / seconds,
                 fans - n0,
                 flushes - l0,
                 (pixels - p0) as f64 / (frames - f0).max(1) as f64 / screen,
                 (micros - m0) as f64 / 1000.0,
-                (micros - m0) as f64 / 10000.0 / seconds,
-                faults - x0
+                (micros - m0) as f64 / 10000.0 / seconds
             ));
-            *last = Some((now, frames, fans, micros, faults, flushes, pixels));
+            *last = Some((now, frames, fans, micros, flushes, pixels));
             {
                 use crate::platform_3d::{PARALLEL_MICROS, TILE_MICROS};
                 static LAST_P: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
@@ -695,7 +693,7 @@ fn report_timing() {
             }
         }
         Some(_) => {}
-        None => *last = Some((now, frames, fans, micros, faults, flushes, pixels)),
+        None => *last = Some((now, frames, fans, micros, flushes, pixels)),
     }
 }
 

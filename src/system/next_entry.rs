@@ -8,26 +8,15 @@
 //! with a private copy (0xD bytes): the `jb` at +3 is in the first bytes. Shadow mode:
 //! both, compared. Self-test: the original against the Rust version on counts and places
 //! (one that wraps).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EBX, ECX, RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::{EBX, ECX, Regs};
 use crate::screens::harness::Left;
-use crate::service::harness::{check_state, dispatch_state, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("system::next_entry", rva(0x4017E5), thunk, &ORIGINAL)
-    .private_copy(0xD)
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 // ---- Rust version ----
 
@@ -36,8 +25,6 @@ pub fn next_entry(entry: u32, left: u32) -> (bool, u32, u32) {
     // Converted: `rc2k_core::system::tables::next`.
     rc2k_core::system::tables::next(entry, left)
 }
-
-// ---- hook ----
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     let (carry, ebx, ecx) = next_entry(r.ebx, r.ecx);
@@ -51,38 +38,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &[], &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    for count in [0u32, 1, 2, 5, 0xFFFF_FFFF] {
-        for entry in [0x1000u32, 0xFFFF_FFF8, 0xFFFF_FFFC, 0x7FFF_FFFC] {
-            check_state(
-                &mut t,
-                &format!("count {count:#x}, entry {entry:#x}"),
-                call_original,
-                Regs {
-                    ebx: entry,
-                    ecx: count,
-                    ..Regs::SENTINEL
-                },
-                &|| {},
-                &[],
-                &rust,
-            );
-        }
-    }
-    t.finish()
 }

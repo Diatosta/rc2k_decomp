@@ -13,7 +13,7 @@ use crate::bridge::Raw;
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::install::installer::{CF, ZF, wb};
-use crate::race::viewer::dispatch_regs;
+use crate::race::viewer::{dispatch_regs, regs_entry};
 use rc2k_core::install::script;
 use std::sync::atomic::AtomicUsize;
 
@@ -53,6 +53,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     // the destination is `byte_95EAF8`, up to the source's length
     let regions = [(r.esi, script::NAME_LIMIT)];
     dispatch_regs(&HOOK, r, call_original, &regions, CF | ZF, &script_name);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &script_name)
 }
 
 fn self_test() -> (usize, usize) {

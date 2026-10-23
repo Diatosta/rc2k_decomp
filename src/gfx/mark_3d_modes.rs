@@ -19,25 +19,13 @@
 //! copy whose five variables are the test's and whose Direct3D call goes to a stand-in
 //! (which sets the depth formats, or fails), on tables of the test's, against the Rust
 //! version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_write, hook_asm, rva, shadow, standalone,
-};
-use crate::install::stand_ins::{act, set_handler, stand_in};
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("gfx::mark_3d_modes", rva(0x40442C), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_addr, game_write, rva, standalone};
 
 // ---- game data ----
 
@@ -137,151 +125,9 @@ pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    let entry = *r;
-    if let Err(e) = unsafe { mark_3d_modes(&entry, &ModeVars::game(), &mut game_part) } {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let entry = *r;
     unsafe { mark_3d_modes(&entry, &ModeVars::game(), &mut game_part) }?;
     Ok(())
-}
-
-// ---- self-test ----
-
-static CALLS: AtomicU32 = AtomicU32::new(0);
-static FAILS: AtomicU32 = AtomicU32::new(0);
-/// The test's depth and extra variables, and what the stand-in puts in them.
-static DEPTH_AT: AtomicU32 = AtomicU32::new(0);
-static DEPTH: AtomicU32 = AtomicU32::new(0);
-static EXTRA: AtomicU32 = AtomicU32::new(0);
-
-fn note(_place: u32, r: &mut Regs) {
-    CALLS.fetch_add(1, Ordering::SeqCst);
-    let at = DEPTH_AT.load(Ordering::SeqCst);
-    unsafe {
-        (at as *mut u32).write_volatile(DEPTH.load(Ordering::SeqCst));
-        ((at + 4) as *mut u32).write_volatile(EXTRA.load(Ordering::SeqCst));
-    }
-    r.set_carry(FAILS.load(Ordering::SeqCst) != 0);
-}
-
-fn test_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    act(place, r);
-    Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // has_fpu, count, depth, extra, then the table.
-    let mut m = vec![0u32; 4 + 2 * MODES_ROOM as usize];
-    let at = m.as_mut_ptr() as u32;
-    let v = ModeVars {
-        has_fpu: at,
-        count: at + 4,
-        depth: at + 8,
-        extra: at + 12,
-        table: at + 16,
-    };
-    DEPTH_AT.store(v.depth, Ordering::SeqCst);
-    let c = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x40442C,
-            len: 0x55,
-            entry: &[0x60, 0x83, 0x3D, 0xEC, 0x83, 0x51, 0x00, 0x01],
-            calls: &[0x0C, 0x21, 0x2D, 0x4C],
-            jumps_out: &[],
-        },
-        &|callee| (callee == DETECT_RVA).then(|| stand_in(0)),
-        &[
-            (0x5183EC, v.has_fpu),
-            (0x4F4F3C, v.table),
-            (0x4F4F38, v.count),
-            (0x4F492C, v.depth),
-            (0x4F4930, v.extra),
-        ],
-        5,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    set_handler(note);
-    // The table's entries: kinds 0x1000 / 0x2000 and depth bits 1 .. 8, by lot.
-    let table: Vec<u32> = (0..MODES_ROOM)
-        .flat_map(|n| {
-            let kind = [0x1000u32, 0x2000, 0x3000, 0][(n % 4) as usize];
-            [kind | (n.wrapping_mul(0x9E37) >> 3) & 0xF | (n << 24), n]
-        })
-        .collect();
-    // (has fpu, count, kind, fails, depth, extra)
-    let cases = [
-        (0u32, 8u32, 0x1000u32, 0u32, 1u32, 0u32),
-        (1, 8, 0x1000, 1, 1, 0),
-        (1, 8, 0x1000, 0, 1, 0),
-        (1, 0x20, 0x1000, 0, 3, 0x40),
-        (1, 0x20, 0x2000, 0, 8, 0),
-        (1, 0x20, 0x2000, 0, 0, 0x7),
-        (1, 0, 0x1000, 0, 0xF, 0x1),
-        (1, 13, 0x1000, 0, 0x4, 0x100),
-        (1, 1, 0x3000, 0, 0xF, 0),
-    ];
-    for (fpu, count, kind, fails, depth, extra) in cases {
-        FAILS.store(fails, Ordering::SeqCst);
-        DEPTH.store(depth, Ordering::SeqCst);
-        EXTRA.store(extra, Ordering::SeqCst);
-        let run = |rust: bool| unsafe {
-            let p = at as *mut u32;
-            p.write_volatile(fpu);
-            p.add(1).write_volatile(count);
-            p.add(2).write_volatile(0xAAAA_AAAA);
-            p.add(3).write_volatile(0xAAAA_AAAA);
-            for (n, x) in table.iter().enumerate() {
-                p.add(4 + n).write_volatile(*x);
-            }
-            CALLS.store(0, Ordering::SeqCst);
-            let before = Regs {
-                eax: kind,
-                ..Regs::SENTINEL
-            };
-            let (done, preserved) = if rust {
-                (mark_3d_modes(&before, &v, &mut test_part).is_ok(), true)
-            } else {
-                let mut ro = before;
-                call_game(&mut ro, c.addr());
-                (true, ro.preserved_except(&before, 0))
-            };
-            (
-                done && preserved,
-                CALLS.load(Ordering::SeqCst),
-                std::slice::from_raw_parts(at as *const u32, m_len()).to_vec(),
-            )
-        };
-        let theirs = run(false);
-        let mine = run(true);
-        t.check(theirs == mine, || {
-            format!(
-                "fpu {fpu}, {count} modes, kind {kind:#x}, fails {fails}, depth {depth:#x}, extra {extra:#x}: original {theirs:x?}; rust {mine:x?}"
-            )
-        });
-    }
-    drop(m);
-    t.finish()
-}
-
-fn m_len() -> usize {
-    4 + 2 * MODES_ROOM as usize
 }

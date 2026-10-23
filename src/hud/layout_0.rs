@@ -18,31 +18,19 @@
 //! game their Rust versions. Shadow mode runs the original alone (it draws). Self-test: a
 //! copy whose draws go to a stand-in, against the Rust version, flags and times by lot,
 //! at both test control words.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::hud::add_quad::QUAD_RVA;
 use crate::hud::batch::TEXTURE_RVA;
 use crate::hud::draw_marker::RECTS_RVA;
 use crate::hud::draw_signs::row;
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
-use crate::service::harness::{Region, at, capture, restore};
+use crate::service::harness::{Region, at};
 use rc2k_core::hud::panels;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("hud::layout_0", rva(0x4B1D8C), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 pub const TIMES_RVA: [usize; 3] = [rva(0x75C074), rva(0x75C078), rva(0x75C07C)];
 pub const DIGITS_RVA: usize = rva(0x75C08C); // dword_75C08C .. dword_75C0A0: six
@@ -286,18 +274,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { layout_0(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { layout_0(r, &mut game_part) }?;
@@ -320,92 +296,4 @@ pub fn regions() -> Vec<Region> {
     .to_vec();
     r.push((game_addr(DIGITS_RVA) as u32, 0x18));
     r
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::level_init::{note, take_called};
-    use crate::race::mud::copy;
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let calls = [
-        0x20, 0x3B, 0x60, 0x6F, 0xB6, 0xD6, 0x13C, 0x16F, 0x180, 0x19B, 0x1B6, 0x204, 0x2BB, 0x2D8,
-        0x2F5, 0x312, 0x32F, 0x34C, 0x369, 0x386, 0x3C4, 0x47B, 0x498, 0x4B5, 0x4D2, 0x4EF, 0x50C,
-        0x529, 0x546, 0x61E, 0x647, 0x670, 0x699, 0x75C, 0x785, 0x7AE, 0x7D7, 0x800, 0x829, 0x852,
-        0x87B, 0x955, 0x98A, 0x9B1,
-    ];
-    // mov g_hudQuad, 0E0h
-    let entry: &[u8] = &[0xC7, 0x05, 0xB0, 0xBF, 0x75, 0x00, 0xE0, 0x00, 0x00, 0x00];
-    let copy = match copy(
-        0x4B1D8C,
-        0x9B7,
-        entry,
-        &calls,
-        &[
-            (0x4B70EE, 1),
-            (0x4B6BFD, 2),
-            (0x4B5A86, 3),
-            (0x4B57D8, 4),
-            (0x4B55AB, 5),
-            (0x4B4F2B, 6),
-            (0x4B6DB9, 7),
-        ],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions = regions();
-    let mut vars = regions.clone();
-    vars.extend(TIMES_RVA.map(at));
-    vars.push(at(crate::hud::draw_signs::FLAT_RVA));
-    let saved = capture(&vars);
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for (word, case) in TEST_CONTROL_WORDS
-        .into_iter()
-        .flat_map(|w| (0..6u32).map(move |c| (w, c)))
-    {
-        let mut record = [0u32; 0x40];
-        record[0xF8 / 4] = [0xFFu32, 0, 0x55, 0xAA, 0x62, 0x3D][case as usize];
-        record[0x14 / 4] = [0u32, 1234, 59_999, 0xFFFF_FF00, 6_000, 361_234][case as usize];
-        record[0x18 / 4] = case;
-        record[0x1C / 4] = if case == 2 { 0xFFFF_FFFF } else { 4321 * case };
-        record[0x28 / 4] = [5u32, 0xFFFF_FFFF, 0xFFFF_FFF0, 30, 0x16, 3][case as usize];
-        record[0x30 / 4] = [7u32, 9, 0xFFFF_FFFF, 0, 40, 2][case as usize];
-        record[0xCC / 4] = case & 1;
-        let before = Regs {
-            ebp: record.as_ptr() as u32,
-            ..Regs::SENTINEL
-        };
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            game_write(TIMES_RVA[0], 65_432 * case);
-            game_write(TIMES_RVA[1], (12_345 * case).wrapping_neg());
-            game_write(TIMES_RVA[2], 777 + case);
-            game_write(crate::hud::draw_signs::FLAT_RVA, case & 1);
-        };
-        prepare();
-        take_called();
-        let mut ro = before;
-        with_control_word(word, &mut || unsafe {
-            crate::framework::call_game(&mut ro, copy.addr())
-        });
-        let theirs = (Some(regs(&ro)), take_called(), capture(&regions));
-        prepare();
-        let mine = unsafe {
-            layout_0(&before, &mut |p, r| {
-                note(p, r);
-                Ok(())
-            })
-        };
-        let mine = (
-            mine.as_ref().ok().map(regs),
-            take_called(),
-            capture(&regions),
-        );
-        t.check(theirs == mine, || {
-            format!("control word {word:#x}, case {case}: original {:x?} {} calls; rust {:x?} {} calls; same calls {}; same state {}", theirs.0, theirs.1.len(), mine.0, mine.1.len(), theirs.1 == mine.1, theirs.2 == mine.2)
-        });
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

@@ -15,33 +15,23 @@
 //! The high half of the two sizes is what the instruction before left there (16-bit moves
 //! into eax), which the Rust version follows.
 //! The name is a reading.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write};
 use crate::gfx::palette_to_dwords::palette_to_dwords;
 use crate::gfx::pcx::{
     DECODED_HEIGHT_RVA, DECODED_ROW_BYTES_RVA, DECODED_ROW_DWORDS_RVA, DECODED_WIDTH_RVA,
-    FILE_HEIGHT_RVA, FILE_PALETTE_RVA, FILE_WIDTH_RVA, HEADER_LEN, HEADER_RVA, HEIGHT_LIMIT_RVA,
+    FILE_HEIGHT_RVA, FILE_PALETTE_RVA, FILE_WIDTH_RVA, HEADER_RVA, HEIGHT_LIMIT_RVA,
     LINE_BYTES_RVA, PALETTE_RVA, PIXEL_BITS_RVA, PIXEL_BYTES_RVA, PIXELS_RVA, PLANES_RVA,
-    ROW_GAP_RVA, STRIDE_RVA, WIDTH_LIMIT_RVA, layout_regions, reader_inputs, test_header,
-    test_palette,
+    ROW_GAP_RVA, STRIDE_RVA, WIDTH_LIMIT_RVA,
 };
 use crate::gfx::picture::{FLAGS_RVA, HEIGHT_RVA, PICTURE_RVA, ROW_BYTES_RVA, WIDTH_RVA};
 use crate::screens::harness::Left;
-use crate::service::harness::{at, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("gfx::lay_out_pcx", rva(0x411A82), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 // ---- Rust version ----
 
@@ -84,15 +74,9 @@ pub unsafe fn lay_out_pcx() -> rc2k_core::gfx::pcx::Layout {
     }
 }
 
-// ---- hook ----
-
 fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { lay_out_pcx() };
     Ok(Left::nothing())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &layout_regions(), &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
@@ -103,78 +87,3 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
 
 // ---- self-test: headers and settings of the test's own in the game's variables, which are
 // put back ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = layout_regions();
-    let inputs = [
-        &reader_inputs()[..],
-        &[
-            (game_addr(HEADER_RVA) as u32, HEADER_LEN),
-            (game_addr(FILE_PALETTE_RVA) as u32, 0x300),
-            at(FLAGS_RVA),
-        ],
-    ]
-    .concat();
-    let saved = (capture(&regions), capture(&inputs));
-    let palette = test_palette();
-
-    // (left, top, width, height, planes, bytes in a plane's row)
-    let headers = [
-        (0u16, 0u16, 10u16, 4u16, 1u8, 10u16),
-        (3, 5, 640, 480, 3, 640),
-        (0, 0, 1024, 768, 3, 1024),
-        (100, 100, 1, 1, 1, 2),
-        (10, 10, 0, 0, 1, 0), // right and bottom one short of left and top
-        (0, 0, 0xFFFF, 0xFFFF, 255, 0xFFFF),
-    ];
-    // (buffer width, buffer height, row length setting, flags, width limit, height limit)
-    let settings = [
-        (800u32, 600u32, 0xFFFF_FFFDu32, 0x800u32, 0x800u32, 0x800u32),
-        (800, 600, 0xFFFF_FFFF, 0x800, 0x800, 0x800),
-        (256, 256, 0xFFFF_FFFE, 0x900, 0x800, 0x800),
-        (800, 600, 3200, 0x100, 64, 32),
-        (0x10_0000, 0x10_0000, 0xFFFF_FFFD, 0, 0x20_0000, 0x20_0000),
-    ];
-    for (left, top, width, height, planes, line_bytes) in headers {
-        for (buffer_width, buffer_height, row_setting, flags, width_limit, height_limit) in settings
-        {
-            let header = test_header(left, top, width, height, planes, line_bytes);
-            let prepare = || unsafe {
-                restore(&regions, &vec![0xAA; regions.iter().map(|r| r.1).sum()]);
-                std::ptr::copy_nonoverlapping(
-                    header.as_ptr(),
-                    game_addr(HEADER_RVA) as *mut u8,
-                    HEADER_LEN,
-                );
-                std::ptr::copy_nonoverlapping(
-                    palette.as_ptr(),
-                    game_addr(FILE_PALETTE_RVA) as *mut u8,
-                    palette.len(),
-                );
-                game_write(WIDTH_RVA, buffer_width);
-                game_write(HEIGHT_RVA, buffer_height);
-                game_write(ROW_BYTES_RVA, row_setting);
-                game_write(FLAGS_RVA, flags);
-                game_write(WIDTH_LIMIT_RVA, width_limit);
-                game_write(HEIGHT_LIMIT_RVA, height_limit);
-            };
-            check_state(
-                &mut t,
-                &format!(
-                    "header left={left} top={top} {width}x{height} planes={planes} line={line_bytes}; buffer {buffer_width}x{buffer_height} row setting {row_setting:#x} flags {flags:#x} limits {width_limit} {height_limit}"
-                ),
-                call_original,
-                Regs::SENTINEL,
-                &prepare,
-                &regions,
-                &rust,
-            );
-        }
-    }
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
-}

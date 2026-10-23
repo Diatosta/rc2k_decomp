@@ -13,26 +13,17 @@
 //! draws). Self-test: a copy whose quads go to a stand-in noting the quad record at each,
 //! against the Rust version, parts by lot, at
 //! both test control words (the test's values are exact at both).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva, shadow};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, rva};
 use crate::hud::add_quad::{QUAD_RVA, note_quad, take_quads};
 use crate::hud::draw_stage_bar::*;
 use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::service::harness::{Region, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("hud::draw_stage_bars_1", rva(0x4B5E29), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const KINDS_2_RVA: usize = rva(0x6D170C); // dword_6D170C: 0x40
 const COLOUR_A_RVA: usize = rva(0x75BFA4); // dword_75BFA4
@@ -59,18 +50,6 @@ pub unsafe fn bars_with(entry: &Regs, dy: u32, part: Part) -> Result<Regs, Refus
 // Converted: `rc2k_core::hud::stage_bars` (through `draw_stage_bar::bars`)
 pub unsafe fn draw_stage_bars_1(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     unsafe { bars_with(entry, 0, part) }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_stage_bars_1(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
 }
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
@@ -150,8 +129,4 @@ pub fn test_bars(
     }
     restore(&vars, &saved);
     t.finish()
-}
-
-fn self_test() -> (usize, usize) {
-    test_bars(&HOOK, 0x4B5E29, &|r, p| unsafe { draw_stage_bars_1(r, p) })
 }
