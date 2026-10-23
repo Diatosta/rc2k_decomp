@@ -14,34 +14,25 @@
 //! Callers: `marks::emit_wheel_particles`' kinds 2 .. 4, 6 .. 9, 0xC. The original's
 //! loops push esi; when the ring is full (0x3FE taken) inside one they leave by
 //! 0x4CD741, which takes only that push off: `popa` restores shifted registers and
-//! `retn` returns to a register's value (section 16; a crash candidate). Refuses (before
-//! anything) a null wheel, a null object, car or matrix where read, and a ring that would
-//! fill inside a burst. Self-test: a ring, wheel and car of the test's
+//! `retn` returns to a register's value, the crash over mud (section 16; seen by the
+//! owner 2026-10-23). Fixed here (2026-10-23): the bursts end at a full ring, as the
+//! exit with `lea esp, [esp+8]` does; `bug_fixes` patches the original's two exits so
+//! in the hooked game. Refuses (before anything) a null wheel, a null object, car or
+//! matrix where read. Self-test: a ring, wheel and car of the test's
 //! (`marks::emit_particle_6::TestEmitter`), several strengths and fillings, the refusal.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, SelfTest, game_addr, game_read, game_write, rva};
 use crate::marks::emit_particle_6::{TEST_ENTRIES, TestEmitter};
 use crate::marks::emitters::*;
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at as at_rva, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::emit_bursts", rva(0x4CD21A), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at as at_rva, check_state, restore, state_entry};
 
 const FLAGS2_RVA: usize = rva(0x939BAA); // g_marksWheelFlags2: the wheel's +0x24 kept
 const DIRECTION_RVA: usize = rva(0x935688); // flt_935688 .. flt_935690
@@ -163,12 +154,6 @@ pub unsafe fn refusal(set: &BurstSet, wheel: u32, object: u32) -> Option<&'stati
         if a + b > 0 && (object == 0 || car == 0 || at(car + 0x24) == 0) {
             return Some("a null object, car or matrix");
         }
-        let taken: u32 = game_read(RING_COUNT_RVA);
-        if taken <= MOST_TAKEN && taken + a + b > MOST_TAKEN {
-            return Some(
-                "the ring fills inside a burst: the original returns to a register's value",
-            );
-        }
         None
     }
 }
@@ -209,6 +194,13 @@ pub unsafe fn emit_bursts_with(set: &BurstSet, wheel: u32, object: u32) -> Resul
             game_write(DIRECTION_RVA, direction);
             let count = (next_c5(h.count_random) & 0xFFF) % ((flags2 >> 6) << 2);
             for _ in 0..count {
+                // The ring full (0x3FE taken): the original leaves by 0x4CD741 / 0x4CDC6E,
+                // whose stack slip crashed the game (section 16). Fixed 2026-10-23: the
+                // bursts end there, the caller's registers kept, as `lea esp, [esp+8]`
+                // would leave them.
+                if game_read::<u32>(RING_COUNT_RVA) == MOST_TAKEN {
+                    return Ok(());
+                }
                 let e = take_entry(at(object + 0x1C) & 0xFF_FFFF, h.kind);
                 let put = |o: u32, v: u32| ((e + o) as *mut u32).write_unaligned(v);
                 let d: [u32; 3] = game_read(DIRECTION_RVA);
@@ -300,22 +292,10 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(&FIRST, r.edi), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    test_with(&mut t, &FIRST, call_original, &rust);
-    t.finish()
 }
 
 /// The test of either copy.

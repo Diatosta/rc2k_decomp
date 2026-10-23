@@ -25,30 +25,19 @@
 //! original alone (it writes a file). Self-test: a copy whose calls go to stand-ins,
 //! against the Rust version: nothing to save, either open failing, writes failing at each
 //! place, three blocks saved (packed and not).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::physics::flow::a;
 use crate::race::replay_path::{LAST_RACE_PATH, replay_path};
 use crate::race::viewer::{
-    BLOCK_DATA, BLOCKS, CAMERAS, CF, HEADER, INDEX, PLACES, Part, Saved, TABLE_LEN, UNDO_BLOCKS,
-    UNDO_PLACES, ZF, answer, dispatch_parts, dword, get, move_dwords, put, region, regs_entry,
-    run_both, test_part,
+    BLOCK_DATA, BLOCKS, CAMERAS, HEADER, INDEX, PLACES, Part, TABLE_LEN, UNDO_BLOCKS, UNDO_PLACES,
+    get, move_dwords, put, regs_entry,
 };
-use crate::service::harness::Region;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::save_viewed_replay", rva(0x41ED1C), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const NAMES: usize = 0x528934; // byte_528934: 32 bytes a slot
 const FROM: usize = 0x975508; // dword_975508
@@ -205,134 +194,8 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_parts(&HOOK, r, call_original, &|r| {
-        save_viewed_replay(r, &mut game_part)
-    });
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &|r| save_viewed_replay(r, &mut game_part))
-}
-
-// ---- self-test ----
-
-fn regions() -> Vec<Region> {
-    vec![
-        region(HEADER, 0x30),
-        dword(FROM),
-        dword(TO),
-        dword(UNDO_BLOCKS),
-        region(UNDO_PLACES, TABLE_LEN),
-        dword(OFFSET),
-        region(BLOCK_DATA, 0x10),
-        region(0x94E8B0, 0x100),
-    ]
-}
-
-/// Which call fails: (place, its how-many-th call), or none.
-fn act(fails: (u32, u32), counts: &mut [u32; 8], place: u32, r: &mut Regs) {
-    counts[place as usize] += 1;
-    let fail = fails == (place, counts[place as usize]);
-    match place {
-        1 => r.eax = 0x2A3B_4C5D,
-        2 => {
-            r.eax = if fail { u32::MAX } else { 0x100 + counts[2] };
-            r.set_carry(fail);
-        }
-        3 => {
-            r.eax = if fail { r.ecx / 2 } else { r.ecx };
-            r.set_carry(fail);
-        }
-        5 => unsafe {
-            for n in 0..0x10u32 {
-                ((r.ebx + n) as *mut u8).write(0x60 + n as u8 + counts[5] as u8);
-            }
-        },
-        6 => {
-            // Packed every other block.
-            r.eax = if counts[6].is_multiple_of(2) {
-                0x0123u32.wrapping_neg()
-            } else {
-                0x2810
-            };
-            r.set_carry(fail);
-        }
-        _ => {}
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; xor edx, edx; cmp dword_5BECD0, 0
-    let copy = match crate::race::viewer::copy(
-        0x41ED1C,
-        0x199,
-        &[0x60, 0x33, 0xD2, 0x83, 0x3D, 0xD0, 0xEC, 0x5B, 0x00, 0x00],
-        &[
-            0x2A, 0x56, 0x67, 0x71, 0x98, 0xB5, 0xD3, 0xEA, 0x11F, 0x157, 0x16E, 0x17B, 0x185,
-        ],
-        &[
-            (0x410F99, 1),
-            (0x402DE8, 2),
-            (0x402E57, 3),
-            (0x402E75, 4),
-            (0x41EEB5, 5),
-            (0x41EEE4, 6),
-            (0x402E23, 7),
-        ],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut all = regions();
-    all.extend([
-        dword(BLOCKS),
-        region(PLACES, 0x20),
-        region(CAMERAS, 0x20),
-        region(NAMES, 0x80),
-    ]);
-    let saved = Saved::new(&all);
-    for (what, blocks, slot, fails) in [
-        ("nothing to save", 0u32, 2u32, (0u32, 0u32)),
-        ("three blocks", 3, 2, (0, 0)),
-        ("a game's own slot", 3, 101, (0, 0)),
-        ("the source not opened", 3, 2, (2, 1)),
-        ("the slot not made", 3, 2, (2, 2)),
-        ("the header not written", 3, 2, (3, 1)),
-        ("a block not written", 3, 2, (6, 2)),
-        ("the count not written", 3, 2, (3, 2)),
-        ("the index not written", 3, 2, (3, 3)),
-    ] {
-        run_both(
-            &mut t,
-            what,
-            copy.addr(),
-            Regs {
-                ebx: slot,
-                ..Regs::SENTINEL
-            },
-            &regions(),
-            CF | ZF,
-            &|| {
-                for (at, len) in regions() {
-                    unsafe { std::ptr::write_bytes(at as *mut u8, 0xAA, len) };
-                }
-                put(BLOCKS, blocks);
-                crate::race::viewer::fill(PLACES, 0x20, 18);
-                crate::race::viewer::fill(CAMERAS, 0x20, 19);
-                crate::race::viewer::fill(NAMES, 0x80, 20);
-                let mut counts = [0u32; 8];
-                answer(Box::new(move |place, r| act(fails, &mut counts, place, r)));
-            },
-            &|r| save_viewed_replay(r, &mut test_part),
-        );
-    }
-    crate::race::viewer::quiet();
-    drop(saved);
-    t.finish()
 }

@@ -31,35 +31,16 @@
 //! Shadow mode: Rust, its writes put back, the original, compared.
 //! Self-test: both on the game's tables filled with a pattern first, put back
 //! afterwards.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::angle_between::angle_of;
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::next_noise::{STATE_RVA, next_noise};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::fill_engine_tables", rva(0x41F6BA), thunk, &ORIGINAL)
-        .private_copy(LEN)
-        .relocate_calls(&CALLS)
-        .manual_patch()
-        .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const LEN: usize = 0x5C;
-const CALLS: [usize; 8] = [0x00, 0x05, 0x0A, 0x0F, 0x14, 0x19, 0x24, 0x4C];
 
 // ---- game data ----
 
@@ -162,105 +143,8 @@ pub unsafe fn fill_engine_tables(r: &mut Regs) {
     }
 }
 
-// ---- hook ----
-
-/// Everything it writes.
-fn regions() -> [Region; 10] {
-    let table = |rva: usize, len: usize| (game_addr(rva) as u32, len);
-    [
-        table(ROOTS_RVA, 0x400),
-        table(EXPONENT_ROOTS_RVA, 0x400),
-        table(SHUFFLED_RVA, 0x2_0000),
-        table(NOISE_RVA, NOISE_LEN),
-        table(FACTORS_RVA, 0x400),
-        table(SINES_RVA, SINES * 4),
-        table(ARCTANGENTS_RVA, 0x2000),
-        at(STATE_RVA),
-        at(TANGENT_RVA),
-        at(CHECKED_RVA),
-    ]
-}
-
-/// Which of the regions differ, by their place in `regions`, with the first byte that
-/// does: the tables are too long to print.
-fn differing(theirs: &[u8], mine: &[u8]) -> Vec<(usize, usize, u8, u8)> {
-    let mut from = 0;
-    let mut found = Vec::new();
-    for (place, (_, len)) in regions().into_iter().enumerate() {
-        let (a, b) = (&theirs[from..from + len], &mine[from..from + len]);
-        if let Some(at) = a.iter().zip(b).position(|(a, b)| a != b) {
-            found.push((place, at, a[at], b[at]));
-        }
-        from += len;
-    }
-    found
-}
-
-fn registers(r: &Regs) -> [u32; 7] {
-    [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp]
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if !shadow() {
-        unsafe { fill_engine_tables(r) };
-        return;
-    }
-    let regions = regions();
-    let before = capture(&regions);
-    let mut mine = *r;
-    unsafe { fill_engine_tables(&mut mine) };
-    let left = capture(&regions);
-    restore(&regions, &before);
-    unsafe { call_original(r) };
-    let theirs = capture(&regions);
-    if theirs != left || registers(r) != registers(&mine) {
-        HOOK.mismatch(|| {
-            format!(
-                "registers original {:x?}, rust {:x?}; regions that differ (place, byte, original, rust) {:x?}",
-                registers(r),
-                registers(&mine),
-                differing(&theirs, &left)
-            )
-        });
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     unsafe { fill_engine_tables(r) };
     Ok(())
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let saved = capture(&regions);
-    for fill in [0xAAu8, 0x00] {
-        let run = |rust: bool| unsafe {
-            restore(&regions, &vec![fill; saved.len()]);
-            let mut r = Regs::SENTINEL;
-            if rust {
-                fill_engine_tables(&mut r);
-            } else {
-                call_original(&mut r);
-            }
-            (registers(&r), capture(&regions))
-        };
-        let (theirs, mine) = (run(false), run(true));
-        t.check(theirs == mine, || {
-            format!(
-                "filled with {fill:#x}: registers original {:x?}, rust {:x?}; regions that differ (place, byte, original, rust) {:x?}",
-                theirs.0,
-                mine.0,
-                differing(&theirs.1, &mine.1)
-            )
-        });
-    }
-    restore(&regions, &saved);
-    t.finish()
 }

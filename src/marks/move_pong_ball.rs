@@ -17,28 +17,16 @@
 //! `rc2k_core::marks::pong::Court::move_ball` (plain floats; the x87 version stays for the Rust
 //! callers in unconverted code). Shadow mode and the self-test compare within
 //! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::pong;
 use crate::marks::pong_ball_hits::pong_ball_hits;
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
 use rc2k_core::marks::pong::Hit;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::move_pong_ball", rva(0x4B7F4F), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const LIMITS_RVA: usize = rva(0x7691A6); // flt_7691A6 .. flt_7691C2
 
@@ -102,50 +90,4 @@ pub unsafe fn move_pong_ball_plain(entry: &Regs) -> Regs {
     }
     g.eax = status;
     g
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { move_pong_ball_plain(r) }))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    pong::dispatch_court(&HOOK, r, call_original, &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    pong::test_court(
-        &mut t,
-        "marks::move_pong_ball",
-        call_original,
-        10,
-        &|case| unsafe {
-            pong::test_values(case);
-            if case >= 6 {
-                // walls: the ball put at or past the limits
-                let k = case - 6;
-                let at_limit = |n: usize, d: f32| f32::from_bits(limit(n)) + d;
-                game_write(
-                    pong::BALL[0],
-                    at_limit(
-                        if k % 2 == 0 { 0 } else { 2 },
-                        if k < 2 { -1.0 } else { 40.0 },
-                    )
-                    .to_bits(),
-                );
-                game_write(
-                    pong::BALL[1],
-                    at_limit(
-                        if k % 2 == 0 { 4 } else { 6 },
-                        if k < 2 { -2.0 } else { 3.0 },
-                    )
-                    .to_bits(),
-                );
-            }
-        },
-        &rust,
-    );
-    t.finish()
 }

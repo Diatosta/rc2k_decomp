@@ -16,28 +16,16 @@
 //! wrote before is put back first). Shadow mode runs the original alone (it tells the
 //! device). Self-test: a copy whose five calls go to stand-ins (the three turns real),
 //! against the Rust version on the same stand-ins; all but the two times compared.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::draw_frame", rva(0x4C3EEE), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const VIEW_RVA: usize = rva(0x5EA3CC); // flt_5EA3CC
 /// (the point, where it goes turned).
@@ -145,24 +133,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_frame(r, &mut game_part) } {
-        Ok(left) => {
-            *r = Regs {
-                esp: r.esp,
-                eflags: r.eflags,
-                ..left
-            }
-        }
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     {
@@ -174,86 +144,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
         }
     }
     Ok(())
-}
-
-fn regions() -> Vec<Region> {
-    let mut r: Vec<Region> = POINTS
-        .iter()
-        .map(|&(_, to)| (game_addr(to) as u32, 12))
-        .collect();
-    r.push((game_addr(CORNERS_RVA) as u32, CORNERS_LEN as usize));
-    r.extend(
-        [
-            LAST_SOURCE_RVA,
-            STEP_RVA,
-            SOUND_RVA[0],
-            SOUND_RVA[1],
-            CLEARED_RVA,
-        ]
-        .map(at),
-    );
-    r
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if unsafe { game_read::<u32>(COURSE_INFO_RVA) } == 0 {
-        return t.skip("no course info");
-    }
-    // fld flt_91FF4A
-    let entry: &[u8] = &[0xD9, 0x05, 0x4A, 0xFF, 0x91, 0x00];
-    let copy = match copy(
-        0x4C3EEE,
-        0x196,
-        entry,
-        &[0x18, 0x47, 0x76, 0x118, 0x11D, 0x122, 0x133, 0x190],
-        &[
-            (0x4C9AF6, 1),
-            (0x4C4CEC, 2),
-            (0x4C4D40, 3),
-            (0x4C4453, 4),
-            (0x44E3E1, 5),
-        ],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions = regions();
-    let mut vars = regions.clone();
-    vars.extend([SOURCE_RVA, TIMES[0].1, TIMES[1].1].map(at));
-    vars.extend(POINTS.iter().map(|&(from, _)| (game_addr(from) as u32, 12)));
-    let saved = capture(&vars);
-    for case in 0..3u32 {
-        run_both(
-            &mut t,
-            &format!("case {case}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                restore(&vars, &saved);
-                game_write(
-                    SOURCE_RVA,
-                    if case == 1 {
-                        0x55u32
-                    } else {
-                        game_read::<u32>(LAST_SOURCE_RVA)
-                    },
-                );
-                for (n, &(from, _)) in POINTS.iter().enumerate() {
-                    for k in 0..3 {
-                        game_write(
-                            from + 4 * k,
-                            ((n * 3 + k) as f32 * 1.5 - 4.0 + case as f32).to_bits(),
-                        );
-                    }
-                }
-            },
-            &|r| unsafe { draw_frame(r, &mut test_part) },
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

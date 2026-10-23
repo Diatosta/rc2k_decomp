@@ -11,29 +11,16 @@
 //! corners or more than 0x40. Shadow mode: by state. Self-test: the work car's corners,
 //! turn and place set by pattern, the sun's angles; all put back (skipped without a
 //! race: the ground is the stage's).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    EAX, EBX, EDI, ESI, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{EAX, EBX, EDI, ESI, Regs, game_addr, game_read, game_write, rva};
 use crate::race::car_shadow::*;
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::shadow_points", rva(0x458078), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at, state_entry};
 
 pub fn points_regions() -> Vec<Region> {
     let g = |a: usize, len: usize| (game_addr(rva(a)) as u32, len);
@@ -63,10 +50,6 @@ pub fn left() -> Left {
         .with(EBX, count)
         .with(ESI, game_addr(rva(0x71A818)) as u32)
         .with(EDI, game_addr(rva(0x641AA4)) as u32 + 0x20 * count)
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &points_regions(), &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
@@ -111,33 +94,4 @@ pub fn set_car_shadow_inputs(seed: u32, count: u32) {
         game_write(rva(0x60933C), 0x20 + seed % 0x30);
         game_write(rva(0x609338), seed.wrapping_mul(0x37) & 0xFF);
     }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if unsafe { game_read::<u32>(rva(0x621480)) } == 0 || !crate::physics::move_slot::in_race() {
-        return t.skip("no race loaded");
-    }
-    let regions = points_regions();
-    let mut kept = regions.clone();
-    kept.extend(car_shadow_inputs());
-    let saved = capture(&kept);
-    for (seed, count) in [(1u32, 8u32), (0x55, 4), (0x1234, 8)] {
-        check_state(
-            &mut t,
-            &format!("seed {seed:#x} corners {count}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| {
-                restore(&kept, &saved);
-                set_car_shadow_inputs(seed, count);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&kept, &saved);
-    t.finish()
 }

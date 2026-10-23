@@ -14,30 +14,19 @@
 //! Callers: `sub_4CFB49` and code at 0x4D032B. Refuses a null record or ring (when an
 //! entry is to be taken), before anything. Self-test: a ring of the test's, the original
 //! and the Rust version at several fillings and randoms; put back afterwards.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::marks::blocks::{RING_ENTRY, RING_FREE_RVA, RING_USED_RVA};
+use crate::framework::{Regs, game_read, game_write, rva};
+use crate::marks::blocks::{RING_FREE_RVA, RING_USED_RVA};
 use crate::marks::setup::SEED_RVA;
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::burst_particles", rva(0x4D0146), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 const FLAG_RVA: usize = rva(0x5165E8); // dword_5165E8
 const RADIUS_RVA: usize = rva(0x93A5E4); // g_marksBurstRadius
@@ -146,117 +135,12 @@ pub unsafe fn burst_particles(entry: &Regs) -> Result<Regs, Refused> {
     Ok(g)
 }
 
-fn regions() -> Vec<Region> {
-    let mut r: Vec<Region> = [
-        FLAG_RVA,
-        RADIUS_RVA,
-        KIND_RVA,
-        NINE_RVA,
-        SEED_RVA,
-        RING_FREE_RVA,
-        RING_USED_RVA,
-    ]
-    .map(at)
-    .to_vec();
-    r.extend(
-        unsafe { entries_taken() }
-            .into_iter()
-            .filter(|&e| e != 0)
-            .map(|e| (e, RING_ENTRY as usize)),
-    );
-    r
-}
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { burst_particles(r) }?))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    const TEST_ENTRIES: u32 = 0x120;
-    let mut ring = vec![0u8; (TEST_ENTRIES * RING_ENTRY) as usize];
-    let base = ring.as_mut_ptr() as u32;
-    let record: [u32; 6] = [
-        0xAAAA_AAAA,
-        0,
-        0,
-        1.5f32.to_bits(),
-        (-20.25f32).to_bits(),
-        1e7f32.to_bits(),
-    ];
-    let game: Vec<Region> = [
-        FLAG_RVA,
-        RADIUS_RVA,
-        KIND_RVA,
-        NINE_RVA,
-        SEED_RVA,
-        RING_FREE_RVA,
-        RING_USED_RVA,
-    ]
-    .map(at)
-    .to_vec();
-    let saved = capture(&game);
-    let mut regions = game.clone();
-    regions.push((base, ring.len()));
-    for (used, seed) in [
-        (0u32, 0x1234_5678u32),
-        (0xF80, 0xDEAD_BEEF),
-        (0xFFF, 7),
-        (0x1000, 0),
-        (0xFFE, 0xFFFF_FFFF),
-    ] {
-        check_state(
-            &mut t,
-            &format!("used {used:#x}, seed {seed:#x}"),
-            call_original,
-            Regs {
-                esi: record.as_ptr() as u32,
-                ..Regs::SENTINEL
-            },
-            &|| unsafe {
-                restore(&game, &saved);
-                std::ptr::write_bytes(base as *mut u8, 0xAA, (TEST_ENTRIES * RING_ENTRY) as usize);
-                for n in 0..TEST_ENTRIES {
-                    let at = |k: u32| base + (k % TEST_ENTRIES) * RING_ENTRY;
-                    let e = at(n) as *mut u32;
-                    e.write_unaligned(at(n + TEST_ENTRIES - 1));
-                    e.add(1).write_unaligned(at(n + 1));
-                }
-                game_write(RING_FREE_RVA, base + 5 * RING_ENTRY);
-                game_write(RING_USED_RVA, used);
-                game_write(SEED_RVA, seed);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    // The refusal: a null record with an entry to take.
-    unsafe {
-        restore(&game, &saved);
-        game_write(RING_FREE_RVA, base);
-        game_write(RING_USED_RVA, 0u32);
-    }
-    let refused = unsafe {
-        burst_particles(&Regs {
-            esi: 0,
-            ..Regs::SENTINEL
-        })
-    }
-    .is_err();
-    t.check(refused, || "a null record not refused".into());
-    restore(&game, &saved);
-    drop(ring);
-    t.finish()
 }

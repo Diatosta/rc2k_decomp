@@ -20,29 +20,17 @@
 //! settings, before anything. Shadow mode runs the original alone (it draws). Self-test: a
 //! copy whose calls go to stand-ins (the vector helpers real), against the Rust version, on
 //! settings of the test's.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::marks::setup::SETTINGS_RVA;
 use crate::math::x87;
 use crate::scene::cross_product3::cross_product3;
 use crate::scene::vector3::normalise_vector3;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::hexagons_top", rva(0x4BAC87), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const BUFFER_RVA: usize = rva(0x816232); // dword_816232
 const BUFFER_START: usize = rva(0x625A44); // unk_625A44
@@ -311,90 +299,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { hexagons_top(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { hexagons_top(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // mov dword_816232, offset unk_625A44
-    let entry: &[u8] = &[0xC7, 0x05, 0x32, 0x62, 0x81, 0x00, 0x44, 0x5A, 0x62, 0x00];
-    let copy = match copy(
-        0x4BAC87,
-        0x310,
-        entry,
-        &[
-            0xBF, 0x12C, 0x143, 0x14E, 0x165, 0x19B, 0x281, 0x2CF, 0x2F6, 0x300,
-        ],
-        &[(0x4BC0B1, 1), (0x41ADB9, 2), (0x4BCAD0, 3), (0x44E77E, 4)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut settings = vec![0u32; 0x2748 / 4];
-    let sa = settings.as_mut_ptr() as u32;
-    let regions: Vec<Region> = vec![
-        at(BUFFER_RVA),
-        (addr(rva(0x814C06)), 0x38),
-        (addr(rva(0x81622A)), 4),
-        (addr(RATE_RVA), 4),
-        (addr(PLACE_RVA), 12),
-        (addr(FACING_RVA), 4),
-        (addr(SCALED_RVA), (12 * POINTS) as usize),
-        at(BATCH[0]),
-        at(BATCH[1]),
-        at(COUNT_RVA),
-    ];
-    let mut vars = regions.clone();
-    vars.extend([SETTINGS_RVA, DRIFTING_RVA, PER_VERTEX_RVA, TEXTURE_RVA].map(at));
-    let saved = capture(&vars);
-    for case in 0..4u32 {
-        run_both(
-            &mut t,
-            &format!("case {case}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                restore(&vars, &saved);
-                game_write(SETTINGS_RVA, sa);
-                let p = |o: u32, v: u32| ((sa + o) as *mut u32).write_unaligned(v);
-                for n in 0..3u32 {
-                    p(0x2720 + 4 * n, [100, 50, 400][n as usize] + case * 9);
-                    p(0x272C + 4 * n, [300, 60, 380][n as usize]);
-                    p(0x2708 + 4 * n, [90, 250, 420][n as usize]);
-                }
-                p(0x2738, if case == 3 { 0 } else { 5 + case });
-                p(0x2744, case % 2);
-                game_write(DRIFTING_RVA, 1u32);
-                game_write(PER_VERTEX_RVA, 0x20u32);
-                game_write(TEXTURE_RVA, 0x40 + case);
-                // The rate's and the ease's factors: as the game has them.
-                if case == 1 {
-                    game_write(BUFFER_RVA, addr(BUFFER_START) + 0x180);
-                }
-            },
-            &|r| unsafe { hexagons_top(r, &mut test_part) },
-        );
-    }
-    restore(&vars, &saved);
-    drop(settings);
-    t.finish()
 }

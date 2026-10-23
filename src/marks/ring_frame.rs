@@ -11,24 +11,14 @@
 //! texture, 3 the depth test, 4 `run_ring`, 5 `run_ribbons`); in the game their Rust
 //! versions. Refuses null settings, before anything. Shadow mode runs the original alone
 //! (it draws). Self-test: a copy whose calls go to stand-ins, against the Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::setup::SETTINGS_RVA;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::ring_frame", rva(0x4CB5B9), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const TEXTURE_RVA: usize = rva(0x5D1E34); // dword_5D1E34
 const TINT_RVA: usize = rva(0x939BA6); // dword_939BA6
@@ -95,71 +85,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { ring_frame(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { ring_frame(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // mov eax, 4
-    let entry: &[u8] = &[0xB8, 0x04, 0x00, 0x00, 0x00];
-    let copy = match copy(
-        0x4CB5B9,
-        0x94,
-        entry,
-        &[0xA, 0x19, 0x28, 0x37, 0x46, 0x50, 0x55, 0x7A, 0x89, 0x8E],
-        &[
-            (0x44EB72, 1),
-            (0x44E77E, 2),
-            (0x44E3D1, 3),
-            (0x4CB64D, 4),
-            (0x4CB71A, 5),
-        ],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut settings = vec![0u32; 0x40];
-    let sa = settings.as_mut_ptr() as u32;
-    let regions: Vec<Region> = vec![at(TINT_RVA), at(CHOICE_RVA)];
-    let mut vars = regions.clone();
-    vars.extend([SETTINGS_RVA, TEXTURE_RVA, DROPS_RVA].map(at));
-    let saved = capture(&vars);
-    for case in 0..3u32 {
-        run_both(
-            &mut t,
-            &format!("case {case}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                restore(&vars, &saved);
-                game_write(SETTINGS_RVA, sa);
-                ((sa + 0x7C) as *mut u32).write_unaligned(0xAB12_3456u32.rotate_left(case));
-                game_write(TEXTURE_RVA, 0x40 + case);
-                game_write(DROPS_RVA, 7 * case);
-            },
-            &|r| unsafe { ring_frame(r, &mut test_part) },
-        );
-    }
-    restore(&vars, &saved);
-    drop(settings);
-    t.finish()
 }

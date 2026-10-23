@@ -68,4 +68,4 @@ pub mod update_effects;
 pub mod yes_no_for_key;
 pub mod yes_no_key;
 
-pub static HOOKS: &[&dyn GameHook] = &[&take_key::HOOK];
+pub static HOOKS: &[&dyn GameHook] = &[&take_key::HOOK, &input_thread::HOOK];

@@ -18,27 +18,14 @@
 //! them). Ungated thunk: it plays a race. Shadow mode runs the original alone.
 //! Self-test: a copy whose calls go to stand-ins that note them, against the Rust version
 //! with the same, on the game's variables (put back).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::race::noted_calls::{Part, both, copy};
-use crate::service::harness::{Region, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::credits_race", rva(0x463666), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::race::noted_calls::Part;
 
 pub const SET_UP: u32 = 0;
 pub const LOG_WRITE: u32 = 3;
@@ -50,19 +37,6 @@ const CALLEES: [usize; 10] = [
     0x463711, 0x4468FB, 0x446D2E, 0x401427, 0x401472, 0x401476, 0x444040, 0x415FC2, 0x444CEE,
     0x444AC7,
 ];
-const PLACES: [(usize, u32); 10] = [
-    (0x463711, 0),
-    (0x4468FB, 1),
-    (0x446D2E, 2),
-    (0x401427, 3),
-    (0x401472, 4),
-    (0x401476, 5),
-    (0x444040, 6),
-    (0x415FC2, 7),
-    (0x444CEE, 8),
-    (0x444AC7, 9),
-];
-
 const FIRST: [(usize, u32); 5] = [
     (0x5C5CE0, 0),
     (0x5BEC94, 0), // g_holdCarRevs
@@ -123,25 +97,6 @@ pub fn credits_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    let mut g = *r;
-    match credits_race_in(&mut g, &mut credits_part) {
-        Ok(()) => {
-            *r = Regs {
-                esp: r.esp,
-                eflags: r.eflags,
-                ..g
-            }
-        }
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let mut g = *r;
@@ -156,51 +111,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
         Err(e) => return Err(e),
     }
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy(
-        0x463666,
-        0xAB,
-        &[0xC7, 0x05, 0xE0, 0x5C, 0x5C, 0x00, 0x00, 0x00, 0x00, 0x00],
-        &[
-            0x32, 0x37, 0x3C, 0x52, 0x5E, 0x6B, 0x77, 0x7D, 0x87, 0x96, 0xA5,
-        ],
-        &PLACES,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let a = |x: usize| (game_addr(rva(x)) as u32, 4);
-    let mut all: Vec<Region> = FIRST.iter().map(|&(x, _)| a(x)).collect();
-    all.extend([a(IN_CREDITS), a(AFTER_CREDITS)]);
-    let mut kept = all.clone();
-    kept.extend([a(STAGE), a(CAR_KINDS)]);
-    let saved = capture(&kept);
-    for (stage, kinds) in [(3u32, 7u32), (0x2A, 0)] {
-        both(
-            &mut t,
-            &format!("stage {stage:#x}, car kinds {kinds}"),
-            &copy,
-            Regs::SENTINEL,
-            &|| {
-                restore(&kept, &saved);
-                for &(x, _) in &FIRST {
-                    p(x, 0xAAAA_AAAA);
-                }
-                p(IN_CREDITS, 0xAAAA_AAAA);
-                p(AFTER_CREDITS, 0xAAAA_AAAA);
-                p(STAGE, stage);
-                p(CAR_KINDS, kinds);
-            },
-            &all,
-            &credits_race_in,
-        );
-    }
-    restore(&kept, &saved);
-    drop(copy);
-    t.finish()
 }

@@ -18,28 +18,17 @@
 //! game's blocks given lights, places and frames by pattern, test lamps (points of the
 //! test's), with and without MMX, the modes and player counts; all put back (skipped with a
 //! null block).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::race::frame_draw::*;
 use crate::race::objects::{CAR_BLOCKS_RVA, CARS_RVA};
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::light_colour_at", rva(0x4537CE), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at, capture, restore, state_entry};
 
 pub fn colour_regions() -> Vec<Region> {
     vec![
@@ -53,10 +42,6 @@ pub fn colour_regions() -> Vec<Region> {
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(all_regs(&unsafe { light_colour_at(r)? }))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &colour_regions(), &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
@@ -272,26 +257,3 @@ pub const LIGHT_CASES: [LightCase; 6] = [
         all: 0,
     },
 ];
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let Some(stage) = LightStage::new(&[]) else {
-        return t.skip("a car block is null (no race loaded)");
-    };
-    let regions = colour_regions();
-    for c in &LIGHT_CASES {
-        check_state(
-            &mut t,
-            &format!("{c:?}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| stage.prepare(c),
-            &regions,
-            &rust,
-        );
-    }
-    stage.end();
-    t.finish()
-}

@@ -11,30 +11,16 @@
 //! patch.
 //! Shadow mode runs the original alone (textures are allocated).
 //! Self-test: a copy whose call goes to a stand-in, against the Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::sound::turn_parts::{Part, both, copy_of, dispatch_turn, run_copy, turn_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("race::textures_alloc", rva(0x443390), thunk, &ORIGINAL)
-    .private_copy(6)
-    .relocate_calls(&[0])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, rva};
+use crate::sound::turn_parts::{Part, turn_entry};
 
 const SET_UP: u32 = 0x44E7A5;
-const ENTRY: [u8; 6] = [0xE8, 0x10, 0xB4, 0x00, 0x00, 0xC3];
-
 /// `scene::set_up_textures` in the game.
 fn set_up_in_game(r: &mut Regs) -> Result<(), Refused> {
     unsafe {
@@ -57,12 +43,6 @@ pub fn textures_alloc_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     part(SET_UP, r)
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_turn(&HOOK, r, call_original, textures_alloc_game, None);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
@@ -72,27 +52,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
 fn textures_alloc_game(r: &mut Regs, _: Part) -> Result<(), Refused> {
     let entry = *r;
     textures_alloc_in(r, &mut |_, r| set_up_in_game(r)).inspect_err(|_| *r = entry)
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy_of(0x443390, 6, &ENTRY, &[0], &[SET_UP]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    both(
-        &mut t,
-        "the call",
-        &run_copy(&copy),
-        Regs::SENTINEL,
-        &|| {},
-        &[],
-        textures_alloc_in,
-        false,
-    );
-    t.finish()
 }

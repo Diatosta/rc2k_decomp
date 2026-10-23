@@ -14,26 +14,16 @@
 //! `rc2k_core::scene::matrices::cross3` (plain floats; the x87 version stays for the Rust
 //! callers in unconverted code). Shadow mode and the self-test compare within
 //! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::race::stage_prefs::left_of;
-use crate::scene::matrix::float_places;
 use crate::screens::harness::Left;
 use crate::service::floats::*;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::cross_product3", rva(0x465551), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The Rust version (see the header).
 pub unsafe fn cross_product3(a: u32, b: u32, out: u32) -> Result<(), Refused> {
@@ -78,59 +68,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(r))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let places = float_places(&[(r.ebp, 12)]);
-    let floats = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &[(r.ebp, 12)], &floats, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut v = [0u32; 9];
-    let base = v.as_mut_ptr() as u32;
-    let tolerant_places = float_places(&[(base, 36)]);
-    let tolerant = Floats {
-        memory: &tolerant_places,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        for case in 0..12u32 {
-            let seed = case.wrapping_mul(0x9E37_79B9);
-            // The result apart (case % 3 == 0), over a (1) or over b (2).
-            let out = base + 12 * [2, 0, 1][(case % 3) as usize];
-            check_state_floats(
-                &mut t,
-                "scene::cross_product3",
-                &format!("control word {word:#x}, case {case}"),
-                call_original,
-                Regs {
-                    esi: base,
-                    edi: base + 12,
-                    ebp: out,
-                    ..Regs::SENTINEL
-                },
-                &|| unsafe {
-                    for n in 0..9u32 {
-                        let x = (seed ^ n.wrapping_mul(0x85EB_CA6B)) as i32 as f32 / 1e8;
-                        ((base + 4 * n) as *mut u32).write(x.to_bits());
-                    }
-                },
-                &[(base, 36)],
-                held,
-                &rust,
-            );
-        }
-    });
-    t.finish()
 }

@@ -6,41 +6,17 @@
 //!
 //! Caller: `race::close_viewed_replay`. Shadow mode compares. Self-test:
 //! `replay_patches::test_patches`.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::race::replay_patches::{game_part, regions, restore_replay_patches, test_patches};
-use crate::race::viewer::{dispatch_regs, regs_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "race::restore_replay_patches",
-    rva(0x41F31D),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_regs(&HOOK, r, call_original, &regions(), 0, &|r| {
-        restore_replay_patches(r, &mut game_part)
-    });
-}
+use crate::framework::Regs;
+use crate::race::replay_patches::{game_part, restore_replay_patches};
+use crate::race::viewer::regs_entry;
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &|r| restore_replay_patches(r, &mut game_part))
-}
-
-fn self_test() -> (usize, usize) {
-    test_patches(&HOOK, 0x41F31D, 0x41, 0x3A, &restore_replay_patches)
 }

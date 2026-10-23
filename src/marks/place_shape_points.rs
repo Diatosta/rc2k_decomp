@@ -7,28 +7,17 @@
 //! `fsincos` cannot take, and a null point pointer, before anything. Self-test: a record
 //! of the test's (`TestSpline`) whose pointers name a buffer of the test's, several point
 //! counts and seeds; the work variables, the record and the buffer compared.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::marks::splines::{
-    MOST_POINTS, SPLINE_LEN, TestSpline, place_shape_points, work_regions,
-};
+use crate::framework::Regs;
+use crate::marks::splines::{MOST_POINTS, SPLINE_LEN, place_shape_points, work_regions};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::place_shape_points", rva(0x4BA0AE), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, state_entry};
 
 const COUNT: u32 = 0x50;
 const POINTERS: u32 = 0x454;
@@ -52,63 +41,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { place_shape_points(r) }?))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions = regions(r.ebp);
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let spline = TestSpline::new();
-    let targets = vec![0u32; 3 * MOST_POINTS as usize];
-    let base = targets.as_ptr() as u32;
-    let mut regions = work_regions();
-    regions.push((spline.addr(), SPLINE_LEN as usize));
-    regions.push((base, 4 * targets.len()));
-    let saved = capture(&regions);
-    for points in [0u32, 1, 5, MOST_POINTS] {
-        for seed in [1u32, 2, 3] {
-            check_state(
-                &mut t,
-                &format!("{points:#x} points, seed {seed}"),
-                call_original,
-                Regs {
-                    ebp: spline.addr(),
-                    ..Regs::SENTINEL
-                },
-                &|| unsafe {
-                    spline.fill(seed * 0x115 + points, points);
-                    // Each pointer names a slot of the test's buffer (in a shuffled order).
-                    for k in 0..MOST_POINTS {
-                        let slot = (k * 37 + seed) % MOST_POINTS;
-                        ((spline.addr() + POINTERS + 4 * k) as *mut u32)
-                            .write_unaligned(base + 12 * slot);
-                    }
-                    std::ptr::write_bytes(base as *mut u8, 0xAA, 4 * targets.len());
-                },
-                &regions,
-                &rust,
-            );
-        }
-    }
-    let r = Regs {
-        ebp: spline.addr(),
-        ..Regs::SENTINEL
-    };
-    spline.fill(3, 4);
-    unsafe { ((spline.addr() + POINTERS + 4) as *mut u32).write_unaligned(0) };
-    t.check(unsafe { place_shape_points(&r) }.is_err(), || {
-        "a null point pointer: the Rust version went on".into()
-    });
-    restore(&regions, &saved);
-    drop(targets);
-    t.finish()
 }

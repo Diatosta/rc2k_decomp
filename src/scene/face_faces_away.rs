@@ -14,32 +14,19 @@
 //! A point's number below 0 is fatal error 0x80600314.
 //! One caller, `sub_45071B`, which turns the answer into the carry flag.
 //! Refuses when there is no face or no records.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{
-    EAX, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{EAX, Regs, game_read, game_write, rva};
 use crate::math::normalise_vector::VECTOR_RVA;
 use crate::scene::polygon::dword;
 use crate::scene::project_point::RECORDS_RVA;
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::face_faces_away", rva(0x45205B), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 // ---- game data ----
 
@@ -138,112 +125,13 @@ pub unsafe fn face_faces_away(face: usize) -> Result<bool, Refused> {
     }
 }
 
-// ---- hook ----
-
-fn regions() -> [Region; 3] {
-    [
-        at(COUNT_RVA),
-        (game_addr(WORK_RVA) as u32, 60),
-        (game_addr(VECTOR_RVA) as u32, 12),
-    ]
-}
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     let away = unsafe { face_faces_away(r.ebp as usize) }?;
     Ok(Left::nothing().with(EAX, away as u32))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let inputs = [at(RECORDS_RVA)];
-    let saved = (capture(&regions), capture(&inputs));
-    let f = |value: f32| value.to_bits();
-    // Sets of points: each a shape seen from one side or the other.
-    let shapes: [&[[f32; 3]]; 9] = [
-        &[
-            [0.0, 0.0, 9000.0],
-            [100.0, 0.0, 9000.0],
-            [0.0, 100.0, 9000.0],
-        ],
-        &[
-            [0.0, 0.0, 9000.0],
-            [0.0, 100.0, 9000.0],
-            [100.0, 0.0, 9000.0],
-        ],
-        &[
-            [-50.0, -50.0, 5000.0],
-            [50.0, -50.0, 5000.0],
-            [50.0, 50.0, 6000.0],
-            [-50.0, 50.0, 6000.0],
-        ],
-        &[
-            [-50.0, 50.0, 6000.0],
-            [50.0, 50.0, 6000.0],
-            [50.0, -50.0, 5000.0],
-            [-50.0, -50.0, 5000.0],
-        ],
-        // Edge on: the product is 0 or next to it.
-        &[[0.0, 0.0, 1000.0], [0.0, 0.0, 2000.0], [0.0, 100.0, 3000.0]],
-        &[[1.0, 2.0, 3.0], [2.0, 4.0, 6.0], [3.0, 6.0, 9.0]],
-        // The first triangle one way, the second the other.
-        &[
-            [0.0, 0.0, 9000.0],
-            [0.0, 100.0, 9000.0],
-            [100.0, 0.0, 9000.0],
-            [0.0, 50.0, 9000.0],
-            [-100.0, 0.0, 9000.0],
-        ],
-        &[
-            [0.1, 0.2, 0.3],
-            [1e10, -1e10, 3.3333333],
-            [f32::NAN, 0.0, 1.0],
-        ],
-        &[[5.0, 5.0, 5.0], [6.0, 5.0, 5.0]],
-    ];
-    for shape in shapes {
-        for turn in 0..shape.len() {
-            let mut records = vec![[0u32; 8]; 0x2000];
-            let mut face = [0u32; 4 + 5 * 4];
-            face[0] = shape.len() as u32;
-            for (n, place) in shape.iter().enumerate() {
-                records[0x1000 + 0x40 + n][4..7].copy_from_slice(&place.map(f));
-                // The same points, begun at another one.
-                face[4 + n * 4] = 0x2040 + ((n + turn) % shape.len()) as u32;
-            }
-            let before = Regs {
-                ebp: face.as_ptr() as u32,
-                ..Regs::SENTINEL
-            };
-            check_state(
-                &mut t,
-                &format!("{shape:?} from point {turn}"),
-                call_original,
-                before,
-                &|| unsafe {
-                    restore(&regions, &vec![0xAA; saved.0.len()]);
-                    game_write(RECORDS_RVA, records.as_ptr() as u32);
-                },
-                &regions,
-                &rust,
-            );
-        }
-    }
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
 }

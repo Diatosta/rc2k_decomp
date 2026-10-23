@@ -15,33 +15,14 @@
 //! `rc2k_core::marks::particles::spread` (plain floats; the x87 version stays for the Rust
 //! callers in unconverted code). Shadow mode and the self-test compare within
 //! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, rva};
-use crate::marks::jitter_point::test_inputs;
+use crate::framework::{game_read, game_write, rva};
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::{extended, rounded};
-use crate::scene::vector3::{Quad80, quad_triple_hook};
-use crate::screens::harness::Left;
-use crate::service::floats::*;
-use crate::service::harness::{at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static QUAD: Quad80 = Quad80::new();
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::spread_point", rva(0x4C61AB), thunk, &ORIGINAL).self_test(self_test);
-
-quad_triple_hook!(
-    thunk,
-    call_original,
-    original_with_quad,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    quad = QUAD
-);
 
 const RANDOM_RVA: usize = rva(0x923004); // g_marksSpreadRandom
 const SCALE_RVA: usize = rva(0x76521C); // dbl_76521C
@@ -76,63 +57,4 @@ pub unsafe fn spread_point_plain(inputs: [[u8; 10]; 4]) -> ([[u8; 10]; 3], u32) 
         game_write(RANDOM_RVA, third);
         (point.map(|v| from_f64(v as f64)), third)
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let (out, eax) = unsafe { spread_point_plain(QUAD.inputs()) };
-    QUAD.set_outputs(out);
-    Ok(left_of(&Regs { eax, ..*r }))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let floats = Floats {
-        memory: &[(QUAD.output_region(), EXTENDED)],
-        regs: &[],
-    };
-    dispatch_state_floats(
-        &HOOK,
-        r,
-        original_with_quad,
-        &[QUAD.output_region(), at(RANDOM_RVA)],
-        &floats,
-        &rust,
-    );
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = [QUAD.output_region(), at(RANDOM_RVA)];
-    let saved = capture(&[at(RANDOM_RVA)]);
-    let tolerant_places = [(QUAD.output_region(), EXTENDED)];
-    let tolerant = Floats {
-        memory: &tolerant_places,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        for seed in 1..=30u32 {
-            let inputs = test_inputs(seed);
-            let random = seed.wrapping_mul(0x9E37_79B9);
-            check_state_floats(
-                &mut t,
-                "marks::spread_point",
-                &format!(
-                    "control word {word:#x}, seed {seed}: inputs {inputs:x?}, random {random:#x}"
-                ),
-                original_with_quad,
-                Regs::SENTINEL,
-                &|| {
-                    unsafe { game_write(RANDOM_RVA, random) };
-                    QUAD.set_inputs(inputs);
-                    QUAD.set_outputs([[0xAA; 10]; 3]);
-                },
-                &regions,
-                held,
-                &rust,
-            );
-        }
-    });
-    restore(&[at(RANDOM_RVA)], &saved);
-    t.finish()
 }

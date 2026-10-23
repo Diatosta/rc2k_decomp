@@ -17,11 +17,13 @@
 //! (256), rounded (`fistp`), is a coordinate.
 //! Callers: `scene::cached_reflection_coordinates`, by a call and by a jump.
 //! Refuses when there are no records and what `math::normalise_vector` refuses.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    EAX, EDX, ESI, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{EAX, EDX, ESI, Regs, game_addr, game_read, game_write, rva};
 use crate::math::normalise_vector::{LENGTH_RVA, VECTOR_RVA, normalise_vector};
 use crate::math::x87;
 use crate::scene::draw_polygon::CHECKED_RVA;
@@ -30,27 +32,7 @@ use crate::scene::reflect_vector::{
     MATRIX_RVA, NORMAL_RVA, VECTOR_RVA as MIRRORED_RVA, reflect_vector,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "scene::reflection_coordinates",
-    rva(0x45198C),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at, state_entry};
 
 // ---- game data ----
 
@@ -156,8 +138,6 @@ pub unsafe fn reflection_coordinates() -> Result<Leftovers, BadInput> {
     }
 }
 
-// ---- hook ----
-
 /// What the function and its parts write.
 pub fn regions() -> Vec<Region> {
     vec![
@@ -178,17 +158,11 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
         .with(ESI, left.esi))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
 }
-
-// ---- self-test ----
 
 /// Records of the test's for a few normals and points, and the matrix; `inputs()` is
 /// what a test that uses them puts back.
@@ -259,35 +233,4 @@ impl Default for Mirrors {
     fn default() -> Self {
         Self::new()
     }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let inputs = Mirrors::inputs();
-    let saved = (capture(&regions), capture(&inputs));
-    let mirrors = Mirrors::new();
-    for normal in 0..TEST_NORMALS {
-        for point in 0..TEST_POINTS {
-            for turned in [false, true] {
-                check_state(
-                    &mut t,
-                    &format!("normal {normal}, point {point}, turned {turned}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &|| unsafe {
-                        restore(&regions, &vec![0xAA; saved.0.len()]);
-                        mirrors.set(normal, point, turned);
-                    },
-                    &regions,
-                    &rust,
-                );
-            }
-        }
-    }
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
 }

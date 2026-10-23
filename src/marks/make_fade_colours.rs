@@ -8,30 +8,17 @@
 //!
 //! One caller, `sub_4C25F6`. Self-test: the original and the Rust version on several
 //! colours and steps, at the test precisions; put back afterwards.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::floats::{
-    FLOAT, Floats, ROUNDED, Tolerance, at_test_precisions, check_state_floats,
-    dispatch_state_floats, floats_entry,
-};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::make_fade_colours", rva(0x4C37EF), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::floats::floats_entry;
 
 const COLOUR_RVA: usize = rva(0x6415E4); // dword_6415E4
 const FADES_RVA: usize = rva(0x8DB464); // g_marksFadeColours: 0x11 dwords
@@ -39,7 +26,7 @@ const FADES: u32 = 0x11;
 const STEP_RVA: usize = rva(0x8DB4A8); // dword_8DB4A8 (a float)
 const INVERSES_RVA: usize = rva(0x8DB4AC); // three dwords
 const SCALED_RVA: usize = rva(0x8DB4B8); // three dwords
-const WORK_LEN: usize = 0x60; // the entries to the scaled three
+// the entries to the scaled three
 const GROWTH_RVA: usize = rva(0x7651C4); // flt_7651C4
 
 /// The Rust version (see the header).
@@ -68,10 +55,6 @@ pub unsafe fn make_fade_colours(entry: &Regs) -> Regs {
     g
 }
 
-fn regions() -> Vec<Region> {
-    vec![(game_addr(FADES_RVA) as u32, WORK_LEN)]
-}
-
 /// The converted `make_fade_colours` (plain floats): the hook's. The x87 version above
 /// stays for `marks::run_snow` (unconverted).
 // Converted: `rc2k_core::marks::fades`
@@ -97,73 +80,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { make_fade_colours_plain(r) }))
 }
 
-/// The float places: the step, and the scaled three (`fistp`).
-fn float_places() -> [(Region, Tolerance); 2] {
-    [
-        (at(STEP_RVA), FLOAT),
-        ((game_addr(SCALED_RVA) as u32, 12), ROUNDED),
-    ]
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let places = float_places();
-    let floats = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let inputs: Vec<Region> = regions
-        .iter()
-        .copied()
-        .chain([COLOUR_RVA, GROWTH_RVA].map(at))
-        .collect();
-    let saved = capture(&inputs);
-    let game_growth: u32 = unsafe { game_read(GROWTH_RVA) };
-    let places = float_places();
-    let tolerant = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        for colour in [0u32, 0xFFFF_FFFF, 0x0080_4020, 0xFF12_34FE, 0x00FF_0001] {
-            for growth in [
-                game_growth,
-                0.0625f32.to_bits(),
-                0.07f32.to_bits(),
-                (-0.1f32).to_bits(),
-            ] {
-                check_state_floats(
-                    &mut t,
-                    "marks::make_fade_colours",
-                    &format!("control word {word:#x}, colour {colour:#x}, growth {growth:#x}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &|| unsafe {
-                        restore(&inputs, &saved);
-                        std::ptr::write_bytes(game_addr(FADES_RVA) as *mut u8, 0xAA, WORK_LEN);
-                        game_write(COLOUR_RVA, colour);
-                        game_write(GROWTH_RVA, growth);
-                    },
-                    &regions,
-                    held,
-                    &rust,
-                );
-            }
-        }
-    });
-    restore(&inputs, &saved);
-    t.finish()
 }

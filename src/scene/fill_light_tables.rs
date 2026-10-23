@@ -13,32 +13,19 @@
 //! the colours at `unk_60A54C`, `unk_60A558`, `dword_60A564`, `dword_60A570` scaled.
 //! Four callers.
 //! Self-test: 24 settings by lot on the game's tables, put back afterwards.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    EDI, ESI, RawHook, Regs, SelfTest, game_addr, game_ptr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{EDI, ESI, Regs, game_addr, game_ptr, game_read, rva};
 use crate::scene::light_tables::{
     CAR_LIGHT_TABLE_RVA, LAMP_TABLE_A_RVA, LAMP_TABLE_B_RVA, LAMP_TABLE_C_RVA, LIGHT_TABLE_RVA,
-    fill_light_ramp, fill_light_scale, table, test_colours,
+    fill_light_ramp, fill_light_scale,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::fill_light_tables", rva(0x44F0AB), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 // ---- game data ----
 
@@ -75,70 +62,12 @@ pub unsafe fn fill_light_tables() -> Left {
     }
 }
 
-// ---- hook ----
-
-fn regions() -> Vec<Region> {
-    let mut regions = vec![table(LIGHT_TABLE_RVA)];
-    regions.extend(LAMPS.iter().map(|&(lamp, _)| table(lamp)));
-    regions
-}
-
 fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { fill_light_tables() })
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let inputs: Vec<Region> = vec![
-        at(OTHER_WAY_RVA),
-        at(OTHER_WAY_B_RVA),
-        (game_addr(PLAIN_RVA) as u32, 24),
-        (game_addr(SCENE_RVA) as u32, 24),
-        (game_addr(LAMPS[0].1) as u32, 48),
-    ];
-    let saved = (capture(&regions), capture(&inputs));
-    let mut seed = 0x1164_7AB5u32;
-    for case in 0..24u32 {
-        let (a, b) = [(0u32, 0u32), (1, 0), (0, 1), (0x100, 2)][case as usize % 4];
-        let colours = [
-            test_colours(&mut seed),
-            test_colours(&mut seed),
-            test_colours(&mut seed),
-            test_colours(&mut seed),
-        ];
-        check_state(
-            &mut t,
-            &format!("case {case}: switches {a:#x} {b:#x}, colours {colours:x?}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&regions, &vec![0xAA; saved.0.len()]);
-                game_write(OTHER_WAY_RVA, a);
-                game_write(OTHER_WAY_B_RVA, b);
-                game_write(PLAIN_RVA, colours[0]);
-                game_write(SCENE_RVA, colours[1]);
-                game_write(LAMPS[0].1, [colours[2], colours[3]]);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
 }

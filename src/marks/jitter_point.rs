@@ -14,33 +14,15 @@
 //! `rc2k_core::marks::particles::jitter` (plain floats; the x87 version stays for the Rust
 //! callers in unconverted code). Shadow mode and the self-test compare within
 //! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, rva};
+use crate::framework::{game_read, game_write};
 use crate::marks::setup::SEED_RVA;
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::{extended, rounded};
-use crate::scene::vector3::{Quad80, quad_triple_hook};
-use crate::screens::harness::Left;
-use crate::service::floats::*;
-use crate::service::harness::{at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static QUAD: Quad80 = Quad80::new();
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::jitter_point", rva(0x4C6106), thunk, &ORIGINAL).self_test(self_test);
-
-quad_triple_hook!(
-    thunk,
-    call_original,
-    original_with_quad,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    quad = QUAD
-);
 
 /// The Rust version (see the header): the four as st(0) .. st(3), the three out the same
 /// way; the last random >> 12.
@@ -74,27 +56,6 @@ pub unsafe fn jitter_point_plain(inputs: [[u8; 10]; 4]) -> ([[u8; 10]; 3], u32) 
     }
 }
 
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let (out, ebx) = unsafe { jitter_point_plain(QUAD.inputs()) };
-    QUAD.set_outputs(out);
-    Ok(left_of(&Regs { ebx, ..*r }))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let floats = Floats {
-        memory: &[(QUAD.output_region(), EXTENDED)],
-        regs: &[],
-    };
-    dispatch_state_floats(
-        &HOOK,
-        r,
-        original_with_quad,
-        &[QUAD.output_region(), at(SEED_RVA)],
-        &floats,
-        &rust,
-    );
-}
-
 /// Four inputs by lot for the tests of this and `marks::spread_point`: the first small
 /// and not 0, the others floats or unrounded.
 pub fn test_inputs(seed: u32) -> [[u8; 10]; 4] {
@@ -111,42 +72,4 @@ pub fn test_inputs(seed: u32) -> [[u8; 10]; 4] {
         x87::sub_80(f[1], f[4]),
         extended(f[2]),
     ]
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = [QUAD.output_region(), at(SEED_RVA)];
-    let saved = capture(&[at(SEED_RVA)]);
-    let tolerant_places = [(QUAD.output_region(), EXTENDED)];
-    let tolerant = Floats {
-        memory: &tolerant_places,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        for seed in 1..=30u32 {
-            let inputs = test_inputs(seed);
-            let random = seed.wrapping_mul(0x9E37_79B9);
-            check_state_floats(
-                &mut t,
-                "marks::jitter_point",
-                &format!(
-                    "control word {word:#x}, seed {seed}: inputs {inputs:x?}, random {random:#x}"
-                ),
-                original_with_quad,
-                Regs::SENTINEL,
-                &|| {
-                    unsafe { game_write(SEED_RVA, random) };
-                    QUAD.set_inputs(inputs);
-                    QUAD.set_outputs([[0xAA; 10]; 3]);
-                },
-                &regions,
-                held,
-                &rust,
-            );
-        }
-    });
-    restore(&[at(SEED_RVA)], &saved);
-    t.finish()
 }

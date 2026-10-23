@@ -34,39 +34,19 @@
 //! copy (its handlers' return address pointed into the copy) whose calls go to stand-ins
 //! (the x87 ones taking their values off), against the Rust version on the same, on a
 //! ring of the test's.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::marks::blocks::{RING_ENTRY, RING_FREE_RVA, RING_USED_RVA};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::marks::blocks::{RING_FREE_RVA, RING_USED_RVA};
 use crate::marks::setup::{SEED_RVA, SETTINGS_RVA};
 use crate::math::x87;
 use crate::scene::matrix3::extended;
 use crate::scene::vector3::STATUS_RVA;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("marks::run_particles", rva(0x4CFB49), thunk, &ORIGINAL)
-    .private_copy(LEN)
-    .relocate_calls(&CALLS)
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const LEN: usize = 0xA74;
-const CALLS: [usize; 10] = [
-    0x33, 0x21B, 0x221, 0x408, 0x59A, 0x7E2, 0x7F6, 0x89E, 0x975, 0xA63,
-];
 const TICKS_RVA: usize = rva(0x764FD0); // g_marksFrameTicks
 const STEPS_RVA: usize = rva(0x76513C); // dword_76513C
 const PUFF_FLAG_RVA: usize = rva(0x5165E4); // dword_5165E4
@@ -425,24 +405,6 @@ pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { run_particles(r, &mut game_part) } {
-        Ok(left) => {
-            *r = Regs {
-                esp: r.esp,
-                eflags: r.eflags,
-                ..left
-            }
-        }
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     {
@@ -454,216 +416,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
         }
     }
     Ok(())
-}
-
-/// A call as the test notes it: place, eax .. esi, the x87 values.
-type Noted = (u32, [u32; 5], Vec<[u8; 10]>);
-
-static NOTED: Mutex<Vec<Noted>> = Mutex::new(Vec::new());
-
-fn note(place: u32, r: &Regs, v: &[[u8; 10]]) {
-    NOTED
-        .lock()
-        .unwrap()
-        .push((place, [r.eax, r.ebx, r.ecx, r.edx, r.esi], v.to_vec()));
-}
-
-fn note_regs(place: u32, r: &mut Regs) {
-    note(place, r, &[]);
-}
-
-extern "C" fn note_x87(place: u32, r: *const Regs, v: *const [u8; 10], n: u32) {
-    let vals = unsafe { std::slice::from_raw_parts(v, n as usize) };
-    note(place, unsafe { &*r }, vals);
-}
-
-/// The test's stand-in for `draw_particle`: its three values taken off and noted.
-#[unsafe(naked)]
-unsafe extern "C" fn draw_stand_in() {
-    core::arch::naked_asm!(
-        "lea esp, [esp - 30]",
-        "fstp tbyte ptr [esp]",
-        "fstp tbyte ptr [esp + 10]",
-        "fstp tbyte ptr [esp + 20]",
-        "pushfd",
-        "pushad",
-        "mov eax, esp",
-        "lea ecx, [esp + 36]",
-        "push 3",
-        "push ecx",
-        "push eax",
-        "push 4",
-        "call {note}",
-        "add esp, 16",
-        "popad",
-        "popfd",
-        "lea esp, [esp + 30]",
-        "ret",
-        note = sym note_x87,
-    )
-}
-
-/// The test's stand-in for `add_drift_particle`: its six values taken off and noted.
-#[unsafe(naked)]
-unsafe extern "C" fn drift_stand_in() {
-    core::arch::naked_asm!(
-        "lea esp, [esp - 60]",
-        "fstp tbyte ptr [esp]",
-        "fstp tbyte ptr [esp + 10]",
-        "fstp tbyte ptr [esp + 20]",
-        "fstp tbyte ptr [esp + 30]",
-        "fstp tbyte ptr [esp + 40]",
-        "fstp tbyte ptr [esp + 50]",
-        "pushfd",
-        "pushad",
-        "mov eax, esp",
-        "lea ecx, [esp + 36]",
-        "push 6",
-        "push ecx",
-        "push eax",
-        "push 5",
-        "call {note}",
-        "add esp, 16",
-        "popad",
-        "popfd",
-        "lea esp, [esp + 60]",
-        "ret",
-        note = sym note_x87,
-    )
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::install::stand_ins::{set_handler, stand_in};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    set_handler(note_regs);
-    let copy = match unsafe {
-        crate::redirect::RedirectedCopy::with_bytes(
-            game_addr(rva(0x4CFB49)),
-            LEN,
-            &[
-                // jmp short +0x21, test byte_4F6B86, 0FFh
-                (0, &[0xEB, 0x21, 0xF6, 0x05, 0x86, 0x6B, 0x4F, 0x00, 0xFF]),
-                // 0x4CFD6A, a hooked function's start: call 0x44E3D1
-                (0x221, &[0xE8, 0x62, 0xE6, 0xF7, 0xFF]),
-            ],
-            &CALLS,
-            &|c| match c + 0x40_0000 {
-                0x4CFD6A => Some(stand_in(1)),
-                0x4D0146 => Some(stand_in(2)),
-                0x4CFFE3 => Some(stand_in(3)),
-                0x4CFDD5 => Some(draw_stand_in as *const () as usize),
-                0x4CFF57 => Some(drift_stand_in as *const () as usize),
-                _ => None,
-            },
-        )
-    } {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    // The kinds' return address (`push offset loc_4CFC25`) into the copy.
-    unsafe { copy.patch_u32(0xB0, (copy.addr() + 0xDC) as u32) };
-    const ENTRIES: u32 = 12;
-    let mut ring = vec![0u8; (ENTRIES * RING_ENTRY) as usize];
-    let base = ring.as_mut_ptr() as u32;
-    let mut settings = vec![0u32; 4];
-    let sa = settings.as_mut_ptr() as u32;
-    let regions: Vec<Region> = [
-        RING_FREE_RVA,
-        RING_USED_RVA,
-        SEED_RVA,
-        STATUS_RVA,
-        INDEX_RVA,
-        PUFF_FLAG_RVA,
-    ]
-    .map(at)
-    .into_iter()
-    .chain([(game_addr(PUFF_RVA) as u32, 24), (base, ring.len())])
-    .collect();
-    let mut vars = regions.clone();
-    vars.extend([SETTINGS_RVA, TICKS_RVA, STEPS_RVA].map(at));
-    let saved = capture(&vars);
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for case in 0..5u32 {
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            game_write(SETTINGS_RVA, sa);
-            put(sa + 4, u32::from(case != 4));
-            game_write(TICKS_RVA, 3 + case);
-            game_write(STEPS_RVA, if case % 2 == 0 { 8 } else { 3 });
-            game_write(SEED_RVA, case.wrapping_mul(0x2545_F491) | 1);
-            std::ptr::write_bytes(base as *mut u8, 0, ring.len());
-            for n in 0..ENTRIES {
-                let e = base + n * RING_ENTRY;
-                let at = |k: u32| base + ((k + ENTRIES) % ENTRIES) * RING_ENTRY;
-                put(e, at(n + ENTRIES - 1));
-                put(e + 4, at(n + 1));
-                let k = (n + case) as f32;
-                put(e + 8, [0, 4, 8, 9][((n + case) % 4) as usize]);
-                for o in 0..9u32 {
-                    put(e + 0xC + 4 * o, (k * 0.5 - o as f32 * 1.25).to_bits());
-                }
-                // y above its ground but for one; motion up and down.
-                put(e + 0x10, (5.0 + k).to_bits());
-                put(e + 0x24, if n == 5 { 99.0f32 } else { -2.0 }.to_bits());
-                put(
-                    e + 0x2C,
-                    (if n % 3 == 0 { 0.5f32 } else { -0.25 }).to_bits(),
-                );
-                put(e + 0x30, 0.125f32.to_bits());
-                put(e + 0x38, 0x4000 + n);
-                put(e + 0x3C, 0x7F00_0000 + n * 0x10_0000);
-                put(e + 0x40, (1.0f32 / 64.0).to_bits());
-                put(e + 0x44, if n == 3 { 1 } else { 400 + n * 50 });
-                put(e + 0x48, (n % 8) * 0x400);
-            }
-            game_write(RING_FREE_RVA, base + 2 * RING_ENTRY);
-            game_write(RING_USED_RVA, 8u32);
-        };
-        if unsafe {
-            prepare();
-            refusal()
-        }
-        .is_some()
-        {
-            t.check(true, String::new);
-            continue;
-        }
-        prepare();
-        NOTED.lock().unwrap().clear();
-        let mut ro = Regs::SENTINEL;
-        unsafe { crate::framework::call_game(&mut ro, copy.addr()) };
-        let theirs = (
-            Some(regs(&ro)),
-            std::mem::take(&mut *NOTED.lock().unwrap()),
-            capture(&regions),
-        );
-        prepare();
-        let mine = unsafe {
-            run_particles(&Regs::SENTINEL, &mut |p, r, v| {
-                note(p, r, v);
-                Ok(())
-            })
-        };
-        let mine = (
-            mine.as_ref().ok().map(regs),
-            std::mem::take(&mut *NOTED.lock().unwrap()),
-            capture(&regions),
-        );
-        t.check(theirs == mine, || {
-            format!(
-                "case {case}: original {:x?} {} calls; rust {:x?} {} calls; calls same {}; state first differs at {:?}",
-                theirs.0,
-                theirs.1.len(),
-                mine.0,
-                mine.1.len(),
-                theirs.1 == mine.1,
-                theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b)
-            )
-        });
-    }
-    restore(&vars, &saved);
-    drop((ring, settings));
-    t.finish()
 }

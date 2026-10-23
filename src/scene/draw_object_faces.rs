@@ -18,32 +18,16 @@
 //! Refuses a face's number past the table and a face that is not there.
 //! Shadow mode runs the original alone.
 //! Self-test: a redirected copy whose call notes the face and what was set for it.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    EAX, EBP, ECX, ESI, RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write,
-    hook_asm, rva, shadow,
-};
-use crate::install::stand_ins::{act, set_handler, stand_in};
-use crate::redirect::RedirectedCopy;
+use crate::framework::{EAX, EBP, ECX, ESI, Regs, game_addr, game_read, game_write, rva};
 use crate::scene::draw_object_face::draw_object_face_in_game;
 use crate::scene::polygon::dword;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::draw_object_faces", rva(0x450A4B), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -119,150 +103,10 @@ pub unsafe fn draw_object_faces(
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    let entry = *r;
-    match unsafe { draw_object_faces(&mut |face| draw_object_face_in_game(face, &entry)) } {
-        Ok(left) => left.apply(r),
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let entry = *r;
     let left = unsafe { draw_object_faces(&mut |face| draw_object_face_in_game(face, &entry)) }?;
     left.apply(r);
     Ok(())
-}
-
-// ---- self-test ----
-
-const LEN: usize = 0xA4;
-const ENTRY_BYTES: [u8; 7] = [0x83, 0x3D, 0x58, 0xDB, 0x62, 0x00, 0x00];
-const CALLS: [usize; 1] = [0x7B];
-
-fn regions() -> Vec<Region> {
-    [
-        SEE_THROUGH_RVA,
-        FACE_NUMBER_RVA,
-        TEXTURE_A_RVA,
-        FACE_KIND_RVA,
-        FACE_UNLIT_RVA,
-        COLOUR_RVA,
-        DONE_RVA,
-    ]
-    .map(at)
-    .to_vec()
-}
-
-/// Each call: the face and what was set for it.
-static CALLED: Mutex<Vec<(u32, Vec<u8>)>> = Mutex::new(Vec::new());
-
-fn handler(_: u32, r: &mut Regs) {
-    CALLED.lock().unwrap().push((r.ebp, capture(&regions())));
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x450A4B)),
-            LEN,
-            &ENTRY_BYTES,
-            &CALLS,
-            &|callee| (callee == rva(0x450BDA)).then(|| stand_in(0)),
-        )
-    };
-    let copy = match copy {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    const MOST: usize = 4;
-    const FIRST: u32 = 0x100;
-    let regions = regions();
-    let inputs = [
-        at(LISTED_RVA),
-        (game_addr(LIST_RVA) as u32, MOST * LIST_ENTRY_LEN),
-        at(FIRST_FACE_RVA),
-        at(FIRST_TEXTURE_RVA),
-        (game_addr(FACES_RVA + FIRST as usize * 4) as u32, 8 * 4),
-    ];
-    let saved = (capture(&regions), capture(&inputs));
-    // Faces' heads: the word +4, the bytes +6, +0xA, +0xB.
-    let heads: [[u8; 12]; 4] = [
-        [0, 0, 0, 0, 0x34, 0x12, 0x1C, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0xFF, 0xFF, 5, 0, 0, 0, 0x80, 1],
-        [0, 0, 0, 0, 0, 0, 0xB, 0, 0, 0, 0xFF, 0],
-        [0, 0, 0, 0, 7, 0, 3, 0, 0, 0, 1, 0xFE],
-    ];
-    for listed in 0..=MOST as u32 {
-        for first_texture in [0u32, 0x200, 0xFFFF_FFF0] {
-            let run = |rust: bool| unsafe {
-                restore(&regions, &vec![0xAA; saved.0.len()]);
-                game_write(LISTED_RVA, listed);
-                game_write(FIRST_FACE_RVA, FIRST);
-                game_write(FIRST_TEXTURE_RVA, first_texture);
-                for n in 0..MOST {
-                    // The list names the faces out of order.
-                    let number = [2u32, 0, 7, 5][n];
-                    let entry = game_addr(LIST_RVA) + n * LIST_ENTRY_LEN;
-                    (entry as *mut [u32; 4]).write_unaligned([
-                        number,
-                        0xAAAA_AAAA,
-                        0xAAAA_AAAA,
-                        0x100 - n as u32 * 0x55,
-                    ]);
-                    game_write(
-                        FACES_RVA + (FIRST + number) as usize * 4,
-                        heads[n].as_ptr() as u32,
-                    );
-                }
-                CALLED.lock().unwrap().clear();
-                set_handler(handler);
-                let before = Regs::SENTINEL;
-                let left = if rust {
-                    draw_object_faces(&mut |face| {
-                        act(
-                            0,
-                            &mut Regs {
-                                ebp: face as u32,
-                                ..Regs::default()
-                            },
-                        );
-                        Ok(())
-                    })
-                    .ok()
-                    .map(|left| {
-                        let mut r = before;
-                        left.apply(&mut r);
-                        (r.eax, r.ecx, r.esi, r.ebp)
-                    })
-                } else {
-                    let mut ro = before;
-                    call_game(&mut ro, copy.addr());
-                    ro.preserved_except(&before, EAX | ECX | ESI | EBP)
-                        .then_some((ro.eax, ro.ecx, ro.esi, ro.ebp))
-                };
-                (left, capture(&regions), CALLED.lock().unwrap().clone())
-            };
-            let (theirs, mine) = (run(false), run(true));
-            t.check(theirs == mine && theirs.2.len() == listed as usize, || {
-                format!(
-                    "{listed} listed, first texture {first_texture:#x}: original {theirs:x?}; rust {mine:x?}"
-                )
-            });
-        }
-    }
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
 }

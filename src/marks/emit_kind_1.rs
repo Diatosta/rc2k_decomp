@@ -23,10 +23,13 @@
 //! matrix when an entry is made, and `emit_particle_21`'s. Self-test: a ring, wheel and
 //! car of the test's (`marks::emit_particle_6::TestEmitter`), both bodies, several
 //! speeds and fillings.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::marks::emit_particle_6::{TEST_ENTRIES, TestEmitter};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::emit_particle_21::emit_particle_21;
 use crate::marks::emitters::*;
 use crate::marks::jitter_point::jitter_point;
@@ -34,22 +37,7 @@ use crate::marks::setup::SEED_RVA;
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at as at_rva, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::emit_kind_1", rva(0x4CCCD7), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at as at_rva, state_entry};
 
 const CHOICE_RVA: usize = rva(0x93A1D6); // g_marksKind1Choice: emit_particle_21 when not 0
 const STRENGTH_RVA: usize = rva(0x9356C0); // dword_9356C0
@@ -263,115 +251,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(r.edi), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut test = TestEmitter::new(&[
-        CHOICE_RVA,
-        STRENGTH_RVA,
-        LIFE_RVA,
-        FADE_RVA,
-        SIDE_RVA,
-        SIDE_RANDOM_RVA,
-        SPIN_RANDOM_RVA,
-        rva(0x93A322),
-        rva(0x93A34E),
-    ]);
-    let regions = test.regions();
-    let mut made = 0;
-    let mut case = 0u32;
-    // (the choice, speeds +0xC, +0x10, +0x18, the wheel's +4 (a float for body 1), taken)
-    for (choice, speeds, count, taken) in [
-        (0u32, [3.0f32, 50.0, -2.0], 0.0f32, 0u32),
-        (0, [-10.0, -80.0, 40.0], 5.5, 5),
-        (0, [1.0, 1.0, 1.0], 2.0, 0),
-        (0, [0.0, 0.0, 0.0], 30.0, 0),
-        (0, [200.0, 0.5, 300.0], 17.0, 0x10),
-        (0, [90.0, 90.0, -90.0], -40.0, MOST_TAKEN),
-        (0, [9.0, 1e-3, 9.5], 23.9, 1),
-        (1, [3.0, 0.5, -2.0], f32::from_bits(0x5000), 0),
-        (1, [-10.0, 1.0, 4.0], f32::from_bits(0x7000), 5),
-    ] {
-        case += 1;
-        let ptrs = (
-            test.wheel.as_mut_ptr(),
-            test.object.as_mut_ptr(),
-            test.matrix.as_mut_ptr(),
-        );
-        let seed = case.wrapping_mul(0x2545_F491);
-        test.prepare(taken);
-        check_state(
-            &mut t,
-            &format!("choice {choice}, speeds {speeds:?}, +4 {count}, taken {taken:#x}"),
-            call_original,
-            Regs {
-                edi: ptrs.0 as u32,
-                esi: ptrs.1 as u32,
-                ..Regs::SENTINEL
-            },
-            &|| unsafe {
-                restore(&regions, &vec![0xAA; regions.iter().map(|r| r.1).sum()]);
-                let base = test.ring.as_ptr() as u32;
-                for n in 0..TEST_ENTRIES {
-                    let e = (base + n * ENTRY_LEN as u32) as *mut u32;
-                    e.write_unaligned(base + ((n + 1) % TEST_ENTRIES) * ENTRY_LEN as u32);
-                }
-                game_write(RING_CURSOR_RVA, base + 3 * ENTRY_LEN as u32);
-                game_write(RING_COUNT_RVA, taken);
-                game_write(OBJECT_RVA, ptrs.1 as u32);
-                game_write(CHOICE_RVA, choice);
-                game_write(SEED_RVA, seed);
-                for (n, r) in [
-                    SIDE_RANDOM_RVA,
-                    SPIN_RANDOM_RVA,
-                    rva(0x93A322),
-                    rva(0x93A34E),
-                ]
-                .into_iter()
-                .enumerate()
-                {
-                    game_write(r, seed ^ (n as u32 * 0x1111_1111));
-                }
-                let w = ptrs.0;
-                for n in 0..0x20 {
-                    *w.add(n) = (n as f32 * 0.75 - 3.0).to_bits();
-                }
-                *w.add(1) = count.to_bits();
-                *w.add(3) = speeds[0].to_bits();
-                *w.add(4) = speeds[1].to_bits();
-                *w.add(6) = speeds[2].to_bits();
-                *w.add(8) = 0x1234_56C7;
-                let o = ptrs.1;
-                for n in 0..0x30 {
-                    *o.add(n) = (n as f32 * 1.25 + 0.5).to_bits();
-                }
-                *o.add(0x1C / 4) = 0x1234_5678;
-                *o.add(0x24 / 4) = ptrs.2 as u32;
-                *o.add(0x88 / 4) = 0x77;
-                *o.add(0x90 / 4) = 0x2000;
-                for n in 0..0x10 {
-                    *ptrs.2.add(n) = ((n as f32 - 5.0) * 0.3).to_bits();
-                }
-            },
-            &regions,
-            &rust,
-        );
-        if choice == 0 && unsafe { game_read::<u32>(RING_COUNT_RVA) } != taken {
-            made += 1;
-        }
-    }
-    t.check(made > 0, || "no case of body 1 made an entry".into());
-    drop(test);
-    t.finish()
 }

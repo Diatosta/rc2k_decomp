@@ -14,28 +14,17 @@
 //! floats; the x87 version stays for the Rust callers in unconverted code). Shadow mode and
 //! the self-test compare within `service::floats`' tolerances (the self-test at both test
 //! precisions, exact at double).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::marks::leaf_test::test_leaf_floats;
-use crate::marks::scale_vectors_by::{inputs_of, results_of, scale_triples, scale_triples_plain};
-use crate::scene::matrix::float_places;
+use crate::framework::{Regs, rva};
+use crate::marks::scale_vectors_by::{results_of, scale_triples, scale_triples_plain};
 use crate::screens::harness::Left;
 use crate::service::floats::*;
 use crate::service::harness::at;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::scale_kept_vectors", rva(0x4C15F4), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// (the factor, the vector, the result).
 const PAIRS: [(usize, usize, usize); 3] = [
@@ -59,36 +48,8 @@ pub fn regions() -> Vec<crate::service::harness::Region> {
     results_of(&PAIRS).into_iter().map(at).collect()
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let places = float_places(&regions());
-    let floats = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let (inputs, written) = (inputs_of(&PAIRS), results_of(&PAIRS));
-    test_leaf_floats(
-        &mut t,
-        "marks::scale_kept_vectors",
-        &inputs,
-        &written,
-        Regs::SENTINEL,
-        &[],
-        8,
-        call_original,
-        &rust,
-    );
-    t.finish()
 }

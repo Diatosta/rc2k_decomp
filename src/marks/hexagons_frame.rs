@@ -18,28 +18,16 @@
 //! game: section 15). Refuses, before anything, null settings and a live item of a kind
 //! past 7. Shadow mode runs the original alone (it draws). Self-test: a copy whose calls go
 //! to stand-ins, against the Rust version, on the game's items with a few live.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::marks::expire_hexagons::{ITEM_LEN, ITEMS, ITEMS_RVA};
 use crate::marks::setup::SETTINGS_RVA;
 use crate::math::x87;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::hexagons_frame", rva(0x4BC0B1), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const DRIFTING_RVA: usize = rva(0x7652A0); // dword_7652A0
 const LIVE_RVA: usize = rva(0x814710); // dword_814710
@@ -498,152 +486,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { hexagons_frame(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { hexagons_frame(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if unsafe { game_read::<u32>(SETTINGS_RVA) } == 0 {
-        return t.skip("no marks settings");
-    }
-    crate::install::stand_ins::set_handler(crate::race::level_init::note);
-    const LEN: usize = 0x4BC22B - 0x4BB94D;
-    let copy = match unsafe {
-        crate::redirect::RedirectedCopy::new(
-            game_addr(rva(0x4BB94D)),
-            LEN,
-            &[],
-            &[
-                0x4BBE5C - 0x4BB94D,
-                0x4BC0BA - 0x4BB94D,
-                0x4BC0BF - 0x4BB94D,
-                0x4BC225 - 0x4BB94D,
-                // The other calls out (depth buffer and render states; moved with it).
-                0x5CD,
-                0x5D7,
-                0x5E6,
-                0x5F5,
-                0x604,
-                0x613,
-                0x622,
-                0x631,
-                0x640,
-                0x64F,
-            ],
-            &|c| match c + 0x40_0000 {
-                0x4BCBE9 => Some(crate::install::stand_ins::stand_in(1)),
-                0x4BBE62 => Some(crate::install::stand_ins::stand_in(2)),
-                0x41ADB9 => Some(crate::install::stand_ins::stand_in(3)),
-                0x4BC5D9 => Some(crate::install::stand_ins::stand_in(4)),
-                _ => None,
-            },
-        )
-    } {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    // The chunk's return address (`push offset loc_4BC1F9`) into the copy.
-    unsafe {
-        copy.patch_u32(
-            0x4BC1F0 - 0x4BB94D,
-            (copy.addr() + (0x4BC1F9 - 0x4BB94D)) as u32,
-        )
-    };
-    let entry = copy.addr() + (0x4BC0B1 - 0x4BB94D);
-    // The main body's first bytes as the original's (`cmp dword_7652A0, 0`), not the hook's.
-    unsafe {
-        let first: [u8; 7] = [0x83, 0x3D, 0xA0, 0x52, 0x76, 0x00, 0x00];
-        std::ptr::copy_nonoverlapping(first.as_ptr(), entry as *mut u8, 7);
-    }
-    let regions: Vec<Region> = vec![
-        (game_addr(ITEMS_RVA) as u32, (ITEMS * ITEM_LEN) as usize),
-        at(LIVE_RVA),
-        at(CELL_X_RVA),
-        (game_addr(WHOLE_RVA[0]) as u32, 8),
-        (game_addr(rva(0x814734)) as u32, 4),
-        (game_addr(rva(0x814772)) as u32, 8),
-        (game_addr(rva(0x814C9E)) as u32, 0x60),
-        at(BUFFER_RVA),
-        (game_addr(BUFFER_START) as u32, 0x3000),
-        at(BATCH[0].0),
-        at(BATCH[1].0),
-    ];
-    let mut vars = regions.clone();
-    vars.push(at(DRIFTING_RVA));
-    let saved = capture(&vars);
-    for case in 0..4u32 {
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            crate::marks::expire_hexagons::test_items(case);
-            let base = game_addr(ITEMS_RVA) as u32;
-            for n in 0..ITEMS {
-                let e = base + n * ITEM_LEN;
-                put(e + 4, (n + case) % KINDS);
-            }
-            game_write(DRIFTING_RVA, u32::from(case % 2 == 1));
-            let start = game_addr(BUFFER_START) as u32;
-            game_write(
-                BUFFER_RVA,
-                if case == 2 {
-                    start + 0x3000 - 0xC0
-                } else {
-                    start
-                },
-            );
-        };
-        run_both_at(&mut t, &format!("case {case}"), entry, &regions, &prepare);
-    }
-    restore(&vars, &saved);
-    t.finish()
-}
-
-/// `run_both` on a copy entered at `entry` (inside the copied range).
-fn run_both_at(t: &mut SelfTest, what: &str, entry: usize, regions: &[Region], prepare: &dyn Fn()) {
-    use crate::race::level_init::{note, take_called};
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    prepare();
-    take_called();
-    let mut ro = Regs::SENTINEL;
-    unsafe { call_game(&mut ro, entry) };
-    let theirs = (Some(regs(&ro)), take_called(), capture(regions));
-    prepare();
-    let mine = unsafe {
-        hexagons_frame(&Regs::SENTINEL, &mut |p, r| {
-            note(p, r);
-            Ok(())
-        })
-    };
-    let mine = (
-        mine.as_ref().ok().map(regs),
-        take_called(),
-        capture(regions),
-    );
-    t.check(theirs == mine, || {
-        format!(
-            "{what}: original {:x?} {} calls; rust {:x?} {} calls; state first differs at {:?}",
-            theirs.0,
-            theirs.1.len(),
-            mine.0,
-            mine.1.len(),
-            theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b)
-        )
-    });
 }

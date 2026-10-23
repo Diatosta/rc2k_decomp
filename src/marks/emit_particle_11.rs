@@ -8,25 +8,16 @@
 //! Out: every register kept
 //!
 //! Refuses as `emit_particle_5`. Self-test: as `emit_particle_5`'s.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::marks::emit_particle_5::{JitterSet, emit_particle_5_with, regions, test_with};
+use crate::framework::{Regs, rva};
+use crate::marks::emit_particle_5::{JitterSet, emit_particle_5_with};
 use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::emit_particle_11", rva(0x4CC35A), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 /// Kind 0xB's variables.
 pub const ELEVENTH: JitterSet = JitterSet {
@@ -51,20 +42,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(&ELEVENTH), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    test_with(&mut t, &ELEVENTH, call_original, &rust);
-    t.finish()
 }

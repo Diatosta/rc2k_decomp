@@ -16,30 +16,17 @@
 //! the original alone (it draws). Self-test: a copy whose three calls go to stand-ins
 //! (the drawing's taking its values off), against the Rust version, on the game's items
 //! (as `expire_squares`') with ages by lot; put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::marks::expire_squares::{ITEM_LEN, ITEMS, ITEMS_RVA, test_items};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::marks::expire_squares::{ITEM_LEN, ITEMS, ITEMS_RVA};
 use crate::marks::squares_spawn::squares_spawn;
 use crate::math::x87;
 use crate::scene::matrix3::extended;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::run_squares", rva(0x4BFFEC), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 const PLACES_RVA: usize = rva(0x8BC222); // dword_8BC222 .. dword_8BC22E
@@ -145,175 +132,9 @@ pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { run_squares(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { run_squares(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-/// A call as the test notes it: the place, eax .. esi, the values.
-type Noted = (u32, [u32; 5], Vec<[u8; 10]>);
-
-static NOTED: Mutex<Vec<Noted>> = Mutex::new(Vec::new());
-
-fn note(place: u32, r: &Regs, v: &[[u8; 10]]) {
-    NOTED
-        .lock()
-        .unwrap()
-        .push((place, [r.eax, r.ebx, r.ecx, r.edx, r.esi], v.to_vec()));
-}
-
-fn note_plain(place: u32, r: &mut Regs) {
-    note(place, r, &[]);
-}
-
-extern "C" fn note_two(r: *const Regs, v: *const [u8; 10]) {
-    note(2, unsafe { &*r }, unsafe {
-        std::slice::from_raw_parts(v, 2)
-    });
-}
-
-/// The test's stand-in for `draw_square`: its two values taken off and noted.
-#[unsafe(naked)]
-unsafe extern "C" fn draw_stand_in() {
-    core::arch::naked_asm!(
-        "lea esp, [esp - 20]",
-        "fstp tbyte ptr [esp]",
-        "fstp tbyte ptr [esp + 10]",
-        "pushfd",
-        "pushad",
-        "mov eax, esp",
-        "lea ecx, [esp + 36]",
-        "push ecx",
-        "push eax",
-        "call {note}",
-        "add esp, 8",
-        "popad",
-        "popfd",
-        "lea esp, [esp + 20]",
-        "ret",
-        note = sym note_two,
-    )
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::install::stand_ins::{set_handler, stand_in};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    set_handler(note_plain);
-    let copy = match unsafe {
-        crate::redirect::RedirectedCopy::new(
-            game_addr(rva(0x4BFFEC)),
-            0x134,
-            // lea esp, [esp - 4]; fstcw [esp]
-            &[0x8D, 0x64, 0x24, 0xFC, 0x9B, 0xD9, 0x3C, 0x24],
-            &[0x23, 0x66, 0x112, 0x12E],
-            &|c| match c + 0x40_0000 {
-                0x4BFEAC => Some(stand_in(1)),
-                0x4BF80F => Some(draw_stand_in as *const () as usize),
-                0x44E41F => Some(stand_in(3)),
-                _ => None,
-            },
-        )
-    } {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut regions: Vec<Region> = vec![
-        (game_addr(ITEMS_RVA) as u32, (ITEMS * ITEM_LEN) as usize),
-        (game_addr(VERTICES_RVA) as u32, 0x80),
-    ];
-    // what squares_spawn writes
-    regions.extend(
-        [
-            rva(0x89D166),
-            rva(0x89CA30),
-            rva(0x89CA38),
-            rva(0x8BC252),
-            rva(0x8BC256),
-            crate::scene::vector3::STATUS_RVA,
-        ]
-        .map(at),
-    );
-    let mut vars = regions.clone();
-    vars.extend(
-        [
-            RUNNING_RVA,
-            TICKS_RVA,
-            FADE_RVA,
-            rva(0x82FC56),
-            rva(0x833D7E),
-        ]
-        .map(at),
-    );
-    vars.push((game_addr(EDGE_RVA) as u32, 0x8000));
-    let saved = capture(&vars);
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for case in 0..4u32 {
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            test_items(case);
-            let base = game_addr(ITEMS_RVA) as u32;
-            for n in 0..ITEMS {
-                ((base + n * ITEM_LEN + 8) as *mut u32)
-                    .write_unaligned((n * 97 + case * 300) % 0x1100);
-            }
-            game_write(RUNNING_RVA, case & 1);
-            game_write(TICKS_RVA, 0x40 + case * 0x100);
-            game_write(FADE_RVA, 16 + case);
-            let edge = game_addr(EDGE_RVA) as *mut u8;
-            for n in 0..0x8000usize {
-                *edge.add(n) = u8::from(n % (7 + case as usize) == 0);
-            }
-            std::ptr::write_bytes(game_addr(VERTICES_RVA) as *mut u8, 0xAA, 0x80);
-        };
-        prepare();
-        NOTED.lock().unwrap().clear();
-        let mut ro = Regs::SENTINEL;
-        unsafe { crate::framework::call_game(&mut ro, copy.addr()) };
-        let theirs = (
-            Some(regs(&ro)),
-            std::mem::take(&mut *NOTED.lock().unwrap()),
-            capture(&regions),
-        );
-        prepare();
-        let mine = unsafe {
-            run_squares(&Regs::SENTINEL, &mut |p, r, v| {
-                note(p, r, v);
-                Ok(())
-            })
-        };
-        let mine = (
-            mine.as_ref().ok().map(regs),
-            std::mem::take(&mut *NOTED.lock().unwrap()),
-            capture(&regions),
-        );
-        t.check(theirs == mine, || {
-            format!(
-                "case {case}: original {:x?} {} calls; rust {:x?} {} calls; calls same {}; state first differs at {:?}",
-                theirs.0,
-                theirs.1.len(),
-                mine.0,
-                mine.1.len(),
-                theirs.1 == mine.1,
-                theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b)
-            )
-        });
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

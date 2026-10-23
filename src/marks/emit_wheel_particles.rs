@@ -16,12 +16,14 @@
 //! the emitters' refusals; on a refusal nothing stays written (all it may write is put
 //! back). Self-test: a ring, wheel and car of the test's
 //! (`marks::emit_particle_6::TestEmitter`), every kind, with and without the copy.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::marks::emit_particle_6::{TEST_ENTRIES, TestEmitter};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::emitters::*;
-use crate::marks::setup::SEED_RVA;
 use crate::marks::{
     emit_bursts, emit_bursts_2, emit_kind_1, emit_particle_5, emit_particle_6, emit_particle_11,
     emit_particle_18,
@@ -29,27 +31,7 @@ use crate::marks::{
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at as at_rva, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "marks::emit_wheel_particles",
-    rva(0x4CA085),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at as at_rva, capture, restore, state_entry};
 
 const CHANCE_RVA: usize = rva(0x9356C0); // dword_9356C0
 const CHANCE_K_RVA: usize = rva(0x7651DC); // flt_7651DC
@@ -199,10 +181,6 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { emit_wheel_particles(r) }?))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(r.edi), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
@@ -251,97 +229,3 @@ pub const WRITTEN: [usize; 39] = [
     rva(0x93543A),
     rva(0x935442),
 ];
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut test = TestEmitter::new(&WRITTEN);
-    let regions = test.regions();
-    let mut case = 0u32;
-    // (the wheel's +0x1C, +0x28, the chance's +0x34, the kind-1 choice)
-    for (now, surface, chance, choice) in [
-        (0u32, 0u32, 0.0f32, 0u32),
-        (0, 1, 1e9, 0),
-        (1, 0, 0.0, 0),
-        (2, 2, 0.0, 0),
-        (0, 3, 1e9, 0),
-        (4, 0, -1.0, 0),
-        (5, 5, 0.0, 0),
-        (6, 7, 1e9, 0),
-        (8, 9, 0.5, 0),
-        (0xA, 0xB, 1e9, 0),
-        (0xB, 0xC, 0.0, 0),
-        (0xC, 0xD, 1e9, 0),
-        (1, 1, 0.0, 1),
-    ] {
-        case += 1;
-        let ptrs = (
-            test.wheel.as_mut_ptr(),
-            test.object.as_mut_ptr(),
-            test.matrix.as_mut_ptr(),
-        );
-        let seed = case.wrapping_mul(0x2545_F491);
-        test.prepare(case % 3);
-        check_state(
-            &mut t,
-            &format!("kind {now:#x}, surface {surface:#x}, chance {chance}, choice {choice}"),
-            call_original,
-            Regs {
-                edi: ptrs.0 as u32,
-                esi: ptrs.1 as u32,
-                ..Regs::SENTINEL
-            },
-            &|| unsafe {
-                restore(&regions, &vec![0xAA; regions.iter().map(|r| r.1).sum()]);
-                let base = test.ring.as_ptr() as u32;
-                for n in 0..TEST_ENTRIES {
-                    let e = (base + n * ENTRY_LEN as u32) as *mut u32;
-                    e.write_unaligned(base + ((n + 1) % TEST_ENTRIES) * ENTRY_LEN as u32);
-                }
-                game_write(RING_CURSOR_RVA, base + 3 * ENTRY_LEN as u32);
-                game_write(RING_COUNT_RVA, case % 3);
-                game_write(OBJECT_RVA, ptrs.1 as u32);
-                game_write(SEED_RVA, seed);
-                for (n, r) in WRITTEN.iter().enumerate() {
-                    game_write(*r, seed ^ (n as u32).wrapping_mul(0x0101_0101));
-                }
-                game_write(rva(0x93A1D6), choice);
-                game_write(rva(0x935416), case & 3);
-                for r in [rva(0x93545E), rva(0x93543A), rva(0x935442)] {
-                    game_write(r, 0.5f32.to_bits());
-                }
-                let w = ptrs.0;
-                for n in 0..0x20 {
-                    *w.add(n) = (n as f32 * 0.75 - 3.0).to_bits();
-                }
-                *w.add(1) = 0x5000;
-                *w.add(3) = 3.0f32.to_bits();
-                *w.add(4) = 50.0f32.to_bits();
-                *w.add(6) = (-20.0f32).to_bits();
-                *w.add(7) = now;
-                *w.add(8) = 0xC5;
-                *w.add(9) = 0x85;
-                *w.add(10) = surface;
-                *w.add(11) = 0x47;
-                *w.add(12) = 0xC3;
-                *w.add(13) = chance.to_bits();
-                let o = ptrs.1;
-                for n in 0..0x30 {
-                    *o.add(n) = (n as f32 * 1.25 + 0.5).to_bits();
-                }
-                *o.add(0x1C / 4) = 0x1234_5678;
-                *o.add(0x24 / 4) = ptrs.2 as u32;
-                *o.add(0x88 / 4) = 0x77;
-                *o.add(0x90 / 4) = 0x2000;
-                for n in 0..0x10 {
-                    *ptrs.2.add(n) = ((n as f32 - 5.0) * 0.3).to_bits();
-                }
-            },
-            &regions,
-            &rust,
-        );
-    }
-    drop(test);
-    t.finish()
-}

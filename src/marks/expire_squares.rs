@@ -10,27 +10,16 @@
 //!
 //! Caller: `marks::squares_step` (0x4C0682). Self-test: the original and the Rust version on
 //! the game's items with a few made live, shapes and mask counts by lot; put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::expire_squares", rva(0x4C06AD), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at, state_entry};
 
 pub const ITEMS_RVA: usize = rva(0x89E18A); // g_marksSquareItems
 pub const ITEMS: u32 = 0x800;
@@ -85,10 +74,6 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { expire_squares(r) }))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
@@ -112,30 +97,4 @@ pub unsafe fn test_items(case: u32) {
         );
         game_write(RUNS_RVA, case % 3);
     }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let mut vars = regions.clone();
-    vars.extend([SHAPES_RVA[0], SHAPES_RVA[1], RUNS_RVA].map(at));
-    let saved = capture(&vars);
-    for case in 0..6u32 {
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&vars, &saved);
-                test_items(case);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

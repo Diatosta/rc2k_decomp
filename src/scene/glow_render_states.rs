@@ -7,22 +7,12 @@
 //!
 //! Callers: `race::draw_sky`, `race::draw_view_backdrop`. Self-test: the original and the
 //! Rust version recorded on the layer, nothing drawn.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::d3d::recorder::record;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::glow_render_states", rva(0x44E44D), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
 
 /// The Rust version (see the header): the registers it leaves on `r`.
 // Converted: `rc2k_core::scene::render_states::GLOW`
@@ -32,42 +22,8 @@ pub unsafe fn glow_render_states(r: &mut Regs) {
     }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    unsafe { glow_render_states(r) };
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     unsafe { glow_render_states(r) };
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let before = Regs::SENTINEL;
-    let (theirs, their_calls) = record(true, || {
-        let mut r = before;
-        unsafe { call_original(&mut r) };
-        r
-    });
-    let (mine, my_calls) = record(true, || {
-        let mut r = before;
-        unsafe { glow_render_states(&mut r) };
-        r
-    });
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    t.check(
-        regs(&theirs) == regs(&mine) && their_calls == my_calls,
-        || {
-            format!(
-                "original {:x?} {their_calls:x?}; rust {:x?} {my_calls:x?}",
-                regs(&theirs),
-                regs(&mine)
-            )
-        },
-    );
-    t.finish()
 }

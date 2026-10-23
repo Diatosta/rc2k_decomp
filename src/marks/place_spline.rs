@@ -14,9 +14,13 @@
 //! anything), and its steps' refusals (all it may write is put back first). Self-test: the
 //! game's settings and spline tables (skipped without settings), spline numbers, sizes and
 //! switches by lot; compared on all it may write.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::marks::lines::SETTINGS_RVA;
 use crate::marks::place_graded_points::{self, place_graded_points};
 use crate::marks::place_shape_points;
@@ -25,22 +29,7 @@ use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::scene::vector3::STATUS_RVA;
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::place_spline", rva(0x4B98FD), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at, capture, restore, state_entry};
 
 const SPLINES: u32 = 8;
 const SWITCH_RVA: usize = rva(0x7695CA); // dword_7695CA
@@ -147,10 +136,6 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { place_spline(r) }?))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(r.eax), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
@@ -195,56 +180,4 @@ pub fn record_regions(n: u32) -> Vec<Region> {
         .iter()
         .map(|&r| (r, SPLINE_LEN as usize))
         .collect()
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::marks::splines::{CHOSEN_RVA, MADE_RVA, MOST_POINTS, TestSpline, work_regions};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
-    if settings == 0 {
-        return t.skip("no marks settings");
-    }
-    let spline = TestSpline::new();
-    let targets = vec![0u32; 3 * MOST_POINTS as usize];
-    let base = targets.as_ptr() as u32;
-    for n in [0u32, 3, 7] {
-        let recs = records(n);
-        // What it may write that is not named through the records' pointers.
-        let mut fixed: Vec<Region> = recs.iter().map(|&r| (r, SPLINE_LEN as usize)).collect();
-        fixed.extend([OFFSET_RVA, SWITCH_RVA, STATUS_RVA, MADE_RVA, CHOSEN_RVA].map(at));
-        fixed.extend(work_regions());
-        fixed.extend(crate::marks::bend_points::regions(recs[1]));
-        fixed.push((settings + 0x26DC, 4));
-        fixed.push((base, 4 * targets.len()));
-        let saved = capture(&fixed);
-        for (size, seed) in [(0.5f32, 1u32), (2.0, 2)] {
-            let prepare = || unsafe {
-                restore(&fixed, &saved);
-                put(settings + 0x26DC, size.to_bits());
-                fill_test_records(&spline, n, seed, base);
-                game_write(MADE_RVA, seed * 0x23);
-                game_write(CHOSEN_RVA, 5u32);
-                std::ptr::write_bytes(base as *mut u8, 0xAA, 4 * targets.len());
-            };
-            prepare();
-            let regions = regions(n);
-            check_state(
-                &mut t,
-                &format!("spline {n}, size {size}"),
-                call_original,
-                Regs {
-                    eax: n,
-                    ..Regs::SENTINEL
-                },
-                &prepare,
-                &regions,
-                &rust,
-            );
-        }
-        restore(&fixed, &saved);
-    }
-    drop(targets);
-    t.finish()
 }

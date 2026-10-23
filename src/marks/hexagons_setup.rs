@@ -16,26 +16,14 @@
 //! 3 a render state), in the game their Rust versions. Shadow mode runs the original alone
 //! (it tells the device). Self-test: a copy whose calls go to stand-ins, against the Rust
 //! version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::hexagons_setup", rva(0x4BBE62), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const TEXTURE_RVA: usize = rva(0x5D5A24); // dword_5D5A24
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
@@ -164,78 +152,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { hexagons_setup(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { hexagons_setup(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // lea esi, flt_814C1A
-    let entry: &[u8] = &[0x8D, 0x35, 0x1A, 0x4C, 0x81, 0x00];
-    let copy = match copy(
-        0x4BBE62,
-        0x24F,
-        entry,
-        &[
-            0xB8, 0xC2, 0xD1, 0xE0, 0xEF, 0xFE, 0x10D, 0x11C, 0x12B, 0x13A,
-        ],
-        &[(0x44E41F, 1), (0x44E77E, 2), (0x44EB72, 3)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions: Vec<Region> = vec![
-        (game_addr(rva(0x814C6E)) as u32, 0x30),
-        (game_addr(VERTICES_RVA) as u32, 0xC0),
-        at(COUNT_RVA),
-        at(SCRATCH_RVA),
-        at(INVERSE_RVA),
-    ];
-    let mut vars = regions.clone();
-    vars.extend([TEXTURE_RVA, SIDE_RVA, DEPTH_OF_RVA, rva(0x814BC2)].map(at));
-    vars.push((game_addr(rva(0x814C1A)) as u32, 0x18));
-    vars.push((game_addr(rva(0x82E286)) as u32, 0x18));
-    let saved = capture(&vars);
-    for case in 0..3u32 {
-        run_both(
-            &mut t,
-            &format!("case {case}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                restore(&vars, &saved);
-                let k = case as f32;
-                for n in 0..6 {
-                    game_write(rva(0x814C1A) + 4 * n, (n as f32 * 1.5 - 3.0 + k).to_bits());
-                    game_write(rva(0x82E286) + 4 * n, (0.25 * n as f32 + 0.1).to_bits());
-                }
-                game_write(rva(0x814BC2), (0.75f32 + k).to_bits());
-                game_write(SIDE_RVA, (0.5f32 * (k + 1.0)).to_bits());
-                game_write(DEPTH_OF_RVA, 3000.0f32.to_bits());
-                game_write(TEXTURE_RVA, 0x31 + case);
-                std::ptr::write_bytes(game_addr(VERTICES_RVA) as *mut u8, 0xAA, 0xC0);
-            },
-            &|r| unsafe { hexagons_setup(r, &mut test_part) },
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

@@ -20,30 +20,16 @@
 //! settings (`clip_quad`'s refusal), before anything. Thunk by `two_in_hook!`. Shadow mode
 //! runs the original alone (it draws). Self-test: a copy whose draw goes to a stand-in,
 //! against the Rust version, centres, corners, sizes and angles by lot.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva, shadow};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::marks::clip_quad::clip_quad;
 use crate::math::x87;
-use crate::scene::matrix3::{extended, rounded};
-use crate::scene::vector3::{Pair80, call_with_two, two_in_hook};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static PAIR: Pair80 = Pair80::new();
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::draw_flare_part", rva(0x4C4FFB), thunk, &ORIGINAL).self_test(self_test);
-
-two_in_hook!(
-    thunk,
-    call_original,
-    original_with_two,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    pair = PAIR
-);
+use crate::scene::matrix3::rounded;
 
 const SCALE: [usize; 2] = [rva(0x9206DE), rva(0x9206E2)]; // flt_9206DE, flt_9206E2
 const SIDE_RVA: [usize; 2] = [rva(0x8EB941), rva(0x8EB945)]; // flt_8EB941, flt_8EB945
@@ -144,105 +130,4 @@ pub unsafe fn draw_flare_part(
 pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe { crate::scene::draw_fan::draw_fan(r, &mut crate::scene::draw_fan::game_part) };
     Ok(())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { original_with_two(r) };
-        return;
-    }
-    match unsafe { draw_flare_part(r, PAIR.inputs(), &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, original_with_two) },
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::level_init::{note, take_called};
-    use crate::race::mud::copy;
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if unsafe { game_read::<u32>(crate::marks::setup::SETTINGS_RVA) } == 0 {
-        return t.skip("no marks settings (the clip reads them)");
-    }
-    // fld flt_9206DE
-    let entry: &[u8] = &[0xD9, 0x05, 0xDE, 0x06, 0x92, 0x00];
-    let copy = match copy(0x4C4FFB, 0x39D, entry, &[0x390, 0x397], &[(0x44EA65, 1)]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions: Vec<Region> = vec![
-        (game_addr(SIDE_RVA[0]) as u32, 8),
-        (game_addr(SIZE_RVA[0]) as u32, 8),
-        (game_addr(VERTICES_RVA) as u32, 0xC0),
-        at(DRAWN_RVA),
-        at(rva(0x6240F8)),
-        (game_addr(rva(0x7687F4)) as u32, 6 * 0x20),
-        at(rva(0x93CC94)),
-    ];
-    let mut vars = regions.clone();
-    vars.extend([NEAR_RVA, Z_K_RVA, UV_K_RVA, SCALE[0], SCALE[1]].map(at));
-    let corner_base = game_addr(CORNERS_RVA) as u32;
-    vars.push((corner_base + 0x10 * 0x80, 4 * 0x80));
-    let saved = capture(&vars);
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for case in 0..6u32 {
-        let k = case as f32;
-        let centre = [
-            extended((100.0 + k * 130.0).to_bits()),
-            extended((50.0 + k * 77.5).to_bits()),
-        ];
-        let before = Regs {
-            eax: 0x10 + (case % 4),
-            ebx: (case * 0x123) << 20,
-            ecx: 0x40 + case * 30,
-            edx: 8 + case * 13,
-            esi: 0x00FF_C080,
-            ..Regs::SENTINEL
-        };
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            game_write(NEAR_RVA, 2.0f32.to_bits());
-            game_write(Z_K_RVA, (1.0f32 / 3000.0).to_bits());
-            game_write(UV_K_RVA, (1.0f32 / 256.0).to_bits());
-            game_write(SCALE[0], (0.5f32 + k * 0.1).to_bits());
-            game_write(SCALE[1], (0.5f32 - k * 0.05).to_bits());
-            for n in 0..4 * 0x40u32 {
-                let w = (n * 29 + case * 7) % 0x120;
-                ((corner_base + 0x10 * 0x80 + 2 * n) as *mut u16).write_unaligned(w as u16);
-            }
-            std::ptr::write_bytes(game_addr(VERTICES_RVA) as *mut u8, 0xAA, 0xC0);
-        };
-        prepare();
-        take_called();
-        let mut ro = before;
-        unsafe { call_with_two(&mut ro, copy.addr(), &centre) };
-        let theirs = (Some(regs(&ro)), take_called(), capture(&regions));
-        prepare();
-        let mine = unsafe {
-            draw_flare_part(&before, centre, &mut |p, r| {
-                note(p, r);
-                Ok(())
-            })
-        };
-        let mine = (
-            mine.as_ref().ok().map(regs),
-            take_called(),
-            capture(&regions),
-        );
-        t.check(theirs == mine, || {
-            format!(
-                "case {case}: original {:x?} {:x?}; rust {:x?} {:x?}; state first differs at {:?}",
-                theirs.0,
-                theirs.1,
-                mine.0,
-                mine.1,
-                theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b)
-            )
-        });
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

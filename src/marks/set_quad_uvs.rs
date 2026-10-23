@@ -9,26 +9,16 @@
 //! One caller, `sub_4CFB49` (the marks' frame). Self-test: the original and the Rust
 //! version recorded on the layer (nothing drawn), the set filled by a pattern; put back
 //! afterwards.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::d3d::recorder::record;
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::set_quad_uvs", rva(0x4CFD6A), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 const SETS_RVA: usize = rva(0x920738); // dword_920738: sets of four texture places
 const SET: u32 = 0xC60;
@@ -51,60 +41,12 @@ pub unsafe fn set_quad_uvs(entry: &Regs) -> Regs {
     g
 }
 
-fn regions() -> Vec<Region> {
-    (0..4)
-        .map(|n| (game_addr(VERTICES_RVA + VERTEX * n) as u32, 8))
-        .collect()
-}
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { set_quad_uvs(r) }))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let set: Region = (game_addr(SETS_RVA + SET as usize) as u32, 0x20);
-    let mut inputs = regions.clone();
-    inputs.push(set);
-    let saved = capture(&inputs);
-    for fill in [0x11u32, 0x3F80_0001] {
-        let ((), calls) = record(true, || {
-            check_state(
-                &mut t,
-                &format!("pattern {fill:#x}"),
-                call_original,
-                Regs::SENTINEL,
-                &|| unsafe {
-                    restore(&inputs, &saved);
-                    for n in 0..8u32 {
-                        game_write(
-                            SETS_RVA + SET as usize + 4 * n as usize,
-                            fill.wrapping_mul(n + 3),
-                        );
-                    }
-                },
-                &regions,
-                &rust,
-            )
-        });
-        // The original and the Rust version, each one render state.
-        t.check(calls.len() == 2 && calls[0] == calls[1], || {
-            format!("pattern {fill:#x}: calls {calls:x?}")
-        });
-    }
-    restore(&inputs, &saved);
-    t.finish()
 }

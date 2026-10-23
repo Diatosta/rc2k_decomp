@@ -21,30 +21,18 @@
 //! past 0x40, an angle of 0x1000 or more, a null entry, and the fog's and the clip's
 //! refusals. Thunk by `three_in_hook!`. Shadow mode runs the original alone (it draws).
 //! Self-test: a copy whose draw goes to a stand-in, against the Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva, shadow};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
 use crate::marks::clip_quad::clip_quad;
 use crate::scene::fog_at::fog_at;
 use crate::scene::matrix3::extended;
-use crate::scene::vector3::{Triple80, call_with_three, three_in_hook};
+use crate::scene::vector3::call_with_three;
 use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static TRIPLE: Triple80 = Triple80::new();
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::draw_cell_sprite", rva(0x4CB796), thunk, &ORIGINAL).self_test(self_test);
-
-three_in_hook!(
-    thunk,
-    call_original,
-    original_with_three,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    triple = TRIPLE
-);
 
 const DEPTH_RVA: usize = rva(0x8EB8DD); // flt_8EB8DD
 const WHOLE_RVA: usize = rva(0x9356C0); // dword_9356C0
@@ -269,22 +257,6 @@ pub unsafe fn draw_cell_sprite(
 pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe { crate::scene::draw_fan::draw_fan(r, &mut crate::scene::draw_fan::game_part) };
     Ok(())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { original_with_three(r) };
-        return;
-    }
-    match unsafe { draw_cell_sprite(r, TRIPLE.inputs(), &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, original_with_three) },
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    test_at(&HOOK, 0x4CB796)
 }
 
 /// The test, on the copy of the original at `address` (this one or its twin's).

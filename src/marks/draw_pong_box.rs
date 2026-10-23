@@ -15,33 +15,18 @@
 //! `draw_fan`), in the game its Rust version. Thunk by `four_in_hook!`. Shadow mode runs
 //! the original alone (it draws). Self-test: a copy whose draw goes to a stand-in,
 //! against the Rust version, boxes near and far.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva, shadow};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
-use crate::scene::matrix3::extended;
-use crate::scene::vector3::{Four80, call_with_four, four_in_hook};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static FOUR: Four80 = Four80::new();
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::draw_pong_box", rva(0x4B8599), thunk, &ORIGINAL).self_test(self_test);
-
-four_in_hook!(
-    thunk,
-    call_original,
-    original_with_four,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    four = FOUR
-);
 
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 const PLACES_RVA: usize = rva(0x76920A); // dword_76920A .. dword_769216
-const SIDES_RVA: usize = rva(0x768658); // flt_768658 .. flt_768684
+// flt_768658 .. flt_768684
 const CORNERS_RVA: usize = rva(0x89CF92); // flt_89CF92 .. flt_89CFBE
 const NEAR_RVA: usize = rva(0x76921A); // flt_76921A
 
@@ -274,111 +259,4 @@ pub unsafe fn draw_pong_box(entry: &Regs, v: [[u8; 10]; 4], part: Part) -> Resul
 pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe { crate::scene::draw_fan::draw_fan(r, &mut crate::scene::draw_fan::game_part) };
     Ok(())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { original_with_four(r) };
-        return;
-    }
-    match unsafe { draw_pong_box(r, FOUR.inputs(), &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, original_with_four) },
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::level_init::{note, take_called};
-    use crate::race::mud::copy;
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // fld flt_89CF26
-    let entry: &[u8] = &[0xD9, 0x05, 0x26, 0xCF, 0x89, 0x00];
-    let copy = match copy(0x4B8599, 0x332, entry, &[0x32C], &[(0x44EA65, 1)]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let frame = (game_addr(rva(0x89CEEE)) as u32, 0x44);
-    let regions: Vec<Region> = vec![
-        (game_addr(VERTICES_RVA) as u32, 0x80),
-        (game_addr(CORNERS_RVA) as u32, 0x30),
-        (game_addr(SIDES_RVA) as u32, 0x30),
-    ];
-    let mut vars = regions.clone();
-    vars.push(frame);
-    vars.push((game_addr(PLACES_RVA) as u32, 16));
-    vars.extend(
-        [
-            rva(0x624088),
-            rva(0x62409C),
-            rva(0x6240A0),
-            rva(0x765158),
-            NEAR_RVA,
-        ]
-        .map(at),
-    );
-    let saved = capture(&vars);
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for case in 0..5u32 {
-        let k = case as f32;
-        let v = [
-            extended((6.0f32 + k).to_bits()),
-            extended((8.0f32 - k).to_bits()),
-            extended((100.0f32 + k * 30.0).to_bits()),
-            extended((290.0f32 - k * 11.0).to_bits()),
-        ];
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            let f = frame.0 as *mut f32;
-            // flt_89CEEE .. flt_89CF2E: shares, place, the axes, the third axis
-            for n in 0..(0x44 / 4) {
-                *f.add(n) = ((n as f32) * 0.41 - 2.0 + k * 0.1).sin();
-            }
-            // flt_89CEFE: the place's depth
-            *f.add(4) = 500.0 + if case == 3 { -900.0 } else { k * 40.0 };
-            for n in 0..4 {
-                game_write(
-                    PLACES_RVA + 4 * n,
-                    ((n as u32 + case) as f32 * 0.25).to_bits(),
-                );
-            }
-            game_write(rva(0x624088), 320.0f32.to_bits());
-            game_write(rva(0x62409C), 320.5f32.to_bits());
-            game_write(rva(0x6240A0), 240.25f32.to_bits());
-            game_write(rva(0x765158), 0.5f32.to_bits());
-            game_write(NEAR_RVA, 1.0f32.to_bits());
-            std::ptr::write_bytes(game_addr(VERTICES_RVA) as *mut u8, 0xAA, 0x80);
-        };
-        prepare();
-        take_called();
-        let mut ro = Regs::SENTINEL;
-        unsafe { call_with_four(&mut ro, copy.addr(), &v) };
-        let theirs = (Some(regs(&ro)), take_called(), capture(&regions));
-        prepare();
-        let mine = unsafe {
-            draw_pong_box(&Regs::SENTINEL, v, &mut |p, r| {
-                note(p, r);
-                Ok(())
-            })
-        };
-        let mine = (
-            mine.as_ref().ok().map(regs),
-            take_called(),
-            capture(&regions),
-        );
-        t.check(theirs == mine, || {
-            format!(
-                "case {case}: original {:x?} {:x?}; rust {:x?} {:x?}; state first differs at {:?}",
-                theirs.0,
-                theirs.1,
-                mine.0,
-                mine.1,
-                theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b)
-            )
-        });
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

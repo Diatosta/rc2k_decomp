@@ -30,15 +30,15 @@
 //! One caller, `scene::load_front_end_objects`.
 //! Shadow mode runs the original alone (its parts are compared in their own hooks).
 //! Self-test: a redirected copy whose calls note themselves, 200 cases by lot.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{FatalError, Refused};
 use crate::files::read_whole_file::{BYTES_READ_RVA, read_whole_file};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::install::stand_ins::{WENT_FATAL, act, fatal_landing, set_handler, stand_in};
-use crate::redirect::RedirectedCopy;
-use crate::scene::add_object_shape::{MASK_RVA, PART_RVA, add_object_shape};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::scene::add_object_shape::{MASK_RVA, add_object_shape};
 use crate::scene::list_object_textures::list_object_textures;
 use crate::scene::measure_object::{MEASURES_RVA, measure_object};
 use crate::scene::objects::{
@@ -46,21 +46,6 @@ use crate::scene::objects::{
     OBJECT_KINDS_RVA, POINT_COUNT_RVA, POINTS_ROOM_RVA, SLOT_RVA, SLOTS,
 };
 use crate::scene::set_object_file_names::{NAMES_RVA, set_object_file_names};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::load_object", rva(0x425D87), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -73,14 +58,11 @@ const GROUPS_RVA: usize = rva(0x5C90C4);
 const GROUPS_LEN: usize = 0x134;
 /// `dword_5CCE1C` .. `dword_5CCE4C`: the masks.
 const MASKS_RVA: usize = rva(0x5CCE1C);
-const MASKS_LEN: usize = 0x34;
 const REST: usize = 0x10; // dword_5CCE2C
 /// `dword_634FF0` the car, `dword_634FF4` the part, `dword_634FF8` the first slot.
 const CAR_RVA: usize = rva(0x634FF0);
 /// Six tables of a dword a slot: the middles' x, y, z and the half extents' x, y, z.
 const MIDDLES_RVA: usize = rva(0x633370);
-const MIDDLES_LEN: usize = 6 * SLOTS as usize * 4;
-
 /// A part's mask: where it is kept (from `dword_5CCE1C`) and where its group's number
 /// is in the kind's record (from `dword_5C90C4`).
 struct Part {
@@ -334,21 +316,6 @@ pub unsafe fn load_object_in_game(r: &mut Regs) -> Result<(), Refused> {
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    let entry = *r;
-    if let Err(e) = unsafe { load_object_in_game(r) } {
-        *r = entry;
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) }
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let entry = *r;
@@ -357,241 +324,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
         return Err(e);
     }
     Ok(())
-}
-
-// ---- self-test ----
-
-const START: usize = 0x425D87;
-const LEN: usize = 0x90E;
-const ENTRY_BYTES: [u8; 7] = [0x83, 0x3D, 0xE8, 0x4F, 0x63, 0x00, 0x00];
-/// Every call of the function, by its address.
-const CALL_SITES: [usize; 33] = [
-    0x425DAC, 0x425DDD, 0x425E03, 0x425E21, 0x425E3A, 0x42607D, 0x426098, 0x4260B3, 0x4260CE,
-    0x4260E9, 0x426111, 0x426116, 0x42618C, 0x426191, 0x426207, 0x42620C, 0x426282, 0x426287,
-    0x4262FD, 0x426302, 0x426378, 0x42637D, 0x4263F3, 0x4263F8, 0x42646E, 0x426473, 0x4264E9,
-    0x4264EE, 0x426564, 0x426569, 0x4265DF, 0x4265E4, 0x42664F,
-];
-/// The operands of the three jumps to the fatal stubs.
-const FATAL_JUMPS: [usize; 3] = [0x900, 0x905, 0x90A];
-
-/// Each call: its place, the slot and the mask by then, eax.
-static CALLED: Mutex<Vec<[u32; 4]>> = Mutex::new(Vec::new());
-/// What the reading stand-in says was read, and where the names' stand-in points the
-/// `.ro3` name's number.
-static READS: Mutex<(u32, u32)> = Mutex::new((0, 0));
-
-fn handler(place: u32, r: &mut Regs) {
-    unsafe {
-        CALLED
-            .lock()
-            .unwrap()
-            .push([place, game_read(SLOT_RVA), game_read(MASK_RVA), r.eax]);
-        let (read, name) = *READS.lock().unwrap();
-        match place {
-            0 => game_write(NAMES_RVA, name),
-            1 => game_write(BYTES_READ_RVA, read),
-            4 => {
-                // The measures are the slot's own, so that the tables can be told apart.
-                let slot: u32 = game_read(SLOT_RVA);
-                game_write(
-                    MEASURES_RVA,
-                    std::array::from_fn::<u32, 6, _>(|n| slot * 16 + n as u32),
-                );
-            }
-            _ => {}
-        }
-    }
-}
-
-fn place_of(call: Call) -> u32 {
-    match call {
-        Call::Names(_) => 0,
-        Call::Read => 1,
-        Call::Textures => 2,
-        Call::Shape => 3,
-        Call::Measure => 4,
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let calls: Vec<usize> = CALL_SITES.iter().map(|site| site - START).collect();
-    let copy = unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(START)),
-            LEN,
-            &ENTRY_BYTES,
-            &calls,
-            &|callee| {
-                [
-                    rva(0x43964A),
-                    rva(0x421B54),
-                    rva(0x426ACA),
-                    rva(0x426695),
-                    rva(0x4222B8),
-                ]
-                .iter()
-                .position(|&known| known == callee)
-                .map(|place| stand_in(place as u32))
-            },
-        )
-    };
-    let copy = match copy {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    for operand in FATAL_JUMPS {
-        unsafe { copy.retarget(operand, fatal_landing as *const () as usize) };
-    }
-    let regions: Vec<Region> = vec![
-        at(SLOT_RVA),
-        at(MASK_RVA),
-        at(KNOWN_RVA),
-        at(BYTES_READ_RVA),
-        (game_addr(NAMES_RVA) as u32, 16),
-        (game_addr(MASKS_RVA) as u32, MASKS_LEN),
-        (game_addr(CAR_RVA) as u32, 12),
-        (game_addr(MIDDLES_RVA) as u32, MIDDLES_LEN),
-        (game_addr(OBJECT_KINDS_RVA) as u32, SLOTS as usize * 4),
-        (game_addr(MEASURES_RVA) as u32, 0x30),
-    ];
-    let inputs: Vec<Region> = vec![
-        at(KIND_RVA),
-        at(FACE_CURSOR_RVA),
-        at(FACE_ROOM_RVA),
-        at(POINT_COUNT_RVA),
-        at(POINTS_ROOM_RVA),
-        at(FACE_COUNT_RVA),
-        at(PART_RVA),
-        (
-            game_addr(GROUPS_RVA) as u32,
-            (KNOWN_KINDS as usize + 1) * GROUPS_LEN,
-        ),
-    ];
-    let saved = (capture(&regions), capture(&inputs));
-    let known: Vec<u32> = (0..KNOWN_KINDS as usize)
-        .map(|n| unsafe { game_read(KNOWN_KINDS_RVA + n * 4) })
-        .collect();
-    let mut seed = 0x10AD_0B1Eu32;
-    let mut lot = |below: u32| {
-        seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-        (seed >> 8) % below
-    };
-    let name = std::cell::Cell::new([0xAAu8; 12]);
-    let mut fatal = [0usize; 4];
-    for case in 0..200u32 {
-        let slot = match lot(8) {
-            0 => lot(0x50),
-            1 => [0x40u32, 0x41, 0x4F][lot(3) as usize],
-            // A car's first slot, its parts 0xA and 0xB, and any other.
-            2 | 3 => 0x50 + lot(8) * 0x14,
-            4 => 0x50 + lot(8) * 0x14 + 0xA,
-            5 => 0x50 + lot(8) * 0x14 + 0xB,
-            _ => 0x50 + lot(0xA0),
-        };
-        let kind = match lot(6) {
-            0 => 0,
-            1 => 0x1234,
-            n => known[lot(KNOWN_KINDS) as usize].wrapping_add(n & 1),
-        };
-        let read = [0u32, 0x100, 0x40000][lot(3).max(lot(3)) as usize];
-        // Mostly room enough; now and then one of the three is used up.
-        let short = lot(12);
-        let groups: Vec<u32> = (0..(KNOWN_KINDS as usize + 1) * GROUPS_LEN / 4)
-            .map(|_| match lot(5) {
-                0 => u32::MAX,
-                _ => lot(40),
-            })
-            .collect();
-        let run = |rust: bool| unsafe {
-            restore(&regions, &vec![0xAA; saved.0.len()]);
-            name.set([0xAA; 12]);
-            *READS.lock().unwrap() = (read, name.as_ptr() as u32);
-            std::ptr::copy_nonoverlapping(
-                groups.as_ptr() as *const u8,
-                game_addr(GROUPS_RVA) as *mut u8,
-                groups.len() * 4,
-            );
-            game_write(SLOT_RVA, slot);
-            game_write(KIND_RVA, kind);
-            game_write(NAMES_RVA, name.as_ptr() as u32);
-            game_write(FACE_CURSOR_RVA, if short == 1 { 0x1001u32 } else { 0x1000 });
-            game_write(FACE_ROOM_RVA, 0x1000u32);
-            game_write(POINT_COUNT_RVA, if short == 2 { 101u32 } else { 100 });
-            game_write(POINTS_ROOM_RVA, 1200u32);
-            game_write(FACE_COUNT_RVA, if short == 3 { FACES } else { FACES - 1 });
-            CALLED.lock().unwrap().clear();
-            set_handler(handler);
-            let before = Regs::SENTINEL;
-            let mut r = before;
-            let failed = if rust {
-                match load_object(&mut r, &mut |call| {
-                    let mut regs = Regs {
-                        eax: match call {
-                            Call::Names(kind) => kind,
-                            _ => 0,
-                        },
-                        ..Regs::default()
-                    };
-                    act(place_of(call), &mut regs);
-                    Ok(())
-                }) {
-                    Ok(()) => 0,
-                    Err(Refused::Fatal(e)) => e.code,
-                    Err(_) => 1,
-                }
-            } else {
-                call_game(&mut r, copy.addr());
-                WENT_FATAL.load(Ordering::SeqCst)
-            };
-            // Only the names' call is given a register that the test looks at.
-            let called: Vec<[u32; 4]> = CALLED
-                .lock()
-                .unwrap()
-                .iter()
-                .map(|call| {
-                    [
-                        call[0],
-                        call[1],
-                        call[2],
-                        if call[0] == 0 { call[3] } else { 0 },
-                    ]
-                })
-                .collect();
-            (
-                [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp],
-                capture(&regions),
-                name.get(),
-                called,
-                failed,
-            )
-        };
-        let (theirs, mine) = (run(false), run(true));
-        let same_end = (theirs.4 != 0) == (mine.4 != 0);
-        fatal[match mine.4 {
-            0 => 0,
-            0x8060_0010 => 1,
-            0x8060_0011 => 2,
-            0x8060_0012 => 3,
-            _ => 0,
-        }] += 1;
-        t.check(
-            same_end && (theirs.0, &theirs.1, theirs.2, &theirs.3) == (mine.0, &mine.1, mine.2, &mine.3),
-            || {
-                let first = theirs.1.iter().zip(&mine.1).position(|(a, b)| a != b);
-                format!(
-                    "case {case}: slot {slot:#x}, kind {kind:#x}, read {read:#x}, short {short}: original regs {:x?} name {:x?} fatal {:#x} calls {:x?}; rust regs {:x?} name {:x?} fatal {:#x} calls {:x?}; the first difference in memory at byte {first:x?}",
-                    theirs.0, theirs.2, theirs.4, theirs.3, mine.0, mine.2, mine.4, mine.3
-                )
-            },
-        );
-    }
-    t.check(fatal.iter().all(|&n| n > 0), || {
-        format!("the cases ended well and in the three fatal errors {fatal:?} times")
-    });
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
 }

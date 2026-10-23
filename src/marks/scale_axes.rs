@@ -11,39 +11,16 @@
 //! `rc2k_core::marks::scales::scale_axes` (plain floats; the x87 version stays for the Rust
 //! callers in unconverted code). Shadow mode and the self-test compare within
 //! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::race::stage_prefs::left_of;
-use crate::scene::matrix::float_places;
 use crate::screens::harness::Left;
 use crate::service::floats::*;
-use crate::service::harness::{Region, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::scale_axes", rva(0x4BFD73), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-/// The variables it reads (IDA addresses).
-const READS: [usize; 27] = [
-    0x89CECA, 0x89CEEE, 0x89CEF2, 0x89CF1A, 0x89CF1E, 0x89CF22, 0x89CF26, 0x89CF2A, 0x89CF2E,
-    0x89CF3E, 0x89CF42, 0x89CF46, 0x89CF4A, 0x89CF4E, 0x89CF52, 0x8BC1DE, 0x8BC1E2, 0x8BC1E6,
-    0x8BC1EA, 0x8BC1EE, 0x8BC1F2, 0x8BC1F6, 0x8BC1FA, 0x8BC1FE, 0x8BC202, 0x8BC206, 0x8BC20A,
-];
-/// The variables it writes (IDA addresses).
-const WRITES: [usize; 18] = [
-    0x89CF3E, 0x89CF42, 0x89CF46, 0x89CF4A, 0x89CF4E, 0x89CF52, 0x89CF56, 0x89CF5A, 0x89CF5E,
-    0x89CF62, 0x89CF66, 0x89CF6A, 0x89CF6E, 0x89CF72, 0x89CF76, 0x89CF7A, 0x89CF7E, 0x89CF82,
-];
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn scale_axes(entry: &Regs) -> Regs {
@@ -149,69 +126,12 @@ pub unsafe fn scale_axes_plain(entry: &Regs) -> Regs {
     }
 }
 
-fn regions() -> Vec<Region> {
-    WRITES
-        .iter()
-        .map(|&a| (game_addr(rva(a)) as u32, 4))
-        .collect()
-}
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { scale_axes_plain(r) }))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let places = float_places(&regions());
-    let floats = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let mut vars = regions.clone();
-    vars.extend(READS.iter().map(|&a| (game_addr(rva(a)) as u32, 4)));
-    let saved = capture(&vars);
-    let tolerant_places = float_places(&regions);
-    let tolerant = Floats {
-        memory: &tolerant_places,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        for case in 0..6u32 {
-            check_state_floats(
-                &mut t,
-                "marks::scale_axes",
-                &format!("control word {word:#x}, case {case}"),
-                call_original,
-                Regs::SENTINEL,
-                &|| unsafe {
-                    restore(&vars, &saved);
-                    for (n, &a) in READS.iter().enumerate() {
-                        let x = ((n as u32).wrapping_mul(0x9E37_79B9)
-                            ^ case.wrapping_mul(0x85EB_CA6B)) as i32
-                            as f32
-                            / 3e8;
-                        game_write(rva(a), x.to_bits());
-                    }
-                },
-                &regions,
-                held,
-                &rust,
-            );
-        }
-    });
-    restore(&vars, &saved);
-    t.finish()
 }

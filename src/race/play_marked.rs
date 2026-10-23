@@ -17,27 +17,17 @@
 //! Shadow mode runs the original alone. Self-test: a copy of `play_marked` whose calls
 //! go to stand-ins, from its start and (for `play_from_here`) from its tail with the
 //! registers `play_from_here` sets, against the Rust versions.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest};
 use crate::race::viewer::{
-    BLOCK, BLOCKS, FRAME, MARK_IN, MARK_OUT, PLAY_END, PLAY_FROM_HERE, Part, STOPPED, Saved,
-    dispatch_parts, dword, get, put, regs_entry, run_both, test_part,
+    BLOCK, BLOCKS, FRAME, MARK_IN, MARK_OUT, PLAY_END, PLAY_FROM_HERE, Part, STOPPED, Saved, dword,
+    get, put, regs_entry, run_both, test_part,
 };
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::play_marked", rva(0x41E224), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
 
 /// The shared tail (0x41E231): eax the block, ebx the block to stop at, ecx the frame.
 pub fn play_tail(entry: &Regs, part: Part) -> Result<Regs, Refused> {
@@ -87,10 +77,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         )?;
     }
     Ok(())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_parts(&HOOK, r, call_original, &|r| play_marked(r, &mut game_part));
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
@@ -168,8 +154,4 @@ pub fn test_play(hook: &RawHook, from_here: bool) -> (usize, usize) {
     }
     drop(saved);
     t.finish()
-}
-
-fn self_test() -> (usize, usize) {
-    test_play(&HOOK, false)
 }

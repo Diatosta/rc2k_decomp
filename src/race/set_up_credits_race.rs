@@ -13,31 +13,16 @@
 //! call: a private copy (its two calls relocated) with a hand-made patch.
 //! Refuses nothing. Self-test: the original and the Rust version on the game's
 //! variables (put back), from twelve states of the generator.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    EAX, EBX, EDX, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-};
-use crate::math::next_random::{STATE_RVA, TEST_STATES, next_random, own_random};
+use crate::framework::{EAX, EBX, EDX, Regs, game_read, game_write, rva};
+use crate::math::next_random::next_random;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::set_up_credits_race", rva(0x463711), thunk, &ORIGINAL)
-        .private_copy(0x33D)
-        .relocate_calls(&[0x0, 0x2C])
-        .manual_patch()
-        .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 const STAGES: usize = 0x71C3E4; // dword_71C3E4, `RACE_STAGES` stages
 const KINDS: usize = 0x71C474; // dword_71C474, `RACE_KINDS` car kinds
@@ -149,45 +134,8 @@ pub fn set_up_credits_race(_: &Regs) -> Result<Left, Refused> {
     }
 }
 
-fn regions() -> Vec<Region> {
-    let a = |x: usize| (game_addr(rva(x)) as u32, 4);
-    let mut all: Vec<Region> = WRITES.iter().map(|&(x, _)| a(x)).collect();
-    all.extend([a(STAGE), a(CAR_KINDS), (game_addr(STATE_RVA) as u32, 4)]);
-    all
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &set_up_credits_race);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &set_up_credits_race)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let saved = capture(&regions);
-    own_random(|| {
-        for state in TEST_STATES {
-            check_state(
-                &mut t,
-                &format!("state {state:#x}"),
-                call_original,
-                Regs::SENTINEL,
-                &|| {
-                    restore(&regions, &saved);
-                    unsafe { game_write(STATE_RVA, state) };
-                },
-                &regions,
-                &set_up_credits_race,
-            );
-        }
-    });
-    restore(&regions, &saved);
-    t.finish()
 }

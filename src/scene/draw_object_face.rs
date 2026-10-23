@@ -39,41 +39,24 @@
 //! Shadow mode runs the original alone.
 //! Self-test: a redirected copy whose drawing and depth test calls note what they
 //! find.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::install::stand_ins::{act, set_handler, stand_in};
-use crate::redirect::RedirectedCopy;
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::scene::cached_reflection_coordinates::cached_reflection_coordinates;
 use crate::scene::draw_clipped_polygon::draw_clipped_polygon_in_game;
 use crate::scene::draw_object_polygon::{self, draw_object_polygon};
 use crate::scene::draw_polygon::{Game, Outside, SWITCH_A_RVA, SWITCH_B_RVA};
-use crate::scene::polygon::{ENTRIES, ENTRIES_RVA, ENTRY_LEN, dword, put};
+use crate::scene::polygon::{ENTRIES_RVA, ENTRY_LEN, dword, put};
 use crate::scene::project_point::RECORDS_RVA;
 use crate::scene::project_polygon::project_polygon;
-use crate::scene::reflection_coordinates::{
-    COORDINATES_RVA, Mirrors, NORMAL_NUMBER_RVA, POINT_NUMBER_RVA, regions as mirror_regions,
-};
+use crate::scene::reflection_coordinates::{COORDINATES_RVA, NORMAL_NUMBER_RVA, POINT_NUMBER_RVA};
 use crate::scene::submit_polygon;
 use crate::scene::vertex_light::vertex_light;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::draw_object_face", rva(0x450BDA), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -255,206 +238,9 @@ pub unsafe fn draw_object_face_in_game(face: usize, entry: &Regs) -> Result<(), 
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    let entry = *r;
-    if let Err(e) = unsafe { draw_object_face_in_game(entry.ebp as usize, &entry) } {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let entry = *r;
     unsafe { draw_object_face_in_game(entry.ebp as usize, &entry) }?;
     Ok(())
-}
-
-// ---- self-test ----
-
-const LEN: usize = 0x25D;
-const ENTRY_BYTES: [u8; 12] = [
-    0x83, 0x3D, 0xC4, 0x65, 0x63, 0x00, 0x02, 0x74, 0x13, 0x83, 0x3D, 0xC4,
-];
-/// The three per-vertex functions, the drawing three times, the depth test off and on
-/// twice each.
-const CALLS: [usize; 10] = [
-    0x9E, 0xDF, 0x1B2, 0x1E7, 0x230, 0x235, 0x23A, 0x241, 0x246, 0x24B,
-];
-
-fn written() -> Vec<Region> {
-    let mut regions = vec![
-        (game_addr(ENTRIES_RVA) as u32, ENTRIES as usize * ENTRY_LEN),
-        (game_addr(POINT_PLACE_RVA) as u32, 12),
-        // The light's work variables.
-        (game_addr(rva(0x62DAA8)) as u32, 0x20),
-    ];
-    regions.extend(
-        [
-            COUNT_RVA,
-            FACE_DWORD_RVA,
-            FACE_BITS_RVA,
-            FACE_SHINE_RVA,
-            REFLECTS_RVA,
-            ANY_SHINE_RVA,
-            TEXTURE_B_RVA,
-            FADED_RVA,
-            SWITCH_A_RVA,
-            SWITCH_B_RVA,
-            MODE_RVA,
-            NORMAL_NUMBER_RVA,
-            POINT_NUMBER_RVA,
-        ]
-        .map(at),
-    );
-    regions.extend(mirror_regions());
-    regions
-}
-
-/// Each call: its place and everything written by then.
-static CALLED: Mutex<Vec<(u32, Vec<u8>)>> = Mutex::new(Vec::new());
-
-fn handler(place: u32, _: &mut Regs) {
-    CALLED.lock().unwrap().push((place, capture(&written())));
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x450BDA)),
-            LEN,
-            &ENTRY_BYTES,
-            &CALLS,
-            &|callee| {
-                [0x451F69, 0x44E3D1, 0x44E3E1]
-                    .iter()
-                    .position(|&known| rva(known) == callee)
-                    .map(|place| stand_in(place as u32))
-            },
-        )
-    };
-    let copy = match copy {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    let regions = written();
-    let mut inputs = Mirrors::inputs();
-    inputs.extend(
-        [
-            OFF_RVA,
-            SHINE_RVA,
-            SHINE_ON_RVA,
-            VIEW_KIND_RVA,
-            OTHER_WAY_RVA,
-            OTHER_WAY_KIND_RVA,
-            FACE_KIND_RVA,
-            FACE_UNLIT_RVA,
-            TEXTURE_A_RVA,
-            FADE_ALPHA_RVA,
-            FADED_BITS_RVA,
-            SEE_THROUGH_RVA,
-            OTHER_LIGHT_RVA,
-            rva(0x63D9B8), // g_reflectionsKept
-        ]
-        .map(at),
-    );
-    let saved = (capture(&regions), capture(&inputs));
-    let mirrors = Mirrors::new();
-    // A face of four vertices: the points and normals `Mirrors` has records for.
-    let mut face = [0u32; 4 + 4 * 4];
-    face[0] = 4;
-    face[1] = 0x6500_0000; // byte +7: 0x65, its low five bits 5
-    face[3] = 0x1234_5678;
-    for n in 0..4u32 {
-        let at = 4 + n as usize * 4;
-        face[at..at + 4].copy_from_slice(&[
-            0x3020 + n,
-            0x0040_0000 * n,
-            0x0010_0000 + n,
-            0x5010 + (3 - n),
-        ]);
-    }
-    let mut cases = 0u32;
-    for off in [0u32, 1, 2, 3] {
-        for (shine, shine_on, face_shine) in [
-            (0u32, 1u32, 0x80u32),
-            (0x40, 1, 0x80),
-            (0x40, 0, 0x80),
-            (0x40, 1, 0),
-            (0x1000, 1, 0xFF),
-        ] {
-            for (other_way, other_kind) in [(0u32, 2u32), (1, 2), (1, 0)] {
-                cases += 1;
-                let view_kind = if cases.is_multiple_of(5) { 4 } else { 0 };
-                let (face_kind, face_unlit) =
-                    [(0x1Cu32, 1u32), (5, 0), (3, 1), (0xB, 1), (0xB, 0)][(cases % 5) as usize];
-                let see_through = [0x100u32, 0x55, 0x100][(cases % 3) as usize];
-                let (fade, any_shine) = (cases % 2, cases % 4 / 2);
-                face[2] = face_shine << 8; // byte +9
-                let face_at = face.as_ptr() as usize;
-                let run = |rust: bool| unsafe {
-                    restore(&regions, &vec![0xAA; saved.0.len()]);
-                    mirrors.set(0, 0, cases % 2 == 1);
-                    game_write(rva(0x63D9B8), 0u32);
-                    game_write(ANY_SHINE_RVA, any_shine);
-                    game_write(OFF_RVA, off);
-                    game_write(SHINE_RVA, shine);
-                    game_write(SHINE_ON_RVA, shine_on);
-                    game_write(VIEW_KIND_RVA, view_kind);
-                    game_write(OTHER_WAY_RVA, other_way);
-                    game_write(OTHER_WAY_KIND_RVA, other_kind);
-                    game_write(FACE_KIND_RVA, face_kind);
-                    game_write(FACE_UNLIT_RVA, face_unlit);
-                    game_write(TEXTURE_A_RVA, 0x8000_0123u32);
-                    game_write(FADE_ALPHA_RVA, fade);
-                    game_write(FADED_BITS_RVA, 5u32);
-                    game_write(SEE_THROUGH_RVA, see_through);
-                    game_write(OTHER_LIGHT_RVA, 0x00C0_FFEEu32);
-                    CALLED.lock().unwrap().clear();
-                    set_handler(handler);
-                    let done = if rust {
-                        draw_object_face(face_at, &mut |step| {
-                            act(step as u32, &mut Regs::default());
-                            Ok(())
-                        })
-                        .is_ok()
-                    } else {
-                        let mut ro = Regs {
-                            ebp: face_at as u32,
-                            ..Regs::default()
-                        };
-                        call_game(&mut ro, copy.addr());
-                        true
-                    };
-                    (done, capture(&regions), CALLED.lock().unwrap().clone())
-                };
-                let (theirs, mine) = (run(false), run(true));
-                t.check(theirs == mine && theirs.2.is_empty() == (off != 0), || {
-                    let places = |calls: &[(u32, Vec<u8>)]| {
-                        calls.iter().map(|call| call.0).collect::<Vec<_>>()
-                    };
-                    format!(
-                        "off {off}, shine {shine:#x} {shine_on} {face_shine:#x}, other way {other_way} {other_kind}, case {cases}: original's calls {:?}, rust done {} calls {:?}; first different byte at the end {:?}, at the first call {:?}",
-                        places(&theirs.2),
-                        mine.0,
-                        places(&mine.2),
-                        theirs.1.iter().zip(&mine.1).position(|(a, b)| a != b),
-                        theirs.2.first().zip(mine.2.first()).and_then(|(a, b)| a.1.iter().zip(&b.1).position(|(a, b)| a != b)),
-                    )
-                });
-            }
-        }
-    }
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
 }

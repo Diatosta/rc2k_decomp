@@ -16,29 +16,18 @@
 //! stays for the Rust callers in unconverted code). Shadow mode and the self-test hold the
 //! three whole numbers made from floats to one either way (exact at double; the self-test
 //! at both test precisions).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, SelfTest, game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::floats::{
-    Floats, at_test_precisions, check_state_floats, dispatch_state_floats, floats_entry,
-};
+use crate::service::floats::{Floats, at_test_precisions, check_state_floats, floats_entry};
 use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::place_view", rva(0x4C1CC8), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// One of the two near-copies' variables (`place_view`'s and `place_view_2`'s).
 pub struct ViewPlace {
@@ -194,33 +183,12 @@ pub fn test_with(
     restore(&inputs, &saved);
 }
 
-fn regions() -> Vec<Region> {
-    vec![(game_addr(FIRST.point) as u32, WRITTEN_LEN)]
-}
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { place_view_plain(r) }?))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let places = float_places(&FIRST);
-    let floats = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    test_with(&mut t, &FIRST, call_original, &[], &rust);
-    t.finish()
 }

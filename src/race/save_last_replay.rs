@@ -12,25 +12,14 @@
 //! versions. Shadow mode runs the original alone (it writes a file). Self-test: a copy
 //! whose calls go to stand-ins, against the Rust version: the opening failing, the saving
 //! failing or not.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::race::viewer::{
-    CF, LAST_RACE, Part, answer, dispatch_parts, regs_entry, run_both, test_part,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::save_last_replay", rva(0x41ECFF), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
+use crate::race::viewer::{LAST_RACE, Part, regs_entry};
 
 /// The Rust version: the registers and flags it leaves.
 pub fn save_last_replay(entry: &Regs, part: Part) -> Result<Regs, Refused> {
@@ -63,54 +52,8 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_parts(&HOOK, r, call_original, &|r| {
-        save_last_replay(r, &mut game_part)
-    });
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &|r| save_last_replay(r, &mut game_part))
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; mov ebx, 0DEh
-    let copy = match crate::race::viewer::copy(
-        0x41ECFF,
-        0x1D,
-        &[0x60, 0xBB, 0xDE, 0x00, 0x00, 0x00],
-        &[0x6, 0xF, 0x15],
-        &[(0x41E9FF, 1), (0x41ED1C, 2), (0x41EB7C, 3)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    for (open_fails, save_fails) in [(true, false), (false, false), (false, true)] {
-        run_both(
-            &mut t,
-            &format!("open fails {open_fails}, save fails {save_fails}"),
-            copy.addr(),
-            Regs {
-                eax: 5,
-                ..Regs::SENTINEL
-            },
-            &[],
-            CF,
-            &|| {
-                answer(Box::new(move |place, r| match place {
-                    1 => r.set_carry(open_fails),
-                    2 => r.set_carry(save_fails),
-                    _ => r.set_carry(!save_fails),
-                }))
-            },
-            &|r| save_last_replay(r, &mut test_part),
-        );
-    }
-    crate::race::viewer::quiet();
-    t.finish()
 }

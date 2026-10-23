@@ -17,31 +17,17 @@
 //! `rc2k_core::marks::view::view_motion` (plain floats; the x87 version stays for the Rust
 //! callers in unconverted code). Shadow mode and the self-test compare within
 //! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
-use crate::scene::matrix::float_places;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::{dot_product3, normalise_vector3};
-use crate::screens::harness::Left;
-use crate::service::floats::*;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::view_motion", rva(0x4C4D40), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at};
 
 const VIEW_RVA: usize = rva(0x5EA3CC); // flt_5EA3CC: the view matrix
 const LAST_RVA: usize = rva(0x91FFBE); // flt_91FFBE .. flt_91FFC6
@@ -113,72 +99,4 @@ pub fn regions() -> Vec<Region> {
         at(FACING_RVA),
         (game_addr(LAST_RVA) as u32, 12),
     ]
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { view_motion_plain(r) }))
-}
-
-/// The original, its edi and ebp (stack addresses) made the caller's again.
-unsafe extern "C" fn original_without_scratch(r: *mut Regs) {
-    unsafe {
-        let (edi, ebp) = ((*r).edi, (*r).ebp);
-        call_original(r);
-        (*r).edi = edi;
-        (*r).ebp = ebp;
-    }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions = regions();
-    let places = float_places(&regions);
-    let floats = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, original_without_scratch, &regions, &floats, &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let mut vars = regions.clone();
-    vars.push((game_addr(VIEW_RVA) as u32, 0x40));
-    vars.push(at(TICKS_RVA));
-    let saved = capture(&vars);
-    let tolerant_places = float_places(&regions);
-    let tolerant = Floats {
-        memory: &tolerant_places,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        for case in 0..8u32 {
-            check_state_floats(
-                &mut t,
-                "marks::view_motion",
-                &format!("control word {word:#x}, case {case}"),
-                original_without_scratch,
-                Regs::SENTINEL,
-                &|| unsafe {
-                    restore(&vars, &saved);
-                    for k in 0..0x10 {
-                        let v = ((k as f32 - 6.0) * 0.31 + case as f32 * 1.7)
-                            * if k >= 12 { 40.0 } else { 1.0 };
-                        game_write(VIEW_RVA + 4 * k, v.to_bits());
-                    }
-                    for k in 0..3 {
-                        game_write(LAST_RVA + 4 * k, (k as f32 * 3.0 - case as f32).to_bits());
-                    }
-                    game_write(TICKS_RVA, case as i32 % 4);
-                },
-                &regions,
-                held,
-                &rust,
-            );
-        }
-    });
-    restore(&vars, &saved);
-    t.finish()
 }

@@ -13,37 +13,18 @@
 //! `dword_63C9B8` the coordinates): if both numbers there are the ones asked for,
 //! the coordinates come from the table; else they are worked out and all four kept.
 //! One caller, `sub_45188C`.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    EAX, EBX, EDX, ESI, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{EAX, EBX, EDX, ESI, Regs, game_read, game_write, rva};
 use crate::scene::reflection_coordinates::{
-    COORDINATES_RVA, Mirrors, NORMAL_NUMBER_RVA, POINT_NUMBER_RVA, TEST_NORMALS, TEST_POINTS,
-    reflection_coordinates, regions as worked_out_regions,
+    COORDINATES_RVA, NORMAL_NUMBER_RVA, POINT_NUMBER_RVA, reflection_coordinates,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "scene::cached_reflection_coordinates",
-    rva(0x451908),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 // ---- game data ----
 
@@ -93,97 +74,12 @@ pub unsafe fn cached_reflection_coordinates() -> Result<Left, Refused> {
     }
 }
 
-// ---- hook ----
-
-fn regions() -> Vec<Region> {
-    let mut regions = worked_out_regions();
-    let place = rc2k_core::scene::reflection::cache_place(unsafe { game_read(NORMAL_NUMBER_RVA) });
-    regions.extend((0..4).map(|table| {
-        (
-            game_addr(TABLES_RVA + table * TABLE_BYTES + place * 4) as u32,
-            4,
-        )
-    }));
-    regions
-}
-
 fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { cached_reflection_coordinates() }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut inputs = Mirrors::inputs();
-    inputs.push(at(IN_USE_RVA));
-    let saved_inputs = capture(&inputs);
-    let mirrors = Mirrors::new();
-    // The numbers the cases ask with, for the regions.
-    unsafe { mirrors.set(0, 0, false) };
-    let mut regions = worked_out_regions();
-    for normal in 0..TEST_NORMALS as usize {
-        regions.extend((0..4).map(|table| {
-            (
-                game_addr(TABLES_RVA + table * TABLE_BYTES + (0x10 + normal) * 4) as u32,
-                4,
-            )
-        }));
-    }
-    let saved_regions = capture(&regions);
-    for in_use in [0u32, 1] {
-        for normal in 0..TEST_NORMALS {
-            for point in 0..TEST_POINTS {
-                // What the table holds: nothing, the answer to this very question
-                // (as numbers of its own), or another point's.
-                for kept in 0..3u32 {
-                    check_state(
-                        &mut t,
-                        &format!("in use {in_use}, normal {normal}, point {point}, kept {kept}"),
-                        call_original,
-                        Regs::SENTINEL,
-                        &|| unsafe {
-                            restore(&regions, &vec![0xAA; saved_regions.len()]);
-                            mirrors.set(normal, point, kept == 2);
-                            game_write(IN_USE_RVA, in_use);
-                            let place = (0x10 + normal) as usize;
-                            let slot = |table: usize| TABLES_RVA + table * TABLE_BYTES + place * 4;
-                            let asked: [u32; 2] =
-                                [game_read(NORMAL_NUMBER_RVA), game_read(POINT_NUMBER_RVA)];
-                            match kept {
-                                1 => {
-                                    game_write(slot(0), asked[0]);
-                                    game_write(slot(1), asked[1]);
-                                    game_write(slot(2), 0x1111_0000 + normal);
-                                    game_write(slot(3), 0x2222_0000 + point);
-                                }
-                                2 => {
-                                    game_write(slot(0), asked[0]);
-                                    game_write(slot(1), asked[1].wrapping_add(1));
-                                }
-                                _ => {}
-                            }
-                        },
-                        &regions,
-                        &rust,
-                    );
-                }
-            }
-        }
-    }
-    restore(&regions, &saved_regions);
-    restore(&inputs, &saved_inputs);
-    t.finish()
 }

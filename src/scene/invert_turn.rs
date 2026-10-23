@@ -17,30 +17,16 @@
 //! `rc2k_core::scene::matrices::invert_turn` (plain floats; the x87 version stays for the
 //! Rust callers in unconverted code). Shadow mode and the self-test compare within
 //! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
-use crate::scene::matrix::{MATRIX_LEN, sum_places, test_floats};
-use crate::scene::view_matrix::{self, INVERTED_LEN, INVERTED_RVA, squaring_regions};
+use crate::framework::Regs;
+use crate::scene::view_matrix::{self};
 use crate::screens::harness::Left;
 use crate::service::floats::*;
-use crate::service::harness::{Region, capture, restore};
-use std::cell::Cell;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::invert_turn", rva(0x420CC2), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-// ---- hook ----
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     if r.esi == 0 || r.edi == 0 {
@@ -50,79 +36,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-fn work_regions() -> Vec<Region> {
-    let mut regions = squaring_regions().to_vec();
-    regions.push((game_addr(INVERTED_RVA) as u32, INVERTED_LEN));
-    regions
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let mut regions = Vec::new();
-    if r.esi != 0 && r.edi != 0 {
-        regions = work_regions();
-        regions.push((r.edi, MATRIX_LEN));
-    }
-    let places = sum_places(&regions);
-    let floats = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &regions, &floats, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let work: [Cell<[u32; 16]>; 2] = Default::default();
-    let address = |n: usize| work[n].as_ptr() as u32;
-    let game = work_regions();
-    let saved = capture(&game);
-    let mut regions = game.clone();
-    regions.extend([(address(0), MATRIX_LEN), (address(1), MATRIX_LEN)]);
-    let mut seed = 0x7B8C_9DAEu32;
-    let tolerant_places = sum_places(&regions);
-    let tolerant = Floats {
-        memory: &tolerant_places,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        for case in 0..60 {
-            let floats = [test_floats(&mut seed), test_floats(&mut seed)];
-            let out = case % 2;
-            check_state_floats(
-                &mut t,
-                "scene::invert_turn",
-                &format!(
-                    "control word {word:#x}, case {case}: {:x?}, the result in {out}",
-                    floats[0]
-                ),
-                call_original,
-                Regs {
-                    esi: address(0),
-                    edi: address(out),
-                    ..Regs::SENTINEL
-                },
-                &|| {
-                    restore(&game, &vec![0xAA; saved.len()]);
-                    for (cell, floats) in work.iter().zip(floats) {
-                        cell.set(floats);
-                    }
-                },
-                &regions,
-                held,
-                &rust,
-            );
-        }
-    });
-    restore(&game, &saved);
-    t.finish()
 }

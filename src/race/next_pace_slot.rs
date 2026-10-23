@@ -7,24 +7,15 @@
 //! Callers: `race::init_pace_notes` (four times). See `race/pace_notes.rs`.
 //! Self-test: the original and the Rust version on the game's slot (put back): slots 0,
 //! 6, 7, 8 and past.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{EBP, RawHook, Regs, SelfTest, game_write, hook_asm, rva};
+use crate::framework::{EBP, Regs, game_write};
 use crate::race::pace_notes::{Machine, SLOT_RVA};
 use crate::screens::harness::Left;
-use crate::service::harness::{at, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::next_pace_slot", rva(0x441A4B), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 /// The Rust version: the slot written, ebp left.
 pub fn next_pace_slot(r: &Regs) -> Result<Left, crate::errors::Refused> {
@@ -34,38 +25,8 @@ pub fn next_pace_slot(r: &Regs) -> Result<Left, crate::errors::Refused> {
     Ok(Left::nothing().with(EBP, m.r.ebp))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &[at(SLOT_RVA)], &next_pace_slot);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &next_pace_slot)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = [at(SLOT_RVA)];
-    let saved = capture(&regions);
-    for slot in [0u32, 6, 7, 8, 9, 0xFFFF_FFFF] {
-        for ebp in [0u32, 0x41, 0xFFFF_FFFF] {
-            check_state(
-                &mut t,
-                &format!("slot {slot:#x}, ebp {ebp:#x}"),
-                call_original,
-                Regs {
-                    ebp,
-                    ..Regs::SENTINEL
-                },
-                &|| unsafe { game_write(SLOT_RVA, slot) },
-                &regions,
-                &next_pace_slot,
-            );
-        }
-    }
-    restore(&regions, &saved);
-    t.finish()
 }

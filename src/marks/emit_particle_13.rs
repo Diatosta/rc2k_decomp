@@ -17,29 +17,17 @@
 //! object, a null `g_marksCar` or matrix, and a model (+4) past the table's 34 entries,
 //! when an entry is made. Self-test: a ring and car of the test's
 //! (`marks::emit_particle_6::TestEmitter`), several models, speeds, ticks and fillings.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::marks::emit_particle_6::{TEST_ENTRIES, TestEmitter};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::emitters::*;
 use crate::math::x87;
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at as at_rva, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::emit_particle_13", rva(0x4CE05E), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at as at_rva, state_entry};
 
 const POINTS_RVA: usize = rva(0x769312); // flt_769312: 3 floats by the car's model
 const MODELS: u32 = 34;
@@ -172,87 +160,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut test = TestEmitter::new(&[STRENGTH_RVA, DRIFT_RANDOM_RVA, SPIN_RANDOM_RVA, TICKS_RVA]);
-    let mut regions = test.regions();
-    regions.push((test.object.as_ptr() as u32, 4 * test.object.len()));
-    let mut made = 0;
-    let mut case = 0u32;
-    // (the car's model +4, its +8, the frame's ticks, taken)
-    for (model, speed, ticks, taken) in [
-        (0u32, 0.0f32, 1i32, 0u32),
-        (5, 40.0, 2, 3),
-        (33, -3.5, 0, 0),
-        (12, 1e6, 7, 1),
-        (20, 0.25, -1, MOST_TAKEN),
-        (1, f32::NAN, 3, 0),
-    ] {
-        case += 1;
-        let ptrs = (test.object.as_mut_ptr(), test.matrix.as_mut_ptr());
-        let seed = case.wrapping_mul(0x2545_F491);
-        test.prepare(taken);
-        check_state(
-            &mut t,
-            &format!("model {model}, speed {speed}, ticks {ticks}, taken {taken:#x}"),
-            call_original,
-            Regs {
-                esi: ptrs.0 as u32,
-                ..Regs::SENTINEL
-            },
-            &|| unsafe {
-                restore(&regions, &vec![0xAA; regions.iter().map(|r| r.1).sum()]);
-                let base = test.ring.as_ptr() as u32;
-                for n in 0..TEST_ENTRIES {
-                    let e = (base + n * ENTRY_LEN as u32) as *mut u32;
-                    e.write_unaligned(base + ((n + 1) % TEST_ENTRIES) * ENTRY_LEN as u32);
-                }
-                game_write(RING_CURSOR_RVA, base + 3 * ENTRY_LEN as u32);
-                game_write(RING_COUNT_RVA, taken);
-                game_write(OBJECT_RVA, ptrs.0 as u32);
-                game_write(DRIFT_RANDOM_RVA, seed);
-                game_write(SPIN_RANDOM_RVA, seed ^ 0x55);
-                game_write(TICKS_RVA, ticks);
-                let o = ptrs.0;
-                for n in 0..0x30 {
-                    *o.add(n) = (n as f32 * 1.25 + 0.5).to_bits();
-                }
-                *o.add(1) = model;
-                *o.add(2) = speed.to_bits();
-                *o.add(0x1C / 4) = 0x1234_5678;
-                *o.add(0x24 / 4) = ptrs.1 as u32;
-                *o.add(0x88 / 4) = 0x77;
-                for n in 0..0x10 {
-                    *ptrs.1.add(n) = ((n as f32 - 5.0) * 0.3).to_bits();
-                }
-            },
-            &regions,
-            &rust,
-        );
-        if unsafe { game_read::<u32>(RING_COUNT_RVA) } != taken {
-            made += 1;
-        }
-    }
-    t.check(made > 0, || "no case made an entry".into());
-    // The refusal: a model past the table.
-    test.prepare(0);
-    let refused = unsafe {
-        test.object[1] = MODELS;
-        emit_particle_13(test.object.as_ptr() as u32).is_err()
-    };
-    t.check(refused, || "model 34 not refused".into());
-    drop(test);
-    t.finish()
 }

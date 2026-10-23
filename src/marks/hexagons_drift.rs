@@ -17,30 +17,19 @@
 //! as 80 bits); the calls their Rust versions. Refuses null settings, before anything.
 //! Self-test: the original and the Rust version on settings and views of the test's, all
 //! three paths; put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::marks::adjugate3::adjugate3;
 use crate::marks::setup::SETTINGS_RVA;
 use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::{Axis, extended, turn_matrix3};
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::hexagons_drift", rva(0x4BCBE9), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 const DRIFT_RVA: usize = rva(0x811BDF); // flt_811BDF ..
 const FIRST_RVA: usize = rva(0x8161AE); // dword_8161AE
@@ -282,81 +271,12 @@ pub unsafe fn hexagons_drift(entry: &Regs) -> Result<Regs, Refused> {
     Ok(g)
 }
 
-fn regions() -> Vec<Region> {
-    vec![
-        (game_addr(DRIFT_RVA) as u32, 12),
-        at(FIRST_RVA),
-        at(SECOND_RVA),
-        (game_addr(KEPT_RVA) as u32, 0x50),
-        (game_addr(TURN_RVA) as u32, 0x30 + 0x24),
-        (game_addr(rva(0x81621E)) as u32, 12),
-    ]
-}
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { hexagons_drift(r) }?))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut settings = vec![0u32; 0x26B8 / 4];
-    let sa = settings.as_mut_ptr() as u32;
-    let regions = regions();
-    let mut vars = regions.clone();
-    vars.extend([SETTINGS_RVA, ANGLE_RVA, rva(0x764FE0)].map(at));
-    vars.push((game_addr(VIEW_RVA) as u32, 0x30));
-    vars.push((game_addr(rva(0x82E326)) as u32, 0x24));
-    let saved = capture(&vars);
-    for case in 0..5u32 {
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&vars, &saved);
-                game_write(SETTINGS_RVA, sa);
-                let k = case as f32;
-                for n in 0..3u32 {
-                    ((sa + 0x26AC + 4 * n) as *mut u32)
-                        .write_unaligned((n as f32 * 3.5 + k).to_bits());
-                    game_write(KEPT_RVA + 4 * n as usize, (n as f32 * 3.0).to_bits());
-                    game_write(
-                        rva(0x8161E2) + 4 * n as usize,
-                        (0.25 * n as f32 - k * 0.1).to_bits(),
-                    );
-                }
-                game_write(FIRST_RVA, u32::from(case > 0));
-                game_write(SECOND_RVA, u32::from(case > 1));
-                game_write(ANGLE_RVA, (0.3f32 + k * 0.2).to_bits());
-                game_write(rva(0x764FE0), 0.5f32.to_bits());
-                for n in 0..12 {
-                    game_write(
-                        VIEW_RVA + 4 * n,
-                        (((n * 7 + case as usize) % 11) as f32 * 0.17 - 0.8).to_bits(),
-                    );
-                }
-                for n in 0..9 {
-                    game_write(rva(0x82E326) + 4 * n, (0.1f32 + n as f32 * 0.05).to_bits());
-                }
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&vars, &saved);
-    drop(settings);
-    t.finish()
 }

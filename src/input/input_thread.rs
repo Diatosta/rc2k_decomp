@@ -28,8 +28,40 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva, standalone};
+use crate::framework::{
+    RawHook, Regs, game_addr, game_read, game_write, hook_asm, rva, shadow, standalone,
+};
 use crate::input::devices::RECORDS;
+use std::sync::atomic::AtomicUsize;
+
+// Kept for the hooked game (2026-10-23): the game's `start_threads` starts the thread at
+// its own address. Without this hook the original ran, with no gate, so a self-test's
+// pause could not hold it and tests that set `dword_518998` met its count
+// (`race::replay_viewer`, shadow on). Removed when the hooked DLL goes.
+static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
+
+pub static HOOK: RawHook = RawHook::new("input::input_thread", rva(0x4078DA), thunk, &ORIGINAL);
+
+hook_asm!(
+    thunk,
+    call_original,
+    dispatch = dispatch,
+    original = ORIGINAL,
+    ungated
+);
+
+extern "C" fn dispatch(r: &mut Regs) {
+    HOOK.count_call();
+    if shadow() {
+        unsafe { call_original(r) };
+        return;
+    }
+    match unsafe { input_thread(&mut game_part) } {
+        Ok(()) => unsafe { windows_sys::Win32::System::Threading::ExitThread(0) },
+        // The original from the start: it finds its flag set and goes to its end.
+        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
+    }
+}
 
 const SLOT_RVA: usize = rva(0x5184F4); // slot: the input thread's
 const START_TEXT_RVA: usize = rva(0x4DA4B2); // "INPUTTDB:START"

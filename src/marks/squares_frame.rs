@@ -15,30 +15,18 @@
 //! game their Rust versions. Refuses null settings and `squares_step`'s refusals. Shadow
 //! mode runs the original alone (it draws). Self-test: a copy whose pong and squares go
 //! to stand-ins, against the Rust version, on settings of the test's; put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::marks::setup::SETTINGS_RVA;
-use crate::marks::squares_step::{self, squares_step};
+use crate::marks::squares_step::squares_step;
 use crate::math::x87;
 use crate::scene::cross_product3::cross_product3;
 use crate::scene::vector3::normalise_vector3;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::squares_frame", rva(0x4BF60F), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const AXES: [usize; 3] = [rva(0x89CF1A), rva(0x89CF26), rva(0x89CF32)];
 const RATE_RVA: usize = rva(0x89CA34); // flt_89CA34
@@ -229,94 +217,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { squares_frame(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { squares_frame(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // mov esi, g_marksSettings
-    let entry: &[u8] = &[0x8B, 0x35, 0x28, 0x7A, 0x76, 0x00];
-    let copy = match copy(
-        0x4BF60F,
-        0x200,
-        entry,
-        &[
-            0xA3, 0x110, 0x127, 0x132, 0x149, 0x14F, 0x184, 0x1BC, 0x1DA, 0x1FA,
-        ],
-        &[(0x4B7EDA, 1), (0x4BFFEC, 2)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut settings = vec![0u32; 0x2748 / 4];
-    let sa = settings.as_mut_ptr() as u32;
-    let mut regions: Vec<Region> = vec![
-        at(RATE_RVA),
-        (addr(rva(0x89CEEE)), 0xA0),
-        (addr(PLACE_RVA), 12),
-        at(FACING_RVA),
-    ];
-    regions.extend(squares_step::regions());
-    let mut vars = regions.clone();
-    vars.extend(
-        [
-            SETTINGS_RVA,
-            SHARE_RVA,
-            RUNNING_RVA,
-            rva(0x82FC56),
-            rva(0x833D7E),
-        ]
-        .map(at),
-    );
-    let saved = capture(&vars);
-    for case in 0..8u32 {
-        run_both(
-            &mut t,
-            &format!("case {case}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                restore(&vars, &saved);
-                game_write(SETTINGS_RVA, sa);
-                let p = |o: u32, v: u32| ((sa + o) as *mut u32).write_unaligned(v);
-                let flip = if case % 2 == 0 { 1i32 } else { -1 };
-                for n in 0..3u32 {
-                    p(
-                        0x2720 + 4 * n,
-                        ([100i32, 50, 400][n as usize] * flip + case as i32 * 9) as u32,
-                    );
-                    p(0x272C + 4 * n, [300, 60, 380][n as usize]);
-                    p(0x2708 + 4 * n, [90, 250, 420][n as usize]);
-                }
-                p(0x2740, if case == 6 { 0 } else { 3 + case });
-                p(0x2744, u32::from(case != 4));
-                game_write(SHARE_RVA, 0.5f32.to_bits());
-                game_write(RUNNING_RVA, u32::from(case != 2));
-                crate::marks::expire_squares::test_items(case);
-            },
-            &|r| unsafe { squares_frame(r, &mut test_part) },
-        );
-    }
-    restore(&vars, &saved);
-    drop(settings);
-    t.finish()
 }

@@ -154,60 +154,6 @@ impl Default for Angle {
     }
 }
 
-/// For a hook whose function takes an angle in st(0) and pops it: `$thunk` takes the
-/// angle off into `$angle` and calls `$dispatch(regs)` (gated as `hook_asm!`'s);
-/// `$with_angle(regs)` loads `$angle` into st(0) and runs `$call_original`, made here too.
-macro_rules! angle_hook {
-    ($thunk:ident, $call_original:ident, $with_angle:ident, dispatch = $dispatch:ident,
-     original = $orig:ident, angle = $angle:ident) => {
-        #[unsafe(naked)]
-        pub(crate) unsafe extern "C" fn $thunk() {
-            core::arch::naked_asm!(
-                "lea esp, [esp - 12]",
-                "fstp tbyte ptr [esp]", // the angle, popped as the original would
-                "pushfd",
-                "pushad",
-                "cld",
-                "call {enter}",
-                "push esp",             // arg: *mut Regs
-                "lea eax, [esp + 40]",
-                "push eax",
-                "call {keep}",          // the angle into $angle
-                "add esp, 4",
-                "call {dispatch}",
-                "add esp, 4",
-                "call {leave}",
-                "popad",
-                "popfd",
-                "lea esp, [esp + 12]",  // no flags touched
-                "ret",
-                enter = sym $crate::framework::hook_enter,
-                leave = sym $crate::framework::hook_leave,
-                keep = sym keep_angle,
-                dispatch = sym $dispatch,
-            )
-        }
-
-        extern "C" fn keep_angle(at: *const [u8; 10]) {
-            $angle.set(unsafe { at.read_unaligned() });
-        }
-
-        /// The original with `$angle` in st(0).
-        #[unsafe(naked)]
-        pub(crate) unsafe extern "C" fn $with_angle(_regs: *mut $crate::framework::Regs) {
-            core::arch::naked_asm!(
-                "fld tbyte ptr [{a}]",
-                "jmp {co}",
-                a = sym $angle,
-                co = sym $call_original,
-            )
-        }
-
-        $crate::framework::hook_asm!(@call_original $call_original, $orig);
-    };
-}
-pub(crate) use angle_hook;
-
 /// The axis a turn is about.
 #[derive(Clone, Copy)]
 pub enum Axis {

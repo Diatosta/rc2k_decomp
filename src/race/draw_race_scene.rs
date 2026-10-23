@@ -37,40 +37,13 @@
 //! (it draws). Self-test: a copy whose calls go to stand-ins, against the Rust version, on
 //! view blocks of the test's: each layout, the switches on and off; the calls, their
 //! registers and the variables compared.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::race::mud::copy;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("race::draw_race_scene", rva(0x45429B), thunk, &ORIGINAL)
-    .private_copy(LEN)
-    .relocate_calls(&CALLS)
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const LEN: usize = 0x513;
-const CALLS: [usize; 80] = [
-    0x0, 0x10C, 0x11D, 0x12C, 0x13B, 0x14A, 0x159, 0x168, 0x174, 0x17F, 0x189, 0x18E, 0x193, 0x1A2,
-    0x1A7, 0x1B6, 0x1F5, 0x1FA, 0x204, 0x212, 0x242, 0x247, 0x24C, 0x256, 0x25B, 0x265, 0x26A,
-    0x274, 0x285, 0x28A, 0x2D2, 0x2D7, 0x2DC, 0x2E1, 0x2EB, 0x2F0, 0x2FA, 0x30B, 0x310, 0x34E,
-    0x353, 0x358, 0x35D, 0x367, 0x36C, 0x376, 0x387, 0x38C, 0x3D4, 0x3D9, 0x3DE, 0x3E3, 0x3ED,
-    0x3F2, 0x3FC, 0x40D, 0x412, 0x450, 0x455, 0x45A, 0x45F, 0x469, 0x46E, 0x478, 0x489, 0x48E,
-    0x493, 0x498, 0x49D, 0x4A2, 0x4A7, 0x4AC, 0x4B6, 0x4C5, 0x4D4, 0x4EB, 0x4F5, 0x4FA, 0x4FF,
-    0x50D,
-];
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 
 /// The calls by place, as IDA shows them.
 pub const CALLEES: [usize; 32] = [
@@ -365,160 +338,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_race_scene(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { draw_race_scene(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-fn test_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    crate::race::level_init::note(place, r);
-    Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let places: &'static [(usize, u32)] = Box::leak(
-        CALLEES
-            .iter()
-            .enumerate()
-            .map(|(p, &a)| (a, p as u32))
-            .collect::<Vec<_>>()
-            .into_boxed_slice(),
-    );
-    // call drive::choose_shown_cars (its relative address from 0x45429B)
-    let rel = (0x4560EAi64 - (0x45429B + 5)) as i32;
-    let b = rel.to_le_bytes();
-    let copy = match copy(
-        0x45429B,
-        LEN,
-        &[0xE8, b[0], b[1], b[2], b[3]],
-        &CALLS,
-        places,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    // Two view blocks of the test's, and a slot table to want textures in.
-    let mut block_a = vec![0u32; 0x800 / 4];
-    let mut block_b = vec![0u32; 0x800 / 4];
-    let one = |v: &[u32]| (v.as_ptr() as u32, v.len() * 4);
-    let mut regions: Vec<Region> = vec![
-        (game_addr(VIEW_BLOCKS_RVA) as u32, 8),
-        (game_addr(CLEARED_RVA) as u32, 0x80),
-        (game_addr(SLOT_WANTED_RVA) as u32, 0x1000),
-    ];
-    regions.extend(VIEW_FLAGS.map(at));
-    regions.extend(VIEW_ON.map(at));
-    regions.extend(ZEROED.map(at));
-    regions.extend(
-        [
-            BITS_A.0,
-            BITS_A.1,
-            BITS_B.0,
-            BITS_B.1,
-            FIRST_BIT_6_RVA,
-            BLIT_SWITCH_RVA,
-            BLIT_ON_RVA,
-            BLIT_ON_RVA + 4,
-            LIGHTING_RVA,
-            SHINE_FROM_RVA,
-            SHINE_RVA,
-            FRAMES_RVA,
-            CLOCK_RVA,
-            TEXTURE_CHANGES_RVA,
-            KIND_TEXTURES_DONE_RVA,
-            EXTRA_TEXTURES[0],
-            EXTRA_TEXTURES[1],
-            FIRST_TEXTURE_DC_RVA,
-            FIRST_SLOT_DC_RVA,
-            FIRST_SLOT_DC_RVA + 4,
-            NO_PANEL_RVA,
-            ONE_VIEW_RVA,
-            SIDE_BY_SIDE_RVA,
-            DRAWN_VIEW_RVA,
-            SCREEN_RVA[0],
-            SCREEN_RVA[1],
-            CREDITS_RVA,
-            TYRE_SCREEN_OFF_RVA,
-        ]
-        .map(at),
-    );
-    regions.extend(WINDOW_RVA.map(at));
-    let saved = capture(&regions);
-    let (pa, pb) = (block_a.as_mut_ptr() as u32, block_b.as_mut_ptr() as u32);
-    block_a[0x220 / 4] = 0x4C;
-    block_b[0x220 / 4] = 0x08;
-    block_a[0x6F0 / 4] = 0x77;
-    let regions_with_blocks = [&regions[..], &[one(&block_a), one(&block_b)]].concat();
-    // (one view, side by side, views on, blit on, no panel, credits, tyre screen off,
-    // extra textures)
-    for (case, (one_view, side, on, blit, no_panel, credits, tyre_off, extra)) in [
-        (
-            1u32,
-            0u32,
-            [1u32, 1],
-            0u32,
-            0u32,
-            0u32,
-            0u32,
-            [u32::MAX, u32::MAX],
-        ),
-        (0, 0, [1, 1], 1, 0, 0, 2, [3, u32::MAX]),
-        (0, 1, [1, 0], 0, 1, 0, 0, [u32::MAX, 5]),
-        (0, 2, [0, 1], 1, 0, 1, 1, [1, 2]),
-        (1, 1, [0, 0], 1, 1, 1, 2, [0, 0]),
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let prepare = || unsafe {
-            restore(&regions, &saved);
-            game_write(VIEW_BLOCKS_RVA, [pa, pb]);
-            game_write(VIEW_ON[0], on[0]);
-            game_write(VIEW_ON[1], on[1]);
-            game_write(BLIT_ON_RVA, [blit, 0u32]);
-            game_write(NO_PANEL_RVA, no_panel);
-            game_write(CREDITS_RVA, credits);
-            game_write(TYRE_SCREEN_OFF_RVA, tyre_off);
-            game_write(ONE_VIEW_RVA, one_view);
-            game_write(SIDE_BY_SIDE_RVA, side);
-            game_write(EXTRA_TEXTURES[0], extra[0]);
-            game_write(EXTRA_TEXTURES[1], extra[1]);
-            game_write(FIRST_TEXTURE_DC_RVA, 0x40u32);
-            game_write(FIRST_SLOT_DC_RVA, [0x10u32, 0x11]);
-            game_write(SCREEN_RVA[0], 800u32);
-            game_write(SCREEN_RVA[1], 600u32);
-            game_write(BITS_A.0, 0x2u32 + case as u32);
-            game_write(BITS_B.0, case as u32);
-        };
-        crate::race::mud::run_both(
-            &mut t,
-            &format!(
-                "case {case}: one view {one_view}, side by side {side}, views on {on:?}, blit {blit}, no panel {no_panel}, credits {credits}, tyre screen off {tyre_off}, extra {extra:x?}"
-            ),
-            &copy,
-            &regions_with_blocks,
-            &prepare,
-            &|r| unsafe { draw_race_scene(r, &mut test_part) },
-        );
-    }
-    restore(&regions, &saved);
-    drop((block_a, block_b));
-    t.finish()
 }

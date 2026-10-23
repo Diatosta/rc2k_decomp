@@ -22,27 +22,17 @@
 //! the original alone (it draws). Self-test: a copy whose calls go to stand-ins, against
 //! the Rust version: at the end or not, a picture asked, playing or stopped, no blocks,
 //! the begin, end or showing failing.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::{Regs, rva};
 use crate::physics::flow::{a, g, p};
 use crate::race::viewer::{
-    AT_END, BLOCK, BLOCKS, FRAME, MARK_IN, MARK_OUT, MENU, Part, SNAPSHOT, STOPPED, Saved, answer,
-    dispatch_parts, dword, gb, region, regs_entry, run_both, test_part,
+    AT_END, BLOCK, BLOCKS, FRAME, MARK_IN, MARK_OUT, MENU, Part, SNAPSHOT, STOPPED, gb, regs_entry,
 };
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::viewer_frame", rva(0x41D5FB), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The calls by place, as IDA shows them.
 pub const CALLEES: [usize; 13] = [
@@ -59,11 +49,6 @@ pub const CALLEES: [usize; 13] = [
     0x41DA25, // 11 race::draw_viewer_panel
     0x4057D1, // 12 gfx::show_frame (carry)
 ];
-const CALLS: [usize; 28] = [
-    0xA, 0xF, 0x2E, 0x33, 0x4B, 0x56, 0x76, 0x85, 0x94, 0xA3, 0xB2, 0xC1, 0xD0, 0xDF, 0xEE, 0xFE,
-    0x11D, 0x140, 0x175, 0x1AA, 0x1EA, 0x200, 0x20B, 0x221, 0x22C, 0x231, 0x236, 0x23D,
-];
-
 const LIST_TEXTURE: usize = 0x5BECB4; // dword_5BECB4
 const BAR_X: usize = 0x5C29CC; // dword_5C29CC: the bar's rectangle (x, .., w at +8)
 const BAR_W: usize = 0x5C29D4; // dword_5C29D4
@@ -195,91 +180,8 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_parts(&HOOK, r, call_original, &|r| {
-        viewer_frame(r, &mut game_part)
-    });
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &|r| viewer_frame(r, &mut game_part))
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if gb(MENU + 1) == 0 {
-        return t.skip("the viewer's list has no items");
-    }
-    let places: &'static [(usize, u32)] = Box::leak(
-        (1..13u32)
-            .map(|p| (CALLEES[p as usize], p))
-            .collect::<Vec<_>>()
-            .into_boxed_slice(),
-    );
-    // pusha; cmp dword_5BEC90, 1
-    let copy = match crate::race::viewer::copy(
-        0x41D5FB,
-        0x24B,
-        &[0x60, 0x83, 0x3D, 0x90, 0xEC, 0x5B, 0x00, 0x01],
-        &CALLS,
-        places,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions = [dword(SNAPSHOT), region(MARK_RECT, 4), region(PLACE_RECT, 4)];
-    let mut all = regions.to_vec();
-    all.extend([
-        dword(AT_END),
-        dword(STOPPED),
-        dword(BLOCK),
-        dword(BLOCKS),
-        dword(FRAME),
-        dword(MARK_IN),
-        dword(MARK_OUT),
-        dword(BAR_W),
-        dword(BAR_X),
-    ]);
-    let saved = Saved::new(&all);
-    // (what, at the end, snapshot, stopped, blocks, the call that fails)
-    for (what, end, snapshot, stopped, blocks, fails) in [
-        ("playing", 0u32, 0u32, 0u32, 9u32, 0u32),
-        ("stopped", 0, 0, 1, 9, 0),
-        ("stopped, no blocks", 0, 0, 1, 0, 0),
-        ("at the end", 1, 0, 1, 9, 0),
-        ("a picture", 0, 1, 1, 9, 0),
-        ("the begin failing", 0, 0, 1, 9, 2),
-        ("the end failing", 0, 0, 1, 9, 5),
-        ("the showing failing", 0, 0, 1, 9, 12),
-    ] {
-        run_both(
-            &mut t,
-            what,
-            copy.addr(),
-            Regs::SENTINEL,
-            &regions,
-            crate::race::viewer::CF,
-            &|| {
-                p(AT_END, end);
-                p(SNAPSHOT, snapshot);
-                p(STOPPED, stopped);
-                p(BLOCKS, blocks);
-                p(BLOCK, 4);
-                p(FRAME, 0x31);
-                p(MARK_IN, 2);
-                p(MARK_OUT, 7);
-                p(BAR_W, 0x200);
-                p(BAR_X, 0x40);
-                answer(Box::new(move |place, r| r.set_carry(place == fails)));
-            },
-            &|r| viewer_frame(r, &mut test_part),
-        );
-    }
-    crate::race::viewer::quiet();
-    drop(saved);
-    t.finish()
 }

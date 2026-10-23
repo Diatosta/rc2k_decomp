@@ -21,32 +21,13 @@
 //! whose two calls go to stand-ins, against the Rust version with the same: test
 //! descriptions (plain objects, signs, the sun's light, too high, past the points, 0x3F
 //! in a race and not).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::race::face_stage::compare_plain;
-use crate::race::level_init::note;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "scene::draw_described_object",
-    rva(0x451B61),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 
 const OBJECT_RVA: usize = rva(0x6214FC); // g_objectNumber
 const PLACE_RVA: usize = rva(0x634FFC); // g_objectPlace
@@ -199,120 +180,8 @@ pub fn described_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    if let Err(e) = unsafe { draw_described_object(r, &mut described_part) } {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     unsafe { draw_described_object(r, &mut described_part) }?;
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    crate::install::stand_ins::set_handler(note);
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x451B61,
-            len: 0x2DD,
-            entry: &[0x0F, 0xB6, 0x5E, 0x01, 0x89, 0x1D, 0xFC, 0x14],
-            calls: &[0x27E, 0x2B8],
-            jumps_out: &[],
-        },
-        &|c| {
-            [(0x42739Ausize, 1u32), (0x451E3E, 2)]
-                .iter()
-                .find(|(a, _)| rva(*a) == c)
-                .map(|(_, p)| crate::install::stand_ins::stand_in(*p))
-        },
-        &[],
-        0,
-    ) {
-        Ok(c) => c,
-        Err(e) => return t.skip(&format!("copy: {e}")),
-    };
-    let g = |a: usize, len: usize| (game_addr(rva(a)) as u32, len);
-    let regions: Vec<Region> = vec![
-        g(0x63501C, 0xC),
-        g(0x635038, 0x30),
-        g(0x635084, 0x18),
-        at(OBJECT_RVA),
-        at(PLACE_RVA),
-        at(rva(0x6365C8)),
-        at(rva(0x62DAF4)),
-    ];
-    let mut kept = regions.clone();
-    kept.extend([
-        at(rva(0x5CCCC0)),
-        at(rva(0x5CCD20)),
-        at(rva(0x621480)),
-        at(rva(0x5C5CEC)),
-    ]);
-    let saved = capture(&kept);
-    let points: Vec<u32> = (0..12u32).map(|k| k.wrapping_mul(0x0012_3457)).collect();
-    let mut d = vec![0u8; 0x40];
-    for (k, b) in d.iter_mut().enumerate() {
-        *b = (k as u8).wrapping_mul(29).wrapping_add(3);
-    }
-    let f = d.as_mut_ptr() as u32;
-    for (object, place, race, second, sun, extras) in [
-        (0x10u8, 1u32, 0u32, 0u8, 0u8, 0u8),
-        (0x20, 2, 1, 1, 0, 0),
-        (0x21, 3, 1, 0, 1, 0),
-        (0x38, 0, 0, 1, 0, 0),
-        (0x3D, 1, 0, 0, 0, 0),
-        (0x3E, 1, 1, 0, 0, 5),
-        (0x3F, 1, 1, 0, 0, 0),
-        (0x3F, 1, 0, 0, 0, 0),
-        (0x65, 1, 0, 0, 0, 0),
-        (0x10, 4, 0, 0, 0, 0),
-    ] {
-        let line = compare_plain(
-            &format!(
-                "object {object:#x} place {place} race {race} second {second} sun {sun} extras {extras}"
-            ),
-            &|| unsafe {
-                restore(&kept, &saved);
-                game_write(rva(0x5CCCC0), points.as_ptr() as u32);
-                game_write(rva(0x5CCD20), 4u32);
-                game_write(rva(0x621480), race);
-                game_write(rva(0x5C5CEC), 0u32);
-                ((f + 1) as *mut u8).write(object);
-                ((f + 4) as *mut u32).write_unaligned(place);
-                ((f + 0x11) as *mut u8).write(second);
-                ((f + 0x24) as *mut u8).write(sun);
-                for o in [0x28u32, 0x29, 0x2A, 0x2B, 0x19, 0x1A, 0x1B, 0x20] {
-                    ((f + o) as *mut u8).write(0);
-                }
-                ((f + 0x2A) as *mut u8).write(extras);
-            },
-            &regions,
-            copy.addr(),
-            Regs {
-                esi: f,
-                ..Regs::SENTINEL
-            },
-            &mut |r| unsafe {
-                draw_described_object(r, &mut |p, r| {
-                    note(p, r);
-                    Ok(())
-                })
-            },
-        );
-        t.check(line.is_none(), || line.unwrap_or_default());
-    }
-    restore(&kept, &saved);
-    drop(d);
-    t.finish()
 }

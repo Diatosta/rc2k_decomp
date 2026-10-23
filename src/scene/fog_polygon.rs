@@ -14,32 +14,18 @@
 //! Refuses a polygon of no vertices (the original goes through 2^32), an entry without
 //! its record and a table's length above 0x1000. A length of 0, as the menus have it,
 //! makes every place the byte before the table (the original's `length - 1`): kept.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    EAX, ECX, EDX, ESI, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{EAX, ECX, EDX, ESI, Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::draw_polygon::CHECKED_RVA;
-use crate::scene::polygon::{ENTRIES, ENTRIES_RVA, ENTRY_LEN, LIST_RVA, dword, listed, put};
+use crate::scene::polygon::{dword, listed};
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::fog_polygon", rva(0x44E286), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 // ---- game data ----
 
@@ -91,104 +77,12 @@ pub unsafe fn fog_polygon() -> Result<Left, Refused> {
     }
 }
 
-// ---- hook ----
-
-fn regions() -> Vec<Region> {
-    let mut regions = vec![at(CHECKED_RVA)];
-    for entry in unsafe { listed() }.unwrap_or_default() {
-        regions.push((entry as u32 + 0x20, 1));
-    }
-    regions
-}
-
 fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { fog_polygon() }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = [
-        (game_addr(ENTRIES_RVA) as u32, ENTRIES as usize * ENTRY_LEN),
-        at(CHECKED_RVA),
-    ];
-    let inputs = [
-        (game_addr(LIST_RVA) as u32, 4 * 4),
-        (game_addr(TABLE_RVA) as u32, TABLE_LEN as usize),
-        at(COUNT_RVA),
-        at(LENGTH_RVA),
-        at(KIND_RVA),
-        at(FIXED_RVA),
-    ];
-    let saved = (capture(&regions), capture(&inputs));
-    let table: Vec<u8> = (0..TABLE_LEN).map(|n| (n * 7 + n / 256) as u8).collect();
-    let depths: [[f32; 4]; 5] = [
-        [0.0, 8191.9, 8192.5, 40000.0],
-        [-5.0, 123456.0, 1e12, f32::NAN],
-        [16384.0, 24575.5, 24576.5, 0.49],
-        [f32::INFINITY, f32::NEG_INFINITY, 2e9, 3e9],
-        [4096.0, 262144.0, 33554430.0, 1.0],
-    ];
-    for depths in depths {
-        let mut records = [[0xAAAA_AAAAu32; 8]; 4];
-        for (record, depth) in records.iter_mut().zip(depths) {
-            record[6] = depth.to_bits();
-        }
-        for count in 1..=4u32 {
-            for (kind, fixed, length) in [
-                (0u32, 0u32, 0x1000u32),
-                (4, 0x1234_5678, 0x1000),
-                (3, 0xFF, 5),
-                (5, 0, 1),
-                (4, 0xFFFF_FF00, 2),
-                (0, 0, 0),
-                (4, 0x55, 0),
-            ] {
-                check_state(
-                    &mut t,
-                    &format!(
-                        "depths {depths:?}, {count} vertices, kind {kind}, fixed {fixed:#x}, length {length:#x}"
-                    ),
-                    call_original,
-                    Regs::SENTINEL,
-                    &|| unsafe {
-                        restore(&regions, &vec![0xAA; saved.0.len()]);
-                        for (n, record) in records.iter().enumerate() {
-                            let number = [5u32, 2, 0x7F, 0][n];
-                            game_write(LIST_RVA + n * 4, number);
-                            let entry = game_addr(ENTRIES_RVA) + number as usize * ENTRY_LEN;
-                            put(entry + 4, record.as_ptr() as u32);
-                        }
-                        std::ptr::copy_nonoverlapping(
-                            table.as_ptr(),
-                            game_addr(TABLE_RVA) as *mut u8,
-                            table.len(),
-                        );
-                        game_write(COUNT_RVA, count);
-                        game_write(LENGTH_RVA, length);
-                        game_write(KIND_RVA, kind);
-                        game_write(FIXED_RVA, fixed);
-                    },
-                    &regions,
-                    &rust,
-                );
-            }
-        }
-    }
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
 }

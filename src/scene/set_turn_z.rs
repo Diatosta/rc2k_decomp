@@ -16,29 +16,16 @@
 //! through `rc2k_core::scene::matrices::set_fine_turn` (plain floats; the x87 version stays
 //! for the Rust callers in unconverted code). Shadow mode and the self-test compare within
 //! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, ECX, RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::scene::matrix::{float_places, test_floats};
+use crate::framework::Regs;
 use crate::scene::view_matrix::{self, Axis};
 use crate::screens::harness::Left;
 use crate::service::floats::*;
-use crate::service::harness::{capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::set_turn_z", rva(0x42715D), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-// ---- hook ----
 
 const AXIS: Axis = Axis::Z;
 
@@ -46,68 +33,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { view_matrix::set_fine_turn_plain(AXIS, r.edx) })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let places = float_places(&AXIS.regions());
-    let floats = Floats {
-        memory: &places,
-        regs: &[(EAX, FLOAT), (EBX, FLOAT), (ECX, FLOAT)],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &AXIS.regions(), &floats, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = AXIS.regions();
-    let saved = capture(&regions);
-    let mut seed = 0x2468_ACE5u32;
-    let tolerant_places = float_places(&regions);
-    let tolerant = Floats {
-        memory: &tolerant_places,
-        regs: &[(EAX, FLOAT), (EBX, FLOAT), (ECX, FLOAT)],
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        for n in 0..48u32 {
-            let angle = match n {
-                0 => 0,
-                1 => 1,
-                2 => 0xFFFF_FFFF,
-                3 => 0x4000_0000,
-                4 => 0x8000_0000,
-                5 => 0x7FFF_FFFF,
-                6 => 0xC000_0000,
-                7 => 0x2000_0000,
-                n => n.wrapping_mul(0x0612_3457),
-            };
-            let floats = test_floats(&mut seed);
-            check_state_floats(
-                &mut t,
-                "scene::set_turn_z",
-                &format!("control word {word:#x}, angle {angle:#x}"),
-                call_original,
-                Regs {
-                    edx: angle,
-                    ..Regs::SENTINEL
-                },
-                &|| unsafe {
-                    restore(&regions, &vec![0xAA; saved.len()]);
-                    (regions[0].0 as *mut [u32; 16]).write_unaligned(floats);
-                },
-                &regions,
-                held,
-                &rust,
-            );
-        }
-    });
-    restore(&regions, &saved);
-    t.finish()
 }

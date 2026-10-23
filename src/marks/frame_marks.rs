@@ -14,28 +14,17 @@
 //! its steps' refusals (all it may write is put back first). Shadow mode and the
 //! self-test compare all but the three timing variables (`rdtsc`: no two runs agree).
 //! Self-test: as `view_frame`'s, when no spline is placed.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::lines::SETTINGS_RVA;
 use crate::marks::{morph_object_points, scale_vectors_by, view_frame};
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::frame_marks", rva(0x4D14B4), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at, capture, restore};
 
 const LAST_RVA: usize = rva(0x765110); // dword_765110
 const FRAME_CYCLES_RVA: usize = rva(0x765114); // dword_765114
@@ -115,73 +104,4 @@ unsafe fn run(entry: &Regs, settings: u32) -> Result<Regs, Refused> {
         game_write(SHARE_RVA, share);
     }
     Ok(g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let mut g = unsafe { frame_marks(r) }?;
-    // The counter's high half can tick between the two runs.
-    g.edx = r.edx;
-    Ok(left_of(&g))
-}
-
-/// The original, its edx made the caller's again (see `rust`).
-unsafe extern "C" fn original_without_edx(r: *mut Regs) {
-    unsafe {
-        let edx = (*r).edx;
-        call_original(r);
-        (*r).edx = edx;
-    }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    if crate::framework::shadow() {
-        dispatch_state(&HOOK, r, original_without_edx, &regions(), &rust);
-        return;
-    }
-    // Outside shadow mode the Rust version's edx stays as it leaves it.
-    dispatch_state(&HOOK, r, call_original, &regions(), &|r| {
-        Ok(left_of(&unsafe { frame_marks(r) }?))
-    });
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
-    if settings == 0 {
-        return t.skip("no marks settings");
-    }
-    if unsafe { game_read::<u32>(crate::marks::splines::PLACE_RVA) } != 0 {
-        return t.skip("splines are placed (their pointers are the stage's)");
-    }
-    let regions = regions();
-    let mut vars = regions.clone();
-    vars.extend(
-        [
-            LAST_RVA,
-            FRAME_CYCLES_RVA,
-            SHARE_RVA,
-            rva(0x613830),
-            rva(0x764FD0),
-        ]
-        .map(at),
-    );
-    let saved = capture(&vars);
-    for case in 0..2u32 {
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            original_without_edx,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&vars, &saved);
-                game_write(rva(0x613830), 1000 + case * 13);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

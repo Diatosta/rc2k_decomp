@@ -21,29 +21,17 @@
 //! corner past `g_marksCorners`, before anything. Shadow mode runs the original alone (it
 //! draws). Self-test: a copy whose device calls go to stand-ins, against the Rust version,
 //! on settings of the test's.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::marks::setup::SETTINGS_RVA;
 use crate::math::x87;
 use crate::scene::cross_product3::cross_product3;
 use crate::scene::vector3::normalise_vector3;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::draw_plane", rva(0x4C8F64), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const AXES: [usize; 3] = [rva(0x89CF1A), rva(0x89CF26), rva(0x89CF32)];
 const PLACE_RVA: usize = rva(0x8161A2); // flt_8161A2
@@ -413,102 +401,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_plane(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { draw_plane(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // mov esi, g_marksSettings
-    let entry: &[u8] = &[0x8B, 0x35, 0x28, 0x7A, 0x76, 0x00];
-    let copy = match copy(
-        0x4C8F64,
-        0x691,
-        entry,
-        &[
-            0xA3, 0x110, 0x127, 0x132, 0x149, 0x14F, 0x184, 0x1C9, 0x1D8, 0x1E7, 0x1F1, 0x686,
-            0x68B,
-        ],
-        &[
-            (0x44E3D1, 1),
-            (0x44EB72, 2),
-            (0x44E77E, 3),
-            (0x44EA65, 4),
-            (0x44E3E1, 5),
-        ],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut settings = vec![0u32; 0x2748 / 4];
-    let sa = settings.as_mut_ptr() as u32;
-    let regions: Vec<Region> = vec![
-        (addr(rva(0x89CA34)), 4),
-        (addr(rva(0x89CEEE)), 0xA0),
-        (addr(PLACE_RVA), 12),
-        (addr(FACING_RVA), 4),
-        (addr(CORNERS_RVA), 0x30),
-        (addr(VERTICES_RVA), 0x80),
-    ];
-    let mut vars = regions.clone();
-    vars.extend(
-        [
-            SETTINGS_RVA,
-            SWITCH_RVA,
-            CORNER_RVA,
-            TEXTURE_RVA,
-            NEAR_RVA,
-            Z_K_RVA,
-            UV_K_RVA,
-        ]
-        .map(at),
-    );
-    let saved = capture(&vars);
-    for case in 0..4u32 {
-        run_both(
-            &mut t,
-            &format!("case {case}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                restore(&vars, &saved);
-                game_write(SETTINGS_RVA, sa);
-                let p = |o: u32, v: u32| ((sa + o) as *mut u32).write_unaligned(v);
-                for n in 0..3u32 {
-                    p(0x2720 + 4 * n, [100, 50, 400][n as usize] + case * 9);
-                    p(0x272C + 4 * n, [300, 60, 380][n as usize]);
-                    p(0x2708 + 4 * n, [90, 250, 420][n as usize]);
-                }
-                p(0x2740, 3 + case);
-                game_write(SWITCH_RVA, u32::from(case != 3));
-                game_write(CORNER_RVA, 0x12 + case);
-                game_write(NEAR_RVA, (-1e9f32).to_bits());
-                game_write(Z_K_RVA, (1.0f32 / 3000.0).to_bits());
-                game_write(UV_K_RVA, (1.0f32 / 256.0).to_bits());
-                std::ptr::write_bytes(addr(VERTICES_RVA) as *mut u8, 0xAA, 0x80);
-            },
-            &|r| unsafe { draw_plane(r, &mut test_part) },
-        );
-    }
-    restore(&vars, &saved);
-    drop(settings);
-    t.finish()
 }

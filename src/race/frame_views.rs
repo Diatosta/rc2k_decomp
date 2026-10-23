@@ -498,7 +498,7 @@ pub fn own_car_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         match place {
             1 => clear_view_depth(r, &mut |_, r| {
-                crate::calls::call(rva(0x44E9EE), r);
+                clear_viewport_unless_held(r);
                 Ok(())
             }),
             2 => {
@@ -623,6 +623,15 @@ pub fn view_marks_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 /// `clear_view_depth`'s part in the game: the platform's `Clear` (`sub_44E9EE`).
 pub fn own_car_clear_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
-    crate::calls::call(rva(0x44E9EE), r);
+    clear_viewport_unless_held(r);
     Ok(())
+}
+
+/// `d3d::clear_viewport_unless_held` (0x44E9EE, was `sub_44E9EE`; ported 2026-10-23, the
+/// game's was called before): `d3d::clear_viewport` (0x44E9D9, the same `Clear` of
+/// `dword_624138` with flag 2) unless `dword_624238` is not 0; eax as that leaves it.
+pub fn clear_viewport_unless_held(r: &mut Regs) {
+    if unsafe { crate::framework::game_read::<u32>(rva(0x624238)) } == 0 {
+        crate::calls::call(rva(0x44E9D9), r);
+    }
 }

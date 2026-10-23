@@ -27,30 +27,18 @@
 //! in unconverted code); `record_offset` is the core's for both. Shadow mode and the
 //! self-test compare the record's floats and `dword_62400C` within `service::floats`'
 //! tolerances (the self-test at both test precisions, exact at double).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{
-    EAX, ECX, EDX, RawHook, Regs, SelfTest, game_addr, game_ptr, game_read, game_write, hook_asm,
-    rva,
-};
+use crate::framework::{EAX, ECX, EDX, Regs, game_addr, game_ptr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::polygon::{dword, put};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::project_point", rva(0x44D004), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at};
 
 // ---- game data ----
 
@@ -330,8 +318,6 @@ pub fn float_places(point: u32) -> Vec<(Region, crate::service::floats::Toleranc
     places
 }
 
-// ---- hook ----
-
 /// What a call for `point` may write.
 pub fn regions(point: u32) -> Vec<Region> {
     let mut regions = vec![at(CHECKED_RVA)];
@@ -351,23 +337,11 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    use crate::service::floats::{Floats, dispatch_state_floats};
-    let places = float_places(r.eax);
-    let floats = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &regions(r.eax), &floats, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     crate::service::floats::floats_entry(r, &rust)
 }
-
-// ---- self-test: points, records and a view of the test's ----
 
 /// The variables a test of the projection sets, to be put back afterwards.
 pub fn inputs() -> Vec<Region> {
@@ -486,68 +460,4 @@ pub fn same_world(
             .zip(&mine.0)
             .all(|(a, b)| a[..3] == b[..3] && (3..8).all(|k| close(a[k], b[k], tolerance)))
         && close(theirs.1, mine.1, tolerance)
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::service::floats::{FLOAT, Floats, at_test_precisions};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let inputs = inputs();
-    let saved = capture(&inputs);
-    let mut world = World::new();
-    let last = TEST_POINTS + 0x3F;
-    let places = [(at(CHECKED_RVA), FLOAT)];
-    let tolerant = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        let tolerance = held.memory[0].1;
-        for view in 0..4 {
-            for (flat, lowered) in [(false, false), (true, false), (false, true), (true, true)] {
-                for point in [
-                    0u32,
-                    1,
-                    2,
-                    3,
-                    5,
-                    6,
-                    7,
-                    last,
-                    -1i32 as u32,
-                    -3i32 as u32,
-                    -5i32 as u32,
-                ] {
-                    let before = Regs {
-                        eax: point,
-                        ..Regs::SENTINEL
-                    };
-                    unsafe { world.set(view, flat, lowered) };
-                    let mut ro = before;
-                    unsafe { call_original(&mut ro) };
-                    let theirs = world.state();
-                    unsafe { world.set(view, flat, lowered) };
-                    let mine = rust(&before);
-                    let state = world.state();
-                    let regs_ok = mine.as_ref().is_ok_and(|left| left.matches(&before, &ro));
-                    t.check(regs_ok && same_world(&theirs, &state, tolerance), || {
-                        let n = theirs.0.iter().zip(&state.0).position(|(a, b)| a != b);
-                        format!(
-                            "control word {word:#x}, point {point:#x}, view {view}, flat {flat}, lowered {lowered}: regs_ok={regs_ok} original eax {:#x} ecx {:#x} edx {:#x}, rust {mine:x?}; checked {:#x} {:#x}; first different record {n:?}: {:x?} {:x?}",
-                            ro.eax,
-                            ro.ecx,
-                            ro.edx,
-                            theirs.1,
-                            state.1,
-                            n.map(|n| theirs.0[n]),
-                            n.map(|n| state.0[n]),
-                        )
-                    });
-                }
-            }
-        }
-    });
-    restore(&inputs, &saved);
-    t.finish()
 }

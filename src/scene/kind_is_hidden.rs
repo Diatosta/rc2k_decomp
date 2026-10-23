@@ -11,26 +11,15 @@
 //! Refuses an object past 0xFF while a setting is on (the original reads past the table).
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back): both settings, objects 0 .. 0xFF with test kinds.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    EAX, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{EAX, Regs, game_read, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::kind_is_hidden", rva(0x452303), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 const SWITCH_RVA: usize = rva(0x71C3E0); // dword_71C3E0
 const MODE_RVA: usize = rva(0x62389C); // dword_62389C
@@ -55,50 +44,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::carry(hidden).with(EAX, eax))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &[], &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let all: Vec<Region> = vec![
-        (game_addr(SWITCH_RVA) as u32, 4),
-        (game_addr(MODE_RVA) as u32, 4),
-        (game_addr(KINDS_RVA) as u32, 0x400),
-    ];
-    let saved = capture(&all);
-    for k in 0..0x100usize {
-        let kind = [0x30u32, 0x4E, 0, 0x2F, 0x31, 0x4D, 0x4F, 0x130][k % 8];
-        unsafe { game_write(KINDS_RVA + 4 * k, kind) };
-    }
-    for (switch, mode) in [(0u32, 0u32), (0, 2), (1, 0), (5, 2), (0, 3)] {
-        for object in (0..0x100u32).step_by(3) {
-            let set = || unsafe {
-                game_write(SWITCH_RVA, switch);
-                game_write(MODE_RVA, mode);
-            };
-            check_state(
-                &mut t,
-                &format!("switch {switch}, mode {mode}, object {object:#x}"),
-                call_original,
-                Regs {
-                    eax: object,
-                    ..Regs::SENTINEL
-                },
-                &set,
-                &[],
-                &rust,
-            );
-        }
-    }
-    restore(&all, &saved);
-    t.finish()
 }

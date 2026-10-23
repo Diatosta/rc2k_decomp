@@ -16,24 +16,13 @@
 //! the others (all hooked) through the game. Shadow mode runs the original alone (it draws).
 //! Self-test: a copy whose 31 calls go to stand-ins, against the Rust version, covered and
 //! not; the calls and their registers compared.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
-use crate::race::mud::{copy, run_both, test_part};
-use crate::service::harness::{at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::draw_view_scene", rva(0x4557AB), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_read, game_write, rva};
 
 /// The calls by place, as IDA shows them.
 pub const CALLEES: [usize; 24] = [
@@ -128,76 +117,9 @@ pub unsafe fn draw_view_scene_in_game(r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_view_scene(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { draw_view_scene(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-const CALLS: [usize; 31] = [
-    0x26, 0x2B, 0x30, 0x35, 0x3A, 0x3F, 0x44, 0x49, 0x53, 0x58, 0x67, 0x6C, 0x71, 0x76, 0x7B, 0x85,
-    0x8A, 0x8F, 0x94, 0x9E, 0xA3, 0xA8, 0xAD, 0xB7, 0xBC, 0xC6, 0xCB, 0xD5, 0xDA, 0xDF, 0xE5,
-];
-
-/// `CALLEES` with their places, for a copy's stand-ins.
-static PLACES: std::sync::LazyLock<Vec<(usize, u32)>> = std::sync::LazyLock::new(|| {
-    CALLEES
-        .iter()
-        .enumerate()
-        .map(|(p, &a)| (a, p as u32))
-        .collect()
-});
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // cmp dword ptr unk_71AF80, 0
-    let copy = match copy(
-        0x4557AB,
-        0xEB,
-        &[0x83, 0x3D, 0x80, 0xAF, 0x71, 0x00, 0x00],
-        &CALLS,
-        PLACES.as_slice(),
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions = [
-        at(COVERED_RVA),
-        at(CLEARED[0]),
-        at(CLEARED[1]),
-        at(LAMPS_RVA),
-    ];
-    let saved = capture(&regions);
-    for covered in [0u32, 1, 0xFFFF_FFFF] {
-        run_both(
-            &mut t,
-            &format!("covered {covered:#x}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                game_write(COVERED_RVA, covered);
-                game_write(CLEARED[0], 0x1234u32);
-                game_write(CLEARED[1], 0x5678u32);
-                game_write(LAMPS_RVA, 0x9ABCu32);
-            },
-            &|r| unsafe { draw_view_scene(r, &mut test_part) },
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
 }

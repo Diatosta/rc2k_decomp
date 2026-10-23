@@ -9,85 +9,25 @@
 //! See `race/race_shell.rs`. One caller, `sub_446EBE` (`pusha` follows). Shadow mode:
 //! the Rust version, the tables put back, the original's, compared. Self-test: records of
 //! the test's and none, the game's tables put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva};
+use crate::framework::Regs;
 use crate::race::race_shell::*;
 use crate::race::start_place::left_changed;
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::copy_league_table", rva(0x4650B7), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-fn regions() -> Vec<Region> {
-    league_regions()
-}
+use crate::service::harness::state_entry;
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     let g = unsafe { copy_league_table(r) };
     Ok(left_changed(r, &g))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-#[allow(unused_variables)] // not every test uses every helper
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let _ = (
-        game_addr(0),
-        at(0),
-        game_write::<u32> as unsafe fn(usize, u32),
-    );
-    let regions = regions();
-    let source = at(rva(0x75ACD0));
-    let mut kept = regions.clone();
-    kept.push(source);
-    let saved = capture(&kept);
-    let records: Vec<u32> = (0..10 * 0x14u32)
-        .map(|n| n.wrapping_mul(0x0100_0193))
-        .collect();
-    for with in [true, false] {
-        check_state(
-            &mut t,
-            &format!("records {with}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                for &(a, len) in &regions {
-                    std::ptr::write_bytes(a as *mut u8, 0x5A, len);
-                }
-                game_write(
-                    rva(0x75ACD0),
-                    if with { records.as_ptr() as u32 } else { 0 },
-                );
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&kept, &saved);
-    t.finish()
 }

@@ -16,27 +16,16 @@
 //! Refuses (before anything) a depth list without room for 24 flares. Shadow mode: by
 //! state. Self-test: a test block (frame, place, kind, the lights' bytes), the switches,
 //! the flare and depth counts; all put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, rva};
 use crate::race::frame_draw::*;
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::car_light_flares", rva(0x457036), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at, state_entry};
 
 pub fn flare_regions() -> Vec<Region> {
     let g = |a: usize, len: usize| (game_addr(rva(a)) as u32, len);
@@ -58,10 +47,6 @@ pub fn flare_regions() -> Vec<Region> {
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(all_regs(&unsafe { car_light_flares(r)? }))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &flare_regions(), &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
@@ -95,53 +80,4 @@ pub fn fill_light_block(b: &mut [u32], seed: &mut u32, kind: u32, near: f32) {
     for (k, v) in b[0xAC0 / 4..0xAD4 / 4].iter_mut().enumerate() {
         *v = seed.rotate_left(k as u32) & 0x0101_0101;
     }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = flare_regions();
-    let mut kept = regions.clone();
-    kept.extend(flare_inputs());
-    let saved = capture(&kept);
-    let mut block = vec![0u32; 0x400];
-    let mut seed = 0xF1A2_E001u32;
-    for (mode, hiding, kind, near, flares) in [
-        (8u32, 1u32, 1u32, 0.0f32, 0u32),
-        (0, 0, 1, 0.0, 0),
-        (0, 1, 1, 50.0, 0),
-        (0, 1, 1, 150.0, 0),
-        (0, 1, 0xD, 10.0, 0x10),
-        (0, 1, 0xE, 10.0, 0x3FF),
-        (0, 1, 0x40, 500.0, 0x400),
-    ] {
-        fill_light_block(&mut block, &mut seed, kind, near);
-        let b = block.as_ptr() as u32;
-        check_state(
-            &mut t,
-            &format!("mode {mode} hiding {hiding} kind {kind:#x} near {near} flares {flares:#x}"),
-            call_original,
-            Regs {
-                esi: b,
-                ..Regs::SENTINEL
-            },
-            &|| unsafe {
-                restore(&kept, &saved);
-                game_write(rva(0x621870), mode);
-                game_write(rva(0x621480), hiding);
-                game_write(rva(0x62DAD0), 1u32);
-                game_write(rva(0x641744), 0x100u32);
-                game_write(rva(0x641748), 0x200u32);
-                game_write(rva(0x64174C), 0x300u32);
-                game_write(FLARE_COUNT_RVA, flares);
-                game_write(DEPTH_COUNT_RVA, 0x10u32);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&kept, &saved);
-    drop(block);
-    t.finish()
 }

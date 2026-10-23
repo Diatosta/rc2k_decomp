@@ -23,27 +23,15 @@
 //! (a stage loads): gated like `race::load_stage`. Shadow mode runs the original alone.
 //! Self-test: a copy whose calls go to stand-ins, against the Rust version: no replay
 //! open, one open with and without fonts.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::{Regs, rva};
 use crate::physics::flow::a;
-use crate::race::viewer::{
-    OPEN, Part, Saved, answer, dispatch_parts, dword, gb, get, put, regs_entry, run_both, test_part,
-};
-use crate::service::harness::Region;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::viewer_load_stage", rva(0x41CDC2), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::race::viewer::{OPEN, Part, gb, get, put, regs_entry};
 
 /// The calls by place, as IDA shows them.
 pub const CALLEES: [usize; 17] = [
@@ -64,10 +52,6 @@ pub const CALLEES: [usize; 17] = [
     0x41D8BF, // 15 race::viewer_palettes
     0x407F95, // 16 input::take_key
 ];
-const CALLS: [usize; 16] = [
-    0xE, 0x13, 0x18, 0x1D, 0x22, 0x27, 0x9E, 0xA5, 0xAB, 0xB0, 0xBE, 0xCD, 0xD2, 0xD7, 0xDC, 0xEB,
-];
-
 const LOADED: usize = 0x5BECC0; // dword_5BECC0: the viewer's stage is loaded
 pub const FONTS_BUILT: usize = 0x5BECC4; // dword_5BECC4: the viewer built the fonts
 const FONT_PALETTES: usize = 0x51DEB0; // g_fontPalettes
@@ -179,88 +163,8 @@ pub fn log_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     crate::race::read_replay_header::game_part(place, r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_parts(&HOOK, r, call_original, &|r| {
-        viewer_load_stage(r, &mut game_part)
-    });
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &|r| viewer_load_stage(r, &mut game_part))
-}
-
-fn regions() -> Vec<Region> {
-    let mut all: Vec<Region> = SETTINGS.iter().map(|&(to, _)| dword(to)).collect();
-    for at in [
-        0x75AE28usize,
-        0x75AF94,
-        0x75ACE0,
-        0x75AE1C,
-        0x70FE94,
-        LOADED,
-        FONTS_BUILT,
-    ] {
-        all.push(dword(at));
-    }
-    all
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let places: &'static [(usize, u32)] = Box::leak(
-        (1..17u32)
-            .map(|p| (CALLEES[p as usize], p))
-            .collect::<Vec<_>>()
-            .into_boxed_slice(),
-    );
-    // pusha; cmp dword_5BEC88, 1
-    let copy = match crate::race::viewer::copy(
-        0x41CDC2,
-        0xF2,
-        &[0x60, 0x83, 0x3D, 0x88, 0xEC, 0x5B, 0x00, 0x01],
-        &CALLS,
-        places,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    crate::race::viewer::quiet();
-    let mut all = regions();
-    all.extend([
-        dword(OPEN),
-        dword(FONT_PALETTES),
-        crate::race::viewer::region(DOOR, 1),
-    ]);
-    all.extend(SETTINGS.iter().map(|&(_, from)| dword(from)));
-    let saved = Saved::new(&all);
-    for (open, fonts) in [(0u32, 1u32), (1, 1), (1, 0)] {
-        run_both(
-            &mut t,
-            &format!("open {open}, fonts {fonts}"),
-            copy.addr(),
-            Regs::SENTINEL,
-            &regions(),
-            0,
-            &|| {
-                put(OPEN, open);
-                put(FONT_PALETTES, fonts);
-                for (n, &(to, from)) in SETTINGS.iter().enumerate() {
-                    put(from, 0x10 + n as u32);
-                    put(to, 0xAAAA_AAAA);
-                }
-                crate::race::viewer::pb(DOOR, 0x83);
-                put(LOADED, 0);
-                put(FONTS_BUILT, 0);
-                answer(crate::race::viewer::clear_carry());
-            },
-            &|r| viewer_load_stage(r, &mut test_part),
-        );
-    }
-    crate::race::viewer::quiet();
-    drop(saved);
-    t.finish()
 }

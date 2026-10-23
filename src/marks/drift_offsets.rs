@@ -18,31 +18,18 @@
 //! unconverted code; the offsets' `fistp` stays the x87's). Shadow mode and the self-test
 //! hold the targets and paces to `service::floats`' tolerances and the offsets to one
 //! either way (the self-test at both test precisions, exact at double).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::setup::{CLOCK_RVA, SEED_RVA};
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::floats::{
-    FLOAT, Floats, ROUNDED, Tolerance, at_test_precisions, check_state_floats,
-    dispatch_state_floats, floats_entry,
-};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::drift_offsets", rva(0x4C1BA9), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::floats::floats_entry;
 
 const SINCE_RVA: usize = rva(0x8BC409); // dword_8BC409: the clock at the last targets
 const WAIT_RVA: usize = rva(0x8BC40D); // dword_8BC40D
@@ -150,147 +137,12 @@ pub unsafe fn drift_offsets_plain(entry: &Regs) -> Regs {
     g
 }
 
-/// The float places of `regions()`: the targets and paces, and the offsets rounded from
-/// them.
-fn float_places() -> Vec<(Region, Tolerance)> {
-    let mut places: Vec<(Region, Tolerance)> = [TARGET_RVA, PACE_RVA]
-        .into_iter()
-        .flatten()
-        .map(|r| (at(r), FLOAT))
-        .collect();
-    places.extend(OFFSET_RVA.map(|r| (at(r), ROUNDED)));
-    places
-}
-
-fn regions() -> Vec<Region> {
-    let mut r: Vec<Region> = [SINCE_RVA, WAIT_RVA, SEED_RVA].map(at).to_vec();
-    for set in [TARGET_RVA, PACE_RVA, HALVES_RVA, OFFSET_RVA] {
-        r.extend(set.map(at));
-    }
-    r
-}
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { drift_offsets_plain(r) }))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let places = float_places();
-    let floats = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-/// clock, since, wait, seed, paces, offsets, eases.
-type Case = (u32, u32, u32, u32, [f32; 2], [i32; 2], [f32; 2]);
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let mut inputs = regions.clone();
-    inputs.extend(
-        [
-            CLOCK_RVA,
-            EASE_RVA[0],
-            EASE_RVA[1],
-            SCALE_RVA[0],
-            SCALE_RVA[1],
-        ]
-        .map(at),
-    );
-    let saved = capture(&inputs);
-    let cases: [Case; 6] = [
-        (
-            1000,
-            900,
-            100,
-            0x1234_5678,
-            [0.5, -0.25],
-            [10, -10],
-            [0.1, 0.2],
-        ),
-        (
-            1000,
-            901,
-            100,
-            0x1234_5678,
-            [0.5, -0.25],
-            [10, -10],
-            [0.1, 0.2],
-        ),
-        (
-            5,
-            0xFFFF_FFF0,
-            0x16,
-            0xDEAD_BEEF,
-            [3.7, 1e6],
-            [0x7FFF_0000, -3],
-            [0.9, 1.0],
-        ),
-        (
-            5,
-            0xFFFF_FFF0,
-            0x15,
-            0xDEAD_BEEF,
-            [-2.5, 2.5],
-            [0, 0],
-            [0.5, 0.5],
-        ),
-        (0, 0, 0, 0, [0.0, -0.0], [1, 2], [0.03, 0.07]),
-        (
-            77,
-            7,
-            0xFFFF_FFFF,
-            0xFFFF_FFFF,
-            [1.5, -1.5],
-            [-7, 7],
-            [0.25, 0.75],
-        ),
-    ];
-    let places = float_places();
-    let tolerant = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        for (clock, since, wait, seed, paces, offsets, eases) in cases {
-            check_state_floats(
-                &mut t,
-                "marks::drift_offsets",
-                &format!(
-                    "control word {word:#x}, clock {clock:#x}, since {since:#x}, wait {wait:#x}, seed {seed:#x}, paces {paces:?}"
-                ),
-                call_original,
-                Regs::SENTINEL,
-                &|| unsafe {
-                    restore(&inputs, &saved);
-                    game_write(CLOCK_RVA, clock);
-                    game_write(SINCE_RVA, since);
-                    game_write(WAIT_RVA, wait);
-                    game_write(SEED_RVA, seed);
-                    for n in 0..2 {
-                        game_write(PACE_RVA[n], paces[n].to_bits());
-                        game_write(OFFSET_RVA[n], offsets[n]);
-                        game_write(EASE_RVA[n], eases[n].to_bits());
-                        game_write(TARGET_RVA[n], (n as f32 * 3.0 - 1.0).to_bits());
-                    }
-                },
-                &regions,
-                held,
-                &rust,
-            );
-        }
-    });
-    restore(&inputs, &saved);
-    t.finish()
 }

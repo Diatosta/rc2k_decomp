@@ -13,42 +13,14 @@
 //! Self-test: a copy whose depth-test and drawing calls go to stand-ins (the fade and the
 //! clips real), against the Rust version on the same; chains of links of the test's in
 //! the views and not; all put back (skipped without a race).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::race::level_init::{note, take_called};
+use crate::framework::{Regs, game_addr, game_write, rva};
 use crate::race::skidmarks::*;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::draw_skidmarks", rva(0x458C03), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_skidmarks(r, &mut skid_part) } {
-        Ok(after) => {
-            let esp = r.esp;
-            *r = after;
-            r.esp = esp;
-        }
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
+use crate::service::harness::{Region, at};
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
@@ -118,86 +90,4 @@ pub fn set_skids(n: u32, views: u16, mode: u32) {
         game_write(rva(0x63DB9C), 1u32);
         game_write(rva(0x6416B8), 0u32);
     }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if unsafe { game_read::<u32>(rva(0x621480)) } == 0 {
-        return t.skip("no race loaded");
-    }
-    crate::install::stand_ins::set_handler(note);
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x458C03,
-            len: 0x513,
-            entry: &[0xC7, 0x05, 0xE4, 0x3A, 0x64, 0x00, 0xFF, 0xFF],
-            calls: &[
-                0x1A1, 0x257, 0x30C, 0x3C2, 0x48E, 0x493, 0x4A1, 0x4B9, 0x4DC, 0x4F5,
-            ],
-            jumps_out: &[],
-        },
-        &|c| {
-            SKID_CALLEES
-                .iter()
-                .find(|&&(_, k)| rva(k) == c)
-                .map(|&(p, _)| crate::install::stand_ins::stand_in(p))
-        },
-        &[],
-        0,
-    ) {
-        Ok(c) => c,
-        Err(e) => return t.skip(&format!("copy: {e}")),
-    };
-    let regions = skid_regions();
-    let mut kept = regions.clone();
-    kept.extend(skid_inputs());
-    let saved = capture(&kept);
-    for (n, views, mode) in [
-        (0u32, 0xFFu16, 0u32),
-        (5, 0x02, 1),
-        (8, 0x01, 1),
-        (6, 0x00, 2),
-    ] {
-        let prepare = || {
-            restore(&kept, &saved);
-            set_skids(n, views, mode);
-            take_called();
-        };
-        let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-        prepare();
-        let mut ro = Regs::SENTINEL;
-        unsafe { call_game(&mut ro, copy.addr()) };
-        let theirs = (regs(&ro), take_called(), capture(&regions));
-        prepare();
-        crate::race::skidmarks::SKIDS_CLIPPED.store(false, std::sync::atomic::Ordering::SeqCst);
-        let done = unsafe {
-            draw_skidmarks(&Regs::SENTINEL, &mut |p, r| {
-                note(p, r);
-                Ok(())
-            })
-        };
-        let mine = (
-            done.as_ref().map(regs).unwrap_or_default(),
-            take_called(),
-            capture(&regions),
-        );
-        // A quad cut by the screen clip: the calls compared by place (see SKIDS_CLIPPED).
-        let same =
-            if crate::race::skidmarks::SKIDS_CLIPPED.load(std::sync::atomic::Ordering::SeqCst) {
-                theirs.0 == mine.0
-                    && theirs.2 == mine.2
-                    && theirs.1.iter().map(|c| c.0).eq(mine.1.iter().map(|c| c.0))
-            } else {
-                theirs == mine
-            };
-        t.check(same, || {
-            let diff = theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b);
-            format!("links {n} views {views:#x} mode {mode}: original {:x?} {:x?}; rust {:x?} {:x?}; memory first differs at {diff:x?}", theirs.0, theirs.1, mine.0, mine.1)
-        });
-    }
-    restore(&kept, &saved);
-    t.finish()
 }

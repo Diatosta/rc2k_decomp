@@ -18,32 +18,20 @@
 //! Eight callers, each `jb` after it. Refuses null settings or quad. Self-test: quads of
 //! the test's (every inside pattern, each mode), compared on the quad, the work area, the
 //! counts, the registers and CF.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::marks::lines::SETTINGS_RVA;
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::clip_quad", rva(0x4B8A0B), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 const WORK_RVA: usize = rva(0x7687F4); // g_marksClipVertices: TLVertex[6]
-const WORK_LEN: usize = 6 * 0x20;
 const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
 const COUNT2_RVA: usize = rva(0x93CC94); // dword_93CC94
 /// Per mode 1 .. 4: the line's variable, its coordinate's offset, whether inside is at or
@@ -177,18 +165,6 @@ pub unsafe fn clip_quad(entry: &Regs) -> Result<Regs, Refused> {
     Ok(g)
 }
 
-fn regions(quad: u32) -> Vec<Region> {
-    let mut r = vec![
-        (game_addr(WORK_RVA) as u32, WORK_LEN),
-        at(COUNT_RVA),
-        at(COUNT2_RVA),
-    ];
-    if quad != 0 {
-        r.push((quad, 6 * 0x20));
-    }
-    r
-}
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     let g = unsafe { clip_quad(r) }?;
     let mut left = left_of(&g);
@@ -196,104 +172,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(r.ebp), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
-    if settings == 0 {
-        return t.skip("no marks settings");
-    }
-    let mut quad = vec![0u32; 6 * 8];
-    let qa = quad.as_mut_ptr() as u32;
-    let mut vars = regions(qa);
-    vars.push((settings + 8, 4));
-    vars.push((game_addr(EDGES[3].0) as u32, 16));
-    let saved = capture(&vars);
-    let regions = regions(qa);
-    for mode in 0..=5u32 {
-        for pattern in 0..16u32 {
-            check_state(
-                &mut t,
-                &format!("mode {mode}, inside pattern {pattern:04b}"),
-                call_original,
-                Regs {
-                    ebp: qa,
-                    ..Regs::SENTINEL
-                },
-                &|| unsafe {
-                    restore(&vars, &saved);
-                    ((settings + 8) as *mut u32).write_unaligned(mode);
-                    for (n, v) in [100.0f32, 300.0, 200.0, 250.0].iter().enumerate() {
-                        game_write(EDGES[3].0 + 4 * n, v.to_bits());
-                    }
-                    let p = qa as *mut u32;
-                    for k in 0..4u32 {
-                        let inside = pattern & (1 << k) != 0;
-                        // x: about 250 (inside for 4 above 250, for 3 below 200), y: about 100 / 300.
-                        let (x, y) = match mode {
-                            4 => (
-                                if inside {
-                                    260.0 + k as f32 * 7.0
-                                } else {
-                                    240.0 - k as f32
-                                },
-                                50.0 + k as f32,
-                            ),
-                            3 => (
-                                if inside {
-                                    190.0 - k as f32 * 7.0
-                                } else {
-                                    210.0 + k as f32
-                                },
-                                50.0 + k as f32,
-                            ),
-                            2 => (
-                                20.0 + k as f32,
-                                if inside {
-                                    110.0 + k as f32 * 3.0
-                                } else {
-                                    90.0 - k as f32
-                                },
-                            ),
-                            _ => (
-                                20.0 + k as f32,
-                                if inside {
-                                    290.0 - k as f32 * 3.0
-                                } else {
-                                    310.0 + k as f32
-                                },
-                            ),
-                        };
-                        let base = (8 * k) as usize;
-                        *p.add(base) = x.to_bits();
-                        *p.add(base + 1) = y.to_bits();
-                        for n in 2..6 {
-                            *p.add(base + n) = 0x1111_1111 * (k + 1) + n as u32;
-                        }
-                        *p.add(base + 6) = (k as f32 * 0.25).to_bits();
-                        *p.add(base + 7) = (1.0 - k as f32 * 0.2).to_bits();
-                    }
-                    for n in 32..48 {
-                        *p.add(n) = 0xAAAA_AAAA;
-                    }
-                },
-                &regions,
-                &rust,
-            );
-        }
-    }
-    restore(&vars, &saved);
-    drop(quad);
-    t.finish()
 }

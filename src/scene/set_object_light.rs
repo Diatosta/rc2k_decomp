@@ -25,33 +25,17 @@
 //! find and leave a colour.
 //!
 //! Converted 2026-10-21: the kind's way through `rc2k_core::scene::lamps::object_light`.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::install::stand_ins::{act, set_handler, stand_in};
-use crate::redirect::RedirectedCopy;
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::scene::add_car_light::add_car_light;
 use crate::scene::add_car_lights::{DRAWN_CAR_RVA, add_car_lights};
 use crate::scene::add_point_lights::{LIGHT_COLOUR_RVA, LIT_PLACE_RVA, MMX_RVA, add_point_lights};
-use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::vertex_light::plus;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::set_object_light", rva(0x45143A), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -117,148 +101,8 @@ pub unsafe fn set_object_light_in_game() -> Result<(), Refused> {
     }
 }
 
-// ---- hook ----
-
-fn regions() -> Vec<Region> {
-    let mut regions: Vec<Region> = [
-        ADDED_RVA,
-        STRENGTH_RVA,
-        DRAWN_CAR_RVA,
-        LIGHT_COLOUR_RVA,
-        CHECKED_RVA,
-        rva(0x639958), // the lamps' strength
-        rva(0x62DA7C), // and colour
-    ]
-    .map(at)
-    .to_vec();
-    regions.push((game_addr(LIT_PLACE_RVA) as u32, 12));
-    // What a car is seen at.
-    regions.push((game_addr(rva(0x6365B8)) as u32, 12));
-    regions
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if !shadow() {
-        if let Err(e) = unsafe { set_object_light_in_game() } {
-            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-        }
-        return;
-    }
-    let regions = regions();
-    let before = capture(&regions);
-    let mine = unsafe { set_object_light_in_game() }.map(|()| capture(&regions));
-    restore(&regions, &before);
-    unsafe { call_original(r) };
-    let Ok(mine) = mine else {
-        return;
-    };
-    let theirs = capture(&regions);
-    if mine != theirs {
-        HOOK.mismatch(|| {
-            format!(
-                "kind {}: before {before:x?}; original {theirs:x?}; rust {mine:x?}",
-                unsafe { game_read::<u32>(KIND_RVA) }
-            )
-        });
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
     unsafe { set_object_light_in_game() }?;
     Ok(())
-}
-
-// ---- self-test ----
-
-const LEN: usize = 0x1CF;
-const ENTRY_BYTES: [u8; 10] = [0xC7, 0x05, 0x68, 0x50, 0x63, 0x00, 0, 0, 0, 0];
-const CALLS: [usize; 3] = [0x6F, 0xEB, 0x17D];
-
-/// What each gathering found: everything written by then.
-static CALLED: Mutex<Vec<Vec<u8>>> = Mutex::new(Vec::new());
-static LEFT_COLOUR: Mutex<u32> = Mutex::new(0);
-
-fn handler(_: u32, _: &mut Regs) {
-    // `scene::gather_lights` begins by clearing the colour, which in the copy is the
-    // stand-in's to do; then the lamps add theirs.
-    unsafe { game_write(LIGHT_COLOUR_RVA, 0u32) };
-    CALLED.lock().unwrap().push(capture(&regions()));
-    unsafe { game_write(LIGHT_COLOUR_RVA, *LEFT_COLOUR.lock().unwrap()) };
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x45143A)),
-            LEN,
-            &ENTRY_BYTES,
-            &CALLS,
-            &|callee| (callee == rva(0x451425)).then(|| stand_in(0)),
-        )
-    };
-    let copy = match copy {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    let regions = regions();
-    let inputs = [
-        at(KIND_RVA),
-        (game_addr(KEY_RVA) as u32, 1),
-        (game_addr(PLACE_RVA) as u32, 12),
-        at(BASE_RVA),
-        at(THIS_CAR_RVA),
-        at(MMX_RVA),
-    ];
-    let saved = (capture(&regions), capture(&inputs));
-    let mut cases = 0u32;
-    for kind in 0..=6u32 {
-        for key in [0u8, 1, 0x80] {
-            for (colour, base) in [
-                (0u32, 0u32),
-                (0x0010_2030, 0x00F0_F0F0),
-                (0x80FF_0001, 0x9001_FFFF),
-            ] {
-                cases += 1;
-                let run = |rust: bool| unsafe {
-                    restore(&regions, &vec![0xAA; saved.0.len()]);
-                    game_write(KIND_RVA, kind);
-                    game_write(KEY_RVA, key);
-                    game_write(PLACE_RVA, [0x1111u32 + cases, 0x2222, 0x3333]);
-                    game_write(BASE_RVA, base);
-                    game_write(THIS_CAR_RVA, 3u32);
-                    game_write(MMX_RVA, cases % 2);
-                    *LEFT_COLOUR.lock().unwrap() = colour;
-                    CALLED.lock().unwrap().clear();
-                    set_handler(handler);
-                    let done = if rust {
-                        set_object_light(&mut || {
-                            // The stand-in is given the scene as the real one finds it:
-                            // the colour is cleared by the function before the lamps.
-                            act(0, &mut Regs::default());
-                            Ok(())
-                        })
-                        .is_ok()
-                    } else {
-                        call_game(&mut Regs::default(), copy.addr());
-                        true
-                    };
-                    (done, capture(&regions), CALLED.lock().unwrap().clone())
-                };
-                let (theirs, mine) = (run(false), run(true));
-                t.check(theirs == mine, || {
-                    format!(
-                        "kind {kind}, key {key:#x}, colour {colour:#x}, base {base:#x}, case {cases}: original {theirs:x?}; rust {mine:x?}"
-                    )
-                });
-            }
-        }
-    }
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
 }

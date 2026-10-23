@@ -27,35 +27,18 @@
 //! stand-ins (the lock failing or not), against the Rust version, on the mud tests'
 //! set-up with patterns of the test's, throws and splashes of each sign and size, under
 //! the three precisions; the surface, the counts, the floats and the random state compared.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::gfx::pixel_format::SCRATCH_RVA;
-use crate::math::next_random::{STATE_RVA as RANDOM_RVA, own_random};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::physics::flow::{base, c0, guard, x87_run};
-use crate::race::mud::{copy, has_format};
-use crate::race::muddy_texel::{TEXTURE_RVA, each_mud_case, texture_and_mud};
-use crate::race::splash_mud::{
-    LAST_SPLASHED, SPLASHED_RVA, fill_test_colours, splash_mud, splash_regions, test_colours,
-};
+use crate::race::muddy_texel::texture_and_mud;
+use crate::race::splash_mud::{LAST_SPLASHED, SPLASHED_RVA, splash_mud, splash_regions};
 use crate::race::throw_mud_texel::{LAST_THROWN, THROWN_RVA, throw_mud_texel, throw_regions};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::update_mud_texture", rva(0x44A12E), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::at;
 
 const FIRST_SLOT_RVA: usize = rva(0x5D1EE8); // g_kindFirstSlots[0x100]
 const FIRST_TEXTURE_RVA: usize = rva(0x5D0EE8); // g_kindFirstTextures[0x100]
@@ -198,18 +181,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { update_mud_texture(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { update_mud_texture(r, &mut game_part) }?;
@@ -217,107 +188,5 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     Ok(())
 }
 
-// ---- self-test ----
-
-const LEN: usize = 0x174;
 // mov eax, g_kindFirstSlots+400h
-const ENTRY: [u8; 5] = [0xA1, 0xE8, 0x1E, 0x5D, 0x00];
 // forget, lock, throw, splash, unlock
-const CALLS: [usize; 5] = [0x0B, 0x38, 0xCF, 0x15A, 0x16E];
-const PLACES: [(usize, u32); 3] = [(0x44EB66, 0), (0x41AA4B, 1), (0x41AB02, 2)];
-
-/// The test's lock fails (carry) while this is set.
-static LOCK_FAILS: AtomicBool = AtomicBool::new(false);
-
-/// The stand-ins: noted as `level_init::note` notes them; the lock's carry by `LOCK_FAILS`.
-fn note(place: u32, r: &mut Regs) {
-    crate::race::level_init::note(place, r);
-    if place == 1 {
-        r.set_carry(LOCK_FAILS.load(Ordering::SeqCst));
-    }
-}
-
-fn test_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    note(place, r);
-    Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if !has_format() {
-        return t.skip("no pixel format");
-    }
-    let copy = match copy(0x44A12E, LEN, &ENTRY, &CALLS, &PLACES) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    crate::install::stand_ins::set_handler(note);
-    let fl = |v: f32| v.to_bits();
-    own_random(|| {
-        let state = [
-            &throw_regions()[..],
-            &splash_regions()[..],
-            &[
-                at(CHANGES_RVA),
-                at(LOCKED_RVA),
-                (game_addr(THROWS_IN_RVA) as u32, 0x20),
-                (game_addr(THROWS_RVA) as u32, 8),
-                at(FIRST_SLOT_RVA),
-                at(FIRST_TEXTURE_RVA),
-                at(SCRATCH_RVA),
-            ],
-        ]
-        .concat();
-        let kept = [&state[..], &[test_colours()]].concat();
-        let saved = capture(&kept);
-        fill_test_colours();
-        // Each case starts from the same counters and sums (the function adds to them).
-        let start = capture(&state);
-        let mut case = 0u32;
-        for word in TEST_CONTROL_WORDS {
-            with_control_word(word, &mut || {
-                each_mud_case(&mut |what, pixels, reset| {
-                    // (texture, throws, splashes, the counts, the lock fails)
-                    case += 1;
-                    let (texture, throws, splashes, thrown, splashed, fails) = [
-                        (7u32, 3.4f32, 2.6f32, 5u32, 0u32, false),
-                        (0, -2.5, 1.5, 0, LAST_SPLASHED - 1, false),
-                        (9, 40.0, 3.0, LAST_THROWN - 2, LAST_SPLASHED, false),
-                        (0, 2.0, 2.0, LAST_THROWN + 1, 7, false),
-                        (5, 6.0, 1.0, 0x1234, 3, true),
-                        (0, 0.49, -7.0, 0, 0, false),
-                    ][(case % 6) as usize];
-                    let regions: Vec<Region> = [&state[..], &[pixels]].concat();
-                    crate::race::mud::run_both(
-                        &mut t,
-                        &format!(
-                            "{what}, control word {word:#x}, texture {texture}, throws {throws}, splashes {splashes}, counts {thrown:#x} / {splashed:#x}, lock fails {fails}"
-                        ),
-                        &copy,
-                        &regions,
-                        &|| unsafe {
-                            restore(&state, &start);
-                            reset();
-                            let n: u32 = game_read(TEXTURE_RVA);
-                            let k = 4 * n as usize;
-                            game_write(FIRST_SLOT_RVA, 0x40u32);
-                            game_write(FIRST_TEXTURE_RVA, texture);
-                            game_write(THROWS_IN_RVA + k, fl(throws));
-                            game_write(SPLASHES_IN_RVA + k, fl(splashes));
-                            game_write(THROWN_RVA + k, thrown);
-                            game_write(SPLASHED_RVA + k, splashed);
-                            game_write(RANDOM_RVA, 0x5EED_0000 ^ case);
-                            LOCK_FAILS.store(fails, Ordering::SeqCst);
-                        },
-                        &|r| unsafe { update_mud_texture(r, &mut test_part) },
-                    );
-                });
-            });
-        }
-        LOCK_FAILS.store(false, Ordering::SeqCst);
-        restore(&kept, &saved);
-    });
-    t.finish()
-}

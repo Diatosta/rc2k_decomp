@@ -11,35 +11,15 @@
 //! Callers `sub_44CCEF` and `sub_44CD90`.
 //! Shadow mode runs the original alone (its call of `draw_polygon` is compared there).
 //! Self-test: a redirected copy whose call notes the variable.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::install::stand_ins::{set_handler, stand_in};
-use crate::redirect::RedirectedCopy;
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::scene::draw_polygon::{Game, draw_polygon};
 use crate::scene::submit_polygon;
-use crate::service::harness::{at, capture, restore};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "scene::draw_marked_polygon",
-    rva(0x44B9FC),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -61,23 +41,6 @@ pub unsafe fn draw_marked_polygon(
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    let entry = *r;
-    let done = unsafe {
-        draw_marked_polygon(&mut || draw_polygon(&mut Game(submit_polygon::Game(&entry))))
-    };
-    if let Err(e) = done {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let entry = *r;
@@ -88,67 +51,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
         return Err(e.into());
     }
     Ok(())
-}
-
-// ---- self-test ----
-
-const LEN: usize = 0x30;
-const ENTRY_BYTES: [u8; 10] = [0xC7, 0x05, 0xB8, 0x3D, 0x62, 0x00, 0, 0, 0, 0];
-const CALLS: [usize; 1] = [0x20];
-
-/// The variable at each call of the polygon's routine.
-static SEEN: Mutex<Vec<u32>> = Mutex::new(Vec::new());
-
-fn handler(_: u32, _: &mut Regs) {
-    SEEN.lock().unwrap().push(unsafe { game_read(MARK_RVA) });
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x44B9FC)),
-            LEN,
-            &ENTRY_BYTES,
-            &CALLS,
-            &|callee| (callee == rva(0x44BA2C)).then(|| stand_in(0)),
-        )
-    };
-    let copy = match copy {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    let regions = [at(MARK_RVA)];
-    let inputs = [at(FLAGS_RVA)];
-    let saved = (capture(&regions), capture(&inputs));
-    for flags in [0u32, 0x8000_0000, 0x7FFF_FFFF, 0xFFFF_FFFF, 1] {
-        let run = |rust: bool| unsafe {
-            game_write(MARK_RVA, 0xAAAA_AAAAu32);
-            game_write(FLAGS_RVA, flags);
-            SEEN.lock().unwrap().clear();
-            set_handler(handler);
-            let preserved = if rust {
-                let mut r = Regs::SENTINEL;
-                draw_marked_polygon(&mut || {
-                    handler(0, &mut r);
-                    Ok(())
-                })
-                .is_ok()
-            } else {
-                let mut ro = Regs::SENTINEL;
-                call_game(&mut ro, copy.addr());
-                ro.preserved_except(&Regs::SENTINEL, 0)
-            };
-            (preserved, capture(&regions), SEEN.lock().unwrap().clone())
-        };
-        let (theirs, mine) = (run(false), run(true));
-        t.check(theirs == mine && theirs.0 && theirs.2.len() == 1, || {
-            format!("flags {flags:#x}: original {theirs:x?}; rust {mine:x?}")
-        });
-    }
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
 }

@@ -27,31 +27,17 @@
 //! mode runs the original alone (it draws). Self-test: a copy of the whole range (its
 //! steps' return address pointed into the copy) whose draws go to stand-ins taking their
 //! values off, against the Rust version, on a ring and objects of the test's.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::marks::emitters::{ENTRY_LEN, RING_COUNT_RVA, RING_CURSOR_RVA};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::marks::emitters::{RING_COUNT_RVA, RING_CURSOR_RVA};
 use crate::marks::setup::SETTINGS_RVA;
 use crate::math::x87;
 use crate::scene::matrix3::extended;
-use crate::scene::vector3::STATUS_RVA;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::run_ring", rva(0x4CB64D), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const TICKS_RVA: usize = rva(0x764FD0); // g_marksFrameTicks
 const SPIN_K_RVA: usize = rva(0x764FD4); // flt_764FD4
@@ -829,218 +815,9 @@ pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { run_ring(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { run_ring(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-/// A draw as the test notes it: place, eax .. esi, the three values.
-type Noted = (u32, [u32; 5], Vec<[u8; 10]>);
-
-static NOTED: Mutex<Vec<Noted>> = Mutex::new(Vec::new());
-
-fn note(place: u32, r: &Regs, v: &[[u8; 10]]) {
-    NOTED
-        .lock()
-        .unwrap()
-        .push((place, [r.eax, r.ebx, r.ecx, r.edx, r.esi], v.to_vec()));
-}
-
-extern "C" fn note_three(place: u32, r: *const Regs, v: *const [u8; 10]) {
-    note(place, unsafe { &*r }, unsafe {
-        std::slice::from_raw_parts(v, 3)
-    });
-}
-
-macro_rules! stand_in {
-    ($name:ident, $place:literal) => {
-        #[unsafe(naked)]
-        unsafe extern "C" fn $name() {
-            core::arch::naked_asm!(
-                "lea esp, [esp - 30]",
-                "fstp tbyte ptr [esp]",
-                "fstp tbyte ptr [esp + 10]",
-                "fstp tbyte ptr [esp + 20]",
-                "pushfd",
-                "pushad",
-                "mov eax, esp",
-                "lea ecx, [esp + 36]",
-                "push ecx",
-                "push eax",
-                concat!("push ", $place),
-                "call {note}",
-                "add esp, 12",
-                "popad",
-                "popfd",
-                "lea esp, [esp + 30]",
-                "ret",
-                note = sym note_three,
-            )
-        }
-    };
-}
-stand_in!(cell_stand_in, 1);
-stand_in!(cell2_stand_in, 2);
-stand_in!(subcell_stand_in, 3);
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    const LEN: usize = 0x4CF85E - 0x4CB64D;
-    let calls: Vec<usize> = [
-        0x4CE6DD, 0x4CE7C7, 0x4CE8CA, 0x4CEB92, 0x4CEE68, 0x4CF175, 0x4CF31E, 0x4CF499, 0x4CF64E,
-        0x4CF7B6,
-        // Every other call out of the copy (in functions the test never runs), moved with it.
-        0x4CB832, 0x4CBA3D, 0x4CBA44, 0x4CBAF0, 0x4CBCFB, 0x4CBD02, 0x4CBF30, 0x4CBF37, 0x4CBFE3,
-        0x4CC146, 0x4CC14D, 0x4CC2DD, 0x4CC4E0, 0x4CD181, 0x4CD35C, 0x4CD5ED, 0x4CD889, 0x4CDB1A,
-        0x4CDFE8, 0x4CE3AF, 0x4CE5AE,
-    ]
-    .iter()
-    .map(|&a| a - 0x4CB64D)
-    .collect();
-    let copy = match unsafe {
-        crate::redirect::RedirectedCopy::new(
-            game_addr(rva(0x4CB64D)),
-            LEN,
-            // mov esi, g_marksRingCursor
-            &[0x8B, 0x35, 0x60, 0x56, 0x93, 0x00],
-            &calls,
-            &|c| match c + 0x40_0000 {
-                0x4CB796 => Some(cell_stand_in as *const () as usize),
-                0x4CBA54 => Some(cell2_stand_in as *const () as usize),
-                0x4CBF47 => Some(subcell_stand_in as *const () as usize),
-                _ => None,
-            },
-        )
-    } {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    // The steps' return address (`push offset loc_4CB6D3`) into the copy.
-    unsafe { copy.patch_u32(0x15, (copy.addr() + 0x86) as u32) };
-    const KINDS: [u32; 12] = [5, 0xB, 6, 0x15, 1, 0xD, 0x13, 0x16, 0x10, 0x11, 3, 6];
-    let n_entries = KINDS.len() as u32;
-    let mut ring = vec![0u8; n_entries as usize * ENTRY_LEN];
-    let base = ring.as_mut_ptr() as u32;
-    let mut settings = vec![0u32; 0x40];
-    let sa = settings.as_mut_ptr() as u32;
-    // An object: its place's matrix at +0x24, its own turn at +0x94, its way at +0x4C.
-    let mut object = vec![0u32; 0x40];
-    let mut place = vec![0u32; 0x10];
-    let oa = object.as_mut_ptr() as u32;
-    let pa = place.as_mut_ptr() as u32;
-    let regions: Vec<Region> = vec![
-        at(RING_CURSOR_RVA),
-        at(RING_COUNT_RVA),
-        at(STATUS_RVA),
-        at(WHOLE_RVA),
-        (game_addr(rva(0x935680)) as u32, 8),
-        (game_addr(rva(0x9356B4)) as u32, 12),
-        (game_addr(rva(0x935718)) as u32, 0x18),
-        (base, ring.len()),
-    ];
-    let mut vars = regions.clone();
-    vars.extend([SETTINGS_RVA, TICKS_RVA, rva(0x63761C)].map(at));
-    let saved = capture(&vars);
-    let fl = |v: f32| v.to_bits();
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for case in 0..4u32 {
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            game_write(SETTINGS_RVA, sa);
-            for n in 0..0x10u32 {
-                put(sa + 0x60 + 4 * n, u32::from(case != 3 && n % 2 == 0));
-            }
-            game_write(TICKS_RVA, 2 + case);
-            game_write(rva(0x63761C), 0x40u32);
-            for n in 0..0x40usize {
-                *(oa as *mut u32).add(n) = fl((n as f32 * 0.37).sin());
-            }
-            put(oa + 0x24, pa);
-            put(oa + 0x88, 3 + case);
-            for n in 0..0x10usize {
-                *(pa as *mut u32).add(n) = fl(n as f32 - 6.0 + case as f32);
-            }
-            std::ptr::write_bytes(base as *mut u8, 0, ring.len());
-            for (n, kind) in KINDS.into_iter().enumerate() {
-                let n = n as u32;
-                let e = base + n * ENTRY_LEN as u32;
-                let at = |k: u32| base + ((k + n_entries) % n_entries) * ENTRY_LEN as u32;
-                put(e, at(n + n_entries - 1));
-                put(e + 4, at(n + 1));
-                put(e + 8, (n % 4) * 4);
-                put(e + 0xC, kind);
-                for o in 0..0x18u32 {
-                    put(e + 0x10 + 4 * o, fl((n * 7 + o * 3) as f32 * 0.25 - 4.0));
-                }
-                put(e + 0x14, fl(2.0 + n as f32));
-                put(e + 0x28, if n == 4 { fl(99.0) } else { fl(-3.0) });
-                put(e + 0x50, n * 0x111);
-                put(e + 0x54, 40 + n);
-                put(e + 0x58, n % 0x20);
-                put(e + 0x5C, fl(0.75));
-                put(e + 0x68, oa);
-                put(e + 0x70, 200 + 30 * n);
-                put(e + 0x7C, [5, 900, 5, 900][(n % 4) as usize]);
-                put(e + 0x80, [5, 5, 900, 900][(n % 4) as usize]);
-                put(e + 0x84, if n == 9 { 1 } else { 500 + 25 * n });
-            }
-            game_write(RING_CURSOR_RVA, base + 2 * ENTRY_LEN as u32);
-            game_write(RING_COUNT_RVA, n_entries - 1);
-        };
-        prepare();
-        if unsafe { refusal() }.is_some() {
-            t.check(false, || format!("case {case}: the test's ring is refused"));
-            continue;
-        }
-        NOTED.lock().unwrap().clear();
-        let mut ro = Regs::SENTINEL;
-        unsafe { crate::framework::call_game(&mut ro, copy.addr()) };
-        let theirs = (
-            Some(regs(&ro)),
-            std::mem::take(&mut *NOTED.lock().unwrap()),
-            capture(&regions),
-        );
-        prepare();
-        let mine = unsafe {
-            run_ring(&Regs::SENTINEL, &mut |p, r, v| {
-                note(p, r, v);
-                Ok(())
-            })
-        };
-        let mine = (
-            mine.as_ref().ok().map(regs),
-            std::mem::take(&mut *NOTED.lock().unwrap()),
-            capture(&regions),
-        );
-        t.check(theirs == mine, || {
-            format!(
-                "case {case}: original {:x?} {} draws; rust {:x?} {} draws; draws same {}; state first differs at {:?}",
-                theirs.0,
-                theirs.1.len(),
-                mine.0,
-                mine.1.len(),
-                theirs.1 == mine.1,
-                theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b)
-            )
-        });
-    }
-    restore(&vars, &saved);
-    drop((ring, settings, object, place));
-    t.finish()
 }

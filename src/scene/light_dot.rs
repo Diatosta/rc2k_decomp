@@ -10,29 +10,16 @@
 //! Callers: the two lighting functions `sub_4511F1` and `sub_451296`, which put a
 //! point's place in the first three, a light's direction in the second and its
 //! strength in the factor.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::framework::{EAX, Regs, game_read, game_write, rva};
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::screens::harness::Left;
-use crate::service::floats::{
-    Floats, ROUNDED, Tolerance, at_test_precisions, check_state_floats, dispatch_state_floats,
-    floats_entry,
-};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::light_dot", rva(0x44EC18), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::floats::floats_entry;
 
 // ---- game data ----
 
@@ -81,85 +68,12 @@ pub unsafe fn light_dot_plain() -> i32 {
     }
 }
 
-// ---- hook ----
-
-fn regions() -> [Region; 1] {
-    [at(CHECKED_RVA)]
-}
-
 fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing().with(EAX, unsafe { light_dot_plain() } as u32))
-}
-
-/// The number, from floats (`fistp`): one off at a rounding edge at extended precision.
-fn float_places() -> [(Region, Tolerance); 1] {
-    [(at(CHECKED_RVA), ROUNDED)]
-}
-
-const REGS: [(u8, Tolerance); 1] = [(EAX, ROUNDED)];
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let places = float_places();
-    let floats = Floats {
-        memory: &places,
-        regs: &REGS,
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let inputs = [(crate::framework::game_addr(INPUTS_RVA) as u32, 28)];
-    let saved = (capture(&regions), capture(&inputs));
-    let cases: [[f32; 7]; 12] = [
-        [0.0; 7],
-        [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 1.0],
-        [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 0.5],
-        [100.5, -200.25, 9000.0, 0.6, -0.8, 0.0, 255.0],
-        [-3000.0, 2500.0, 10000.0, 0.577, 0.577, 0.577, 0.0001],
-        [1.0, 1.0, 1.0, 0.5, 0.5, 0.5, 1.0],
-        [1.0, 1.0, 1.0, 0.5, 0.5, 1.5, 1.0],
-        [1e20, 1e20, 1e20, 1e20, 1e20, 1e20, 1.0],
-        [16777217.0, 1.0, 0.33333334, 1.0, 0.33333334, 3.0, 1.0],
-        [f32::NAN, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
-        [0.1, 0.2, 0.3, -0.7, 0.9, -0.11, 12345.678],
-        [-1.0, -2.0, -3.0, 4.0, 5.0, 6.0, 0.25],
-    ];
-    let places = float_places();
-    let tolerant = Floats {
-        memory: &places,
-        regs: &REGS,
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        for case in cases {
-            check_state_floats(
-                &mut t,
-                "scene::light_dot",
-                &format!("control word {word:#x}, {case:?}"),
-                call_original,
-                Regs::SENTINEL,
-                &|| unsafe {
-                    game_write(CHECKED_RVA, 0xAAAA_AAAAu32);
-                    game_write(INPUTS_RVA, case.map(f32::to_bits));
-                },
-                &regions,
-                held,
-                &rust,
-            );
-        }
-    });
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
 }

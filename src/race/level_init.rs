@@ -413,41 +413,6 @@ pub fn take_called() -> Vec<(u32, u32, u32, u32)> {
     std::mem::take(&mut *CALLED.lock().unwrap())
 }
 
-/// The parts' callees by place, as IDA shows them: `memory::allocate`,
-/// `files::read_whole_file`, `scene::allocate_point_records`, `race::copy_texture_info_tail`.
-const CALLEES: [usize; 4] = [0x4028A7, 0x421B54, 0x41F976, 0x439AE5];
-
-/// A copy of a step whose variables are the test's and whose calls go to stand-ins by
-/// place.
-pub fn copy_of(
-    m: &TestMemory,
-    address: usize,
-    len: usize,
-    entry: &[u8],
-    calls: &[usize],
-    references: usize,
-) -> Result<crate::redirect::RedirectedCopy, String> {
-    crate::install::stand_ins::set_handler(note);
-    crate::audio::test_copy::make(
-        &crate::race::create_controls::HOOK,
-        &crate::audio::test_copy::Copy {
-            address,
-            len,
-            entry,
-            calls,
-            jumps_out: &[],
-        },
-        &|c| {
-            CALLEES
-                .iter()
-                .position(|&k| rva(k) == c)
-                .map(|n| crate::install::stand_ins::stand_in(n as u32))
-        },
-        &m.patches(),
-        references,
-    )
-}
-
 /// One case: `prepare` sets the test's memory, the copy runs, `prepare` again, the Rust
 /// version runs; the registers left (but esp and the flags), the calls noted and the
 /// test's memory compared.

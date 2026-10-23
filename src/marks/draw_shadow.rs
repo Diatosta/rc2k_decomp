@@ -23,31 +23,20 @@
 //! (it draws). Self-test: a copy whose device calls go to stand-ins (the vector helpers
 //! real), against the Rust version, on the game's variables with sides and settings of the
 //! test's.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::marks::setup::SETTINGS_RVA;
 use crate::math::{x87, x87_run};
 use crate::scene::cross_product3::cross_product3;
 use crate::scene::matrix3::{Axis, extended, rounded, turn_matrix3, turnable};
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::normalise_vector3;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::draw_shadow", rva(0x4C8168), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at};
 
 const VIEW_RVA: usize = rva(0x5EA0CC); // unk_5EA0CC
 const MARK_CORNERS_RVA: usize = rva(0x8EB971); // g_marksCorners
@@ -967,18 +956,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_shadow(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { draw_shadow(r, &mut game_part) }?;
@@ -1063,46 +1040,4 @@ pub unsafe fn test_prepare(sh: &Shadow, st: &ShadowTest, sa: u32, case: u32) {
         }
         std::ptr::write_bytes(addr(VERTICES_RVA) as *mut u8, 0xAA, 0x80);
     }
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // cmp dword_933F64, 0FFFFFFFFh
-    let entry: &[u8] = &[0x83, 0x3D, 0x64, 0x3F, 0x93, 0x00, 0xFF];
-    let copy = match copy(
-        0x4C8168,
-        0xA70,
-        entry,
-        &[
-            0xD, 0x12, 0x21, 0x30, 0x3F, 0x4E, 0x5D, 0xAC, 0xB7, 0xCE, 0xE5, 0xF0, 0xFB, 0x147,
-            0x2A4, 0x2BB, 0x584, 0x6AF, 0x6D8, 0x701, 0x72A, 0xA6A,
-        ],
-        &[(0x44E41F, 1), (0x44E3E1, 2), (0x44EB72, 3), (0x44EA65, 4)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut settings = vec![0u32; 0x26A8 / 4];
-    let sa = settings.as_mut_ptr() as u32;
-    let (regions, vars) = test_vars(&FIRST, &FIRST_TEST);
-    let saved = capture(&vars);
-    for case in 0..4u32 {
-        run_both(
-            &mut t,
-            &format!("case {case}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                restore(&vars, &saved);
-                test_prepare(&FIRST, &FIRST_TEST, sa, case);
-            },
-            &|r| unsafe { draw_shadow(r, &mut test_part) },
-        );
-    }
-    restore(&vars, &saved);
-    drop(settings);
-    t.finish()
 }

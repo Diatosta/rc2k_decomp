@@ -17,35 +17,20 @@
 //! Shadow mode runs the original alone (it loads textures and logs). Self-test: a
 //! redirected copy whose two reloads note themselves, the pictures and cars of the
 //! test's, the game's put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::set_all_plates", rva(0x42518B), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 
 const PICTURES_RVA: usize = rva(0x5D7968); // g_kindPictures
-const PICTURES_LEN: usize = 4 * rc2k_core::race::stage_objects::PICTURE_KINDS;
 /// The prefs' picture lists (`PREF_PIECES`' kinds) start here, 0x32C14 bytes above the
 /// pictures.
 const PREF_LISTS: usize = 0x60A57C;
-const PREFS_PART: (usize, usize) = (0x60A57C, 0x60A79C - 0x60A57C);
 const CARS_RVA: usize = rva(0x63DB90); // g_raceCars
 const CAR_KINDS_RVA: usize = rva(0x623858); // g_raceCarKinds
-const MOST_CARS: u32 = rc2k_core::race::stage_objects::CAR_BLOCKS;
-
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 /// `race::set_all_plates` (see the header); part 0 the system textures' reload, 1 the
@@ -106,24 +91,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { set_all_plates(r, &mut game_part) } {
-        Ok(g) => {
-            *r = Regs {
-                esp: r.esp,
-                eflags: r.eflags,
-                ..g
-            }
-        }
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     {
@@ -135,48 +102,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
         }
     }
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
-    use crate::service::harness::{Region, at, capture, restore};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy(
-        0x42518B,
-        0x329,
-        &[0x8D, 0x3D, 0x68, 0x79, 0x5D, 0x00],
-        &[0x302, 0x31E, 0x323],
-        &[(0x4254B4, 0), (0x425669, 1)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let pictures: Region = (game_addr(PICTURES_RVA) as u32, PICTURES_LEN);
-    let prefs: Region = (game_addr(rva(PREFS_PART.0)) as u32, PREFS_PART.1);
-    let kinds: Region = (game_addr(CAR_KINDS_RVA) as u32, 4 * MOST_CARS as usize);
-    let all = [pictures, prefs, kinds, at(CARS_RVA)];
-    let saved = capture(&all);
-    for cars in [0u32, 1, 8] {
-        run_both(
-            &mut t,
-            &format!("{cars} cars"),
-            &copy,
-            &[pictures],
-            &|| unsafe {
-                restore(&all, &saved);
-                for n in 0..PREFS_PART.1 / 4 {
-                    game_write(rva(PREFS_PART.0) + 4 * n, 0x0700_0000 + n as u32 * 3);
-                }
-                for n in 0..MOST_CARS {
-                    game_write(CAR_KINDS_RVA + 4 * n as usize, (n * 5 + 2) as i32 - 3);
-                }
-                game_write(CARS_RVA, cars);
-            },
-            &|r| unsafe { set_all_plates(r, &mut test_part) },
-        );
-    }
-    restore(&all, &saved);
-    t.finish()
 }

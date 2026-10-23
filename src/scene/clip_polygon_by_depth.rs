@@ -12,34 +12,17 @@
 //! `dword_624230` and a pass that keeps what is not deeper (`sub_44DEAA`).
 //! Seven callers. Refuses as `scene::clip_polygon_to_screen`.
 //! Shadow mode: the Rust version, its writes put back, the original, compared.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::BadInput;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::scene::clip::{
-    DEPTH_CLIPPED_RVA, Edge, PLANE_RVA, clip_pass, dispatch_clip, listed_with_records, or_undone,
-    regions,
+    DEPTH_CLIPPED_RVA, Edge, PLANE_RVA, clip_pass, listed_with_records, or_undone,
 };
-use crate::scene::clip_test::{POLYGONS, Polygons};
-use crate::service::harness::at;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "scene::clip_polygon_by_depth",
-    rva(0x44DB4F),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -68,63 +51,10 @@ pub unsafe fn clip_polygon_by_depth() -> Result<(), BadInput> {
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let rust_runs = !crate::framework::shadow();
-    dispatch_clip(&HOOK, r, call_original, &regions, &|| unsafe {
-        clip_polygon_by_depth()
-    });
-    if rust_runs {
-        // Its passes end `mov g_polygonVertexCount, ebx`: ebx the count left.
-        r.ebx = unsafe { crate::framework::game_read(crate::d3d::draw_fan_unclipped::COUNT_RVA) };
-    }
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let switches = [NO_FAR_RVA, FAR_ON_RVA, FARTHEST_RVA];
-    let mut polygons = Polygons::begin(&switches.map(at));
-    for (n, corners) in POLYGONS.into_iter().enumerate() {
-        for (variant, (no_far, far_on, farthest)) in [
-            (0u32, 1u32, 50_000i32),
-            (0, 0, 50_000),
-            (1, 1, 50_000),
-            (0, 5, 8_500),
-            (0, 1, 0x7FFF_FFFF),
-            (0, 1, 16_777_217),
-        ]
-        .into_iter()
-        .enumerate()
-        {
-            let run = |polygons: &mut Polygons, rust: bool| unsafe {
-                polygons.set(corners, variant, variant % 2 == 1);
-                game_write(NO_FAR_RVA, no_far);
-                game_write(FAR_ON_RVA, far_on);
-                game_write(FARTHEST_RVA, farthest);
-                let done = if rust {
-                    clip_polygon_by_depth().is_ok()
-                } else {
-                    call_original(&mut Regs::SENTINEL.clone());
-                    true
-                };
-                (done, polygons.state())
-            };
-            let (theirs, mine) = (run(&mut polygons, false), run(&mut polygons, true));
-            t.check(theirs == mine, || {
-                format!(
-                    "polygon {n}, switches {no_far} {far_on}, farthest {farthest}: rust done {}; first different byte {:?}, pool the same {}",
-                    mine.0,
-                    theirs.1.0.iter().zip(&mine.1.0).position(|(a, b)| a != b),
-                    theirs.1.1 == mine.1.1
-                )
-            });
-        }
-    }
-    polygons.end();
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { clip_polygon_by_depth() }?;
+    // Its passes end `mov g_polygonVertexCount, ebx`: ebx the count left.
+    r.ebx = unsafe { crate::framework::game_read(crate::d3d::draw_fan_unclipped::COUNT_RVA) };
+    Ok(())
 }

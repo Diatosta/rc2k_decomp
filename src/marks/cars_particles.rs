@@ -22,11 +22,14 @@
 //! matrix or vector, a car model (+4) of 33 or more, and the emitters' refusals; on a
 //! refusal nothing stays written (all it may write is put back). Self-test: settings of
 //! the test's with up to three cars on the test ring (`marks::emit_particle_6::TestEmitter`).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::marks::emit_car_particles::{self, emit_car_particles};
-use crate::marks::emit_particle_6::{TEST_ENTRIES, TestEmitter};
 use crate::marks::emitters::*;
 use crate::marks::lines::SETTINGS_RVA;
 use crate::marks::{emit_particle_13, emit_particle_19, emit_particle_22};
@@ -34,22 +37,7 @@ use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::scene::adjugate_matrix::adjugate_matrix;
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at as at_rva, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::cars_particles", rva(0x4C9AF6), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at as at_rva, capture, restore, state_entry};
 
 const CAR_LEN: u32 = 0x4C8;
 const MOST_CARS: u32 = 8;
@@ -266,118 +254,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { cars_particles(r) }?))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
-    dispatch_state(&HOOK, r, call_original, &regions(settings), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut extra: Vec<usize> = globals()
-        .iter()
-        .map(|&(a, len)| (a as usize - game_addr(0), len))
-        .flat_map(|(a, len)| (0..len / 4).map(move |n| a + 4 * n))
-        .collect();
-    extra.push(SETTINGS_RVA);
-    extra.push(TAG_K_RVA);
-    extra.push(rva(0x9354DE));
-    let mut test = TestEmitter::new(&extra);
-    let mut settings = vec![0u32; (0x60 + 3 * CAR_LEN as usize) / 4];
-    let mut matrices = vec![0u32; 3 * 0x10];
-    let mut vectors = vec![0u32; 3 * 4];
-    let mut regions = test.regions();
-    regions.push((settings.as_ptr() as u32, 4 * settings.len()));
-    let mut case = 0u32;
-    // (the settings' +0x10, the cars, their countdown +0x30, the records' kind and flags)
-    for (on, count, countdown, kind, flags) in [
-        (1u32, 1u32, 0u32, 2u32, 0x45u32),
-        (1, 3, 0, 1, 0x85),
-        (0, 2, 0, 2, 0x45),
-        (1, 2, 1, 6, 0xC5),
-        (1, 0, 0, 2, 0x45),
-        (1, 3, 2, 5, 0x43),
-    ] {
-        case += 1;
-        let seed = case.wrapping_mul(0x2545_F491);
-        test.prepare(case % 3);
-        let (s, m, v) = (
-            settings.as_mut_ptr(),
-            matrices.as_mut_ptr(),
-            vectors.as_mut_ptr(),
-        );
-        check_state(
-            &mut t,
-            &format!("on {on}, cars {count}, countdown {countdown}, kind {kind}, flags {flags:#x}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&regions, &vec![0xAA; regions.iter().map(|r| r.1).sum()]);
-                let base = test.ring.as_ptr() as u32;
-                for (n, r) in extra.iter().enumerate() {
-                    game_write(*r, (n as f32 * 0.37 - 2.0).to_bits() ^ (seed & 0xFF));
-                }
-                for n in 0..TEST_ENTRIES {
-                    let e = (base + n * ENTRY_LEN as u32) as *mut u32;
-                    e.write_unaligned(base + ((n + 1) % TEST_ENTRIES) * ENTRY_LEN as u32);
-                }
-                game_write(RING_CURSOR_RVA, base + 3 * ENTRY_LEN as u32);
-                game_write(RING_COUNT_RVA, case % 3);
-                game_write(SETTINGS_RVA, s as u32);
-                game_write(TAG_K_RVA, 0x10u32);
-                for n in 0..settings.len() {
-                    *s.add(n) = (n as f32 * 0.25 - 40.0).to_bits();
-                }
-                *s.add(0x10 / 4) = on;
-                *s.add(0x5C / 4) = count;
-                for c in 0..3usize {
-                    let car = s.add((0x60 + c * CAR_LEN as usize) / 4);
-                    *car.add(1) = (c as u32 * 7) % 33;
-                    *car.add(2) = (c as f32 * 9.0 + 1.0).to_bits();
-                    *car.add(3) = 40 + c as u32;
-                    *car.add(4) = (-12i32) as u32;
-                    *car.add(5) = 300;
-                    *car.add(6) = 25;
-                    *car.add(0x1C / 4) = 0x1234_5600 + c as u32;
-                    *car.add(0x24 / 4) = m.add(c * 0x10) as u32;
-                    *car.add(0x28 / 4) = v.add(c * 4) as u32;
-                    *car.add(0x30 / 4) = countdown;
-                    *car.add(0x88 / 4) = 0x77;
-                    for (k, &rec) in [0xD4usize, 0x11C, 0x164, 0x1AC, 0x1F4].iter().enumerate() {
-                        let w = car.add(rec / 4);
-                        *w = k as u32 & 1;
-                        *w.add(1) = 0x5000;
-                        *w.add(7) = kind;
-                        *w.add(8) = flags;
-                        *w.add(9) = flags;
-                        *w.add(10) = kind;
-                        *w.add(11) = 0x47;
-                        *w.add(12) = 0x83;
-                    }
-                    *car.add(0x4C0 / 4) = 3 + c as u32;
-                    *car.add(0x4C4 / 4) = 8 - c as u32;
-                }
-                for n in 0..matrices.len() {
-                    *m.add(n) = (((n % 16) as f32 - 5.0) * 0.3 + n as f32 * 0.01).to_bits();
-                }
-                for n in 0..vectors.len() {
-                    *v.add(n) = ((n as f32) * 0.4 - 1.0).to_bits();
-                }
-            },
-            &regions,
-            &rust,
-        );
-    }
-    drop(test);
-    drop(settings);
-    drop(matrices);
-    drop(vectors);
-    t.finish()
 }

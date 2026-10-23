@@ -21,30 +21,15 @@
 //!
 //! Converted 2026-10-21: the texture set and the way on through
 //! `rc2k_core::scene::shown`.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::install::stand_ins::{act, set_handler, stand_in};
-use crate::redirect::RedirectedCopy;
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::scene::draw_object::draw_object_in_game;
 use crate::scene::draw_shown_object::draw_shown_object;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::draw_scene_object", rva(0x451E3E), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -55,14 +40,13 @@ const KINDS_RVA: usize = rva(0x5CD27C); // g_objectKinds
 const BLOCKS_RVA: usize = rva(0x71B3B8); // g_carBlocks
 const FACE_COUNTS_RVA: usize = rva(0x632F70); // dword_632F70
 const MODE_RVA: usize = rva(0x6365C4); // dword_6365C4
-const DESCRIBED_RVA: usize = rva(0x451B61); // scene::draw_described_object
+// scene::draw_described_object
 
 const TOO_HIGH: FatalError = FatalError {
     code: 0x8060_0A01,
     message: "object number too high",
 };
 
-use rc2k_core::scene::shown::OBJECTS;
 /// The two ways on from here.
 pub use rc2k_core::scene::shown::Way;
 
@@ -130,157 +114,8 @@ pub unsafe fn draw_scene_object_in_game(r: &mut Regs) -> Result<(), Refused> {
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        // Mode 0 does not come back here, so the set is still this call's afterwards.
-        let said = (unsafe { game_read::<u32>(MODE_RVA) } == 0)
-            .then(|| unsafe { texture_set(&mut { *r }) }.ok())
-            .flatten();
-        let object: u32 = unsafe { game_read(OBJECT_RVA) };
-        unsafe { call_original(r) };
-        let set: u32 = unsafe { game_read(TEXTURE_SET_RVA) };
-        if said.is_some_and(|said| said != set) {
-            HOOK.mismatch(|| {
-                format!("object {object:#x}: texture set original {set:#x}, rust {said:x?}")
-            });
-        }
-        return;
-    }
-    let entry = *r;
-    let done = unsafe { draw_scene_object_in_game(r) };
-    if let Err(e) = done {
-        *r = entry;
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) }
-    }
-}
-
-// ---- self-test ----
-
-const LEN: usize = 0xAF;
-const ENTRY_BYTES: [u8; 6] = [0x8B, 0x1D, 0xFC, 0x14, 0x62, 0x00];
-const CALLS: [usize; 3] = [0x9D, 0xA3, 0xA9];
-
-/// Each call: its place, the texture set by then and eax, ebx, edx, esi as it was
-/// entered with.
-static CALLED: Mutex<Vec<[u32; 6]>> = Mutex::new(Vec::new());
-
-fn handler(place: u32, r: &mut Regs) {
-    CALLED.lock().unwrap().push([
-        place,
-        unsafe { game_read(TEXTURE_SET_RVA) },
-        r.eax,
-        r.ebx,
-        r.edx,
-        r.esi,
-    ]);
-    r.eax ^= 0x5A5A_0000 + place;
-    r.ecx = r.ecx.wrapping_add(place + 1);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // The jump to the fatal stub is left as it is: no case takes it.
-    let copy = unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x451E3E)),
-            LEN,
-            &ENTRY_BYTES,
-            &CALLS,
-            &|callee| {
-                if callee == rva(0x4503A5) {
-                    Some(stand_in(0))
-                } else if callee == DESCRIBED_RVA {
-                    Some(stand_in(1))
-                } else {
-                    None
-                }
-            },
-        )
-    };
-    let copy = match copy {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    let regions: [Region; 1] = [at(TEXTURE_SET_RVA)];
-    let inputs: [Region; 6] = [
-        at(OBJECT_RVA),
-        at(IN_RACE_RVA),
-        at(MODE_RVA),
-        (game_addr(KINDS_RVA) as u32, OBJECTS as usize * 4),
-        (game_addr(FACE_COUNTS_RVA) as u32, OBJECTS as usize * 4),
-        (game_addr(BLOCKS_RVA) as u32, 8 * 4),
-    ];
-    let saved = (capture(&regions), capture(&inputs));
-    let mut block = [0xAAAA_AAAAu32; 16];
-    let mut calls = [0usize; 2];
-    for object in [0u32, 1, 0x4F, 0x50, 0x63, 0x64, 0x77, 0xEF, 0xF0, 0xFF] {
-        for race in [0u32, 1] {
-            for (kind, mark) in [(0x23Au32, 0x21u32), (5, 0x20), (0x21, 0x23A)] {
-                for faces in [0u32, 2] {
-                    for mode in [0u32, 1, 2, 3] {
-                        block[9] = mark;
-                        let block_at = block.as_ptr() as u32;
-                        let run = |rust: bool| unsafe {
-                            game_write(TEXTURE_SET_RVA, 0xAAAA_AAAAu32);
-                            game_write(OBJECT_RVA, object);
-                            game_write(IN_RACE_RVA, race);
-                            game_write(MODE_RVA, mode);
-                            game_write(KINDS_RVA + object as usize * 4, kind);
-                            game_write(FACE_COUNTS_RVA + object as usize * 4, faces);
-                            game_write(BLOCKS_RVA, [block_at; 8]);
-                            CALLED.lock().unwrap().clear();
-                            set_handler(handler);
-                            let mut r = Regs::SENTINEL;
-                            if rust {
-                                let done = draw_scene_object(&mut r, &mut |way, r| {
-                                    act(way as u32, r);
-                                    Ok(())
-                                });
-                                if done.is_err() {
-                                    r = Regs::default();
-                                }
-                            } else {
-                                call_game(&mut r, copy.addr());
-                            }
-                            (
-                                [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp],
-                                game_read::<u32>(TEXTURE_SET_RVA),
-                                CALLED.lock().unwrap().clone(),
-                            )
-                        };
-                        let (theirs, mine) = (run(false), run(true));
-                        for call in &theirs.2 {
-                            calls[call[0] as usize] += 1;
-                        }
-                        t.check(theirs == mine, || {
-                            format!(
-                                "object {object:#x}, race {race}, kind {kind:#x}, mark {mark:#x}, faces {faces}, mode {mode}: original {theirs:x?}; rust {mine:x?}"
-                            )
-                        });
-                    }
-                }
-            }
-        }
-    }
-    // The fatal error, which the copy cannot be asked for.
-    let too_high = unsafe {
-        game_write(OBJECT_RVA, OBJECTS);
-        let mut r = Regs::SENTINEL;
-        draw_scene_object(&mut r, &mut |_, _| Ok(()))
-    };
-    t.check(
-        matches!(&too_high, Err(Refused::Fatal(e)) if e.code == TOO_HIGH.code),
-        || format!("object 0x100: rust {too_high:x?}"),
-    );
-    t.check(calls[0] > 0 && calls[1] > 0, || {
-        format!("the cases reached the two calls {calls:?} times")
-    });
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { draw_scene_object_in_game(r) }?;
+    Ok(())
 }

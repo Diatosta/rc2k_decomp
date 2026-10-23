@@ -22,26 +22,15 @@
 //! settings with a flake, a curve index past the 4095 entries and a fade index past the
 //! 17. Shadow mode runs the original alone (it draws). Self-test: a copy whose draw goes
 //! to a stand-in, against the Rust version, on tables of the test's.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::marks::clip_quad::clip_quad;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::draw_snow", rva(0x4C2E36), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, capture, restore};
 
 const COUNT_RVA: usize = rva(0x8D21A4); // dword_8D21A4
 const COUNT_COPY_RVA: usize = rva(0x8D21A0); // dword_8D21A0
@@ -343,153 +332,9 @@ pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_snow(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { draw_snow(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::level_init::{note, take_called};
-    use crate::race::mud::copy;
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if unsafe { game_read::<u32>(crate::marks::setup::SETTINGS_RVA) } == 0 {
-        return t.skip("no marks settings (the clip reads them)");
-    }
-    // push dword_8D21A4
-    let entry: &[u8] = &[0xFF, 0x35, 0xA4, 0x21, 0x8D, 0x00];
-    let copy = match copy(0x4C2E36, 0x306, entry, &[0x2D5, 0x2DD], &[(0x44EA65, 1)]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    const FLAKES: u32 = 24;
-    let mut regions: Vec<Region> = vec![
-        at(COUNT_COPY_RVA),
-        at(FIRST_RVA),
-        at(DRAWN_RVA),
-        (game_addr(VERTICES_RVA) as u32, 0xC0),
-        at(VERTEX_COUNT_RVA),
-        (game_addr(rva(0x7687F4)) as u32, 6 * 0x20),
-        at(rva(0x93CC94)),
-    ];
-    regions.extend(SCRATCH.iter().map(|&(r, l)| (game_addr(r) as u32, l)));
-    let mut vars = regions.clone();
-    vars.extend([COUNT_RVA, FALL_RVA, FADING_RVA, V_RVA[0], V_RVA[1]].map(at));
-    for r in RANDOMS
-        .iter()
-        .chain(REMAINDERS.iter())
-        .chain([rva(0x8D0000)].iter())
-    {
-        vars.push((game_addr(*r) as u32, 4 * FLAKES as usize));
-    }
-    vars.push((game_addr(CURVE_RVA) as u32, 0x400 * 4));
-    vars.push((game_addr(rva(0x8D2208)) as u32, 0x3C)); // the places, the shift, the matrix
-    vars.push((game_addr(rva(0x8DB430)) as u32, 0x18));
-    vars.push((game_addr(FADES_RVA) as u32, 4 * FADES as usize));
-    vars.extend(
-        [
-            rva(0x76516C),
-            rva(0x76518C),
-            rva(0x8DB548),
-            rva(0x8D21F8),
-            rva(0x8DB54C),
-        ]
-        .map(at),
-    );
-    let saved = capture(&vars);
-    let put = |r: usize, v: f32| unsafe { game_write(r, v.to_bits()) };
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for case in 0..4u32 {
-        let k = case as f32;
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            game_write(COUNT_RVA, [FLAKES, 0, 7, FLAKES][case as usize]);
-            game_write(FALL_RVA, 0x3_4567 * (case + 1));
-            game_write(FADING_RVA, u32::from(case % 2 == 1));
-            for n in 0..FLAKES {
-                for (m, r) in RANDOMS.iter().enumerate() {
-                    game_write(
-                        *r + 4 * n as usize,
-                        (n * 0x1_2345 + m as u32 * 0x9_8765) & 0xF_FFFF,
-                    );
-                }
-                for r in REMAINDERS {
-                    game_write(r + 4 * n as usize, (n * 37) % 0x200);
-                }
-                put(rva(0x8D0000) + 4 * n as usize, n as f32 / 16.0);
-            }
-            for n in 0..0x400 {
-                game_write(CURVE_RVA + 4 * n, (n as u32 * 977) % 0x4000);
-            }
-            for n in 0..3 {
-                game_write(SHIFT_RVA + 4 * n, 0x1000 * n as u32);
-                game_write(rva(0x8D2208) + 4 * n, 0);
-                for m in 0..3 {
-                    put(
-                        rva(0x8D2220) + 0xC * n + 4 * m,
-                        if n == m { 1.0 } else { 0.0 },
-                    );
-                }
-                put(rva(0x8DB430) + 4 * n, n as f32 * 1000.0 - k);
-                put(rva(0x8DB43C) + 4 * n, 0.5 - n as f32 * 0.25);
-            }
-            // The depth (z) well in front: the third row's place.
-            game_write(rva(0x8D2210), 0x9_0000u32);
-            for n in 0..FADES {
-                game_write(FADES_RVA + 4 * n as usize, 0x0101_0101 * n);
-            }
-            put(rva(0x76516C), 1.0);
-            put(rva(0x76518C), 12.0 + k);
-            put(rva(0x8DB548), 40000.0);
-            put(rva(0x8D21F8), 1.0 / 3000.0);
-            put(rva(0x8DB54C), 0.125);
-            game_write(V_RVA[0], 0u32);
-            put(V_RVA[1], 1.0);
-            std::ptr::write_bytes(game_addr(VERTICES_RVA) as *mut u8, 0xAA, 0xC0);
-        };
-        prepare();
-        take_called();
-        let mut ro = Regs::SENTINEL;
-        unsafe { crate::framework::call_game(&mut ro, copy.addr()) };
-        let theirs = (Some(regs(&ro)), take_called(), capture(&regions));
-        prepare();
-        let mine = unsafe {
-            draw_snow(&Regs::SENTINEL, &mut |p, r| {
-                note(p, r);
-                Ok(())
-            })
-        };
-        let mine = (
-            mine.as_ref().ok().map(regs),
-            take_called(),
-            capture(&regions),
-        );
-        t.check(theirs == mine, || {
-            format!(
-                "case {case}: original {:x?} {} draws; rust {:x?} {} draws; state first differs at {:?}",
-                theirs.0,
-                theirs.1.len(),
-                mine.0,
-                mine.1.len(),
-                theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b)
-            )
-        });
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

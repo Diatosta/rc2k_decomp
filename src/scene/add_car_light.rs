@@ -23,29 +23,17 @@
 //! Callers: `sub_44F1FE`, twice.
 //! Refuses when there is no block.
 //! Shadow mode: the Rust version, its writes put back, the original, compared.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::scene::add_point_lights::{LIGHT_COLOUR_RVA, LIT_PLACE_RVA, MMX_RVA};
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::polygon::dword;
 use crate::scene::vertex_light::plus;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::add_car_light", rva(0x44F29F), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -196,39 +184,6 @@ pub unsafe fn add_car_light(car: usize) -> Result<(), BadInput> {
     }
 }
 
-// ---- hook ----
-
-fn regions() -> [Region; 3] {
-    [
-        (game_addr(SEEN_RVA) as u32, 12),
-        at(CHECKED_RVA),
-        at(LIGHT_COLOUR_RVA),
-    ]
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    let car = r.esi as usize;
-    if !shadow() {
-        if let Err(e) = unsafe { add_car_light(car) } {
-            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-        }
-        return;
-    }
-    let regions = regions();
-    let before = capture(&regions);
-    let mine = unsafe { add_car_light(car) }.map(|()| capture(&regions));
-    restore(&regions, &before);
-    unsafe { call_original(r) };
-    let Ok(mine) = mine else {
-        return;
-    };
-    let theirs = capture(&regions);
-    if mine != theirs {
-        HOOK.mismatch(|| format!("before {before:x?}: original {theirs:x?}; rust {mine:x?}"));
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let car = r.esi as usize;
@@ -236,99 +191,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
         return Err(e.into());
     }
     Ok(())
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let inputs = [
-        (game_addr(LIT_PLACE_RVA) as u32, 12),
-        at(MMX_RVA),
-        (game_addr(TABLE_RVA) as u32, 0x100 * 4),
-    ];
-    let saved = (capture(&regions), capture(&inputs));
-    let table: Vec<u32> = (0..0x100u32)
-        .map(|n| n.wrapping_mul(0x0102_0304) ^ 0x00A5_5A0F)
-        .collect();
-    let f = |value: f32| value.to_bits();
-    let matrices: [[f32; 16]; 3] = [
-        [
-            1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        ],
-        [
-            0.36, 0.48, -0.8, 0.0, -0.8, 0.6, 0.0, 0.0, 0.48, 0.64, 0.6, 0.0, 1000.5, -70000.0,
-            250000.25, 0.0,
-        ],
-        [
-            0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        ],
-    ];
-    let places: [[i32; 3]; 8] = [
-        [0, 0, 0x20_0000],
-        [0x1_0000, 0x2000, 0x1F_0000],
-        [-0x4_0000, -0x8_0000, 0x18_0000],
-        [0, 0x10_0000, 0x20_0000],
-        [0x100, 0x100, 0x100],
-        [0x7FFF_FFFF, i32::MIN, 0x12_3456],
-        [-0x1_8000, 0x7_FFFF, 0x22_0000],
-        [0, 0xF_F000, 0x20_0800],
-    ];
-    let mut cases = 0u32;
-    for matrix in matrices {
-        for place in places {
-            for (on, strength) in [
-                (1u32, 0x100u32),
-                (0, 0x100),
-                (7, 0x80),
-                (1, 0x1_0000),
-                (1, 0),
-            ] {
-                cases += 1;
-                let mut car = vec![0u32; 0xAC0 / 4];
-                car[LAMPS_ON / 4] = on;
-                car[PLACE / 4..PLACE / 4 + 3].copy_from_slice(&[0x1000, 0xFFFF_F000, 0x800]);
-                car[MATRIX / 4..MATRIX / 4 + 16].copy_from_slice(&matrix.map(f));
-                car[STRENGTH / 4] = strength;
-                let car_at = car.as_ptr() as usize;
-                let run = |rust: bool| unsafe {
-                    restore(&regions, &vec![0xAA; saved.0.len()]);
-                    game_write(LIT_PLACE_RVA, place);
-                    game_write(MMX_RVA, cases % 2);
-                    game_write(
-                        LIGHT_COLOUR_RVA,
-                        [0u32, 0x8010_F0FE][(cases / 2 % 2) as usize],
-                    );
-                    std::ptr::copy_nonoverlapping(
-                        table.as_ptr(),
-                        game_addr(TABLE_RVA) as *mut u32,
-                        table.len(),
-                    );
-                    let done = if rust {
-                        add_car_light(car_at).is_ok()
-                    } else {
-                        let mut ro = Regs {
-                            esi: car_at as u32,
-                            ..Regs::default()
-                        };
-                        call_original(&mut ro);
-                        true
-                    };
-                    (done, capture(&regions))
-                };
-                let (theirs, mine) = (run(false), run(true));
-                t.check(theirs == mine, || {
-                    format!(
-                        "case {cases}: place {place:x?}, on {on}, strength {strength:#x}: original {theirs:x?}; rust {mine:x?}"
-                    )
-                });
-            }
-        }
-    }
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
 }

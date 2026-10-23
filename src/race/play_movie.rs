@@ -9,27 +9,15 @@
 //! 2 `scene::restart_clock`, 3 `play_movie_loop`, 4 `logfile::log_write_l1_nl`; in the
 //! game their Rust versions. Ungated (it plays a replay). Shadow mode runs the original
 //! alone. Self-test: a copy whose calls go to stand-ins, against the Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::physics::flow::a;
-use crate::race::viewer::{
-    Part, Saved, answer, dispatch_parts, dword, get, put, regs_entry, run_both, test_part,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::play_movie", rva(0x460776), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
+use crate::race::viewer::{Part, get, put, regs_entry};
 
 const SCENE_CLOCK: usize = 0x613830; // g_sceneClock
 const CLOCK_BASE: usize = 0x613840; // dword_613840
@@ -71,53 +59,8 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_parts(&HOOK, r, call_original, &|r| play_movie(r, &mut game_part));
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &|r| play_movie(r, &mut game_part))
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; lea eax, aShaunplayrende
-    let copy = match crate::race::viewer::copy(
-        0x460776,
-        0x2F,
-        &[0x60, 0x8D, 0x05, 0x10, 0xDF, 0x4D, 0x00],
-        &[0x7, 0xD, 0x1C, 0x28],
-        &[(0x401427, 1), (0x450381, 2), (0x4607A5, 3), (0x40142B, 4)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions = [dword(CLOCK_BASE), dword(SCENE_CLOCK)];
-    let saved = Saved::new(&regions);
-    run_both(
-        &mut t,
-        "a play",
-        copy.addr(),
-        Regs::SENTINEL,
-        &regions,
-        0,
-        &|| {
-            put(SCENE_CLOCK, 0x4321);
-            put(CLOCK_BASE, 0);
-            answer(Box::new(|place, r| {
-                if place == 3 {
-                    r.eax = 0x55;
-                    r.ebx = 0x66;
-                }
-            }));
-        },
-        &|r| play_movie(r, &mut test_part),
-    );
-    crate::race::viewer::quiet();
-    drop(saved);
-    t.finish()
 }

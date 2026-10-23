@@ -15,30 +15,17 @@
 //! four bytes with MMX, the low three without, as in `scene::vertex_light`).
 //! One caller, `sub_451425`.
 //! Refuses more than 0x100 lamps and lamps without the scene's points.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    EBX, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{EBX, Regs, game_read, game_write, rva};
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::project_point::POINTS_RVA;
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::add_point_lights", rva(0x44F471), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 // ---- game data ----
 
@@ -93,86 +80,12 @@ pub unsafe fn add_point_lights() -> Result<Left, Refused> {
     }
 }
 
-// ---- hook ----
-
-fn regions() -> [Region; 4] {
-    [
-        at(STRENGTH_RVA),
-        at(LAMP_COLOUR_RVA),
-        at(CHECKED_RVA),
-        at(LIGHT_COLOUR_RVA),
-    ]
-}
-
 fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { add_point_lights() }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let inputs = [
-        at(LAMPS_RVA),
-        (game_addr(LAMP_LIST_RVA) as u32, 4 * 0x10),
-        at(POINTS_RVA),
-        (game_addr(LIT_PLACE_RVA) as u32, 12),
-        at(MMX_RVA),
-    ];
-    let saved = (capture(&regions), capture(&inputs));
-    let points: [[i32; 3]; 4] = [
-        [0, 0, 0],
-        [0x10_0000, -0x8_0000, 0x4_0000],
-        [-0x30_0000, 0x1234, 0x7FFF_FFFF],
-        [100, 200, 300],
-    ];
-    let lamps: [[u32; 4]; 4] = [
-        [1, 0x100, 0x00FF_8040, 0xAAAA_AAAA],
-        [3, 0, 0x00FF_FFFF, 0xAAAA_AAAA],
-        [2, 0xFFFF_FF00, 0x0012_3456, 0xAAAA_AAAA],
-        [0, 0x4000, 0xFFC0_E0FF, 0xAAAA_AAAA],
-    ];
-    for count in 0..=4u32 {
-        for place in [
-            [0i32, 0, 0],
-            [0x10_0000, 0, 0x4_0000],
-            [-0x100, 0x7_0000, 0x12_0000],
-        ] {
-            for (mmx, colour) in [(0u32, 0u32), (1, 0), (0, 0x8010_F0FE), (1, 0x8010_F0FE)] {
-                check_state(
-                    &mut t,
-                    &format!("{count} lamps, place {place:x?}, mmx {mmx}, colour {colour:#x}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &|| unsafe {
-                        restore(&regions, &vec![0xAA; saved.0.len()]);
-                        game_write(LAMPS_RVA, count);
-                        game_write(LAMP_LIST_RVA, lamps);
-                        game_write(POINTS_RVA, points.as_ptr() as u32);
-                        game_write(LIT_PLACE_RVA, place);
-                        game_write(MMX_RVA, mmx);
-                        game_write(LIGHT_COLOUR_RVA, colour);
-                    },
-                    &regions,
-                    &rust,
-                );
-            }
-        }
-    }
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
 }

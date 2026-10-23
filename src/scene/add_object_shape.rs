@@ -38,39 +38,26 @@
 //! past it, and `load_object` reports the fatal error afterwards).
 //! Shadow mode: Rust, its writes put back, the original, compared.
 //! Self-test: 60 files by lot, into memory of the test's.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::errors::BadInput;
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::objects::{
     FACE_COUNT_RVA, FACE_COUNTS_RVA, FACE_CURSOR_RVA, FACE_MEMORY_RVA, FACE_ROOM_RVA, FACES,
     FACES_RVA, FILE_ROOM, FILE_RVA, FIRST_FACE_RVA, FIRST_POINT_RVA, KIND_RVA, NORMAL_COUNTS_RVA,
-    POINT_COUNT_RVA, POINT_COUNTS_RVA, POINTS_ROOM_RVA, POINTS_RVA, SLOT_RVA, SLOTS, slot_entry,
+    POINT_COUNT_RVA, POINT_COUNTS_RVA, POINTS_ROOM_RVA, POINTS_RVA, SLOT_RVA, SLOTS,
 };
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::add_object_shape", rva(0x426695), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
 /// `dword_634FCC` faces, `dword_634FD0` points, `dword_634FD8` normals, `dword_634FE0`
 /// and `dword_634FE4` the lowest and highest texture.
 const COUNTS_RVA: usize = rva(0x634FCC);
-const COUNTS_LEN: usize = 0x1C;
 /// `dword_5DDEBC` the faces', `dword_5E1EBC` the points', `dword_5E5EBC` the normals'.
 const MARKS_RVA: usize = rva(0x5DDEBC);
 const MARKS: usize = 0x1000;
@@ -385,224 +372,8 @@ pub unsafe fn add_object_shape(file: usize) -> Result<(), BadInput> {
     }
 }
 
-// ---- hook ----
-
-/// Everything the call may write, for the slot and the memory as they are now.
-fn regions() -> Vec<Region> {
-    let mut regions = vec![
-        (game_addr(COUNTS_RVA) as u32, COUNTS_LEN),
-        (game_addr(MARKS_RVA) as u32, 3 * MARKS * 4),
-        (game_addr(FIRSTS_RVA) as u32, 12),
-        at(RADIUS_RVA),
-        at(CHECKED_RVA),
-        at(NORMALS_AT_RVA),
-        at(NO_NORMALS_RVA),
-        at(POINT_COUNT_RVA),
-        at(FACE_COUNT_RVA),
-        at(FACE_CURSOR_RVA),
-    ];
-    unsafe {
-        let Ok(Ok(shape)) = shape() else {
-            return regions;
-        };
-        let Ok(room) = room(&shape) else {
-            return regions;
-        };
-        for table in [
-            RADII_RVA,
-            FIRST_POINT_RVA,
-            FIRST_FACE_RVA,
-            POINT_COUNTS_RVA,
-            NORMAL_COUNTS_RVA,
-            FACE_COUNTS_RVA,
-        ] {
-            regions.push(slot_entry(table, room.slot));
-        }
-        let [points, normals, faces, face_bytes] = shape.added;
-        regions.push((room.points + room.point_count * 12, (points + normals) * 12));
-        regions.push((room.face_memory + room.face_cursor, face_bytes));
-        regions.push((game_addr(FACES_RVA) as u32 + room.face_count * 4, faces * 4));
-    }
-    regions
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    let refused = |e: BadInput, r: &mut Regs| {
-        let e: Refused = e.into();
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) }
-    };
-    if !shadow() {
-        if let Err(e) = unsafe { add_object_shape(r.esi as usize) } {
-            refused(e, r);
-        }
-        return;
-    }
-    let regions = regions();
-    let before = capture(&regions);
-    if let Err(e) = unsafe { add_object_shape(r.esi as usize) } {
-        restore(&regions, &before);
-        refused(e, r);
-        return;
-    }
-    let mine = capture(&regions);
-    restore(&regions, &before);
-    unsafe { call_original(r) };
-    let theirs = capture(&regions);
-    if theirs != mine {
-        let first = theirs.iter().zip(&mine).position(|(a, b)| a != b);
-        HOOK.mismatch(|| {
-            format!(
-                "slot {:#x}, kind {:#x}: the first difference at byte {first:x?} of {:#x} watched",
-                unsafe { game_read::<u32>(SLOT_RVA) },
-                unsafe { game_read::<u32>(KIND_RVA) },
-                mine.len()
-            )
-        });
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     unsafe { add_object_shape(r.esi as usize) }?;
     Ok(())
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    const TEST_LEN: usize = 0x3000;
-    const FIRST_FACE: u32 = FACES - 0x100;
-    let inputs: Vec<Region> = vec![
-        (game_addr(FILE_RVA) as u32, TEST_LEN),
-        at(SLOT_RVA),
-        at(KIND_RVA),
-        at(MASK_RVA),
-        at(PART_RVA),
-        at(DROP_RVA),
-        at(POINTS_RVA),
-        at(POINTS_ROOM_RVA),
-        at(FACE_MEMORY_RVA),
-        at(FACE_ROOM_RVA),
-        (game_addr(FACES_RVA) as u32 + FIRST_FACE * 4, 0x100 * 4),
-        (game_addr(RADII_RVA) as u32, SLOTS as usize * 4),
-        (game_addr(FIRST_POINT_RVA) as u32, SLOTS as usize * 4 * 5),
-    ];
-    let saved_inputs = capture(&inputs);
-    let saved = capture(&regions());
-    let saved_regions = regions();
-    let point_memory = vec![0u32; 0x400];
-    let face_memory = vec![0u32; 0x1000];
-    let mut seed = 0x0B1E_C7EDu32;
-    let mut lot = |below: u32| {
-        seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-        (seed >> 8) % below
-    };
-    for case in 0..60u32 {
-        let slot = [0xF3u32, 0x4E, 0x50, 0x63][lot(4) as usize];
-        let kind = [5u32, 0x190, 0x200, 0x257, 0x258, 0x2BC][lot(6) as usize];
-        let part = [0u32, 0xB, 0xA][lot(3) as usize];
-        let mask = [0xFFFF_FFFFu32, 0, 0x0000_0015, 0x8000_0001, 0xFFFF_FFFE][lot(5) as usize];
-        let drop = lot(0x1000);
-        let points = match case % 10 {
-            0 => 0,
-            _ => 1 + lot(12),
-        };
-        let faces = match case % 10 {
-            1 => 0,
-            _ => 1 + lot(8),
-        };
-        let normals = match case % 4 {
-            3 => 0,
-            _ => 1 + lot(6),
-        };
-        let mut file = vec![0xAAAA_AAAAu32; TEST_LEN / 4];
-        (file[1], file[2], file[3]) = (points, faces, normals);
-        let mut at = 11;
-        for _ in 0..points {
-            for part in &mut file[at..at + 3] {
-                *part = lot(0x2_0000).wrapping_sub(0x1_0000);
-            }
-            at += 3;
-        }
-        for _ in 0..faces {
-            // A face of no vertices is only safe where it is not taken.
-            let group = lot(32);
-            let taken = mask & (1 << group) != 0;
-            let vertices = if taken { 1 + lot(5) } else { lot(5) };
-            file[at] = vertices;
-            file[at + 1] = (0x40 + lot(6)) | lot(0x100) << 16 | (group | lot(8) << 5) << 24;
-            file[at + 2] = lot(0x00FF_FFFF);
-            file[at + 3] = lot(normals.max(1));
-            at += 4;
-            for _ in 0..vertices {
-                file[at] = lot(points.max(1));
-                file[at + 1] = lot(0x00FF_FFFF);
-                file[at + 2] = lot(0x00FF_FFFF);
-                file[at + 3] = lot(normals.max(1));
-                at += 4;
-            }
-        }
-        for _ in 0..normals * 3 {
-            file[at] = lot(0x1_0000).wrapping_sub(0x8000);
-            at += 1;
-        }
-        let watched = std::cell::RefCell::new(Vec::new());
-        let run = |rust: bool| unsafe {
-            restore(&saved_regions, &vec![0xAA; saved.len()]);
-            std::ptr::copy_nonoverlapping(
-                file.as_ptr() as *const u8,
-                game_addr(FILE_RVA) as *mut u8,
-                TEST_LEN,
-            );
-            std::ptr::write_bytes(point_memory.as_ptr() as *mut u32, 0xAA, point_memory.len());
-            std::ptr::write_bytes(face_memory.as_ptr() as *mut u32, 0xAA, face_memory.len());
-            game_write(SLOT_RVA, slot);
-            game_write(KIND_RVA, kind);
-            game_write(MASK_RVA, mask);
-            game_write(PART_RVA, part);
-            game_write(DROP_RVA, drop);
-            game_write(POINTS_RVA, point_memory.as_ptr() as u32);
-            game_write(POINTS_ROOM_RVA, (point_memory.len() * 4) as u32);
-            game_write(POINT_COUNT_RVA, 3u32);
-            game_write(FACE_MEMORY_RVA, face_memory.as_ptr() as u32);
-            game_write(FACE_ROOM_RVA, (face_memory.len() * 4) as u32);
-            game_write(FACE_CURSOR_RVA, 0x20u32);
-            game_write(FACE_COUNT_RVA, FIRST_FACE);
-            game_write(NO_NORMALS_RVA, 7u32);
-            if watched.borrow().is_empty() {
-                let mut all = regions();
-                all.push((point_memory.as_ptr() as u32, point_memory.len() * 4));
-                all.push((face_memory.as_ptr() as u32, face_memory.len() * 4));
-                all.push((game_addr(FACES_RVA) as u32 + FIRST_FACE * 4, 0x100 * 4));
-                *watched.borrow_mut() = all;
-            }
-            let ok = if rust {
-                add_object_shape(game_addr(FILE_RVA)).is_ok()
-            } else {
-                let mut r = Regs {
-                    esi: game_addr(FILE_RVA) as u32,
-                    ..Regs::SENTINEL
-                };
-                call_original(&mut r);
-                true
-            };
-            (ok, capture(&watched.borrow()))
-        };
-        let (theirs, mine) = (run(false), run(true));
-        t.check(theirs == mine, || {
-            let first = theirs.1.iter().zip(&mine.1).position(|(a, b)| a != b);
-            format!(
-                "case {case}: slot {slot:#x}, kind {kind:#x}, part {part:#x}, mask {mask:#x}, {points} points, {faces} faces, {normals} normals: rust ok {}, the first difference at byte {first:x?}; file {:x?}",
-                mine.0,
-                &file[..at.min(120)]
-            )
-        });
-    }
-    restore(&saved_regions, &saved);
-    restore(&inputs, &saved_inputs);
-    t.finish()
 }

@@ -343,6 +343,7 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x415C6D => Some(crate::race::clear_race_sound_objects::entry(r)), // race::clear_race_sound_objects
         0x415C93 => Some(crate::race::set_up_race_sound_objects::entry(r)), // race::set_up_race_sound_objects
         0x415EA6 => Some(crate::screens::draw_message_box::entry(r)), // screens::draw_message_box
+        0x415FC2 => Some(crate::race::roll_credits::entry(r)), // race::roll_credits
         0x4161BA => Some(crate::race::credit_line::entry(r)), // race::credit_line
         0x4161CD => Some(crate::menu::play_films::entry(r)), // menu::play_films
         0x416292 => Some(crate::system::check_developer_machine::entry(r)), // system::check_developer_machine
@@ -513,6 +514,7 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x41EF27 => Some(crate::race::replay_path::entry(r)), // race::replay_path
         0x41EF51 => Some(crate::race::find_snapshot_number::entry(r)), // race::find_snapshot_number
         0x41EFAB => Some(crate::race::viewer_snapshot::entry(r)), // race::viewer_snapshot
+        0x41EFEC => Some(crate::race::pack_runs::entry(r)), // race::pack_runs
         0x41F080 => Some(crate::drive::unpack_rle::entry(r)), // drive::unpack_rle
         0x41F0A3 => Some(crate::race::seal_replay_header::entry(r)), // race::seal_replay_header
         0x41F29D => Some(crate::race::seal_stage_time::entry(r)), // race::seal_stage_time
@@ -529,6 +531,7 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x41F4FD => Some(crate::race::car_file_number::entry(r)), // race::car_file_number
         0x41F519 => Some(crate::scene::known_kind_plate::entry(r)), // scene::known_kind_plate
         0x41F6BA => Some(crate::scene::fill_engine_tables::entry(r)), // scene::fill_engine_tables
+        0x41F814 => Some(crate::scene::allocate_object_memory::entry(r)), // scene::allocate_object_memory
         0x41F89B => Some(crate::race::free_object_points::entry(r)), // race::free_object_points
         0x41F8C4 => Some(crate::race::allocate_course_memory::entry(r)), // race::allocate_course_memory
         0x41F924 => Some(crate::race::free_course_memory::entry(r)), // race::free_course_memory
@@ -569,6 +572,7 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x42247B => Some(crate::scene::reset_texture_tables::entry(r)), // scene::reset_texture_tables
         0x4224C4 => Some(crate::scene::try_allocate_textures::entry(r)), // scene::try_allocate_textures
         0x42274B => Some(crate::scene::build_texture_catalogue::entry(r)), // scene::build_texture_catalogue
+        0x423EB1 => Some(crate::scene::count_texture_needs::entry(r)), // scene::count_texture_needs
         0x423F97 => Some(crate::scene::raise_texture_needs::entry(r)), // scene::raise_texture_needs
         0x423FE1 => Some(crate::scene::reset_texture_places::entry(r)), // scene::reset_texture_places
         0x424001 => Some(crate::scene::init_texture_levels::entry(r)), // scene::init_texture_levels
@@ -580,8 +584,11 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x4256C8 => Some(crate::scene::load_wanted_textures::entry(r)), // scene::load_wanted_textures
         0x4256D8 => Some(crate::scene::assign_kind_textures::entry(r)), // scene::assign_kind_textures
         0x42570D => Some(crate::scene::map_texture_places::entry(r)), // scene::map_texture_places
+        0x42574B => Some(crate::scene::load_changed_texture_picture::entry(r)), // scene::load_changed_texture_picture
         0x425778 => Some(crate::scene::load_slot_textures::entry(r)), // scene::load_slot_textures
+        0x42578E => Some(crate::scene::load_texture_picture::entry(r)), // scene::load_texture_picture
         0x425A59 => Some(crate::scene::texture_picture_folder::entry(r)), // scene::texture_picture_folder
+        0x425ADE => Some(crate::scene::load_slot_texture::entry(r)), // scene::load_slot_texture
         0x425B2F => Some(crate::race::reload_objects::entry(r)), // race::reload_objects
         0x425BB4 => Some(crate::race::set_object_kinds::entry(r)), // race::set_object_kinds
         0x425CA9 => Some(crate::scene::load_front_end_objects::entry(r)), // scene::load_front_end_objects
@@ -879,6 +886,7 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x446463 => Some(crate::race::start_cars::entry(r)), // race::start_cars
         0x4464AD => Some(crate::race::start_car::entry(r)), // race::start_car
         0x44666F => Some(crate::race::place_car_on_line::entry(r)), // race::place_car_on_line
+        0x446786 => Some(crate::scene::step_loading_bar::entry(r)), // scene::step_loading_bar
         0x4467C7 => Some(crate::race::loading_bar_frame::entry(r)), // race::loading_bar_frame
         0x446861 => Some(crate::race::loading_bar_quad::entry(r)), // race::loading_bar_quad
         0x4468FB => Some(crate::race::set_up_arcade_cars::entry(r)), // race::set_up_arcade_cars
@@ -887,6 +895,7 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x4486FB => Some(crate::race::copy_settings_out::entry(r)), // race::copy_settings_out
         0x449957 => Some(crate::race::store_results_by_mode::entry(r)), // race::store_results_by_mode
         0x449B79 => Some(crate::race::choose_arcade_opponents::entry(r)), // race::choose_arcade_opponents
+        0x449D34 => Some(crate::race::kind_unusable::entry(r)), // race::kind_unusable
         0x449D44 => Some(crate::race::clear_player_absences::entry(r)), // race::clear_player_absences
         0x449D95 => Some(crate::race::load_mud::entry(r)), // race::load_mud
         0x449DD6 => Some(crate::race::init_mud::entry(r)), // race::init_mud
@@ -914,6 +923,8 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x44CCEF => Some(crate::scene::draw_clipped_polygon::entry(r)), // scene::draw_clipped_polygon
         0x44CD90 => Some(crate::race::draw_marked_face::entry(r)), // race::draw_marked_face
         0x44D004 => Some(crate::scene::project_point::entry(r)), // scene::project_point
+        0x44D15A => Some(crate::scene::clip_polygon_to_screen::entry(r)), // scene::clip_polygon_to_screen
+        0x44DB4F => Some(crate::scene::clip_polygon_by_depth::entry(r)), // scene::clip_polygon_by_depth
         0x44E1F7 => Some(crate::scene::project_polygon::entry(r)), // scene::project_polygon
         0x44E260 => Some(crate::scene::fog_at::entry(r)), // scene::fog_at
         0x44E286 => Some(crate::scene::fog_polygon::entry(r)), // scene::fog_polygon
@@ -935,6 +946,7 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x44E8A1 => Some(crate::scene::begin_scene::entry(r)), // scene::begin_scene
         0x44E8FB => Some(crate::scene::set_filters::entry(r)), // scene::set_filters
         0x44E952 => Some(crate::scene::end_scene::entry(r)), // scene::end_scene
+        0x44E958 => Some(crate::scene::clear_texture::entry(r)), // scene::clear_texture
         0x44E967 => Some(crate::scene::clear_depth_buffer::entry(r)), // scene::clear_depth_buffer
         0x44E9A0 => Some(crate::race::clear_view_depth::entry(r)), // race::clear_view_depth
         0x44EB32 => Some(crate::scene::draw_fan::entry(r)), // scene::draw_fan
@@ -959,6 +971,7 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x4500FF => Some(crate::race::clear_point_records::entry(r)), // race::clear_point_records
         0x450223 => Some(crate::scene::angle_between::entry(r)), // scene::angle_between
         0x450381 => Some(crate::scene::restart_clock::entry(r)), // scene::restart_clock
+        0x4503A5 => Some(crate::scene::draw_shown_object::entry(r)), // scene::draw_shown_object
         0x45045D => Some(crate::scene::draw_object::entry(r)), // scene::draw_object
         0x45048C => Some(crate::scene::list_object_faces::entry(r)), // scene::list_object_faces
         0x4504CB => Some(crate::scene::list_object_face::entry(r)), // scene::list_object_face
@@ -976,6 +989,7 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x45198C => Some(crate::scene::reflection_coordinates::entry(r)), // scene::reflection_coordinates
         0x451A9D => Some(crate::scene::reflect_vector::entry(r)), // scene::reflect_vector
         0x451B61 => Some(crate::scene::draw_described_object::entry(r)), // scene::draw_described_object
+        0x451E3E => Some(crate::scene::draw_scene_object::entry(r)), // scene::draw_scene_object
         0x451F69 => Some(crate::scene::draw_object_polygon::entry(r)), // scene::draw_object_polygon
         0x45205B => Some(crate::scene::face_faces_away::entry(r)), // scene::face_faces_away
         0x4522F7 => Some(crate::scene::kind_hidden_at::entry(r)), // scene::kind_hidden_at
@@ -1253,6 +1267,7 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x4650B7 => Some(crate::race::copy_league_table::entry(r)), // race::copy_league_table
         0x46512F => Some(crate::scene::no_mips_for::entry(r)), // scene::no_mips_for
         0x46514A => Some(crate::physics::cap_reverse_inputs::entry(r)), // physics::cap_reverse_inputs
+        0x4651AC => Some(crate::race::kind_past_table::entry(r)), // race::kind_past_table
         0x4651B5 => Some(crate::physics::allowed_gear::entry(r)), // physics::allowed_gear
         0x4651E6 => Some(crate::race::draw_view_backdrop::entry(r)), // race::draw_view_backdrop
         0x465381 => Some(crate::race::clear_prefs_qword::entry(r)), // race::clear_prefs_qword
@@ -1671,6 +1686,7 @@ pub fn by_rva(at: usize, r: &mut Regs) -> Option<Result<(), Refused>> {
         0x490346 => Some(crate::menu::clear_choice_marks::entry(r)), // menu::clear_choice_marks
         0x4904DD => Some(crate::scene::set_up_carousel::entry(r)), // scene::set_up_carousel
         0x490649 => Some(crate::scene::draw_carousel::entry(r)), // scene::draw_carousel
+        0x4906D5 => Some(crate::scene::draw_carousel_entry::entry(r)), // scene::draw_carousel_entry
         0x4907E7 => Some(crate::scene::draw_menu_object::entry(r)), // scene::draw_menu_object
         0x490DF3 => Some(crate::scene::assign_menu_textures::entry(r)), // scene::assign_menu_textures
         0x490E22 => Some(crate::screens::service_box_frame_1::entry(r)), // screens::service_box_frame_1

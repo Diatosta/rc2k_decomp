@@ -7,25 +7,16 @@
 //! Out: every register kept
 //!
 //! Refuses as `emit_particle_19`. Self-test: as `emit_particle_19`'s.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::marks::emit_particle_19::{TwinSet, emit_twin, regions, test_with};
+use crate::framework::{Regs, rva};
+use crate::marks::emit_particle_19::{TwinSet, emit_twin};
 use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::emit_particle_22", rva(0x4CE482), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 /// `emit_particle_22`'s variables.
 pub const TWENTY_SECOND: TwinSet = TwinSet {
@@ -50,20 +41,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(&TWENTY_SECOND), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    test_with(&mut t, &TWENTY_SECOND, call_original, &rust);
-    t.finish()
 }

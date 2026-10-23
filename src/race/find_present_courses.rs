@@ -13,35 +13,18 @@
 //! Refuses what `files::read_whole_file` refuses (nothing written then).
 //! Shadow mode: by state (the files read twice). Self-test: the original and the Rust
 //! version on the game's paths and flags (put back), with the files as they are.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::files::read_whole_file::{BYTES_READ_RVA, read_whole_file};
-use crate::framework::{
-    EAX, EBX, ECX, EDI, EDX, ESI, RawHook, Regs, SelfTest, game_addr, game_read, game_write,
-    hook_asm, rva,
-};
+use crate::framework::{EAX, EBX, ECX, EDI, EDX, ESI, Regs, game_addr, game_read, game_write, rva};
 use crate::race::course_data::{CDAT_DIGITS, set_cdat_number};
 use crate::race::level_init::{NUMBER_PLACES, set_course_number};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "race::find_present_courses",
-    rva(0x4394F8),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, capture, restore, state_entry};
 
 const FLAGS_RVA: usize = rva(0x621518); // dword_621518, 100 flags
 const BUFFER_RVA: usize = rva(0x623FB8); // dword_623FB8
@@ -109,40 +92,8 @@ pub fn find_present_courses(entry: &Regs) -> Result<Left, Refused> {
     }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &find_present_courses);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &find_present_courses)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let saved = capture(&regions);
-    for pattern in [0u8, 0xAA] {
-        check_state(
-            &mut t,
-            &format!("flags filled with {pattern:#x}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&regions, &saved);
-                std::ptr::write_bytes(
-                    game_addr(FLAGS_RVA) as *mut u8,
-                    pattern,
-                    4 * COURSES as usize,
-                );
-            },
-            &regions,
-            &find_present_courses,
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
 }

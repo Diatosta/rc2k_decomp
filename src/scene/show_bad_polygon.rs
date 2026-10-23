@@ -8,23 +8,14 @@
 //! one's directly). The dump's log calls through `part` as `log_bad_polygon`'s. Shadow mode
 //! runs the original alone (it writes the log). Self-test: a copy whose call goes to a
 //! stand-in, against the Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
-use crate::menu::parts::{Part, copy, dispatch_parted, parted_entry, run_both, test_part};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::show_bad_polygon", rva(0x443AEC), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_addr, rva};
+use crate::menu::parts::{Part, parted_entry};
 
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 
@@ -45,16 +36,6 @@ pub fn game_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_parted(
-        &HOOK,
-        r,
-        call_original,
-        &|r, part| unsafe { show_bad_polygon(r, part) },
-        game_part,
-    );
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
@@ -63,33 +44,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
         &|r, part| unsafe { show_bad_polygon(r, part) },
         game_part,
     )
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // The dump as one stand-in: its own test covers it.
-    let copy = match copy(
-        0x443AEC,
-        0xC,
-        &[0x8D, 0x3D, 0xA0, 0x05, 0x96, 0x00],
-        &[0x6],
-        &[0x443AF8],
-        &[],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    run_both(
-        &mut t,
-        "once",
-        &copy,
-        &[],
-        &|| {},
-        Regs::SENTINEL,
-        false,
-        &|r| unsafe { show_bad_polygon(r, &mut test_part) },
-    );
-    t.finish()
 }

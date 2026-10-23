@@ -15,9 +15,13 @@
 //! `measure_lines`' refusals (all it may write is put back first). Self-test: the game's
 //! settings (skipped without them or without object points), factors changed or not by
 //! lot, two objects' points of the game's; compared on all it may write.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::marks::blend_corner::{self, blend_corner};
 use crate::marks::lines::{SETTINGS_RVA, line_regions, measure_lines};
 use crate::race::stage_prefs::left_of;
@@ -25,27 +29,7 @@ use crate::scene::objects::{
     FIRST_POINT_RVA, POINT_COUNTS_RVA, POINTS_ROOM_RVA, POINTS_RVA, SLOTS,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "marks::morph_object_points",
-    rva(0x4D08DD),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at, capture, restore, state_entry};
 
 const CAR_LEN: u32 = 0x4C8;
 const BLOCK: u32 = 0x29C;
@@ -221,68 +205,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { morph_object_points(r) }?))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
-    dispatch_state(&HOOK, r, call_original, &regions(settings), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
-    if settings == 0 || unsafe { game_read::<u32>(POINTS_RVA) } == 0 {
-        return t.skip("no marks settings or object points");
-    }
-    if unsafe { refusal(settings) }.is_some() {
-        return t.skip("the game's cars would be refused as they are");
-    }
-    let cars = unsafe { blocks(settings) };
-    let mut fixed: Vec<Region> = cars.iter().map(|&b| (b + 0x90, 0x40)).collect();
-    fixed.extend(cars.iter().map(|&b| (b + 0xC, 4)));
-    let saved_fixed = capture(&fixed);
-    for case in 0..3u32 {
-        let prepare = || unsafe {
-            restore(&fixed, &saved_fixed);
-            // Case 0: nothing changed; 1: the first car's factors changed; 2: all.
-            for (n, &b) in cars.iter().enumerate() {
-                for k in 0..8 {
-                    let kept = get(b + 0xB0 + 4 * k);
-                    let now = if case == 2 || (case == 1 && n == 0) {
-                        (0.25f32 + k as f32 * 0.1).to_bits() ^ (n as u32)
-                    } else {
-                        kept
-                    };
-                    put(b + 0x90 + 4 * k, now);
-                }
-            }
-        };
-        prepare();
-        if unsafe { refusal(settings) }.is_some() {
-            continue;
-        }
-        let regions = regions(settings);
-        let saved = capture(&regions);
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| {
-                restore(&regions, &saved);
-                prepare();
-            },
-            &regions,
-            &rust,
-        );
-        restore(&regions, &saved);
-    }
-    restore(&fixed, &saved_fixed);
-    t.finish()
 }

@@ -12,45 +12,15 @@
 //! draws). Self-test: a copy whose drawing call goes to a stand-in that notes eax .. ecx,
 //! against the Rust version on the same; test slots (objects, places, turns), players,
 //! modes and views; all put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_addr, rva};
 use crate::race::frame_draw::*;
-use crate::race::level_init::{note, take_called};
 use crate::race::start_kept_reflections::kept_regions;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-const CALLS: [usize; 7] = [0xE6, 0xFD, 0x114, 0x12B, 0x130, 0x135, 0x13A];
-
-pub static HOOK: RawHook =
-    RawHook::new("race::draw_slot_object", rva(0x4626D1), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_slot_object(r, &mut slot_part) } {
-        Ok(after) => {
-            let esp = r.esp;
-            *r = after;
-            r.esp = esp;
-        }
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
+use crate::service::harness::{Region, at};
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
@@ -105,96 +75,4 @@ pub fn fill_slot(slot: &mut [u32; 0x1E], object: u32, seed: &mut u32) {
     let turn = crate::scene::matrix::test_floats(seed);
     slot[4..20].copy_from_slice(&turn);
     slot[0x17] = 0x800;
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    crate::install::stand_ins::set_handler(note);
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x4626D1,
-            len: 0x140,
-            entry: &[0x8B, 0x06, 0xA3, 0xFC, 0x14, 0x62, 0x00, 0x83],
-            calls: &CALLS,
-            jumps_out: &[],
-        },
-        &|c| {
-            SLOT_CALLEES
-                .iter()
-                .find(|&&(_, k)| rva(k) == c)
-                .map(|&(p, _)| crate::install::stand_ins::stand_in(p))
-        },
-        &[],
-        0,
-    ) {
-        Ok(c) => c,
-        Err(e) => return t.skip(&format!("copy: {e}")),
-    };
-    let regions = slot_regions();
-    let mut kept = regions.clone();
-    kept.extend(slot_inputs());
-    let saved = capture(&kept);
-    let mut seed = 0x5107_0001u32;
-    let mut slot = Box::new([0u32; 0x1E]);
-    for (object, players, mode, view, shown) in [
-        (3u32, 1u32, 1u32, 0u32, 0u32),
-        (0x10, 2, 0, 1, 0),
-        (0x30, 2, 1, 1, 1),
-        (0x30, 2, 1, 0, 1),
-        (0x20, 2, 3, 1, 0),
-    ] {
-        fill_slot(&mut slot, object, &mut seed);
-        let at_slot = slot.as_ptr() as u32;
-        let prepare = || unsafe {
-            restore(&kept, &saved);
-            game_write(rva(0x63DB94), players);
-            game_write(rva(0x62389C), mode);
-            game_write(rva(0x63DB9C), view);
-            for k in 0..8u32 {
-                game_write(
-                    rva(0x641680 + 4 * k as usize),
-                    if k == 3 { shown } else { 7 },
-                );
-            }
-            take_called();
-        };
-        let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-        prepare();
-        let mut ro = Regs {
-            esi: at_slot,
-            ..Regs::SENTINEL
-        };
-        unsafe { call_game(&mut ro, copy.addr()) };
-        let theirs = (Some(regs(&ro)), take_called(), capture(&regions));
-        prepare();
-        let mine = unsafe {
-            draw_slot_object(
-                &Regs {
-                    esi: at_slot,
-                    ..Regs::SENTINEL
-                },
-                &mut |p, r| {
-                    note(p, r);
-                    Ok(())
-                },
-            )
-        };
-        let mine = (
-            mine.as_ref().ok().map(regs),
-            take_called(),
-            capture(&regions),
-        );
-        t.check(theirs == mine, || {
-            let diff = theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b);
-            format!(
-                "object {object:#x} players {players} mode {mode} view {view} shown {shown}: original {:x?} {:x?}; rust {:x?} {:x?}; memory first differs at {diff:x?}",
-                theirs.0, theirs.1, mine.0, mine.1
-            )
-        });
-    }
-    restore(&kept, &saved);
-    t.finish()
 }

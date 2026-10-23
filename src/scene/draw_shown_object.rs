@@ -29,29 +29,14 @@
 //!
 //! Converted 2026-10-21: the race's tests and the kind bytes through
 //! `rc2k_core::scene::shown` (the variables read where the tests read them).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::install::stand_ins::{act, set_handler, stand_in};
-use crate::redirect::RedirectedCopy;
-use crate::scene::draw_object::{self, draw_object_in_game};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::draw_shown_object", rva(0x4503A5), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::scene::draw_object::draw_object_in_game;
 
 // ---- game data ----
 
@@ -142,156 +127,8 @@ pub unsafe fn draw_shown_object(
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        let race = unsafe { game_read::<u32>(IN_RACE_RVA) } != 0;
-        let object: u32 = unsafe { game_read(OBJECT_RVA) };
-        let said = match race {
-            false => Some(true),
-            true if object < OBJECTS => Some(shown(&mut { *r })),
-            true => None,
-        };
-        let before = draw_object::ENTERED.load(Ordering::Relaxed);
-        unsafe { call_original(r) };
-        let drew = draw_object::ENTERED.load(Ordering::Relaxed) != before;
-        if draw_object::HOOK.is_enabled() && said.is_some_and(|said| said != drew) {
-            HOOK.mismatch(|| {
-                format!("object {object:#x}, in a race {race}: original drew {drew}, rust {said:?}")
-            });
-        }
-        return;
-    }
-    let entry = *r;
-    if let Err(e) = unsafe { draw_shown_object(r, &mut |r| draw_object_in_game(r)) } {
-        *r = entry;
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) }
-    }
-}
-
-// ---- self-test ----
-
-const LEN: usize = 0x38;
-const ENTRY_BYTES: [u8; 10] = [0xC7, 0x05, 0x44, 0xDA, 0x62, 0x00, 1, 0, 0, 0];
-const CALLS: [usize; 4] = [0x13, 0x1A, 0x23, 0x28];
-
-/// Each drawing: the switch by then and eax, ebx, ecx, edi as it was entered with.
-static CALLED: Mutex<Vec<[u32; 5]>> = Mutex::new(Vec::new());
-
-fn handler(_: u32, r: &mut Regs) {
-    CALLED.lock().unwrap().push([
-        unsafe { game_read(DRAWING_RVA) },
-        r.eax,
-        r.ebx,
-        r.ecx,
-        r.edi,
-    ]);
-    r.eax = r.eax.wrapping_mul(5).wrapping_add(1);
-    r.ebp ^= 0x0F0F_0F0F;
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x4503A5)),
-            LEN,
-            &ENTRY_BYTES,
-            &CALLS,
-            &|callee| (callee == rva(0x45045D)).then(|| stand_in(0)),
-        )
-    };
-    let copy = match copy {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    let regions: [Region; 2] = [at(DRAWING_RVA), (game_addr(KIND_BYTES_RVA) as u32, 0x400)];
-    let inputs: [Region; 10] = [
-        at(IN_RACE_RVA),
-        at(OBJECT_RVA),
-        at(KIND_SWITCH_RVA),
-        at(KIND_MODE_RVA),
-        at(OTHER_WAY_RVA),
-        at(SHOWN_RVA),
-        at(WHICH_RVA),
-        at(ONLY_RVA),
-        (game_addr(KINDS_RVA) as u32, OBJECTS as usize * 4),
-        (game_addr(FACE_COUNTS_RVA) as u32, OBJECTS as usize * 4),
-    ];
-    let saved = (capture(&regions), capture(&inputs));
-    let mut seed = 0x2545_F491u32;
-    let mut lot = |below: u32| {
-        seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-        (seed >> 8) % below
-    };
-    let mut drawn = 0;
-    for case in 0..400 {
-        let object = [
-            0x37u32, 0x38, 0x39, 0x3A, 0x3C, 0x3D, 0x3E, 0x3F, 0x40, 0xF2,
-        ][lot(10) as usize];
-        let race = [1u32, 1, 1, 0x100, 0][lot(5) as usize];
-        let kind_switch = [0u32, 0, 1][lot(3) as usize];
-        let kind_mode = lot(4);
-        let kind = [0x30u32, 0x4E, 5, 0x4F][lot(4) as usize];
-        let other_way = [0u32, 0, 2][lot(3) as usize];
-        let shown_switch = [1u32, 1, 0][lot(3) as usize];
-        let which = lot(3);
-        let only = lot(4);
-        let faces = [3u32, 1, 0, 0x8000_0000][lot(4) as usize];
-        let run = |rust: bool| unsafe {
-            restore(&regions, &vec![0xAA; saved.0.len()]);
-            game_write(IN_RACE_RVA, race);
-            game_write(OBJECT_RVA, object);
-            game_write(KIND_SWITCH_RVA, kind_switch);
-            game_write(KIND_MODE_RVA, kind_mode);
-            game_write(KINDS_RVA + object as usize * 4, kind);
-            game_write(OTHER_WAY_RVA, other_way);
-            game_write(SHOWN_RVA, shown_switch);
-            game_write(WHICH_RVA, which);
-            game_write(ONLY_RVA, only);
-            game_write(FACE_COUNTS_RVA + object as usize * 4, faces);
-            CALLED.lock().unwrap().clear();
-            set_handler(handler);
-            let mut r = Regs::SENTINEL;
-            if rust {
-                let done = draw_shown_object(&mut r, &mut |r| {
-                    act(0, r);
-                    Ok(())
-                });
-                if done.is_err() {
-                    r = Regs::default();
-                }
-            } else {
-                call_game(&mut r, copy.addr());
-            }
-            (
-                [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp],
-                capture(&regions),
-                CALLED.lock().unwrap().clone(),
-            )
-        };
-        let (theirs, mine) = (run(false), run(true));
-        drawn += theirs.2.len();
-        t.check(theirs == mine, || {
-            format!(
-                "case {case}: object {object:#x}, race {race:#x}, kind {kind:#x} ({kind_switch}, {kind_mode}), other way {other_way}, shown {shown_switch}, which {which}, only {only}, faces {faces:#x}: original regs {:x?} drew {:x?}; rust regs {:x?} drew {:x?}; memory same {}",
-                theirs.0,
-                theirs.2,
-                mine.0,
-                mine.2,
-                theirs.1 == mine.1,
-            )
-        });
-    }
-    // Both ways must have been taken, or the lot was a poor one.
-    t.check(drawn > 50 && drawn < 350, || {
-        format!("the cases drew {drawn} times of 400")
-    });
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { draw_shown_object(r, &mut |r| draw_object_in_game(r)) }?;
+    Ok(())
 }

@@ -37,31 +37,19 @@
 //! Self-test: the original against the Rust version on the actions that only change
 //! memory (all but the plays, 0x14 .. 0x16 and 0x25 .. 0x28), with `read_replay_frame`'s
 //! test replay; the tables set by the test, everything put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, ZERO_FLAG, hook_asm, rva};
+use crate::framework::{Regs, ZERO_FLAG};
 use crate::physics::flow::a;
 use crate::race::viewer::{
     BLOCK, BLOCKS, CAMERA_EDIT, CAMERAS, CLIP_BLOCKS, CLIP_CAMERAS, CLIP_PLACES, FRAME,
     KEY_AFTER_PLAY, LAST_RACE_VIEWED, LIST_LEAVE, MARK_IN, MARK_OUT, ONE_PLAYER, OPEN, PLACES,
-    PLAY_FROM_HERE, Part, SLOT, SNAPSHOT, Saved, TABLE_LEN, dispatch_parts, dword, get,
-    move_dwords, pb, put, region, regs_entry,
+    PLAY_FROM_HERE, Part, SLOT, SNAPSHOT, get, move_dwords, pb, put, regs_entry,
 };
-use crate::service::harness::Region;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::viewer_action", rva(0x41DE6F), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
 
 /// The calls by place, as IDA shows them.
 pub const CALLEES: [usize; 23] = [
@@ -395,131 +383,8 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_parts(&HOOK, r, call_original, &|r| {
-        viewer_action(r, &mut game_part)
-    });
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &|r| viewer_action(r, &mut game_part))
-}
-
-// ---- self-test ----
-
-/// The actions tested: those that only change memory.
-const TESTED: [u32; 33] = [
-    0, 1, 2, 3, 4, 5, 7, 8, 9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF, 0x10, 0x11, 0x12, 0x13, 0x17, 0x18,
-    0x19, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x24, 0x29, 0x30, 0x63,
-];
-
-fn regions() -> Vec<Region> {
-    let mut all = crate::drive::read_replay_frame::test_regions();
-    all.extend([
-        dword(MARK_IN),
-        dword(MARK_OUT),
-        region(PLACES, TABLE_LEN),
-        region(CAMERAS, TABLE_LEN),
-        dword(CAMERA_EDIT),
-        dword(SNAPSHOT),
-        dword(PLAY_FROM_HERE),
-        dword(CLIP_BLOCKS),
-        region(CLIP_PLACES, TABLE_LEN),
-        region(CLIP_CAMERAS, TABLE_LEN),
-        dword(ONE_PLAYER),
-        dword(crate::race::viewer::FIRST_CAR),
-        region(crate::race::viewer::CAMERA_NAMES, 0x60),
-    ]);
-    all.extend(crate::race::keep_undo::regions());
-    all
-}
-
-/// (block, frame, marks, clipboard, undo kept)
-type State = (u32, u32, (u32, u32), u32, u32);
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let all = regions();
-    let saved = Saved::new(&all);
-    let Some(file) = crate::drive::read_replay_frame::test_replay() else {
-        drop(saved);
-        return t.skip("no test file in the temp folder");
-    };
-    // (block, frame, marks, clipboard, undo kept)
-    let states: [State; 4] = [
-        (4, 30, (2, 7), 3, 10),
-        (0, 0, (0, 10), 0, 0),
-        (10, 99, (7, 2), 0x700, 10),
-        (9, 99, (3, 3), 1, 0),
-    ];
-    for action in TESTED {
-        for (n, &(block, frame, (m_in, m_out), clip, undo)) in states.iter().enumerate() {
-            let prepare = || {
-                // Ten blocks, each a plain 0x20 bytes at the file's start.
-                for b in 0..0x708usize {
-                    let (place, size) = if b < 16 { (0u32, 0x20u32) } else { (0, 0) };
-                    put(PLACES + 8 * b, place);
-                    put(PLACES + 8 * b + 4, size);
-                }
-                crate::race::viewer::fill(CAMERAS, TABLE_LEN, 22 + n as u32);
-                for b in 0..12usize {
-                    pb(CAMERAS + 8 * b + 4, (b % 3) as u8);
-                    pb(CAMERAS + 8 * b + 5, (b % 4) as u8);
-                    pb(CAMERAS + 8 * b, 0x10);
-                    pb(CAMERAS + 8 * b + 1, 0x11);
-                }
-                put(OPEN, 1);
-                put(BLOCKS, 10);
-                put(BLOCK, block);
-                put(FRAME, frame);
-                put(MARK_IN, m_in);
-                put(MARK_OUT, m_out);
-                put(CLIP_BLOCKS, clip);
-                for b in 0..8usize {
-                    put(CLIP_PLACES + 8 * b, 0);
-                    put(CLIP_PLACES + 8 * b + 4, 0x20);
-                }
-                put(crate::race::viewer::UNDO_BLOCKS, undo);
-                for b in 0..0x708usize {
-                    put(crate::race::viewer::UNDO_PLACES + 8 * b, 0);
-                    put(
-                        crate::race::viewer::UNDO_PLACES + 8 * b + 4,
-                        if b < 16 { 0x20 } else { 0 },
-                    );
-                }
-                put(CAMERA_EDIT, 1 + (n as u32 & 1));
-                put(SNAPSHOT, 0);
-                put(PLAY_FROM_HERE, 0);
-                put(ONE_PLAYER, (n == 2) as u32);
-                put(crate::race::viewer::FIRST_CAR, 3);
-                for c in 0..0x30usize {
-                    let name: u16 = if c % 7 == 3 { 0x1C1 } else { 0x200 + c as u16 };
-                    for (k, b) in name.to_le_bytes().into_iter().enumerate() {
-                        pb(crate::race::viewer::CAMERA_NAMES + 2 * c + k, b);
-                    }
-                }
-                file.rewind();
-            };
-            crate::race::viewer::check_original(
-                &mut t,
-                &format!("action {action:#x}, state {n}"),
-                call_original,
-                Regs {
-                    ebx: action,
-                    ..Regs::SENTINEL
-                },
-                &all,
-                ZERO_FLAG,
-                &prepare,
-                &|r| viewer_action(r, &mut game_part),
-            );
-        }
-    }
-    drop(file);
-    drop(saved);
-    t.finish()
 }

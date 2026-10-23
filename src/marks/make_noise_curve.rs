@@ -11,63 +11,24 @@
 //! Converted 2026-10-21: the walk, the smoothing, the random tables and the records through
 //! `rc2k_core::marks::noise`; the roundings (`fistp`, the spread's floats, the ramp) stay
 //! the x87's, as its control word says. Compared exactly as before.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_write, hook_asm, rva};
+use crate::framework::Regs;
 use crate::marks::setup::*;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::make_noise_curve", rva(0x4C2247), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { make_noise_curve(r) }?))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &noise_curve_regions(), &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = noise_curve_regions();
-    let saved = capture(&regions);
-    for sum in [0u32, 0x8000_0000, u32::MAX, 0x1234_5678] {
-        check_state(
-            &mut t,
-            &format!("running sum {sum:#x}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                for &(a, n) in &regions {
-                    std::ptr::write_bytes(a as *mut u8, 0xAA, n);
-                }
-                game_write(CURVE_VARS_RVA + 0x14, sum);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
 }

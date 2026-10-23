@@ -13,40 +13,20 @@
 //! Refuses what its calls refuse. Shadow mode runs the original alone (it loads and sets
 //! up). Self-test: a copy whose calls go to stand-ins that note them, against the Rust
 //! version with the same, fonts there or not (the game's variables put back).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::race::noted_calls::{Part, both, copy};
-use crate::service::harness::{Region, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::rebuild_front_end", rva(0x4154CD), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::race::noted_calls::Part;
 
 pub const FONTS: u32 = 0;
 pub const SPRITES: u32 = 1;
 pub const LIT_ENGINE: u32 = 2;
 pub const ENGINE: u32 = 3;
 pub const FRONT_END: u32 = 4;
-const PLACES: [(usize, u32); 5] = [
-    (0x415563, FONTS),
-    (0x47C4A1, SPRITES),
-    (0x415515, LIT_ENGINE),
-    (0x442AF6, ENGINE),
-    (0x474E04, FRONT_END),
-];
-
 const FONT_PALETTES: usize = 0x51DEB0; // g_fontPalettes
 const SPRITE_TABLE: usize = 0x755581; // g_spriteTable
 /// `dword_4F4A24`, `dword_4F4A28`, `dword_4F4A2C` and their values.
@@ -89,62 +69,9 @@ pub fn front_end_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    let mut g = *r;
-    if let Err(e) = rebuild_front_end_in(&mut g, &mut front_end_part) {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let mut g = *r;
     rebuild_front_end_in(&mut g, &mut front_end_part)?;
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy(
-        0x4154CD,
-        0x48,
-        &[0x60, 0x83, 0x3D, 0xB0, 0xDE, 0x51, 0x00, 0x00],
-        &[0xA, 0xF, 0x14, 0x19, 0x3C, 0x41],
-        &PLACES,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let a = |x: usize| (game_addr(rva(x)) as u32, 4);
-    let all: Vec<Region> = SETTINGS.iter().map(|&(x, _)| a(x)).collect();
-    let mut kept = all.clone();
-    kept.push(a(FONT_PALETTES));
-    let saved = capture(&kept);
-    for fonts in [0u32, 0x1234] {
-        both(
-            &mut t,
-            &format!("g_fontPalettes {fonts:#x}"),
-            &copy,
-            Regs::SENTINEL,
-            &|| {
-                restore(&kept, &saved);
-                for (x, _) in SETTINGS {
-                    unsafe { game_write(rva(x), 0xAAAA_AAAAu32) };
-                }
-                unsafe { game_write(rva(FONT_PALETTES), fonts) };
-            },
-            &all,
-            &rebuild_front_end_in,
-        );
-    }
-    restore(&kept, &saved);
-    drop(copy);
-    t.finish()
 }

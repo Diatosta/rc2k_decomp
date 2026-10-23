@@ -16,31 +16,19 @@
 //! the marks' random, which still steps). Refuses (before anything) a null wheel, a null
 //! object, and a null car or matrix when an entry is made. Self-test: a ring, wheel and
 //! car of the test's (`marks::emit_particle_6::TestEmitter`), several speeds and fillings.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::marks::emit_particle_6::{TEST_ENTRIES, TestEmitter};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::emitters::*;
 use crate::marks::setup::SEED_RVA;
 use crate::math::x87;
 use crate::scene::matrix3::rounded;
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at as at_rva, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::emit_particle_21", rva(0x4CCA58), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at as at_rva, state_entry};
 
 const RATE_K: [usize; 4] = [rva(0x93A312), rva(0x93A316), rva(0x93A31A), rva(0x93A31E)];
 const SIDE_RANDOM_RVA: usize = rva(0x93A322);
@@ -179,94 +167,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(r.edi), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut test = TestEmitter::new(&[SIDE_RANDOM_RVA, SPIN_RANDOM_RVA]);
-    let regions = test.regions();
-    let mut made = 0;
-    let mut case = 0u32;
-    // (speeds +0xC, +0x10, +0x18, the object's +0x90, the wheel's +4, taken)
-    for (speeds, size, count, taken) in [
-        ([3.0f32, 0.5, -2.0], 0x2000u32, 0x5000u32, 0u32),
-        ([-10.0, 1.0, 4.0], 0x1800, 0x7000, 5),
-        ([0.0, 0.0, 0.0], 0x4000, 0x9000, 0),
-        ([1.0, 0.0, 0.0], 0x4000, 0x9000, 0),
-        ([2.0, -0.0, 0.0], 0x0800, 0x9000, 0),
-        ([5.0, 2.0, 1.0], 0x2000, 0x10, 0),
-        ([5.0, 2.0, 1.0], 0x2000, 0x5000, MOST_TAKEN),
-        ([0.25, 7.0, -3.0], 0x7FFF_F000, 0x7FFF_FFFF, 1),
-        ([40.0, -3.0, 0.5], 0x1000, 0xFFFF_0000, 2),
-    ] {
-        case += 1;
-        let ptrs = (
-            test.wheel.as_mut_ptr(),
-            test.object.as_mut_ptr(),
-            test.matrix.as_mut_ptr(),
-        );
-        let seed = case.wrapping_mul(0x2545_F491);
-        test.prepare(taken);
-        check_state(
-            &mut t,
-            &format!("speeds {speeds:?}, size {size:#x}, count {count:#x}, taken {taken:#x}"),
-            call_original,
-            Regs {
-                edi: ptrs.0 as u32,
-                esi: ptrs.1 as u32,
-                ..Regs::SENTINEL
-            },
-            &|| unsafe {
-                restore(&regions, &vec![0xAA; regions.iter().map(|r| r.1).sum()]);
-                let base = test.ring.as_ptr() as u32;
-                for n in 0..TEST_ENTRIES {
-                    let e = (base + n * ENTRY_LEN as u32) as *mut u32;
-                    e.write_unaligned(base + ((n + 1) % TEST_ENTRIES) * ENTRY_LEN as u32);
-                }
-                game_write(RING_CURSOR_RVA, base + 3 * ENTRY_LEN as u32);
-                game_write(RING_COUNT_RVA, taken);
-                game_write(OBJECT_RVA, ptrs.1 as u32);
-                game_write(SEED_RVA, seed);
-                game_write(SIDE_RANDOM_RVA, seed ^ 0x55);
-                game_write(SPIN_RANDOM_RVA, seed ^ 0xAA);
-                let w = ptrs.0;
-                for n in 0..0x20 {
-                    *w.add(n) = (n as f32 * 0.75 - 3.0).to_bits();
-                }
-                *w.add(1) = count;
-                *w.add(3) = speeds[0].to_bits();
-                *w.add(4) = speeds[1].to_bits();
-                *w.add(6) = speeds[2].to_bits();
-                let o = ptrs.1;
-                for n in 0..0x30 {
-                    *o.add(n) = (n as f32 * 1.25 + 0.5).to_bits();
-                }
-                *o.add(0x1C / 4) = 0x1234_5678;
-                *o.add(0x24 / 4) = ptrs.2 as u32;
-                *o.add(0x88 / 4) = 0x77;
-                *o.add(0x90 / 4) = size;
-                for n in 0..0x10 {
-                    *ptrs.2.add(n) = ((n as f32 - 5.0) * 0.3).to_bits();
-                }
-            },
-            &regions,
-            &rust,
-        );
-        if unsafe { game_read::<u32>(RING_COUNT_RVA) } != taken {
-            made += 1;
-        }
-    }
-    t.check(made > 0, || "no case made an entry".into());
-    drop(test);
-    t.finish()
 }

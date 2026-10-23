@@ -13,26 +13,14 @@
 //! `rc2k_core::marks::pong::Court::bat_back` (plain floats; the x87 version stays for the Rust
 //! callers in unconverted code). Shadow mode and the self-test compare within
 //! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, game_write};
 use crate::marks::pong;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
 use rc2k_core::marks::pong::Back;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::pong_bat_back", rva(0x4B8215), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn pong_bat_back(entry: &Regs) -> Regs {
@@ -59,27 +47,4 @@ pub unsafe fn pong_bat_back_plain(entry: &Regs) -> Regs {
         Back::PutBack([x, y]) => (g.eax, g.ebx) = (x, y),
     }
     g
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { pong_bat_back_plain(r) }))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    pong::dispatch_court(&HOOK, r, call_original, &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    pong::test_court(
-        &mut t,
-        "marks::pong_bat_back",
-        call_original,
-        8,
-        &|case| unsafe { pong::test_values(case) },
-        &rust,
-    );
-    t.finish()
 }

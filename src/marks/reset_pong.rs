@@ -11,72 +11,27 @@
 //!
 //! Converted 2026-10-21: through `rc2k_core::marks::pong::Court::reset` (exact at every
 //! precision); compared exactly as before.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_write, hook_asm, rva};
+use crate::framework::Regs;
 use crate::marks::splines::*;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
+use crate::service::harness::state_entry;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::reset_pong", rva(0x4B7E64), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const FROM_RVA: usize = rva(0x769182); // flt_769182
+// flt_769182
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { reset_pong() };
     Ok(left_of(r))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &outline_regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let from: [Region; 1] = [(crate::framework::game_addr(FROM_RVA) as u32, 0x20)];
-    let regions = outline_regions();
-    let saved = (capture(&from), capture(&regions));
-    for seed in 1..=3u32 {
-        check_state(
-            &mut t,
-            &format!("seed {seed}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                let mut s = seed;
-                let mut v = [0u32; 8];
-                for x in v.iter_mut() {
-                    s = s.wrapping_mul(1_103_515_245).wrapping_add(12345);
-                    *x = s;
-                }
-                v[seed as usize] = 0x7F80_0001;
-                game_write(FROM_RVA, v);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&from, &saved.0);
-    restore(&regions, &saved.1);
-    t.finish()
 }

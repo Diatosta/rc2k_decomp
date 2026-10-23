@@ -13,37 +13,21 @@
 //! `fsincos` cannot take, and `bend_points`' refusals. Self-test: a record of the test's
 //! (`TestSpline`) whose pointers name a buffer of the test's; compared on all it may
 //! write.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, rva};
 use crate::marks::bend_points::bend_points;
 use crate::marks::splines::{
-    CHOSEN_RVA, MADE_RVA, MOST_POINTS, SPLINE_LEN, TestSpline, transform_int_points_from,
-    turn_record, turnable_record, work_regions, write_point,
+    CHOSEN_RVA, MOST_POINTS, SPLINE_LEN, transform_int_points_from, turn_record, turnable_record,
+    work_regions, write_point,
 };
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "marks::place_graded_points",
-    rva(0x4BA16C),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, state_entry};
 
 const SWITCH_RVA: usize = rva(0x7695CA); // dword_7695CA
 const POINTERS: u32 = 0x454;
@@ -126,72 +110,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { place_graded_points(r) }?))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions = regions(r.ebp);
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let spline = TestSpline::new();
-    let s = spline.addr();
-    let targets = vec![0u32; 3 * MOST_POINTS as usize];
-    let base = targets.as_ptr() as u32;
-    let mut regions = work_regions();
-    regions.push((s, SPLINE_LEN as usize));
-    regions.extend(crate::marks::bend_points::regions(s));
-    regions.push((base, 4 * targets.len()));
-    let mut vars = regions.clone();
-    vars.extend([SWITCH_RVA, CHOSEN_RVA, MADE_RVA].map(at));
-    let saved = capture(&vars);
-    // (grade 0's start and count, grade 1's, the switch, the chosen)
-    for (g0, g1, switch, chosen) in [
-        ((0u32, 5u32), (5u32, 7u32), 1u32, 0u32),
-        ((0, 0), (0, 0), 0, 0),
-        ((10, 0x40), (0x50, 0x30), 2, 1),
-        ((3, 1), (0, 0x80), 1, 1),
-    ] {
-        check_state(
-            &mut t,
-            &format!("grade 0 {g0:x?}, grade 1 {g1:x?}, switch {switch}, chosen {chosen}"),
-            call_original,
-            Regs {
-                ebp: s,
-                ..Regs::SENTINEL
-            },
-            &|| unsafe {
-                spline.fill(g0.1 * 3 + g1.0 + switch, 0x80);
-                for (o, v) in [
-                    (0u32, g0.0),
-                    (0xC, g0.1),
-                    (4, g1.0),
-                    (0x10, g1.1),
-                    (0x30, 9),
-                ] {
-                    ((s + o) as *mut u32).write_unaligned(v);
-                }
-                for k in 0..MOST_POINTS {
-                    ((s + POINTERS + 4 * k) as *mut u32)
-                        .write_unaligned(base + 12 * ((k * 37 + 5) % MOST_POINTS));
-                }
-                std::ptr::write_bytes(base as *mut u8, 0xAA, 4 * targets.len());
-                game_write(SWITCH_RVA, switch);
-                game_write(CHOSEN_RVA, chosen);
-                game_write(MADE_RVA, g0.0 * 0x11 + 3);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&vars, &saved);
-    drop(targets);
-    t.finish()
 }

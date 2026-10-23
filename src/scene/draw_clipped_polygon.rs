@@ -18,14 +18,14 @@
 //! scaled hands the original a polygon it scales once more.
 //! Shadow mode runs the original alone (its parts are compared in their own hooks).
 //! Self-test: a redirected copy whose six calls follow a script.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::install::stand_ins::{act, set_handler, stand_in};
-use crate::redirect::RedirectedCopy;
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::scene::clip::{
     DEPTH_CLIPPED_RVA, NEXT_ENTRY_RVA, NEXT_RECORD_RVA, POOL_RVA, SCREEN_CLIPPED_RVA,
 };
@@ -38,26 +38,6 @@ use crate::scene::polygon::{LIST_RVA, MOST};
 use crate::scene::project_polygon::{OUTSIDE_RVA, project_polygon};
 use crate::scene::scale_texture_coordinates::scale_texture_coordinates;
 use crate::scene::submit_polygon;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "scene::draw_clipped_polygon",
-    rva(0x44CCEF),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -116,8 +96,6 @@ pub unsafe fn draw_clipped_polygon(
     }
 }
 
-// ---- hook ----
-
 /// The function with its parts' Rust versions, drawing for real. `entry`: the registers
 /// the Direct3D layer is called with.
 pub unsafe fn draw_clipped_polygon_in_game(entry: &Regs) -> Result<(), Refused> {
@@ -138,122 +116,9 @@ pub unsafe fn draw_clipped_polygon_in_game(entry: &Regs) -> Result<(), Refused> 
     }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    let entry = *r;
-    if let Err(e) = unsafe { draw_clipped_polygon_in_game(&entry) } {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let entry = *r;
     unsafe { draw_clipped_polygon_in_game(&entry) }?;
     Ok(())
-}
-
-// ---- self-test ----
-
-const LEN: usize = 0xA1;
-const ENTRY_BYTES: [u8; 10] = [0xC7, 0x05, 0x20, 0x41, 0x62, 0x00, 0, 0, 0, 0];
-const CALLS: [usize; 6] = [0x4D, 0x5F, 0x64, 0x72, 0x80, 0x8E];
-/// In `Step`'s order; the third is the stub in front of `scene::fog_polygon`.
-const CALLEES: [usize; 6] = [0x44E1F7, 0x44E2FB, 0x44E25A, 0x44DB4F, 0x44D15A, 0x44B9FC];
-
-/// What a case's stand-ins leave: points outside after the projection, vertices after
-/// each of the two clippings.
-static SCRIPT: Mutex<(u32, u32, u32)> = Mutex::new((0, 0, 0));
-/// Each call: its place and the number of vertices it found.
-static CALLED: Mutex<Vec<(u32, u32)>> = Mutex::new(Vec::new());
-
-fn handler(place: u32, _: &mut Regs) {
-    let (outside, after_depth, after_screen) = *SCRIPT.lock().unwrap();
-    unsafe {
-        CALLED.lock().unwrap().push((place, game_read(COUNT_RVA)));
-        match place {
-            0 => game_write(OUTSIDE_RVA, outside),
-            3 => game_write(COUNT_RVA, after_depth),
-            4 => game_write(COUNT_RVA, after_screen),
-            _ => {}
-        }
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x44CCEF)),
-            LEN,
-            &ENTRY_BYTES,
-            &CALLS,
-            &|callee| {
-                CALLEES
-                    .iter()
-                    .position(|&known| rva(known) == callee)
-                    .map(|place| stand_in(place as u32))
-            },
-        )
-    };
-    let copy = match copy {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    let mut regions: Vec<Region> = [
-        COUNT_RVA,
-        SCREEN_CLIPPED_RVA,
-        DEPTH_CLIPPED_RVA,
-        DRAWN_RVA,
-        NEXT_RECORD_RVA,
-        NEXT_ENTRY_RVA,
-        OUTSIDE_RVA,
-    ]
-    .map(at)
-    .to_vec();
-    regions.push((game_addr(LIST_RVA) as u32, 9 * 4));
-    let saved = capture(&regions);
-    for count in [1u32, 3, 4, 8] {
-        for script in [
-            (0u32, 9u32, 9u32),
-            (count, 9, 9),
-            (1, 3, 3),
-            (1, 2, 5),
-            (2, 5, 2),
-            (0, 0, 0),
-            (0, 0, 3),
-            (count + 1, 4, 0xFFFF_FFFF),
-        ] {
-            let run = |rust: bool| unsafe {
-                restore(&regions, &vec![0xAA; saved.len()]);
-                game_write(COUNT_RVA, count);
-                *SCRIPT.lock().unwrap() = script;
-                CALLED.lock().unwrap().clear();
-                set_handler(handler);
-                let done = if rust {
-                    draw_clipped_polygon(&mut |step| {
-                        act(step as u32, &mut Regs::default());
-                        Ok(())
-                    })
-                    .is_ok()
-                } else {
-                    call_game(&mut Regs::default(), copy.addr());
-                    true
-                };
-                (done, capture(&regions), CALLED.lock().unwrap().clone())
-            };
-            let (theirs, mine) = (run(false), run(true));
-            t.check(theirs == mine && !theirs.2.is_empty(), || {
-                format!("{count} vertices, script {script:?}: original {theirs:x?}; rust {mine:x?}")
-            });
-        }
-    }
-    restore(&regions, &saved);
-    t.finish()
 }

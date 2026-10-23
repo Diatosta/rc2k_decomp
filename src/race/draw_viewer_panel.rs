@@ -19,27 +19,15 @@
 //! Self-test: a copy whose calls go to stand-ins, against the Rust version, a surface of the
 //! test's locked: camera bytes 5 of 0, 1 and 2, names in and past the table, the lock
 //! failing.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::{Regs, rva};
 use crate::physics::flow::{a, g, p};
-use crate::race::viewer::{
-    BLOCK, BLOCKS, CAMERA_NAMES, CAMERAS, FRAME, Part, Saved, answer, dispatch_parts, dword, gb,
-    pb, region, regs_entry, run_both, test_part,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::draw_viewer_panel", rva(0x41DA25), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::race::viewer::{BLOCK, BLOCKS, CAMERA_NAMES, CAMERAS, FRAME, Part, gb, regs_entry};
 
 /// The calls by place, as IDA shows them.
 pub const CALLEES: [usize; 10] = [
@@ -53,12 +41,6 @@ pub const CALLEES: [usize; 10] = [
     0x41ACF5, // 8 d3d::set_texture
     0x41DD3B, // 9 drive::tyre_quad
 ];
-const CALLS: [usize; 34] = [
-    0x6, 0x42, 0x5B, 0x60, 0x6F, 0x87, 0x9A, 0x9F, 0xAE, 0xE0, 0xE5, 0xF6, 0x101, 0x10C, 0x13A,
-    0x13F, 0x153, 0x15E, 0x169, 0x180, 0x18D, 0x197, 0x1A7, 0x1B1, 0x22B, 0x23D, 0x27A, 0x28E,
-    0x2CB, 0x2D7, 0x2E3, 0x2F7, 0x303, 0x30F,
-];
-
 const TEXTURE: usize = 0x5BECB8; // dword_5BECB8: the panel's texture
 const DEVICE_TEXTURE: usize = 0x5BECBC; // dword_5BECBC
 const TEXT: usize = 0x93E430; // text: the game's text buffer
@@ -277,99 +259,8 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_parts(&HOOK, r, call_original, &|r| {
-        draw_viewer_panel(r, &mut game_part)
-    });
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &|r| draw_viewer_panel(r, &mut game_part))
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{TestSurface, has_format};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if !has_format() {
-        return t.skip("no pixel format");
-    }
-    let places: &'static [(usize, u32)] = Box::leak(
-        (1..10u32)
-            .map(|p| (CALLEES[p as usize], p))
-            .collect::<Vec<_>>()
-            .into_boxed_slice(),
-    );
-    // pusha; mov eax, dword_5BECB8
-    let copy = match crate::race::viewer::copy(
-        0x41DA25,
-        0x316,
-        &[0x60, 0xA1, 0xB8, 0xEC, 0x5B, 0x00],
-        &CALLS,
-        places,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut all = vec![
-        region(TEXT, 0x40),
-        region(UV, 0x10),
-        region(RECT, 0x10),
-        dword(BLOCK),
-        dword(BLOCKS),
-        dword(FRAME),
-        region(CAMERAS, 0x40),
-        region(CAMERA_NAMES, 0x60),
-    ];
-    let saved = Saved::new(&all);
-    for (camera, names, fails) in [
-        ([3u8, 0x2E], [0u8, 1, 2], false),
-        ([0x40, 0], [1, 0, 0], false),
-        ([5, 6], [2, 1, 0], false),
-        ([5, 6], [0, 0, 0], true),
-    ] {
-        let surface = TestSurface::new(32);
-        // The surface's rows as dwords, no gap.
-        p(ROW_DWORDS, 64);
-        p(ROW_GAP, 0);
-        let pixels = (surface.pixels.as_ptr() as u32, surface.pixels.len());
-        all.push(pixels);
-        run_both(
-            &mut t,
-            &format!("cameras {camera:x?}, bytes 5 {names:?}, the lock failing {fails}"),
-            copy.addr(),
-            Regs::SENTINEL,
-            &all,
-            0,
-            &|| {
-                unsafe { std::ptr::write_bytes(pixels.0 as *mut u8, 0x5A, pixels.1) };
-                p(BLOCK, 2);
-                p(BLOCKS, 9);
-                p(FRAME, 0x2A);
-                crate::race::viewer::fill(CAMERAS, 0x40, 26);
-                pb(CAMERAS + 16, camera[0]);
-                pb(CAMERAS + 17, camera[1]);
-                pb(CAMERAS + 21, names[0]);
-                crate::race::viewer::fill(CAMERA_NAMES, 0x60, 27);
-                crate::race::viewer::fill(TEXT, 0x40, 28);
-                answer(Box::new(move |place, r| match place {
-                    1 => r.set_carry(fails),
-                    3 | 5 => {
-                        r.ebx += 5;
-                        r.eax = r.eax.wrapping_add(place);
-                    }
-                    _ => {}
-                }));
-            },
-            &|r| draw_viewer_panel(r, &mut test_part),
-        );
-        all.pop();
-        drop(surface);
-    }
-    crate::race::viewer::quiet();
-    drop(saved);
-    t.finish()
 }

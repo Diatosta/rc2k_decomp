@@ -9,31 +9,15 @@
 //! itself). Shadow mode: both, compared.
 //! Self-test: the original against the Rust version for numbers around the bounds (the
 //! game's variable, put back).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    EBP, EBX, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{EBP, EBX, Regs, game_addr, game_read, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{at, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "scene::texture_picture_folder",
-    rva(0x425A59),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 /// dword_60AF04: the texture's number.
 const NUMBER_RVA: usize = rva(0x60AF04);
@@ -53,8 +37,6 @@ pub fn texture_picture_folder(number: u32) -> (usize, usize) {
     }
 }
 
-// ---- hook ----
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     let _ = r;
     let (folder, pattern) = texture_picture_folder(unsafe { game_read(NUMBER_RVA) });
@@ -63,48 +45,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
         .with(EBP, game_addr(rva(pattern)) as u32))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &[], &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let all = [at(NUMBER_RVA)];
-    let saved = capture(&all);
-    for number in [
-        0u32,
-        899,
-        900,
-        901,
-        902,
-        999,
-        1000,
-        1999,
-        2000,
-        2999,
-        3000,
-        0xFFFF_FFFF,
-    ] {
-        check_state(
-            &mut t,
-            &format!("number {number}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe { game_write(NUMBER_RVA, number) },
-            &all,
-            &rust,
-        );
-    }
-    restore(&all, &saved);
-    t.finish()
 }

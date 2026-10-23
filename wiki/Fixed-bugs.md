@@ -87,3 +87,23 @@ Each entry says:
 - **Seen**: no; found by reading the code.
 - **Fix**: the Rust logger (`logfile::numeric::log_number`) logs the text only up to what
   was written: the marker's place, but never past the text's end.
+
+## Crash driving over mud (particle ring full)
+
+*Original*: `marks::emit_bursts` (0x4CD21A) and `marks::emit_bursts_2` (0x4CD747).
+*Fixed*: 2026-10-23.
+
+- **What**: wheels on soft ground (mud, gravel) throw bursts of particles into a shared
+  ring of 0x3FE entries. Each burst's loop keeps its counter and a pointer on the stack.
+  When the ring fills in the middle of a burst, the code jumps to an exit that removes
+  only the pointer, not the counter, before restoring the registers and returning. The
+  registers come back shifted by one, and the return goes to whatever value one of them
+  held: a jump into nowhere.
+- **In game**: with heavy particle use (driving through mud), the game ends with a
+  "Guru Meditation" access violation at a small address (seen: IP 0x0000D852).
+- **Seen**: yes, with the original game (the reason the owner's copy had the particles
+  cut out) and with the converted game on 2026-10-23.
+- **Fix**: the Rust version ends the bursts when the ring is full, keeping the caller's
+  registers, as the intended exit does. In the hooked game, where the original code
+  still runs, the two exits are mended at start-up (`lea esp, [esp+4]` becomes
+  `lea esp, [esp+8]`, `src/bug_fixes.rs`).

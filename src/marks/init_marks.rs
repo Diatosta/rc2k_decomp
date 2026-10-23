@@ -12,28 +12,15 @@
 //! entries; both before anything. Self-test: a redirected copy whose 30 calls go to
 //! stand-ins noting every register, against the Rust version on the same stand-ins
 //! (settings of the test's; three kinds and two screen sizes); put back afterwards.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::marks::masks::{NOTED, note_step, test_step};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::race::level_init::Part;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::init_marks", rva(0x4D12F7), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const KIND_AT: u32 = 0x26A8; // the settings' kind
 const LIVE_AT: u32 = 0x18; // the settings' dword set to 1
@@ -133,24 +120,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { init_marks(r, &mut game_part) } {
-        Ok(left) => {
-            *r = Regs {
-                esp: r.esp,
-                eflags: r.eflags,
-                ..left
-            }
-        }
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     {
@@ -162,141 +131,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
         }
     }
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::marks::kind_values::KIND_RVA;
-    use crate::marks::lines::SETTINGS_RVA;
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // mov g_marksSettings, esi
-    let entry: &[u8] = &[0x89, 0x35, 0x28, 0x7A, 0x76, 0x00];
-    let calls: [usize; 30] = [
-        0x1A, 0x1F, 0x29, 0x2E, 0x38, 0x3D, 0x47, 0x4C, 0x56, 0x5B, 0x65, 0x6A, 0x74, 0x79, 0x83,
-        0x88, 0x92, 0x97, 0xA1, 0xA6, 0xB0, 0xB5, 0xBF, 0xC4, 0xCE, 0xD3, 0xDD, 0xE2, 0xEC, 0x112,
-    ];
-    let copy = match crate::race::mud::copy(
-        0x4D12F7,
-        0x176,
-        entry,
-        &calls,
-        &[
-            (0x4C1235, 1),
-            (0x4C4E2F, 2),
-            (0x4C4E1C, 3),
-            (0x4C1697, 4),
-            (0x4C2247, 5),
-            (0x4C38B1, 6),
-            (0x4C65BF, 7),
-            (0x4C7322, 8),
-            (0x4C7FA4, 9),
-            (0x4C8BD8, 10),
-            (0x4C967B, 11),
-            (0x4CB0BC, 12),
-            (0x4CFAC5, 13),
-            (0x4D05BD, 14),
-            (0x4D2BDC, 15),
-            (0x429B18, NUMBERED),
-        ],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    crate::install::stand_ins::set_handler(note_step);
-    let scene = crate::marks::lines::TestScene::new();
-    let settings = scene.settings.as_ptr() as u32;
-    let regions: Vec<Region> = [
-        SETTINGS_RVA,
-        crate::marks::setup::SEED_RVA,
-        CLOCK_STARTED_RVA,
-        ONES_RVA[0],
-        ONES_RVA[1],
-        CLEARED_RVA,
-        SCREEN_WIDTH_RVA,
-        SCREEN_HEIGHT_RVA,
-        KIND_FLOAT_RVA,
-        KIND_RVA,
-    ]
-    .map(at)
-    .into_iter()
-    .chain([(game_addr(MIDDLE_RVA) as u32, 16)])
-    .collect();
-    let saved = capture(&regions);
-    let live = (settings + LIVE_AT, 4);
-    let mut watched = regions.clone();
-    watched.push(live);
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for (kind, screen) in [
-        (0u32, None),
-        (7, Some((641u32, 479u32))),
-        (0x16, Some((1, 0))),
-    ] {
-        let prepare = || unsafe {
-            restore(&regions, &saved);
-            ((settings + KIND_AT) as *mut u32).write_unaligned(kind);
-            ((settings + LIVE_AT) as *mut u32).write_unaligned(0xAAAA_AAAA);
-            // Step 1 (a stand-in here) makes the kind `g_marksKind`.
-            game_write(KIND_RVA, kind);
-            if let Some((w, h)) = screen {
-                game_write(SCREEN_WIDTH_RVA, w);
-                game_write(SCREEN_HEIGHT_RVA, h);
-            }
-            NOTED.lock().unwrap().clear();
-        };
-        let start = Regs {
-            esi: settings,
-            eax: 0x1357_9BDF,
-            ..Regs::SENTINEL
-        };
-        prepare();
-        let mut theirs = start;
-        unsafe { crate::framework::call_game(&mut theirs, copy.addr()) };
-        let theirs = (
-            regs(&theirs),
-            std::mem::take(&mut *NOTED.lock().unwrap()),
-            capture(&watched),
-        );
-        prepare();
-        let mine = unsafe { init_marks(&start, &mut test_step) };
-        let mine = (
-            mine.as_ref().map(regs).unwrap_or_default(),
-            std::mem::take(&mut *NOTED.lock().unwrap()),
-            capture(&watched),
-        );
-        t.check(theirs == mine, || {
-            format!("kind {kind:#x}, screen {screen:?}: original {theirs:x?}; rust {mine:x?}")
-        });
-    }
-    // The refusals: no settings, a kind past the table; nothing done.
-    for (esi, kind) in [(0, 0), (settings, KINDS)] {
-        unsafe {
-            restore(&regions, &saved);
-            ((settings + KIND_AT) as *mut u32).write_unaligned(kind);
-            NOTED.lock().unwrap().clear();
-        }
-        let before = capture(&regions);
-        let got = unsafe {
-            init_marks(
-                &Regs {
-                    esi,
-                    ..Regs::SENTINEL
-                },
-                &mut test_step,
-            )
-        };
-        let calls = NOTED.lock().unwrap().len();
-        t.check(
-            got.is_err() && calls == 0 && capture(&regions) == before,
-            || {
-                format!(
-                    "esi {esi:#x}, kind {kind:#x}: refused {}, {calls} calls",
-                    got.is_err()
-                )
-            },
-        );
-    }
-    restore(&regions, &saved);
-    drop(scene);
-    t.finish()
 }

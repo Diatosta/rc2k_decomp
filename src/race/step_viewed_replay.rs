@@ -14,29 +14,19 @@
 //! compares (`read_packed` puts the file back). Self-test: the original against the Rust
 //! version with `read_replay_frame`'s test replay: not open, frames 5 and 99, the end of
 //! the play, the last block.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::drive::read_replay_frame::{regions as read_regions, test_regions, test_replay};
+use crate::drive::read_replay_frame::regions as read_regions;
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::physics::flow::{a, guard};
 use crate::race::viewer::{
-    AT_END, BLOCK, BLOCKS, CF, FRAME, OPEN, PLAY_END, Saved, ZF, check_original, dispatch_regs,
-    dword, get, put, regs_entry,
+    AT_END, BLOCK, BLOCKS, FRAME, OPEN, PLAY_END, dword, get, put, regs_entry,
 };
 use crate::service::harness::Region;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::step_viewed_replay", rva(0x41EC47), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The Rust version: the registers and flags it leaves.
 pub fn step_viewed_replay(entry: &Regs) -> Result<Regs, Refused> {
@@ -97,57 +87,8 @@ fn regions() -> Vec<Region> {
     all
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_regs(&HOOK, r, call_original, &regions(), CF, &step_viewed_replay);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &step_viewed_replay)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut all = test_regions();
-    all.extend(regions());
-    all.push(dword(PLAY_END));
-    let saved = Saved::new(&all);
-    let Some(file) = test_replay() else {
-        drop(saved);
-        return t.skip("no test file in the temp folder");
-    };
-    // (open, block, frame, end of the play)
-    for (open, block, frame, end) in [
-        (0u32, 0u32, 5u32, 2u32),
-        (1, 0, 5, 2),
-        (1, 0, 99, 2),
-        (1, 0, 99, 1),
-        (1, 1, 99, 2),
-        (1, 2, 0, 2),
-        (1, 1, 98, 0),
-    ] {
-        check_original(
-            &mut t,
-            &format!("open {open}, block {block}, frame {frame}, end {end}"),
-            call_original,
-            Regs::SENTINEL,
-            &regions(),
-            CF | ZF,
-            &|| {
-                put(OPEN, open);
-                put(BLOCK, block);
-                put(FRAME, frame);
-                put(PLAY_END, end);
-                put(AT_END, 0xAA);
-                file.rewind();
-            },
-            &step_viewed_replay,
-        );
-    }
-    drop(file);
-    drop(saved);
-    t.finish()
 }

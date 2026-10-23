@@ -12,25 +12,14 @@
 //! only by the bytes met; refused when the walk would pass the 0x708 blocks of the
 //! table, before anything is written. Shadow mode compares. Self-test: a table of the
 //! test's, runs of the old value of every length, the count reached or not.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::race::viewer::{
-    BLOCK, BLOCKS, MOST_BLOCKS, Saved, check_original, dispatch_regs, dword, get, put, regs_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::spread_camera", rva(0x41E6BD), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
+use crate::race::viewer::{BLOCK, BLOCKS, get, regs_entry};
 
 /// The Rust version: the registers it leaves.
 pub unsafe fn spread_camera(entry: &Regs) -> Result<Regs, Refused> {
@@ -54,60 +43,8 @@ fn rust(r: &Regs) -> Result<Regs, Refused> {
     unsafe { spread_camera(r) }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    // The bytes it may write: the 0x708 blocks' from ebx.
-    let regions = [(r.ebx, 8 * MOST_BLOCKS as usize + 1)];
-    dispatch_regs(&HOOK, r, call_original, &regions, 0, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let saved = Saved::new(&[dword(BLOCK), dword(BLOCKS)]);
-    let mut table = vec![0u8; 8 * 40];
-    let at = table.as_mut_ptr() as u32;
-    for (blocks, run, old) in [
-        (10u32, 3usize, 5u8),
-        (10, 0, 5),
-        (4, 9, 5),
-        (1, 4, 5),
-        (12, 12, 0x2E),
-    ] {
-        let prepare = || {
-            let table = unsafe { std::slice::from_raw_parts_mut(at as *mut u8, 8 * 40) };
-            for (n, b) in table.iter_mut().enumerate() {
-                *b = if n % 8 == 3 && (1..=run).contains(&(n / 8)) {
-                    old
-                } else {
-                    n as u8
-                };
-            }
-            table[3] = 9; // the new value
-            put(BLOCK, 7);
-            put(BLOCKS, 7 + blocks);
-        };
-        check_original(
-            &mut t,
-            &format!("count {blocks}, run {run}"),
-            call_original,
-            Regs {
-                ebx: at + 3,
-                edx: 0x1234_0000 | (old as u32) << 8 | 0x77,
-                ..Regs::SENTINEL
-            },
-            &[(at, table.len())],
-            0,
-            &prepare,
-            &rust,
-        );
-    }
-    drop(saved);
-    t.finish()
 }

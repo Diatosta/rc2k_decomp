@@ -6,25 +6,15 @@
 //!
 //! Caller: `sub_4C1148`. Self-test: the four sources by lot, the original and the Rust
 //! version compared on the four results; put back afterwards.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::marks::leaf_test::test_leaf;
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{at, dispatch_state, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::copy_first_point", rva(0x4C1163), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{at, state_entry};
 
 /// (from, to): the point's three floats, then `dword_7692F6`.
 const MOVES: [(usize, usize); 4] = [
@@ -51,28 +41,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &MOVES.map(|m| at(m.1)), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    test_leaf(
-        &mut t,
-        &MOVES.map(|m| m.0),
-        &MOVES.map(|m| m.1),
-        Regs::SENTINEL,
-        6,
-        call_original,
-        &rust,
-    );
-    t.finish()
 }

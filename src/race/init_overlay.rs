@@ -20,29 +20,19 @@
 //! overlay's variables, `dword_62400C` and the car blocks' dwords. Self-test: a copy of the
 //! original whose variables (32 references) are the test's, against the Rust version on
 //! the same test variables.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::math::x87;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, dispatch_state, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::init_overlay", rva(0x45A9DE), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 /// The overlay's variables: 0x6D1460 .. 0x6D180C (unaligned, packed).
 const BLOCK: usize = 0x6D1460;
-const BLOCK_LEN: usize = 0x3AC;
 const MILES: usize = 0x6D1466; // g_overlayMiles
 const PARTS: usize = 0x6D1472; // g_overlayParts
 const PART_MILES: usize = 0x6D150C; // g_overlayPartMiles
@@ -152,150 +142,14 @@ pub unsafe fn init_overlay(entry: &Regs, v: &OverlayVars) -> Result<Regs, Refuse
     Ok(g)
 }
 
-fn regions() -> Vec<Region> {
-    let v = OverlayVars::game();
-    let mut r = vec![(v.block, BLOCK_LEN), at(rva(0x62400C))];
-    for n in 0..CARS {
-        let block = unsafe { get(v.car_blocks + 4 * n) };
-        r.push((block + 0xF78, 0x2C));
-    }
-    r
-}
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(crate::race::stage_prefs::left_of(&unsafe {
         init_overlay(r, &OverlayVars::game())
     }?))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-const DISTANCES: usize = 0x100;
-
-fn self_test() -> (usize, usize) {
-    use crate::audio::test_copy::{Copy, make};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut words = [0u32; 3]; // kinds, found, the x87's way in
-    let mut list = vec![0u32; 0x48];
-    let mut distances = vec![0u32; DISTANCES];
-    let mut block = vec![0u8; BLOCK_LEN];
-    let mut cars = vec![0u8; 0x1000 * CARS as usize];
-    let mut car_blocks = [0u32; CARS as usize];
-    for (n, b) in car_blocks.iter_mut().enumerate() {
-        *b = cars.as_mut_ptr() as u32 + 0x1000 * n as u32;
-    }
-    let w = words.as_mut_ptr() as u32;
-    let v = OverlayVars {
-        kinds: w,
-        found: w + 4,
-        list: list.as_mut_ptr() as u32,
-        distances: distances.as_mut_ptr() as u32,
-        scratch: w + 8,
-        block: block.as_mut_ptr() as u32,
-        car_blocks: car_blocks.as_mut_ptr() as u32,
-    };
-    let mut variables = vec![
-        (0x623640, v.kinds),
-        (0x601830, v.found),
-        (0x60102C, v.list),
-        (0x601030, v.list + 4),
-        (0x9F78D8, v.distances),
-        (0x62400C, v.scratch),
-        (0x71B3B8, v.car_blocks),
-        (MILES, v.of(MILES)),
-        (PARTS, v.of(PARTS)),
-        (PART_MILES, v.of(PART_MILES)),
-        (PART_A, v.of(PART_A)),
-        (PART_B, v.of(PART_B)),
-    ];
-    variables.extend(CLEARED.map(|c| (c, v.of(c))));
-    variables.extend(SIZES.map(|s| (s, v.of(s))));
-    let copy = match make(
-        &HOOK,
-        &Copy {
-            address: 0x45A9DE,
-            len: 0x158,
-            entry: &[0x83, 0x3D, 0x40, 0x36, 0x62, 0x00, 0x02],
-            calls: &[],
-            jumps_out: &[],
-        },
-        &|_| None,
-        &variables,
-        32,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let compared: [Region; 3] = [
-        (v.block, BLOCK_LEN),
-        (v.scratch, 4),
-        (cars.as_ptr() as u32, cars.len()),
-    ];
-    let mut s = 0x5EED_1234u32;
-    let mut next = move || {
-        s = s.wrapping_mul(1_103_515_245).wrapping_add(12345);
-        s >> 4
-    };
-    for (kinds, found) in [
-        (1u32, 5u32),
-        (0x8000_0001, 5),
-        (2, 0),
-        (2, u32::MAX),
-        (2, 1),
-        (3, 2),
-        (5, 7),
-        (2, 0x40),
-        (2, 0x8000_0001),
-    ] {
-        let points: Vec<u32> = (0..DISTANCES).map(|_| next() % 0x4000_0000).collect();
-        let entries: Vec<u32> = (0..0x48).map(|_| next() % DISTANCES as u32).collect();
-        let prepare = || unsafe {
-            std::ptr::copy_nonoverlapping(points.as_ptr(), v.distances as *mut u32, DISTANCES);
-            std::ptr::copy_nonoverlapping(entries.as_ptr(), v.list as *mut u32, 0x48);
-            for n in 0..BLOCK_LEN as u32 {
-                *((v.block + n) as *mut u8) = (n * 7) as u8 ^ 0xA5;
-            }
-            std::ptr::write_bytes(cars.as_ptr() as *mut u8, 0xAA, cars.len());
-            (w as *mut [u32; 3]).write_volatile([kinds, found, 0x1234_5678]);
-        };
-        let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-        prepare();
-        let mut ro = Regs::SENTINEL;
-        unsafe { crate::framework::call_game(&mut ro, copy.addr()) };
-        let theirs = (Some(regs(&ro)), capture(&compared));
-        prepare();
-        let mine = unsafe { init_overlay(&Regs::SENTINEL, &v) };
-        let mine = (mine.as_ref().ok().map(regs), capture(&compared));
-        t.check(theirs == mine, || {
-            let at = theirs.1.iter().zip(&mine.1).position(|(a, b)| a != b);
-            format!(
-                "kinds {kinds:#x}, {found:#x} parts: original {:x?}; rust {:x?}; first difference at {at:x?}",
-                theirs.0, mine.0
-            )
-        });
-    }
-    // More parts than the lists hold: refused, nothing written.
-    unsafe {
-        (w as *mut [u32; 2]).write_volatile([2, rc2k_core::race::panel::MOST_OVERLAY_PARTS + 1])
-    };
-    let before = capture(&compared);
-    let refused = unsafe { init_overlay(&Regs::SENTINEL, &v) }.is_err();
-    t.check(refused && capture(&compared) == before, || {
-        format!(
-            "0x41 parts: refused {refused}, wrote nothing {}",
-            capture(&compared) == before
-        )
-    });
-    drop((list, distances, block, cars));
-    t.finish()
 }

@@ -13,31 +13,16 @@
 //! Converted 2026-10-21: the box's place through `rc2k_core::marks::pong::cell_place` (a
 //! whole number times a float plus a whole number: exact in `f64`, as the x87's at double
 //! precision; at extended too while the product fits 53 bits, as the score's cells do).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_read, rva};
 use crate::marks::pong;
 use crate::scene::matrix3::extended;
-use crate::service::harness::{at, capture, restore};
 use rc2k_core::math::extended::from_f64;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("marks::pong_cell", rva(0x4B8557), thunk, &ORIGINAL)
-    .private_copy(0x42)
-    .relocate_calls(&[0x3A])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const STEP_RVA: [usize; 2] = [rva(0x7691FA), rva(0x7691FE)]; // flt_7691FA, flt_7691FE
 const SIZE_RVA: [usize; 2] = [rva(0x769202), rva(0x769206)]; // flt_769202, flt_769206
@@ -75,87 +60,9 @@ pub fn game_part(_place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refuse
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { pong_cell(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { pong_cell(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match unsafe {
-        crate::redirect::RedirectedCopy::new(
-            game_addr(rva(0x4B8557)),
-            0x42,
-            // pusha; cmp byte [eax], 0; jz
-            &[0x60, 0x80, 0x38, 0x00, 0x74, 0x39],
-            &[0x3A],
-            &|c| (c + 0x40_0000 == 0x4B8599).then_some(pong::box_stand_in as *const () as usize),
-        )
-    } {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let vars = [
-        STEP_RVA[0],
-        STEP_RVA[1],
-        SIZE_RVA[0],
-        SIZE_RVA[1],
-        pong::DIGIT_AT[0],
-        pong::DIGIT_AT[1],
-    ]
-    .map(at);
-    let saved = capture(&vars);
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    let pattern = [1u8, 0, 7, 0];
-    for case in 0..4u32 {
-        let before = Regs {
-            eax: pattern.as_ptr() as u32 + case,
-            ebx: case % 4,
-            ecx: case + 1,
-            ..Regs::SENTINEL
-        };
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            game_write(STEP_RVA[0], 5.5f32.to_bits());
-            game_write(STEP_RVA[1], (4.0f32 + case as f32).to_bits());
-            game_write(SIZE_RVA[0], 5.0f32.to_bits());
-            game_write(SIZE_RVA[1], 3.0f32.to_bits());
-            game_write(pong::DIGIT_AT[0], 0x100 + case * 0x20);
-            game_write(pong::DIGIT_AT[1], 0x384u32);
-        };
-        prepare();
-        pong::take();
-        let mut ro = before;
-        unsafe { crate::framework::call_game(&mut ro, copy.addr()) };
-        let theirs = (Some(regs(&ro)), pong::take());
-        prepare();
-        let mine = unsafe {
-            pong_cell(&before, &mut |_, r, v| {
-                pong::note(pong::BOX_PLACE, r, v);
-                Ok(())
-            })
-        };
-        let mine = (mine.as_ref().ok().map(regs), pong::take());
-        t.check(theirs == mine, || {
-            format!("case {case}: original {theirs:x?}; rust {mine:x?}")
-        });
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

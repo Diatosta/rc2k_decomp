@@ -19,26 +19,14 @@
 //! comes after the writes; the original, run on it, writes them again from the same
 //! inputs). Shadow mode runs the original alone (it draws). Self-test: a copy whose calls
 //! go to stand-ins, against the Rust version, quads by lot.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::draw_flat_quad", rva(0x44AF85), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const DRAWN_RVA: usize = rva(0x624134); // g_polygonDrawn
 const VERTEX_RVA: usize = rva(0x623E40); // dword_623E40: four of 0x20
@@ -149,82 +137,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_flat_quad(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { draw_flat_quad(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // mov g_polygonDrawn, 0
-    let entry: &[u8] = &[0xC7, 0x05, 0x34, 0x41, 0x62, 0x00, 0x00, 0x00, 0x00, 0x00];
-    let copy = match copy(
-        0x44AF85,
-        0x1ED,
-        entry,
-        &[0x198, 0x19D, 0x1C9, 0x1CE, 0x1DD],
-        &[
-            (0x44E2FB, 1),
-            (0x44D15A, 2),
-            (0x44E3F1, 3),
-            (0x44BA2C, 4),
-            (0x44E41F, 5),
-        ],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions: Vec<Region> = vec![
-        at(DRAWN_RVA),
-        (game_addr(VERTEX_RVA) as u32, 0x80),
-        (game_addr(RECORDS_RVA) as u32, RECORD * 4),
-        at(SCRATCH_RVA),
-        at(COLOUR_RVA),
-        at(COUNT_RVA),
-        at(NEXT_RECORD_RVA),
-        (game_addr(LIST_RVA) as u32, 0x14),
-        at(NEXT_ENTRY_RVA),
-        at(MODE_RVA),
-        at(SIDES_RVA[0]),
-        at(SIDES_RVA[1]),
-    ];
-    let mut vars = regions.clone();
-    vars.push((game_addr(COLOUR_IN_RVA) as u32, 0x40));
-    let saved = capture(&vars);
-    for case in 0..3u32 {
-        run_both(
-            &mut t,
-            &format!("case {case}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                restore(&vars, &saved);
-                for n in 0..16u32 {
-                    game_write(COLOUR_IN_RVA + 4 * n as usize, n * 0x11_0000 + case * 7 + 1);
-                }
-                game_write(COUNT_RVA, 9u32);
-                std::ptr::write_bytes(game_addr(VERTEX_RVA) as *mut u8, 0xAA, 0x80);
-            },
-            &|r| unsafe { draw_flat_quad(r, &mut test_part) },
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

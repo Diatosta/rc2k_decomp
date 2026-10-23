@@ -17,35 +17,18 @@
 //! 14 callers. Refuses a polygon of no vertices, an entry without its record, and a
 //! clipping that runs out of entries (what it had written is put back first).
 //! Shadow mode: the Rust version, its writes put back, the original, compared.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::BadInput;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::scene::clip::{
-    Edge, MASK_RVA, SCREEN_CLIPPED_RVA, below, clip_pass, dispatch_clip, light_regions,
-    listed_with_records, or_undone, regions,
+    Edge, MASK_RVA, SCREEN_CLIPPED_RVA, below, clip_pass, listed_with_records, or_undone,
 };
-use crate::scene::clip_test::{POLYGONS, Polygons};
 use crate::scene::polygon::dword;
-use crate::service::harness::at;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "scene::clip_polygon_to_screen",
-    rva(0x44D15A),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -137,66 +120,12 @@ pub unsafe fn wholly_on_screen() -> bool {
     matches!(unsafe { outside_mask() }, Ok(0))
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    // A polygon wholly on the screen, most of them, is compared by its counts and
-    // switches alone: if the original clipped it after all, those differ.
-    let regions = || match unsafe { outside_mask() } {
-        Ok(0) => light_regions(),
-        _ => regions(),
-    };
-    let unclipped = !crate::framework::shadow() && unsafe { wholly_on_screen() };
-    dispatch_clip(&HOOK, r, call_original, &regions, &|| unsafe {
-        clip_polygon_to_screen()
-    });
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let unclipped = unsafe { wholly_on_screen() };
+    unsafe { clip_polygon_to_screen() }?;
     if unclipped {
         unsafe { unclipped_regs(r) };
     }
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let edges = [LEFT_RVA, RIGHT_RVA, TOP_RVA, BOTTOM_RVA];
-    let mut polygons = Polygons::begin(&edges.map(at));
-    for (n, corners) in POLYGONS.into_iter().enumerate() {
-        for (variant, screen) in [
-            [0.0f32, 800.0, 0.0, 600.0],
-            [0.5, 799.5, 0.5, 599.5],
-            [100.0, 400.0, 120.0, 300.0],
-            [-1000.0, 2000.0, -1000.0, 2000.0],
-        ]
-        .into_iter()
-        .enumerate()
-        {
-            let run = |polygons: &mut Polygons, rust: bool| unsafe {
-                polygons.set(corners, variant, false);
-                for (at, value) in edges.into_iter().zip(screen) {
-                    game_write(at, value.to_bits());
-                }
-                let done = if rust {
-                    clip_polygon_to_screen().is_ok()
-                } else {
-                    call_original(&mut Regs::SENTINEL.clone());
-                    true
-                };
-                (done, polygons.state())
-            };
-            let (theirs, mine) = (run(&mut polygons, false), run(&mut polygons, true));
-            t.check(theirs == mine, || {
-                format!(
-                    "polygon {n}, screen {screen:?}: rust done {}; first different byte {:?}, pool the same {}",
-                    mine.0,
-                    theirs.1.0.iter().zip(&mine.1.0).position(|(a, b)| a != b),
-                    theirs.1.1 == mine.1.1
-                )
-            });
-        }
-    }
-    polygons.end();
-    t.finish()
+    Ok(())
 }

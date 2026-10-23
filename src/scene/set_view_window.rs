@@ -27,32 +27,18 @@
 //! Twelve callers.
 //! Self-test: 60 settings by lot on the game's variables (the screen's width as it is), at
 //! the test precisions.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    EAX, EBX, EDX, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{EAX, EBX, EDX, Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::screens::harness::Left;
-use crate::service::floats::{
-    FLOAT, Floats, ROUNDED, Tolerance, at_test_precisions, check_state_floats,
-    dispatch_state_floats, floats_entry,
-};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::set_view_window", rva(0x44E47B), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::floats::floats_entry;
+use crate::service::harness::{Region, at};
 
 // ---- game data ----
 
@@ -217,22 +203,6 @@ pub unsafe fn set_view_window_plain() -> Left {
     }
 }
 
-/// The float places: the scale, the divisor, the farthest depth and its reciprocal, the
-/// sizes less one; the two depths rounded from floats (`fistp`).
-fn float_places() -> Vec<(Region, Tolerance)> {
-    let a = |rva: usize| game_addr(rva) as u32;
-    vec![
-        (at(SCALE_RVA), FLOAT),
-        (at(DIVISOR_RVA), FLOAT),
-        ((a(FARTHEST_RVA), 8), FLOAT),
-        ((a(FARTHEST_RVA) + 8, 4), ROUNDED),
-        (at(CLIP_FARTHEST_RVA), ROUNDED),
-        ((a(LESS_ONE_RVA), 8), FLOAT),
-    ]
-}
-
-// ---- hook ----
-
 /// Everything it writes.
 pub fn regions() -> [Region; 8] {
     let block = |rva: usize, len: usize| (game_addr(rva) as u32, len);
@@ -319,56 +289,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { set_view_window_plain() })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let places = float_places();
-    let floats = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let (regions, inputs) = (regions(), inputs());
-    let saved = (capture(&regions), capture(&inputs));
-    let mut seed = 0x1B87_3593u32;
-    let places = float_places();
-    let tolerant = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    for case in 0..60 {
-        unsafe { set_inputs(&mut seed, case) };
-        let set = capture(&inputs);
-        at_test_precisions(&tolerant, &mut |word, held| {
-            check_state_floats(
-                &mut t,
-                "scene::set_view_window",
-                &format!("control word {word:#x}, case {case}: inputs {set:x?}"),
-                call_original,
-                Regs::SENTINEL,
-                &|| {
-                    restore(&regions, &vec![0xAA; saved.0.len()]);
-                    restore(&inputs, &set);
-                },
-                &regions,
-                held,
-                &rust,
-            );
-        });
-    }
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
 }

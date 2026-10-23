@@ -25,30 +25,17 @@
 //! Shadow mode runs the original alone (it draws). Self-test: a copy whose three calls
 //! go to stand-ins (the turns real; each draw notes the four vertices), against the Rust
 //! version on the same, on settings, slots, points and matrices of the test's.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::marks::setup::{SETTINGS_RVA, SLOT_LEN, SLOTS_RVA};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::draw_mark_slots", rva(0x4C969A), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The slots it goes through: 0x1F down to 0 (`push 20h`, then `dec` before the first).
 const DRAWN: u32 = 0x20;
@@ -204,24 +191,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_mark_slots(r, &mut game_part) } {
-        Ok(left) => {
-            *r = Regs {
-                esp: r.esp,
-                eflags: r.eflags,
-                ..left
-            }
-        }
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     {
@@ -234,163 +203,3 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     }
     Ok(())
 }
-
-/// What it writes.
-fn regions() -> Vec<Region> {
-    let mut r = vec![
-        (slot(0), ((DRAWN + 1) * SLOT_LEN) as usize),
-        (game_addr(WORK_RVA) as u32, 12),
-        (game_addr(VERTICES_RVA) as u32, 0x80),
-    ];
-    r.extend([RANDOM_RVA, HALF_RVA].map(at));
-    r
-}
-
-/// The vertices at each draw, both sides.
-static DRAWS: Mutex<Vec<Vec<u8>>> = Mutex::new(Vec::new());
-
-/// The test's stand-ins: noted, and each draw's vertices kept.
-fn note(place: u32, r: &mut Regs) {
-    crate::race::level_init::note(place, r);
-    if place == 3 {
-        let v = capture(&[(game_addr(VERTICES_RVA) as u32, 0x80)]);
-        DRAWS.lock().unwrap().push(v);
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // mov esi, g_marksSettings
-    let entry: &[u8] = &[0x8B, 0x35, 0x28, 0x7A, 0x76, 0x00];
-    let copy = match copy(
-        0x4C969A,
-        0x35A,
-        entry,
-        &[0x1D, 0x27, 0xD6, 0xE1, 0x347],
-        &[(0x4C99F4, 1), (0x44E77E, 2), (0x44EA65, 3)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    crate::install::stand_ins::set_handler(note);
-    let mut settings = vec![0u32; 0x40];
-    let sa = settings.as_mut_ptr() as u32;
-    let matrices: Vec<u32> = (0..2 * 16)
-        .map(|n| ((n % 7) as f32 * 0.35 - 0.8 + (n / 16) as f32 * 0.1).to_bits())
-        .collect();
-    let regions = regions();
-    let mut vars = regions.clone();
-    vars.extend(
-        [
-            SETTINGS_RVA,
-            TICKS_RVA,
-            NEAR_RVA,
-            FOCAL_RVA,
-            CENTRE_RVA[0],
-            CENTRE_RVA[1],
-            UV_K_RVA,
-            Z_K_RVA,
-            RHW_K_RVA,
-        ]
-        .map(at),
-    );
-    vars.extend(PLACE_K.map(at));
-    vars.push((game_addr(VIEW_RVA) as u32, 0x40));
-    vars.push((game_addr(POINTS_RVA) as u32, 8 * 12));
-    vars.push((game_addr(CORNERS_RVA) as u32 + 0x50 * 0x80, 8 * 0x80));
-    let saved = capture(&vars);
-    let draws = |what: &str, t: &mut SelfTest, theirs: Vec<Vec<u8>>, mine: Vec<Vec<u8>>| {
-        t.check(theirs == mine, || {
-            format!(
-                "{what}: the draws' vertices differ ({} draws, rust {}); first {:x?} / {:x?}",
-                theirs.len(),
-                mine.len(),
-                theirs.first(),
-                mine.first()
-            )
-        });
-    };
-    for case in 0..4u32 {
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            game_write(SETTINGS_RVA, sa);
-            let s = sa as *mut u32;
-            *s.add(0x8C / 4) = u32::from(case % 2 == 1);
-            *s.add(0x64 / 4) = 3 + case;
-            game_write(TICKS_RVA, 2 + case);
-            game_write(NEAR_RVA, 1.0f32.to_bits());
-            game_write(FOCAL_RVA, 300.0f32.to_bits());
-            game_write(CENTRE_RVA[0], 320.0f32.to_bits());
-            game_write(CENTRE_RVA[1], 240.0f32.to_bits());
-            game_write(UV_K_RVA, (1.0f32 / 256.0).to_bits());
-            game_write(Z_K_RVA, 0.001f32.to_bits());
-            game_write(RHW_K_RVA, 1.5f32.to_bits());
-            for (n, k) in PLACE_K.into_iter().enumerate() {
-                game_write(k, (0.5 + n as f32 * 0.25).to_bits());
-            }
-            for n in 0..16 {
-                game_write(VIEW_RVA + 4 * n, matrices[16 + n]);
-            }
-            // The view's place: points well in front.
-            game_write(VIEW_RVA + 0x38, (20.0f32 + case as f32 * 30.0).to_bits());
-            for n in 0..8 * 3 {
-                let v = (n as f32 * 1.7 - 9.0) * (1.0 + case as f32);
-                game_write(POINTS_RVA + 4 * n, v.to_bits());
-            }
-            let corners = game_addr(CORNERS_RVA) as u32 + 0x50 * 0x80;
-            for n in 0..8 * 0x40 {
-                ((corners + 2 * n) as *mut u16).write_unaligned((n * 37 + case) as u16);
-            }
-            game_write(RANDOM_RVA, case.wrapping_mul(0x9E37_79B9));
-            for k in 0..=DRAWN {
-                let p = slot(k) as *mut u32;
-                // Lives: some dead, some live; the last slot (one past) live in case 3.
-                let life = match (k + case) % 4 {
-                    0 => 0,
-                    1 => 0xFFFF_FFF0,
-                    _ => 5 + k,
-                };
-                *p = if k == DRAWN && case != 3 { 0 } else { life };
-                *p.add(1) = k % 8;
-                *p.add(2) = matrices.as_ptr() as u32;
-                *p.add(3) = 0x77;
-                *p.add(4) = (0.5f32 + k as f32 * 0.1).to_bits();
-            }
-            std::ptr::write_bytes(game_addr(VERTICES_RVA) as *mut u8, 0xAA, 0x80);
-        };
-        DRAWS.lock().unwrap().clear();
-        let mut theirs = Vec::new();
-        run_both(
-            &mut t,
-            &format!("case {case}"),
-            &copy,
-            &regions,
-            &|| {
-                prepare();
-                // The original's draws are in when the Rust side's set-up starts.
-                let mut d = DRAWS.lock().unwrap();
-                if !d.is_empty() {
-                    THEIRS.lock().unwrap().append(&mut d);
-                }
-            },
-            &|r| unsafe {
-                draw_mark_slots(r, &mut |p, g| {
-                    note(p, g);
-                    Ok(())
-                })
-            },
-        );
-        theirs.append(&mut THEIRS.lock().unwrap());
-        let mine = std::mem::take(&mut *DRAWS.lock().unwrap());
-        draws(&format!("case {case}"), &mut t, theirs, mine);
-    }
-    restore(&vars, &saved);
-    drop(settings);
-    t.finish()
-}
-
-/// The original's draws, moved aside when the Rust side's set-up starts.
-static THEIRS: Mutex<Vec<Vec<u8>>> = Mutex::new(Vec::new());

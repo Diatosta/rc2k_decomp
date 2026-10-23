@@ -29,29 +29,14 @@
 //! lock, unlock, draws, fills and copy go to stand-ins that note them (the lock failing or
 //! not), against the Rust version with the same: drawn before or not, both players, done
 //! or not.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::install::stand_ins::{set_handler, stand_in};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::race::frame::Part;
-use crate::redirect::RedirectedCopy;
-use crate::service::harness::{Region, capture, restore};
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::draw_tyre_change", rva(0x41C38C), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 pub const LOCK: u32 = 1;
 pub const UNLOCK: u32 = 2;
@@ -252,22 +237,6 @@ pub fn draw_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    let mut w = *r;
-    match unsafe { draw_tyre_change_in(&mut w, &mut draw_part) } {
-        Ok(()) => {
-            r.ebp = w.ebp;
-            r.eflags = w.eflags;
-        }
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let mut w = *r;
@@ -279,124 +248,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
         Err(e) => return Err(e),
     }
     Ok(())
-}
-
-// ---- self-test ----
-
-static CALLED: Mutex<Vec<(u32, [u32; 7])>> = Mutex::new(Vec::new());
-static FAIL: AtomicBool = AtomicBool::new(false);
-
-fn handler(place: u32, r: &mut Regs) {
-    CALLED
-        .lock()
-        .unwrap()
-        .push((place, [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp]));
-    if place == LOCK {
-        let fail = FAIL.load(Ordering::SeqCst);
-        r.set_carry(fail);
-    }
-}
-
-fn take_called() -> Vec<(u32, [u32; 7])> {
-    std::mem::take(&mut *CALLED.lock().unwrap())
-}
-
-const PLACES: [(usize, u32); 6] = [
-    (0x41AA4B, LOCK),
-    (0x41AB02, UNLOCK),
-    (0x402303, TEXT),
-    (0x402368, BY_ID),
-    (0x406869, FILL),
-    (0x41A8F9, COPY),
-];
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    set_handler(handler);
-    let copy = match unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x41C38C)),
-            0x26E,
-            &[0x8B, 0xEE, 0xFF, 0x35, 0x3C, 0x50, 0x4F, 0x00],
-            &[
-                0x14, 0x40, 0x61, 0x7C, 0xB4, 0xC4, 0xCE, 0xD3, 0xF5, 0x103, 0x111, 0x149, 0x16B,
-                0x1BB, 0x1D4, 0x1D9, 0x1EB, 0x1F6, 0x1FB, 0x21B, 0x229, 0x237, 0x241, 0x251,
-            ],
-            &|c| {
-                PLACES
-                    .iter()
-                    .find(|&&(k, _)| rva(k) == c)
-                    .map(|&(_, n)| stand_in(n))
-            },
-        )
-    } {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut device = vec![0u32; 0x500 / 4];
-    let dev = device.as_mut_ptr() as u32;
-    let r = |x: usize, len: usize| (a(x), len);
-    let written: Vec<Region> = vec![
-        r(FONT, 0x40),
-        r(TEXT_BUFFER, crate::strings::text_from_ids::TEXT_LEN),
-        r(RECT, 0x10),
-        r(DRAWN, 4),
-        r(CLIP_LEFT, 8),
-    ];
-    let mut kept = written.clone();
-    kept.extend([r(PLAYER, 4), r(RECORD, 4)]);
-    let saved = capture(&kept);
-    for fail in [false, true] {
-        for drawn in [0u32, 1] {
-            for player in [0u32, 1] {
-                for (state, time) in [(1u32, 12345u32), (0, 0), (u32::MAX, 999_999)] {
-                    let fill = || unsafe {
-                        restore(&kept, &saved);
-                        ((dev + 0x4F0) as *mut u32).write(state);
-                        ((dev + 0x4F4) as *mut u32).write(time);
-                        p(DRAWN, drawn);
-                        p(PLAYER, player);
-                        p(RECORD, 4321 + time);
-                        p(CLIP_LEFT, 0x11);
-                        p(CLIP_RIGHT, 0x2FF);
-                        FAIL.store(fail, Ordering::SeqCst);
-                    };
-                    let entry = Regs {
-                        esi: dev,
-                        ..Regs::SENTINEL
-                    };
-                    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-                    fill();
-                    take_called();
-                    let mut ro = entry;
-                    unsafe { call_game(&mut ro, copy.addr()) };
-                    let theirs = (Some(regs(&ro)), take_called(), capture(&written));
-                    fill();
-                    let mut rr = entry;
-                    let ok = unsafe {
-                        draw_tyre_change_in(&mut rr, &mut |p, r| {
-                            handler(p, r);
-                            Ok(())
-                        })
-                    }
-                    .is_ok();
-                    let mine = (ok.then(|| regs(&rr)), take_called(), capture(&written));
-                    t.check(theirs == mine, || {
-                        let diff = theirs.2.iter().zip(&mine.2).position(|(x, y)| x != y);
-                        format!(
-                            "fail {fail}, drawn {drawn}, player {player}, state {state:#x}: \
-                             original {:x?} {:x?}; rust {:x?} {:x?}; memory first differs at \
-                             {diff:x?}",
-                            theirs.0, theirs.1, mine.0, mine.1
-                        )
-                    });
-                }
-            }
-        }
-    }
-    restore(&kept, &saved);
-    drop((copy, device));
-    t.finish()
 }

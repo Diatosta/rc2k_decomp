@@ -10,25 +10,14 @@
 //! through `part`: 1 `restore_replay_patches`, 2 `files::close` (eax the handle); in the
 //! game their Rust versions. Shadow mode runs the original alone (it closes a file).
 //! Self-test: a copy whose calls go to stand-ins, against the Rust version, open or not.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::race::viewer::{
-    HANDLE, OPEN, Part, Saved, dispatch_parts, dword, get, put, regs_entry, run_both, test_part,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::close_viewed_replay", rva(0x41EB7C), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
+use crate::race::viewer::{HANDLE, OPEN, Part, get, put, regs_entry};
 
 /// The Rust version: the registers it leaves (the entry's).
 pub fn close_viewed_replay(entry: &Regs, part: Part) -> Result<Regs, Refused> {
@@ -57,51 +46,8 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_parts(&HOOK, r, call_original, &|r| {
-        close_viewed_replay(r, &mut game_part)
-    });
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &|r| close_viewed_replay(r, &mut game_part))
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; cmp dword_5BEC88, 1
-    let copy = match crate::race::viewer::copy(
-        0x41EB7C,
-        0x25,
-        &[0x60, 0x83, 0x3D, 0x88, 0xEC, 0x5B, 0x00, 0x01],
-        &[0xA, 0x14],
-        &[(0x41F31D, 1), (0x402E23, 2)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    crate::race::viewer::quiet();
-    let regions = [dword(OPEN), dword(HANDLE)];
-    let saved = Saved::new(&regions);
-    for open in [0u32, 1, 2] {
-        run_both(
-            &mut t,
-            &format!("open {open}"),
-            copy.addr(),
-            Regs::SENTINEL,
-            &regions,
-            0,
-            &|| {
-                put(OPEN, open);
-                put(HANDLE, 0x4321);
-            },
-            &|r| close_viewed_replay(r, &mut test_part),
-        );
-    }
-    drop(saved);
-    t.finish()
 }

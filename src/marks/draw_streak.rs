@@ -20,32 +20,16 @@
 //! Refuses null marks settings (`clip_quad`'s refusal), before anything. Thunk by
 //! `three_in_hook!`. Shadow mode runs the original alone (it draws). Self-test: a copy
 //! whose draw goes to a stand-in, against the Rust version, points near and far.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva, shadow};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::marks::clip_quad::clip_quad;
-use crate::scene::matrix3::extended;
-use crate::scene::vector3::{Triple80, call_with_three, three_in_hook};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static TRIPLE: Triple80 = Triple80::new();
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::draw_streak", rva(0x4C1DCD), thunk, &ORIGINAL).self_test(self_test);
-
-three_in_hook!(
-    thunk,
-    call_original,
-    original_with_three,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    triple = TRIPLE
-);
-
-const WORK_RVA: usize = rva(0x8BDD29); // flt_8BDD29 .. flt_8BDE51
-const WORK_LEN: usize = 0x12C;
+// flt_8BDD29 .. flt_8BDE51
 const DEPTH_RVA: usize = rva(0x8BDD5D); // flt_8BDD5D
 const FAR_RVA: usize = rva(0x8BDE51); // flt_8BDE51
 const SWITCH_RVA: usize = rva(0x8BC405); // dword_8BC405
@@ -277,119 +261,4 @@ pub unsafe fn draw_streak(entry: &Regs, place: [[u8; 10]; 3], part: Part) -> Res
 pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe { crate::scene::draw_fan::draw_fan(r, &mut crate::scene::draw_fan::game_part) };
     Ok(())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { original_with_three(r) };
-        return;
-    }
-    match unsafe { draw_streak(r, TRIPLE.inputs(), &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, original_with_three) },
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::level_init::{note, take_called};
-    use crate::race::mud::copy;
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if unsafe { game_read::<u32>(crate::marks::setup::SETTINGS_RVA) } == 0 {
-        return t.skip("no marks settings (the clip reads them)");
-    }
-    // fxch st(2); fmul flt_8BDD65
-    let entry: &[u8] = &[0xD9, 0xCA, 0xD8, 0x0D, 0x65, 0xDD, 0x8B, 0x00];
-    let copy = match copy(0x4C1DCD, 0x303, entry, &[0x2EC, 0x2F3], &[(0x44EA65, 1)]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions: Vec<Region> = vec![
-        (game_addr(WORK_RVA) as u32, WORK_LEN),
-        (game_addr(VERTICES_RVA) as u32, 0xC0),
-        at(COUNT_RVA),
-        (game_addr(rva(0x7687F4)) as u32, 6 * 0x20),
-        at(rva(0x93CC94)),
-    ];
-    let mut vars = regions.clone();
-    vars.extend(
-        [
-            SWITCH_RVA,
-            rva(0x624088),
-            rva(0x62409C),
-            rva(0x6240A0),
-            rva(0x6241C8),
-        ]
-        .map(at),
-    );
-    vars.push((game_addr(rva(0x8BC47D)) as u32, 12));
-    vars.push((game_addr(rva(0x8C5FE5)) as u32, 12));
-    let saved = capture(&vars);
-    let put = |r: usize, v: f32| unsafe { game_write(r, v.to_bits()) };
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for case in 0..5u32 {
-        let k = case as f32;
-        let place = [
-            extended((k * 3.0 - 5.0).to_bits()),
-            extended((2.0 + k).to_bits()),
-            extended((if case == 3 { -40.0 } else { 30.0 + k * 20.0 }).to_bits()),
-        ];
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            game_write(SWITCH_RVA, u32::from(case != 4));
-            // Scales 1, the turn the identity, places 0, the last place a little back.
-            for n in 0..3 {
-                put(rva(0x8BDD65) + 4 * n, 1.0);
-                game_write(rva(0x8BDD71) + 4 * n, 0u32);
-                for m in 0..3 {
-                    put(
-                        rva(0x8BDD89) + 0xC * n + 4 * m,
-                        if n == m { 0x10000 as f32 } else { 0.0 },
-                    );
-                }
-            }
-            put(rva(0x8BC47D), 0.25 + k * 0.1);
-            put(rva(0x8BC481), -0.5);
-            put(rva(0x8BC485), 0.75);
-            put(rva(0x624088), 320.0);
-            put(rva(0x62409C), 320.5);
-            put(rva(0x6240A0), 240.25);
-            put(rva(0x6241C8), 3000.0);
-            put(rva(0x8C5FE5), 1.0);
-            put(rva(0x8C5FE9), 1.0);
-            put(rva(0x8C5FED), 1.5 + k);
-            std::ptr::write_bytes(game_addr(VERTICES_RVA) as *mut u8, 0xAA, 0xC0);
-        };
-        prepare();
-        take_called();
-        let mut ro = Regs::SENTINEL;
-        unsafe { call_with_three(&mut ro, copy.addr(), &place) };
-        let theirs = (Some(regs(&ro)), take_called(), capture(&regions));
-        prepare();
-        let mine = unsafe {
-            draw_streak(&Regs::SENTINEL, place, &mut |p, r| {
-                note(p, r);
-                Ok(())
-            })
-        };
-        let mine = (
-            mine.as_ref().ok().map(regs),
-            take_called(),
-            capture(&regions),
-        );
-        t.check(theirs == mine, || {
-            format!(
-                "case {case}: original {:x?} {:x?}; rust {:x?} {:x?}; state first differs at {:?}",
-                theirs.0,
-                theirs.1,
-                mine.0,
-                mine.1,
-                theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b)
-            )
-        });
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

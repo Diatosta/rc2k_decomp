@@ -19,24 +19,14 @@
 //! run through memory). Shadow mode runs the original alone (it writes the log).
 //! Self-test: a copy whose calls go to stand-ins, against the Rust version: no vertex,
 //! three, the object's and the course's labels; the mask put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::menu::parts::{Part, copy, dispatch_parted, parted_entry, run_both, test_part};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::log_bad_polygon", rva(0x443AF8), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::menu::parts::{Part, parted_entry};
 
 pub const CALLEES: [usize; 6] = [
     0x401427, // 0 logfile::log_write_l1
@@ -162,65 +152,8 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_parted(
-        &HOOK,
-        r,
-        call_original,
-        &|r, part| unsafe { log_bad_polygon(r, part) },
-        game_part,
-    );
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     parted_entry(r, &|r, part| unsafe { log_bad_polygon(r, part) }, game_part)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let calls = [
-        0x8, 0x14, 0x21, 0x2D, 0x3A, 0x46, 0x53, 0x64, 0x71, 0x82, 0x8F, 0xA0, 0xAD, 0xBE, 0xCB,
-        0xD7, 0xE4, 0xF0, 0xFD, 0x109, 0x120, 0x12C, 0x139, 0x145, 0x15B, 0x167, 0x176, 0x182,
-        0x18F, 0x19B, 0x1A1, 0x1C1, 0x1CA, 0x1D7, 0x1E5, 0x1F2, 0x201, 0x20E, 0x21D, 0x22A, 0x239,
-        0x246, 0x255, 0x262, 0x271, 0x27E, 0x288, 0x295, 0x29F, 0x2A5, 0x2BA,
-    ];
-    let copy = match copy(
-        0x443AF8,
-        0x2C1,
-        &[0x60, 0x60, 0x8D, 0x05, 0xB6, 0xBC, 0x4D, 0x00],
-        &calls,
-        &CALLEES,
-        &[],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions: [Region; 3] = [at(MASK_RVA), at(COUNT_RVA), at(OBJECT_RVA)];
-    let saved = capture(&regions);
-    let vertices: Vec<u32> = (0..0x40u32).map(|n| 0x3F80_0000 + n * 0x1_0000).collect();
-    for (count, object) in [(0u32, 0u32), (3, 0), (3, 1), (1, 2)] {
-        run_both(
-            &mut t,
-            &format!("{count} vertices, object {object}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                game_write(MASK_RVA, 0x5Au32);
-                game_write(COUNT_RVA, count);
-                game_write(OBJECT_RVA, object);
-            },
-            Regs {
-                edi: vertices.as_ptr() as u32,
-                ..Regs::SENTINEL
-            },
-            false,
-            &|r| unsafe { log_bad_polygon(r, &mut test_part) },
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
 }

@@ -10,25 +10,16 @@
 //! See `race/mud.rs`. Callers: `race::muddy_texel`, `race::splash_mud`. Self-test: the
 //! original and the Rust version on test surfaces (16 and 32 bits), each halving, places
 //! even, odd and outside.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::race::mud::{TestSurface, has_format, mud_pixel};
+use crate::framework::{EAX, Regs, game_read, rva};
+use crate::race::mud::mud_pixel;
 use crate::screens::harness::Left;
-use crate::service::harness::{at, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::mud_texel", rva(0x44A549), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 pub const HALVINGS_RVA: usize = rva(0x5CEEE0); // dword_5CEEE0
 
@@ -50,10 +41,6 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing().with(EAX, unsafe { mud_texel(r.eax, r.ecx, r.edx) }))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &[], &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
@@ -73,38 +60,3 @@ pub const TEST_PLACES: [(u32, u32); 10] = [
     (0xFC, 0xBC),
     (130, 2),
 ];
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if !has_format() {
-        return t.skip("no pixel format");
-    }
-    let kept = [at(HALVINGS_RVA)];
-    let saved = capture(&kept);
-    for bits in [16u32, 32] {
-        let surface = TestSurface::new(bits);
-        for halvings in [0u32, 1, 2, 3] {
-            for (x, y) in TEST_PLACES {
-                check_state(
-                    &mut t,
-                    &format!("{bits} bits, halvings {halvings}, ({x}, {y})"),
-                    call_original,
-                    Regs {
-                        ecx: x,
-                        edx: y,
-                        eax: 0x8123_4567,
-                        ..Regs::SENTINEL
-                    },
-                    &|| unsafe { game_write(HALVINGS_RVA, halvings) },
-                    &[],
-                    &rust,
-                );
-            }
-        }
-        drop(surface);
-    }
-    restore(&kept, &saved);
-    t.finish()
-}

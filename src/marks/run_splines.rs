@@ -14,9 +14,13 @@
 //! and `place_spline`'s refusals (all it may write is put back first). Self-test: the
 //! game's settings (skipped without them), records of the test's in the game's tables
 //! (`place_spline::fill_test_records`), switches, counts and ticks by lot.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::lines::SETTINGS_RVA;
 use crate::marks::place_spline::{self, place_spline};
 use crate::marks::setup::SEED_RVA;
@@ -24,22 +28,7 @@ use crate::marks::splines::{MADE_RVA, PLACE_RVA};
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::run_splines", rva(0x4B978A), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at, capture, restore, state_entry};
 
 const TICKS_RVA: usize = rva(0x764FD0); // g_marksFrameTicks
 const ANGLE_RVA: usize = rva(0x7695B6); // flt_7695B6
@@ -158,94 +147,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { run_splines(r) }?))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
-    dispatch_state(&HOOK, r, call_original, &regions(settings), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::marks::splines::{CHOSEN_RVA, MOST_POINTS, TestSpline, work_regions};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
-    if settings == 0 {
-        return t.skip("no marks settings");
-    }
-    let spline = TestSpline::new();
-    let targets = vec![0u32; 3 * MOST_POINTS as usize];
-    let base = targets.as_ptr() as u32;
-    let mut fixed: Vec<Region> = (0..2).flat_map(place_spline::record_regions).collect();
-    fixed.extend(
-        [
-            MADE_RVA,
-            SEED_RVA,
-            ANGLE_RVA,
-            WAVE_RVA,
-            PLACE_RVA,
-            TICKS_RVA,
-            CHOSEN_RVA,
-            rva(0x76A20A),
-            rva(0x7695CA),
-            rva(0x71C814),
-        ]
-        .map(at),
-    );
-    fixed.extend(work_regions());
-    fixed.push((game_read_addr(rva(0x76A1D2)), 0x30));
-    fixed.push((settings + 0x26DC, 4));
-    fixed.push((settings + 0x26FC, 8));
-    fixed.push((base, 4 * targets.len()));
-    let saved = capture(&fixed);
-    // (the switches +0x2700, +0x26FC, the made count, the splines, the ticks)
-    for (case, (on, up, made, places, ticks)) in [
-        (1u32, 0u32, 0x20i32, 2i32, 6u32),
-        (1, 1, 0xA0, 1, 3),
-        (0, 1, 0xF0, 0, 40),
-        (0, 0, 0x90, 2, 9),
-        (0, 0, 0x10, 1, 50),
-        (0, 0, 0, 0, 2),
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let prepare = || unsafe {
-            restore(&fixed, &saved);
-            put(settings + 0x2700, on);
-            put(settings + 0x26FC, up);
-            game_write(MADE_RVA, made);
-            game_write(PLACE_RVA, places);
-            game_write(TICKS_RVA, ticks);
-            game_write(SEED_RVA, case as u32 * 0x2545_F491);
-            for n in 0..2 {
-                place_spline::fill_test_records(&spline, n, case as u32 + 1, base);
-            }
-            std::ptr::write_bytes(base as *mut u8, 0xAA, 4 * targets.len());
-        };
-        prepare();
-        let regions = regions(settings);
-        check_state(
-            &mut t,
-            &format!("on {on}, up {up}, made {made:#x}, splines {places}, ticks {ticks}"),
-            call_original,
-            Regs::SENTINEL,
-            &prepare,
-            &regions,
-            &rust,
-        );
-    }
-    restore(&fixed, &saved);
-    drop(targets);
-    t.finish()
-}
-
-/// A game variable's address.
-fn game_read_addr(r: usize) -> u32 {
-    crate::framework::game_addr(r) as u32
 }

@@ -13,32 +13,15 @@
 //! anything above 9999 gives another character).
 //! One caller, `scene::load_object`.
 //! Self-test: 40 kinds; the names are put back afterwards.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    EAX, EBP, ECX, EDX, ESI, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm,
-    rva,
-};
+use crate::framework::{EAX, EBP, ECX, EDX, ESI, Regs, game_addr, game_read, game_write, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "scene::set_object_file_names",
-    rva(0x43964A),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 // ---- game data ----
 
@@ -46,9 +29,6 @@ hook_asm!(
 /// `dword_60AD2C` the `.lwo` path, `dword_60AD30` the `.lwo` name's number.
 pub const NAMES_RVA: usize = rva(0x60AD24);
 pub const KIND_RVA: usize = rva(0x634FE8); // dword_634FE8
-/// The eight path texts, from `aFilesAObjRo3` on.
-const TEXTS_RVA: usize = rva(0x60AD4E);
-const TEXTS_LEN: usize = 0xB4;
 /// For each folder (`rc2k_core::scene::objects::folder`): the `.ro3` path, the `.lwo`
 /// path, and how far in the number is.
 const FOLDERS: [(usize, usize, usize); 4] = [
@@ -87,82 +67,12 @@ pub unsafe fn set_object_file_names(folder_kind: u32) -> Left {
     }
 }
 
-// ---- hook ----
-
-fn regions() -> [Region; 2] {
-    [
-        (game_addr(NAMES_RVA) as u32, 16),
-        (game_addr(TEXTS_RVA) as u32, TEXTS_LEN),
-    ]
-}
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { set_object_file_names(r.eax) })
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let kind_region = [(game_addr(KIND_RVA) as u32, 4)];
-    let saved = (capture(&regions), capture(&kind_region));
-    let kinds = [
-        0u32,
-        7,
-        0x18F,
-        0x190,
-        0x257,
-        0x258,
-        0x31F,
-        0x320,
-        999,
-        1000,
-        4321,
-        9999,
-        10000,
-        0xFFFF_FFFF,
-        570,
-        601,
-        0x2BC,
-        123_456,
-        2_000_000_000,
-        259_999,
-    ];
-    for (n, &kind) in kinds.iter().enumerate() {
-        // The folder's kind is the number's but for every other case.
-        for folder in [kind, kinds[(n + 3) % kinds.len()]] {
-            check_state(
-                &mut t,
-                &format!("kind {kind:#x}, folder by {folder:#x}"),
-                call_original,
-                Regs {
-                    eax: folder,
-                    ..Regs::SENTINEL
-                },
-                &|| unsafe {
-                    restore(&regions, &saved.0);
-                    game_write(NAMES_RVA, [0xAAAA_AAAAu32; 4]);
-                    game_write(KIND_RVA, kind);
-                },
-                &regions,
-                &rust,
-            );
-        }
-    }
-    restore(&regions, &saved.0);
-    restore(&kind_region, &saved.1);
-    t.finish()
 }

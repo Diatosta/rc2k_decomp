@@ -13,34 +13,19 @@
 //! later refusals (the counts and the random state put back). Self-test: the original and
 //! the Rust version on the mud tests' set-up, counts at and below the end, sums that carry
 //! and not; the surface, the counts and the random state compared.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::gfx::pixel_format::SCRATCH_RVA;
-use crate::math::next_random::{STATE_RVA as RANDOM_RVA, next_random, own_random};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::math::next_random::{STATE_RVA as RANDOM_RVA, next_random};
 use crate::physics::flow::guard;
-use crate::race::mud::has_format;
-use crate::race::muddy_texel::{
-    STRENGTH_RVA, TEXTURE_RVA, each_mud_case, muddy_texel, texture_and_mud,
-};
+use crate::race::muddy_texel::{STRENGTH_RVA, muddy_texel, texture_and_mud};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::throw_mud_texel", rva(0x44A2A2), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at, state_entry};
 
 pub const THROWN_RVA: usize = rva(0x623D80); // dword_623D80: each texture's count
 pub use rc2k_core::race::mud::LAST_THROWN;
@@ -85,66 +70,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { throw_mud_texel(r) }?))
 }
 
-/// What one throw may write: the counts, the sum, the random state, the strength, the
-/// format's scratch, and the texture's pixels (all of `g_surface`: the random texel's
-/// place is not known before).
-fn regions() -> Vec<Region> {
-    let mut v = throw_regions();
-    v.push(at(SCRATCH_RVA));
-    v.push(crate::race::muddy_texel::surface_region());
-    v
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions = regions();
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if !has_format() {
-        return t.skip("no pixel format");
-    }
-    own_random(|| {
-        let kept = throw_regions();
-        let saved = capture(&kept);
-        let mut case = 0u32;
-        each_mud_case(&mut |what, pixels, reset| {
-            for (count, sum) in [
-                (0u32, 0u32),
-                (0x1234, 0xF000_0000),
-                (LAST_THROWN - 1, 0xEFFF_FFFF),
-                (LAST_THROWN, 0xF000_0000),
-                (0xFFFF_FFFF, 0),
-            ] {
-                case += 1;
-                let seed = 0x0BAD_5EEDu32 ^ case.wrapping_mul(0x9E37_79B9);
-                check_state(
-                    &mut t,
-                    &format!("{what}, count {count:#x}, sum {sum:#x}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &|| unsafe {
-                        reset();
-                        let n: u32 = game_read(TEXTURE_RVA);
-                        game_write(THROWN_RVA + 4 * n as usize, count);
-                        game_write(EXTRA_SUM_RVA, sum);
-                        game_write(RANDOM_RVA, seed);
-                    },
-                    &[&throw_regions()[..], &[pixels, at(SCRATCH_RVA)]].concat(),
-                    &rust,
-                );
-            }
-        });
-        restore(&kept, &saved);
-    });
-    t.finish()
 }

@@ -16,32 +16,21 @@
 //! `put_mud_texel` refuses (`dword_62400C` put back). Self-test: the original and the Rust
 //! version on test surfaces (16 and 32 bits) and a test mud map, each texture and halving,
 //! places by lot; the surface compared.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::gfx::pixel_format::{PixelFormat, SCRATCH_RVA, TEST_FORMATS};
-use crate::race::mud::{MUD_LEN, MUD_RVA, TestSurface, has_format};
+use crate::race::mud::{MUD_LEN, MUD_RVA, TestSurface};
 use crate::race::mud_texel::{HALVINGS_RVA, mud_texel, texel_place};
 use crate::race::put_mud_texel::put_mud_texel;
 use crate::race::stage_prefs::left_of;
 use crate::race::tint_to_mud_colour::tint_to_mud_colour;
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::muddy_texel", rva(0x44A2E1), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at, capture, restore, state_entry};
 
 pub const TEXTURE_RVA: usize = rva(0x623D5C); // dword_623D5C: the mud texture worked on
 pub const STRENGTH_RVA: usize = rva(0x62400C); // dword_62400C, a scratch
@@ -129,11 +118,6 @@ pub fn regions(n: u32) -> Vec<Region> {
         }
     }
     v
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions = regions(r.eax);
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
@@ -236,42 +220,4 @@ pub fn each_mud_case(f: MudCase) {
         drop(surface);
     }
     restore(&scratch, &saved);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if !has_format() {
-        return t.skip("no pixel format");
-    }
-    let mut x = 0x1357_9BDFu32;
-    each_mud_case(&mut |what, pixels, reset| {
-        for _ in 0..4 {
-            x ^= x << 13;
-            x ^= x >> 17;
-            x ^= x << 5;
-            let n = x;
-            check_state(
-                &mut t,
-                &format!("{what}, place {n:#x}"),
-                call_original,
-                Regs {
-                    eax: n,
-                    ebp: 0x4321,
-                    ..Regs::SENTINEL
-                },
-                reset,
-                &[pixels, at(STRENGTH_RVA), at(SCRATCH_RVA)],
-                &rust,
-            );
-        }
-    });
-    let kept = [at(TEXTURE_RVA)];
-    let saved = capture(&kept);
-    unsafe { game_write(TEXTURE_RVA, 4u32) };
-    let refused = unsafe { muddy_texel(&Regs::SENTINEL) }.is_err();
-    restore(&kept, &saved);
-    t.check(refused, || "texture 4: not refused".to_string());
-    t.finish()
 }

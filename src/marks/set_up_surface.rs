@@ -15,29 +15,15 @@
 //! stand-ins noting every register (blocks and a picture of the test's), against the Rust
 //! version on the same stand-ins, with the game's constants and two other sets; put back
 //! afterwards.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::marks::load_mask_pictures::{BLOCK_AT, FAIL_READ, TAKEN, note, test_part};
-use crate::marks::masks::NOTED;
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::race::level_init::Part;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::{AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::set_up_surface", rva(0x4CB0BC), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const MASK_LIST_RVA: usize = rva(0x93A1DA); // stru_93A1DA
 const MASK_BYTES: u32 = 0x4_0000;
@@ -247,24 +233,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { set_up_surface(r, &mut game_part) } {
-        Ok(left) => {
-            *r = Regs {
-                esp: r.esp,
-                eflags: r.eflags,
-                ..left
-            }
-        }
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     {
@@ -276,166 +244,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
         }
     }
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::gfx::picture::{HEIGHT_RVA, PICTURE_RVA, ROW_BYTES_RVA, WIDTH_RVA};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // push 40000h
-    let entry: &[u8] = &[0x68, 0x00, 0x00, 0x04, 0x00];
-    let copy = match crate::race::mud::copy(
-        0x4CB0BC,
-        0x4EC,
-        entry,
-        &[
-            0xC, 0x30, 0x6B, 0xE4, 0x146, 0x167, 0x171, 0x178, 0x188, 0x4E6,
-        ],
-        &[
-            (0x4028A7, 0),
-            (0x41AA4B, 1),
-            (0x4119F4, 2),
-            (0x4065BB, 3),
-            (0x41AB02, 4),
-            (0x44EB66, 5),
-            (0x4028F5, 6),
-            (0x4D0BA7, 7),
-        ],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    crate::install::stand_ins::set_handler(note);
-    let mut blocks: [Vec<u32>; 2] = [
-        vec![0; (MASK_BYTES / 4) as usize],
-        vec![0; (RING_BYTES / 4) as usize],
-    ];
-    for (b, at) in blocks.iter_mut().zip(&BLOCK_AT) {
-        at.store(b.as_mut_ptr() as u32, Ordering::SeqCst);
-    }
-    let picture: Vec<u32> = (0..PIXELS)
-        .map(|n| n.wrapping_mul(0x0103_0507) ^ 0x5A00_C3A5)
-        .collect();
-    let a = |r: usize| game_addr(r) as u32;
-    let mut regions: Vec<Region> = [
-        RING_RVA,
-        RING_CURSOR_RVA,
-        RING_COUNT_RVA,
-        SURFACE_WIDTH_RVA,
-        SURFACE_HEIGHT_RVA,
-        PICTURE_RVA,
-        WIDTH_RVA,
-        HEIGHT_RVA,
-        ROW_BYTES_RVA,
-    ]
-    .map(at)
-    .to_vec();
-    regions.push((a(EIGHTH_RVA), 0x14));
-    regions.push((a(CELLS_RVA), (CELLS * 0x10) as usize));
-    regions.push((a(SUBCELLS_RVA), (CELLS * 0x100) as usize));
-    let saved = capture(&regions);
-    let mut blocks_of = regions.clone();
-    blocks_of.extend(blocks.iter().map(|b| (b.as_ptr() as u32, 4 * b.len())));
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    let constants: [Option<[f32; 4]>; 3] = [
-        None,
-        Some([0.1, 1.0 / 3.0, 0.7, 1.0 / 7.0]),
-        Some([-3.5e7, 1.1e-3, 9.9, 2.0e-9]),
-    ];
-    for c in constants {
-        let prepare = |blocks: &mut [Vec<u32>; 2]| unsafe {
-            restore(&regions, &saved);
-            if let Some(c) = c {
-                for (r, v) in [EIGHTH_RVA, EDGE_RVA, PIXEL_RVA, STEP_RVA].iter().zip(c) {
-                    game_write(*r, v.to_bits());
-                }
-            }
-            game_write(SURFACE_WIDTH_RVA, SIDE);
-            game_write(SURFACE_HEIGHT_RVA, SIDE);
-            game_write(PICTURE_RVA, picture.as_ptr() as u32);
-            for b in blocks.iter_mut() {
-                b.fill(0xAAAA_AAAA);
-            }
-            TAKEN.store(0, Ordering::SeqCst);
-            NOTED.lock().unwrap().clear();
-        };
-        prepare(&mut blocks);
-        let mut theirs = Regs::SENTINEL;
-        unsafe { crate::framework::call_game(&mut theirs, copy.addr()) };
-        let theirs = (
-            regs(&theirs),
-            std::mem::take(&mut *NOTED.lock().unwrap()),
-            capture(&blocks_of),
-        );
-        prepare(&mut blocks);
-        let mine = unsafe { set_up_surface(&Regs::SENTINEL, &mut test_part) };
-        let mine = (
-            mine.as_ref().map(regs).unwrap_or_default(),
-            std::mem::take(&mut *NOTED.lock().unwrap()),
-            capture(&blocks_of),
-        );
-        t.check(theirs == mine, || {
-            let first = theirs.1.iter().zip(&mine.1).position(|(a, b)| a != b);
-            let memory: Vec<usize> = (0..theirs.2.len())
-                .filter(|&i| theirs.2[i] != mine.2[i])
-                .collect();
-            format!(
-                "constants {c:?}: original {:x?}, {} calls; rust {:x?}, {} calls; first \
-                 differing call {first:?}; differing regions {memory:?}",
-                theirs.0,
-                theirs.1.len(),
-                mine.0,
-                mine.1.len(),
-            )
-        });
-    }
-    // The refusals: a narrow and a short surface, either picture not read.
-    for (width, height, fail_at) in [
-        (0xFF, SIDE, 0),
-        (SIDE, 0xFF, 0),
-        (SIDE, SIDE, 1),
-        (SIDE, SIDE, 2),
-    ] {
-        unsafe {
-            restore(&regions, &saved);
-            game_write(SURFACE_WIDTH_RVA, width);
-            game_write(SURFACE_HEIGHT_RVA, height);
-            game_write(PICTURE_RVA, picture.as_ptr() as u32);
-            TAKEN.store(0, Ordering::SeqCst);
-            NOTED.lock().unwrap().clear();
-        }
-        // The `fail_at`-th read fails (0: none).
-        let mut reads = 0;
-        let mut part = |place: u32, r: &mut Regs| {
-            if place == 2 {
-                reads += 1;
-                FAIL_READ.store(reads == fail_at, Ordering::SeqCst);
-            }
-            test_part(place, r)
-        };
-        let got = unsafe { set_up_surface(&Regs::SENTINEL, &mut part) };
-        FAIL_READ.store(false, Ordering::SeqCst);
-        let places: Vec<u32> = NOTED
-            .lock()
-            .unwrap()
-            .drain(..)
-            .map(|(p, _)| p)
-            .filter(|&p| p != 3)
-            .collect();
-        let want: &[u32] = match fail_at {
-            0 => &[0, 1, 4],
-            1 => &[0, 1, 2, 4],
-            _ => &[0, 1, 2, 2, 4],
-        };
-        t.check(got.is_err() && places == want, || {
-            format!(
-                "{width:#x} x {height:#x}, read {fail_at} failing: refused {}, calls {places:?}",
-                got.is_err()
-            )
-        });
-    }
-    restore(&regions, &saved);
-    drop(blocks);
-    t.finish()
 }

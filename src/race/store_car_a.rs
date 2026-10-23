@@ -8,67 +8,23 @@
 //! original faults), `g_currentCar` put back. Shadow mode: the Rust version, the block and
 //! `g_currentCar` put back, the original's, compared. Self-test: the game's blocks, each
 //! filled with 0x5A before each run, view cars 0, 1, 5, 7 and 9; all put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_write, hook_asm, rva};
+use crate::framework::Regs;
 use crate::race::frame::*;
 use crate::screens::harness::Left;
-use crate::service::harness::{at, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::store_car_a", rva(0x454253), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { store_view_car(0) }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &store_regions(0), &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let saved_view = capture(&[at(VIEW_CARS[0])]);
-    for car in [0u32, 1, 5, 7, 9] {
-        unsafe { game_write(VIEW_CARS[0], car) };
-        let regions = store_regions(0);
-        if regions.len() < 2 {
-            restore(&[at(VIEW_CARS[0])], &saved_view);
-            return t.skip("a car block is null (no race loaded)");
-        }
-        let saved = capture(&regions);
-        check_state(
-            &mut t,
-            &format!("view car {car}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                game_write(VIEW_CARS[0], car);
-                std::ptr::write_bytes(regions[1].0 as *mut u8, 0x5A, regions[1].1);
-            },
-            &regions,
-            &rust,
-        );
-        restore(&regions, &saved);
-    }
-    restore(&[at(VIEW_CARS[0])], &saved_view);
-    t.finish()
 }

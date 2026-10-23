@@ -16,24 +16,14 @@
 //! what was written put back). Shadow mode runs the original alone (it tells
 //! the device). Self-test: a copy whose calls go to stand-ins, against the Rust version,
 //! the switch changed or not, on a narrow test surface width.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::setup::SETTINGS_RVA;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::swap_mask", rva(0x4C95F5), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const SEEN_RVA: usize = rva(0x934D6E); // dword_934D6E
 const CHOSEN_RVA: usize = rva(0x934D72); // dword_934D72
@@ -122,87 +112,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { swap_mask(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { swap_mask(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // mov esi, g_marksSettings
-    let entry: &[u8] = &[0x8B, 0x35, 0x28, 0x7A, 0x76, 0x00];
-    let copy = match copy(
-        0x4C95F5,
-        0x86,
-        entry,
-        &[0x36, 0x5C, 0x76, 0x80],
-        &[(0x41AA4B, 1), (0x4065BB, 2), (0x41AB02, 3), (0x44EB66, 4)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut settings = vec![0u32; 0x2708 / 4];
-    let sa = settings.as_mut_ptr() as u32;
-    let mut masks = vec![0u32; 2 * 0x7E * 0x100];
-    let ma = masks.as_mut_ptr() as u32;
-    for (n, v) in masks.iter_mut().enumerate() {
-        *v = (n as u32).wrapping_mul(0x9E37_79B9);
-    }
-    let regions: Vec<Region> = vec![at(SEEN_RVA), at(CHOSEN_RVA)];
-    let mut vars = regions.clone();
-    vars.extend(
-        [
-            SETTINGS_RVA,
-            MASK_RVA,
-            BMASK_RVA,
-            WIDTH_RVA,
-            SLOT_RVA,
-            FORGET_RVA,
-        ]
-        .map(at),
-    );
-    let saved = capture(&vars);
-    for (case, (switch, seen, width)) in [(0u32, 0u32, 4u32), (1, 0, 3), (1, 1, 4), (0, 5, 0)]
-        .into_iter()
-        .enumerate()
-    {
-        run_both(
-            &mut t,
-            &format!("switch {switch}, seen {seen}, width {width}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                restore(&vars, &saved);
-                game_write(SETTINGS_RVA, sa);
-                ((sa + 0x2704) as *mut u32).write_unaligned(switch);
-                game_write(SEEN_RVA, seen);
-                game_write(MASK_RVA, ma);
-                game_write(BMASK_RVA, ma + 4 * 0x7E * 0x100);
-                game_write(WIDTH_RVA, width);
-                game_write(SLOT_RVA, 0x30 + case as u32);
-                game_write(FORGET_RVA, 0x40u32);
-            },
-            &|r| unsafe { swap_mask(r, &mut test_part) },
-        );
-    }
-    restore(&vars, &saved);
-    drop((settings, masks));
-    t.finish()
 }

@@ -12,83 +12,24 @@
 //! `rc2k_core::marks::turns::smooth_pair` (plain floats; the x87 version stays for the Rust
 //! callers in unconverted code). Shadow mode and the self-test compare within
 //! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EBX, ECX, RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::marks::turns::*;
 use crate::race::stage_prefs::left_of;
-use crate::scene::matrix::float_places;
 use crate::screens::harness::Left;
 use crate::service::floats::*;
-use crate::service::harness::{capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::smooth_steps", rva(0x4BE928), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { smooth_steps_plain(r) }))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let places = float_places(&step_regions());
-    let floats = Floats {
-        memory: &places,
-        regs: &[(ECX, FLOAT), (EBX, FLOAT)],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &step_regions(), &floats, &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = step_regions();
-    let saved = capture(&regions);
-    let tolerant_places = float_places(&regions);
-    let tolerant = Floats {
-        memory: &tolerant_places,
-        regs: &[(ECX, FLOAT), (EBX, FLOAT)],
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        for seed in 1..=8u32 {
-            for step in [0u32, 1, 0x3F, 0x7F, 0x80, u32::MAX] {
-                let mut v = [0u32; 2];
-                crate::scene::matrix3::test_floats(seed, &mut v);
-                check_state_floats(
-                    &mut t,
-                    "marks::smooth_steps",
-                    &format!("control word {word:#x}, seed {seed}, step {step:#x}"),
-                    call_original,
-                    Regs {
-                        eax: step,
-                        ebx: v[0],
-                        ecx: v[1],
-                        ..Regs::SENTINEL
-                    },
-                    &|| {},
-                    &regions,
-                    held,
-                    &rust,
-                );
-            }
-        }
-    });
-    restore(&regions, &saved);
-    t.finish()
 }

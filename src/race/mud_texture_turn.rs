@@ -11,26 +11,15 @@
 //! before anything (its checks first). Shadow mode runs the original alone (the device is
 //! told). Self-test: a copy whose call goes to a stand-in, against the Rust version, on
 //! colours and values by lot; put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
-use crate::race::mud::{copy, run_both, test_part};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::race::muddy_texel::texture_and_mud;
-use crate::race::tint_to_mud_colour::{MUD_COLOUR_RVA, mud_colour};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::mud_texture_turn", rva(0x44A087), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::race::tint_to_mud_colour::mud_colour;
 
 const PACKED_RVA: usize = rva(0x623D34); // dword_623D34
 const MOVED: [(usize, usize); 2] = [
@@ -68,85 +57,9 @@ pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { mud_texture_turn(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { mud_texture_turn(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-fn regions() -> Vec<Region> {
-    let mut v = vec![at(PACKED_RVA)];
-    for (from, to) in MOVED {
-        v.extend([at(from), at(to)]);
-    }
-    v
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // mov eax, dword_60AD00
-    let copy = match copy(
-        0x44A087,
-        0x4F,
-        &[0xA1, 0x00, 0xAD, 0x60, 0x00],
-        &[0x49],
-        &[(0x44A12E, 0)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mud = crate::race::muddy_texel::TestMud::new();
-    let inputs = [
-        (crate::framework::game_addr(MUD_COLOUR_RVA) as u32, 12),
-        at(crate::race::muddy_texel::TEXTURE_RVA),
-    ];
-    let all: Vec<Region> = [&regions()[..], &inputs[..]].concat();
-    let saved = capture(&all);
-    let regions = regions();
-    let mut x = 0xC0FF_EE11u32;
-    for case in 0..8u32 {
-        let mut next = || {
-            x ^= x << 13;
-            x ^= x >> 17;
-            x ^= x << 5;
-            x
-        };
-        let colour = if case == 0 {
-            [0x12u32, 0x34, 0x56]
-        } else {
-            [next(), next(), next()]
-        };
-        let moved = [next(), next()];
-        run_both(
-            &mut t,
-            &format!("colour {colour:x?}, moved {moved:x?}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                game_write(MUD_COLOUR_RVA, colour);
-                game_write(crate::race::muddy_texel::TEXTURE_RVA, case % 4);
-                game_write(MOVED[0].0, moved[0]);
-                game_write(MOVED[1].0, moved[1]);
-            },
-            &|r| unsafe { mud_texture_turn(r, &mut test_part) },
-        );
-    }
-    restore(&all, &saved);
-    drop(mud);
-    t.finish()
 }

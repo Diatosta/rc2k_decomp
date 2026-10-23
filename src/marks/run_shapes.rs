@@ -14,9 +14,13 @@
 //! (`dword_844E34` holds 9), and its steps' refusals; on a refusal nothing stays written
 //! (all it may write is put back). Self-test: the game's settings (skipped without them),
 //! clocks, randoms and switches by lot; compared on all it may write.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::emitters::next_c5;
 use crate::marks::lines::SETTINGS_RVA;
 use crate::marks::pick_shapes::pick_shapes;
@@ -24,22 +28,7 @@ use crate::marks::shape_points::turn_all_shapes;
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::run_shapes", rva(0x4BDF72), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at, capture, restore, state_entry};
 
 const CLOCK_RVA: usize = rva(0x613830); // g_sceneClock
 const NEXT_RVA: usize = rva(0x844E30); // dword_844E30
@@ -146,53 +135,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { run_shapes(r) }?))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
-    if settings == 0 {
-        return t.skip("no marks settings");
-    }
-    let regions = regions();
-    let mut vars = regions.clone();
-    vars.extend([CLOCK_RVA, TICKS_RVA].map(at));
-    vars.push((settings + 0x2748, 8));
-    let saved = capture(&vars);
-    for case in 0..8u32 {
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&vars, &saved);
-                let k = case.wrapping_mul(0x9E37_79B9);
-                game_write(CLOCK_RVA, 1000 + case * 7);
-                game_write(NEXT_RVA, if case % 3 == 0 { 2000 } else { 900 });
-                game_write(TIME_RANDOM_RVA, k);
-                game_write(MOVE_RANDOM_RVA, k ^ 0x5555);
-                game_write(MOVING_RVA, case & 1);
-                game_write(INDEX_RVA, (k >> 8) & 0xFF);
-                game_write(COUNT_RVA, k >> 4);
-                game_write(TICKS_RVA, 1 + case % 3);
-                ((settings + 0x2748) as *mut u32).write_unaligned(case % MASKS);
-                ((settings + 0x274C) as *mut u32).write_unaligned(case % 2);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

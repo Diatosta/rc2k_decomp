@@ -14,34 +14,18 @@
 //! its hook). Shadow mode runs the original alone (`set_up_engine` sets up the cars).
 //! Self-test: a copy whose calls go to stand-ins that note them, against the Rust version
 //! with the same, on the game's light settings (put back).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva, shadow};
-use crate::race::noted_calls::{Part, both, copy};
-use crate::service::harness::{Region, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::set_up_lit_engine", rva(0x415515), thunk, &ORIGINAL)
-        .private_copy(0x4E)
-        .relocate_calls(&[0x1, 0x6, 0x47])
-        .manual_patch()
-        .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_write, rva};
+use crate::race::noted_calls::Part;
 
 pub const ENGINE: u32 = 0;
 pub const COURSES: u32 = 1;
 pub const LIGHTS: u32 = 2;
-const PLACES: [(usize, u32); 3] = [(0x442AF6, ENGINE), (0x4394F8, COURSES), (0x44F0AB, LIGHTS)];
-
 /// `g_lightLowest`, `g_lightHighest`, `g_lightLevel`, `g_lightStrength`, `dword_635094`,
 /// `dword_635098` and their values.
 const SETTINGS: [(usize, u32); 6] = [
@@ -80,59 +64,9 @@ pub fn lit_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    let mut g = *r;
-    if let Err(e) = set_up_lit_engine_in(&mut g, &mut lit_part) {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let mut g = *r;
     set_up_lit_engine_in(&mut g, &mut lit_part)?;
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy(
-        0x415515,
-        0x4E,
-        &[0x60, 0xE8, 0xDB, 0xD5, 0x02, 0x00],
-        &[0x1, 0x6, 0x47],
-        &PLACES,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let all: Vec<Region> = SETTINGS
-        .iter()
-        .map(|&(a, _)| (game_addr(rva(a)) as u32, 4))
-        .collect();
-    let saved = capture(&all);
-    both(
-        &mut t,
-        "the settings",
-        &copy,
-        Regs::SENTINEL,
-        &|| {
-            restore(&all, &saved);
-            for (a, _) in SETTINGS {
-                unsafe { game_write(rva(a), 0xAAAA_AAAAu32) };
-            }
-        },
-        &all,
-        &set_up_lit_engine_in,
-    );
-    restore(&all, &saved);
-    drop(copy);
-    t.finish()
 }

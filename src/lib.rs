@@ -7,6 +7,7 @@
 
 pub mod audio;
 pub mod bridge;
+mod bug_fixes;
 pub mod calls;
 pub mod d3d;
 pub mod drive;
@@ -304,7 +305,9 @@ fn install_now() -> (Vec<bool>, Option<(File, File)>) {
         let _ = LOG_PATH.set(path);
     }
     let console = console_init();
-    let mut enabled = install_all(unsafe { GetModuleHandleW(std::ptr::null()) } as usize);
+    let base = unsafe { GetModuleHandleW(std::ptr::null()) } as usize;
+    let mut enabled = install_all(base);
+    bug_fixes::apply(base);
     let cfg = load_config().unwrap_or_default();
     apply_config(&cfg, &mut enabled);
     (enabled, console)

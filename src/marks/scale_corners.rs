@@ -12,45 +12,20 @@
 //! `rc2k_core::marks::scales::scale_corner` (plain floats; the x87 version stays for
 //! `marks::allocate_links`' part). Shadow mode and the self-test compare within
 //! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
+use crate::framework::{Regs, game_addr};
 use crate::marks::blocks::*;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::floats::{
-    FLOAT, Floats, Tolerance, at_test_precisions, check_state_floats, dispatch_state_floats,
-    floats_entry,
-};
-use crate::service::harness::{capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::scale_corners", rva(0x4C6420), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::floats::floats_entry;
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { scale_corners_plain(r) }))
-}
-
-/// The registers holding floats: the last pair.
-const FLOAT_REGS: [(u8, Tolerance); 2] = [(EAX, FLOAT), (EBX, FLOAT)];
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let places = corner_floats();
-    let floats = Floats {
-        memory: &places,
-        regs: &FLOAT_REGS,
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &corner_regions(), &floats, &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
@@ -81,41 +56,4 @@ pub fn fill_corners(seed: u32) {
             w(0xA, r(2).wrapping_add(3));
         }
     }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = corner_regions();
-    let corners = [(game_addr(CORNERS_RVA) as u32, 0x80 * CORNERS as usize)];
-    let (saved, saved_corners) = (capture(&regions), capture(&corners));
-    let places = corner_floats();
-    let tolerant = Floats {
-        memory: &places,
-        regs: &FLOAT_REGS,
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        for seed in [1u32, 2, 3] {
-            check_state_floats(
-                &mut t,
-                "marks::scale_corners",
-                &format!("control word {word:#x}, corners by lot {seed}"),
-                call_original,
-                Regs::SENTINEL,
-                &|| {
-                    for &(a, n) in &regions {
-                        unsafe { std::ptr::write_bytes(a as *mut u8, 0xAA, n) };
-                    }
-                    fill_corners(seed);
-                },
-                &regions,
-                held,
-                &rust,
-            );
-        }
-    });
-    restore(&corners, &saved_corners);
-    restore(&regions, &saved);
-    t.finish()
 }

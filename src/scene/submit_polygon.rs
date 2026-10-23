@@ -23,30 +23,16 @@
 //! Self-test: a redirected copy of the three functions whose log calls and
 //! `sub_443AEC` only note themselves, on polygons of the test's in the game's buffer,
 //! with the Direct3D layer's calls swallowed.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::d3d::draw_fan_unclipped::{COUNT_RVA, VERTICES_RVA, polygon};
-use crate::d3d::recorder::{Call, record};
+use crate::d3d::draw_fan_unclipped::polygon;
+use crate::d3d::recorder::Call;
 use crate::d3d::set_texture::CURRENT_RVA;
-use crate::d3d::{NO_TEXTURE, VERTEX_LEN, Vertex};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::install::stand_ins::{set_handler, stand_in};
-use crate::redirect::RedirectedCopy;
-use crate::service::harness::{at, capture, restore};
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::submit_polygon", rva(0x44CCC0), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::d3d::{NO_TEXTURE, Vertex};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 
 // ---- game data ----
 
@@ -181,205 +167,9 @@ impl Outside for Foreseen {
     fn not_drawn(&mut self, _: u32) {}
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if !shadow() {
-        let entry = *r;
-        unsafe { submit_polygon(&mut Game(&entry)) };
-        return;
-    }
-    let mut mine = Foreseen::default();
-    let texture: u32 = unsafe { game_read(TEXTURE_RVA) };
-    unsafe {
-        let current: u32 = game_read(CURRENT_RVA);
-        submit_polygon(&mut mine);
-        game_write(CURRENT_RVA, current);
-    }
-    let (_, theirs) = record(false, || unsafe { call_original(r) });
-    if theirs != mine.calls {
-        HOOK.mismatch(|| {
-            format!(
-                "texture {texture:#x}, {} vertices: original {theirs:x?}; rust {:x?}",
-                polygon().len(),
-                mine.calls
-            )
-        });
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let entry = *r;
     unsafe { submit_polygon(&mut Game(&entry)) };
     Ok(())
-}
-
-// ---- self-test ----
-
-/// `submit_polygon`, `draw_polygon_fan` and `check_polygon_vertices`: address, length,
-/// first bytes, the offsets of their calls.
-const SUBMIT: (usize, usize, [u8; 8], &[usize]) = (
-    0x44CCC0,
-    0x2F,
-    [0xA1, 0xD4, 0x40, 0x62, 0x00, 0x3D, 0x43, 0xFC],
-    &[0x1D, 0x24, 0x29],
-);
-const FAN: (usize, usize, [u8; 8], &[usize]) = (
-    0x44EA36,
-    0x2F,
-    [0xE8, 0x2F, 0x00, 0x00, 0x00, 0x72, 0x27, 0x83],
-    &[0x00, 0x10, 0x21, 0x28],
-);
-const CHECK: (usize, usize, [u8; 8], &[usize]) = (
-    0x44EA6A,
-    0x9A,
-    [0x8B, 0x0D, 0xF8, 0x40, 0x62, 0x00, 0x83, 0xF9],
-    &[0x8D, 0x93],
-);
-
-/// 1 after the copy logged "Error" or called `sub_443AEC`.
-static BAD_VERTEX: AtomicU32 = AtomicU32::new(0);
-
-fn handler(_: u32, _: &mut Regs) {
-    BAD_VERTEX.store(1, Ordering::SeqCst);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // The copies: the check's log and `sub_443AEC` only note themselves; the fan's
-    // "drawtri" lines are never reached, the layer's calls being swallowed.
-    let copies = unsafe {
-        let noting = |callee: usize| {
-            [LOG_L1, LOG_L1_NL, LOG_HEX8_L1, SHOW_VERTICES]
-                .iter()
-                .any(|&known| rva(known) == callee)
-                .then(|| stand_in(0))
-        };
-        let check =
-            RedirectedCopy::new(game_addr(rva(CHECK.0)), CHECK.1, &CHECK.2, CHECK.3, &noting);
-        check.and_then(|check| {
-            let fan = RedirectedCopy::new(game_addr(rva(FAN.0)), FAN.1, &FAN.2, FAN.3, &|callee| {
-                if callee == rva(CHECK.0) {
-                    Some(check.addr())
-                } else {
-                    noting(callee)
-                }
-            });
-            fan.and_then(|fan| {
-                RedirectedCopy::new(
-                    game_addr(rva(SUBMIT.0)),
-                    SUBMIT.1,
-                    &SUBMIT.2,
-                    SUBMIT.3,
-                    &|callee| (callee == rva(FAN.0)).then(|| fan.addr()),
-                )
-                .map(|submit| (check, fan, submit))
-            })
-        })
-    };
-    let (_check, _fan, submit) = match copies {
-        Ok(copies) => copies,
-        Err(why) => return t.skip(why),
-    };
-    let (width, height): (u32, u32) = unsafe { (game_read(WIDTH_RVA), game_read(HEIGHT_RVA)) };
-    if width == 0 || height == 0 {
-        return t.skip("there is no screen mode");
-    }
-    let regions = [
-        (game_addr(VERTICES_RVA) as u32, 8 * VERTEX_LEN),
-        at(COUNT_RVA),
-        at(TEXTURE_RVA),
-        at(HAS_3D_RVA),
-        at(CURRENT_RVA),
-        at(CHECKED_RVA),
-    ];
-    let saved = capture(&regions);
-    let f = |value: f32| value.to_bits();
-    let (w, h) = (width as f32, height as f32);
-    let vertex = |x: f32, y: f32, z: f32| -> Vertex {
-        [f(x), f(y), f(z), f(1.0), 0xFF80_4020, 0, f(0.25), f(0.75)]
-    };
-    let good = vec![
-        vertex(0.0, 0.0, 0.0),
-        vertex(w, 0.0, 1.0),
-        vertex(w, h, 0.5),
-        vertex(10.5, h - 0.5, 0.999),
-    ];
-    let with = |n: usize, bad: Vertex| {
-        let mut polygon = good.clone();
-        polygon[n] = bad;
-        polygon
-    };
-    let polygons: Vec<(&str, Vec<Vertex>)> = vec![
-        ("on the screen", good.clone()),
-        ("a triangle", good[..3].to_vec()),
-        ("no vertices", Vec::new()),
-        ("x below 0", with(0, vertex(-0.001, 5.0, 0.5))),
-        ("x past the width", with(2, vertex(w + 0.5, 5.0, 0.5))),
-        ("y below 0", with(1, vertex(5.0, -1.0, 0.5))),
-        ("y past the height", with(3, vertex(5.0, h + 1.0, 0.5))),
-        ("z below 0", with(0, vertex(5.0, 5.0, -0.1))),
-        ("z past 1", with(3, vertex(5.0, 5.0, 1.001))),
-        ("x not a number", with(1, vertex(f32::NAN, 5.0, 0.5))),
-        ("z not a number", with(2, vertex(5.0, 5.0, f32::NAN))),
-        ("x infinite", with(0, vertex(f32::INFINITY, 5.0, 0.5))),
-        ("minus zero", with(0, vertex(-0.0, -0.0, -0.0))),
-    ];
-    // (the polygon's texture, the current one)
-    let textures = [
-        (NO_TEXTURE, 5u32),
-        (NO_TEXTURE, NO_TEXTURE),
-        (5, 5),
-        (6, 5),
-        (0x3FF, 0),
-        (0x400, 0),
-        (0x400, 7),
-        (0xFFFF_FFFF, 3),
-        (0, NO_TEXTURE),
-    ];
-    for (what, polygon) in &polygons {
-        for (texture, current) in textures {
-            for has_3d in [1u32, 0, 0xFFFF_FFFF] {
-                let run = |rust: bool| unsafe {
-                    restore(&regions, &vec![0xAA; saved.len()]);
-                    for (n, v) in polygon.iter().enumerate() {
-                        ((game_addr(VERTICES_RVA) + n * VERTEX_LEN) as *mut Vertex)
-                            .write_unaligned(*v);
-                    }
-                    game_write(COUNT_RVA, polygon.len() as u32);
-                    game_write(TEXTURE_RVA, texture);
-                    game_write(HAS_3D_RVA, has_3d);
-                    game_write(CURRENT_RVA, current);
-                    BAD_VERTEX.store(0, Ordering::SeqCst);
-                    set_handler(handler);
-                    if rust {
-                        let mut mine = Foreseen::default();
-                        submit_polygon(&mut mine);
-                        (mine.calls, mine.bad_vertex, capture(&regions))
-                    } else {
-                        let mut ro = Regs::SENTINEL;
-                        let (_, calls) = record(true, || call_game(&mut ro, submit.addr()));
-                        (
-                            calls,
-                            BAD_VERTEX.load(Ordering::SeqCst) == 1,
-                            capture(&regions),
-                        )
-                    }
-                };
-                let (theirs, mine) = (run(false), run(true));
-                t.check(theirs == mine, || {
-                    format!(
-                        "{what}, texture {texture:#x} over {current:#x}, 3D {has_3d:#x}: original {:x?} bad vertex {}; rust {:x?} bad vertex {}",
-                        theirs.0, theirs.1, mine.0, mine.1
-                    )
-                });
-            }
-        }
-    }
-    restore(&regions, &saved);
-    t.finish()
 }

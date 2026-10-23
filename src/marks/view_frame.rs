@@ -10,9 +10,13 @@
 //! steps' refusals (all it may write is put back first). Self-test: the game's settings
 //! (skipped without them; outside a stage the splines' pointers may name freed memory, so
 //! it runs only when `g_marksSplinePlace` is 0), compared on all it may write.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, hook_asm, rva};
+use crate::framework::{Regs, game_read};
 use crate::marks::lines::SETTINGS_RVA;
 use crate::marks::{
     aim_vector, keep_vectors, run_splines, scale_kept_vectors, shapes_frame, turn_kept_vectors,
@@ -20,23 +24,7 @@ use crate::marks::{
 };
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("marks::view_frame", rva(0x4C1270), thunk, &ORIGINAL)
-    .private_copy(0x24)
-    .relocate_calls(&[0x0, 0x5, 0xA, 0xF, 0x14, 0x19, 0x1E])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, capture, restore, state_entry};
 
 /// What its first five steps write (the last two put back their own).
 fn early_regions() -> Vec<Region> {
@@ -81,45 +69,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { view_frame(r) }?))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if unsafe { game_read::<u32>(SETTINGS_RVA) } == 0 {
-        return t.skip("no marks settings");
-    }
-    if unsafe { game_read::<u32>(crate::marks::splines::PLACE_RVA) } != 0 {
-        return t.skip("splines are placed (their pointers are the stage's)");
-    }
-    let regions = regions();
-    let mut vars = regions.clone();
-    vars.extend([rva(0x613830), rva(0x764FD0)].map(crate::service::harness::at));
-    let saved = capture(&vars);
-    for case in 0..3u32 {
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&vars, &saved);
-                crate::framework::game_write(rva(0x613830), 1000 + case * 13);
-                crate::framework::game_write(rva(0x764FD0), 1 + case);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

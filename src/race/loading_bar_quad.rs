@@ -10,23 +10,13 @@
 //! Caller: `race::loading_bar_frame`. The quad through `part` (1), in the game its Rust
 //! version. Shadow mode runs the original alone (it draws). Self-test: a copy whose quad
 //! goes to a stand-in, against the Rust version, shares by lot.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::loading_bar_quad", rva(0x446861), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_read, game_write, rva};
 
 const QUAD_IN_RVA: usize = rva(0x623DE8); // colour; x at +0x28 / +0x2C, y at +0x38 / +0x3C
 pub const SHARE_RVA: usize = rva(0x623700); // dword_623700: the share loaded, 0 .. 100
@@ -63,56 +53,9 @@ pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe { crate::race::frame_draw::draw_screen_quad(r, &mut crate::race::frame_draw::quad_part) }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { loading_bar_quad(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { loading_bar_quad(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // mov eax, 0
-    let entry: &[u8] = &[0xB8, 0x00, 0x00, 0x00, 0x00];
-    let copy = match copy(0x446861, 0x9A, entry, &[0x94], &[(0x44B364, 1)]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions: Vec<Region> = vec![
-        (crate::framework::game_addr(QUAD_IN_RVA) as u32, 0x40),
-        at(SWITCH_RVA),
-    ];
-    let mut vars = regions.clone();
-    vars.push(at(SHARE_RVA));
-    let saved = capture(&vars);
-    for share in [0u32, 37, 100, 150, 0xFFFF_FFF6] {
-        run_both(
-            &mut t,
-            &format!("share {share}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                restore(&vars, &saved);
-                game_write(SHARE_RVA, share);
-            },
-            &|r| unsafe { loading_bar_quad(r, &mut test_part) },
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

@@ -13,31 +13,18 @@
 //! Eleven call sites in `scene::load_object` (the parts of a car).
 //! Refuses a slot past the tables and points without their memory.
 //! Self-test: 24 sets of points by lot in slot 0xF3 of the game's tables.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    EAX, EBX, ECX, ESI, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{EAX, EBX, ECX, ESI, Regs, game_read, game_write, rva};
 use crate::scene::objects::{
-    FIRST_POINT_RVA, POINT_COUNTS_RVA, POINTS_RVA, SLOT_RVA, SLOTS, of_slot, slot_entry,
+    FIRST_POINT_RVA, POINT_COUNTS_RVA, POINTS_RVA, SLOT_RVA, SLOTS, of_slot,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::measure_object", rva(0x4222B8), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 // ---- game data ----
 
@@ -89,92 +76,12 @@ pub unsafe fn measure_object() -> Result<Left, BadInput> {
     }
 }
 
-// ---- hook ----
-
-fn regions() -> Vec<Region> {
-    let mut regions = vec![(game_addr(MEASURES_RVA) as u32, 0x30)];
-    if let Ok((at, count)) = unsafe { points_of(game_read(SLOT_RVA)) }
-        && count != 0
-    {
-        regions.push((at as u32, count as usize * 12));
-    }
-    regions
-}
-
 fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { measure_object() }?)
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    const SLOT: u32 = 0xF3;
-    let inputs = [
-        at(SLOT_RVA),
-        at(POINTS_RVA),
-        slot_entry(FIRST_POINT_RVA, SLOT),
-        slot_entry(POINT_COUNTS_RVA, SLOT),
-        (game_addr(MEASURES_RVA) as u32, 0x30),
-    ];
-    let saved = capture(&inputs);
-    let mut seed = 0x0B0E_C701u32;
-    let mut lot = |below: u32| {
-        seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-        (seed >> 8) % below
-    };
-    for case in 0..24u32 {
-        let count = [0u32, 1, 2, 7, 40][case as usize % 5];
-        // Three points before the object's, which must stay.
-        let mut points = vec![[0xAAAA_AAAAu32; 3]; count as usize + 4];
-        for point in &mut points[3..3 + count as usize] {
-            for part in point.iter_mut() {
-                *part = match lot(9) {
-                    0 => 0x7FFF_FFFF,
-                    1 => 0x8000_0000,
-                    2 => 0x0064_0000,
-                    3 => 0xFF9C_0000,
-                    _ => lot(0x80_0000).wrapping_sub(0x40_0000),
-                };
-            }
-        }
-        let memory = std::cell::RefCell::new(points.clone());
-        let regions = [
-            (game_addr(MEASURES_RVA) as u32, 0x30),
-            (memory.borrow().as_ptr() as u32, points.len() * 12),
-        ];
-        check_state(
-            &mut t,
-            &format!(
-                "case {case}: {count} points {:x?}",
-                &points[3..3 + count as usize]
-            ),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                memory.borrow_mut().copy_from_slice(&points);
-                game_write(MEASURES_RVA, [0xAAAA_AAAAu32; 12]);
-                game_write(SLOT_RVA, SLOT);
-                game_write(POINTS_RVA, memory.borrow().as_ptr() as u32);
-                game_write(FIRST_POINT_RVA + SLOT as usize * 4, 3u32);
-                game_write(POINT_COUNTS_RVA + SLOT as usize * 4, count);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&inputs, &saved);
-    t.finish()
 }

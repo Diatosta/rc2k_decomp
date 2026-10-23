@@ -25,29 +25,16 @@
 //! the five (the settings' +8), before anything. Shadow mode runs the original alone (it
 //! draws). Self-test: a copy whose calls go to stand-ins (the streak's taking its values
 //! off), against the Rust version, on the game's tables with settings of the test's.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::marks::setup::SETTINGS_RVA;
 use crate::math::{x87, x87_run};
 use crate::scene::vector3::STATUS_RVA;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::run_rain", rva(0x4C16F9), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const DROPS_RVA: usize = rva(0x8BC50D); // dword_8BC50D
 const DRAWN_RVA: usize = rva(0x8BC405); // dword_8BC405
@@ -71,7 +58,6 @@ const NOISE_RVA: [usize; 3] = [rva(0x8BC511), rva(0x8BC911), rva(0x8BCD11)];
 const SPREAD_RVA: usize = rva(0x8BC429); // dword_8BC429
 const TURNED_RVA: usize = rva(0x8BDE3D); // flt_8BDE3D .. flt_8BDE45
 const KEPT_RVA: [usize; 3] = [rva(0x8BD111), rva(0x8BD511), rva(0x8BD911)];
-const CLEAR_TEXTURE_RVA: usize = rva(0x44E958); // scene::clear_texture
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 const COLOURS: [u32; 4] = [0xFF_FFFF, 0, 0x2800_0000, 0x28FF_FFFF];
@@ -307,7 +293,7 @@ pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused
                 let (value, state) = (r.eax, r.ebx);
                 crate::scene::set_render_state::set_render_state(r, value, state);
             }
-            4 => crate::calls::call(CLEAR_TEXTURE_RVA, r),
+            4 => crate::scene::clear_texture::clear_texture_in_game(r),
             5 => {
                 let left = crate::marks::drift_offsets::drift_offsets(r);
                 *r = Regs { esp: r.esp, ..left };
@@ -322,174 +308,9 @@ pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { run_rain(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { run_rain(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-/// A call as the test notes it: place, eax .. esi, the x87 values.
-type Noted = (u32, [u32; 5], Vec<[u8; 10]>);
-
-static NOTED: Mutex<Vec<Noted>> = Mutex::new(Vec::new());
-
-fn note(place: u32, r: &Regs, v: &[[u8; 10]]) {
-    NOTED
-        .lock()
-        .unwrap()
-        .push((place, [r.eax, r.ebx, r.ecx, r.edx, r.esi], v.to_vec()));
-}
-
-fn note_regs(place: u32, r: &mut Regs) {
-    note(place, r, &[]);
-}
-
-extern "C" fn note_three(r: *const Regs, v: *const [u8; 10]) {
-    note(6, unsafe { &*r }, unsafe {
-        std::slice::from_raw_parts(v, 3)
-    });
-}
-
-/// The test's stand-in for the streak: its three values taken off and noted.
-#[unsafe(naked)]
-unsafe extern "C" fn streak_stand_in() {
-    core::arch::naked_asm!(
-        "lea esp, [esp - 30]",
-        "fstp tbyte ptr [esp]",
-        "fstp tbyte ptr [esp + 10]",
-        "fstp tbyte ptr [esp + 20]",
-        "pushfd",
-        "pushad",
-        "mov eax, esp",
-        "lea ecx, [esp + 36]",
-        "push ecx",
-        "push eax",
-        "call {note}",
-        "add esp, 8",
-        "popad",
-        "popfd",
-        "lea esp, [esp + 30]",
-        "ret",
-        note = sym note_three,
-    )
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::install::stand_ins::{set_handler, stand_in};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    set_handler(note_regs);
-    let copy = match unsafe {
-        crate::redirect::RedirectedCopy::new(
-            game_addr(rva(0x4C16F9)),
-            0x42A,
-            // mov esi, g_marksSettings
-            &[0x8B, 0x35, 0x28, 0x7A, 0x76, 0x00],
-            &[0xA8, 0xAD, 0xBC, 0xCB, 0xDA, 0xE9, 0xF8, 0xFD, 0x1C8, 0x3D7],
-            &|c| match c + 0x40_0000 {
-                0x4C1CC8 => Some(stand_in(1)),
-                0x44E3F1 => Some(stand_in(2)),
-                0x44EB72 => Some(stand_in(3)),
-                0x44E958 => Some(stand_in(4)),
-                0x4C1BA9 => Some(stand_in(5)),
-                0x4C1DCD => Some(streak_stand_in as *const () as usize),
-                _ => None,
-            },
-        )
-    } {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut settings = vec![0u32; 0x2768 / 4];
-    let sa = settings.as_mut_ptr() as u32;
-    let regions: Vec<Region> = vec![
-        (game_addr(rva(0x8BC405)) as u32, 0x8BDE55 - 0x8BC405),
-        (game_addr(VERTICES_RVA) as u32, 0x80),
-        at(COUNT_RVA),
-        at(SCRATCH_RVA),
-        at(STATUS_RVA),
-    ];
-    let mut vars = regions.clone();
-    vars.extend([SETTINGS_RVA, RHW_RVA, DRIFTING_RVA, CLOCK_RVA].map(at));
-    vars.push((game_addr(rva(0x8C5F91)) as u32, 0x28));
-    let saved = capture(&vars);
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for case in 0..5u32 {
-        let k = case as f32;
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            game_write(SETTINGS_RVA, sa);
-            let s = sa as *mut u32;
-            for n in 0..0x40 {
-                *s.add(n) = (n as u32).wrapping_mul(0x0101_0101) ^ case;
-            }
-            *s.add(2) = case % 5;
-            *s.add(3) = u32::from(case % 2 == 0);
-            *s.add(4) = u32::from(case != 1);
-            *s.add(0x2764 / 4) = [0, 5, 0x30, 0x180, 0xFFFF_FFFF][case as usize];
-            game_write(DRIFTING_RVA, u32::from(case >= 2));
-            game_write(CLOCK_RVA, 0x1234_5678u32.wrapping_mul(case + 1));
-            game_write(RHW_RVA, 3 + case);
-            for n in 1..10 {
-                game_write(
-                    rva(0x8C5F91) + 4 * n,
-                    (0.5f32 + n as f32 * 0.25 + k).to_bits(),
-                );
-            }
-            for n in 0..3 {
-                game_write(VIEW_RVA + 4 * n, 0x1_0000 * (n as u32 + case));
-                game_write(TURNED_RVA + 4 * n, (n as f32 * 100.5 - k).to_bits());
-            }
-            std::ptr::write_bytes(game_addr(VERTICES_RVA) as *mut u8, 0xAA, 0x80);
-        };
-        prepare();
-        NOTED.lock().unwrap().clear();
-        let mut ro = Regs::SENTINEL;
-        unsafe { call_game(&mut ro, copy.addr()) };
-        let theirs = (
-            Some(regs(&ro)),
-            std::mem::take(&mut *NOTED.lock().unwrap()),
-            capture(&regions),
-        );
-        prepare();
-        let mine = unsafe {
-            run_rain(&Regs::SENTINEL, &mut |p, r, v| {
-                note(p, r, v);
-                Ok(())
-            })
-        };
-        let mine = (
-            mine.as_ref().ok().map(regs),
-            std::mem::take(&mut *NOTED.lock().unwrap()),
-            capture(&regions),
-        );
-        t.check(theirs == mine, || {
-            format!(
-                "case {case}: original {:x?} {} calls; rust {:x?} {} calls; calls same {}; state first differs at {:?}",
-                theirs.0,
-                theirs.1.len(),
-                mine.0,
-                mine.1.len(),
-                theirs.1 == mine.1,
-                theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b)
-            )
-        });
-    }
-    restore(&vars, &saved);
-    drop(settings);
-    t.finish()
 }

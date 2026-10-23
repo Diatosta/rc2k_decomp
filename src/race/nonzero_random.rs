@@ -8,61 +8,23 @@
 //! with its call: private copy, the call relocated, manual patch. Shadow mode: the Rust
 //! version, the generator's state put back, the original's, compared. Self-test: the
 //! states of `math::next_random`'s test (0 among them, whose next number is 0).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, RawHook, Regs, SelfTest, game_write, hook_asm, rva};
-use crate::math::next_random::{STATE_RVA, TEST_STATES};
+use crate::framework::{EAX, Regs};
 use crate::race::race_init::nonzero_random;
 use crate::screens::harness::Left;
-use crate::service::harness::{at, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("race::nonzero_random", rva(0x444C14), thunk, &ORIGINAL)
-    .private_copy(0x9)
-    .relocate_calls(&[0x00])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing().with(EAX, unsafe { nonzero_random() }))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &[at(STATE_RVA)], &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = [at(STATE_RVA)];
-    let saved = capture(&regions);
-    for state in TEST_STATES {
-        check_state(
-            &mut t,
-            &format!("state={state:#x}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe { game_write(STATE_RVA, state) },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
 }

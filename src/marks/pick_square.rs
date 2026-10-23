@@ -11,26 +11,17 @@
 //! Converted 2026-10-21: the hook's Rust version is `pick_square_plain`, through
 //! `rc2k_core::marks::items::pick_square`; compared exactly as before (the earlier version
 //! stays for the Rust callers in unconverted code).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::spawn_square::{self, spawn_square};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{at, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::pick_square", rva(0x4C0623), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 const RANDOM_RVA: usize = rva(0x8BC256); // dword_8BC256
 
@@ -66,47 +57,12 @@ pub unsafe fn pick_square_plain(entry: &Regs) -> Regs {
     }
 }
 
-fn regions() -> Vec<crate::service::harness::Region> {
-    let mut r = spawn_square::regions();
-    r.push(at(RANDOM_RVA));
-    r
-}
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { pick_square_plain(r) }))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let saved = capture(&regions);
-    for case in 0..5u32 {
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&regions, &saved);
-                game_write(RANDOM_RVA, case.wrapping_mul(0x9E37_79B9));
-                game_write(spawn_square::CURSOR_RVA, case * 0x3C * 7);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
 }

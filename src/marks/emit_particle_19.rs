@@ -18,9 +18,13 @@
 //! matrix and a level past `dword_939B86`'s 9 entries (the original reads on). Self-test:
 //! a ring and car of the test's (`marks::emit_particle_6::TestEmitter`), several levels,
 //! motions and fillings.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, SelfTest, game_read, game_write, rva};
 use crate::marks::emit_particle_6::{TEST_ENTRIES, TestEmitter};
 use crate::marks::emitters::*;
 use crate::marks::jitter_point::jitter_point;
@@ -28,22 +32,7 @@ use crate::marks::setup::SEED_RVA;
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::screens::harness::{CallOriginal, Left};
-use crate::service::harness::{
-    Region, Rust, at as at_rva, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::emit_particle_19", rva(0x4CE283), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, Rust, at as at_rva, check_state, restore, state_entry};
 
 const LEVEL_RVA: usize = rva(0x93A1CE); // dword_93A1CE
 const MOTION_RVA: usize = rva(0x93A1C2); // dword_93A1C2 .. dword_93A1CA
@@ -215,22 +204,10 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(&NINETEENTH), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    test_with(&mut t, &NINETEENTH, call_original, &rust);
-    t.finish()
 }
 
 /// The test of either twin.

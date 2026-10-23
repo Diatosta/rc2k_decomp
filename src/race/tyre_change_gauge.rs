@@ -32,31 +32,16 @@
 //! noted, the device read from the test's device), against the Rust version with the same:
 //! each stage, the button, the developer's machine, the timeout, records beaten and not,
 //! both players.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::install::stand_ins::{set_handler, stand_in};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87::x87;
 use crate::race::frame::Part;
-use crate::redirect::RedirectedCopy;
-use crate::service::harness::{Region, capture, restore};
 use rc2k_core::race::tyre_change::{FILL_MS, Gauge, Io, turn};
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::tyre_change_gauge", rva(0x41C1D6), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 pub const TICK: u32 = 0;
 pub const DRAW: u32 = 1;
@@ -252,19 +237,6 @@ pub fn gauge_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    let mut w = *r;
-    match tyre_change_gauge_in(&mut w, &mut gauge_part) {
-        Ok(()) => r.eax = w.eax,
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let mut w = *r;
@@ -273,132 +245,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
         Err(e) => return Err(e),
     }
     Ok(())
-}
-
-// ---- self-test ----
-
-static CALLED: Mutex<Vec<(u32, [u32; 7])>> = Mutex::new(Vec::new());
-/// What the clock's stand-in gives.
-static CLOCK_GIVES: AtomicU32 = AtomicU32::new(0);
-
-fn handler(place: u32, r: &mut Regs) {
-    CALLED
-        .lock()
-        .unwrap()
-        .push((place, [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp]));
-    match place {
-        TICK => r.eax = CLOCK_GIVES.load(Ordering::SeqCst),
-        READ => read_device(r),
-        _ => {}
-    }
-}
-
-fn take_called() -> Vec<(u32, [u32; 7])> {
-    std::mem::take(&mut *CALLED.lock().unwrap())
-}
-
-const PLACES: [(usize, u32); 3] = [(0x411024, TICK), (0x41C38C, DRAW), (0x40930D, READ)];
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    set_handler(handler);
-    let copy = match unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x41C1D6)),
-            0x1B6,
-            &[0x60, 0x89, 0x35, 0xEC, 0xEB, 0x5B, 0x00],
-            &[0x14, 0x33, 0x38, 0x70, 0x7D, 0xD8, 0x193],
-            &|c| {
-                PLACES
-                    .iter()
-                    .find(|&&(k, _)| rva(k) == c)
-                    .map(|&(_, n)| stand_in(n))
-            },
-        )
-    } {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut device = vec![0u32; 0x500 / 4];
-    let dev = device.as_mut_ptr() as u32;
-    let a = |x: usize, len: usize| (game_addr(rva(x)) as u32, len);
-    let written: Vec<Region> = vec![
-        (dev, 0x500),
-        a(PLAYER, 4),
-        a(RECORD, 4),
-        a(RECORD_NAME, 30),
-        a(SCRATCH, 4),
-    ];
-    let mut kept = written.clone();
-    kept.extend([a(DEVICES, 0x20), a(DEVELOPER, 4)]);
-    let saved = capture(&kept);
-    // (eax, player, stage, button, developer, gauge, elapsed, record)
-    let mut cases = vec![];
-    for player in [0u32, 1] {
-        cases.push((0u32, player, 1u32, 0u32, 0u32, 0u32, 0u32, 0xFFFF_FFFFu32));
-        cases.push((0, player, 1, 1, 0, 0, 0, 0xFFFF_FFFF));
-        for stage in [u32::MAX, 0, 1, 2, 7] {
-            for button in [0u32, 0x100, 1] {
-                for developer in [0u32, 1] {
-                    for (gauge, elapsed, record) in [
-                        (0x1234u32, 250u32, 0xFFFF_FFFFu32),
-                        (0xF700, 499, 50),
-                        (0x8000, 60000, 0xFFFF_FFFF),
-                        (0xFFFF, 1000, 0),
-                    ] {
-                        cases.push((1, player, stage, button, developer, gauge, elapsed, record));
-                    }
-                }
-            }
-        }
-    }
-    for (eax, player, stage, button, developer, gauge, elapsed, record) in cases {
-        let fill = || unsafe {
-            restore(&kept, &saved);
-            for k in 0..0x140u32 {
-                put(dev + 4 * k, 0x0101_0000 + k);
-            }
-            put(dev + 0x4E8, button);
-            put(dev + GAUGE, gauge);
-            put(dev + STAGE, stage);
-            put(dev + CLOCK, 100_000);
-            game_write(rva(DEVICES) + 4 * player as usize, dev);
-            p(DEVELOPER, developer);
-            p(RECORD, record);
-            CLOCK_GIVES.store(100_000 + elapsed, Ordering::SeqCst);
-        };
-        let entry = Regs {
-            eax,
-            esi: player,
-            ..Regs::SENTINEL
-        };
-        let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-        fill();
-        take_called();
-        let mut ro = entry;
-        unsafe { call_game(&mut ro, copy.addr()) };
-        let theirs = (Some(regs(&ro)), take_called(), capture(&written));
-        fill();
-        let mut rr = entry;
-        let ok = tyre_change_gauge_in(&mut rr, &mut |p, r| {
-            handler(p, r);
-            Ok(())
-        })
-        .is_ok();
-        let mine = (ok.then(|| regs(&rr)), take_called(), capture(&written));
-        t.check(theirs == mine, || {
-            let diff = theirs.2.iter().zip(&mine.2).position(|(x, y)| x != y);
-            format!(
-                "eax {eax}, player {player}, stage {stage:#x}, button {button:#x}, developer \
-                 {developer}, gauge {gauge:#x}, elapsed {elapsed}, record {record:#x}: original \
-                 {:x?} {:x?}; rust {:x?} {:x?}; memory first differs at {diff:x?}",
-                theirs.0, theirs.1, mine.0, mine.1
-            )
-        });
-    }
-    restore(&kept, &saved);
-    drop((copy, device));
-    t.finish()
 }

@@ -9,26 +9,15 @@
 //! Callers: `scene::full_view_window`, code at 0x446810. `set_view_window` is its Rust
 //! version. Self-test: the original and the Rust version on the game's variables, every
 //! way.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::choose_view_window", rva(0x44FE1A), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at, state_entry};
 
 const FRAMED_RVA: usize = rva(0x621514); // dword_621514
 const WIDE_RVA: usize = rva(0x621480); // dword_621480
@@ -79,41 +68,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(unsafe { choose_view_window() })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let mut vars = regions.clone();
-    vars.extend(crate::scene::set_view_window::inputs());
-    vars.extend([FRAMED_RVA, WIDE_RVA, MODE_RVA].map(at));
-    let saved = capture(&vars);
-    for case in 0..6u32 {
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&vars, &saved);
-                game_write(FRAMED_RVA, u32::from(case != 0));
-                game_write(WIDE_RVA, u32::from(case == 2));
-                game_write(MODE_RVA, [0u16, 0, 0, 2, 1, 3][case as usize]);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

@@ -10,32 +10,17 @@
 //! the random at once: only the second is kept. Manual patch with a private copy (its
 //! first five bytes end with a jump). Self-test: slots of several fillings, the original
 //! and the Rust version, at the test precisions; put back afterwards.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::setup::{SLOT_LEN, SLOTS, SLOTS_RVA};
 use crate::math::x87;
 use crate::screens::harness::Left;
-use crate::service::floats::{
-    FLOAT, Floats, Tolerance, at_test_precisions, check_state_floats, dispatch_state_floats,
-    floats_entry,
-};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("marks::add_mark_slot", rva(0x4C99F4), thunk, &ORIGINAL)
-    .private_copy(0x79)
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::floats::floats_entry;
 
 const RANDOM_RVA: usize = rva(0x93540A); // g_marksSlotRandom
 const BASE_RVA: usize = rva(0x93540E); // flt_93540E
@@ -80,105 +65,13 @@ pub unsafe fn add_mark_slot_plain(what: u32, at_esi: u32) {
     }
 }
 
-/// The slots' floats.
-fn float_places() -> Vec<(Region, Tolerance)> {
-    (0..SLOTS)
-        .map(|n| {
-            (
-                (game_addr(SLOTS_RVA) as u32 + SLOT_LEN * n + 0x10, 4),
-                FLOAT,
-            )
-        })
-        .collect()
-}
-
-fn regions() -> Vec<Region> {
-    vec![
-        (game_addr(SLOTS_RVA) as u32, (SLOTS * SLOT_LEN) as usize),
-        at(RANDOM_RVA),
-    ]
-}
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { add_mark_slot_plain(r.eax, r.esi) };
     Ok(Left::nothing())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let places = float_places();
-    let floats = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-/// A slot's first dword by its number.
-type Filling = fn(usize) -> i32;
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let saved = capture(&regions);
-    let base: u32 = unsafe { game_read(BASE_RVA) };
-    // Each slot's first dword by case: 1 busy, else free (0 or less).
-    let fillings: [(&str, Filling); 5] = [
-        ("all free", |_| 0),
-        ("all busy", |_| 1),
-        ("the last busy", |n| (n == 0x1F) as i32),
-        ("only 3 free (-5)", |n| if n == 3 { -5 } else { 0x3C }),
-        ("odd ones busy", |n| (n % 2) as i32 * 7),
-    ];
-    let places = float_places();
-    let tolerant = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        for (case, (what, busy)) in fillings.into_iter().enumerate() {
-            for random in [0u32, 0x1234_5678, 0xFFFF_FFFF] {
-                check_state_floats(
-                    &mut t,
-                    "marks::add_mark_slot",
-                    &format!("control word {word:#x}, {what}, random {random:#x}, base {base:#x}"),
-                    call_original,
-                    Regs {
-                        eax: 0xA000 + case as u32,
-                        esi: 0xB000_0000 + case as u32,
-                        ..Regs::SENTINEL
-                    },
-                    &|| unsafe {
-                        restore(&regions, &saved);
-                        for n in 0..SLOTS as usize {
-                            let slot = SLOTS_RVA + SLOT_LEN as usize * n;
-                            game_write(
-                                slot,
-                                [
-                                    busy(n) as u32,
-                                    0xAAAA_AAAA,
-                                    0xAAAA_AAAA,
-                                    0xAAAA_AAAA,
-                                    0xAAAA_AAAA,
-                                ],
-                            );
-                        }
-                        game_write(RANDOM_RVA, random);
-                    },
-                    &regions,
-                    held,
-                    &rust,
-                );
-            }
-        }
-    });
-    restore(&regions, &saved);
-    t.finish()
 }

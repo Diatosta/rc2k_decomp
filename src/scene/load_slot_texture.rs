@@ -12,29 +12,14 @@
 //! Refuses a slot past the table.
 //! Shadow mode runs the original alone and checks what the slot holds afterwards.
 //! Self-test: a redirected copy whose loading notes its registers.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::install::stand_ins::{act, set_handler, stand_in};
-use crate::redirect::RedirectedCopy;
-use crate::scene::textures::{LOADED_RVA, LOADS_RVA, SLOTS, WANTED_RVA, entry};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::load_slot_texture", rva(0x425ADE), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::errors::BadInput;
+use crate::framework::{Regs, game_read, game_write, rva};
+use crate::scene::textures::{LOADED_RVA, LOADS_RVA, WANTED_RVA, entry as slot_entry};
 
 // ---- game data ----
 
@@ -48,8 +33,8 @@ pub unsafe fn load_slot_texture(slot: u32, load: &mut dyn FnMut(u32, u32)) -> Re
     unsafe {
         let Some(wanted) = rc2k_core::scene::textures::slot_load(
             slot,
-            || entry(WANTED_RVA, slot),
-            || entry(LOADED_RVA, slot),
+            || slot_entry(WANTED_RVA, slot),
+            || slot_entry(LOADED_RVA, slot),
         )?
         else {
             return Ok(());
@@ -76,121 +61,9 @@ pub unsafe fn load_slot_texture_in_game(slot: u32, entry_regs: &Regs) -> Result<
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        let slot = r.ecx;
-        let wanted = (slot < SLOTS).then(|| unsafe { entry(WANTED_RVA, slot) });
-        unsafe { call_original(r) };
-        if let Some(wanted) = wanted.filter(|&wanted| wanted != u32::MAX) {
-            let holds = unsafe { entry(LOADED_RVA, slot) };
-            if holds != wanted {
-                HOOK.mismatch(|| {
-                    format!("slot {slot:#x} wanted {wanted:#x}: it holds {holds:#x} afterwards")
-                });
-            }
-        }
-        return;
-    }
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let entry_regs = *r;
-    if let Err(e) = unsafe { load_slot_texture_in_game(r.ecx, &entry_regs) } {
-        let e: Refused = e.into();
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) }
-    }
-}
-
-// ---- self-test ----
-
-const LEN: usize = 0x46;
-const ENTRY_BYTES: [u8; 8] = [0x60, 0x8B, 0x04, 0x8D, 0x68, 0xA9, 0x5D, 0x00];
-const CALLS: [usize; 1] = [0x31];
-
-/// Each loading: eax, ebx, ecx, and the two counters by then.
-static CALLED: Mutex<Vec<[u32; 5]>> = Mutex::new(Vec::new());
-const SLOT: u32 = 0x3F7;
-
-fn handler(_: u32, r: &mut Regs) {
-    unsafe {
-        CALLED.lock().unwrap().push([
-            r.eax,
-            r.ebx,
-            r.ecx,
-            game_read(LOADS_RVA),
-            entry(LOADED_RVA, SLOT),
-        ]);
-    }
-    r.eax = 0x5555;
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x425ADE)),
-            LEN,
-            &ENTRY_BYTES,
-            &CALLS,
-            &|callee| (callee == LOAD_RVA).then(|| stand_in(0)),
-        )
-    };
-    let copy = match copy {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    let regions: [Region; 3] = [
-        at(LOADS_RVA),
-        at(LOADED_RVA + SLOT as usize * 4),
-        at(WANTED_RVA + SLOT as usize * 4),
-    ];
-    let saved = capture(&regions);
-    for (wanted, holds) in [
-        (u32::MAX, 5u32),
-        (u32::MAX, u32::MAX),
-        (7, 7),
-        (7, 8),
-        (0, u32::MAX),
-        (0x1234, 0),
-        (0xFFFF_FFFE, 0xFFFF_FFFF),
-    ] {
-        let run = |rust: bool| unsafe {
-            game_write(LOADS_RVA, 0xFFFF_FFFFu32.wrapping_sub(wanted & 1));
-            game_write(LOADED_RVA + SLOT as usize * 4, holds);
-            game_write(WANTED_RVA + SLOT as usize * 4, wanted);
-            CALLED.lock().unwrap().clear();
-            set_handler(handler);
-            let before = Regs {
-                ecx: SLOT,
-                ..Regs::SENTINEL
-            };
-            let kept = if rust {
-                load_slot_texture(SLOT, &mut |texture, slot| {
-                    act(
-                        0,
-                        &mut Regs {
-                            eax: texture,
-                            ebx: slot,
-                            ecx: slot,
-                            ..before
-                        },
-                    )
-                })
-                .is_ok()
-            } else {
-                let mut r = before;
-                call_game(&mut r, copy.addr());
-                r.preserved_except(&before, 0)
-            };
-            (kept, capture(&regions), CALLED.lock().unwrap().clone())
-        };
-        let (theirs, mine) = (run(false), run(true));
-        t.check(theirs == mine && theirs.0, || {
-            format!("wanted {wanted:#x}, holds {holds:#x}: original {theirs:x?}; rust {mine:x?}")
-        });
-    }
-    restore(&regions, &saved);
-    t.finish()
+    unsafe { load_slot_texture_in_game(r.ecx, &entry_regs) }?;
+    Ok(())
 }

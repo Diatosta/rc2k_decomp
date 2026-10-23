@@ -33,29 +33,18 @@
 //! Refuses when there are no records and when the table's place is outside it.
 //! Shadow mode: the Rust version, its writes put back, the original; the variables,
 //! eax and ebp compared.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::light_dot::{INPUTS_RVA, light_dot};
 use crate::scene::project_point::RECORDS_RVA;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::vertex_light", rva(0x450F17), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{at, capture, restore};
 
 // ---- game data ----
 
@@ -215,42 +204,6 @@ pub unsafe fn vertex_light(number: u32) -> Result<u32, BadInput> {
     }
 }
 
-// ---- hook ----
-
-fn regions() -> [Region; 2] {
-    [(game_addr(INPUTS_RVA) as u32, 0x20), at(CHECKED_RVA)]
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    let number = r.eax;
-    if !shadow() {
-        match unsafe { vertex_light(number) } {
-            Ok(colour) => (r.eax, r.ebp) = (colour, number),
-            Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-        }
-        return;
-    }
-    let regions = regions();
-    let before = capture(&regions);
-    let mine = unsafe { vertex_light(number) }.map(|colour| (colour, capture(&regions)));
-    restore(&regions, &before);
-    unsafe { call_original(r) };
-    let Ok(mine) = mine else {
-        return;
-    };
-    let theirs = (r.eax, capture(&regions));
-    if mine != theirs || r.ebp != number {
-        HOOK.mismatch(|| {
-            format!(
-                "normal {number:#x}, kind {}: original {theirs:x?} ebp {:#x}; rust {mine:x?}",
-                unsafe { game_read::<u32>(KIND_RVA) },
-                r.ebp
-            )
-        });
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let number = r.eax;
@@ -259,103 +212,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
         (r.eax, r.ebp) = (colour, number)
     }
     Ok(())
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let mut inputs: Vec<Region> = [
-        KIND_RVA,
-        LIT_A_RVA,
-        LIT_B_RVA,
-        MMX_RVA,
-        ADDED_RVA,
-        BASE_RVA,
-        STRENGTH_RVA,
-        LEVEL_RVA,
-        LOWEST_RVA,
-        HIGHEST_RVA,
-        RECORDS_RVA,
-    ]
-    .map(at)
-    .to_vec();
-    inputs.push((game_addr(DIRECTION_RVA) as u32, 12));
-    inputs.push((game_addr(TOWARDS_DARK_RVA) as u32, 24));
-    inputs.push((game_addr(TABLE_RVA) as u32, TABLE_LEN as usize * 4));
-    let saved = (capture(&regions), capture(&inputs));
-    let f = |value: f32| value.to_bits();
-    // The records of four normals, where an object's points have theirs.
-    let mut records = vec![[0u32; 8]; 0x2000];
-    let normals = [
-        [0.0f32, 0.0, 1.0],
-        [0.6, -0.8, 0.0],
-        [-0.577, -0.577, -0.577],
-        [0.3, 0.9, 0.3],
-    ];
-    for (n, normal) in normals.into_iter().enumerate() {
-        records[0x1000 + n][4..7].copy_from_slice(&normal.map(f));
-    }
-    let table: Vec<u32> = (0..TABLE_LEN)
-        .map(|n| n.wrapping_mul(0x0101_0101) ^ 0x0030_0C03)
-        .collect();
-    let mut cases = 0u32;
-    for kind in 0..=6u32 {
-        for (lit_a, lit_b) in [(1u32, 0u32), (0, 1), (0, 0)] {
-            for strength in [0i32, 200, -300, 100_000] {
-                cases += 1;
-                let (mmx, normal) = (cases.is_multiple_of(2), cases % 4);
-                let before = Regs {
-                    eax: normal,
-                    ..Regs::SENTINEL
-                };
-                let run = |rust: bool| unsafe {
-                    restore(&regions, &vec![0xAA; saved.0.len()]);
-                    game_write(KIND_RVA, kind);
-                    game_write(LIT_A_RVA, lit_a);
-                    game_write(LIT_B_RVA, lit_b);
-                    game_write(MMX_RVA, mmx as u32);
-                    game_write(
-                        ADDED_RVA,
-                        [0x8010_2030u32, 0xFFC0_F0E0, 0][(cases % 3) as usize],
-                    );
-                    game_write(BASE_RVA, 0x4070_90B0u32);
-                    game_write(STRENGTH_RVA, strength);
-                    game_write(LEVEL_RVA, [0x40i32, 0, 0xF0][(cases % 3) as usize]);
-                    game_write(LOWEST_RVA, 8i32);
-                    game_write(HIGHEST_RVA, 0xF8i32);
-                    game_write(RECORDS_RVA, records.as_ptr() as u32);
-                    game_write(DIRECTION_RVA, [0.267f32, -0.534, 0.802].map(f));
-                    game_write(TOWARDS_DARK_RVA, [0x10i32, 0x20, 0x300, 0xFF, 0xE0, -0x40]);
-                    std::ptr::copy_nonoverlapping(
-                        table.as_ptr(),
-                        game_addr(TABLE_RVA) as *mut u32,
-                        table.len(),
-                    );
-                    if rust {
-                        let colour = vertex_light(normal);
-                        (colour.ok(), Some(normal), capture(&regions))
-                    } else {
-                        let mut ro = before;
-                        call_original(&mut ro);
-                        // ebx, ecx and edx are the blend's leftovers.
-                        let kept = ro.esi == before.esi && ro.edi == before.edi;
-                        (Some(ro.eax), kept.then_some(ro.ebp), capture(&regions))
-                    }
-                };
-                let (theirs, mine) = (run(false), run(true));
-                t.check(theirs == mine, || {
-                    format!(
-                        "kind {kind}, lit {lit_a} {lit_b}, strength {strength}, mmx {mmx}, normal {normal}: original {theirs:x?}; rust {mine:x?}"
-                    )
-                });
-            }
-        }
-    }
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
 }

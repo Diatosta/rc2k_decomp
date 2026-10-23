@@ -7,32 +7,15 @@
 //! (loadlevel_init, the carousels and car pictures, the replay cameras). Self-test: the
 //! original and the Rust version on the game's table, kinds of the test's, put back
 //! afterwards.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    EAX, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{EAX, Regs, game_read, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
-use rc2k_core::scene::kinds::OBJECTS;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "scene::find_object_of_kind",
-    rva(0x422298),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 const KINDS_RVA: usize = rva(0x5CD27C); // g_objectKinds
 
@@ -46,42 +29,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing().with(EAX, unsafe { find_object_of_kind(r.eax) }))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &[], &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let table: Region = (game_addr(KINDS_RVA) as u32, 4 * OBJECTS as usize);
-    let saved = capture(&[table]);
-    let fill = || unsafe {
-        for n in 0..OBJECTS {
-            game_write(KINDS_RVA + 4 * n as usize, (n * 7) % 0x60);
-        }
-    };
-    // Kind 0 is at object 0 (never looked at) and next at 0x60; 0x77 is nowhere.
-    for kind in [0u32, 7, 0x5F, 0x77, 0x31] {
-        check_state(
-            &mut t,
-            &format!("kind {kind:#x}"),
-            call_original,
-            Regs {
-                eax: kind,
-                ..Regs::SENTINEL
-            },
-            &fill,
-            &[table],
-            &rust,
-        );
-    }
-    restore(&[table], &saved);
-    t.finish()
 }

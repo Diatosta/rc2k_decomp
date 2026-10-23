@@ -15,25 +15,14 @@
 //! device's calls through their hooks). Shadow mode runs the original alone (it tells the
 //! device). Self-test: a copy whose eight calls go to stand-ins, against the Rust version
 //! on the same stand-ins; the vertices, the globals and the calls compared.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::begin_quads", rva(0x4C4453), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::service::harness::{Region, at};
 
 const TEXTURE_RVA: usize = rva(0x5D1E10); // dword_5D1E10
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices: 0x20 bytes each
@@ -99,24 +88,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { begin_quads(r, &mut game_part) } {
-        Ok(left) => {
-            *r = Regs {
-                esp: r.esp,
-                eflags: r.eflags,
-                ..left
-            }
-        }
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     {
@@ -134,51 +105,4 @@ pub fn regions() -> Vec<Region> {
     let mut r = vec![(game_addr(VERTICES_RVA) as u32, 0x80)];
     r.extend([COUNT_RVA, SCALE_RVA, CLEARED_RVA].map(at));
     r
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // mov eax, dword_5D1E10
-    let entry: &[u8] = &[0xA1, 0x10, 0x1E, 0x5D, 0x00];
-    let copy = match copy(
-        0x4C4453,
-        0x136,
-        entry,
-        &[0x5, 0xA, 0xF, 0x1E, 0x2D, 0x3C, 0x4B, 0x5A],
-        &[(0x44E77E, 1), (0x44E41F, 2), (0x44E3D1, 3), (0x44EB72, 4)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions = regions();
-    let mut vars = regions.clone();
-    vars.extend([TEXTURE_RVA, COLOUR_RVA, OF_RVA].map(at));
-    vars.push((game_addr(PLACES_RVA) as u32, 16));
-    let saved = capture(&vars);
-    for case in 0..3u32 {
-        run_both(
-            &mut t,
-            &format!("case {case}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                restore(&vars, &saved);
-                game_write(TEXTURE_RVA, 0x40 + case);
-                game_write(COLOUR_RVA, 0x1122_3344u32.rotate_left(case));
-                game_write(OF_RVA, (0.5f32 + case as f32).to_bits());
-                for k in 0..4 {
-                    game_write(
-                        PLACES_RVA + 4 * k,
-                        ((k + case as usize) as f32 * 0.25).to_bits(),
-                    );
-                }
-            },
-            &|r| unsafe { begin_quads(r, &mut test_part) },
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

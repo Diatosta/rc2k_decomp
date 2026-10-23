@@ -11,26 +11,16 @@
 //! Caller: `race::viewer_load_stage`. Shadow mode compares. Self-test: the game's fonts and
 //! formats as they are (skipped without fonts or a texture format), against the original;
 //! what it writes put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::gfx::pixel_format::PixelFormat;
 use crate::physics::flow::a;
-use crate::race::viewer::{Saved, check_original, dispatch_regs, get, put, region, regs_entry};
-use crate::service::harness::Region;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::viewer_palettes", rva(0x41D8BF), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::race::viewer::{get, put, regs_entry};
 
 const FONT_PALETTES: usize = 0x51DEB0; // g_fontPalettes
 const COLOURS: usize = 0x960FA0; // unk_960FA0: 256 dwords
@@ -73,50 +63,13 @@ pub unsafe fn viewer_palettes() {
     }
 }
 
-fn regions() -> Vec<Region> {
-    let mut all: Vec<Region> = KEPT.iter().map(|&(to, _)| region(to, 4)).collect();
-    all.extend(PALETTES.iter().map(|&at| region(at, 4)));
-    all.push(region(COLOURS, 0x400));
-    all.push((
-        crate::framework::game_addr(crate::gfx::pixel_format::SCRATCH_RVA) as u32,
-        4,
-    ));
-    all
-}
-
 fn rust(r: &Regs) -> Result<Regs, Refused> {
     unsafe { viewer_palettes() };
     Ok(*r)
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_regs(&HOOK, r, call_original, &regions(), 0, &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if get(FONT_PALETTES) == 0 || get(TEXTURE_KINDS) == 0 {
-        return t.skip("no fonts or no texture format");
-    }
-    let saved = Saved::new(&regions());
-    check_original(
-        &mut t,
-        "the game's fonts",
-        call_original,
-        Regs::SENTINEL,
-        &regions(),
-        0,
-        &|| crate::race::viewer::fill(COLOURS, 0x400, 11),
-        &rust,
-    );
-    drop(saved);
-    t.finish()
 }

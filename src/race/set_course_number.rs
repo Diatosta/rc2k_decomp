@@ -6,68 +6,24 @@
 //! See `race/level_init.rs`: the tens and the units digit into the nine path strings that
 //! hold it. Two callers (`sub_44426F` and one more). Self-test: the game's strings, numbers
 //! 0 .. 255 by steps, put back afterwards.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
-use crate::race::level_init::{NUMBER_PLACES, set_course_number};
+use crate::framework::Regs;
+use crate::race::level_init::set_course_number;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::set_course_number", rva(0x43944F), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-fn regions() -> Vec<Region> {
-    NUMBER_PLACES
-        .iter()
-        .map(|&p| (game_addr(rva(p)) as u32, 2))
-        .collect()
-}
+use crate::service::harness::state_entry;
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { set_course_number(r.eax) };
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let saved = capture(&regions);
-    for n in [0u32, 7, 10, 42, 99, 100, 255, 0x1234_5603] {
-        check_state(
-            &mut t,
-            &format!("eax {n:#x}"),
-            call_original,
-            Regs {
-                eax: n,
-                ..Regs::SENTINEL
-            },
-            &|| restore(&regions, &saved),
-            &regions,
-            &rust,
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
 }

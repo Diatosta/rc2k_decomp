@@ -13,26 +13,13 @@
 //! game all three through the game (section 15, as `race/frame_flush.rs`). Shadow mode
 //! runs the original alone (it draws). Self-test: a copy whose calls go to stand-ins (the
 //! device failing or not), against the Rust version, batches empty and not.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::race::mud::{copy, run_both};
-use crate::service::harness::{at, capture, restore};
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::flush_draw_batch", rva(0x45FD1D), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 
 const INDEX_COUNT_RVA: usize = rva(0x6D3CEC); // dword_6D3CEC
 const VERTEX_COUNT_RVA: usize = rva(0x6D3CF0); // dword_6D3CF0
@@ -80,83 +67,9 @@ pub unsafe fn flush_draw_batch_in_game(r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { flush_draw_batch(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { flush_draw_batch(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-/// What the test's device gives back (its HRESULT).
-static DEVICE_GIVES: AtomicU32 = AtomicU32::new(0);
-
-/// The stand-ins: noted as `level_init::note` notes them; the device gives `DEVICE_GIVES`
-/// and leaves ecx and edx as a `stdcall` may.
-fn note(place: u32, r: &mut Regs) {
-    crate::race::level_init::note(place, r);
-    if place == 3 {
-        r.eax = DEVICE_GIVES.load(Ordering::SeqCst);
-        r.ecx = 0x0C0C_0C0C;
-        r.edx = 0x0D0D_0D0D;
-    }
-}
-
-fn test_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    note(place, r);
-    Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // mov edx, dword_6D3CEC
-    let copy = match copy(
-        0x45FD1D,
-        0x4F,
-        &[0x8B, 0x15, 0xEC, 0x3C, 0x6D, 0x00],
-        &[0x1C, 0x2D, 0x34],
-        &[(0x41ADF5, 3), (0x401427, 4), (0x401622, 5)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    crate::install::stand_ins::set_handler(note);
-    let regions = [at(INDEX_COUNT_RVA), at(VERTEX_COUNT_RVA)];
-    let saved = capture(&regions);
-    for (indices, vertices, gives) in [
-        (0u32, 0u32, 0u32),
-        (0, 9, 0x8876_0001),
-        (3, 4, 0),
-        (0x1800, 0x400, 0x8876_017C),
-        (6, 0, 0xFFFF_FFFF),
-    ] {
-        run_both(
-            &mut t,
-            &format!("indices {indices:#x}, vertices {vertices:#x}, device gives {gives:#x}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                game_write(INDEX_COUNT_RVA, indices);
-                game_write(VERTEX_COUNT_RVA, vertices);
-                DEVICE_GIVES.store(gives, Ordering::SeqCst);
-            },
-            &|r| unsafe { flush_draw_batch(r, &mut test_part) },
-        );
-    }
-    DEVICE_GIVES.store(0, Ordering::SeqCst);
-    restore(&regions, &saved);
-    t.finish()
 }

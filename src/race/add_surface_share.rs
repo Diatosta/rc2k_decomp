@@ -8,34 +8,16 @@
 //! is `add_surface_share_plain`. Shadow mode: by state, the shares within `FLOAT`.
 //! Self-test, at the test precisions: the original and the Rust version on the game's
 //! variables, put back afterwards.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    EAX, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{EAX, Regs, game_read};
 use crate::race::best_line::*;
 use crate::screens::harness::Left;
-use crate::service::floats::{
-    FLOAT, Floats, at_test_precisions, check_state_floats, dispatch_state_floats, floats_entry,
-};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::add_surface_share", rva(0x445F7B), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-fn shares() -> Region {
-    (game_addr(SHARES_RVA) as u32, 0x40)
-}
+use crate::service::floats::floats_entry;
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     let weighted = unsafe { game_read::<u32>(WEIGHT_RVA) } != 0;
@@ -48,65 +30,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let floats = Floats {
-        memory: &[(shares(), FLOAT)],
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &[shares()], &floats, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = [shares(), at(WEIGHT_RVA), at(CHECK_COUNT_RVA)];
-    let saved = capture(&regions);
-    let tolerant = Floats {
-        memory: &[(shares(), FLOAT)],
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, floats| {
-        for (eax, weight, count) in [
-            (0x1234_5603u32, 0x80u32, 7u32),
-            (0xFFFF_FF1Fu32, 0x100, 1),
-            (0x0Au32, 0, 7),
-            (0x0Fu32, 0x37, 0x1234),
-            (5u32, 0xFFFF_FF00, 3),
-        ] {
-            check_state_floats(
-                &mut t,
-                "race::add_surface_share",
-                &format!(
-                    "control word {word:#x}, eax {eax:#x}, weight {weight:#x}, {count} checkpoints"
-                ),
-                call_original,
-                Regs {
-                    eax,
-                    ..Regs::SENTINEL
-                },
-                &|| unsafe {
-                    for n in 0..16u32 {
-                        game_write(
-                            SHARES_RVA + 4 * n as usize,
-                            (n as f32 * 1.5 - 4.0).to_bits(),
-                        );
-                    }
-                    game_write(WEIGHT_RVA, weight);
-                    game_write(CHECK_COUNT_RVA, count);
-                },
-                &regions,
-                floats,
-                &rust,
-            );
-        }
-    });
-    restore(&regions, &saved);
-    t.finish()
 }

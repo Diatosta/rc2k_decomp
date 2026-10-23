@@ -15,24 +15,13 @@
 //! whose four calls go to stand-ins (which change the saved two, to see them put back),
 //! against the Rust version, each switch; the calls, their registers and the variables
 //! compared.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
-use crate::race::mud::{copy, run_both};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::draw_mirror_view", rva(0x454806), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_read, game_write, rva};
 
 /// The calls by place, as IDA shows them.
 pub const CALLEES: [usize; 4] = [
@@ -89,87 +78,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_mirror_view(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { draw_mirror_view(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-/// The stand-ins: noted (`level_init::note`), and the mirror's window changing the view's
-/// value, the far value and the grid's reach, as a callee might.
-fn note(place: u32, r: &mut Regs) {
-    crate::race::level_init::note(place, r);
-    unsafe {
-        game_write(VIEW_VALUE_RVA, 0x1111_0000 + place);
-        game_write(FAR_RVA, 0x2222_0000 + place);
-        game_write(GRID_REACH_RVA, 0x10 + place);
-    }
-}
-
-fn test_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    note(place, r);
-    Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // cmp dword_64BB18, 0
-    let copy = match copy(
-        0x454806,
-        0x74,
-        &[0x83, 0x3D, 0x18, 0xBB, 0x64, 0x00, 0x00],
-        &[0x47, 0x58, 0x5D, 0x6E],
-        &[(0x455F17, 0), (0x4651E6, 1), (0x4557AB, 2), (0x456004, 3)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    crate::install::stand_ins::set_handler(note);
-    let regions: Vec<Region> = [
-        &SWITCHES.map(at)[..],
-        &[
-            at(VIEW_VALUE_RVA),
-            at(VIEW_VALUE_KEPT_RVA),
-            at(FAR_RVA),
-            at(MIRROR_FAR_RVA),
-            at(GRID_REACH_RVA),
-        ],
-    ]
-    .concat();
-    let saved = capture(&regions);
-    for switches in [[0u32, 0, 1], [1, 0, 1], [0, 1, 1], [0, 0, 0], [0, 0, 7]] {
-        run_both(
-            &mut t,
-            &format!("switches {switches:x?}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                restore(&regions, &saved);
-                for (at, v) in SWITCHES.into_iter().zip(switches) {
-                    game_write(at, v);
-                }
-                game_write(VIEW_VALUE_RVA, 0xAAAA_0001u32);
-                game_write(FAR_RVA, 0xAAAA_0002u32);
-                game_write(GRID_REACH_RVA, 9u32);
-            },
-            &|r| unsafe { draw_mirror_view(r, &mut test_part) },
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
 }

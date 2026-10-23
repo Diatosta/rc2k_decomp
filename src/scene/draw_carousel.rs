@@ -13,30 +13,15 @@
 //! One caller, `scene::draw_main_menu_carousel`.
 //! Shadow mode runs the original alone (each entry is compared in its own hook).
 //! Self-test: a redirected copy whose calls note the entry and its place.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::install::stand_ins::{act, set_handler, stand_in};
-use crate::redirect::RedirectedCopy;
+use crate::framework::{Regs, game_read, rva};
 use crate::scene::draw_carousel_entry::draw_carousel_entry;
 use crate::scene::draw_menu_object::draw_menu_object_in_game;
-use crate::service::harness::{at, capture, restore};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::draw_carousel", rva(0x490649), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -88,21 +73,6 @@ pub unsafe fn draw_carousel_in_game(r: &mut Regs) -> Result<(), Refused> {
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    let entry = *r;
-    if let Err(e) = unsafe { draw_carousel_in_game(r) } {
-        *r = entry;
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) }
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let entry = *r;
@@ -111,75 +81,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
         return Err(e);
     }
     Ok(())
-}
-
-// ---- self-test ----
-
-const LEN: usize = 0x8C;
-const ENTRY_BYTES: [u8; 6] = [0x8B, 0x1D, 0x78, 0xAA, 0x75, 0x00];
-const CALLS: [usize; 5] = [0x24, 0x3C, 0x54, 0x75, 0x85];
-
-/// Each call: ebx, ecx, edx.
-static CALLED: Mutex<Vec<[u32; 3]>> = Mutex::new(Vec::new());
-
-fn handler(_: u32, r: &mut Regs) {
-    CALLED.lock().unwrap().push([r.ebx, r.ecx, r.edx]);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x490649)),
-            LEN,
-            &ENTRY_BYTES,
-            &CALLS,
-            &|callee| (callee == rva(0x4906D5)).then(|| stand_in(0)),
-        )
-    };
-    let copy = match copy {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    let inputs = [at(COUNT_RVA), at(FRONT_RVA), at(ANGLE_RVA)];
-    let saved = capture(&inputs);
-    for count in [0u32, 1, 2, 3, 5, 7, 0xFFFF_FFFF, 0x8000_0000] {
-        for front in [0u32, 1, 2, 4, 6, 9] {
-            for angle in [0u32, 1, 0xFFFF_0000] {
-                let run = |rust: bool| unsafe {
-                    game_write(COUNT_RVA, count);
-                    game_write(FRONT_RVA, front);
-                    game_write(ANGLE_RVA, angle);
-                    CALLED.lock().unwrap().clear();
-                    set_handler(handler);
-                    let mut r = Regs::SENTINEL;
-                    if rust {
-                        let done = draw_carousel(&mut r, &mut |r| {
-                            act(0, &mut { *r });
-                            Ok(())
-                        });
-                        if done.is_err() {
-                            r = Regs::default();
-                        }
-                    } else {
-                        call_game(&mut r, copy.addr());
-                    }
-                    (
-                        [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp],
-                        CALLED.lock().unwrap().clone(),
-                    )
-                };
-                let (theirs, mine) = (run(false), run(true));
-                t.check(theirs == mine, || {
-                    format!(
-                        "{count:#x} entries, front {front}, angle {angle:#x}: original {theirs:x?}; rust {mine:x?}"
-                    )
-                });
-            }
-        }
-    }
-    restore(&inputs, &saved);
-    t.finish()
 }

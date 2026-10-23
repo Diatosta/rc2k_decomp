@@ -13,29 +13,18 @@
 //! work dwords, the inversion's work, `g_car` +0x6A0, `dword_62400C`). Self-test: the
 //! angles, place, car's turn, speed and roll set by pattern, each view kind, the kept
 //! turn; all put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_write, rva};
 use crate::race::frame_draw::*;
 use crate::scene::matrix::{self, matrix as whole, test_floats};
 use crate::scene::view_matrix::view_regions;
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::view_matrices", rva(0x4386A4), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at, state_entry};
 
 pub fn matrices_regions() -> Vec<Region> {
     let mut v = view_regions();
@@ -49,10 +38,6 @@ pub fn matrices_regions() -> Vec<Region> {
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(all_regs(&unsafe { view_matrices(r) }))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &matrices_regions(), &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
@@ -112,34 +97,4 @@ pub fn set_view_inputs(seed: &mut u32, view: u32, kept: u32) {
         );
         game_write(rva(0x63993C), kept);
     }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = matrices_regions();
-    let mut kept = regions.clone();
-    kept.extend(view_inputs());
-    let saved = capture(&kept);
-    let mut seed = 0x0DD0_0001u32;
-    for (view, kept_turn) in [(0u32, 0u32), (1, 0), (2, 0), (3, 0), (4, 0), (7, 0), (2, 1)] {
-        let s = seed;
-        seed = seed.wrapping_mul(0x9E37_79B9).wrapping_add(1);
-        check_state(
-            &mut t,
-            &format!("view {view} kept {kept_turn} seed {s:#x}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| {
-                restore(&kept, &saved);
-                let mut s2 = s;
-                set_view_inputs(&mut s2, view, kept_turn);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&kept, &saved);
-    t.finish()
 }

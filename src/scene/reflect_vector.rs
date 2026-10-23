@@ -15,29 +15,16 @@
 //! `rc2k_core::scene::reflection::reflect` (plain floats; the x87 version stays for the
 //! Rust callers in unconverted code). Shadow mode and the self-test compare within
 //! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    ESI, RawHook, Regs, SelfTest, game_addr, game_ptr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{ESI, Regs, game_addr, game_ptr, game_read, game_write, rva};
 use crate::scene::draw_polygon::CHECKED_RVA;
-use crate::scene::matrix::float_places;
 use crate::screens::harness::Left;
 use crate::service::floats::*;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::reflect_vector", rva(0x451A9D), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -155,94 +142,13 @@ pub unsafe fn reflect_vector_plain() {
     }
 }
 
-// ---- hook ----
-
-fn regions() -> [Region; 2] {
-    [(game_addr(VECTOR_RVA) as u32, 12), at(CHECKED_RVA)]
-}
-
 fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { reflect_vector_plain() };
     Ok(Left::nothing().with(ESI, game_addr(MATRIX_RVA) as u32))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let places = float_places(&regions());
-    let floats = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let inputs = [
-        (game_addr(NORMAL_RVA) as u32, 12),
-        (game_addr(MATRIX_RVA) as u32, 0x40),
-    ];
-    let saved = (capture(&regions), capture(&inputs));
-    let matrices: [[f32; 16]; 3] = [
-        [
-            1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        ],
-        [
-            0.36, 0.48, -0.8, 0.0, -0.8, 0.6, 0.0, 0.0, 0.48, 0.64, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0,
-        ],
-        [
-            0.1234567, 3.3333333, -0.7171068, 9.0, 2.7282818, -0.5, 0.3333333, 9.0, -1.4242135,
-            0.0009765, 1.7320508, 9.0, -33.333332, 0.1, 6.7, 9.0,
-        ],
-    ];
-    let vectors: [([f32; 3], [f32; 3]); 8] = [
-        ([0.0, 0.0, 1.0], [0.0, 0.0, 1.0]),
-        ([0.6, -0.8, 0.0], [0.0, 1.0, 0.0]),
-        ([0.577, 0.577, 0.577], [-0.267, 0.534, 0.802]),
-        ([0.33333334, 0.6666667, -0.6666667], [0.1, 0.2, 0.3]),
-        ([1e-20, 1e20, 3.0], [1e20, 1e-20, 0.33333334]),
-        ([0.0, 0.0, 0.0], [1.0, 0.0, 0.0]),
-        ([-0.123, 0.456, -0.789], [0.987, -0.654, 0.321]),
-        ([f32::NAN, 1.0, 1.0], [1.0, 1.0, 1.0]),
-    ];
-    let tolerant_places = float_places(&regions);
-    let tolerant = Floats {
-        memory: &tolerant_places,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        for (m, matrix) in matrices.into_iter().enumerate() {
-            for (v, n) in vectors {
-                check_state_floats(
-                    &mut t,
-                    "scene::reflect_vector",
-                    &format!("control word {word:#x}, matrix {m}, vector {v:?}, normal {n:?}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &|| unsafe {
-                        game_write(CHECKED_RVA, 0xAAAA_AAAAu32);
-                        game_write(VECTOR_RVA, v.map(f32::to_bits));
-                        game_write(NORMAL_RVA, n.map(f32::to_bits));
-                        game_write(MATRIX_RVA, matrix.map(f32::to_bits));
-                    },
-                    &regions,
-                    held,
-                    &rust,
-                );
-            }
-        }
-    });
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
 }

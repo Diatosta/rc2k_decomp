@@ -14,32 +14,16 @@
 //! Shadow mode runs the original alone (each face is compared in
 //! `scene::list_object_face`'s hook).
 //! Self-test: a redirected copy whose call notes the face and its number.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    EAX, EBP, ECX, RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm,
-    rva, shadow,
-};
-use crate::install::stand_ins::{act, set_handler, stand_in};
-use crate::redirect::RedirectedCopy;
+use crate::framework::{EAX, EBP, ECX, Regs, game_read, game_write, rva};
 use crate::scene::draw_object_faces::LISTED_RVA;
 use crate::scene::list_object_face::list_object_face;
 use crate::screens::harness::Left;
-use crate::service::harness::{at, capture, restore};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::list_object_faces", rva(0x45048C), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -74,126 +58,9 @@ pub unsafe fn list_object_faces(
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { list_object_faces(&mut |face| list_object_face(face)) } {
-        Ok(left) => left.apply(r),
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { list_object_faces(&mut |face| list_object_face(face)) }?;
     left.apply(r);
     Ok(())
-}
-
-// ---- self-test ----
-
-const LEN: usize = 0x3F;
-const ENTRY_BYTES: [u8; 10] = [0xC7, 0x05, 0x58, 0xDB, 0x62, 0x00, 0, 0, 0, 0];
-const CALLS: [usize; 1] = [0x2F];
-
-/// Each call: the face, its number, the list's length and the mark by then.
-static CALLED: Mutex<Vec<[u32; 4]>> = Mutex::new(Vec::new());
-
-fn handler(_: u32, r: &mut Regs) {
-    unsafe {
-        CALLED.lock().unwrap().push([
-            r.ebp,
-            game_read(FACE_NUMBER_RVA),
-            game_read(LISTED_RVA),
-            game_read(MARK_RVA),
-        ]);
-        // As the real one does for some faces.
-        if r.ebp & 1 == 1 {
-            game_write(LISTED_RVA, game_read::<u32>(LISTED_RVA) + 1);
-        }
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x45048C)),
-            LEN,
-            &ENTRY_BYTES,
-            &CALLS,
-            &|callee| (callee == rva(0x4504CB)).then(|| stand_in(0)),
-        )
-    };
-    let copy = match copy {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    const FIRST: u32 = 0x200;
-    const MOST: u32 = 6;
-    let regions = [at(LISTED_RVA), at(MARK_RVA), at(FACE_NUMBER_RVA)];
-    let inputs = [
-        at(FIRST_FACE_RVA),
-        at(FACE_COUNT_RVA),
-        (
-            game_addr(FACES_RVA + FIRST as usize * 4) as u32,
-            MOST as usize * 4,
-        ),
-    ];
-    let saved = (capture(&regions), capture(&inputs));
-    for count in 1..=MOST {
-        let run = |rust: bool| unsafe {
-            restore(&regions, &vec![0xAA; saved.0.len()]);
-            game_write(FIRST_FACE_RVA, FIRST);
-            game_write(FACE_COUNT_RVA, count);
-            for n in 0..MOST {
-                // Not addresses the stand-in reads through: only told apart.
-                game_write(
-                    FACES_RVA + (FIRST + n) as usize * 4,
-                    0x7000_0000 + n * 7 + count,
-                );
-            }
-            CALLED.lock().unwrap().clear();
-            set_handler(handler);
-            let before = Regs::SENTINEL;
-            let left = if rust {
-                list_object_faces(&mut |face| {
-                    act(
-                        0,
-                        &mut Regs {
-                            ebp: face as u32,
-                            ..Regs::default()
-                        },
-                    );
-                    Ok(())
-                })
-                .ok()
-                .map(|left| {
-                    let mut r = before;
-                    left.apply(&mut r);
-                    (r.eax, r.ecx, r.ebp)
-                })
-            } else {
-                let mut ro = before;
-                call_game(&mut ro, copy.addr());
-                ro.preserved_except(&before, EAX | ECX | EBP)
-                    .then_some((ro.eax, ro.ecx, ro.ebp))
-            };
-            (left, capture(&regions), CALLED.lock().unwrap().clone())
-        };
-        let (theirs, mine) = (run(false), run(true));
-        t.check(theirs == mine && theirs.2.len() == count as usize, || {
-            format!("{count} faces: original {theirs:x?}; rust {mine:x?}")
-        });
-    }
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
 }

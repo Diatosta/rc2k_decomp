@@ -14,31 +14,14 @@
 //! `rc2k_core::marks::particles::blend` (plain floats; the x87 version stays for the Rust
 //! callers in unconverted code). Shadow mode and the self-test compare within
 //! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, rva};
+use crate::framework::{Regs, game_read};
 use crate::marks::splines::FILE_RVA;
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
-use crate::scene::vector3::{Triple80, out3_hook};
-use crate::screens::harness::Left;
-use crate::service::floats::*;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static OUT: Triple80 = Triple80::new();
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::blend_points", rva(0x4BA5E2), thunk, &ORIGINAL).self_test(self_test);
-
-out3_hook!(
-    thunk,
-    call_original,
-    original_with_out3,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    triple = OUT
-);
 
 /// The Rust version (see the header): the three values (x, y, z) and the registers.
 pub unsafe fn blend_points(entry: &Regs) -> ([[u8; 10]; 3], Regs) {
@@ -67,66 +50,4 @@ pub unsafe fn blend_points_plain(entry: &Regs) -> ([[u8; 10]; 3], Regs) {
     let v =
         rc2k_core::marks::particles::blend([p(g.eax), p(g.ebx), p(g.ecx)], k.map(f32::from_bits));
     (v.map(rc2k_core::math::extended::from_f64), g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let ([x, y, z], g) = unsafe { blend_points_plain(r) };
-    OUT.set_outputs([z, y, x]);
-    Ok(left_of(&g))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let floats = Floats {
-        memory: &[(OUT.output_region(), EXTENDED)],
-        regs: &[],
-    };
-    dispatch_state_floats(
-        &HOOK,
-        r,
-        original_with_out3,
-        &[OUT.output_region()],
-        &floats,
-        &rust,
-    );
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let points: Vec<i32> = (0..9i32).map(|n| n * 0x1_2345 - 0x4_0000).collect();
-    let p = points.as_ptr() as u32;
-    let tolerant = Floats {
-        memory: &[(OUT.output_region(), EXTENDED)],
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        for (entry, edx_high) in [
-            (0u32, 0u32),
-            (1, 0x1234_5600),
-            (0x7F, 0),
-            (0xFF, 0xFFFF_FF00),
-            (0x40, 0),
-        ] {
-            check_state_floats(
-                &mut t,
-                "marks::blend_points",
-                &format!("control word {word:#x}, entry {entry:#x}"),
-                original_with_out3,
-                Regs {
-                    eax: p,
-                    ebx: p + 12,
-                    ecx: p + 24,
-                    edx: edx_high | entry,
-                    ..Regs::SENTINEL
-                },
-                &|| OUT.set_outputs([[0xAA; 10]; 3]),
-                &[OUT.output_region()],
-                held,
-                &rust,
-            );
-        }
-    });
-    drop(points);
-    t.finish()
 }

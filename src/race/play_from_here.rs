@@ -7,37 +7,17 @@
 //! Callers: `race::viewer_action` (6, and 0x22, 0x23 after it). Ungated (it plays a
 //! replay). Shadow mode runs the original alone. Self-test: `play_marked::test_play` from
 //! the shared tail.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::race::play_marked::{game_part, play_from_here, test_play};
-use crate::race::viewer::{dispatch_parts, regs_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::play_from_here", rva(0x41E1E2), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_parts(&HOOK, r, call_original, &|r| {
-        play_from_here(r, &mut game_part)
-    });
-}
+use crate::framework::Regs;
+use crate::race::play_marked::{game_part, play_from_here};
+use crate::race::viewer::regs_entry;
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &|r| play_from_here(r, &mut game_part))
-}
-
-fn self_test() -> (usize, usize) {
-    test_play(&HOOK, true)
 }

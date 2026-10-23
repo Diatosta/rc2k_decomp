@@ -13,32 +13,19 @@
 //! Caller: `sub_4BA16C`. Refuses (before anything) a point number of 0x80 or more and a
 //! count above 0x80. Self-test: a record of the test's (`TestSpline`), several points,
 //! counts and switches; compared on all it writes and the registers.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::marks::blend_points::blend_points;
-use crate::marks::splines::{
-    CHOSEN_RVA, MADE_RVA, MOST_POINTS, ORDERED_COORDS_RVA, SPLINE_LEN, TestSpline,
-};
+use crate::marks::splines::{CHOSEN_RVA, MADE_RVA, MOST_POINTS, ORDERED_COORDS_RVA};
 use crate::math::x87_run::ext_to_int;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::bend_points", rva(0x4BA646), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, state_entry};
 
 const SWITCH_RVA: usize = rva(0x7695CA); // dword_7695CA
 const A_RVA: usize = rva(0x76A1D2);
@@ -119,61 +106,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { bend_points(r) }?))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(r.ebp), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let spline = TestSpline::new();
-    let s = spline.addr();
-    let regions = regions(s);
-    let mut vars = regions.clone();
-    vars.extend([SWITCH_RVA, CHOSEN_RVA, MADE_RVA].map(at));
-    vars.push((s, SPLINE_LEN as usize));
-    let saved = capture(&vars);
-    for (switch, chosen, point, count) in [
-        (1u32, 0u32, 0u32, 5i32),
-        (0, 1, 7, 0x80),
-        (2, 2, 3, 4),
-        (1, 3, 0x7F, 0),
-        (5, 0, 12, -3),
-        (1, 0, 40, 1),
-    ] {
-        check_state(
-            &mut t,
-            &format!("switch {switch}, chosen {chosen}, point {point}, count {count}"),
-            call_original,
-            Regs {
-                ebp: s,
-                ..Regs::SENTINEL
-            },
-            &|| unsafe {
-                spline.fill(point * 7 + switch, 0x80);
-                ((s + 0x30) as *mut u32).write_unaligned(point);
-                ((s + 0xC) as *mut i32).write_unaligned(count);
-                game_write(SWITCH_RVA, switch);
-                game_write(CHOSEN_RVA, chosen);
-                game_write(MADE_RVA, point * 0x31 + switch);
-                for k in 0..3 * MOST_POINTS as usize {
-                    game_write(
-                        ORDERED_COORDS_RVA + 4 * k,
-                        (k as u32).wrapping_mul(0x3_1415) as i32 >> 8,
-                    );
-                }
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

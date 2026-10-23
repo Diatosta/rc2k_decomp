@@ -13,36 +13,15 @@
 //! mode runs the original alone (it loads files and logs). Manual patch with a private
 //! copy (the first call starts at the first byte; its 12 calls relocated). Self-test: a
 //! copy whose calls go to stand-ins, against the Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, rva};
-use crate::menu::parts::{Part, copy, dispatch_parted, parted_entry, run_both, test_part};
-use std::sync::atomic::AtomicUsize;
+use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::menu::parts::{Part, parted_entry};
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "scene::load_front_end_objects_logged",
-    rva(0x4433DA),
-    thunk,
-    &ORIGINAL,
-)
-.private_copy(LEN)
-.relocate_calls(&CALLS)
-.manual_patch()
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const LEN: usize = 0x91;
-const CALLS: [usize; 12] = [
-    0x0, 0xC, 0x19, 0x26, 0x32, 0x3F, 0x4B, 0x58, 0x64, 0x71, 0x7D, 0x8A,
-];
 const CALLEES: [usize; 4] = [
     0x425CA9, // 0 scene::load_front_end_objects
     0x40142B, // 1 logfile::log_write_l1_nl
@@ -90,16 +69,6 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_parted(
-        &HOOK,
-        r,
-        call_original,
-        &|r, part| unsafe { load_front_end_objects_logged(r, part) },
-        game_part,
-    );
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
@@ -108,34 +77,4 @@ pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
         &|r, part| unsafe { load_front_end_objects_logged(r, part) },
         game_part,
     )
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy(
-        0x4433DA,
-        LEN,
-        &[0xE8, 0xCA, 0x28, 0xFE, 0xFF],
-        &CALLS,
-        &CALLEES,
-        &[],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    crate::menu::parts::answers(&[(0, &[crate::menu::parts::Answer::eax(0x1234)])]);
-    run_both(
-        &mut t,
-        "once",
-        &copy,
-        &[],
-        &|| {},
-        Regs::SENTINEL,
-        false,
-        &|r| unsafe { load_front_end_objects_logged(r, &mut test_part) },
-    );
-    crate::menu::parts::answers(&[]);
-    t.finish()
 }

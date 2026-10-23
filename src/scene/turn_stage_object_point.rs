@@ -10,31 +10,15 @@
 //! (the game's variable, put back).
 //!
 //! Converted 2026-10-21: `rc2k_core::scene::stage_objects::turn_point`.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    EAX, EBX, ECX, RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{EAX, EBX, ECX, Regs, game_read, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{at, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "scene::turn_stage_object_point",
-    rva(0x426A5A),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 /// g_loadingKind, dword_613FC4.
 const KIND_RVA: usize = rva(0x634FE8);
@@ -46,8 +30,6 @@ const SHIFT_RVA: usize = rva(0x613FC4);
 // Converted: `rc2k_core::scene::stage_objects::turn_point`
 pub use rc2k_core::scene::stage_objects::turn_point as turn_stage_object_point;
 
-// ---- hook ----
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     let (kind, shift) = unsafe { (game_read(KIND_RVA), game_read(SHIFT_RVA)) };
     Ok(
@@ -58,44 +40,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     )
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &[], &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let all = [at(KIND_RVA), at(SHIFT_RVA)];
-    let saved = capture(&all);
-    for kind in [0u32, 0x18F, 0x190, 0x200, 0x257, 0x258, 0xFFFF_FFFF] {
-        let fill = || unsafe {
-            game_write(KIND_RVA, kind);
-            game_write(SHIFT_RVA, 0x1234u32);
-        };
-        check_state(
-            &mut t,
-            &format!("kind {kind:#x}"),
-            call_original,
-            Regs {
-                eax: 0x100,
-                ecx: 0xFFFF_FF00,
-                ebx: 0x10,
-                ..Regs::SENTINEL
-            },
-            &fill,
-            &all,
-            &rust,
-        );
-    }
-    restore(&all, &saved);
-    t.finish()
 }

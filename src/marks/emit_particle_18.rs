@@ -15,32 +15,20 @@
 //! (0; section 16). Refuses (before anything) a null record, and a null object when an
 //! entry is made. Self-test: a ring, record and car of the test's
 //! (`marks::emit_particle_6::TestEmitter`), several sizes, flags and fillings.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::marks::emit_particle_6::{TEST_ENTRIES, TestEmitter};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::marks::emitters::*;
 use crate::marks::jitter_point::jitter_point;
 use crate::marks::setup::SEED_RVA;
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at as at_rva, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::emit_particle_18", rva(0x4CDF3A), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at as at_rva, state_entry};
 
 const COUNT_RVA: usize = rva(0x9356C0); // dword_9356C0
 const SIZE_K_RVA: usize = rva(0x7651D0); // flt_7651D0
@@ -154,79 +142,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(r.edi), &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut test = TestEmitter::new(&[COUNT_RVA]);
-    let regions = test.regions();
-    let mut made_any = 0;
-    let mut case = 0u32;
-    // (the record's +0x38, its flags, taken)
-    for (size, flags, taken) in [
-        (0.5f32, 0x40u32, 0u32),
-        (2.0, 0xC5, 3),
-        (-1.0, 0xC0, 0),
-        (0.0, 0x80, 0),
-        (1e-3, 0x1C0, 0),
-        (f32::NAN, 0x80, 0),
-        (0.9, 0x100, MOST_TAKEN - 2),
-        (0.3, 0x3F, 0),
-    ] {
-        case += 1;
-        let ptrs = (test.wheel.as_mut_ptr(), test.object.as_mut_ptr());
-        let seed = case.wrapping_mul(0x2545_F491);
-        test.prepare(taken);
-        check_state(
-            &mut t,
-            &format!("size {size}, flags {flags:#x}, taken {taken:#x}"),
-            call_original,
-            Regs {
-                edi: ptrs.0 as u32,
-                esi: ptrs.1 as u32,
-                ..Regs::SENTINEL
-            },
-            &|| unsafe {
-                restore(&regions, &vec![0xAA; regions.iter().map(|r| r.1).sum()]);
-                let base = test.ring.as_ptr() as u32;
-                for n in 0..TEST_ENTRIES {
-                    let e = (base + n * ENTRY_LEN as u32) as *mut u32;
-                    e.write_unaligned(base + ((n + 1) % TEST_ENTRIES) * ENTRY_LEN as u32);
-                }
-                game_write(RING_CURSOR_RVA, base + 3 * ENTRY_LEN as u32);
-                game_write(RING_COUNT_RVA, taken);
-                game_write(OBJECT_RVA, ptrs.1 as u32);
-                game_write(SEED_RVA, seed);
-                let w = ptrs.0;
-                for n in 0..0x20 {
-                    *w.add(n) = (n as f32 * 0.75 - 3.0).to_bits();
-                }
-                *w.add(8) = flags;
-                *w.add(14) = size.to_bits();
-                let o = ptrs.1;
-                for n in 0..0x30 {
-                    *o.add(n) = (n as f32 * 1.25 + 0.5).to_bits();
-                }
-                *o.add(0x1C / 4) = 0x1234_5678;
-            },
-            &regions,
-            &rust,
-        );
-        if unsafe { game_read::<u32>(RING_COUNT_RVA) } > taken + 1 {
-            made_any += 1;
-        }
-    }
-    t.check(made_any > 0, || "no case made two entries or more".into());
-    drop(test);
-    t.finish()
 }

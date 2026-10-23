@@ -19,26 +19,14 @@
 //! version. Refuses, before anything, a cell past 0x40 and null marks settings (the
 //! clip's refusal). Shadow mode runs the original alone (it draws). Self-test: a copy
 //! whose draw goes to a stand-in, against the Rust version, places near and far.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::marks::clip_quad::clip_quad;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::draw_ribbon", rva(0x4C5E63), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const HALF_RVA: usize = rva(0x8EB8B5); // dword_8EB8B5
 const DEPTHS_RVA: [usize; 2] = [rva(0x8EB8DD), rva(0x8EB8E9)];
@@ -209,109 +197,9 @@ pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_ribbon(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { draw_ribbon(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::level_init::take_called;
-    use crate::race::mud::{copy, test_part};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if unsafe { game_read::<u32>(crate::marks::setup::SETTINGS_RVA) } == 0 {
-        return t.skip("no marks settings (the clip reads them)");
-    }
-    // shr edx, 1; mov dword_8EB8B5, edx
-    let entry: &[u8] = &[0xD1, 0xEA, 0x89, 0x15, 0xB5, 0xB8, 0x8E, 0x00];
-    let copy = match copy(0x4C5E63, 0x2A3, entry, &[0x28C, 0x293], &[(0x44EA65, 1)]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions: Vec<Region> = vec![
-        (game_addr(rva(0x8EB8B5)) as u32, 0x38),
-        (game_addr(rva(0x8F3985)) as u32, 0x20),
-        (game_addr(VERTICES_RVA) as u32, 0xC0),
-        at(VERTEX_COUNT_RVA),
-        (game_addr(rva(0x7687F4)) as u32, 6 * 0x20),
-        at(rva(0x93CC94)),
-    ];
-    let mut vars = regions.clone();
-    vars.extend(
-        [
-            NEAR_RVA,
-            rva(0x624088),
-            rva(0x62409C),
-            rva(0x6240A0),
-            rva(0x8EB96D),
-        ]
-        .map(at),
-    );
-    let saved = capture(&vars);
-    let put = |r: usize, v: f32| unsafe { game_write(r, v.to_bits()) };
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for case in 0..5u32 {
-        let k = case as f32;
-        let before = Regs {
-            eax: 3 + case * 9,
-            ecx: 0x80 + case,
-            edx: 9 + case * 4,
-            esi: 0x0012_3456,
-            ..Regs::SENTINEL
-        };
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            put(NEAR_RVA, 1.0);
-            put(rva(0x624088), 320.0);
-            put(rva(0x62409C), 320.5);
-            put(rva(0x6240A0), 240.25);
-            put(rva(0x8EB96D), 1.0 / 3000.0);
-            put(rva(0x8EB8D5), k * 3.0 - 8.0);
-            put(rva(0x8EB8D9), 2.0 + k);
-            put(rva(0x8EB8DD), if case == 3 { 0.5 } else { 40.0 + k * 9.0 });
-            put(rva(0x8EB8E1), k * 3.0 - 6.5);
-            put(rva(0x8EB8E5), 2.5 - k);
-            put(rva(0x8EB8E9), if case == 4 { -3.0 } else { 45.0 + k * 7.0 });
-            std::ptr::write_bytes(game_addr(VERTICES_RVA) as *mut u8, 0xAA, 0xC0);
-        };
-        prepare();
-        take_called();
-        let mut ro = before;
-        unsafe { crate::framework::call_game(&mut ro, copy.addr()) };
-        let theirs = (Some(regs(&ro)), take_called(), capture(&regions));
-        prepare();
-        let mine = unsafe { draw_ribbon(&before, &mut test_part) };
-        let mine = (
-            mine.as_ref().ok().map(regs),
-            take_called(),
-            capture(&regions),
-        );
-        t.check(theirs == mine, || {
-            format!(
-                "case {case}: original {:x?} {:x?}; rust {:x?} {:x?}; state first differs at {:?}",
-                theirs.0,
-                theirs.1,
-                mine.0,
-                mine.1,
-                theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b)
-            )
-        });
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

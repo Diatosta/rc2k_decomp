@@ -13,24 +13,13 @@
 //! hooked) through the game. Shadow mode runs the original alone (it draws). Self-test: a
 //! copy whose 12 calls go to stand-ins, against the Rust version, covered and not; the
 //! calls, their registers and `dword_621900` compared.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
-use crate::race::mud::{copy, run_both, test_part};
-use crate::service::harness::{at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::draw_view_overlays", rva(0x4559A6), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_read, game_write, rva};
 
 /// The calls by place, as IDA shows them.
 pub const CALLEES: [usize; 10] = [
@@ -97,67 +86,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_view_overlays(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let left = unsafe { draw_view_overlays(r, &mut game_part) }?;
     *r = Regs { esp: r.esp, ..left };
     Ok(())
-}
-
-const CALLS: [usize; 12] = [
-    0x9, 0x18, 0x1D, 0x22, 0x2C, 0x31, 0x36, 0x3B, 0x50, 0x5B, 0x60, 0x65,
-];
-
-static PLACES: std::sync::LazyLock<Vec<(usize, u32)>> = std::sync::LazyLock::new(|| {
-    CALLEES
-        .iter()
-        .enumerate()
-        .map(|(p, &a)| (a, p as u32))
-        .collect()
-});
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // cmp dword ptr unk_71AF80, 0
-    let copy = match copy(
-        0x4559A6,
-        0x6B,
-        &[0x83, 0x3D, 0x80, 0xAF, 0x71, 0x00, 0x00],
-        &CALLS,
-        PLACES.as_slice(),
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions = [at(COVERED_RVA), at(OWN_CAR_SWITCH_RVA)];
-    let saved = capture(&regions);
-    for (covered, switch) in [(0u32, 1u32), (0, 0), (1, 1), (0, 0xDEAD)] {
-        run_both(
-            &mut t,
-            &format!("covered {covered:#x}, own car switch {switch:#x}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                game_write(COVERED_RVA, covered);
-                game_write(OWN_CAR_SWITCH_RVA, switch);
-            },
-            &|r| unsafe { draw_view_overlays(r, &mut test_part) },
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
 }

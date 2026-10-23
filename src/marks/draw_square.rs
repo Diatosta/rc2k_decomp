@@ -17,28 +17,13 @@
 //! game's variables; the draw through `part` (1 `draw_fan`), in the game its Rust version.
 //! Thunk by `two_in_hook!`. Shadow mode runs the original alone (it draws). Self-test: a
 //! copy whose draw goes to a stand-in, against the Rust version, items near and far.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva, shadow};
-use crate::scene::matrix3::extended;
-use crate::scene::vector3::{Pair80, call_with_two, two_in_hook};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static PAIR: Pair80 = Pair80::new();
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::draw_square", rva(0x4BF80F), thunk, &ORIGINAL).self_test(self_test);
-
-two_in_hook!(
-    thunk,
-    call_original,
-    original_with_two,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    pair = PAIR
-);
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
 const PLACES_RVA: usize = rva(0x8BC1AE); // dword_8BC1AE .. dword_8BC1BA
@@ -265,117 +250,4 @@ pub unsafe fn draw_square(
 pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe { crate::scene::draw_fan::draw_fan(r, &mut crate::scene::draw_fan::game_part) };
     Ok(())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { original_with_two(r) };
-        return;
-    }
-    match unsafe { draw_square(r, PAIR.inputs(), &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, original_with_two) },
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::level_init::{note, take_called};
-    use crate::race::mud::copy;
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // lea ebp, g_polygonVertices
-    let entry: &[u8] = &[0x8D, 0x2D, 0xA0, 0x05, 0x96, 0x00];
-    let copy = match copy(0x4BF80F, 0x2D9, entry, &[0x2D3], &[(0x44EA65, 1)]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let frame = (game_addr(rva(0x89CEEE)) as u32, 0x7C);
-    let regions: Vec<Region> = vec![
-        (game_addr(VERTICES_RVA) as u32, 0x80),
-        (game_addr(CORNERS_RVA) as u32, 0x30),
-    ];
-    let mut vars = regions.clone();
-    vars.push(frame);
-    vars.push((game_addr(PLACES_RVA) as u32, 16));
-    vars.extend(
-        [
-            rva(0x624088),
-            rva(0x62409C),
-            rva(0x6240A0),
-            rva(0x76529C),
-            rva(0x89CEEA),
-        ]
-        .map(at),
-    );
-    let saved = capture(&vars);
-    let mut item = [0u32; 0x3C / 4];
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for case in 0..5u32 {
-        let k = case as f32;
-        item[3] = (0.125 * k).to_bits();
-        item[4] = (0.5 - 0.0625 * k).to_bits();
-        let ia = item.as_ptr() as u32;
-        let shares = [
-            extended((300.0f32 - k * 70.0).to_bits()),
-            extended((40.0f32 + k * 13.0).to_bits()),
-        ];
-        let before = Regs {
-            esi: ia,
-            edx: 0x7F00_FF00u32.rotate_left(case),
-            ..Regs::SENTINEL
-        };
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            let f = frame.0 as *mut f32;
-            // flt_89CEEE .. flt_89CF6A: shares, place, the axes, the corner offsets
-            for n in 0..(0x7C / 4) {
-                *f.add(n) = ((n as f32) * 0.37 - 3.0 + k * 0.1).sin() * 2.0;
-            }
-            // flt_89CEFE: the place's depth
-            *f.add(4) = 5000.0 + if case == 3 { -9000.0 } else { k * 300.0 };
-            for n in 0..4 {
-                game_write(
-                    PLACES_RVA + 4 * n,
-                    ((n as u32 + case) as f32 * 0.25).to_bits(),
-                );
-            }
-            game_write(rva(0x624088), 320.0f32.to_bits());
-            game_write(rva(0x62409C), 320.5f32.to_bits());
-            game_write(rva(0x6240A0), 240.25f32.to_bits());
-            game_write(rva(0x76529C), 1.5f32.to_bits());
-            game_write(rva(0x89CEEA), (1.0f32 / 3000.0).to_bits());
-            std::ptr::write_bytes(game_addr(VERTICES_RVA) as *mut u8, 0xAA, 0x80);
-        };
-        prepare();
-        take_called();
-        let mut ro = before;
-        unsafe { call_with_two(&mut ro, copy.addr(), &shares) };
-        let theirs = (Some(regs(&ro)), take_called(), capture(&regions));
-        prepare();
-        let mine = unsafe {
-            draw_square(&before, shares, &mut |p, r| {
-                note(p, r);
-                Ok(())
-            })
-        };
-        let mine = (
-            mine.as_ref().ok().map(regs),
-            take_called(),
-            capture(&regions),
-        );
-        t.check(theirs == mine, || {
-            format!(
-                "case {case}: original {:x?} {:x?}; rust {:x?} {:x?}; state first differs at {:?}",
-                theirs.0,
-                theirs.1,
-                mine.0,
-                mine.1,
-                theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b)
-            )
-        });
-    }
-    restore(&vars, &saved);
-    t.finish()
 }

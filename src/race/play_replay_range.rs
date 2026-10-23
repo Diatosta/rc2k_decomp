@@ -14,27 +14,17 @@
 //! game their Rust versions. Ungated (it plays a replay). Shadow mode runs the original
 //! alone. Self-test: a copy whose calls go to stand-ins, against the Rust version:
 //! recording or not, the block before, at and past the last.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::race::viewer::{
-    BLOCK, BLOCKS, FRAME, KEY_AFTER_PLAY, Part, RECORDING, STOPPED, Saved, WAIT_RELEASE, answer,
-    dispatch_parts, dword, get, put, regs_entry, run_both, test_part,
+    BLOCK, BLOCKS, FRAME, KEY_AFTER_PLAY, Part, RECORDING, STOPPED, WAIT_RELEASE, get, put,
+    regs_entry,
 };
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::play_replay_range", rva(0x41D846), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
 
 /// The Rust version: the registers it leaves (the entry's).
 pub fn play_replay_range(entry: &Regs, part: Part) -> Result<Regs, Refused> {
@@ -81,75 +71,8 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_parts(&HOOK, r, call_original, &|r| {
-        play_replay_range(r, &mut game_part)
-    });
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &|r| play_replay_range(r, &mut game_part))
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; call drive::replay_frame_marks
-    let copy = match crate::race::viewer::copy(
-        0x41D846,
-        0x5D,
-        &[0x60, 0xE8, 0x57, 0x00, 0x00, 0x00],
-        &[0x1, 0xF, 0x14, 0x19, 0x1E],
-        &[
-            (0x41D8A3, 1),
-            (0x40D592, 2),
-            (0x460776, 3),
-            (0x40D378, 4),
-            (0x407F95, 5),
-        ],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions = [
-        dword(KEY_AFTER_PLAY),
-        dword(WAIT_RELEASE),
-        dword(BLOCK),
-        dword(FRAME),
-        dword(STOPPED),
-        dword(BLOCKS),
-        dword(RECORDING),
-    ];
-    let saved = Saved::new(&regions);
-    for (recording, block, blocks) in [(0u32, 3u32, 9u32), (1, 9, 9), (0, 12, 9)] {
-        run_both(
-            &mut t,
-            &format!("recording {recording}, block {block} of {blocks}"),
-            copy.addr(),
-            Regs::SENTINEL,
-            &regions,
-            0,
-            &|| {
-                put(RECORDING, recording);
-                put(BLOCK, block);
-                put(BLOCKS, blocks);
-                put(FRAME, 0x33);
-                put(STOPPED, 0);
-                put(WAIT_RELEASE, 0);
-                put(KEY_AFTER_PLAY, 0xAAAA_AAAA);
-                answer(Box::new(|place, r| {
-                    if place == 5 {
-                        r.eax = r.eax & !0xFF | 0x1C;
-                    }
-                }));
-            },
-            &|r| play_replay_range(r, &mut test_part),
-        );
-    }
-    crate::race::viewer::quiet();
-    drop(saved);
-    t.finish()
 }

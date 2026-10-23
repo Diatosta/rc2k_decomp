@@ -11,28 +11,17 @@
 //! lock (carry), 2 the writer, 3 the unlock; in the game as `gfx::take_screenshot`'s. Shadow
 //! mode runs the original alone (it writes a file). Self-test: a copy whose calls go to
 //! stand-ins, against the Rust version: digits to carry, the lock failing.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::gfx::write_screen_pcx::PICTURE_NAME;
 use crate::physics::flow::a;
 use crate::race::find_snapshot_number::{SNAPSHOT_DIGITS, SNAPSHOT_PATH};
-use crate::race::viewer::{
-    Part, Saved, answer, dispatch_parts, dword, get, put, region, regs_entry, run_both, test_part,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::viewer_snapshot", rva(0x41EFAB), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::race::viewer::{Part, get, put, regs_entry};
 
 /// The Rust version: the registers it leaves (the entry's).
 pub fn viewer_snapshot(entry: &Regs, part: Part) -> Result<Regs, Refused> {
@@ -65,70 +54,8 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     crate::gfx::take_screenshot::game_part(place, r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_parts(&HOOK, r, call_original, &|r| {
-        viewer_snapshot(r, &mut game_part)
-    });
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &|r| viewer_snapshot(r, &mut game_part))
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; push dword_4F49C8
-    let copy = match crate::race::viewer::copy(
-        0x41EFAB,
-        0x41,
-        &[0x60, 0xFF, 0x35, 0xC8, 0x49, 0x4F, 0x00],
-        &[0x28, 0x2F, 0x34],
-        &[
-            (crate::gfx::take_screenshot::LOCK, 1),
-            (0x411E0C, 2),
-            (crate::gfx::take_screenshot::UNLOCK, 3),
-        ],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions = [region(SNAPSHOT_DIGITS, 3), dword(PICTURE_NAME)];
-    let saved = Saved::new(&regions);
-    for (digits, fails) in [
-        (*b"000", false),
-        (*b"019", false),
-        (*b"999", false),
-        (*b"099", true),
-    ] {
-        run_both(
-            &mut t,
-            &format!(
-                "digits {:?}, the lock failing {fails}",
-                std::str::from_utf8(&digits)
-            ),
-            copy.addr(),
-            Regs::SENTINEL,
-            &regions,
-            0,
-            &|| {
-                unsafe {
-                    std::ptr::copy_nonoverlapping(digits.as_ptr(), a(SNAPSHOT_DIGITS) as *mut u8, 3)
-                };
-                put(PICTURE_NAME, 0x1357);
-                answer(Box::new(move |place, r| {
-                    if place == 1 {
-                        r.set_carry(fails);
-                    }
-                }));
-            },
-            &|r| viewer_snapshot(r, &mut test_part),
-        );
-    }
-    crate::race::viewer::quiet();
-    drop(saved);
-    t.finish()
 }

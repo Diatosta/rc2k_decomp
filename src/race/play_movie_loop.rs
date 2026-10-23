@@ -16,28 +16,15 @@
 //! frame, as for `drive::race_loop`). Ungated (it plays a replay). Shadow mode runs the
 //! original alone. Self-test: a copy whose calls go to stand-ins (the frame moving the
 //! block on, a key after some frames), against the Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::physics::flow::a;
-use crate::race::viewer::{
-    BLOCK, PLAY_END, Part, Saved, answer, dispatch_parts, dword, gb, get, pb, put, region,
-    regs_entry, run_both, test_part,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::play_movie_loop", rva(0x4607A5), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
+use crate::race::viewer::{BLOCK, PLAY_END, Part, gb, get, put, regs_entry};
 
 /// The calls by place, as IDA shows them.
 pub const CALLEES: [usize; 10] = [
@@ -51,10 +38,6 @@ pub const CALLEES: [usize; 10] = [
     0x40142B, // 8 logfile::log_write_l1_nl
     0,
 ];
-const CALLS: [usize; 11] = [
-    0x0, 0xC, 0x19, 0x25, 0x32, 0x3E, 0x4E, 0x5D, 0x6B, 0x70, 0x89,
-];
-
 const STATE: usize = 0x5C5CE0; // dword_5C5CE0
 const SCENE_CLOCK: usize = 0x613830; // g_sceneClock
 const CLOCK_BASE: usize = 0x613840; // dword_613840
@@ -111,82 +94,8 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_parts(&HOOK, r, call_original, &|r| {
-        play_movie_loop(r, &mut game_part)
-    });
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &|r| play_movie_loop(r, &mut game_part))
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let places: &'static [(usize, u32)] = Box::leak(
-        (1..9u32)
-            .map(|p| (CALLEES[p as usize], p))
-            .collect::<Vec<_>>()
-            .into_boxed_slice(),
-    );
-    // call race::init_skidmarks
-    let copy = match crate::race::viewer::copy(
-        0x4607A5,
-        0x90,
-        &[0xE8, 0xD3, 0x7D, 0xFF, 0xFF],
-        &CALLS,
-        places,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions = [
-        dword(BLOCK),
-        dword(PLAY_END),
-        dword(STATE),
-        dword(CLOCK_BASE),
-        dword(SCENE_CLOCK),
-        region(KEYS_PRESSED, 1),
-    ];
-    let saved = Saved::new(&regions);
-    // (block, end, a key after this many frames)
-    for (block, end, key_after) in [(2u32, 5u32, 99u32), (2, 9, 3), (4, 5, 0)] {
-        run_both(
-            &mut t,
-            &format!("block {block} to {end}, a key after {key_after}"),
-            copy.addr(),
-            Regs::SENTINEL,
-            &regions,
-            0,
-            &|| {
-                put(BLOCK, block);
-                put(PLAY_END, end);
-                put(STATE, 0);
-                put(SCENE_CLOCK, 0x1234);
-                pb(KEYS_PRESSED, 0);
-                let mut frames = 0u32;
-                answer(Box::new(move |place, r| match place {
-                    5 => {
-                        if frames == key_after {
-                            pb(KEYS_PRESSED, 1);
-                        }
-                    }
-                    7 => {
-                        frames += 1;
-                        put(BLOCK, get(BLOCK) + 1);
-                        r.eax = 0x99;
-                    }
-                    _ => {}
-                }));
-            },
-            &|r| play_movie_loop(r, &mut test_part),
-        );
-    }
-    crate::race::viewer::quiet();
-    drop(saved);
-    t.finish()
 }

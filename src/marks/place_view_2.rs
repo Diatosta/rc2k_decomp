@@ -12,29 +12,17 @@
 //! Converted 2026-10-21: the hook's Rust version is `place_view_2_plain`, on
 //! `marks::place_view`'s converted body (the x87 version stays for the Rust callers in
 //! unconverted code); compared as `place_view`.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::marks::place_view::{
-    ViewPlace, WRITTEN_LEN, float_places, place_view_with, place_view_with_plain, test_with,
-};
+use crate::framework::{Regs, game_read, game_write, rva};
+use crate::marks::place_view::{ViewPlace, place_view_with, place_view_with_plain};
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::Region;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::place_view_2", rva(0x4C2AA5), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const SECOND: ViewPlace = ViewPlace {
     point: rva(0x8D2208), // dword_8D2208
@@ -74,42 +62,12 @@ pub unsafe fn place_view_2_plain(entry: &Regs) -> Result<Regs, Refused> {
     }
 }
 
-fn extra() -> [Region; 1] {
-    [(game_addr(CLEARED_RVA) as u32, 0x30)]
-}
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { place_view_2_plain(r) }?))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let mut regions = vec![(game_addr(SECOND.point) as u32, WRITTEN_LEN)];
-    regions.extend(extra());
-    let places = float_places(&SECOND);
-    let floats = crate::service::floats::Floats {
-        memory: &places,
-        regs: &[],
-    };
-    crate::service::floats::dispatch_state_floats(
-        &HOOK,
-        r,
-        call_original,
-        &regions,
-        &floats,
-        &rust,
-    );
 }
 
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     crate::service::floats::floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    test_with(&mut t, &SECOND, call_original, &extra(), &rust);
-    t.finish()
 }

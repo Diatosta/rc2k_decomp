@@ -17,26 +17,15 @@
 //! hooks. Shadow mode runs the original alone. Self-test: a copy whose calls go to
 //! stand-ins, against the Rust version: not loaded, loaded with and without the fonts
 //! built.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
-use crate::race::viewer::{
-    Part, Saved, answer, dispatch_parts, dword, get, put, regs_entry, run_both, test_part,
-};
+use crate::framework::{Regs, game_addr, rva};
+use crate::race::viewer::{Part, get, put, regs_entry};
 use crate::race::viewer_load_stage::{FONTS_BUILT, take_key};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::viewer_tidy_stage", rva(0x41CEB4), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The calls by place, as IDA shows them.
 pub const CALLEES: [usize; 10] = [
@@ -50,7 +39,6 @@ pub const CALLEES: [usize; 10] = [
     0x474E04, // 8 scene::set_up_front_end_scene
     0x407F95, // 9 input::take_key
 ];
-const CALLS: [usize; 10] = [0x14, 0x19, 0x1E, 0x23, 0x28, 0x3D, 0x42, 0x47, 0x4C, 0x51];
 const LOADED: usize = 0x5BECC0; // dword_5BECC0
 
 /// The Rust version: the registers it leaves (the entry's).
@@ -109,58 +97,8 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_parts(&HOOK, r, call_original, &|r| {
-        viewer_tidy_stage(r, &mut game_part)
-    });
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     regs_entry(r, &|r| viewer_tidy_stage(r, &mut game_part))
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let places: &'static [(usize, u32)] = Box::leak(
-        (1..10u32)
-            .map(|p| (CALLEES[p as usize], p))
-            .collect::<Vec<_>>()
-            .into_boxed_slice(),
-    );
-    // pusha; cmp dword_5BECC0, 1
-    let copy = match crate::race::viewer::copy(
-        0x41CEB4,
-        0x58,
-        &[0x60, 0x83, 0x3D, 0xC0, 0xEC, 0x5B, 0x00, 0x01],
-        &CALLS,
-        places,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions = [dword(LOADED), dword(FONTS_BUILT)];
-    let saved = Saved::new(&regions);
-    for (loaded, built) in [(0u32, 1u32), (1, 0), (1, 1)] {
-        run_both(
-            &mut t,
-            &format!("loaded {loaded}, fonts built {built}"),
-            copy.addr(),
-            Regs::SENTINEL,
-            &regions,
-            0,
-            &|| {
-                put(LOADED, loaded);
-                put(FONTS_BUILT, built);
-                answer(crate::race::viewer::clear_carry());
-            },
-            &|r| viewer_tidy_stage(r, &mut test_part),
-        );
-    }
-    crate::race::viewer::quiet();
-    drop(saved);
-    t.finish()
 }

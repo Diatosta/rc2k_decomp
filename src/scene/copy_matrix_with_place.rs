@@ -14,34 +14,16 @@
 //! `rc2k_core::scene::matrices::copy_with_place` (plain floats; the x87 version stays for
 //! the Rust callers in unconverted code). Shadow mode and the self-test compare within
 //! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::scene::matrix::{self, MATRIX_LEN, float_places, test_floats};
+use crate::framework::Regs;
+use crate::scene::matrix::{self};
 use crate::screens::harness::Left;
 use crate::service::floats::*;
-use crate::service::harness::Region;
-use std::cell::Cell;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "scene::copy_matrix_with_place",
-    rva(0x4271E4),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-// ---- hook ----
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     if r.esi == 0 || r.edi == 0 || r.ebp == 0 {
@@ -52,72 +34,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions: &[Region] = if r.esi == 0 || r.edi == 0 || r.ebp == 0 {
-        &[]
-    } else {
-        &[(r.ebp, MATRIX_LEN)]
-    };
-    let places = float_places(regions);
-    let floats = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, regions, &floats, &rust);
-}
-
 /// The Rust version where the typed tables run it (no hook; a refusal is the
 /// caller's).
 pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     floats_entry(r, &rust)
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // Three matrices of the test's; the functions are given their addresses.
-    let work: [Cell<[u32; 16]>; 3] = Default::default();
-    let address = |n: usize| work[n].as_ptr() as u32;
-    let mut seed = 0x0BAD_5EEDu32;
-    let tolerant_places = float_places(&[0, 1, 2].map(|n| (address(n), MATRIX_LEN)));
-    let tolerant = Floats {
-        memory: &tolerant_places,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        for case in 0..60 {
-            let floats = [
-                test_floats(&mut seed),
-                test_floats(&mut seed),
-                test_floats(&mut seed),
-            ];
-            // The result apart, in the first's place, in the second's.
-            let out = [2usize, 0, 1][case % 3];
-            let regions: [Region; 3] = [0, 1, 2].map(|n| (address(n), MATRIX_LEN));
-            check_state_floats(
-                &mut t,
-                "scene::copy_matrix_with_place",
-                &format!("control word {word:#x}, case {case}, the result in matrix {out}"),
-                call_original,
-                Regs {
-                    esi: address(0),
-                    edi: address(1),
-                    ebp: address(out),
-                    ..Regs::SENTINEL
-                },
-                &|| {
-                    for (cell, floats) in work.iter().zip(floats) {
-                        cell.set(floats);
-                    }
-                },
-                &regions,
-                held,
-                &rust,
-            );
-        }
-    });
-    t.finish()
 }

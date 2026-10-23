@@ -30,34 +30,15 @@
 //! `rc2k_core::scene::materials` (the fraction a plain float; the x87 version stays for the
 //! Rust callers in unconverted code). Shadow mode and the self-test hold the fraction to
 //! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{
-    GameHook, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::math::next_random::{STATE_RVA as RANDOM_RVA, next_random};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::math::next_random::next_random;
 use crate::math::x87;
-use crate::scene::polygon::{dword, put};
-use crate::service::floats::{Agreement, Floats, at_test_precisions, compare_memory, note_drift};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "scene::set_object_material",
-    rva(0x45170E),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -95,21 +76,6 @@ unsafe fn state() -> Option<usize> {
         let states: u32 = game_read(STATES_RVA);
         (states != 0)
             .then(|| states.wrapping_add(game_read::<u32>(STATE_NUMBER_RVA) << 6) as usize + 0x30)
-    }
-}
-
-/// The byte +0x20 of the record of the object's kind, or None for an object's number
-/// past the tables.
-unsafe fn way() -> Option<u32> {
-    unsafe {
-        let object: u32 = game_read(OBJECT_RVA);
-        if object >= OBJECTS {
-            return None;
-        }
-        let kind: u32 = game_read(KINDS_RVA + object as usize * 4);
-        let material =
-            game_addr(MATERIALS_RVA).wrapping_add((kind as usize).wrapping_mul(MATERIAL_LEN));
-        Some(((material + 0x20) as *const u8).read() as u32)
     }
 }
 
@@ -216,183 +182,10 @@ pub unsafe fn set_object_material_plain() -> Result<(), BadInput> {
     }
 }
 
-/// The fraction (`flt_623DD4`) of the regions, the one float place.
-fn floats() -> [(Region, crate::service::floats::Tolerance); 1] {
-    [(at(MOVE_FRACTION_RVA), crate::service::floats::FLOAT)]
-}
-
-// ---- hook ----
-
-fn regions() -> Vec<Region> {
-    let mut regions: Vec<Region> = [
-        MOVE_BY_RVA,
-        MOVE_FRACTION_RVA,
-        COLOUR_RVA,
-        WAY_RVA,
-        FIRST_FACE_RVA,
-        FACE_COUNT_RVA,
-        LAST_RVA,
-    ]
-    .map(at)
-    .to_vec();
-    regions.push((game_addr(PHASE_WORK_RVA) as u32, 12));
-    regions.push((game_addr(LENGTHS_RVA) as u32, 36));
-    // The state only for an object that has one: `dword_5CCCBC` goes on naming a
-    // stage's memory after the stage has given it back (2026-10-13: reading it for
-    // a menu's object ended the game).
-    // The random state too only then: no other object draws, and other threads do (a
-    // capture of it would compare, and its restore undo, their draws).
-    if let (Some(4), Some(state)) = (unsafe { way() }, unsafe { state() }) {
-        regions.push((state as u32, 16));
-        regions.push(at(RANDOM_RVA));
-    }
-    regions
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if !shadow() {
-        if let Err(e) = unsafe { set_object_material_plain() } {
-            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-        }
-        return;
-    }
-    let regions = regions();
-    let before = capture(&regions);
-    let mine = unsafe { set_object_material_plain() }.map(|()| capture(&regions));
-    restore(&regions, &before);
-    unsafe { call_original(r) };
-    let Ok(mine) = mine else {
-        return;
-    };
-    let theirs = capture(&regions);
-    let places = floats();
-    let floats = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    match compare_memory(&regions, &theirs, &mine, &floats) {
-        Agreement::Same => {}
-        Agreement::Drift(n) => note_drift(HOOK.name(), || format!("{n} places")),
-        Agreement::Differ => HOOK.mismatch(|| {
-            format!(
-                "object {:#x}: before {before:x?}; original {theirs:x?}; rust {mine:x?}",
-                unsafe { game_read::<u32>(OBJECT_RVA) }
-            )
-        }),
-    }
-}
-
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
 pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
     if let Err(e) = unsafe { set_object_material_plain() } {
         return Err(e.into());
     }
     Ok(())
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    const OBJECT: u32 = 0xF0;
-    let slot = OBJECT as usize * 4;
-    // The test's object, an unused one, is given the kind of the first real object for
-    // the time of the test: that kind's record is there to be read and changed.
-    let kinds: [u32; 0x100] = unsafe { game_read(KINDS_RVA) };
-    // The records run from `unk_97DF30` up to `g_faces`: room for 0x4B0 kinds.
-    let Some(&kind) = kinds[1..].iter().find(|&&kind| kind < 0x4B0) else {
-        return t.skip(&format!(
-            "no object is loaded whose kind's record the test could use (the first kinds: {:x?})",
-            &kinds[..4]
-        ));
-    };
-    let way_at =
-        game_addr(MATERIALS_RVA).wrapping_add((kind as usize).wrapping_mul(MATERIAL_LEN)) + 0x20;
-    let mut inputs: Vec<Region> = [
-        OBJECT_RVA,
-        FIRST_FACES_RVA + slot,
-        FACE_COUNTS_RVA + slot,
-        STATES_RVA,
-        STATE_NUMBER_RVA,
-        CLOCK_RVA,
-        KINDS_RVA + slot,
-    ]
-    .map(at)
-    .to_vec();
-    inputs.push((game_addr(FIRST_POINT_RVA + slot) as u32, 8));
-    inputs.push((way_at as u32, 1));
-    let saved_inputs = capture(&inputs);
-    unsafe { game_write(KINDS_RVA + slot, kind) };
-    // The test's own table of states: the one in use is number 2.
-    let mut states = [0u32; 0x40];
-    unsafe {
-        game_write(STATES_RVA, states.as_mut_ptr() as u32);
-        game_write(STATE_NUMBER_RVA, 2u32);
-        // As a moving object, so that its state is among the regions.
-        game_write(OBJECT_RVA, OBJECT);
-        (way_at as *mut u8).write(4);
-    }
-    let regions = regions();
-    let saved = capture(&regions);
-    let state_at = states.as_mut_ptr() as usize + 0x80 + 0x30;
-    let places = floats();
-    let tolerant = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        let mut cases = 0u32;
-        for way in [0u8, 4, 5] {
-            for (last, time, length, phase) in [
-                (1000u32, 0u32, 300u32, 0u32),
-                (1000, 250, 300, 1),
-                (1000, 299, 300, 2),
-                (1000, 100, 300, 3),
-                (1000, 0, 0, 3),
-                (0, 5000, 7, 1),
-                (990, 0x7FFF_FFF0, 0x7FFF_FFFF, 3),
-            ] {
-                for clock in [1000u32, 1030, 1200, 999] {
-                    cases += 1;
-                    let seed = 0x1357_9BDFu32.wrapping_mul(cases);
-                    let run = |rust: bool| unsafe {
-                        restore(&regions, &vec![0xAA; saved.len()]);
-                        game_write(RANDOM_RVA, seed);
-                        game_write(OBJECT_RVA, OBJECT);
-                        (way_at as *mut u8).write(way);
-                        game_write(FIRST_POINT_RVA + slot, [0x100u32, 0x100 + cases]);
-                        game_write(FIRST_FACES_RVA + slot, 0x4000 + cases);
-                        game_write(FACE_COUNTS_RVA + slot, cases);
-                        game_write(CLOCK_RVA, clock);
-                        put(state_at, last);
-                        put(state_at + 4, time);
-                        put(state_at + 8, length);
-                        put(state_at + 12, phase);
-                        let done = if rust {
-                            set_object_material_plain().is_ok()
-                        } else {
-                            call_original(&mut Regs::default());
-                            true
-                        };
-                        (done, capture(&regions), dword(state_at))
-                    };
-                    let (theirs, mine) = (run(false), run(true));
-                    let same = theirs.0 == mine.0
-                        && theirs.2 == mine.2
-                        && compare_memory(&regions, &theirs.1, &mine.1, held) != Agreement::Differ;
-                    t.check(same, || {
-                    format!(
-                        "control word {word:#x}, way {way}, state {last} {time} {length} {phase}, clock {clock}, seed {seed:#x}: original {theirs:x?}; rust {mine:x?}"
-                    )
-                });
-                }
-            }
-        }
-    });
-    restore(&regions, &saved);
-    restore(&inputs, &saved_inputs);
-    t.finish()
 }
