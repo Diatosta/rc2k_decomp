@@ -22,7 +22,7 @@ use crate::framework::Regs;
 use crate::race::sound_tables::*;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { set_up_race_sound_objects(r, &ObjectVars::game()) }?;
+pub fn entry(_r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    set_up_race_sound_objects(&ObjectVars::game())?;
     Ok(())
 }

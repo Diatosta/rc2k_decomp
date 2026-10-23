@@ -225,11 +225,11 @@ pub fn call(place: u32, r: &mut Regs) -> Result<(), Refused> {
             LIST_TAKE_KEY => *r = crate::menu::list_take_key::list_take_key(r)?,
             CLEAR_RACE_SOUNDS => {
                 use crate::race::sound_tables;
-                *r = sound_tables::clear_race_sound_objects(r)?;
+                sound_tables::clear_race_sound_objects()?;
             }
             SET_UP_RACE_SOUNDS => {
                 use crate::race::sound_tables;
-                sound_tables::set_up_race_sound_objects(r, &sound_tables::ObjectVars::game())?;
+                sound_tables::set_up_race_sound_objects(&sound_tables::ObjectVars::game())?;
             }
             SET_UP_ENGINE => crate::scene::set_up_engine::set_up_engine_in_game(r),
             FRONT_END_SCENE => {

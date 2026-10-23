@@ -121,7 +121,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             7 => crate::logfile::log_write::log_write(r.eax as *const u8, false, 1),
             8 => crate::logfile::log_int::log_int(r.eax as i32, true, 1),
             9 => {
-                sound_tables::set_up_race_sound_objects(r, &sound_tables::ObjectVars::game())?;
+                sound_tables::set_up_race_sound_objects(&sound_tables::ObjectVars::game())?;
             }
             11 => {
                 crate::gfx::build_fonts::build_fonts(&{ *r }, &mut crate::gfx::glyph_tables::Game)?
@@ -133,7 +133,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 r.set_carry(false);
             }
             14 => {
-                race_end::reset_race_sounds(r, &race_end::SoundVars::game())?;
+                race_end::reset_race_sounds(&race_end::SoundVars::game())?;
             }
             15 => crate::race::viewer_palettes::viewer_palettes(),
             _ => take_key(r),

@@ -49,7 +49,7 @@ pub unsafe fn pause_until_key(entry: &Regs) -> Result<Left, Refused> {
     for _ in 0..5 {
         take_key(&mut r);
     }
-    stop_race_sounds(&mut r)?;
+    stop_race_sounds()?;
     p(0x6235E8, 1);
     for c in 0..2 {
         p(B + 0xFE0 * c + 0x71C, 0xCB);
@@ -92,7 +92,7 @@ pub unsafe fn pause_until_key(entry: &Regs) -> Result<Left, Refused> {
         p(B + 0xFE0 * c + 0x724, 0);
     }
     p(0x6235E8, 0);
-    wake_car_sounds(&r)?;
+    wake_car_sounds()?;
     take_key(&mut r);
     p(B + 0x468, 0);
     Ok(left_of(&r))

@@ -9,19 +9,5 @@
 //! redirected copy whose call of `race::start_race_sounds` notes itself, the game's
 //! objects' flags, `dword_71C3E0` 0 and 1, the cars 0, 1, 5 and 9, put back afterwards.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
-
-use crate::framework::Regs;
-use crate::race::sounds::*;
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    {
-        let left = unsafe { wake_car_sounds(r, &mut game_wake_part) }?;
-        r.ebx = left.ebx;
-        r.edi = left.edi;
-    }
-    Ok(())
-}
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.

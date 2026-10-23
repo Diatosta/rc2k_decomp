@@ -25,11 +25,11 @@ const GET_AND_SET: u32 = 3;
 /// `DSPROPERTY_VMANAGER_MODE`'s value 2 (`DSPROPERTY_VMANAGER_MODE_REPORT`).
 const VOICE_MANAGER_MODE: u32 = 2;
 
-/// A text to the log (level 1, with a line's end), as `sound_device::Part`'s place 6.
+/// A text to the log (level 1, with a line's end).
 pub type Log<'a> = &'a mut dyn FnMut(u32);
 
 pub fn game_log(text: u32) {
-    let _ = crate::audio::sound_device::game_part(6, text);
+    crate::audio::sound_device::log_text_1(text);
 }
 
 /// Where one opening's things are.

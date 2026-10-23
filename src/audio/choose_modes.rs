@@ -57,7 +57,7 @@ pub fn game_facts() -> Facts {
 }
 
 /// The log calls: (0 text / 2 hex8 / 3 hex8 with a line's end, eax), as
-/// `sound_device::Part`'s places.
+/// `choose_modes::real_log`'s places.
 pub type Log<'a> = &'a mut dyn FnMut(u32, u32);
 
 /// Converted: `rc2k_core::audio::modes::choose_modes`.
@@ -93,5 +93,10 @@ pub fn in_game(log: Log) -> Result<(), Refused> {
 }
 
 pub fn real_log(place: u32, eax: u32) {
-    let _ = crate::audio::sound_device::game_part(place, eax);
+    use crate::audio::sound_device::{log_hex, log_text};
+    match place {
+        0 => log_text(eax, false),
+        2 => log_hex(eax, false),
+        _ => log_hex(eax, true),
+    }
 }

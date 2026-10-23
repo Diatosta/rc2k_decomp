@@ -1,6 +1,6 @@
 //! The primary buffer made (IDA, 2026-10-15): `audio::make_primary` and its parts
 //! `volume_index`, `set_primary_format`, `open_listener`. Logging and calls go through
-//! `sound_device::Part` (places 10 .. 13 added there).
+//! `sound_device`'s named calls.
 
 use crate::audio::voices::{read, write};
 use crate::errors::Refused;
@@ -50,7 +50,7 @@ pub unsafe fn open_listener(
     no_listener: u32,
 ) -> Result<bool, Refused> {
     unsafe {
-        crate::audio::sound_device::game_part(1, game_addr(OPEN_TEXT) as u32)?;
+        crate::audio::sound_device::log_text(game_addr(OPEN_TEXT) as u32, true);
         // Converted: `rc2k_core::audio::device::listener_refused`.
         let code =
             match rc2k_core::audio::device::listener_refused(read(setting), || read(no_listener)) {
@@ -66,9 +66,9 @@ pub unsafe fn open_listener(
                     r as u32
                 }
             };
-        crate::audio::sound_device::game_part(0, game_addr(FAILED_TEXT) as u32)?;
-        crate::audio::sound_device::game_part(3, code)?;
-        crate::audio::sound_device::game_part(8, 0)?;
+        crate::audio::sound_device::log_text(game_addr(FAILED_TEXT) as u32, false);
+        crate::audio::sound_device::log_hex(code, true);
+        crate::audio::sound_device::release_listener();
         Ok(false)
     }
 }
@@ -131,14 +131,14 @@ pub unsafe fn make_primary(v: &PrimaryVars) -> Result<bool, Refused> {
             return Ok(false);
         }
         crate::audio::com::call1(read(v.primary), GET_VOLUME, v.kept);
-        crate::audio::sound_device::game_part(10, read(v.mode))?;
+        crate::audio::sound_device::set_primary_format(read(v.mode))?;
         let (volume, stored) = master_volume(read(v.master), || volume_index(read(v.kept) as i32));
         if stored {
             write(v.master, volume);
         }
         write(v.shown, volume);
-        crate::audio::sound_device::game_part(12, volume)?;
-        if read(v.mode) & MODE_3D != 0 && crate::audio::sound_device::game_part(13, 0)? {
+        crate::audio::set_master_volume::set_master_volume_in_game(volume);
+        if read(v.mode) & MODE_3D != 0 && !crate::audio::sound_device::open_listener()? {
             write(v.mode, without_3d(read(v.mode)));
         }
         Ok(true)

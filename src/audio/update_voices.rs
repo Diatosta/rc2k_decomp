@@ -6,7 +6,8 @@
 //! By the mode: with A3D (`g_useA3d` 1) the chunk at 0x40CB2A; with voices' own buffers
 //! (`g_soundMode` bit 0x10000) the buffers' way, here; else with the game's mixer (bit
 //! 0x40000) the chunk at 0x40BC05; else nothing. The two chunks are called at the game's
-//! addresses (they begin with `pusha` and end with `popa; retn`).
+//! addresses (they begin with `pusha` and end with `popa; retn`). Plain since 2026-10-23
+//! (phase 3): the mixer's way is `audio::update_mixer_voices`; A3D is refused.
 //! The buffers' way, in three passes:
 //! - the stopping list: a voice sounding (state 2) stopped (`audio::stop_buffer`); every
 //!   voice's state 0, its channel freed and 0, and each link of the list 0 (it is emptied);
@@ -34,12 +35,10 @@
 //! and the self-test was the hook's.
 
 use crate::audio::voices::*;
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
+use crate::errors::{BadInput, Refused};
+use crate::framework::{game_addr, rva};
 
 const MODE_MIXER: u32 = 0x4_0000;
-const A3D_WAY: usize = 0x40CB2A;
-const MIXER_WAY: usize = 0x40BC05;
 const ENVIRONMENT_RVA: usize = rva(0x6D1DD4); // dword_6D1DD4
 const ENVIRONMENT_KEPT_RVA: usize = rva(0x506C80); // dword_506C80
 
@@ -81,12 +80,12 @@ pub unsafe fn update_voices(v: &Vars) -> Result<(), Refused> {
     use rc2k_core::audio::voices::{Lists, Room, Step, update_buffers};
     unsafe {
         if read(v.a3d) == 1 {
-            return crate::audio::update_voices::game_part(10, &mut Regs::default());
+            return Err(BadInput("A3D (the chunk at 0x40CB2A)").into());
         }
         let mode = read(v.mode);
         if mode & crate::audio::make_buffer::MODE_OWN_BUFFERS == 0 {
             if mode & MODE_MIXER != 0 {
-                crate::audio::update_voices::game_part(11, &mut Regs::default())?;
+                crate::audio::update_mixer_voices::update_mixer_voices_in_game()?;
             }
             return Ok(());
         }
@@ -114,68 +113,40 @@ pub unsafe fn update_voices(v: &Vars) -> Result<(), Refused> {
         let mut pool = GamePool::new(&World::game());
         // No step reads what the update changes (the room's step reads the room asked).
         let done = update_buffers::<_, Refused>(&mut pool, &mut l, mode, &mut room, |step| {
-            let (which, at) = match step {
-                Step::IsPlaying(at) => (0, at),
-                Step::Room => (1, 0),
-                Step::Commit => (2, 0),
-                Step::Frequency(at) => (3, at),
-                Step::Volume(at) => (4, at),
-                Step::Pan(at) => (5, at),
-                Step::Place(at) => (6, at),
-                Step::Rewind(at) => (7, at),
-                Step::Play(at) => (8, at),
-                Step::Stop(at) => (9, at),
-            };
-            let mut r = Regs {
-                esi: at,
-                ..Regs::default()
-            };
-            crate::audio::update_voices::game_part(which, &mut r)?;
-            Ok(which != 0 || !crate::audio::buffer_play::zero(&r))
+            use crate::audio::{buffer_play as play, buffer_settings as set};
+            match step {
+                Step::IsPlaying(at) => return Ok(play::is_playing(voice(at))? & play::PLAYING != 0),
+                Step::Room => {
+                    crate::audio::set_eax_room::in_game()?;
+                }
+                Step::Commit => {
+                    play::commit_3d(game_addr(play::LISTENER_3D_RVA) as u32)?;
+                }
+                Step::Frequency(at) => {
+                    set::set_buffer_frequency(voice(at))?;
+                }
+                Step::Volume(at) => {
+                    set::set_buffer_volume(voice(at))?;
+                }
+                Step::Pan(at) => {
+                    set::set_buffer_pan(voice(at))?;
+                }
+                Step::Place(at) => {
+                    set::set_buffer_place(voice(at))?;
+                }
+                Step::Rewind(at) => {
+                    play::rewind_buffer(voice(at))?;
+                }
+                Step::Play(at) => {
+                    play::play_buffer_in_game(voice(at))?;
+                }
+                Step::Stop(at) => {
+                    play::stop_buffer(voice(at))?;
+                }
+            }
+            Ok(true)
         });
         store(&l, &room);
         done
     }
-}
-
-/// The game's callees: the Rust versions, the two other ways at the game's addresses.
-pub fn game_part(which: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::audio::{buffer_play as play, buffer_settings as set};
-    unsafe {
-        let v = || voice(r.esi);
-        match which {
-            0 => {
-                let status = play::is_playing(v())?;
-                r.set_zero(status & play::PLAYING == 0);
-            }
-            1 => r.eax = crate::audio::set_eax_room::in_game()?,
-            2 => {
-                play::commit_3d(game_addr(play::LISTENER_3D_RVA) as u32)?;
-            }
-            3 => {
-                set::set_buffer_frequency(v())?;
-            }
-            4 => {
-                set::set_buffer_volume(v())?;
-            }
-            5 => {
-                set::set_buffer_pan(v())?;
-            }
-            6 => {
-                set::set_buffer_place(v())?;
-            }
-            7 => {
-                play::rewind_buffer(v())?;
-            }
-            8 => {
-                play::play_buffer_in_game(v())?;
-            }
-            9 => {
-                play::stop_buffer(v())?;
-            }
-            10 => crate::calls::call(rva(A3D_WAY), r),
-            _ => crate::calls::call(rva(MIXER_WAY), r),
-        }
-    }
-    Ok(())
 }

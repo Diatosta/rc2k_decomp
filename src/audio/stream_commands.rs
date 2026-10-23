@@ -14,69 +14,19 @@
 
 use crate::audio::stream::*;
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr};
-
-/// The calls by the game's addresses, each with the registers it reads: 0 `start_stream`
-/// (eax the path, esi; the carry), 1 `feed_stream`, 2 `stop_stream`, 3 `set_stream_volume`
-/// (esi), 4 `files::file_exists` (eax; the carry: not there).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-pub const START: u32 = 0;
-pub const FEED: u32 = 1;
-pub const STOP: u32 = 2;
-pub const VOLUME: u32 = 3;
-pub const EXISTS: u32 = 4;
-
-/// The Rust versions, as the game has them.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        let s = stream(r.esi);
-        match place {
-            START => {
-                let started = start_stream(s, r.eax as *const u8, &StartVars::game())?;
-                r.set_carry(!started);
-            }
-            FEED => {
-                let fed = feed_stream(
-                    s,
-                    game_addr(crate::audio::fill_buffer::LOCKED_PARTS_RVA) as u32,
-                )?;
-                r.set_carry(!fed);
-            }
-            STOP => stop_stream(s)?,
-            VOLUME => set_stream_volume(s)?,
-            _ => {
-                let there = crate::files::file_exists::file_exists(r.eax as *const u8)?;
-                r.set_carry(!there);
-            }
-        }
-    }
-    Ok(())
-}
-
-/// One call: carry out.
-fn call(part: &mut Part, place: u32, eax: u32, player: u32) -> Result<bool, Refused> {
-    let mut r = Regs {
-        eax,
-        esi: player,
-        ..Regs::default()
-    };
-    part(place, &mut r)?;
-    Ok(r.carry())
-}
+use crate::framework::game_addr;
 
 fn playing(player: u32) -> bool {
     unsafe { stream(player).playing == 1 }
 }
 
-/// The core's player: the game's stream player at `player`, its calls through `part`
-/// with the registers the original gives them (eax the file's path for a start).
-struct GamePlayer<'a, 'b> {
+/// The core's player: the game's stream player at `player`, `path` the file it starts.
+struct GamePlayer {
     player: u32,
     path: u32,
-    part: &'a mut Part<'b>,
 }
 
-impl rc2k_core::audio::streams::Player for GamePlayer<'_, '_> {
+impl rc2k_core::audio::streams::Player for GamePlayer {
     type Error = Refused;
     fn playing(&mut self) -> bool {
         playing(self.player)
@@ -85,26 +35,33 @@ impl rc2k_core::audio::streams::Player for GamePlayer<'_, '_> {
         unsafe { stream(self.player).volume = volume };
     }
     fn start(&mut self) -> Result<bool, Refused> {
-        Ok(!call(self.part, START, self.path, self.player)?)
+        unsafe {
+            start_stream(
+                stream(self.player),
+                self.path as *const u8,
+                &StartVars::game(),
+            )
+        }
     }
     fn feed(&mut self) -> Result<(), Refused> {
-        call(self.part, FEED, 0, self.player).map(|_| ())
+        let parts = game_addr(crate::audio::fill_buffer::LOCKED_PARTS_RVA) as u32;
+        unsafe { feed_stream(stream(self.player), parts) }.map(|_| ())
     }
     fn stop(&mut self) -> Result<(), Refused> {
-        call(self.part, STOP, 0, self.player).map(|_| ())
+        unsafe { stop_stream(stream(self.player)) }
     }
     fn apply_volume(&mut self) -> Result<(), Refused> {
-        call(self.part, VOLUME, 0, self.player).map(|_| ())
+        unsafe { set_stream_volume(stream(self.player)) }
     }
 }
 
-impl rc2k_core::audio::streams::Tunes for GamePlayer<'_, '_> {
+impl rc2k_core::audio::streams::Tunes for GamePlayer {
     fn name(&mut self, n: u32) {
         let d = crate::strings::format_u32::format_u32(n, 0x12);
         unsafe { std::ptr::copy_nonoverlapping(d.as_ptr(), (self.path + 0xE) as *mut u8, d.len()) };
     }
     fn exists(&mut self) -> Result<bool, Refused> {
-        Ok(!call(self.part, EXISTS, self.path, self.player)?)
+        Ok(unsafe { crate::files::file_exists::file_exists(self.path as *const u8) }?)
     }
     fn gave_up(&mut self, tune: u32) {
         crate::framework::log(&format!(
@@ -116,18 +73,8 @@ impl rc2k_core::audio::streams::Tunes for GamePlayer<'_, '_> {
 
 /// `audio::stream_command` on the player at `player`. Converted:
 /// `rc2k_core::audio::streams::stream_command`.
-pub fn stream_command(
-    path: u32,
-    volume: i32,
-    action: u32,
-    player: u32,
-    mut part: Part,
-) -> Result<(), Refused> {
-    let mut p = GamePlayer {
-        player,
-        path,
-        part: &mut part,
-    };
+pub fn stream_command(path: u32, volume: i32, action: u32, player: u32) -> Result<(), Refused> {
+    let mut p = GamePlayer { player, path };
     rc2k_core::audio::streams::stream_command(&mut p, path != 0, volume, action)
 }
 
@@ -163,7 +110,6 @@ pub fn music_command(
     volume: i32,
     action: u32,
     v: &MusicVars,
-    mut part: Part,
 ) -> Result<(), Refused> {
     use crate::audio::voices::{read, write};
     let mut m = unsafe {
@@ -176,7 +122,6 @@ pub fn music_command(
     let mut p = GamePlayer {
         player: v.player,
         path: v.path,
-        part: &mut part,
     };
     let done = rc2k_core::audio::streams::music_command(&mut p, &mut m, tune, next, volume, action);
     unsafe {
@@ -185,5 +130,3 @@ pub fn music_command(
     }
     done
 }
-
-// ---- for the self-tests: stand-ins for the five calls ----

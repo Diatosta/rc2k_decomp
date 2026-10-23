@@ -184,12 +184,9 @@ fn step_part(callee: u32, r: &mut Regs) -> Result<(), Refused> {
                     as *mut u8)?;
             }
             3 => {
-                let g = crate::race::sounds::wake_car_sounds(
-                    r,
-                    &mut crate::race::sounds::game_wake_part,
-                )?;
-                r.ebx = g.ebx;
-                r.edi = g.edi;
+                if let Some((count, last)) = crate::race::sounds::wake_car_sounds()? {
+                    (r.ebx, r.edi) = (count, last);
+                }
             }
             4 => {
                 *r = crate::race::loadlevel::loadlevel_init(

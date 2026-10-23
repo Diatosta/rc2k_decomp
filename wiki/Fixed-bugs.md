@@ -59,6 +59,19 @@ Each entry says:
 - **Seen**: no; found by reading the code.
 - **Fix**: the Rust version always asks for a stop (`audio::set_mode`).
 
+## Quitting leaves the music and the stream playing
+
+*Original*: `audio::close_all` (0x409DD5, the audio thread's end). *Fixed*: 2026-10-23.
+
+- **What**: when the audio thread closes the sound, it first asks the music and the
+  sound stream to stop, but passes whatever a register happens to hold as the kind of
+  stop; at that point it is always "feed the stream", so neither is stopped (their buffers
+  and files are not released) before the sound device is closed under them.
+- **In game**: at quitting, the music's and the stream's buffers and files are left to
+  the device's release and the process's end.
+- **Seen**: no; found by reading the code.
+- **Fix**: the Rust version always asks for a stop (`audio::close_all`).
+
 ## Text lookup with a bad string id reads anywhere
 
 *Original*: `strings::expand_entry` (0x401FE1). *Fixed*: 2026-10-20.

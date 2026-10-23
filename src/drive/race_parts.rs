@@ -52,23 +52,14 @@ pub fn players_all_out(r: &mut Regs) -> Result<bool, Refused> {
     Ok(out)
 }
 
-/// `race::stop_race_sounds`.
-pub fn stop_race_sounds(r: &mut Regs) -> Result<(), Refused> {
-    *r = unsafe {
-        crate::race::stop_race_sounds::stop_race_sounds(r, &mut |_, r| {
-            *r = crate::race::race_end::reset_race_sounds(
-                r,
-                &crate::race::race_end::SoundVars::game(),
-            )?;
-            Ok(())
-        })
-    }?;
-    Ok(())
+/// `race::stop_race_sounds` (0x45D28E): `race::reset_race_sounds`, its one call.
+pub fn stop_race_sounds() -> Result<(), Refused> {
+    crate::race::race_end::reset_race_sounds(&crate::race::race_end::SoundVars::game())
 }
 
 /// `race::wake_car_sounds` (its callers keep the registers round it).
-pub fn wake_car_sounds(r: &Regs) -> Result<(), Refused> {
-    unsafe { crate::race::sounds::wake_car_sounds(r, &mut crate::race::sounds::game_wake_part) }?;
+pub fn wake_car_sounds() -> Result<(), Refused> {
+    crate::race::sounds::wake_car_sounds()?;
     Ok(())
 }
 

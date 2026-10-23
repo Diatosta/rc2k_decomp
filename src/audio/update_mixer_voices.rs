@@ -96,12 +96,10 @@ pub unsafe fn update_mixer_voices(
     Ok(())
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's): the
-/// voices' turn of the game's own mixer, the mix (`audio::mix`) in it.
-pub fn entry(_: &mut crate::framework::Regs) -> Result<(), Refused> {
+/// The voices' turn of the game's own mixer, the mix (`audio::mix`) in it.
+pub fn update_mixer_voices_in_game() -> Result<(), Refused> {
     let mut mix = || -> Result<(), Refused> {
-        let vars = crate::audio::mix::Vars::game();
-        unsafe { crate::audio::mix::mix(&vars, &mut crate::audio::mix::game_part) }?;
+        unsafe { crate::audio::mix::mix(&crate::audio::mix::Vars::game()) }?;
         Ok(())
     };
     unsafe { update_mixer_voices(&Vars::game(), &mut mix) }

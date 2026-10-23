@@ -22,7 +22,7 @@ use crate::audio::fill_buffer::LOCKED_PARTS_RVA;
 use crate::audio::mixer::*;
 use crate::audio::voices::*;
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr};
+use crate::framework::game_addr;
 
 const BUFFER_LOST: i32 = 0x8878_0096u32 as i32;
 
@@ -52,11 +52,8 @@ impl Vars {
     }
 }
 
-/// Its two callees: 0 `mix_channels` (eax the bytes), 1 `write_mix`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// True for no failure.
-pub unsafe fn mix(v: &Vars, part: Part) -> Result<bool, Refused> {
+pub unsafe fn mix(v: &Vars) -> Result<bool, Refused> {
     unsafe {
         let primary = read(v.primary);
         let failed = |r: i32| {
@@ -81,12 +78,7 @@ pub unsafe fn mix(v: &Vars, part: Part) -> Result<bool, Refused> {
         if let Some(at) = write_at {
             write(v.write, at);
         }
-        let mut r = Regs {
-            eax: bytes,
-            ..Regs::default()
-        };
-        part(0, &mut r)?;
-        let bytes = r.eax;
+        crate::audio::mix_channels::mix_channels_in_game(bytes)?;
         let lock: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32) -> i32 =
             std::mem::transmute(crate::audio::com::method(primary, 0x2C));
         let p = v.parts;
@@ -95,7 +87,7 @@ pub unsafe fn mix(v: &Vars, part: Part) -> Result<bool, Refused> {
             return Ok(failed(r));
         }
         write(v.write, round(bytes.wrapping_add(read(v.write)), size));
-        part(1, &mut Regs::default())?;
+        crate::audio::write_mix::write_mix_in_game()?;
         let [p1, n1, p2, n2] = (p as *const [u32; 4]).read_unaligned();
         let unlock: unsafe extern "system" fn(u32, u32, u32, u32, u32) -> i32 =
             std::mem::transmute(crate::audio::com::method(primary, 0x4C));
@@ -105,14 +97,4 @@ pub unsafe fn mix(v: &Vars, part: Part) -> Result<bool, Refused> {
         }
     }
     Ok(true)
-}
-
-pub fn game_part(which: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        if which == 0 {
-            crate::audio::mix_channels::mix_channels_in_game(r.eax)
-        } else {
-            crate::audio::write_mix::write_mix_in_game()
-        }
-    }
 }

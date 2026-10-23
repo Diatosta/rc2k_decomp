@@ -49,16 +49,12 @@ pub fn play_replay_range(entry: &Regs) -> Result<Regs, Refused> {
 /// In the game: the Rust versions.
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::race::race_end;
-    unsafe {
-        match place {
-            1 => crate::drive::replay_frame_marks::replay_frame_marks(),
-            2 => crate::race::sounds::start_race_sounds(r, &mut crate::race::sounds::game_part)?,
-            3 => *r = crate::race::play_movie::play_movie(r)?,
-            4 => {
-                race_end::reset_race_sounds(r, &race_end::SoundVars::game())?;
-            }
-            _ => crate::race::viewer_load_stage::take_key(r),
-        }
+    match place {
+        1 => crate::drive::replay_frame_marks::replay_frame_marks(),
+        2 => crate::race::sounds::start_race_sounds()?,
+        3 => *r = crate::race::play_movie::play_movie(r)?,
+        4 => race_end::reset_race_sounds(&race_end::SoundVars::game())?,
+        _ => crate::race::viewer_load_stage::take_key(r),
     }
     Ok(())
 }

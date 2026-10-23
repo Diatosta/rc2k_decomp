@@ -32,7 +32,7 @@ use crate::audio::buffer_settings::{a3d, set_buffer_frequency, set_buffer_pan, s
 use crate::audio::describe_wave_format::{WAVE_FORMAT_RVA, describe_wave_format};
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 
 pub const DIRECT_SOUND_RVA: usize = rva(0x506A88); // g_directSound
 pub const DESCRIPTION_RVA: usize = rva(0x506B1C); // g_bufferDescription
@@ -73,14 +73,9 @@ impl Vars {
     }
 }
 
-/// The parts it calls by the game's addresses: 0 the place, 1 the minimum distance,
-/// 2 `sub_40C6B5`, 3 `sub_40D27F` (true: carry), 4 `sub_40D26B`; 5 a text to the log,
-/// 6 a number to the log with a line's end.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<bool, Refused>;
-
 /// True for the carry clear. `ebx`: the caller's, which the original leaves in ebx (or
 /// replaces, as below) when it calls the EAX parts: they read through it.
-pub unsafe fn make_buffer(at: u32, ebx: u32, vars: &Vars, part: Part) -> Result<bool, Refused> {
+pub unsafe fn make_buffer(at: u32, ebx: u32, vars: &Vars) -> Result<bool, Refused> {
     unsafe {
         if a3d() {
             return Err(BadInput("A3D (the chunk at 0x40CC88)").into());
@@ -101,11 +96,7 @@ pub unsafe fn make_buffer(at: u32, ebx: u32, vars: &Vars, part: Part) -> Result<
         }
         // ebx as the original has it at each call: the caller's, the frequency after the
         // create path (`mov ebx, [esi+60h]`), the 3D buffer's place after `sub_40C6B5`'s.
-        let mut regs = Regs {
-            esi: at,
-            ebx,
-            ..Regs::default()
-        };
+        let mut ebx = ebx;
         let mut made = false;
         if v.source != 0 {
             let f: unsafe extern "system" fn(u32, u32, u32) -> i32 =
@@ -117,7 +108,7 @@ pub unsafe fn make_buffer(at: u32, ebx: u32, vars: &Vars, part: Part) -> Result<
             }
         }
         if !made {
-            regs.ebx = v.frequency;
+            ebx = v.frequency;
             describe_wave_format(v.format, v.frequency)?;
             // Converted: `rc2k_core::audio::voices::buffer_flags`.
             let flags = rc2k_core::audio::voices::buffer_flags(mode, v.flags);
@@ -132,7 +123,7 @@ pub unsafe fn make_buffer(at: u32, ebx: u32, vars: &Vars, part: Part) -> Result<
                 std::mem::transmute(crate::audio::com::method(ds, 0x0C));
             let r = f(ds, vars.description, &mut v.buffer as *mut u32 as u32, 0);
             if r != 0 {
-                return log_failure(part, CREATE_FAILED_RVA, r);
+                return Ok(log_failure(CREATE_FAILED_RVA, r));
             }
         }
         set_buffer_volume(v)?;
@@ -147,61 +138,28 @@ pub unsafe fn make_buffer(at: u32, ebx: u32, vars: &Vars, part: Part) -> Result<
                 &mut v.buffer_3d as *mut u32 as u32,
             );
             if r != 0 {
-                return log_failure(part, QUERY_FAILED_RVA, r);
+                return Ok(log_failure(QUERY_FAILED_RVA, r));
             }
-            part(0, &mut regs)?;
-            part(1, &mut regs)?;
+            crate::audio::buffer_settings::set_buffer_place(v)?;
+            crate::audio::set_buffer_min_distance::set_buffer_min_distance(v)?;
             write(vars.commit, 1);
             if mode & MODE_HARDWARE_3D != 0 {
-                regs.ebx = &mut v.buffer_3d as *mut u32 as u32;
-                let mut r = regs;
-                part(2, &mut r)?;
+                ebx = &mut v.buffer_3d as *mut u32 as u32;
+                crate::audio::open_voice_manager::open_voice_manager(ebx)?;
             }
-            if mode & MODE_EAX != 0 {
-                let mut r = regs;
-                if !part(3, &mut r)? {
-                    let mut r = regs;
-                    part(4, &mut r)?;
-                }
+            if mode & MODE_EAX != 0 && crate::audio::open_eax::open_eax(ebx)? {
+                crate::audio::set_eax_room::in_game()?;
             }
         }
         Ok(true)
     }
 }
 
-fn log_failure(part: Part, text: usize, result: i32) -> Result<bool, Refused> {
-    let mut r = Regs {
-        eax: game_addr(text) as u32,
-        ..Regs::default()
-    };
-    part(5, &mut r)?;
-    let mut r = Regs {
-        eax: result as u32,
-        ..Regs::default()
-    };
-    part(6, &mut r)?;
-    Ok(false)
-}
-
-/// The game's parts: the Rust versions (the carry of 3 returned).
-pub fn game_part(which: u32, r: &mut Regs) -> Result<bool, Refused> {
+/// The failure's text and result to the game's log; false (the carry).
+fn log_failure(text: usize, result: i32) -> bool {
     unsafe {
-        match which {
-            0 => {
-                crate::audio::buffer_settings::set_buffer_place(voice(r.esi))?;
-            }
-            1 => {
-                let v = &*(r.esi as *const Voice);
-                r.eax = crate::audio::set_buffer_min_distance::set_buffer_min_distance(v)? as u32;
-            }
-            2 => {
-                crate::audio::open_voice_manager::open_voice_manager(r.ebx)?;
-            }
-            3 => return Ok(!crate::audio::open_eax::open_eax(r.ebx)?),
-            4 => r.eax = crate::audio::set_eax_room::in_game()?,
-            5 => crate::logfile::log_write::log_write(r.eax as *const u8, false, 1),
-            _ => crate::logfile::log_hex8::log_hex8(r.eax, true, 1),
-        }
+        crate::logfile::log_write::log_write(game_addr(text) as *const u8, false, 1);
+        crate::logfile::log_hex8::log_hex8(result as u32, true, 1);
     }
-    Ok(false)
+    false
 }

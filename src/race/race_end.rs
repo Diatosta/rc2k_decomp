@@ -65,13 +65,6 @@ pub unsafe fn record_replay_header(entry: &Regs, part: Part) -> Result<Regs, Ref
     Ok(g)
 }
 
-/// The sound parts of `reset_race_sounds`, by place.
-pub const WAIT: u32 = 1; // sound::wait_for_commands
-pub const COMMAND_7: u32 = 2; // sound::send_command_7
-pub const HOLD_BACK: u32 = 3; // sound::hold_sounds_back
-pub const CLOCK: u32 = 4; // sound::start_race_clock
-pub const COMMAND_2: u32 = 5; // sound::send_command_2
-
 const SOUND_OBJECTS_RVA: usize = rva(0x512A10); // g_raceSoundObjects: 8 pointers
 /// Each object's dwords set: (offset, value).
 const OBJECT_VALUES: [(u32, u32); 32] = [
@@ -116,14 +109,30 @@ const CLEARED: [usize; 11] = [
 const VOICES_RVA: usize = rva(0x5168C0); // unk_5168C0: 0x48 records of 0x50
 const ENVIRONMENT_RVA: usize = rva(0x6D1DD4); // g_eaxEnvironment
 
+/// A sound command whose only register the audio thread reads is eax (the others go
+/// as 0).
+pub fn command(number: u32, eax: u32) {
+    let mut registers = [0; 7];
+    registers[0] = eax;
+    unsafe {
+        crate::sound::queue::send_command(&crate::sound::queue::Queue::game(), number, registers)
+    };
+}
+
+/// `sound::wait_for_commands`: the queue run out (its ends of turn read no register).
+pub fn wait_for_commands() {
+    use crate::sound::wait_for_commands::{Game, wait_for_commands};
+    wait_for_commands(&mut Game([0; 7]));
+}
+
 /// `race::reset_race_sounds` (0x40D378): the sound commands waited for, command 7 (with
 /// its end of turn), waited again, sounds held back, the race clock started; the eight
 /// race sound objects' 32 fields reset (`OBJECT_VALUES`); eleven variables 0; the 0x48
 /// voices' +0 0x1888FFFF and +0x14 -2; `dword_5165EC`, `dword_518054` 0, the EAX
-/// environment 1.0; command 2 with eax 3; `dword_5124E4` 0. Every register kept.
+/// environment 1.0; command 2 with eax 3; `dword_5124E4` 0. Every register kept; the
+/// commands' registers but those the audio thread reads (command 2's eax) go as 0.
 /// Refuses, before anything, a sound object missing (the original writes through 0).
-pub unsafe fn reset_race_sounds(entry: &Regs, v: &SoundVars) -> Result<Regs, Refused> {
-    let g = *entry;
+pub fn reset_race_sounds(v: &SoundVars) -> Result<(), Refused> {
     unsafe {
         let objects: Vec<u32> = (0..8)
             .map(|n| ((v.objects + 4 * n) as *const u32).read_unaligned())
@@ -131,12 +140,12 @@ pub unsafe fn reset_race_sounds(entry: &Regs, v: &SoundVars) -> Result<Regs, Ref
         if objects.contains(&0) {
             return Err(crate::errors::BadInput("a race sound object missing").into());
         }
-        let mut r = g;
-        crate::race::race_end::sound_part(WAIT, &mut r)?;
-        crate::race::race_end::sound_part(COMMAND_7, &mut r)?;
-        crate::race::race_end::sound_part(WAIT, &mut r)?;
-        crate::race::race_end::sound_part(HOLD_BACK, &mut r)?;
-        crate::race::race_end::sound_part(CLOCK, &mut r)?;
+        wait_for_commands();
+        command(7, 0);
+        command(0xA, 7);
+        wait_for_commands();
+        crate::sound::hold_sounds_back::hold_sounds_back();
+        crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count());
         for &o in &objects {
             for (off, v) in OBJECT_VALUES {
                 ((o + off) as *mut u32).write_unaligned(v);
@@ -154,13 +163,10 @@ pub unsafe fn reset_race_sounds(entry: &Regs, v: &SoundVars) -> Result<Regs, Ref
         game_write(rva(0x5165EC), 0u32);
         game_write(rva(0x518054), 0u32);
         game_write(ENVIRONMENT_RVA, 0x3F80_0000u32);
-        r.eax = 3;
-        r.ebx = first + 0x50 * 0x48;
-        r.ecx = 0;
-        crate::race::race_end::sound_part(COMMAND_2, &mut r)?;
+        command(2, 3);
         game_write(rva(0x5124E4), 0u32);
     }
-    Ok(g)
+    Ok(())
 }
 
 /// Where `reset_race_sounds` finds the sound objects' table and the voices (the game's,
@@ -177,30 +183,6 @@ impl SoundVars {
             voices: game_addr(VOICES_RVA) as u32,
         }
     }
-}
-
-/// `reset_race_sounds`' sound parts in the game: the Rust versions.
-pub fn sound_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::sound::queue::{Queue, send_command, sent};
-    use crate::sound::wait_for_commands::{Game, wait_for_commands};
-    unsafe {
-        match place {
-            WAIT => wait_for_commands(&mut Game(sent(r))),
-            COMMAND_7 => {
-                // `pusha`, command 7 with the registers, `pop eax` (eax 7), the end of
-                // turn (0xA) with them, `sub_409BA1` (a `cmp` only), `popa`.
-                send_command(&Queue::game(), 7, sent(r));
-                let with = Regs { eax: 7, ..*r };
-                send_command(&Queue::game(), 0xA, sent(&with));
-            }
-            HOLD_BACK => crate::sound::hold_sounds_back::hold_sounds_back(),
-            CLOCK => {
-                crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count())
-            }
-            _ => send_command(&Queue::game(), 2, sent(r)),
-        }
-    }
-    Ok(())
 }
 
 // ---- the tidying ----
@@ -357,7 +339,7 @@ fn tidy_step(place: u32, r: &mut Regs) -> Result<(), Refused> {
             12 => crate::race::race_shell::release_controls(),
             13 => {}
             14 => *r = tidy_stage(r, &LoadVars::game(), &mut tidy_part)?,
-            _ => *r = reset_race_sounds(r, &SoundVars::game())?,
+            _ => reset_race_sounds(&SoundVars::game())?,
         }
     }
     Ok(())

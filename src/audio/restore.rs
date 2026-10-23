@@ -10,60 +10,60 @@ use crate::framework::{game_addr, rva};
 pub const WINDOW_ACTIVE_RVA: usize = rva(0x518374); // g_windowActive
 pub const GET_STATUS: u32 = 0x24;
 pub const RESTORE: u32 = 0x50;
-pub type Part<'a> = &'a mut dyn FnMut(u32, u32, u32) -> Result<bool, Refused>;
+fn lost() -> u32 {
+    game_addr(crate::audio::voices::BUFFER_LOST_RVA) as u32
+}
 
-/// The Rust versions, as the game has them.
-pub fn game_part(place: u32, eax: u32, esi: u32) -> Result<bool, Refused> {
-    use crate::audio::voices::*;
-    let lost = game_addr(BUFFER_LOST_RVA) as u32;
-    let primary = game_addr(PRIMARY_RVA) as u32;
+fn primary() -> u32 {
+    game_addr(crate::audio::voices::PRIMARY_RVA) as u32
+}
+
+/// `restore_buffer` on the game's lost flag: true when it failed (the carry).
+fn restore_failed(at: u32) -> Result<bool, Refused> {
+    Ok(unsafe { restore_buffer(at, lost()) }?.carry)
+}
+
+/// The voice at `at`'s buffer refilled: true when it failed.
+fn refill_failed(at: u32) -> Result<bool, Refused> {
+    let parts = game_addr(crate::audio::fill_buffer::LOCKED_PARTS_RVA) as u32;
+    Ok(!unsafe {
+        crate::audio::fill_buffer::fill_buffer(crate::audio::voices::voice(at), parts, lost())
+    }?)
+}
+
+/// The channels cleared.
+pub fn clear_channels() {
     unsafe {
-        Ok(match place {
-            0 => restore_buffer(eax, lost)?.carry,
-            1 => !crate::audio::fill_buffer::fill_buffer(
-                voice(esi),
-                game_addr(crate::audio::fill_buffer::LOCKED_PARTS_RVA) as u32,
-                lost,
-            )?,
-            2 => {
-                crate::audio::thread_parts::play_primary(primary, lost);
-                false
-            }
-            3 => {
-                replay_looping(game_addr(PLAYING_RVA) as u32)?;
-                false
-            }
-            4 => crate::audio::buffer_play::play_buffer_in_game(voice(esi))?.1,
-            5 => {
-                windows_sys::Win32::System::Threading::Sleep(1000);
-                false
-            }
-            6 => {
-                crate::audio::clear_channels::clear_channels(World::game().channels);
-                false
-            }
-            7 => {
-                crate::audio::sound_device::release_primary(
-                    primary,
-                    game_addr(crate::audio::sound_device::VOLUME_KEPT_RVA) as u32,
-                )?;
-                false
-            }
-            8 => !crate::audio::primary::make_primary(&crate::audio::primary::PrimaryVars::game())?,
-            9 => {
-                let rate = crate::framework::game_read(crate::audio::primary::MIX_RATE_SETTING_RVA);
-                !crate::audio::primary::set_primary_format(primary, eax, rate)?
-            }
-            10 => close_primary_mixer(
-                game_addr(SOUND_MODE_RVA) as u32,
-                game_addr(crate::audio::make_buffer::DIRECT_SOUND_RVA) as u32,
-                game_addr(crate::audio::sound_device::WINDOW_RVA) as u32,
-            )?,
-            _ => !crate::audio::mixer_set_up::set_up_primary_mixer(
-                &crate::audio::mixer_set_up::MixerVars::game(),
-                &mut game_part,
-            )?,
-        })
+        crate::audio::clear_channels::clear_channels(crate::audio::voices::World::game().channels)
+    };
+}
+
+/// `audio::release_primary` on the game's buffer.
+pub fn release_primary() -> Result<(), Refused> {
+    unsafe {
+        crate::audio::sound_device::release_primary(
+            primary(),
+            game_addr(crate::audio::sound_device::VOLUME_KEPT_RVA) as u32,
+        )
+    }
+}
+
+/// `audio::make_primary` on the game's variables: true when it failed (the carry).
+pub fn make_primary_failed() -> Result<bool, Refused> {
+    Ok(!unsafe {
+        crate::audio::primary::make_primary(&crate::audio::primary::PrimaryVars::game())
+    }?)
+}
+
+/// `audio::close_primary_mixer` on the game's variables: the carry it leaves.
+pub fn close_primary_mixer_in_game() -> Result<bool, Refused> {
+    use crate::audio::voices::*;
+    unsafe {
+        close_primary_mixer(
+            game_addr(SOUND_MODE_RVA) as u32,
+            game_addr(crate::audio::make_buffer::DIRECT_SOUND_RVA) as u32,
+            game_addr(crate::audio::sound_device::WINDOW_RVA) as u32,
+        )
     }
 }
 
@@ -112,7 +112,7 @@ pub unsafe fn restore_buffer(at: u32, lost: u32) -> Result<Restored, Refused> {
 }
 
 /// `audio::replay_looping`: each playing voice (the list at `playing`, linked at +0x48)
-/// whose +0x3C is 2 and that has a buffer (+8) played again (`play_buffer`, place 4).
+/// whose +0x3C is 2 and that has a buffer (+8) played again (`play_buffer`).
 pub unsafe fn replay_looping(playing: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::audio::voices::sounding_to_replay` (the list is walked before
     // any is played, so a list without its end plays none).
@@ -123,7 +123,7 @@ pub unsafe fn replay_looping(playing: u32) -> Result<(), Refused> {
         };
         let mut pool = crate::audio::voices::GamePool::new(&crate::audio::voices::World::game());
         for v in rc2k_core::audio::voices::sounding_to_replay(&mut pool, &lists)? {
-            crate::audio::restore::game_part(4, 0, v)?;
+            crate::audio::buffer_play::play_buffer_in_game(crate::audio::voices::voice(v))?;
         }
     }
     Ok(())
@@ -161,24 +161,22 @@ pub unsafe fn restore_lost(v: &RestoreVars) -> Result<(), Refused> {
         return Err(BadInput("A3D (0x40CB0A)").into());
     }
     unsafe {
-        crate::audio::restore::game_part(5, 0, 0)?;
+        windows_sys::Win32::System::Threading::Sleep(1000);
         if read(v.window_active) == 0 {
             return Ok(());
         }
         write(v.lost, 0);
-        if crate::audio::restore::game_part(0, v.primary, 0)? {
+        if restore_failed(v.primary)? {
             return Ok(());
         }
         for n in 0..read(v.voice_count) {
             let at = v.voices + n * std::mem::size_of::<crate::audio::voices::Voice>() as u32;
-            if crate::audio::restore::game_part(0, at + 8, at)?
-                || crate::audio::restore::game_part(1, 0, at)?
-            {
+            if restore_failed(at + 8)? || refill_failed(at)? {
                 return Ok(());
             }
         }
-        crate::audio::restore::game_part(2, 0, 0)?;
-        crate::audio::restore::game_part(3, 0, 0)?;
+        crate::audio::thread_parts::play_primary(primary(), lost());
+        replay_looping(game_addr(crate::audio::voices::PLAYING_RVA) as u32)?;
     }
     Ok(())
 }
@@ -192,18 +190,18 @@ pub unsafe fn close_primary_mixer(
     window: u32,
 ) -> Result<bool, Refused> {
     unsafe {
-        crate::audio::restore::game_part(6, 0, 0)?;
+        clear_channels();
         // Converted: `rc2k_core::audio::buffers::remakes_primary`.
         if !rc2k_core::audio::buffers::remakes_primary(read(mode), || read(direct_sound)) {
             return Ok(false);
         }
-        crate::audio::restore::game_part(7, 0, 0)?;
+        release_primary()?;
         let ds = read(direct_sound);
         let level: unsafe extern "system" fn(u32, u32, u32) -> i32 = std::mem::transmute(
             crate::audio::com::method(ds, crate::audio::sound_device::SET_COOPERATIVE_LEVEL),
         );
         level(ds, read(window), 3);
-        crate::audio::restore::game_part(8, 0, 0)
+        make_primary_failed()
     }
 }
 

@@ -11,46 +11,33 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//!
+//! Plain since 2026-10-23 (phase 3). Fixed (section 16, 2026-10-23): the streams are
+//! stopped (action 0); the original hands on the thread's edx, 1 (a feed), so the music
+//! and the stream were left playing on the DirectSound it then closes.
 
-use crate::audio::voices::{read, write};
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr};
+use crate::framework::{game_addr, game_read};
 
-pub fn close_all(r: &Regs, mode: u32) -> Result<(), Refused> {
-    for place in 0..5 {
-        let mut c = *r;
-        crate::audio::close_all::game_part(place, &mut c)?;
-    }
-    unsafe { write(mode, 0) };
-    let _ = read;
-    Ok(())
-}
-
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
+pub fn close_all() -> Result<(), Refused> {
     use crate::audio::sound_device::*;
     use crate::audio::voices::*;
+    crate::audio::stop_streams::stop_streams()?;
     unsafe {
-        match place {
-            0 => crate::audio::stop_streams::stop_streams(
-                r,
-                &mut crate::audio::stop_streams::game_command,
-            )?,
-            1 => crate::audio::free_voices::free_voices(
-                &World::game(),
-                &crate::audio::free_voices::game_vars(),
-            )?,
-            2 => {
-                crate::audio::mixer_set_up::close_way(crate::framework::game_read(SOUND_MODE_RVA))?;
-            }
-            3 => release_primary(
-                game_addr(PRIMARY_RVA) as u32,
-                game_addr(VOLUME_KEPT_RVA) as u32,
-            )?,
-            _ => close_sound(
-                game_addr(crate::audio::make_buffer::DIRECT_SOUND_RVA) as u32,
-                game_addr(WINDOW_RVA) as u32,
-            )?,
-        }
+        crate::audio::free_voices::free_voices(
+            &World::game(),
+            &crate::audio::free_voices::game_vars(),
+        )?;
+        crate::audio::mixer_set_up::close_way(game_read(SOUND_MODE_RVA))?;
+        release_primary(
+            game_addr(PRIMARY_RVA) as u32,
+            game_addr(VOLUME_KEPT_RVA) as u32,
+        )?;
+        close_sound(
+            game_addr(crate::audio::make_buffer::DIRECT_SOUND_RVA) as u32,
+            game_addr(WINDOW_RVA) as u32,
+        )?;
+        write(game_addr(SOUND_MODE_RVA) as u32, 0);
     }
     Ok(())
 }

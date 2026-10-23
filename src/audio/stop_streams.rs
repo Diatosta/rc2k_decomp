@@ -12,36 +12,17 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
+//!
+//! Plain since 2026-10-23 (phase 3): action 0 (both callers now stop: section 16), with
+//! which neither command reads its other arguments.
 
 use crate::audio::stream::SOUND_STREAM_RVA;
-use crate::audio::stream_commands::{MusicVars, game_part, music_command, stream_command};
+use crate::audio::stream_commands::{MusicVars, music_command, stream_command};
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr};
+use crate::framework::game_addr;
 
-/// Its two calls: 0 `stream_command`, 1 `music_command`, with the registers they get.
-pub fn stop_streams(
-    r: &Regs,
-    command: &mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>,
-) -> Result<(), Refused> {
-    for which in 0..2 {
-        let mut c = Regs { eax: 0, ..*r };
-        command(which, &mut c)?;
-    }
-    Ok(())
-}
-
-pub fn game_command(which: u32, r: &mut Regs) -> Result<(), Refused> {
-    if which == 0 {
-        let player = game_addr(SOUND_STREAM_RVA) as u32;
-        stream_command(r.eax, r.ecx as i32, r.edx, player, &mut game_part)
-    } else {
-        music_command(
-            r.eax,
-            r.ebx,
-            r.ecx as i32,
-            r.edx,
-            &MusicVars::game(),
-            &mut game_part,
-        )
-    }
+/// Both streams stopped.
+pub fn stop_streams() -> Result<(), Refused> {
+    stream_command(0, 0, 0, game_addr(SOUND_STREAM_RVA) as u32)?;
+    music_command(0, 0, 0, 0, &MusicVars::game())
 }

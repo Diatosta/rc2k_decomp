@@ -35,7 +35,7 @@ const NEXT: usize = 0xFE0;
 // quit_answer}`.
 pub unsafe fn quit_question(entry: &Regs) -> Result<Left, Refused> {
     let mut r = *entry;
-    stop_race_sounds(&mut r)?;
+    stop_race_sounds()?;
     p(0x6235E8, 1);
     r.ebx = 100;
     (r.eax, r.edx) = race_ticks::best_frame(g(B + 8));
@@ -66,7 +66,7 @@ pub unsafe fn quit_question(entry: &Regs) -> Result<Left, Refused> {
         }
     }
     p(0x6235E8, 0);
-    wake_car_sounds(&r)?;
+    wake_car_sounds()?;
     for c in 0..8 {
         p(B + NEXT * c + 0x468, 0);
     }

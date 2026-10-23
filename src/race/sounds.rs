@@ -2,7 +2,7 @@
 //! pointers to the cars' sound objects (`sound::load_race_sounds`), each with a flag at +8.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 
 pub const OBJECTS_RVA: usize = rva(0x512A10); // off_512A10
 pub const CARS_RVA: usize = rva(0x63DB90); // dword_63DB90: the cars in the race
@@ -24,19 +24,15 @@ pub fn objects_there() -> bool {
     (0..OBJECTS).all(|n| object(n) != 0)
 }
 
-/// `race::start_race_sounds` (0x40D592): `sound::start_race_clock` (part 0), and unless
+/// `race::start_race_sounds` (0x40D592): `sound::start_race_clock`, and unless
 /// `dword_514F7C` is 0 it is held to 1 .. 8 and that many objects woken; then
-/// `sound::let_sounds_play` (part 1) and `dword_5124E4` 1. Refuses an object missing.
-pub unsafe fn start_race_sounds(
-    entry: &Regs,
-    part: &mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>,
-) -> Result<(), Refused> {
+/// `sound::let_sounds_play` and `dword_5124E4` 1. Refuses an object missing.
+pub fn start_race_sounds() -> Result<(), Refused> {
     if !objects_there() {
         return Err(BadInput("a race sound object missing").into());
     }
-    let mut g = *entry;
     unsafe {
-        part(0, &mut g)?;
+        crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count());
         let count: u32 = game_read(COUNT_RVA);
         if count != 0 {
             let count = count.clamp(1, OBJECTS);
@@ -45,36 +41,21 @@ pub unsafe fn start_race_sounds(
                 wake(n);
             }
         }
-        part(1, &mut g)?;
+        crate::sound::let_sounds_play::let_sounds_play();
         game_write(STARTED_RVA, 1u32);
-    }
-    Ok(())
-}
-
-pub fn game_part(place: u32, _: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        if place == 0 {
-            crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count());
-        } else {
-            crate::sound::let_sounds_play::let_sounds_play();
-        }
     }
     Ok(())
 }
 
 /// `race::wake_car_sounds` (0x45D255): nothing while `dword_71C3E0` is set; else each car's
 /// object (`dword_63DB90` of them, the table taken round its eight) woken, then
-/// `race::start_race_sounds` (part 2). Leaves ebx the count and edi the last object when it
-/// wakes any (the original has no `pusha`). Refuses 0x10000 cars or more (the original
-/// counts on to them), an object missing.
-pub unsafe fn wake_car_sounds(
-    entry: &Regs,
-    part: &mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>,
-) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// `race::start_race_sounds`. Returns the count and the last object when it wakes any
+/// (the original leaves them in ebx and edi: it has no `pusha`). Refuses 0x10000 cars or
+/// more (the original counts on to them), an object missing.
+pub fn wake_car_sounds() -> Result<Option<(u32, u32)>, Refused> {
     unsafe {
         if game_read::<u32>(REPLAY_RVA) != 0 {
-            return Ok(g);
+            return Ok(None);
         }
         let cars: u32 = game_read(CARS_RVA);
         if cars >= MOST_CARS {
@@ -83,19 +64,13 @@ pub unsafe fn wake_car_sounds(
         if !objects_there() {
             return Err(BadInput("a race sound object missing").into());
         }
-        if cars != 0 {
+        let woken = (cars != 0).then(|| {
             for n in 0..cars {
                 wake(n);
             }
-            g.ebx = cars;
-            g.edi = object(cars - 1);
-        }
-        part(2, &mut g)?;
+            (cars, object(cars - 1))
+        });
+        start_race_sounds()?;
+        Ok(woken)
     }
-    Ok(g)
-}
-
-/// `wake_car_sounds`' part in the game: `race::start_race_sounds` in Rust.
-pub fn game_wake_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { start_race_sounds(r, &mut game_part) }
 }

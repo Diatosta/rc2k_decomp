@@ -23,13 +23,12 @@
 
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 pub const COUNT_RVA: usize = rva(0x506A1C); // g_soundCommandCount
 pub const READ_RVA: usize = rva(0x506A20); // g_soundCommandRead
 pub const LIST_LOADED_RVA: usize = rva(0x50695C); // g_soundListLoaded
-const SET_MODE: usize = 0x40A426; // audio::set_mode
 #[derive(Clone, Copy)]
 pub struct Vars {
     pub count: u32,
@@ -52,11 +51,13 @@ impl Vars {
     }
 }
 
-/// Converted: `rc2k_core::audio::commands::decode` and `next_place`; the registers carry
-/// over from one command to the next as the original's do.
-pub fn take_commands(entry: &Regs, v: &Vars) -> Result<(), Refused> {
+/// Converted: `rc2k_core::audio::commands::decode` and `next_place`. Plain since
+/// 2026-10-23 (phase 3): each command's call gets what it reads (`decode`); the registers
+/// the original carries from one command to the next reached only `set_mode`'s
+/// `stop_streams`, which stops with action 0 (section 16).
+pub fn take_commands(v: &Vars) -> Result<(), Refused> {
+    use crate::audio::stream_commands::{MusicVars, music_command, stream_command};
     use rc2k_core::audio::commands::{Command, decode, next_place};
-    let mut r = *entry;
     unsafe {
         loop {
             if read(v.count) == 0 {
@@ -67,55 +68,65 @@ pub fn take_commands(entry: &Regs, v: &Vars) -> Result<(), Refused> {
                 return Err(BadInput("a command read place past the queue").into());
             }
             let at = v.records + place * 0x20;
-            r.esi = at;
             let record = (at as *const [u32; 8]).read_unaligned();
-            r.eax = record[0];
             let command = decode(&record);
             match command {
-                Command::Start(sound) => {
-                    r.eax = sound as u32;
-                    crate::audio::take_commands::game_part(0, &mut r)?;
-                }
-                Command::Room(room) => {
-                    r.eax = room;
-                    write(v.eax_room, room);
-                }
+                Command::Start(sound) => crate::audio::start_voice::start_voice(
+                    &World::game(),
+                    sound,
+                    &crate::audio::start_voice::command(at),
+                )?,
+                Command::Room(room) => write(v.eax_room, room),
                 Command::Load(list) => {
-                    r.eax = list;
                     write(v.list, list);
-                    crate::audio::take_commands::game_part(1, &mut r)?;
+                    crate::audio::load_sounds::load_sounds(
+                        list,
+                        &crate::audio::load_sounds::Vars::game(),
+                    )?;
                 }
                 Command::Free => {
-                    crate::audio::take_commands::game_part(2, &mut r)?;
+                    crate::audio::free_voices::free_voices(
+                        &World::game(),
+                        &crate::audio::free_voices::game_vars(),
+                    )?;
                     write(v.list, 0);
                 }
                 Command::Mode(mode) => {
-                    r.eax = mode;
-                    crate::audio::take_commands::game_part(3, &mut r)?;
+                    crate::audio::set_mode::set_mode(
+                        mode,
+                        &crate::audio::set_mode::ModeVars::game(),
+                    )?;
                 }
-                Command::Six => crate::audio::take_commands::game_part(4, &mut r)?,
-                Command::StopAll => crate::audio::take_commands::game_part(5, &mut r)?,
-                Command::Volume(volume) => {
-                    r.eax = volume;
-                    crate::audio::take_commands::game_part(6, &mut r)?;
+                Command::Six => {}
+                Command::StopAll => {
+                    let w = World::game();
+                    crate::audio::stop_all_voices::stop_all_voices(
+                        w.playing,
+                        w.stopping,
+                        w.channels_used,
+                    )?
                 }
+                Command::Volume(volume) => crate::audio::volume_command::volume_command(
+                    volume,
+                    game_addr(MASTER_VOLUME_RVA) as u32,
+                    &mut |v| crate::audio::set_master_volume::set_master_volume_in_game(v),
+                ),
                 Command::Stream {
                     path,
                     volume,
                     action,
-                } => {
-                    (r.eax, r.ecx, r.edx) = (path, volume, action);
-                    crate::audio::take_commands::game_part(7, &mut r)?;
-                }
+                } => stream_command(
+                    path,
+                    volume as i32,
+                    action,
+                    game_addr(crate::audio::stream::SOUND_STREAM_RVA) as u32,
+                )?,
                 Command::Music {
                     tune,
                     next,
                     volume,
                     action,
-                } => {
-                    (r.eax, r.ebx, r.ecx, r.edx) = (tune, next, volume, action);
-                    crate::audio::take_commands::game_part(8, &mut r)?;
-                }
+                } => music_command(tune, next, volume as i32, action, &MusicVars::game())?,
                 Command::EndOfTurn | Command::Other(_) => {}
             }
             (*(v.count as *const AtomicU32)).fetch_sub(1, Ordering::SeqCst);
@@ -125,61 +136,4 @@ pub fn take_commands(entry: &Regs, v: &Vars) -> Result<(), Refused> {
             }
         }
     }
-}
-
-/// The Rust versions, as the game has them; `set_mode` the game's own.
-pub fn game_part(which: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::audio::stream_commands::{MusicVars, music_command, stream_command};
-    unsafe {
-        match which {
-            0 => crate::audio::start_voice::start_voice(
-                &World::game(),
-                r.eax as i32,
-                &crate::audio::start_voice::command(r.esi),
-            )?,
-            1 => crate::audio::load_sounds::load_sounds(
-                r.eax,
-                &crate::audio::load_sounds::Vars::game(),
-                &mut crate::audio::load_sounds::game_part,
-            )?,
-            2 => crate::audio::free_voices::free_voices(
-                &World::game(),
-                &crate::audio::free_voices::game_vars(),
-            )?,
-            3 => {
-                let mut c = *r;
-                crate::calls::call(rva(SET_MODE), &mut c);
-            }
-            4 => {}
-            5 => {
-                let w = World::game();
-                crate::audio::stop_all_voices::stop_all_voices(
-                    w.playing,
-                    w.stopping,
-                    w.channels_used,
-                )?
-            }
-            6 => crate::audio::volume_command::volume_command(
-                r.eax,
-                game_addr(MASTER_VOLUME_RVA) as u32,
-                &mut |v| crate::audio::set_master_volume::set_master_volume_in_game(v),
-            ),
-            7 => stream_command(
-                r.eax,
-                r.ecx as i32,
-                r.edx,
-                game_addr(crate::audio::stream::SOUND_STREAM_RVA) as u32,
-                &mut crate::audio::stream_commands::game_part,
-            )?,
-            _ => music_command(
-                r.eax,
-                r.ebx,
-                r.ecx as i32,
-                r.edx,
-                &MusicVars::game(),
-                &mut crate::audio::stream_commands::game_part,
-            )?,
-        }
-    }
-    Ok(())
 }

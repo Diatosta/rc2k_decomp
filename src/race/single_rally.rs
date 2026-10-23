@@ -282,14 +282,11 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                     r,
                     &mut crate::race::race_shell::game_screen_mode,
                 ),
-                5 => {
-                    *r = crate::race::sound_tables::set_up_race_sound_objects(
-                        r,
-                        &crate::race::sound_tables::ObjectVars::game(),
-                    )?
-                }
+                5 => crate::race::sound_tables::set_up_race_sound_objects(
+                    &crate::race::sound_tables::ObjectVars::game(),
+                )?,
                 7 => *r = crate::race::race_end::race_from_menu(r)?,
-                9 => *r = crate::race::sound_tables::clear_race_sound_objects(r)?,
+                9 => crate::race::sound_tables::clear_race_sound_objects()?,
                 _ => crate::calls::call(rva(address), r),
             }
             Ok(())

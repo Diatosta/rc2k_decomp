@@ -13,13 +13,11 @@
 //! `system::sleep`, `audio::play_primary`; `g_openedSoundMode` the mode, "SAM: OK". Either
 //! way `system::restore_window` last (its flags kept around it). Callers: the audio thread's
 //! start (the menus' mode), `audio::take_commands` (command 5).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Hook removed 2026-10-22; route 2026-10-23. Plain since 2026-10-23 (phase 3): its argument
+//! is what it reads; the registers above are the original's, for reference.
 
-use crate::audio::buffer_play::{Leaves, leaf_entry};
-use crate::audio::voices::{read, write};
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
 
 const SAM_TEXT: usize = rva(0x4DA6CD); // "SAM:"
 const OK_TEXT: usize = rva(0x4DA6D2); // "SAM: OK"
@@ -47,138 +45,51 @@ impl ModeVars {
     }
 }
 
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<bool, Refused>;
-
 /// True for no carry.
-pub fn set_mode(entry: &Regs, v: &ModeVars, part: Part) -> Result<bool, Refused> {
+pub fn set_mode(mode: u32, v: &ModeVars) -> Result<bool, Refused> {
+    use crate::audio::mixer_set_up::{close_way, open_way};
+    use crate::audio::sound_device as sd;
+    use crate::audio::voices::*;
     unsafe {
-        let mode = entry.eax;
-        let mut c = *entry;
-        let mut call = |place: u32, c: &Regs| -> Result<bool, Refused> {
-            let mut r = *c;
-            part(place, &mut r)
-        };
-        call(
-            0,
-            &Regs {
-                eax: game_addr(SAM_TEXT) as u32,
-                ..c
-            },
-        )?;
-        call(1, &c)?;
+        sd::log_text(game_addr(SAM_TEXT) as u32, false);
+        sd::log_hex(mode, true);
         // Fixed (section 16, 2026-10-20): the streams stopped with action 0; the original
         // hands on whatever edx holds (normally the thread's 1, a feed), so the music
         // outlived the DirectSound it played on.
-        call(2, &Regs { edx: 0, ..c })?;
-        for place in 3..6 {
-            call(place, &c)?;
-        }
-        c.edx = mode;
+        crate::audio::stop_streams::stop_streams()?;
+        crate::audio::free_voices::free_voices(
+            &World::game(),
+            &crate::audio::free_voices::game_vars(),
+        )?;
+        close_way(read(v.mode))?;
+        sd::release_primary(
+            game_addr(PRIMARY_RVA) as u32,
+            game_addr(sd::VOLUME_KEPT_RVA) as u32,
+        )?;
         write(v.mode, mode);
         // Converted: `rc2k_core::audio::modes::channels`.
-        let (channels, looked) = rc2k_core::audio::modes::channels(
+        let (channels, _) = rc2k_core::audio::modes::channels(
             mode,
             [read(v.caps + 0x24), read(v.caps + 0x28)],
             [read(v.caps + 0x3C), read(v.caps + 0x40)],
         );
-        c.ebx = looked;
-        c.eax = channels;
-        write(v.channel_count, c.eax);
-        let ok = !call(6, &c)? && !call(7, &c)?;
+        write(v.channel_count, channels);
+        let ok = !sd::reopen_sound(v.mode, v.opened)?
+            && crate::audio::primary::make_primary(&crate::audio::primary::PrimaryVars::game())?;
         if ok {
-            call(8, &c)?;
-            call(9, &Regs { eax: 1000, ..c })?;
-            call(10, &c)?;
+            open_way(read(v.mode))?;
+            crate::system::sleep::sleep(1000);
+            crate::audio::thread_parts::play_primary(
+                game_addr(PRIMARY_RVA) as u32,
+                game_addr(BUFFER_LOST_RVA) as u32,
+            );
             write(v.opened, read(v.mode));
-            call(
-                11,
-                &Regs {
-                    eax: game_addr(OK_TEXT) as u32,
-                    ..c
-                },
-            )?;
+            sd::log_text(game_addr(OK_TEXT) as u32, true);
         } else {
             write(v.opened, 0);
-            call(
-                11,
-                &Regs {
-                    eax: game_addr(FAIL_TEXT) as u32,
-                    ..c
-                },
-            )?;
+            sd::log_text(game_addr(FAIL_TEXT) as u32, true);
         }
-        call(12, &c)?;
+        crate::system::restore_window::restore_window();
         Ok(ok)
     }
-}
-
-pub fn game_part(place: u32, r: &mut Regs) -> Result<bool, Refused> {
-    use crate::audio::sound_device as sd;
-    use crate::audio::voices::*;
-    let mode = || unsafe { crate::framework::game_read::<u32>(SOUND_MODE_RVA) };
-    unsafe {
-        Ok(match place {
-            0 => sd::game_part(0, r.eax)?,
-            1 => sd::game_part(3, r.eax)?,
-            11 => sd::game_part(1, r.eax)?,
-            2 => {
-                crate::audio::stop_streams::stop_streams(
-                    r,
-                    &mut crate::audio::stop_streams::game_command,
-                )?;
-                false
-            }
-            3 => {
-                crate::audio::free_voices::free_voices(
-                    &World::game(),
-                    &crate::audio::free_voices::game_vars(),
-                )?;
-                false
-            }
-            4 => crate::audio::mixer_set_up::close_way(mode())?,
-            5 => {
-                sd::release_primary(
-                    game_addr(PRIMARY_RVA) as u32,
-                    game_addr(sd::VOLUME_KEPT_RVA) as u32,
-                )?;
-                false
-            }
-            6 => sd::reopen_sound(
-                game_addr(SOUND_MODE_RVA) as u32,
-                game_addr(sd::OPENED_MODE_RVA) as u32,
-            )?,
-            7 => !crate::audio::primary::make_primary(&crate::audio::primary::PrimaryVars::game())?,
-            8 => crate::audio::mixer_set_up::open_way(mode())?,
-            9 => {
-                crate::system::sleep::sleep(r.eax);
-                false
-            }
-            10 => {
-                crate::audio::thread_parts::play_primary(
-                    game_addr(PRIMARY_RVA) as u32,
-                    game_addr(BUFFER_LOST_RVA) as u32,
-                );
-                false
-            }
-            _ => {
-                crate::system::restore_window::restore_window();
-                false
-            }
-        })
-    }
-}
-
-unsafe fn rust(r: &Regs) -> Result<Leaves, Refused> {
-    let ok = set_mode(r, &ModeVars::game(), &mut game_part)?;
-    Ok(Leaves {
-        eax: r.eax,
-        carry: Some(!ok),
-        zero: None,
-    })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    leaf_entry(r, rust)
 }

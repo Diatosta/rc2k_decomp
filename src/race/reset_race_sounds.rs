@@ -21,7 +21,7 @@ use crate::framework::Regs;
 use crate::race::race_end::*;
 
 /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { reset_race_sounds(r, &SoundVars::game()) }?;
+pub fn entry(_r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    reset_race_sounds(&SoundVars::game())?;
     Ok(())
 }

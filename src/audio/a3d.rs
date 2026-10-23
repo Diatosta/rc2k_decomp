@@ -117,7 +117,7 @@ pub unsafe fn open_a3d2(v: &A3dVars, create: Create) -> Result<bool, Refused> {
 pub unsafe fn close_a3d2(interface: u32, use_a3d: u32) -> Result<(), Refused> {
     unsafe {
         release(interface);
-        crate::audio::sound_device::game_part(9, 0)?;
+        crate::audio::sound_device::release_a3d_object();
         write(use_a3d, 0);
     }
     Ok(())

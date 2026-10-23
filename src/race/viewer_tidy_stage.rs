@@ -83,7 +83,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             1 => *r = race_end::tidy_everything(r, &LoadVars::game(), &mut race_end::tidy_part)?,
             2 | 3 | 5 => crate::calls::call(rva(CALLEES[place as usize]), r),
             4 => {
-                sound_tables::clear_race_sound_objects(r)?;
+                sound_tables::clear_race_sound_objects()?;
             }
             6 => crate::gfx::free_fonts::free_fonts(
                 game_addr(crate::gfx::glyph_tables::TABLES_LIST_RVA) as *mut _,
