@@ -99,7 +99,6 @@ unsafe fn words(s: u32) -> u32 {
 /// The Rust version (the exact one, for `physics::car_physics_step` and
 /// `physics::test_drive`).
 pub unsafe fn load_car_specs() -> Result<Left, Refused> {
-    let b = game_addr(0) as u32;
     let kind = g(0x719FFC);
     let s = record();
     let drive = check_drive(unsafe { at(s + 0x18) })?;
@@ -108,35 +107,35 @@ pub unsafe fn load_car_specs() -> Result<Left, Refused> {
     unsafe {
         x87_block!(
             "fild dword ptr [{s} + 0x64]",
-            "fstp dword ptr [{b} + 0x1CB96C]",
+            "fstp dword ptr [{rc} + 0x1CB96C]",
             "fild dword ptr [{s} + 0x68]",
-            "fstp dword ptr [{b} + 0x1CB970]",
+            "fstp dword ptr [{rc} + 0x1CB970]",
             "fild dword ptr [{s} + 0x6C]",
-            "fstp dword ptr [{b} + 0x1CB974]",
+            "fstp dword ptr [{rc} + 0x1CB974]",
             "fild dword ptr [{s} + 0x70]",
-            "fstp dword ptr [{b} + 0x1CB978]",
+            "fstp dword ptr [{rc} + 0x1CB978]",
             "fild dword ptr [{s} + 0x74]",
-            "fstp dword ptr [{b} + 0x31A1B4]",
-            "fld dword ptr [{b} + 0x213F10]",
-            "fstp dword ptr [{b} + 0x31A1B8]",
+            "fstp dword ptr [{rc} + 0x31A1B4]",
+            "fld dword ptr [{rc} + 0x213F10]",
+            "fstp dword ptr [{rc} + 0x31A1B8]",
             "fld dword ptr [{s} + 0xA4]",
-            "fst dword ptr [{b} + 0x1CB958]",
-            "fmul dword ptr [{b} + 0x213E88]",
-            "fstp dword ptr [{b} + 0x1CB964]",
+            "fst dword ptr [{rc} + 0x1CB958]",
+            "fmul dword ptr [{rc} + 0x213E88]",
+            "fstp dword ptr [{rc} + 0x1CB964]",
             "fld dword ptr [{s} + 0xA8]",
-            "fadd dword ptr [{b} + 0x1C5DDC]",
-            "fstp dword ptr [{b} + 0x1CB95C]",
+            "fadd dword ptr [{rc} + 0x1C5DDC]",
+            "fstp dword ptr [{rc} + 0x1CB95C]",
             "fld dword ptr [{s} + 0xAC]",
-            "fadd dword ptr [{b} + 0x1C5DDC]",
-            "fstp dword ptr [{b} + 0x1CB960]",
+            "fadd dword ptr [{rc} + 0x1C5DDC]",
+            "fstp dword ptr [{rc} + 0x1CB960]",
             "fild dword ptr [{s} + 0x78]",
-            "fmul dword ptr [{b} + 0x213EB8]",
-            "fdiv dword ptr [{b} + 0x31A1B4]",
-            "fstp dword ptr [{b} + 0x1CB968]",
-            "fld dword ptr [{b} + 0x31A1B4]",
-            "fmul dword ptr [{b} + 0x213FE4]",
-            "fstp dword ptr [{b} + 0x214104]";
-            b = b, s = s
+            "fmul dword ptr [{rc} + 0x213EB8]",
+            "fdiv dword ptr [{rc} + 0x31A1B4]",
+            "fstp dword ptr [{rc} + 0x1CB968]",
+            "fld dword ptr [{rc} + 0x31A1B4]",
+            "fmul dword ptr [{rc} + 0x213FE4]",
+            "fstp dword ptr [{rc} + 0x214104]";
+            s = s, rc = crate::race::store::asm_base()
         )
     };
     if below(g(0x71A1B4), g(0x5C5D18)) {
@@ -153,35 +152,35 @@ pub unsafe fn load_car_specs() -> Result<Left, Refused> {
         // 0x4216C5 .. 0x421704
         x87_block!(
             "fild dword ptr [{s} + 0x40]",
-            "fmul dword ptr [{b} + 0x1C5D98]",
-            "fdiv dword ptr [{b} + 0x1C5D18]",
-            "fistp dword ptr [{b} + 0x214BC0]",
+            "fmul dword ptr [{rc} + 0x1C5D98]",
+            "fdiv dword ptr [{rc} + 0x1C5D18]",
+            "fistp dword ptr [{rc} + 0x214BC0]",
             "fild dword ptr [{s} + 0x44]",
-            "fmul dword ptr [{b} + 0x1C5D98]",
-            "fdiv dword ptr [{b} + 0x1C5D18]",
-            "fistp dword ptr [{b} + 0x214BC4]",
+            "fmul dword ptr [{rc} + 0x1C5D98]",
+            "fdiv dword ptr [{rc} + 0x1C5D18]",
+            "fistp dword ptr [{rc} + 0x214BC4]",
             "fild dword ptr [{s} + 0x48]",
-            "fmul dword ptr [{b} + 0x1C5D98]",
-            "fdiv dword ptr [{b} + 0x1C5D18]",
-            "fistp dword ptr [{b} + 0x214BC8]";
-            b = b, s = s
+            "fmul dword ptr [{rc} + 0x1C5D98]",
+            "fdiv dword ptr [{rc} + 0x1C5D18]",
+            "fistp dword ptr [{rc} + 0x214BC8]";
+            s = s, rc = crate::race::store::asm_base()
         );
         if kind < OWN_FIGURES_FROM {
             // 0x42170D .. 0x421755
             x87_block!(
-                "fild dword ptr [{b} + 0x213F04]",
-                "fmul dword ptr [{b} + 0x1C5D98]",
-                "fdiv dword ptr [{b} + 0x1C5D18]",
-                "fistp dword ptr [{b} + 0x214BC0]",
-                "fild dword ptr [{b} + 0x213F08]",
-                "fmul dword ptr [{b} + 0x1C5D98]",
-                "fdiv dword ptr [{b} + 0x1C5D18]",
-                "fistp dword ptr [{b} + 0x214BC4]",
-                "fild dword ptr [{b} + 0x213F0C]",
-                "fmul dword ptr [{b} + 0x1C5D98]",
-                "fdiv dword ptr [{b} + 0x1C5D18]",
-                "fistp dword ptr [{b} + 0x214BC8]";
-                b = b
+                "fild dword ptr [{rc} + 0x213F04]",
+                "fmul dword ptr [{rc} + 0x1C5D98]",
+                "fdiv dword ptr [{rc} + 0x1C5D18]",
+                "fistp dword ptr [{rc} + 0x214BC0]",
+                "fild dword ptr [{rc} + 0x213F08]",
+                "fmul dword ptr [{rc} + 0x1C5D98]",
+                "fdiv dword ptr [{rc} + 0x1C5D18]",
+                "fistp dword ptr [{rc} + 0x214BC4]",
+                "fild dword ptr [{rc} + 0x213F0C]",
+                "fmul dword ptr [{rc} + 0x1C5D98]",
+                "fdiv dword ptr [{rc} + 0x1C5D18]",
+                "fistp dword ptr [{rc} + 0x214BC8]";
+                rc = crate::race::store::asm_base()
             );
         }
         p(0x614BA0, g(0x613EFC));
@@ -190,22 +189,22 @@ pub unsafe fn load_car_specs() -> Result<Left, Refused> {
         // 0x421794 .. 0x4217B2
         x87_block!(
             "fld dword ptr [{s} + 0x38]",
-            "fmul dword ptr [{b} + 0x213FC8]",
-            "fstp dword ptr [{b} + 0x214BAC]",
+            "fmul dword ptr [{rc} + 0x213FC8]",
+            "fstp dword ptr [{rc} + 0x214BAC]",
             "fld dword ptr [{s} + 0x3C]",
-            "fmul dword ptr [{b} + 0x213FC8]",
-            "fstp dword ptr [{b} + 0x214BB0]";
-            b = b, s = s
+            "fmul dword ptr [{rc} + 0x213FC8]",
+            "fstp dword ptr [{rc} + 0x214BB0]";
+            s = s, rc = crate::race::store::asm_base()
         );
         p(0x62400C, at(s + 0x5C));
         p(0x61476C, at(s + 0x60));
         // 0x4217CA .. 0x4217E3
         x87_block!(
-            "fld dword ptr [{b} + {k}*4 + 0x213FB8]",
-            "fst dword ptr [{b} + 0x2140F8]",
-            "fadd dword ptr [{b} + 0x1C5D14]",
-            "fstp dword ptr [{b} + 0x2140FC]";
-            b = b, k = drive
+            "fld dword ptr [{rc} + {k}*4 + 0x213FB8]",
+            "fst dword ptr [{rc} + 0x2140F8]",
+            "fadd dword ptr [{rc} + 0x1C5D14]",
+            "fstp dword ptr [{rc} + 0x2140FC]";
+            k = drive, rc = crate::race::store::asm_base()
         );
         Ok(Left::nothing()
             .with(EAX, count)

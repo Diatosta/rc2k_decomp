@@ -41,47 +41,47 @@ const CELLS: u32 = 0x41;
 const ANGLES: u32 = 0x1000;
 
 /// The original's 0x4CB796 .. 0x4CB81A: the place turned by the view.
-unsafe fn turn(b: u32, p: &[[u8; 10]; 3]) {
+unsafe fn turn(p: &[[u8; 10]; 3]) {
     unsafe {
         core::arch::asm!(
             "fld tbyte ptr [{p} + 20]",
             "fld tbyte ptr [{p} + 10]",
             "fld tbyte ptr [{p}]",
-            "fld dword ptr [{b} + 0x1EA2CC]",
+            "fld dword ptr [{rc} + 0x1EA2CC]",
             ".byte 0xD8, 0xC9",
-            "fld dword ptr [{b} + 0x1EA2DC]",
+            "fld dword ptr [{rc} + 0x1EA2DC]",
             ".byte 0xD8, 0xCB",
-            "fld dword ptr [{b} + 0x1EA2EC]",
+            "fld dword ptr [{rc} + 0x1EA2EC]",
             ".byte 0xD8, 0xCD",
             ".byte 0xDE, 0xC1",
             ".byte 0xDE, 0xC1",
-            "fadd dword ptr [{b} + 0x1EA2FC]",
+            "fadd dword ptr [{rc} + 0x1EA2FC]",
             ".byte 0xD9, 0xCB",
-            "fld dword ptr [{b} + 0x1EA2D0]",
+            "fld dword ptr [{rc} + 0x1EA2D0]",
             ".byte 0xD8, 0xCA",
-            "fld dword ptr [{b} + 0x1EA2E0]",
+            "fld dword ptr [{rc} + 0x1EA2E0]",
             ".byte 0xD8, 0xCC",
-            "fld dword ptr [{b} + 0x1EA2F0]",
+            "fld dword ptr [{rc} + 0x1EA2F0]",
             ".byte 0xD8, 0xCB",
             ".byte 0xDE, 0xC1",
             ".byte 0xDE, 0xC1",
-            "fadd dword ptr [{b} + 0x1EA300]",
+            "fadd dword ptr [{rc} + 0x1EA300]",
             ".byte 0xD9, 0xCB",
-            "fld dword ptr [{b} + 0x1EA2D4]",
+            "fld dword ptr [{rc} + 0x1EA2D4]",
             ".byte 0xDE, 0xCB",
-            "fld dword ptr [{b} + 0x1EA2E4]",
+            "fld dword ptr [{rc} + 0x1EA2E4]",
             ".byte 0xDE, 0xC9",
-            "fld dword ptr [{b} + 0x1EA2F4]",
+            "fld dword ptr [{rc} + 0x1EA2F4]",
             ".byte 0xDE, 0xCA",
             ".byte 0xDE, 0xC1",
             ".byte 0xDE, 0xC1",
-            "fadd dword ptr [{b} + 0x1EA304]",
+            "fadd dword ptr [{rc} + 0x1EA304]",
             ".byte 0xD9, 0xCA",
             "fstp dword ptr [{mk} + 0x186995]",
             "fstp dword ptr [{mk} + 0x186999]",
             "fist dword ptr [{mk} + 0x1D0780]",
             "fstp dword ptr [{mk} + 0x18699D]",
-            b = in(reg) b,
+            rc = in(reg) crate::race::store::asm_base(),
             mk = in(reg) crate::marks::store::base(),
             p = in(reg) p.as_ptr(),
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
@@ -98,7 +98,7 @@ unsafe fn square(b: u32, k: u32, s: u32) -> u32 {
     let edi: u32;
     unsafe {
         core::arch::asm!(
-            "fld dword ptr [{b} + 0x224088]",
+            "fld dword ptr [{rc} + 0x224088]",
             "fdiv dword ptr [{mk} + 0x18699D]",
             "fld dword ptr [{mk} + 0x18699D]",
             "fmul dword ptr [{mk} + 0x186A2D]",
@@ -151,7 +151,7 @@ unsafe fn square(b: u32, k: u32, s: u32) -> u32 {
             ".byte 0xD9, 0xC9",
             "fmul dword ptr [{mk} + 0x186999]",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             ".byte 0xD9, 0xC0",
             "fsub dword ptr [{mk} + 0x186981]",
             "fstp dword ptr [{b} + 0x5605A4]",
@@ -163,7 +163,7 @@ unsafe fn square(b: u32, k: u32, s: u32) -> u32 {
             "fstp dword ptr [{b} + 0x5605E4]",
             "fadd dword ptr [{mk} + 0x186989]",
             "fstp dword ptr [{b} + 0x560604]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             ".byte 0xD9, 0xC0",
             "fsub dword ptr [{mk} + 0x18697D]",
             "fstp dword ptr [{b} + 0x5605A0]",
@@ -175,6 +175,7 @@ unsafe fn square(b: u32, k: u32, s: u32) -> u32 {
             "fstp dword ptr [{b} + 0x5605E0]",
             "fadd dword ptr [{mk} + 0x186985]",
             "fstp dword ptr [{b} + 0x560600]",
+            rc = in(reg) crate::race::store::asm_base(),
             b = in(reg) b,
             mk = in(reg) crate::marks::store::base(),
             k = in(reg) k,
@@ -214,7 +215,7 @@ pub unsafe fn draw_cell_sprite(
             return Err(BadInput("no marks settings").into());
         }
         let b = game_addr(0) as u32;
-        turn(b, &place);
+        turn(&place);
         if game_read::<i32>(DEPTH_RVA) <= game_read::<i32>(NEAR_RVA) {
             return Ok(());
         }

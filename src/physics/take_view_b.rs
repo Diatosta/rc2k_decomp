@@ -15,22 +15,22 @@
 //! above are the original's, for reference.
 
 use crate::physics::camera_view::rd;
-use crate::physics::flow::{base, g, p, x87_run};
+use crate::physics::flow::{g, p, x87_run};
 
 /// The Rust version (the exact one, for `physics::update_camera`): `s` the view's record
 /// (esi). The eax and ebx it leaves are read by none of its callers.
 pub unsafe fn take_view_b(s: u32) {
     x87_run!(
         "fld dword ptr [{s} + 0x4]",
-        "fadd dword ptr [{b} + 0x237638]",
-        "fstp dword ptr [{b} + 0x208BB0]",
+        "fadd dword ptr [{rc} + 0x237638]",
+        "fstp dword ptr [{rc} + 0x208BB0]",
         "fld dword ptr [{s} + 0x8]",
-        "fadd dword ptr [{b} + 0x23763C]",
-        "fstp dword ptr [{b} + 0x208BB4]",
+        "fadd dword ptr [{rc} + 0x23763C]",
+        "fstp dword ptr [{rc} + 0x208BB4]",
         "fld dword ptr [{s} + 0xC]",
-        "fadd dword ptr [{b} + 0x237640]",
-        "fstp dword ptr [{b} + 0x208BB8]";
-        b = base(), s = s
+        "fadd dword ptr [{rc} + 0x237640]",
+        "fstp dword ptr [{rc} + 0x208BB8]";
+        s = s, rc = crate::race::store::asm_base()
     );
     for (k, x) in COPIES.iter().enumerate() {
         p(*x, rd(s + 0x10 + 4 * k as u32));

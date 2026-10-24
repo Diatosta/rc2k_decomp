@@ -233,50 +233,50 @@ unsafe fn plane_corners() {
 }
 
 /// The original's 0x4C93FA .. 0x4C94CA: the four corners projected.
-unsafe fn plane_projected(b: u32) {
+unsafe fn plane_projected() {
     unsafe {
         core::arch::asm!(
-            "fld dword ptr [{b} + 0x224088]",
+            "fld dword ptr [{rc} + 0x224088]",
             "fdiv dword ptr [{mk} + 0x1CFD60]",
             ".byte 0xD9, 0xC0",
             "fmul dword ptr [{mk} + 0x1CFD58]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fstp dword ptr [{mk} + 0x1CFD58]",
             "fmul dword ptr [{mk} + 0x1CFD5C]",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fstp dword ptr [{mk} + 0x1CFD5C]",
-            "fld dword ptr [{b} + 0x224088]",
+            "fld dword ptr [{rc} + 0x224088]",
             "fdiv dword ptr [{mk} + 0x1CFD6C]",
             ".byte 0xD9, 0xC0",
             "fmul dword ptr [{mk} + 0x1CFD64]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fstp dword ptr [{mk} + 0x1CFD64]",
             "fmul dword ptr [{mk} + 0x1CFD68]",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fstp dword ptr [{mk} + 0x1CFD68]",
-            "fld dword ptr [{b} + 0x224088]",
+            "fld dword ptr [{rc} + 0x224088]",
             "fdiv dword ptr [{mk} + 0x1CFD78]",
             ".byte 0xD9, 0xC0",
             "fmul dword ptr [{mk} + 0x1CFD70]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fstp dword ptr [{mk} + 0x1CFD70]",
             "fmul dword ptr [{mk} + 0x1CFD74]",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fstp dword ptr [{mk} + 0x1CFD74]",
-            "fld dword ptr [{b} + 0x224088]",
+            "fld dword ptr [{rc} + 0x224088]",
             "fdiv dword ptr [{mk} + 0x1CFD84]",
             ".byte 0xD9, 0xC0",
             "fmul dword ptr [{mk} + 0x1CFD7C]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fstp dword ptr [{mk} + 0x1CFD7C]",
             "fmul dword ptr [{mk} + 0x1CFD80]",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fstp dword ptr [{mk} + 0x1CFD80]",
-            b = in(reg) b,
+            rc = in(reg) crate::race::store::asm_base(),
             mk = in(reg) crate::marks::store::base(),
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
@@ -294,7 +294,6 @@ pub unsafe fn draw_plane() -> Result<(), Refused> {
             return Err(BadInput("no marks settings").into());
         }
         let corner: u32 = game_read(CORNER_RVA);
-        let b = addr(0);
         plane_axes(s);
         let [a0, a1, a2] = AXES.map(addr);
         normalise_vector3(a0);
@@ -347,7 +346,7 @@ pub unsafe fn draw_plane() -> Result<(), Refused> {
                 return Ok(());
             }
         }
-        plane_projected(b);
+        plane_projected();
         let [kind, z_k]: [u32; 2] = [game_read(KIND_RVA), game_read(Z_K_RVA)];
         for n in 0..4 {
             let c = CORNERS_RVA + 12 * n;

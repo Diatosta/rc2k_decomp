@@ -164,7 +164,7 @@ unsafe fn square(b: u32, i: u32) {
     unsafe {
         core::arch::asm!(
             "fld dword ptr [{mk} + 0x16D39C]",
-            "fdivr dword ptr [{b} + 0x224088]",
+            "fdivr dword ptr [{rc} + 0x224088]",
             "fst dword ptr [{mk} + 0x16D2B4]",
             "fld dword ptr [{mk} + 0x16D398]",
             ".byte 0xD8, 0xC9",
@@ -172,9 +172,9 @@ unsafe fn square(b: u32, i: u32) {
             "fmul dword ptr [{mk} + 0x16D394]",
             ".byte 0xD9, 0xC9",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fstp dword ptr [{b} + 0x5605A4]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fstp dword ptr [{b} + 0x5605A0]",
             "fld dword ptr [{mk} + 0x176608]",
             "fmul dword ptr [{mk} + 0x16D2B4]",
@@ -201,6 +201,7 @@ unsafe fn square(b: u32, i: u32) {
             "fadd dword ptr [{mk} + 0x17660C]",
             "fst dword ptr [{b} + 0x5605D8]",
             "fstp dword ptr [{b} + 0x5605F8]",
+            rc = in(reg) crate::race::store::asm_base(),
             b = in(reg) b,
             mk = in(reg) crate::marks::store::base(),
             i = in(reg) i,

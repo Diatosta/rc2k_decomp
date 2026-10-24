@@ -51,15 +51,14 @@ unsafe fn get(a: u32) -> u32 {
 
 /// 0x45CB02 .. 0x45CB88 (the shares into the voices), the integer steps between in Rust.
 unsafe fn shares(o: u32) {
-    let b = game_addr(0) as u32;
     unsafe {
         core::arch::asm!(
-            "fld dword ptr [{b} + 0x31A260]",
-            "fdiv dword ptr [{b} + 0x213EE0]",
-            "fstp dword ptr [{b} + 0x31A264]",
+            "fld dword ptr [{rc} + 0x31A260]",
+            "fdiv dword ptr [{rc} + 0x213EE0]",
+            "fstp dword ptr [{rc} + 0x31A264]",
             ".byte 0xD9, 0xE8", // fld1
-            "fstp dword ptr [{b} + 0x31A268]",
-            b = in(reg) b,
+            "fstp dword ptr [{rc} + 0x31A268]",
+            rc = in(reg) crate::race::store::asm_base(),
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
@@ -72,23 +71,23 @@ unsafe fn shares(o: u32) {
     }
     unsafe {
         core::arch::asm!(
-            "fld dword ptr [{b} + 0x31A268]",
+            "fld dword ptr [{rc} + 0x31A268]",
             "fst dword ptr [{o} + 0x4C]",
             "fst dword ptr [{o} + 0x60]",
             "fst dword ptr [{o} + 0x74]",
             "fstp dword ptr [{o} + 0x88]",
-            "fld dword ptr [{b} + 0x31A264]",
-            "fmul dword ptr [{b} + 0x1C5E2C]",
+            "fld dword ptr [{rc} + 0x31A264]",
+            "fmul dword ptr [{rc} + 0x1C5E2C]",
             "fst dword ptr [{o} + 0x50]",
             "fst dword ptr [{o} + 0x64]",
             "fst dword ptr [{o} + 0x78]",
             "fstp dword ptr [{o} + 0x8C]",
-            "fld dword ptr [{b} + 0x31A26C]",
+            "fld dword ptr [{rc} + 0x31A26C]",
             "fst dword ptr [{o} + 0x44]",
             "fst dword ptr [{o} + 0x58]",
             "fst dword ptr [{o} + 0x6C]",
             "fstp dword ptr [{o} + 0x80]",
-            b = in(reg) b,
+            rc = in(reg) crate::race::store::asm_base(),
             o = in(reg) o,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,

@@ -15,7 +15,7 @@
 //! above are the original's, for reference.
 
 use crate::physics::camera_view::{rd, record};
-use crate::physics::flow::{base, g, hold_high, hold_low, p, x87_run};
+use crate::physics::flow::{g, hold_high, hold_low, p, x87_run};
 
 /// The Rust version (the exact one, for `physics::update_camera`).
 pub unsafe fn camera_height_bias() {
@@ -24,27 +24,27 @@ pub unsafe fn camera_height_bias() {
         return;
     }
     x87_run!(
-        "fld dword ptr [{b} + 0x20631C]",
-        "fdiv dword ptr [{b} + 0x206290]",
-        "fstp dword ptr [{b} + 0x22400C]";
-        b = base()
+        "fld dword ptr [{rc} + 0x20631C]",
+        "fdiv dword ptr [{rc} + 0x206290]",
+        "fstp dword ptr [{rc} + 0x22400C]";
+        rc = crate::race::store::asm_base()
     );
     hold_low(0x62400C, 0x5C5D90);
     hold_high(0x62400C, 0x5C5D38);
     if (rd(esi + 0x54) as i32) < 0 {
         x87_run!(
             ".byte 0xD9, 0xE8", // fld1
-            "fsub dword ptr [{b} + 0x22400C]",
-            "fstp dword ptr [{b} + 0x22400C]";
-            b = base()
+            "fsub dword ptr [{rc} + 0x22400C]",
+            "fstp dword ptr [{rc} + 0x22400C]";
+            rc = crate::race::store::asm_base()
         );
     }
     x87_run!(
-        "fld dword ptr [{b} + 0x22400C]",
-        "fmul dword ptr [{b} + 0x1C5D98]",
-        "fmul dword ptr [{b} + 0x20628C]",
-        "fistp dword ptr [{b} + 0x22400C]";
-        b = base()
+        "fld dword ptr [{rc} + 0x22400C]",
+        "fmul dword ptr [{rc} + 0x1C5D98]",
+        "fmul dword ptr [{rc} + 0x20628C]",
+        "fistp dword ptr [{rc} + 0x22400C]";
+        rc = crate::race::store::asm_base()
     );
     let eax = g(0x62400C);
     p(0x606288, eax);

@@ -13,7 +13,7 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::physics::flow::{base, g, p, x87_run};
+use crate::physics::flow::{g, p, x87_run};
 
 /// The Rust version (the exact one, for `physics::camera_avoid_ground`).
 pub unsafe fn ease_view_turn() {
@@ -29,10 +29,10 @@ pub unsafe fn ease_view_turn() {
     ] {
         p(0x62400C, g(target).wrapping_sub(g(turn)));
         x87_run!(
-            "fild dword ptr [{b} + 0x22400C]",
+            "fild dword ptr [{rc} + 0x22400C]",
             "fmul dword ptr [{s}]",
-            "fistp dword ptr [{b} + 0x22400C]";
-            b = base(), s = crate::physics::flow::a(share)
+            "fistp dword ptr [{rc} + 0x22400C]";
+            s = crate::physics::flow::a(share), rc = crate::race::store::asm_base()
         );
         p(turn, g(turn).wrapping_add(g(0x62400C)));
     }

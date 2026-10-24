@@ -18,7 +18,7 @@
 
 use crate::marks::pick_hexagon::pick_hexagon;
 use crate::marks::setup::SEED_RVA;
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 use crate::scene::vector3::STATUS_RVA;
 
@@ -28,7 +28,7 @@ const SHARE_K_RVA: Slot = Slot::at(0x82E2B2); // flt_82E2B2
 const MOST: i32 = 0x80;
 
 /// The original's 0x4BC60E .. 0x4BC66B: the rate, compared (`fstsw` into `g_fpuStatus`).
-unsafe fn rate(b: u32) {
+unsafe fn rate() {
     unsafe {
         core::arch::asm!(
             "fld dword ptr [{mk} + 0x42FE]",
@@ -48,8 +48,8 @@ unsafe fn rate(b: u32) {
             "fstp dword ptr [{mk} + 0xAF7EC]",
             "fld dword ptr [{mk} + 0xAF7EC]",
             "fcomp dword ptr [{mk} + 0xC936E]",
-            "fstsw word ptr [{b} + 0x31C814]",
-            b = in(reg) b,
+            "fstsw word ptr [{rc} + 0x31C814]",
+            rc = in(reg) crate::race::store::asm_base(),
             mk = in(reg) crate::marks::store::base(),
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
@@ -63,7 +63,7 @@ pub unsafe fn hexagons_spawn() {
     unsafe {
         game_write(FRAMES_RVA, game_read::<u32>(FRAMES_RVA).wrapping_add(1));
         let old = x87::set_chop();
-        rate(game_addr(0) as u32);
+        rate();
         let status = game_read::<u32>(STATUS_RVA) & 0x700;
         game_write(STATUS_RVA, status);
         if status != 0x100 {

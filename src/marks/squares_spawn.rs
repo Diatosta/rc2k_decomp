@@ -19,7 +19,7 @@
 //! and the self-test was the hook's.
 
 use crate::marks::pick_square::pick_square;
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 use crate::scene::vector3::STATUS_RVA;
 
@@ -30,7 +30,7 @@ const RANDOM_RVA: Slot = Slot::at(0x8BC252); // dword_8BC252
 const MOST: i32 = 0x80;
 
 /// The original's 0x4C053C .. 0x4C059D: the rate, compared (`fstsw` into `g_fpuStatus`).
-unsafe fn rate(b: u32) {
+unsafe fn rate() {
     unsafe {
         core::arch::asm!(
             "fld dword ptr [{mk} + 0x42FE]",
@@ -52,8 +52,8 @@ unsafe fn rate(b: u32) {
             "fcomp dword ptr [{mk} + 0x15730A]",
             ".byte 0xDD, 0xC0",
             ".byte 0xD9, 0xF7",
-            "fstsw word ptr [{b} + 0x31C814]",
-            b = in(reg) b,
+            "fstsw word ptr [{rc} + 0x31C814]",
+            rc = in(reg) crate::race::store::asm_base(),
             mk = in(reg) crate::marks::store::base(),
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
@@ -67,7 +67,7 @@ pub unsafe fn squares_spawn() {
     unsafe {
         game_write(FRAMES_RVA, game_read::<u32>(FRAMES_RVA).wrapping_add(1));
         let old = x87::set_chop();
-        rate(game_addr(0) as u32);
+        rate();
         let status = game_read::<u32>(STATUS_RVA) & 0x700;
         game_write(STATUS_RVA, status);
         if status != 0x100 {

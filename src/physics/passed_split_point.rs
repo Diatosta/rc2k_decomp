@@ -24,7 +24,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{game_read, game_write, rva};
 use rc2k_core::physics::progress;
 use std::cmp::Ordering;
 
@@ -38,24 +38,23 @@ fn p(x: usize, v: u32) {
 
 /// 0x4416EC .. 0x441727: the distance to the point at `point`.
 unsafe fn distance(point: u32) {
-    let b = game_addr(0) as u32;
     unsafe {
         core::arch::asm!(
             "mov eax, [{s}]",
-            "sub eax, [{b} + 0x239824]",
-            "mov [{b} + 0x22400C], eax",
-            "fild dword ptr [{b} + 0x22400C]",
+            "sub eax, [{rc} + 0x239824]",
+            "mov [{rc} + 0x22400C], eax",
+            "fild dword ptr [{rc} + 0x22400C]",
             ".byte 0xD8, 0xC8", // fmul st, st
             "mov eax, [{s} + 8]",
-            "sub eax, [{b} + 0x23982C]",
-            "mov [{b} + 0x22400C], eax",
-            "fild dword ptr [{b} + 0x22400C]",
+            "sub eax, [{rc} + 0x23982C]",
+            "mov [{rc} + 0x22400C], eax",
+            "fild dword ptr [{rc} + 0x22400C]",
             ".byte 0xD8, 0xC8",
             ".byte 0xDE, 0xC1", // faddp st(1), st
             ".byte 0xD9, 0xFA", // fsqrt
-            "fmul dword ptr [{b} + 0x1C5DA0]",
-            "fstp dword ptr [{b} + 0x214D04]",
-            b = in(reg) b,
+            "fmul dword ptr [{rc} + 0x1C5DA0]",
+            "fstp dword ptr [{rc} + 0x214D04]",
+            rc = in(reg) crate::race::store::asm_base(),
             s = in(reg) point,
             out("eax") _,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
@@ -68,25 +67,24 @@ unsafe fn distance(point: u32) {
 /// 0x441770 .. 0x4417AD: the angle from the point at `point` to the car, into
 /// `dword_62400C` (`fistp`, then the low 16 bits).
 unsafe fn angle(point: u32) {
-    let b = game_addr(0) as u32;
     unsafe {
         core::arch::asm!(
-            "mov eax, [{b} + 0x239824]",
+            "mov eax, [{rc} + 0x239824]",
             "sub eax, [{s}]",
-            "mov [{b} + 0x22400C], eax",
-            "fild dword ptr [{b} + 0x22400C]",
-            "mov eax, [{b} + 0x23982C]",
+            "mov [{rc} + 0x22400C], eax",
+            "fild dword ptr [{rc} + 0x22400C]",
+            "mov eax, [{rc} + 0x23982C]",
             "sub eax, [{s} + 8]",
-            "mov [{b} + 0x22400C], eax",
-            "fild dword ptr [{b} + 0x22400C]",
+            "mov [{rc} + 0x22400C], eax",
+            "fild dword ptr [{rc} + 0x22400C]",
             ".byte 0xD9, 0xF3", // fpatan
             ".byte 0xD9, 0xEB", // fldpi
             ".byte 0xDE, 0xF9", // fdivp st(1), st
-            "fmul dword ptr [{b} + 0x1C5E40]",
-            "fmul dword ptr [{b} + 0x1C5D98]",
-            "fistp dword ptr [{b} + 0x22400C]",
-            "and dword ptr [{b} + 0x22400C], 0xFFFF",
-            b = in(reg) b,
+            "fmul dword ptr [{rc} + 0x1C5E40]",
+            "fmul dword ptr [{rc} + 0x1C5D98]",
+            "fistp dword ptr [{rc} + 0x22400C]",
+            "and dword ptr [{rc} + 0x22400C], 0xFFFF",
+            rc = in(reg) crate::race::store::asm_base(),
             s = in(reg) point,
             out("eax") _,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,

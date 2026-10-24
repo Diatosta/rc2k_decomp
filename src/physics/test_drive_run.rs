@@ -25,7 +25,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::physics::flow::{a, base, c0, g, p, x87_run};
+use crate::physics::flow::{a, c0, g, p, x87_run};
 
 const DRIVE: usize = 0x71A190; // g_carDriveSpeed
 const GEAR: usize = 0x71A1AC; // g_carGear
@@ -44,28 +44,28 @@ fn step() -> Result<(), Refused> {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
     x87_run!(
-        "fld dword ptr [{b} + 0x214748]",
-        "fmul dword ptr [{b} + 0x1CB968]",
+        "fld dword ptr [{rc} + 0x214748]",
+        "fmul dword ptr [{rc} + 0x1CB968]",
         "fdiv dword ptr [{r}]",
-        "fdiv dword ptr [{b} + 0x1C5E34]",
-        "fstp dword ptr [{b} + 0x214750]";
-        b = base(), r = a(0x6140C0).wrapping_add(gear.wrapping_mul(4))
+        "fdiv dword ptr [{rc} + 0x1C5E34]",
+        "fstp dword ptr [{rc} + 0x214750]";
+        r = a(0x6140C0).wrapping_add(gear.wrapping_mul(4)), rc = crate::race::store::asm_base()
     );
     unsafe { crate::physics::drive_torque_share::drive_torque_share() };
     x87_run!(
-        "fld dword ptr [{b} + 0x31A190]",
+        "fld dword ptr [{rc} + 0x31A190]",
         ".byte 0xD8, 0xC8", // fmul st, st
-        "fmul dword ptr [{b} + 0x213FCC]",
-        "fdiv dword ptr [{b} + 0x1C5E34]",
-        "fadd dword ptr [{b} + 0x213FD0]",
+        "fmul dword ptr [{rc} + 0x213FCC]",
+        "fdiv dword ptr [{rc} + 0x1C5E34]",
+        "fadd dword ptr [{rc} + 0x213FD0]",
         ".byte 0xD9, 0xE0", // fchs
-        "fst dword ptr [{b} + 0x22400C]",
-        "fadd dword ptr [{b} + 0x214750]",
-        "fmul dword ptr [{b} + 0x21388C]",
-        "fadd dword ptr [{b} + 0x31A190]",
-        "fst dword ptr [{b} + 0x31A190]",
-        "fstp dword ptr [{b} + 0x31A194]";
-        b = base()
+        "fst dword ptr [{rc} + 0x22400C]",
+        "fadd dword ptr [{rc} + 0x214750]",
+        "fmul dword ptr [{rc} + 0x21388C]",
+        "fadd dword ptr [{rc} + 0x31A190]",
+        "fst dword ptr [{rc} + 0x31A190]",
+        "fstp dword ptr [{rc} + 0x31A194]";
+        rc = crate::race::store::asm_base()
     );
     unsafe { crate::physics::revs_from_wheels::revs_from_wheels() }?;
     Ok(())
@@ -95,16 +95,16 @@ fn steps() -> Result<(), Refused> {
         }
     }
     x87_run!(
-        "fld dword ptr [{b} + 0x31A190]",
-        "fmul dword ptr [{b} + 0x1C5D00]",
-        "fstp dword ptr [{b} + 0x1CB984]",
-        "fild dword ptr [{b} + 0x1CB97C]",
-        "fdiv dword ptr [{b} + 0x1C5D14]",
-        "fstp dword ptr [{b} + 0x1CB97C]",
-        "fild dword ptr [{b} + 0x1CB980]",
-        "fdiv dword ptr [{b} + 0x1C5D14]",
-        "fstp dword ptr [{b} + 0x1CB980]";
-        b = base()
+        "fld dword ptr [{rc} + 0x31A190]",
+        "fmul dword ptr [{rc} + 0x1C5D00]",
+        "fstp dword ptr [{rc} + 0x1CB984]",
+        "fild dword ptr [{rc} + 0x1CB97C]",
+        "fdiv dword ptr [{rc} + 0x1C5D14]",
+        "fstp dword ptr [{rc} + 0x1CB97C]",
+        "fild dword ptr [{rc} + 0x1CB980]",
+        "fdiv dword ptr [{rc} + 0x1C5D14]",
+        "fstp dword ptr [{rc} + 0x1CB980]";
+        rc = crate::race::store::asm_base()
     );
     Ok(())
 }

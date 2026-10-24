@@ -7,7 +7,7 @@
 //! `view_test_floats` (`rc2k_core::physics::camera_view`). What the variables are (the
 //! camera's mode, place, turns, a view's figures) is a reading.
 
-use crate::physics::flow::{base, g, p, x87_run};
+use crate::physics::flow::{g, p, x87_run};
 
 /// `off_606320`: the camera modes' records (0x34).
 pub const MODES: usize = 0x606320;
@@ -33,10 +33,10 @@ pub fn share_done(record: u32) -> u32 {
     }
     p(0x62400C, eax);
     x87_run!(
-        "fild dword ptr [{b} + 0x22400C]",
+        "fild dword ptr [{rc} + 0x22400C]",
         "fidiv dword ptr [{s} + 0x3C]",
-        "fstp dword ptr [{b} + 0x205260]";
-        b = base(), s = record
+        "fstp dword ptr [{rc} + 0x205260]";
+        s = record, rc = crate::race::store::asm_base()
     );
     eax
 }

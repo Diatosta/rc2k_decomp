@@ -31,7 +31,7 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::marks::emitters::{RING_COUNT_RVA, RING_CURSOR_RVA};
 use crate::marks::setup::SETTINGS_RVA;
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::x87;
 use crate::scene::fog_at::fog_at;
 
@@ -53,41 +53,41 @@ unsafe fn put(a: u32, v: u32) {
 }
 
 /// The original's 0x4CF890 .. 0x4CF94D: a new streak's place turned into its last (+0x1C ..), and a first move.
-unsafe fn first_frame(b: u32, e: u32) {
+unsafe fn first_frame(e: u32) {
     unsafe {
         core::arch::asm!(
             "fld dword ptr [{e} + 0x18]",
             "fld dword ptr [{e} + 0x14]",
             "fld dword ptr [{e} + 0x10]",
-            "fld dword ptr [{b} + 0x1EA2CC]",
+            "fld dword ptr [{rc} + 0x1EA2CC]",
             ".byte 0xD8, 0xC9",
-            "fld dword ptr [{b} + 0x1EA2DC]",
+            "fld dword ptr [{rc} + 0x1EA2DC]",
             ".byte 0xD8, 0xCB",
-            "fld dword ptr [{b} + 0x1EA2EC]",
+            "fld dword ptr [{rc} + 0x1EA2EC]",
             ".byte 0xD8, 0xCD",
             ".byte 0xDE, 0xC1",
             ".byte 0xDE, 0xC1",
-            "fadd dword ptr [{b} + 0x1EA2FC]",
+            "fadd dword ptr [{rc} + 0x1EA2FC]",
             ".byte 0xD9, 0xCB",
-            "fld dword ptr [{b} + 0x1EA2D0]",
+            "fld dword ptr [{rc} + 0x1EA2D0]",
             ".byte 0xD8, 0xCA",
-            "fld dword ptr [{b} + 0x1EA2E0]",
+            "fld dword ptr [{rc} + 0x1EA2E0]",
             ".byte 0xD8, 0xCC",
-            "fld dword ptr [{b} + 0x1EA2F0]",
+            "fld dword ptr [{rc} + 0x1EA2F0]",
             ".byte 0xD8, 0xCB",
             ".byte 0xDE, 0xC1",
             ".byte 0xDE, 0xC1",
-            "fadd dword ptr [{b} + 0x1EA300]",
+            "fadd dword ptr [{rc} + 0x1EA300]",
             ".byte 0xD9, 0xCB",
-            "fld dword ptr [{b} + 0x1EA2D4]",
+            "fld dword ptr [{rc} + 0x1EA2D4]",
             ".byte 0xDE, 0xCB",
-            "fld dword ptr [{b} + 0x1EA2E4]",
+            "fld dword ptr [{rc} + 0x1EA2E4]",
             ".byte 0xDE, 0xC9",
-            "fld dword ptr [{b} + 0x1EA2F4]",
+            "fld dword ptr [{rc} + 0x1EA2F4]",
             ".byte 0xDE, 0xCA",
             ".byte 0xDE, 0xC1",
             ".byte 0xDE, 0xC1",
-            "fadd dword ptr [{b} + 0x1EA304]",
+            "fadd dword ptr [{rc} + 0x1EA304]",
             ".byte 0xD9, 0xCA",
             "fstp dword ptr [{e} + 0x1C]",
             "fstp dword ptr [{e} + 0x20]",
@@ -108,7 +108,7 @@ unsafe fn first_frame(b: u32, e: u32) {
             "fimul dword ptr [{mk} + 0x90]",
             "fadd dword ptr [{e} + 0x30]",
             "fstp dword ptr [{e} + 0x30]",
-            b = in(reg) b,
+            rc = in(reg) crate::race::store::asm_base(),
             mk = in(reg) crate::marks::store::base(),
             e = in(reg) e,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
@@ -148,46 +148,46 @@ unsafe fn move_(e: u32) {
 }
 
 /// The original's 0x4CF9A6 .. 0x4CFA2D: the place turned by the view into `flt_8EB8D5` ...
-unsafe fn turn_place(b: u32, e: u32) {
+unsafe fn turn_place(e: u32) {
     unsafe {
         core::arch::asm!(
             "fld dword ptr [{e} + 0x18]",
             "fld dword ptr [{e} + 0x14]",
             "fld dword ptr [{e} + 0x10]",
-            "fld dword ptr [{b} + 0x1EA2CC]",
+            "fld dword ptr [{rc} + 0x1EA2CC]",
             ".byte 0xD8, 0xC9",
-            "fld dword ptr [{b} + 0x1EA2DC]",
+            "fld dword ptr [{rc} + 0x1EA2DC]",
             ".byte 0xD8, 0xCB",
-            "fld dword ptr [{b} + 0x1EA2EC]",
+            "fld dword ptr [{rc} + 0x1EA2EC]",
             ".byte 0xD8, 0xCD",
             ".byte 0xDE, 0xC1",
             ".byte 0xDE, 0xC1",
-            "fadd dword ptr [{b} + 0x1EA2FC]",
+            "fadd dword ptr [{rc} + 0x1EA2FC]",
             ".byte 0xD9, 0xCB",
-            "fld dword ptr [{b} + 0x1EA2D0]",
+            "fld dword ptr [{rc} + 0x1EA2D0]",
             ".byte 0xD8, 0xCA",
-            "fld dword ptr [{b} + 0x1EA2E0]",
+            "fld dword ptr [{rc} + 0x1EA2E0]",
             ".byte 0xD8, 0xCC",
-            "fld dword ptr [{b} + 0x1EA2F0]",
+            "fld dword ptr [{rc} + 0x1EA2F0]",
             ".byte 0xD8, 0xCB",
             ".byte 0xDE, 0xC1",
             ".byte 0xDE, 0xC1",
-            "fadd dword ptr [{b} + 0x1EA300]",
+            "fadd dword ptr [{rc} + 0x1EA300]",
             ".byte 0xD9, 0xCB",
-            "fld dword ptr [{b} + 0x1EA2D4]",
+            "fld dword ptr [{rc} + 0x1EA2D4]",
             ".byte 0xDE, 0xCB",
-            "fld dword ptr [{b} + 0x1EA2E4]",
+            "fld dword ptr [{rc} + 0x1EA2E4]",
             ".byte 0xDE, 0xC9",
-            "fld dword ptr [{b} + 0x1EA2F4]",
+            "fld dword ptr [{rc} + 0x1EA2F4]",
             ".byte 0xDE, 0xCA",
             ".byte 0xDE, 0xC1",
             ".byte 0xDE, 0xC1",
-            "fadd dword ptr [{b} + 0x1EA304]",
+            "fadd dword ptr [{rc} + 0x1EA304]",
             ".byte 0xD9, 0xCA",
             "fstp dword ptr [{mk} + 0x186995]",
             "fstp dword ptr [{mk} + 0x186999]",
             "fstp dword ptr [{mk} + 0x18699D]",
-            b = in(reg) b,
+            rc = in(reg) crate::race::store::asm_base(),
             mk = in(reg) crate::marks::store::base(),
             e = in(reg) e,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
@@ -240,7 +240,6 @@ unsafe fn refusal() -> Option<&'static str> {
 /// The streak step at e (see the header): whether the entry dies.
 unsafe fn streak(e: u32) -> Result<bool, Refused> {
     unsafe {
-        let b = game_addr(0) as u32;
         let t: u32 = game_read(TICKS_RVA);
         let life = get(e + 0x84);
         put(e + 0x84, life.wrapping_sub(t));
@@ -251,13 +250,13 @@ unsafe fn streak(e: u32) -> Result<bool, Refused> {
             return Ok(true);
         }
         if get(e + 0x10) == 0 {
-            first_frame(b, e);
+            first_frame(e);
         }
         move_on(e);
         game_write(LAST_RVA, get(e + 0x1C));
         game_write(LAST_RVA + 4, get(e + 0x20));
         game_write(LAST_RVA + 8, get(e + 0x24));
-        turn_place(b, e);
+        turn_place(e);
         let s: u32 = game_read(SETTINGS_RVA);
         if get(s + 0xC) != 0 || get(s + 0x10) == 1 {
             put(e + 0x1C, game_read(PLACE_RVA));

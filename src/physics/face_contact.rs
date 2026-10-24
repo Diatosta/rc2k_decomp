@@ -35,7 +35,7 @@ use crate::errors::Refused;
 use crate::math::x87::int_hypot;
 use crate::math::x87_run::compare_80;
 use crate::physics::contact_force::{RECORD, contact_force};
-use crate::physics::flow::{a, base, copy3, fill3, g, negate, p, x87_run};
+use crate::physics::flow::{a, copy3, fill3, g, negate, p, x87_run};
 use crate::physics::point_hits_car::KIND;
 use crate::physics::touch_face::{FACES, touch_face};
 use crate::physics::vector_length::vector_length;
@@ -112,37 +112,37 @@ pub fn steps(number: u32) -> Result<(), Refused> {
     }
     // 0x45E523: inside.
     x87_run!(
-        "fild dword ptr [{b} + 0x2D3B4C]",
-        "fild dword ptr [{b} + 0x2D3B54]",
+        "fild dword ptr [{rc} + 0x2D3B4C]",
+        "fild dword ptr [{rc} + 0x2D3B54]",
         ".byte 0xD9, 0xF3", // fpatan
-        "fmul dword ptr [{b} + 0x1C5E2C]",
-        "fmul dword ptr [{b} + 0x1C5DD4]",
-        "fistp dword ptr [{b} + 0x2D3B70]";
-        b = base()
+        "fmul dword ptr [{rc} + 0x1C5E2C]",
+        "fmul dword ptr [{rc} + 0x1C5DD4]",
+        "fistp dword ptr [{rc} + 0x2D3B70]";
+        rc = crate::race::store::asm_base()
     );
     p(0x6D3B70, g(0x6D3B70).wrapping_add(0x80) & 0xFF);
     x87_run!(
-        "fld dword ptr [{b} + 0x31A170]",
+        "fld dword ptr [{rc} + 0x31A170]",
         ".byte 0xD8, 0xC8", // fmul st, st
-        "fld dword ptr [{b} + 0x31A178]",
+        "fld dword ptr [{rc} + 0x31A178]",
         ".byte 0xD8, 0xC8",
-        "fld dword ptr [{b} + 0x31A174]",
+        "fld dword ptr [{rc} + 0x31A174]",
         ".byte 0xD8, 0xC8",
         ".byte 0xDE, 0xC1", // faddp st(1), st
         ".byte 0xDE, 0xC1",
         ".byte 0xD9, 0xFA", // fsqrt
-        "fmul dword ptr [{b} + 0x1C5D98]",
-        "fistp dword ptr [{b} + 0x2D3B74]",
-        "fild dword ptr [{b} + 0x2D3090]",
-        "fdiv dword ptr [{b} + 0x1C5D98]",
-        "fstp dword ptr [{b} + 0x2D3B58]",
-        "fild dword ptr [{b} + 0x2D3094]",
-        "fdiv dword ptr [{b} + 0x1C5D98]",
-        "fstp dword ptr [{b} + 0x2D3B5C]",
-        "fild dword ptr [{b} + 0x2D3098]",
-        "fdiv dword ptr [{b} + 0x1C5D98]",
-        "fstp dword ptr [{b} + 0x2D3B60]";
-        b = base()
+        "fmul dword ptr [{rc} + 0x1C5D98]",
+        "fistp dword ptr [{rc} + 0x2D3B74]",
+        "fild dword ptr [{rc} + 0x2D3090]",
+        "fdiv dword ptr [{rc} + 0x1C5D98]",
+        "fstp dword ptr [{rc} + 0x2D3B58]",
+        "fild dword ptr [{rc} + 0x2D3094]",
+        "fdiv dword ptr [{rc} + 0x1C5D98]",
+        "fstp dword ptr [{rc} + 0x2D3B5C]",
+        "fild dword ptr [{rc} + 0x2D3098]",
+        "fdiv dword ptr [{rc} + 0x1C5D98]",
+        "fstp dword ptr [{rc} + 0x2D3B60]";
+        rc = crate::race::store::asm_base()
     );
     match contacts::inside(g(KIND)) {
         Inside::PushBack => {}

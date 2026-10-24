@@ -35,194 +35,208 @@ pub fn steps() {
     p(0x75B4A0, g(0x719FE4));
     table_lerp(0x75B398, 0x75B4A8, 0x75B350, 0x75B45C);
     x87_run!(
-        "fld dword ptr [{b} + 0x35B584]", // fld     flt_75B584
-        "fmul dword ptr [{b} + 0x35B3B0]", // fmul    flt_75B3B0
-        "fmul dword ptr [{b} + 0x35B390]", // fmul    flt_75B390
-        "fadd dword ptr [{b} + 0x31A284]", // fadd    dword ptr unk_71A284
-        "fstp dword ptr [{b} + 0x31A284]"; // fstp    dword ptr unk_71A284
-        b = base()
+        "fld dword ptr [{m} + 0x35B584]", // fld     flt_75B584
+        "fmul dword ptr [{m} + 0x35B3B0]", // fmul    flt_75B3B0
+        "fmul dword ptr [{m} + 0x35B390]", // fmul    flt_75B390
+        "fadd dword ptr [{rc} + 0x31A284]", // fadd    dword ptr unk_71A284
+        "fstp dword ptr [{rc} + 0x31A284]";
+        // fstp    dword ptr unk_71A284
+        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
     );
     hold_low(0x71A284, 0x75B350);
     hold_high(0x71A284, 0x75B34C);
     x87_run!(
-        "fld dword ptr [{b} + 0x35B584]", // fld     flt_75B584
-        "fmul dword ptr [{b} + 0x35B3B0]", // fmul    flt_75B3B0
-        "fmul dword ptr [{b} + 0x35B390]", // fmul    flt_75B390
-        "fadd dword ptr [{b} + 0x31A288]", // fadd    dword ptr unk_71A288
-        "fstp dword ptr [{b} + 0x31A288]"; // fstp    dword ptr unk_71A288
-        b = base()
+        "fld dword ptr [{m} + 0x35B584]", // fld     flt_75B584
+        "fmul dword ptr [{m} + 0x35B3B0]", // fmul    flt_75B3B0
+        "fmul dword ptr [{m} + 0x35B390]", // fmul    flt_75B390
+        "fadd dword ptr [{rc} + 0x31A288]", // fadd    dword ptr unk_71A288
+        "fstp dword ptr [{rc} + 0x31A288]";
+        // fstp    dword ptr unk_71A288
+        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
     );
     hold_low(0x71A288, 0x75B350);
     hold_high(0x71A288, 0x75B34C);
     x87_run!(
-        "fld dword ptr [{b} + 0x35B588]", // fld     flt_75B588
-        "fmul dword ptr [{b} + 0x35B390]", // fmul    flt_75B390
+        "fld dword ptr [{m} + 0x35B588]", // fld     flt_75B588
+        "fmul dword ptr [{m} + 0x35B390]", // fmul    flt_75B390
         ".byte 0xD9, 0xE0", // fchs
-        "fadd dword ptr [{b} + 0x31A284]", // fadd    dword ptr unk_71A284
-        "fstp dword ptr [{b} + 0x31A284]"; // fstp    dword ptr unk_71A284
-        b = base()
+        "fadd dword ptr [{rc} + 0x31A284]", // fadd    dword ptr unk_71A284
+        "fstp dword ptr [{rc} + 0x31A284]";
+        // fstp    dword ptr unk_71A284
+        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
     );
     hold_low(0x71A284, 0x75B350);
     hold_high(0x71A284, 0x75B34C);
     x87_run!(
-        "fld dword ptr [{b} + 0x35B588]", // fld     flt_75B588
-        "fmul dword ptr [{b} + 0x35B390]", // fmul    flt_75B390
+        "fld dword ptr [{m} + 0x35B588]", // fld     flt_75B588
+        "fmul dword ptr [{m} + 0x35B390]", // fmul    flt_75B390
         ".byte 0xD9, 0xE0", // fchs
-        "fadd dword ptr [{b} + 0x31A288]", // fadd    dword ptr unk_71A288
-        "fstp dword ptr [{b} + 0x31A288]"; // fstp    dword ptr unk_71A288
-        b = base()
+        "fadd dword ptr [{rc} + 0x31A288]", // fadd    dword ptr unk_71A288
+        "fstp dword ptr [{rc} + 0x31A288]";
+        // fstp    dword ptr unk_71A288
+        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
     );
     hold_low(0x71A288, 0x75B350);
     hold_high(0x71A288, 0x75B34C);
     x87_run!(
-        "fld dword ptr [{b} + 0x35B58C]", // fld     flt_75B58C
-        "fmul dword ptr [{b} + 0x35B3A8]", // fmul    flt_75B3A8
-        "fmul dword ptr [{b} + 0x35B390]", // fmul    flt_75B390
-        "fadd dword ptr [{b} + 0x31A27C]", // fadd    dword ptr unk_71A27C
-        "fstp dword ptr [{b} + 0x31A27C]"; // fstp    dword ptr unk_71A27C
-        b = base()
+        "fld dword ptr [{m} + 0x35B58C]", // fld     flt_75B58C
+        "fmul dword ptr [{m} + 0x35B3A8]", // fmul    flt_75B3A8
+        "fmul dword ptr [{m} + 0x35B390]", // fmul    flt_75B390
+        "fadd dword ptr [{rc} + 0x31A27C]", // fadd    dword ptr unk_71A27C
+        "fstp dword ptr [{rc} + 0x31A27C]";
+        // fstp    dword ptr unk_71A27C
+        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
     );
     hold_low(0x71A27C, 0x75B350);
     hold_high(0x71A27C, 0x75B34C);
     x87_run!(
-        "fld dword ptr [{b} + 0x35B58C]", // fld     flt_75B58C
-        "fmul dword ptr [{b} + 0x35B3AC]", // fmul    flt_75B3AC
-        "fmul dword ptr [{b} + 0x35B390]", // fmul    flt_75B390
-        "fadd dword ptr [{b} + 0x31A280]", // fadd    dword ptr unk_71A280
-        "fstp dword ptr [{b} + 0x31A280]"; // fstp    dword ptr unk_71A280
-        b = base()
+        "fld dword ptr [{m} + 0x35B58C]", // fld     flt_75B58C
+        "fmul dword ptr [{m} + 0x35B3AC]", // fmul    flt_75B3AC
+        "fmul dword ptr [{m} + 0x35B390]", // fmul    flt_75B390
+        "fadd dword ptr [{rc} + 0x31A280]", // fadd    dword ptr unk_71A280
+        "fstp dword ptr [{rc} + 0x31A280]";
+        // fstp    dword ptr unk_71A280
+        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
     );
     hold_low(0x71A280, 0x75B350);
     hold_high(0x71A280, 0x75B34C);
     x87_run!(
-        "fld dword ptr [{b} + 0x35B590]", // fld     flt_75B590
-        "fmul dword ptr [{b} + 0x35B390]", // fmul    flt_75B390
+        "fld dword ptr [{m} + 0x35B590]", // fld     flt_75B590
+        "fmul dword ptr [{m} + 0x35B390]", // fmul    flt_75B390
         ".byte 0xD9, 0xE0", // fchs
-        "fadd dword ptr [{b} + 0x31A27C]", // fadd    dword ptr unk_71A27C
-        "fstp dword ptr [{b} + 0x31A27C]"; // fstp    dword ptr unk_71A27C
-        b = base()
+        "fadd dword ptr [{rc} + 0x31A27C]", // fadd    dword ptr unk_71A27C
+        "fstp dword ptr [{rc} + 0x31A27C]";
+        // fstp    dword ptr unk_71A27C
+        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
     );
     hold_low(0x71A27C, 0x75B350);
     hold_high(0x71A27C, 0x75B34C);
     x87_run!(
-        "fld dword ptr [{b} + 0x35B590]", // fld     flt_75B590
-        "fmul dword ptr [{b} + 0x35B390]", // fmul    flt_75B390
+        "fld dword ptr [{m} + 0x35B590]", // fld     flt_75B590
+        "fmul dword ptr [{m} + 0x35B390]", // fmul    flt_75B390
         ".byte 0xD9, 0xE0", // fchs
-        "fadd dword ptr [{b} + 0x31A280]", // fadd    dword ptr unk_71A280
-        "fstp dword ptr [{b} + 0x31A280]"; // fstp    dword ptr unk_71A280
-        b = base()
+        "fadd dword ptr [{rc} + 0x31A280]", // fadd    dword ptr unk_71A280
+        "fstp dword ptr [{rc} + 0x31A280]";
+        // fstp    dword ptr unk_71A280
+        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
     );
     hold_low(0x71A280, 0x75B350);
     hold_high(0x71A280, 0x75B34C);
     x87_run!(
-        "fld dword ptr [{b} + 0x35B594]", // fld     flt_75B594
-        "fmul dword ptr [{b} + 0x35B3B4]", // fmul    flt_75B3B4
-        "fmul dword ptr [{b} + 0x35B390]", // fmul    flt_75B390
-        "fadd dword ptr [{b} + 0x31A278]", // fadd    dword ptr unk_71A278
-        "fstp dword ptr [{b} + 0x31A278]"; // fstp    dword ptr unk_71A278
-        b = base()
+        "fld dword ptr [{m} + 0x35B594]", // fld     flt_75B594
+        "fmul dword ptr [{m} + 0x35B3B4]", // fmul    flt_75B3B4
+        "fmul dword ptr [{m} + 0x35B390]", // fmul    flt_75B390
+        "fadd dword ptr [{rc} + 0x31A278]", // fadd    dword ptr unk_71A278
+        "fstp dword ptr [{rc} + 0x31A278]";
+        // fstp    dword ptr unk_71A278
+        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
     );
     hold_low(0x71A278, 0x75B350);
     hold_high(0x71A278, 0x75B34C);
     x87_run!(
-        "fld dword ptr [{b} + 0x35B598]", // fld     flt_75B598
-        "fmul dword ptr [{b} + 0x35B390]", // fmul    flt_75B390
+        "fld dword ptr [{m} + 0x35B598]", // fld     flt_75B598
+        "fmul dword ptr [{m} + 0x35B390]", // fmul    flt_75B390
         ".byte 0xD9, 0xE0", // fchs
-        "fadd dword ptr [{b} + 0x31A278]", // fadd    dword ptr unk_71A278
-        "fstp dword ptr [{b} + 0x31A278]"; // fstp    dword ptr unk_71A278
-        b = base()
+        "fadd dword ptr [{rc} + 0x31A278]", // fadd    dword ptr unk_71A278
+        "fstp dword ptr [{rc} + 0x31A278]";
+        // fstp    dword ptr unk_71A278
+        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
     );
     hold_low(0x71A278, 0x75B350);
     hold_high(0x71A278, 0x75B34C);
     x87_run!(
-        "fld dword ptr [{b} + 0x35B59C]", // fld     flt_75B59C
-        "fmul dword ptr [{b} + 0x35B3B0]", // fmul    flt_75B3B0
-        "fmul dword ptr [{b} + 0x35B390]", // fmul    flt_75B390
+        "fld dword ptr [{m} + 0x35B59C]", // fld     flt_75B59C
+        "fmul dword ptr [{m} + 0x35B3B0]", // fmul    flt_75B3B0
+        "fmul dword ptr [{m} + 0x35B390]", // fmul    flt_75B390
         ".byte 0xD9, 0xE0", // fchs
-        "fadd dword ptr [{b} + 0x31A278]", // fadd    dword ptr unk_71A278
-        "fstp dword ptr [{b} + 0x31A278]"; // fstp    dword ptr unk_71A278
-        b = base()
+        "fadd dword ptr [{rc} + 0x31A278]", // fadd    dword ptr unk_71A278
+        "fstp dword ptr [{rc} + 0x31A278]";
+        // fstp    dword ptr unk_71A278
+        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
     );
     hold_low(0x71A278, 0x75B350);
     hold_high(0x71A278, 0x75B34C);
     table_lerp(0x71A29C, 0x75B4B8, 0x75B350, 0x75B460);
     x87_run!(
-        "fld dword ptr [{b} + 0x35B398]", // fld     flt_75B398
-        "fsub dword ptr [{b} + 0x35B460]", // fsub    flt_75B460
-        "fstp dword ptr [{b} + 0x35B464]"; // fstp    flt_75B464
-        b = base()
+        "fld dword ptr [{m} + 0x35B398]", // fld     flt_75B398
+        "fsub dword ptr [{m} + 0x35B460]", // fsub    flt_75B460
+        "fstp dword ptr [{m} + 0x35B464]"; // fstp    flt_75B464
+        m = crate::physics::store::asm_base()
     );
     hold_low(0x75B464, 0x75B350);
     x87_run!(
-        "fld dword ptr [{b} + 0x35B578]", // fld     flt_75B578
-        "fmul dword ptr [{b} + 0x35B464]", // fmul    flt_75B464
-        "fmul dword ptr [{b} + 0x35B390]", // fmul    flt_75B390
-        "fadd dword ptr [{b} + 0x31A28C]", // fadd    dword ptr unk_71A28C
-        "fstp dword ptr [{b} + 0x31A28C]"; // fstp    dword ptr unk_71A28C
-        b = base()
+        "fld dword ptr [{m} + 0x35B578]", // fld     flt_75B578
+        "fmul dword ptr [{m} + 0x35B464]", // fmul    flt_75B464
+        "fmul dword ptr [{m} + 0x35B390]", // fmul    flt_75B390
+        "fadd dword ptr [{rc} + 0x31A28C]", // fadd    dword ptr unk_71A28C
+        "fstp dword ptr [{rc} + 0x31A28C]";
+        // fstp    dword ptr unk_71A28C
+        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
     );
     hold_low(0x71A28C, 0x75B350);
     hold_high(0x71A28C, 0x75B34C);
     x87_run!(
-        "fld dword ptr [{b} + 0x35B57C]", // fld     flt_75B57C
-        "fmul dword ptr [{b} + 0x35B390]", // fmul    flt_75B390
+        "fld dword ptr [{m} + 0x35B57C]", // fld     flt_75B57C
+        "fmul dword ptr [{m} + 0x35B390]", // fmul    flt_75B390
         ".byte 0xD9, 0xE0", // fchs
-        "fadd dword ptr [{b} + 0x31A28C]", // fadd    dword ptr unk_71A28C
-        "fstp dword ptr [{b} + 0x31A28C]"; // fstp    dword ptr unk_71A28C
-        b = base()
+        "fadd dword ptr [{rc} + 0x31A28C]", // fadd    dword ptr unk_71A28C
+        "fstp dword ptr [{rc} + 0x31A28C]";
+        // fstp    dword ptr unk_71A28C
+        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
     );
     hold_low(0x71A28C, 0x75B350);
     hold_high(0x71A28C, 0x75B34C);
     x87_run!(
-        "fld dword ptr [{b} + 0x35B580]", // fld     flt_75B580
-        "fmul dword ptr [{b} + 0x35B39C]", // fmul    flt_75B39C
-        "fmul dword ptr [{b} + 0x35B390]", // fmul    flt_75B390
+        "fld dword ptr [{m} + 0x35B580]", // fld     flt_75B580
+        "fmul dword ptr [{m} + 0x35B39C]", // fmul    flt_75B39C
+        "fmul dword ptr [{m} + 0x35B390]", // fmul    flt_75B390
         ".byte 0xD9, 0xE0", // fchs
-        "fadd dword ptr [{b} + 0x31A28C]", // fadd    dword ptr unk_71A28C
-        "fstp dword ptr [{b} + 0x31A28C]"; // fstp    dword ptr unk_71A28C
-        b = base()
+        "fadd dword ptr [{rc} + 0x31A28C]", // fadd    dword ptr unk_71A28C
+        "fstp dword ptr [{rc} + 0x31A28C]";
+        // fstp    dword ptr unk_71A28C
+        m = crate::physics::store::asm_base(), rc = crate::race::store::asm_base()
     );
     hold_low(0x71A28C, 0x75B350);
     hold_high(0x71A28C, 0x75B34C);
     table_lerp(0x71A430, 0x75B660, 0x75B350, 0x75B44C);
     x87_run!(
-        "fld dword ptr [{b} + 0x35B44C]", // fld     flt_75B44C
+        "fld dword ptr [{m} + 0x35B44C]", // fld     flt_75B44C
         ".byte 0xD8, 0xC8", // fmul    st, st
-        "fstp dword ptr [{b} + 0x35B44C]"; // fstp    flt_75B44C
-        b = base()
+        "fstp dword ptr [{m} + 0x35B44C]"; // fstp    flt_75B44C
+        m = crate::physics::store::asm_base()
     );
     table_lerp(0x71A430, 0x75B640, 0x75B350, 0x75B448);
     x87_run!(
-        "fld dword ptr [{b} + 0x35B448]", // fld     flt_75B448
+        "fld dword ptr [{m} + 0x35B448]", // fld     flt_75B448
         ".byte 0xD8, 0xC8", // fmul    st, st
-        "fstp dword ptr [{b} + 0x35B448]"; // fstp    flt_75B448
-        b = base()
+        "fstp dword ptr [{m} + 0x35B448]"; // fstp    flt_75B448
+        m = crate::physics::store::asm_base()
     );
     table_lerp(0x71A434, 0x75B650, 0x75B350, 0x75B468);
     x87_run!(
-        "fld dword ptr [{b} + 0x35B468]", // fld     flt_75B468
+        "fld dword ptr [{m} + 0x35B468]", // fld     flt_75B468
         ".byte 0xD8, 0xC8", // fmul    st, st
-        "fstp dword ptr [{b} + 0x35B468]"; // fstp    flt_75B468
-        b = base()
+        "fstp dword ptr [{m} + 0x35B468]"; // fstp    flt_75B468
+        m = crate::physics::store::asm_base()
     );
     table_lerp(0x75B3A0, 0x75B4D8, 0x75B350, 0x75B46C);
     table_lerp(0x75B3A4, 0x75B4D8, 0x75B350, 0x75B470);
     x87_run!(
-        "fld dword ptr [{b} + 0x35B3E0]", // fld     flt_75B3E0
-        "fmul dword ptr [{b} + 0x35B39C]", // fmul    flt_75B39C
-        "fmul dword ptr [{b} + 0x35B6F8]", // fmul    flt_75B6F8
-        "fmul dword ptr [{b} + 0x35B44C]", // fmul    flt_75B44C
-        "fmul dword ptr [{b} + 0x35B468]", // fmul    flt_75B468
-        "fmul dword ptr [{b} + 0x35B3F4]", // fmul    flt_75B3F4
-        "fstp dword ptr [{b} + 0x35B454]", // fstp    flt_75B454
-        "fld dword ptr [{b} + 0x35B3E0]", // fld     flt_75B3E0
-        "fmul dword ptr [{b} + 0x35B39C]", // fmul    flt_75B39C
-        "fmul dword ptr [{b} + 0x35B6F8]", // fmul    flt_75B6F8
-        "fmul dword ptr [{b} + 0x35B3F4]", // fmul    flt_75B3F4
-        "fst dword ptr [{b} + 0x35B450]", // fst     flt_75B450
-        "fmul dword ptr [{b} + 0x35B448]", // fmul    flt_75B448
-        "fstp dword ptr [{b} + 0x35B458]"; // fstp    flt_75B458
-        b = base()
+        "fld dword ptr [{m} + 0x35B3E0]", // fld     flt_75B3E0
+        "fmul dword ptr [{m} + 0x35B39C]", // fmul    flt_75B39C
+        "fmul dword ptr [{m} + 0x35B6F8]", // fmul    flt_75B6F8
+        "fmul dword ptr [{m} + 0x35B44C]", // fmul    flt_75B44C
+        "fmul dword ptr [{m} + 0x35B468]", // fmul    flt_75B468
+        "fmul dword ptr [{m} + 0x35B3F4]", // fmul    flt_75B3F4
+        "fstp dword ptr [{m} + 0x35B454]", // fstp    flt_75B454
+        "fld dword ptr [{m} + 0x35B3E0]", // fld     flt_75B3E0
+        "fmul dword ptr [{m} + 0x35B39C]", // fmul    flt_75B39C
+        "fmul dword ptr [{m} + 0x35B6F8]", // fmul    flt_75B6F8
+        "fmul dword ptr [{m} + 0x35B3F4]", // fmul    flt_75B3F4
+        "fst dword ptr [{m} + 0x35B450]", // fst     flt_75B450
+        "fmul dword ptr [{m} + 0x35B448]", // fmul    flt_75B448
+        "fstp dword ptr [{m} + 0x35B458]"; // fstp    flt_75B458
+        m = crate::physics::store::asm_base()
     );
     // 0x4AC7C9: two figures of the table `dword_75B73C` (row `dword_75B3E8`, columns
     // from `dword_75B8C0` by `dword_75B3EC` & 0xF, then from `dword_75B8C4` by that
@@ -239,14 +253,14 @@ pub fn steps() {
     x87_run!(
         "fild dword ptr [{f}]",
         ".byte 0xD9, 0xE8", // fld1
-        "fsub dword ptr [{b} + 0x35B3F0]",
+        "fsub dword ptr [{m} + 0x35B3F0]",
         ".byte 0xDE, 0xC9", // fmulp st(1), st
         "fild dword ptr [{s}]",
-        "fld dword ptr [{b} + 0x35B3F0]",
+        "fld dword ptr [{m} + 0x35B3F0]",
         ".byte 0xDE, 0xC9", // fmulp st(1), st
         ".byte 0xDE, 0xC1", // faddp st(1), st
-        "fmul dword ptr [{b} + 0x35B8BC]",
-        "fstp dword ptr [{b} + 0x35B484]";
-        b = base(), f = first, s = second
+        "fmul dword ptr [{m} + 0x35B8BC]",
+        "fstp dword ptr [{m} + 0x35B484]";
+        m = crate::physics::store::asm_base(), f = first, s = second
     );
 }

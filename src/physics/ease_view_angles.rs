@@ -15,7 +15,7 @@
 //! above are the original's, for reference.
 
 use crate::physics::camera_view::{rd, record, share_done};
-use crate::physics::flow::{base, g, p, x87_run};
+use crate::physics::flow::{g, p, x87_run};
 
 /// The Rust version (the exact one, for `physics::update_camera`).
 pub unsafe fn ease_view_angles() {
@@ -27,10 +27,10 @@ pub unsafe fn ease_view_angles() {
     for (k, to) in [0x71A694usize, 0x71A698, 0x71A69C].iter().enumerate() {
         x87_run!(
             "fld dword ptr [{s}]",
-            "fmul dword ptr [{b} + 0x205260]",
-            "fmul dword ptr [{b} + 0x1C5D98]",
-            "fistp dword ptr [{b} + 0x22400C]";
-            b = base(), s = esi + 0x40 + 4 * k as u32
+            "fmul dword ptr [{rc} + 0x205260]",
+            "fmul dword ptr [{rc} + 0x1C5D98]",
+            "fistp dword ptr [{rc} + 0x22400C]";
+            s = esi + 0x40 + 4 * k as u32, rc = crate::race::store::asm_base()
         );
         p(*to, g(*to).wrapping_add(g(0x62400C) << 16));
     }

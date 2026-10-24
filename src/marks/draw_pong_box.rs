@@ -149,16 +149,16 @@ unsafe fn corners(v: &[[u8; 10]; 4]) {
 }
 
 /// The original's 0x4B87A5 .. 0x4B88A9: the corners projected, their depth.
-unsafe fn projected(b: u32, p: u32) {
+unsafe fn projected(p: u32) {
     unsafe {
         core::arch::asm!(
-            "fld dword ptr [{b} + 0x224088]",
+            "fld dword ptr [{rc} + 0x224088]",
             "fdiv dword ptr [{mk} + 0x13807E]",
-            "fld dword ptr [{b} + 0x224088]",
+            "fld dword ptr [{rc} + 0x224088]",
             "fdiv dword ptr [{mk} + 0x138072]",
-            "fld dword ptr [{b} + 0x224088]",
+            "fld dword ptr [{rc} + 0x224088]",
             "fdiv dword ptr [{mk} + 0x138066]",
-            "fld dword ptr [{b} + 0x224088]",
+            "fld dword ptr [{rc} + 0x224088]",
             "fdiv dword ptr [{mk} + 0x13805A]",
             "fld dword ptr [{mk} + 0x138056]",
             ".byte 0xD8, 0xC9",
@@ -166,9 +166,9 @@ unsafe fn projected(b: u32, p: u32) {
             "fmul dword ptr [{mk} + 0x138052]",
             ".byte 0xD9, 0xC9",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fstp dword ptr [{p} + 0x4]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fstp dword ptr [{p} + 0x0]",
             "fld dword ptr [{mk} + 0x138062]",
             ".byte 0xD8, 0xC9",
@@ -176,9 +176,9 @@ unsafe fn projected(b: u32, p: u32) {
             "fmul dword ptr [{mk} + 0x13805E]",
             ".byte 0xD9, 0xC9",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fstp dword ptr [{p} + 0x24]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fstp dword ptr [{p} + 0x20]",
             "fld dword ptr [{mk} + 0x13806E]",
             ".byte 0xD8, 0xC9",
@@ -186,9 +186,9 @@ unsafe fn projected(b: u32, p: u32) {
             "fmul dword ptr [{mk} + 0x13806A]",
             ".byte 0xD9, 0xC9",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fstp dword ptr [{p} + 0x44]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fstp dword ptr [{p} + 0x40]",
             "fld dword ptr [{mk} + 0x13807A]",
             ".byte 0xD8, 0xC9",
@@ -196,9 +196,9 @@ unsafe fn projected(b: u32, p: u32) {
             "fmul dword ptr [{mk} + 0x138076]",
             ".byte 0xD9, 0xC9",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fstp dword ptr [{p} + 0x64]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fstp dword ptr [{p} + 0x60]",
             "fld dword ptr [{mk} + 0x13805A]",
             "fmul dword ptr [{mk} + 0x137FAA]",
@@ -212,7 +212,7 @@ unsafe fn projected(b: u32, p: u32) {
             "fstp dword ptr [{p} + 0x48]",
             "fstp dword ptr [{p} + 0x28]",
             "fstp dword ptr [{p} + 0x8]",
-            b = in(reg) b,
+            rc = in(reg) crate::race::store::asm_base(),
             mk = in(reg) crate::marks::store::base(),
             p = in(reg) p,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
@@ -225,7 +225,6 @@ unsafe fn projected(b: u32, p: u32) {
 /// The Rust version (see the header).
 pub unsafe fn draw_pong_box(v: [[u8; 10]; 4]) {
     unsafe {
-        let b = game_addr(0) as u32;
         sides(&v);
         let [pa, pb, pc, pd]: [u32; 4] = game_read(PLACES_RVA);
         for (n, (u, w)) in [(pa, pb), (pc, pb), (pc, pd), (pa, pd)]
@@ -239,7 +238,7 @@ pub unsafe fn draw_pong_box(v: [[u8; 10]; 4]) {
         if x87::compare_status(game_read(CORNERS_RVA + 8), game_read(NEAR_RVA)) == 0x100 {
             return;
         }
-        projected(b, game_addr(VERTICES_RVA) as u32);
+        projected(game_addr(VERTICES_RVA) as u32);
         for n in 0..4 {
             game_write(VERTICES_RVA + 0x20 * n + 0x10, 0xFFFF_FFFFu32);
         }

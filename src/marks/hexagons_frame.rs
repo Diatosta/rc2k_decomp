@@ -148,11 +148,11 @@ unsafe fn sprite_depth() {
 }
 
 /// The original's 0x4BB9CE .. 0x4BBB1E: the six corners (the kind's offsets at `flt_814CFE`[c] ..) into `flt_814CB6` .., the depth's inverse kept.
-unsafe fn sprite_corners(b: u32, c: u32) {
+unsafe fn sprite_corners(c: u32) {
     unsafe {
         core::arch::asm!(
             "fld dword ptr [{mk} + 0xAFD72]",
-            "fdivr dword ptr [{b} + 0x224088]",
+            "fdivr dword ptr [{rc} + 0x224088]",
             "fld dword ptr [{mk} + 0xAFD6A]",
             "fadd dword ptr [{mk} + {c} + 0xAFDBE]",
             "fstp dword ptr [{mk} + 0xAFD76]",
@@ -207,7 +207,7 @@ unsafe fn sprite_corners(b: u32, c: u32) {
             "fld dword ptr [{mk} + 0xAFD72]",
             "fadd dword ptr [{mk} + {c} + 0xAFE02]",
             "fstp dword ptr [{mk} + 0xAFDBA]",
-            b = in(reg) b,
+            rc = in(reg) crate::race::store::asm_base(),
             mk = in(reg) crate::marks::store::base(),
             c = in(reg) c,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
@@ -218,7 +218,7 @@ unsafe fn sprite_corners(b: u32, c: u32) {
 }
 
 /// The original's 0x4BBB24 .. 0x4BBE28: the centre and corners projected into the buffer at e (six vertices), drawn in by `flt_81619A` / `E`, their depth.
-unsafe fn sprite_project(b: u32, e: u32) {
+unsafe fn sprite_project(e: u32) {
     unsafe {
         core::arch::asm!(
             "fstp dword ptr [{mk} + 0xAFD72]",
@@ -227,19 +227,19 @@ unsafe fn sprite_project(b: u32, e: u32) {
             ".byte 0xD9, 0xE0",
             "fld dword ptr [{mk} + 0xAFD6A]",
             "fmul dword ptr [{mk} + 0xAFD72]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fstp dword ptr [{mk} + 0xAFD6A]",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fstp dword ptr [{mk} + 0xAFD6E]",
             "fld dword ptr [{mk} + 0xAFD76]",
             "fmul dword ptr [{mk} + 0xAFD72]",
             "fld dword ptr [{mk} + 0xAFD7A]",
             "fmul dword ptr [{mk} + 0xAFD72]",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fst dword ptr [{e} + 0x1C]",
             "fstp dword ptr [{e} + 0x4]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fst dword ptr [{e} + 0x18]",
             "fstp dword ptr [{e} + 0x0]",
             "fld dword ptr [{mk} + 0xAFD82]",
@@ -247,10 +247,10 @@ unsafe fn sprite_project(b: u32, e: u32) {
             "fld dword ptr [{mk} + 0xAFD86]",
             "fmul dword ptr [{mk} + 0xAFD72]",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fst dword ptr [{e} + 0x3C]",
             "fstp dword ptr [{e} + 0x24]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fst dword ptr [{e} + 0x38]",
             "fstp dword ptr [{e} + 0x20]",
             "fld dword ptr [{mk} + 0xAFD8E]",
@@ -258,10 +258,10 @@ unsafe fn sprite_project(b: u32, e: u32) {
             "fld dword ptr [{mk} + 0xAFD92]",
             "fmul dword ptr [{mk} + 0xAFD72]",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fst dword ptr [{e} + 0x5C]",
             "fstp dword ptr [{e} + 0x44]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fst dword ptr [{e} + 0x58]",
             "fstp dword ptr [{e} + 0x40]",
             "fld dword ptr [{mk} + 0xAFD9A]",
@@ -269,10 +269,10 @@ unsafe fn sprite_project(b: u32, e: u32) {
             "fld dword ptr [{mk} + 0xAFD9E]",
             "fmul dword ptr [{mk} + 0xAFD72]",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fst dword ptr [{e} + 0x7C]",
             "fstp dword ptr [{e} + 0x64]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fst dword ptr [{e} + 0x78]",
             "fstp dword ptr [{e} + 0x60]",
             "fld dword ptr [{mk} + 0xAFDA6]",
@@ -280,10 +280,10 @@ unsafe fn sprite_project(b: u32, e: u32) {
             "fld dword ptr [{mk} + 0xAFDAA]",
             "fmul dword ptr [{mk} + 0xAFD72]",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fst dword ptr [{e} + 0x9C]",
             "fstp dword ptr [{e} + 0x84]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fst dword ptr [{e} + 0x98]",
             "fstp dword ptr [{e} + 0x80]",
             "fld dword ptr [{mk} + 0xAFDB2]",
@@ -291,10 +291,10 @@ unsafe fn sprite_project(b: u32, e: u32) {
             "fld dword ptr [{mk} + 0xAFDB6]",
             "fmul dword ptr [{mk} + 0xAFD72]",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fst dword ptr [{e} + 0xBC]",
             "fstp dword ptr [{e} + 0xA4]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fst dword ptr [{e} + 0xB8]",
             "fstp dword ptr [{e} + 0xA0]",
             "fld dword ptr [{mk} + 0xAFD6A]",
@@ -373,7 +373,7 @@ unsafe fn sprite_project(b: u32, e: u32) {
             "fst dword ptr [{e} + 0x68]",
             "fst dword ptr [{e} + 0x88]",
             "fstp dword ptr [{e} + 0xA8]",
-            b = in(reg) b,
+            rc = in(reg) crate::race::store::asm_base(),
             mk = in(reg) crate::marks::store::base(),
             e = in(reg) e,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
@@ -410,7 +410,6 @@ pub unsafe fn hexagons_frame() -> Result<(), Refused> {
         return Err(BadInput(why).into());
     }
     unsafe {
-        let b = game_addr(0) as u32;
         if game_read::<u32>(DRIFTING_RVA) != 0 {
             crate::marks::hexagons_drift::hexagons_drift()?;
         }
@@ -447,8 +446,8 @@ pub unsafe fn hexagons_frame() -> Result<(), Refused> {
             if game_read::<i32>(DEPTH_RVA) < 0x4580_0000 {
                 continue;
             }
-            sprite_corners(b, shape.wrapping_mul(0x48));
-            sprite_project(b, game_read(BUFFER_RVA));
+            sprite_corners(shape.wrapping_mul(0x48));
+            sprite_project(game_read(BUFFER_RVA));
             let next = game_read::<u32>(BUFFER_RVA).wrapping_add(0xC0);
             game_write(BUFFER_RVA, next);
             if next as usize == game_addr(BUFFER_START) + BUFFER_BYTES {

@@ -48,7 +48,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::loaded;
 use crate::physics as ph;
-use crate::physics::flow::{a, base, g, hold_high, hold_low, negate, p, x87_run};
+use crate::physics::flow::{a, g, hold_high, hold_low, negate, p, x87_run};
 use crate::scene::matrix3::rounded;
 
 /// The motion: moved, spun, levered, the inverse matrix, the angles.
@@ -188,14 +188,14 @@ pub fn steps() -> Result<(), Refused> {
         ph::turn_wheel_angles::turn_wheel_angles();
     }
     x87_run!(
-        "fld dword ptr [{b} + 0x31A190]",
-        "fadd dword ptr [{b} + 0x31A194]",
-        "fmul dword ptr [{b} + 0x1C5E40]",
-        "fstp dword ptr [{b} + 0x31A198]",
-        "fld dword ptr [{b} + 0x31A174]",
-        "fsub dword ptr [{b} + 0x214138]",
-        "fstp dword ptr [{b} + 0x31A8E4]";
-        b = base()
+        "fld dword ptr [{rc} + 0x31A190]",
+        "fadd dword ptr [{rc} + 0x31A194]",
+        "fmul dword ptr [{rc} + 0x1C5E40]",
+        "fstp dword ptr [{rc} + 0x31A198]",
+        "fld dword ptr [{rc} + 0x31A174]",
+        "fsub dword ptr [{rc} + 0x214138]",
+        "fstp dword ptr [{rc} + 0x31A8E4]";
+        rc = crate::race::store::asm_base()
     );
     unsafe { ph::store_motion_length::store_motion_length() };
     ph::damage_step::damage_step();

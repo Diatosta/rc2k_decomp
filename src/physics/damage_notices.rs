@@ -27,7 +27,7 @@ use crate::physics::queue_notice::queue_notice;
 use rc2k_core::physics::damage_notices::{LEVELS, damage_notices as damage_notices_core};
 
 /// `flt_75B36C`: the threshold being compared.
-const LIMIT: usize = 0x75B36C;
+const LIMIT: crate::physics::store::vars::Slot = crate::physics::store::vars::Slot::at(0x75B36C); // flt_75B36C
 
 const LEVELS_AT: usize = 0x71A340; // unk_71A340: the levels
 const GAUGES_AT: usize = 0x71A284; // unk_71A284: the gauges

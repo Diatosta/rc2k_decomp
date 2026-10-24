@@ -21,11 +21,12 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::framework::rva;
 use crate::race::mud::MUD_RVA;
 use crate::race::mud_texel::mud_texel;
 use crate::race::put_mud_texel::put_mud_texel;
 use crate::race::tint_to_mud_colour::tint_to_mud_colour;
+use crate::store::{game_read, game_write};
 
 pub const TEXTURE_RVA: usize = rva(0x623D5C); // dword_623D5C: the mud texture worked on
 pub const STRENGTH_RVA: usize = rva(0x62400C); // dword_62400C, a scratch

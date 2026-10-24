@@ -136,16 +136,16 @@ unsafe fn corners(v: &[[u8; 10]; 2]) {
 }
 
 /// The original's 0x4BF9BA .. 0x4BFAD6: the corners projected, their depth.
-unsafe fn projected(b: u32, p: u32) {
+unsafe fn projected(p: u32) {
     unsafe {
         core::arch::asm!(
-            "fld dword ptr [{b} + 0x224088]",
+            "fld dword ptr [{rc} + 0x224088]",
             "fdiv dword ptr [{mk} + 0x13807E]",
-            "fld dword ptr [{b} + 0x224088]",
+            "fld dword ptr [{rc} + 0x224088]",
             "fdiv dword ptr [{mk} + 0x138072]",
-            "fld dword ptr [{b} + 0x224088]",
+            "fld dword ptr [{rc} + 0x224088]",
             "fdiv dword ptr [{mk} + 0x138066]",
-            "fld dword ptr [{b} + 0x224088]",
+            "fld dword ptr [{rc} + 0x224088]",
             "fdiv dword ptr [{mk} + 0x13805A]",
             "fld dword ptr [{mk} + 0x138056]",
             ".byte 0xD8, 0xC9",
@@ -153,9 +153,9 @@ unsafe fn projected(b: u32, p: u32) {
             "fmul dword ptr [{mk} + 0x138052]",
             ".byte 0xD9, 0xC9",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fstp dword ptr [{p} + 0x4]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fstp dword ptr [{p} + 0x0]",
             "fld dword ptr [{mk} + 0x138062]",
             ".byte 0xD8, 0xC9",
@@ -163,9 +163,9 @@ unsafe fn projected(b: u32, p: u32) {
             "fmul dword ptr [{mk} + 0x13805E]",
             ".byte 0xD9, 0xC9",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fstp dword ptr [{p} + 0x24]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fstp dword ptr [{p} + 0x20]",
             "fld dword ptr [{mk} + 0x13806E]",
             ".byte 0xD8, 0xC9",
@@ -173,9 +173,9 @@ unsafe fn projected(b: u32, p: u32) {
             "fmul dword ptr [{mk} + 0x13806A]",
             ".byte 0xD9, 0xC9",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fstp dword ptr [{p} + 0x44]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fstp dword ptr [{p} + 0x40]",
             "fld dword ptr [{mk} + 0x13807A]",
             ".byte 0xD8, 0xC9",
@@ -183,9 +183,9 @@ unsafe fn projected(b: u32, p: u32) {
             "fmul dword ptr [{mk} + 0x138076]",
             ".byte 0xD9, 0xC9",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fstp dword ptr [{p} + 0x64]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fstp dword ptr [{p} + 0x60]",
             "fld dword ptr [{mk} + 0x13805A]",
             "fadd dword ptr [{mk} + 0x35C]",
@@ -203,7 +203,7 @@ unsafe fn projected(b: u32, p: u32) {
             "fstp dword ptr [{p} + 0x48]",
             "fstp dword ptr [{p} + 0x28]",
             "fstp dword ptr [{p} + 0x8]",
-            b = in(reg) b,
+            rc = in(reg) crate::race::store::asm_base(),
             mk = in(reg) crate::marks::store::base(),
             p = in(reg) p,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
@@ -216,7 +216,6 @@ unsafe fn projected(b: u32, p: u32) {
 /// The Rust version (see the header): `item` (esi), `colour` (edx).
 pub unsafe fn draw_square(item: u32, colour: u32, shares: [[u8; 10]; 2]) {
     unsafe {
-        let b = game_addr(0) as u32;
         let vertices = game_addr(VERTICES_RVA) as u32;
         let [a, pb, c, d]: [u32; 4] = game_read(PLACES_RVA);
         for (n, (u, v)) in [(a, pb), (c, pb), (c, d), (a, d)].into_iter().enumerate() {
@@ -228,7 +227,7 @@ pub unsafe fn draw_square(item: u32, colour: u32, shares: [[u8; 10]; 2]) {
         if game_read::<i32>(CORNERS_RVA + 8) <= FAR_ENOUGH {
             return;
         }
-        projected(b, vertices);
+        projected(vertices);
         for n in 0..4 {
             game_write(VERTICES_RVA + 0x20 * n + 0x10, colour);
         }

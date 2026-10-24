@@ -65,7 +65,7 @@ pub struct Shadow {
     second_turned: unsafe fn(u32, u32),
     corners_block: unsafe fn(),
     corners_in: unsafe fn(),
-    projected: unsafe fn(u32),
+    projected: unsafe fn(),
 }
 
 /// `draw_shadow`'s.
@@ -401,50 +401,50 @@ unsafe fn corners_in() {
 }
 
 /// The original's 0x4C8A4A .. 0x4C8B1A: the four corners projected.
-unsafe fn projected(b: u32) {
+unsafe fn projected() {
     unsafe {
         core::arch::asm!(
-            "fld dword ptr [{b} + 0x224088]",
+            "fld dword ptr [{rc} + 0x224088]",
             "fdiv dword ptr [{mk} + 0x1CF060]",
             ".byte 0xD9, 0xC0",
             "fmul dword ptr [{mk} + 0x1CF058]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fstp dword ptr [{mk} + 0x1CF058]",
             "fmul dword ptr [{mk} + 0x1CF05C]",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fstp dword ptr [{mk} + 0x1CF05C]",
-            "fld dword ptr [{b} + 0x224088]",
+            "fld dword ptr [{rc} + 0x224088]",
             "fdiv dword ptr [{mk} + 0x1CF06C]",
             ".byte 0xD9, 0xC0",
             "fmul dword ptr [{mk} + 0x1CF064]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fstp dword ptr [{mk} + 0x1CF064]",
             "fmul dword ptr [{mk} + 0x1CF068]",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fstp dword ptr [{mk} + 0x1CF068]",
-            "fld dword ptr [{b} + 0x224088]",
+            "fld dword ptr [{rc} + 0x224088]",
             "fdiv dword ptr [{mk} + 0x1CF078]",
             ".byte 0xD9, 0xC0",
             "fmul dword ptr [{mk} + 0x1CF070]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fstp dword ptr [{mk} + 0x1CF070]",
             "fmul dword ptr [{mk} + 0x1CF074]",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fstp dword ptr [{mk} + 0x1CF074]",
-            "fld dword ptr [{b} + 0x224088]",
+            "fld dword ptr [{rc} + 0x224088]",
             "fdiv dword ptr [{mk} + 0x1CF084]",
             ".byte 0xD9, 0xC0",
             "fmul dword ptr [{mk} + 0x1CF07C]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fstp dword ptr [{mk} + 0x1CF07C]",
             "fmul dword ptr [{mk} + 0x1CF080]",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fstp dword ptr [{mk} + 0x1CF080]",
-            b = in(reg) b,
+            rc = in(reg) crate::race::store::asm_base(),
             mk = in(reg) crate::marks::store::base(),
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
@@ -734,50 +734,50 @@ unsafe fn corners_in_2() {
 }
 
 /// The twin's: as `projected`.
-unsafe fn projected_2(b: u32) {
+unsafe fn projected_2() {
     unsafe {
         core::arch::asm!(
-            "fld dword ptr [{b} + 0x224088]",
+            "fld dword ptr [{rc} + 0x224088]",
             "fdiv dword ptr [{mk} + 0x1CE344]",
             ".byte 0xD9, 0xC0",
             "fmul dword ptr [{mk} + 0x1CE33C]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fstp dword ptr [{mk} + 0x1CE33C]",
             "fmul dword ptr [{mk} + 0x1CE340]",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fstp dword ptr [{mk} + 0x1CE340]",
-            "fld dword ptr [{b} + 0x224088]",
+            "fld dword ptr [{rc} + 0x224088]",
             "fdiv dword ptr [{mk} + 0x1CE350]",
             ".byte 0xD9, 0xC0",
             "fmul dword ptr [{mk} + 0x1CE348]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fstp dword ptr [{mk} + 0x1CE348]",
             "fmul dword ptr [{mk} + 0x1CE34C]",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fstp dword ptr [{mk} + 0x1CE34C]",
-            "fld dword ptr [{b} + 0x224088]",
+            "fld dword ptr [{rc} + 0x224088]",
             "fdiv dword ptr [{mk} + 0x1CE35C]",
             ".byte 0xD9, 0xC0",
             "fmul dword ptr [{mk} + 0x1CE354]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fstp dword ptr [{mk} + 0x1CE354]",
             "fmul dword ptr [{mk} + 0x1CE358]",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fstp dword ptr [{mk} + 0x1CE358]",
-            "fld dword ptr [{b} + 0x224088]",
+            "fld dword ptr [{rc} + 0x224088]",
             "fdiv dword ptr [{mk} + 0x1CE368]",
             ".byte 0xD9, 0xC0",
             "fmul dword ptr [{mk} + 0x1CE360]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fstp dword ptr [{mk} + 0x1CE360]",
             "fmul dword ptr [{mk} + 0x1CE364]",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fstp dword ptr [{mk} + 0x1CE364]",
-            b = in(reg) b,
+            rc = in(reg) crate::race::store::asm_base(),
             mk = in(reg) crate::marks::store::base(),
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
@@ -901,7 +901,7 @@ pub unsafe fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> 
                 return Ok(());
             }
         }
-        (sh.projected)(addr(0));
+        (sh.projected)();
         let z_k: u32 = game_read(Z_K_RVA);
         for n in 0..4 {
             let c = sh.corners + 12 * n;

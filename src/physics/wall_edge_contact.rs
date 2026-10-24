@@ -30,7 +30,7 @@ use crate::errors::Refused;
 use crate::math::turn_float_point_xz::turn_float_point_xz;
 use crate::math::x87::mul;
 use crate::physics::contact_force::{RECORD, contact_force};
-use crate::physics::flow::{a, base, copy3, g, p, x87_run};
+use crate::physics::flow::{a, copy3, g, p, x87_run};
 use crate::physics::scene_point_hits_car::SCENE_POINTS;
 use crate::physics::touch_face::FACES;
 use crate::physics::wall_contacts::WALL_RECORD;
@@ -59,10 +59,10 @@ pub fn edge_normal(first: u32, second: u32) -> [u32; 4] {
         "fild dword ptr [{d}]",
         "fild dword ptr [{d} + 4]",
         ".byte 0xD9, 0xF3", // fpatan
-        "fmul dword ptr [{b} + 0x1C5DD4]",
-        "fmul dword ptr [{b} + 0x1C5D98]",
-        "fistp dword ptr [{b} + 0x22400C]";
-        b = base(), d = d.as_ptr()
+        "fmul dword ptr [{rc} + 0x1C5DD4]",
+        "fmul dword ptr [{rc} + 0x1C5D98]",
+        "fistp dword ptr [{rc} + 0x22400C]";
+        d = d.as_ptr(), rc = crate::race::store::asm_base()
     );
     p(0x62400C, g(0x62400C) & 0xFFFF);
     let heading = (g(0x62400C) << 16).wrapping_add(0x4000_0000);

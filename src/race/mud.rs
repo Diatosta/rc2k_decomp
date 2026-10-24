@@ -5,10 +5,11 @@
 //! unlocked through DirectDraw: the game's, `sub_41AA4B` / `sub_41AB02`).
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::rva;
+use crate::store::{game_addr, game_read, game_write};
 
 pub const MUD_LIST_RVA: usize = rva(0x5C6F50); // stru_5C6F50
-pub const MUD_RVA: usize = rva(0x623D50); // dword_623D50
+pub const MUD_RVA: crate::race::store::vars::Slot = crate::race::store::vars::Slot::at(0x623D50); // dword_623D50
 pub const MUD_LEN: u32 = 0x1_0000;
 pub const LIST_TOTAL_RVA: usize = rva(0x5C6F90); // dword_5C6F90
 pub const CAR_RVA: usize = rva(0x70F410); // dword_70F410: the car

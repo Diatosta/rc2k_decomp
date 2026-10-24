@@ -22,7 +22,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::physics::flow::{a, base, g, p, x87_run};
+use crate::physics::flow::{a, g, p, x87_run};
 use crate::physics::turn_by_heading::turn_by_heading;
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::rounded;
@@ -51,32 +51,32 @@ pub unsafe fn point_hits_car(point: u32, object: u32) -> bool {
         }
     }
     x87_run!(
-        "fild dword ptr [{b} + 0x2D3B4C]",
-        "fdiv dword ptr [{b} + 0x1C5D98]",
-        "fstp dword ptr [{b} + 0x2D3B78]",
-        "fild dword ptr [{b} + 0x2D3B50]",
-        "fdiv dword ptr [{b} + 0x1C5D98]",
-        "fstp dword ptr [{b} + 0x2D3B7C]",
-        "fild dword ptr [{b} + 0x2D3B54]",
-        "fdiv dword ptr [{b} + 0x1C5D98]",
-        "fstp dword ptr [{b} + 0x2D3B80]";
-        b = base()
+        "fild dword ptr [{rc} + 0x2D3B4C]",
+        "fdiv dword ptr [{rc} + 0x1C5D98]",
+        "fstp dword ptr [{rc} + 0x2D3B78]",
+        "fild dword ptr [{rc} + 0x2D3B50]",
+        "fdiv dword ptr [{rc} + 0x1C5D98]",
+        "fstp dword ptr [{rc} + 0x2D3B7C]",
+        "fild dword ptr [{rc} + 0x2D3B54]",
+        "fdiv dword ptr [{rc} + 0x1C5D98]",
+        "fstp dword ptr [{rc} + 0x2D3B80]";
+        rc = crate::race::store::asm_base()
     );
     for k in 0..3 {
         p(0x6D3B58 + 4 * k, g(0x6D3B78 + 4 * k));
     }
     unsafe { turn_by_heading(a(0x6D3B58), y) };
     x87_run!(
-        "fld dword ptr [{b} + 0x2D3B58]",
-        "fmul dword ptr [{b} + 0x1C5D98]",
-        "fistp dword ptr [{b} + 0x2D3090]",
-        "fld dword ptr [{b} + 0x2D3B5C]",
-        "fmul dword ptr [{b} + 0x1C5D98]",
-        "fistp dword ptr [{b} + 0x2D3094]",
-        "fld dword ptr [{b} + 0x2D3B60]",
-        "fmul dword ptr [{b} + 0x1C5D98]",
-        "fistp dword ptr [{b} + 0x2D3098]";
-        b = base()
+        "fld dword ptr [{rc} + 0x2D3B58]",
+        "fmul dword ptr [{rc} + 0x1C5D98]",
+        "fistp dword ptr [{rc} + 0x2D3090]",
+        "fld dword ptr [{rc} + 0x2D3B5C]",
+        "fmul dword ptr [{rc} + 0x1C5D98]",
+        "fistp dword ptr [{rc} + 0x2D3094]",
+        "fld dword ptr [{rc} + 0x2D3B60]",
+        "fmul dword ptr [{rc} + 0x1C5D98]",
+        "fistp dword ptr [{rc} + 0x2D3098]";
+        rc = crate::race::store::asm_base()
     );
     let (x, z) = (g(0x6D3090), g(0x6D3098));
     if !contacts::inside_box(x, z, g(0x614BC8), g(0x614BC0), g(0x614BC4)) {
@@ -84,15 +84,15 @@ pub unsafe fn point_hits_car(point: u32, object: u32) -> bool {
     }
     if contacts::kind_hits(g(KIND)) {
         x87_run!(
-            "fild dword ptr [{b} + 0x2D3090]",
-            "fdiv dword ptr [{b} + 0x1C5D98]",
-            "fstp dword ptr [{b} + 0x31A1FC]",
+            "fild dword ptr [{rc} + 0x2D3090]",
+            "fdiv dword ptr [{rc} + 0x1C5D98]",
+            "fstp dword ptr [{rc} + 0x31A1FC]",
             ".byte 0xD9, 0xEE", // fldz
-            "fstp dword ptr [{b} + 0x31A200]",
-            "fild dword ptr [{b} + 0x2D3098]",
-            "fdiv dword ptr [{b} + 0x1C5D98]",
-            "fstp dword ptr [{b} + 0x31A204]";
-            b = base()
+            "fstp dword ptr [{rc} + 0x31A200]",
+            "fild dword ptr [{rc} + 0x2D3098]",
+            "fdiv dword ptr [{rc} + 0x1C5D98]",
+            "fstp dword ptr [{rc} + 0x31A204]";
+            rc = crate::race::store::asm_base()
         );
         p(0x6D3108, rounded(unsafe { vector_length(a(0x71A170)) }));
         if let Some(hit) = rc2k_core::physics::walls::raised_hit(

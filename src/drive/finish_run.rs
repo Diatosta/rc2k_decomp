@@ -22,7 +22,7 @@
 
 use crate::drive::race_parts::{input_update, race_frame, restart_clock};
 use crate::errors::{BadInput, Refused};
-use crate::physics::flow::{a, base, c0, g, p, x87_run};
+use crate::physics::flow::{a, c0, g, p, x87_run};
 
 const B: usize = 0x70F3EC;
 
@@ -30,11 +30,11 @@ const B: usize = 0x70F3EC;
 /// `drive::finish_race`'s call has no read point).
 pub unsafe fn finish_run() -> Result<(), Refused> {
     x87_run!(
-        "fld dword ptr [{b} + 0x24BB38]",
-        "fmul dword ptr [{b} + 0x1C5D98]",
-        "fiadd dword ptr [{b} + 0x30F524]",
-        "fistp dword ptr [{b} + 0x30F524]";
-        b = base()
+        "fld dword ptr [{rc} + 0x24BB38]",
+        "fmul dword ptr [{rc} + 0x1C5D98]",
+        "fiadd dword ptr [{rc} + 0x30F524]",
+        "fistp dword ptr [{rc} + 0x30F524]";
+        rc = crate::race::store::asm_base()
     );
     restart_clock();
     p(0x5CC3B4, g(0x613830));

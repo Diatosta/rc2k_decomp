@@ -75,18 +75,17 @@ fn float_of_80(t: [u8; 10]) -> u32 {
 /// st(1), st`): flat (`dword_60932C`) by `dword_5CCD80` + 1, else by the depth.
 unsafe fn project_vertex(v: u32) {
     unsafe {
-        let b = game_addr(0) as u32;
         if game_read::<u32>(rva(0x60932C)) != 0 {
             core::arch::asm!(
                 "fld dword ptr [{v} + 0x10]", "fld dword ptr [{v} + 0x14]", "fld dword ptr [{v} + 0x18]",
-                "fstp dword ptr [{b} + 0x22400C]", "fild dword ptr [{b} + 0x1CCD80]", "fld1",
+                "fstp dword ptr [{rc} + 0x22400C]", "fild dword ptr [{rc} + 0x1CCD80]", "fld1",
                 ".byte 0xDE, 0xC1",
-                "fld dword ptr [{b} + 0x224088]", ".byte 0xDE, 0xF1",
+                "fld dword ptr [{rc} + 0x224088]", ".byte 0xDE, 0xF1",
                 ".byte 0xDC, 0xC9", ".byte 0xDE, 0xCA", "fchs",
-                "fadd dword ptr [{b} + 0x2240A0]", ".byte 0xD9, 0xC9", "fadd dword ptr [{b} + 0x22409C]",
+                "fadd dword ptr [{rc} + 0x2240A0]", ".byte 0xD9, 0xC9", "fadd dword ptr [{rc} + 0x22409C]",
                 "fstp dword ptr [{v} + 0xC]", "fstp dword ptr [{v} + 0x1C]",
+                rc = in(reg) crate::race::store::asm_base(),
                 v = in(reg) v,
-                b = in(reg) b,
                 out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
                 out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
                 options(nostack),
@@ -94,12 +93,12 @@ unsafe fn project_vertex(v: u32) {
         } else {
             core::arch::asm!(
                 "fld dword ptr [{v} + 0x10]", "fld dword ptr [{v} + 0x14]", "fld dword ptr [{v} + 0x18]",
-                "fld dword ptr [{b} + 0x224088]", ".byte 0xDE, 0xF1",
+                "fld dword ptr [{rc} + 0x224088]", ".byte 0xDE, 0xF1",
                 ".byte 0xDC, 0xC9", ".byte 0xDE, 0xCA", "fchs",
-                "fadd dword ptr [{b} + 0x2240A0]", ".byte 0xD9, 0xC9", "fadd dword ptr [{b} + 0x22409C]",
+                "fadd dword ptr [{rc} + 0x2240A0]", ".byte 0xD9, 0xC9", "fadd dword ptr [{rc} + 0x22409C]",
                 "fstp dword ptr [{v} + 0xC]", "fstp dword ptr [{v} + 0x1C]",
+                rc = in(reg) crate::race::store::asm_base(),
                 v = in(reg) v,
-                b = in(reg) b,
                 out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
                 out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
                 options(nostack),

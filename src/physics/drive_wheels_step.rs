@@ -27,7 +27,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_run::{abs_compare, abs_of, neg_rounded};
-use crate::physics::flow::{a, base, c0, ease_zero, g, hold_high, hold_low, p, x87_run};
+use crate::physics::flow::{a, c0, ease_zero, g, hold_high, hold_low, p, x87_run};
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
 use crate::scene::matrix3::extended;
 
@@ -36,10 +36,10 @@ fn one_less_abs(v: usize, to: usize) {
     x87_run!(
         "fld dword ptr [{v}]",
         ".byte 0xD9, 0xE1", // fabs
-        "fsub dword ptr [{b} + 0x1C5D38]",
+        "fsub dword ptr [{rc} + 0x1C5D38]",
         ".byte 0xD9, 0xE0", // fchs
         "fstp dword ptr [{t}]";
-        b = base(), v = a(v), t = a(to)
+        v = a(v), t = a(to), rc = crate::race::store::asm_base()
     );
 }
 
@@ -75,10 +75,10 @@ fn store_loaded(to: usize, from: usize) {
 fn settle_slip(drive: usize, slip: usize, ratio: usize, f1: usize, f2: usize) {
     x87_run!(
         "fld dword ptr [{d}]",
-        "fsub dword ptr [{b} + 0x31A184]",
-        "fdiv dword ptr [{b} + 0x214BA8]",
+        "fsub dword ptr [{rc} + 0x31A184]",
+        "fdiv dword ptr [{rc} + 0x214BA8]",
         "fstp dword ptr [{r}]";
-        b = base(), d = a(drive), r = a(ratio)
+        d = a(drive), r = a(ratio), rc = crate::race::store::asm_base()
     );
     let s = abs_of(g(slip));
     let signed = if c0(g(ratio), g(0x5C5D90)) {
@@ -89,17 +89,17 @@ fn settle_slip(drive: usize, slip: usize, ratio: usize, f1: usize, f2: usize) {
     p(slip, signed);
     x87_run!(
         "fld dword ptr [{d}]",
-        "fld dword ptr [{b} + 0x214BA8]",
-        "fsub dword ptr [{b} + 0x1C5D38]",
+        "fld dword ptr [{rc} + 0x214BA8]",
+        "fsub dword ptr [{rc} + 0x1C5D38]",
         "fmul dword ptr [{s}]",
         ".byte 0xDE, 0xE9", // fsubp st(1), st
         "fstp dword ptr [{d}]",
         "fld dword ptr [{s}]",
-        "fdiv dword ptr [{b} + 0x21388C]",
-        "fmul dword ptr [{b} + 0x1C5E40]",
+        "fdiv dword ptr [{rc} + 0x21388C]",
+        "fmul dword ptr [{rc} + 0x1C5E40]",
         "fst dword ptr [{f1}]",
         "fstp dword ptr [{f2}]";
-        b = base(), d = a(drive), s = a(slip), f1 = a(f1), f2 = a(f2)
+        d = a(drive), s = a(slip), f1 = a(f1), f2 = a(f2), rc = crate::race::store::asm_base()
     );
 }
 
@@ -108,11 +108,11 @@ fn settle_slip(drive: usize, slip: usize, ratio: usize, f1: usize, f2: usize) {
 fn slip_limit(drive: usize, ratio: usize, force: usize, slip: usize) {
     x87_run!(
         "fld dword ptr [{d}]",
-        "fsub dword ptr [{b} + 0x31A184]",
-        "fdiv dword ptr [{b} + 0x214BA8]",
+        "fsub dword ptr [{rc} + 0x31A184]",
+        "fdiv dword ptr [{rc} + 0x214BA8]",
         ".byte 0xD9, 0xE1", // fabs
         "fstp dword ptr [{r}]";
-        b = base(), d = a(drive), r = a(ratio)
+        d = a(drive), r = a(ratio), rc = crate::race::store::asm_base()
     );
     let pick = if c0(g(ratio), g(force)) { ratio } else { force };
     store_loaded(slip, pick);
@@ -128,11 +128,11 @@ fn steps() -> Result<(), Refused> {
     hold_low(0x6140B4, 0x5C5DD0);
     hold_high(0x6140B4, 0x5C5D38);
     x87_run!(
-        "fld dword ptr [{b} + 0x2140B4]",
+        "fld dword ptr [{rc} + 0x2140B4]",
         ".byte 0xD8, 0xC0", // fadd st, st
-        "fsub dword ptr [{b} + 0x1C5D38]",
-        "fstp dword ptr [{b} + 0x2140B8]";
-        b = base()
+        "fsub dword ptr [{rc} + 0x1C5D38]",
+        "fstp dword ptr [{rc} + 0x2140B8]";
+        rc = crate::race::store::asm_base()
     );
     hold_low(0x6140B8, 0x5C5D90);
     hold_high(0x6140B8, 0x5C5D38);
@@ -148,51 +148,51 @@ fn steps() -> Result<(), Refused> {
             p(0x614134, 1);
         }
         x87_run!(
-            "fld dword ptr [{b} + {e} + 0x214298]",
-            "fmul dword ptr [{b} + 0x214774]",
-            "fld dword ptr [{b} + {e} + 0x21429C]",
-            "fmul dword ptr [{b} + 0x214794]",
+            "fld dword ptr [{rc} + {e} + 0x214298]",
+            "fmul dword ptr [{rc} + 0x214774]",
+            "fld dword ptr [{rc} + {e} + 0x21429C]",
+            "fmul dword ptr [{rc} + 0x214794]",
             ".byte 0xDE, 0xC1", // faddp st(1), st
             ".byte 0xD9, 0xE0", // fchs
-            "fmul dword ptr [{b} + 0x21388C]",
-            "fmul dword ptr [{b} + 0x214170]",
-            "fmul dword ptr [{b} + 0x31A3D8]",
-            "fstp dword ptr [{b} + 0x214248]",
-            "fld dword ptr [{b} + {e} + 0x2142A0]",
-            "fmul dword ptr [{b} + 0x2147B4]",
-            "fld dword ptr [{b} + {e} + 0x2142A4]",
-            "fmul dword ptr [{b} + 0x2147D4]",
+            "fmul dword ptr [{rc} + 0x21388C]",
+            "fmul dword ptr [{rc} + 0x214170]",
+            "fmul dword ptr [{rc} + 0x31A3D8]",
+            "fstp dword ptr [{rc} + 0x214248]",
+            "fld dword ptr [{rc} + {e} + 0x2142A0]",
+            "fmul dword ptr [{rc} + 0x2147B4]",
+            "fld dword ptr [{rc} + {e} + 0x2142A4]",
+            "fmul dword ptr [{rc} + 0x2147D4]",
             ".byte 0xDE, 0xC1",
             ".byte 0xD9, 0xE0",
-            "fmul dword ptr [{b} + 0x21388C]",
-            "fmul dword ptr [{b} + 0x214170]",
-            "fmul dword ptr [{b} + 0x31A3DC]",
-            "fstp dword ptr [{b} + 0x21424C]",
-            "fld dword ptr [{b} + 0x214284]",
-            "fadd dword ptr [{b} + 0x214288]",
-            "fadd dword ptr [{b} + 0x21428C]",
-            "fadd dword ptr [{b} + 0x214290]",
-            "fmul dword ptr [{b} + 0x214774]",
+            "fmul dword ptr [{rc} + 0x21388C]",
+            "fmul dword ptr [{rc} + 0x214170]",
+            "fmul dword ptr [{rc} + 0x31A3DC]",
+            "fstp dword ptr [{rc} + 0x21424C]",
+            "fld dword ptr [{rc} + 0x214284]",
+            "fadd dword ptr [{rc} + 0x214288]",
+            "fadd dword ptr [{rc} + 0x21428C]",
+            "fadd dword ptr [{rc} + 0x214290]",
+            "fmul dword ptr [{rc} + 0x214774]",
             ".byte 0xD9, 0xE0",
-            "fmul dword ptr [{b} + 0x21388C]",
-            "fmul dword ptr [{b} + 0x214170]",
-            "fstp dword ptr [{b} + 0x21423C]";
-            b = base(), e = offset
+            "fmul dword ptr [{rc} + 0x21388C]",
+            "fmul dword ptr [{rc} + 0x214170]",
+            "fstp dword ptr [{rc} + 0x21423C]";
+            e = offset, rc = crate::race::store::asm_base()
         );
         p(0x62400C, g(0x71A610).wrapping_add(0x100));
         x87_run!(
-            "fild dword ptr [{b} + 0x22400C]",
-            "fdiv dword ptr [{b} + 0x1C5E2C]",
-            "fld dword ptr [{b} + 0x31A17C]",
-            "fmul dword ptr [{b} + 0x214268]",
+            "fild dword ptr [{rc} + 0x22400C]",
+            "fdiv dword ptr [{rc} + 0x1C5E2C]",
+            "fld dword ptr [{rc} + 0x31A17C]",
+            "fmul dword ptr [{rc} + 0x214268]",
             ".byte 0xD9, 0xE1", // fabs
             ".byte 0xDE, 0xC9", // fmulp st(1), st
-            "fmul dword ptr [{b} + 0x214170]",
-            "fstp dword ptr [{b} + 0x214240]",
-            "fld dword ptr [{b} + 0x21423C]",
-            "fmul dword ptr [{b} + 0x213EC4]",
-            "fstp dword ptr [{b} + 0x22400C]";
-            b = base()
+            "fmul dword ptr [{rc} + 0x214170]",
+            "fstp dword ptr [{rc} + 0x214240]",
+            "fld dword ptr [{rc} + 0x21423C]",
+            "fmul dword ptr [{rc} + 0x213EC4]",
+            "fstp dword ptr [{rc} + 0x22400C]";
+            rc = crate::race::store::asm_base()
         );
         hold_high(0x614240, 0x62400C);
         let pick = if abs_below(g(0x614240), g(0x61423C)) {
@@ -204,70 +204,70 @@ fn steps() -> Result<(), Refused> {
         let kind = g(0x71A018);
         if gear != 0 && kind == 1 {
             x87_run!(
-                "fld dword ptr [{b} + 0x214750]",
-                "fmul dword ptr [{b} + 0x1C5E40]",
-                "fmul dword ptr [{b} + 0x21388C]",
-                "fmul dword ptr [{b} + 0x214BA8]",
-                "fadd dword ptr [{b} + 0x31A190]",
-                "fstp dword ptr [{b} + 0x31A190]",
-                "fld dword ptr [{b} + 0x214750]",
-                "fmul dword ptr [{b} + 0x1C5E40]",
-                "fmul dword ptr [{b} + 0x21388C]",
-                "fmul dword ptr [{b} + 0x214BA8]",
-                "fadd dword ptr [{b} + 0x31A194]",
-                "fstp dword ptr [{b} + 0x31A194]";
-                b = base()
+                "fld dword ptr [{rc} + 0x214750]",
+                "fmul dword ptr [{rc} + 0x1C5E40]",
+                "fmul dword ptr [{rc} + 0x21388C]",
+                "fmul dword ptr [{rc} + 0x214BA8]",
+                "fadd dword ptr [{rc} + 0x31A190]",
+                "fstp dword ptr [{rc} + 0x31A190]",
+                "fld dword ptr [{rc} + 0x214750]",
+                "fmul dword ptr [{rc} + 0x1C5E40]",
+                "fmul dword ptr [{rc} + 0x21388C]",
+                "fmul dword ptr [{rc} + 0x214BA8]",
+                "fadd dword ptr [{rc} + 0x31A194]",
+                "fstp dword ptr [{rc} + 0x31A194]";
+                rc = crate::race::store::asm_base()
             );
         }
         if kind == 0 {
             x87_run!(
-                "fld dword ptr [{b} + 0x214750]",
-                "fmul dword ptr [{b} + 0x21388C]",
-                "fmul dword ptr [{b} + 0x214BA8]",
-                "fadd dword ptr [{b} + 0x31A190]",
-                "fstp dword ptr [{b} + 0x31A190]";
-                b = base()
+                "fld dword ptr [{rc} + 0x214750]",
+                "fmul dword ptr [{rc} + 0x21388C]",
+                "fmul dword ptr [{rc} + 0x214BA8]",
+                "fadd dword ptr [{rc} + 0x31A190]",
+                "fstp dword ptr [{rc} + 0x31A190]";
+                rc = crate::race::store::asm_base()
             );
         }
         revs()?;
         // 0x43E2C2: the wheels' drag on each drive speed.
         x87_run!(
             ".byte 0xD9, 0xE8", // fld1
-            "fsub dword ptr [{b} + 0x214BF0]",
-            "fmul dword ptr [{b} + 0x214BB0]",
-            "fild dword ptr [{b} + 0x31A614]",
+            "fsub dword ptr [{rc} + 0x214BF0]",
+            "fmul dword ptr [{rc} + 0x214BB0]",
+            "fild dword ptr [{rc} + 0x31A614]",
             ".byte 0xDE, 0xC9", // fmulp st(1), st
-            "fdiv dword ptr [{b} + 0x1C5E2C]",
-            "fmul dword ptr [{b} + 0x21388C]",
-            "fmul dword ptr [{b} + 0x31A3D0]",
-            "fmul dword ptr [{b} + 0x214BA8]",
-            "fstp dword ptr [{b} + 0x21422C]";
-            b = base()
+            "fdiv dword ptr [{rc} + 0x1C5E2C]",
+            "fmul dword ptr [{rc} + 0x21388C]",
+            "fmul dword ptr [{rc} + 0x31A3D0]",
+            "fmul dword ptr [{rc} + 0x214BA8]",
+            "fstp dword ptr [{rc} + 0x21422C]";
+            rc = crate::race::store::asm_base()
         );
         ease_zero(0x71A190, 0x61422C);
         x87_run!(
-            "fld dword ptr [{b} + 0x214BF0]",
-            "fmul dword ptr [{b} + 0x214BB0]",
-            "fild dword ptr [{b} + 0x31A614]",
+            "fld dword ptr [{rc} + 0x214BF0]",
+            "fmul dword ptr [{rc} + 0x214BB0]",
+            "fild dword ptr [{rc} + 0x31A614]",
             ".byte 0xDE, 0xC9",
-            "fdiv dword ptr [{b} + 0x1C5E2C]",
-            "fmul dword ptr [{b} + 0x21388C]",
-            "fmul dword ptr [{b} + 0x31A3D4]",
-            "fmul dword ptr [{b} + 0x214BA8]",
-            "fstp dword ptr [{b} + 0x21422C]";
-            b = base()
+            "fdiv dword ptr [{rc} + 0x1C5E2C]",
+            "fmul dword ptr [{rc} + 0x21388C]",
+            "fmul dword ptr [{rc} + 0x31A3D4]",
+            "fmul dword ptr [{rc} + 0x214BA8]",
+            "fstp dword ptr [{rc} + 0x21422C]";
+            rc = crate::race::store::asm_base()
         );
         ease_zero(0x71A194, 0x61422C);
         x87_run!(
-            "fld dword ptr [{b} + 0x214BAC]",
-            "fild dword ptr [{b} + 0x31A618]",
+            "fld dword ptr [{rc} + 0x214BAC]",
+            "fild dword ptr [{rc} + 0x31A618]",
             ".byte 0xDE, 0xC9",
-            "fdiv dword ptr [{b} + 0x1C5E2C]",
-            "fmul dword ptr [{b} + 0x21388C]",
-            "fmul dword ptr [{b} + 0x214BA8]",
-            "fmul dword ptr [{b} + 0x214170]",
-            "fstp dword ptr [{b} + 0x21422C]";
-            b = base()
+            "fdiv dword ptr [{rc} + 0x1C5E2C]",
+            "fmul dword ptr [{rc} + 0x21388C]",
+            "fmul dword ptr [{rc} + 0x214BA8]",
+            "fmul dword ptr [{rc} + 0x214170]",
+            "fstp dword ptr [{rc} + 0x21422C]";
+            rc = crate::race::store::asm_base()
         );
         ease_zero(0x71A194, 0x61422C);
         if g(0x71A618) != 0 {
@@ -293,15 +293,15 @@ fn steps() -> Result<(), Refused> {
         }
         revs()?;
         x87_run!(
-            "fld dword ptr [{b} + 0x31A194]",
-            "fsub dword ptr [{b} + 0x31A184]",
+            "fld dword ptr [{rc} + 0x31A194]",
+            "fsub dword ptr [{rc} + 0x31A184]",
             ".byte 0xD9, 0xE1",
-            "fstp dword ptr [{b} + 0x214238]",
-            "fld dword ptr [{b} + 0x31A190]",
-            "fsub dword ptr [{b} + 0x31A184]",
+            "fstp dword ptr [{rc} + 0x214238]",
+            "fld dword ptr [{rc} + 0x31A190]",
+            "fsub dword ptr [{rc} + 0x31A184]",
             ".byte 0xD9, 0xE1",
-            "fstp dword ptr [{b} + 0x214234]";
-            b = base()
+            "fstp dword ptr [{rc} + 0x214234]";
+            rc = crate::race::store::asm_base()
         );
         unsafe {
             crate::physics::cap_reverse_inputs::cap_reverse_inputs();
@@ -309,16 +309,16 @@ fn steps() -> Result<(), Refused> {
             crate::physics::ease_low_speed_forces::ease_low_speed_forces();
         }
         x87_run!(
-            "fld dword ptr [{b} + 0x214244]",
-            "fmul dword ptr [{b} + 0x2140B0]",
-            "fstp dword ptr [{b} + 0x214244]",
-            "fld dword ptr [{b} + 0x214248]",
-            "fmul dword ptr [{b} + 0x2140B4]",
-            "fstp dword ptr [{b} + 0x214248]",
-            "fld dword ptr [{b} + 0x21424C]",
-            "fmul dword ptr [{b} + 0x2140B4]",
-            "fstp dword ptr [{b} + 0x21424C]";
-            b = base()
+            "fld dword ptr [{rc} + 0x214244]",
+            "fmul dword ptr [{rc} + 0x2140B0]",
+            "fstp dword ptr [{rc} + 0x214244]",
+            "fld dword ptr [{rc} + 0x214248]",
+            "fmul dword ptr [{rc} + 0x2140B4]",
+            "fstp dword ptr [{rc} + 0x214248]",
+            "fld dword ptr [{rc} + 0x21424C]",
+            "fmul dword ptr [{rc} + 0x2140B4]",
+            "fstp dword ptr [{rc} + 0x21424C]";
+            rc = crate::race::store::asm_base()
         );
         if g(0x71A25C) != 0 {
             p(0x614248, x87::mul(g(0x614248), g(0x5C5E40)));
@@ -332,71 +332,71 @@ fn steps() -> Result<(), Refused> {
         p(0x62400C, g(0x71A17C));
         ease_zero(0x62400C, 0x614244);
         x87_run!(
-            "fld dword ptr [{b} + 0x22400C]",
-            "fsub dword ptr [{b} + 0x31A17C]",
-            "fst dword ptr [{b} + 0x214250]",
-            "fdiv dword ptr [{b} + 0x21388C]",
-            "fmul dword ptr [{b} + 0x1C5DA4]",
-            "fst dword ptr [{b} + 0x2148D0]",
-            "fst dword ptr [{b} + 0x2148F0]",
-            "fst dword ptr [{b} + 0x214910]",
-            "fstp dword ptr [{b} + 0x214930]";
-            b = base()
+            "fld dword ptr [{rc} + 0x22400C]",
+            "fsub dword ptr [{rc} + 0x31A17C]",
+            "fst dword ptr [{rc} + 0x214250]",
+            "fdiv dword ptr [{rc} + 0x21388C]",
+            "fmul dword ptr [{rc} + 0x1C5DA4]",
+            "fst dword ptr [{rc} + 0x2148D0]",
+            "fst dword ptr [{rc} + 0x2148F0]",
+            "fst dword ptr [{rc} + 0x214910]",
+            "fstp dword ptr [{rc} + 0x214930]";
+            rc = crate::race::store::asm_base()
         );
         store_loaded(0x614264, 0x61423C);
         store_loaded(0x6141D4, 0x614BFC);
         let status = abs_compare(g(0x614250), g(0x614264));
         if status & 0x4100 == 0 {
             x87_run!(
-                "fld dword ptr [{b} + 0x214250]",
+                "fld dword ptr [{rc} + 0x214250]",
                 ".byte 0xD9, 0xE1", // fabs
-                "fsub dword ptr [{b} + 0x214264]",
-                "fmul dword ptr [{b} + 0x213ED0]",
-                "fadd dword ptr [{b} + 0x214264]",
-                "fstp dword ptr [{b} + 0x214254]",
-                "fld dword ptr [{b} + 0x214254]",
-                "fdiv dword ptr [{b} + 0x214250]",
+                "fsub dword ptr [{rc} + 0x214264]",
+                "fmul dword ptr [{rc} + 0x213ED0]",
+                "fadd dword ptr [{rc} + 0x214264]",
+                "fstp dword ptr [{rc} + 0x214254]",
+                "fld dword ptr [{rc} + 0x214254]",
+                "fdiv dword ptr [{rc} + 0x214250]",
                 ".byte 0xD9, 0xE1",
-                "fmul dword ptr [{b} + 0x214BFC]",
-                "fstp dword ptr [{b} + 0x2141D4]";
-                b = base()
+                "fmul dword ptr [{rc} + 0x214BFC]",
+                "fstp dword ptr [{rc} + 0x2141D4]";
+                rc = crate::race::store::asm_base()
             );
         }
         x87_run!(
-            "fld dword ptr [{b} + 0x214BFC]",
-            "fmul dword ptr [{b} + 0x213ED4]",
-            "fstp dword ptr [{b} + 0x2141D8]";
-            b = base()
+            "fld dword ptr [{rc} + 0x214BFC]",
+            "fmul dword ptr [{rc} + 0x213ED4]",
+            "fstp dword ptr [{rc} + 0x2141D8]";
+            rc = crate::race::store::asm_base()
         );
         p(0x6148B0, 0);
         p(0x6148B8, 0);
         // 0x43E855: the rolling drag against the motion.
         let mut status = 0u16;
         x87_run!(
-            "fld dword ptr [{b} + 0x31A17C]",
+            "fld dword ptr [{rc} + 0x31A17C]",
             ".byte 0xD8, 0xC8", // fmul st, st
-            "fld dword ptr [{b} + 0x31A184]",
+            "fld dword ptr [{rc} + 0x31A184]",
             ".byte 0xD8, 0xC8",
             ".byte 0xDE, 0xC1", // faddp st(1), st
             ".byte 0xD9, 0xFA", // fsqrt
-            "fst dword ptr [{b} + 0x22400C]",
-            "fcomp dword ptr [{b} + 0x214764]",
+            "fst dword ptr [{rc} + 0x22400C]",
+            "fcomp dword ptr [{rc} + 0x214764]",
             "fnstsw word ptr [{s}]";
-            b = base(), s = &raw mut status
+            s = &raw mut status, rc = crate::race::store::asm_base()
         );
         if status & 0x4100 == 0 {
             x87_run!(
-                "fld dword ptr [{b} + 0x214760]",
-                "fdiv dword ptr [{b} + 0x22400C]",
-                "fmul dword ptr [{b} + 0x31A17C]",
+                "fld dword ptr [{rc} + 0x214760]",
+                "fdiv dword ptr [{rc} + 0x22400C]",
+                "fmul dword ptr [{rc} + 0x31A17C]",
                 ".byte 0xD9, 0xE0", // fchs
-                "fstp dword ptr [{b} + 0x2148B0]",
-                "fld dword ptr [{b} + 0x214760]",
-                "fdiv dword ptr [{b} + 0x22400C]",
-                "fmul dword ptr [{b} + 0x31A184]",
+                "fstp dword ptr [{rc} + 0x2148B0]",
+                "fld dword ptr [{rc} + 0x214760]",
+                "fdiv dword ptr [{rc} + 0x22400C]",
+                "fmul dword ptr [{rc} + 0x31A184]",
                 ".byte 0xD9, 0xE0",
-                "fstp dword ptr [{b} + 0x2148B8]";
-                b = base()
+                "fstp dword ptr [{rc} + 0x2148B8]";
+                rc = crate::race::store::asm_base()
             );
         }
         if g(0x62389C) != 1 && (g(0x719FEC).wrapping_sub(0x320) as i32) < 0 {
@@ -404,80 +404,80 @@ fn steps() -> Result<(), Refused> {
             p(0x71A194, 0);
         }
         x87_run!(
-            "fld dword ptr [{b} + 0x2149D0]",
-            "fmul dword ptr [{b} + 0x1C5E40]",
-            "fadd dword ptr [{b} + 0x2148D0]",
-            "fstp dword ptr [{b} + 0x2148D0]",
-            "fld dword ptr [{b} + 0x2149D0]",
-            "fmul dword ptr [{b} + 0x1C5E40]",
-            "fadd dword ptr [{b} + 0x2148F0]",
-            "fstp dword ptr [{b} + 0x2148F0]",
-            "fld dword ptr [{b} + 0x2149F0]",
-            "fmul dword ptr [{b} + 0x1C5E40]",
-            "fadd dword ptr [{b} + 0x214910]",
-            "fstp dword ptr [{b} + 0x214910]",
-            "fld dword ptr [{b} + 0x2149F0]",
-            "fmul dword ptr [{b} + 0x1C5E40]",
-            "fadd dword ptr [{b} + 0x214930]",
-            "fstp dword ptr [{b} + 0x214930]";
-            b = base()
+            "fld dword ptr [{rc} + 0x2149D0]",
+            "fmul dword ptr [{rc} + 0x1C5E40]",
+            "fadd dword ptr [{rc} + 0x2148D0]",
+            "fstp dword ptr [{rc} + 0x2148D0]",
+            "fld dword ptr [{rc} + 0x2149D0]",
+            "fmul dword ptr [{rc} + 0x1C5E40]",
+            "fadd dword ptr [{rc} + 0x2148F0]",
+            "fstp dword ptr [{rc} + 0x2148F0]",
+            "fld dword ptr [{rc} + 0x2149F0]",
+            "fmul dword ptr [{rc} + 0x1C5E40]",
+            "fadd dword ptr [{rc} + 0x214910]",
+            "fstp dword ptr [{rc} + 0x214910]",
+            "fld dword ptr [{rc} + 0x2149F0]",
+            "fmul dword ptr [{rc} + 0x1C5E40]",
+            "fadd dword ptr [{rc} + 0x214930]",
+            "fstp dword ptr [{rc} + 0x214930]";
+            rc = crate::race::store::asm_base()
         );
         p(0x6149D0, 0);
         p(0x6149F0, 0);
     }
     // 0x43E957: the wheels' slip figures.
     x87_run!(
-        "fld dword ptr [{b} + 0x31A190]",
-        "fsub dword ptr [{b} + 0x31A184]",
-        "fst dword ptr [{b} + 0x31A158]",
+        "fld dword ptr [{rc} + 0x31A190]",
+        "fsub dword ptr [{rc} + 0x31A184]",
+        "fst dword ptr [{rc} + 0x31A158]",
         ".byte 0xD9, 0xE1", // fabs
-        "fsub dword ptr [{b} + 0x213EDC]",
-        "fstp dword ptr [{b} + 0x22401C]";
-        b = base()
+        "fsub dword ptr [{rc} + 0x213EDC]",
+        "fstp dword ptr [{rc} + 0x22401C]";
+        rc = crate::race::store::asm_base()
     );
     hold_low(0x62401C, 0x5C5D90);
     x87_run!(
-        "fld dword ptr [{b} + 0x31A17C]",
+        "fld dword ptr [{rc} + 0x31A17C]",
         ".byte 0xD9, 0xE1",
-        "fsub dword ptr [{b} + 0x213ED8]",
-        "fstp dword ptr [{b} + 0x224020]";
-        b = base()
+        "fsub dword ptr [{rc} + 0x213ED8]",
+        "fstp dword ptr [{rc} + 0x224020]";
+        rc = crate::race::store::asm_base()
     );
     hold_low(0x624020, 0x5C5D90);
     x87_run!(
-        "fld dword ptr [{b} + 0x22401C]",
+        "fld dword ptr [{rc} + 0x22401C]",
         ".byte 0xD8, 0xC8",
-        "fld dword ptr [{b} + 0x224020]",
-        ".byte 0xD8, 0xC8",
-        ".byte 0xDE, 0xC1",
-        ".byte 0xD9, 0xFA",
-        "fstp dword ptr [{b} + 0x31A260]",
-        "fld dword ptr [{b} + 0x31A17C]",
-        ".byte 0xD9, 0xE1",
-        "fstp dword ptr [{b} + 0x224020]",
-        "fld dword ptr [{b} + 0x31A190]",
-        "fsub dword ptr [{b} + 0x31A184]",
-        ".byte 0xD9, 0xE1",
-        "fstp dword ptr [{b} + 0x22401C]",
-        "fld dword ptr [{b} + 0x22401C]",
-        ".byte 0xD8, 0xC8",
-        "fld dword ptr [{b} + 0x224020]",
+        "fld dword ptr [{rc} + 0x224020]",
         ".byte 0xD8, 0xC8",
         ".byte 0xDE, 0xC1",
         ".byte 0xD9, 0xFA",
-        "fstp dword ptr [{b} + 0x31AF18]",
-        "fld dword ptr [{b} + 0x31A194]",
-        "fsub dword ptr [{b} + 0x31A184]",
+        "fstp dword ptr [{rc} + 0x31A260]",
+        "fld dword ptr [{rc} + 0x31A17C]",
         ".byte 0xD9, 0xE1",
-        "fstp dword ptr [{b} + 0x22401C]",
-        "fld dword ptr [{b} + 0x22401C]",
+        "fstp dword ptr [{rc} + 0x224020]",
+        "fld dword ptr [{rc} + 0x31A190]",
+        "fsub dword ptr [{rc} + 0x31A184]",
+        ".byte 0xD9, 0xE1",
+        "fstp dword ptr [{rc} + 0x22401C]",
+        "fld dword ptr [{rc} + 0x22401C]",
         ".byte 0xD8, 0xC8",
-        "fld dword ptr [{b} + 0x224020]",
+        "fld dword ptr [{rc} + 0x224020]",
         ".byte 0xD8, 0xC8",
         ".byte 0xDE, 0xC1",
         ".byte 0xD9, 0xFA",
-        "fstp dword ptr [{b} + 0x31AF1C]";
-        b = base()
+        "fstp dword ptr [{rc} + 0x31AF18]",
+        "fld dword ptr [{rc} + 0x31A194]",
+        "fsub dword ptr [{rc} + 0x31A184]",
+        ".byte 0xD9, 0xE1",
+        "fstp dword ptr [{rc} + 0x22401C]",
+        "fld dword ptr [{rc} + 0x22401C]",
+        ".byte 0xD8, 0xC8",
+        "fld dword ptr [{rc} + 0x224020]",
+        ".byte 0xD8, 0xC8",
+        ".byte 0xDE, 0xC1",
+        ".byte 0xD9, 0xFA",
+        "fstp dword ptr [{rc} + 0x31AF1C]";
+        rc = crate::race::store::asm_base()
     );
     Ok(())
 }

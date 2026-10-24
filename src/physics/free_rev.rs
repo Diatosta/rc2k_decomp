@@ -18,34 +18,32 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::framework::game_addr;
 use crate::math::x87;
 use crate::physics::engine_torque::{below, engine_torque, g, p};
 use crate::screens::harness::Left;
 
 /// 0x43EA85 .. 0x43EAE7, as the original.
 unsafe fn run() {
-    let b = game_addr(0) as u32;
     unsafe {
         core::arch::asm!(
-            "fld dword ptr [{b} + 0x214740]",
-            "fmul dword ptr [{b} + 0x1CB968]",
-            "fdiv dword ptr [{b} + 0x2140C0]",
-            "fdiv dword ptr [{b} + 0x1C5E34]",
-            "fild dword ptr [{b} + 0x31A610]",
+            "fld dword ptr [{rc} + 0x214740]",
+            "fmul dword ptr [{rc} + 0x1CB968]",
+            "fdiv dword ptr [{rc} + 0x2140C0]",
+            "fdiv dword ptr [{rc} + 0x1C5E34]",
+            "fild dword ptr [{rc} + 0x31A610]",
             ".byte 0xDE, 0xC9", // fmulp st(1), st
-            "fdiv dword ptr [{b} + 0x1C5E2C]",
-            "fstp dword ptr [{b} + 0x214750]",
-            "fld dword ptr [{b} + 0x214750]",
-            "fmul dword ptr [{b} + 0x21388C]",
-            "fdiv dword ptr [{b} + 0x2140C0]",
-            "fadd dword ptr [{b} + 0x31A1B0]",
-            "fstp dword ptr [{b} + 0x31A1B0]",
-            "fld dword ptr [{b} + 0x31A1B0]",
-            "fmul dword ptr [{b} + 0x213FD8]",
-            "fadd dword ptr [{b} + 0x213FD4]",
-            "fstp dword ptr [{b} + 0x22400C]",
-            b = in(reg) b,
+            "fdiv dword ptr [{rc} + 0x1C5E2C]",
+            "fstp dword ptr [{rc} + 0x214750]",
+            "fld dword ptr [{rc} + 0x214750]",
+            "fmul dword ptr [{rc} + 0x21388C]",
+            "fdiv dword ptr [{rc} + 0x2140C0]",
+            "fadd dword ptr [{rc} + 0x31A1B0]",
+            "fstp dword ptr [{rc} + 0x31A1B0]",
+            "fld dword ptr [{rc} + 0x31A1B0]",
+            "fmul dword ptr [{rc} + 0x213FD8]",
+            "fadd dword ptr [{rc} + 0x213FD4]",
+            "fstp dword ptr [{rc} + 0x22400C]",
+            rc = in(reg) crate::race::store::asm_base(),
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),

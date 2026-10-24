@@ -20,7 +20,7 @@
 
 use crate::errors::Refused;
 use crate::math::x87_run::{abs_compare, ext_times};
-use crate::physics::flow::{a, base, g, p, x87_run};
+use crate::physics::flow::{a, g, p, x87_run};
 use crate::scene::matrix3::extended;
 use crate::scene::rotate_point::rotate_point;
 
@@ -32,9 +32,9 @@ pub fn corner_inside() -> bool {
     for (n, e) in turned.iter().enumerate() {
         x87_run!(
             "fld tbyte ptr [{e}]",
-            "fdiv dword ptr [{b} + 0x1C5D98]",
+            "fdiv dword ptr [{rc} + 0x1C5D98]",
             "fstp dword ptr [{o}]";
-            b = base(), e = e.as_ptr(), o = a(0x6D3BC8 + 4 * n)
+            e = e.as_ptr(), o = a(0x6D3BC8 + 4 * n), rc = crate::race::store::asm_base()
         );
     }
     (0..3).all(|n| abs_compare(g(0x6D3BC8 + 4 * n), g(0x6D3BBC + 4 * n)) & 0x100 != 0)

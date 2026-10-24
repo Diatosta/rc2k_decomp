@@ -32,7 +32,7 @@ use crate::math::x87::{loaded, mul};
 use crate::math::x87_run::neg_rounded;
 use crate::physics::contact_force::{RECORD, contact_force};
 use crate::physics::dot_product::dot_product;
-use crate::physics::flow::{a, base, copy3, fill3, g, hold_high, p, x87_run};
+use crate::physics::flow::{a, copy3, fill3, g, hold_high, p, x87_run};
 use crate::physics::lowest_body_point::lowest_body_point;
 use crate::physics::place_sound_e5::place_sound_e5;
 use crate::physics::sound_cue_e5::sound_cue_e5;
@@ -106,16 +106,16 @@ fn steps() -> Result<(), Refused> {
         neg_rounded(unsafe { dot_product(a(0x6D31C4), a(0x6D3078)) }),
     );
     x87_run!(
-        "fld dword ptr [{b} + 0x2D31D0]",
-        "fadd dword ptr [{b} + 0x1C5D38]",
-        "fdiv dword ptr [{b} + 0x1C5D3C]",
-        "fadd dword ptr [{b} + 0x1C5D3C]",
-        "fmul dword ptr [{b} + 0x213FC8]",
-        "fmul dword ptr [{b} + 0x21388C]",
-        "fmul dword ptr [{b} + 0x214294]",
-        "fmul dword ptr [{b} + 0x214170]",
-        "fstp dword ptr [{b} + 0x2D3100]";
-        b = base()
+        "fld dword ptr [{rc} + 0x2D31D0]",
+        "fadd dword ptr [{rc} + 0x1C5D38]",
+        "fdiv dword ptr [{rc} + 0x1C5D3C]",
+        "fadd dword ptr [{rc} + 0x1C5D3C]",
+        "fmul dword ptr [{rc} + 0x213FC8]",
+        "fmul dword ptr [{rc} + 0x21388C]",
+        "fmul dword ptr [{rc} + 0x214294]",
+        "fmul dword ptr [{rc} + 0x214170]",
+        "fstp dword ptr [{rc} + 0x2D3100]";
+        rc = crate::race::store::asm_base()
     );
     p(RECORD, a(FORCE));
     unsafe { contact_force() };
@@ -123,11 +123,11 @@ fn steps() -> Result<(), Refused> {
     copy3(0x6D3018, FORCE);
     fill3(FORCE + 0xC, 0);
     x87_run!(
-        "fld dword ptr [{b} + 0x31A0A0]",
-        "fadd dword ptr [{b} + 0x1C5D60]",
-        "fdiv dword ptr [{b} + 0x1C5D60]",
-        "fstp dword ptr [{b} + 0x2D3014]";
-        b = base()
+        "fld dword ptr [{rc} + 0x31A0A0]",
+        "fadd dword ptr [{rc} + 0x1C5D60]",
+        "fdiv dword ptr [{rc} + 0x1C5D60]",
+        "fstp dword ptr [{rc} + 0x2D3014]";
+        rc = crate::race::store::asm_base()
     );
     hold_high(0x6D3014, 0x5C5D38);
     p(0x71A160, mul(g(0x6D3014), g(0x71A160)));

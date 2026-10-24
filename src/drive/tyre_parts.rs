@@ -11,7 +11,7 @@
 //! This file: the places, the quads' shared steps and the tests' frame.
 
 use crate::errors::Refused;
-use crate::physics::flow::{a, base, p, x87_run};
+use crate::physics::flow::{a, p, x87_run};
 
 /// `g_polygonVertices`: the four vertices (0x20 bytes each) a quad draws.
 pub const VERTS: usize = 0x9605A0;
@@ -45,25 +45,25 @@ pub fn quad_words(colour: u32) {
 pub fn quad_tail(uv: u32) {
     x87_run!(
         "fild dword ptr [{s}]",
-        "fmul dword ptr [{b} + 0x1C2C64]",
+        "fmul dword ptr [{rc} + 0x1C2C64]",
         "fst dword ptr [{v} + 0x18]",
         "fstp dword ptr [{v} + 0x58]",
         "fild dword ptr [{s}]",
         "fiadd dword ptr [{s} + 0x8]",
-        "fmul dword ptr [{b} + 0x1C2C64]",
+        "fmul dword ptr [{rc} + 0x1C2C64]",
         "fst dword ptr [{v} + 0x38]",
         "fstp dword ptr [{v} + 0x78]",
         "fild dword ptr [{s} + 0x4]",
-        "fmul dword ptr [{b} + 0x1C2C64]",
+        "fmul dword ptr [{rc} + 0x1C2C64]",
         "fst dword ptr [{v} + 0x1C]",
         "fstp dword ptr [{v} + 0x3C]",
         "fild dword ptr [{s} + 0x4]",
         "fiadd dword ptr [{s} + 0xC]",
-        "fmul dword ptr [{b} + 0x1C2C64]",
+        "fmul dword ptr [{rc} + 0x1C2C64]",
         "fst dword ptr [{v} + 0x5C]",
         "fstp dword ptr [{v} + 0x7C]",
         "fild dword ptr [{sc}]",
-        "fmul dword ptr [{b} + 0x1C2C68]",
+        "fmul dword ptr [{rc} + 0x1C2C68]",
         "fstp dword ptr [{t}]",
         "fld dword ptr [{v}]",
         "fmul dword ptr [{t}]",
@@ -78,7 +78,7 @@ pub fn quad_tail(uv: u32) {
         "fmul dword ptr [{t}]",
         "fstp dword ptr [{v} + 0x60]",
         "fild dword ptr [{sc} + 0x4]",
-        "fmul dword ptr [{b} + 0x1C2C6C]",
+        "fmul dword ptr [{rc} + 0x1C2C6C]",
         "fstp dword ptr [{t}]",
         "fld dword ptr [{v} + 0x4]",
         "fmul dword ptr [{t}]",
@@ -92,11 +92,7 @@ pub fn quad_tail(uv: u32) {
         "fld dword ptr [{v} + 0x64]",
         "fmul dword ptr [{t}]",
         "fstp dword ptr [{v} + 0x64]";
-        b = base(),
-        s = uv,
-        v = a(VERTS),
-        sc = crate::session::SCREEN.width.addr(),
-        t = crate::session::MACHINE.scratch.addr()
+        s = uv, v = a(VERTS), sc = crate::session::SCREEN.width.addr(), t = crate::session::MACHINE.scratch.addr(), rc = crate::race::store::asm_base()
     );
 }
 

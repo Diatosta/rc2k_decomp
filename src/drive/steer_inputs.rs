@@ -23,7 +23,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::physics::flow::{base, c0, g, p, x87_run};
+use crate::physics::flow::{c0, g, p, x87_run};
 
 const WORD: usize = 0x613890;
 const LEFT: u32 = 0xE000_0000;
@@ -37,10 +37,10 @@ fn sign(v: u32) -> bool {
 fn key_step() -> u32 {
     p(0x62400C, 0xA0_0000);
     x87_run!(
-        "fild dword ptr [{b} + 0x22400C]",
-        "fmul dword ptr [{b} + 0x214C0C]",
-        "fistp dword ptr [{b} + 0x22400C]";
-        b = base()
+        "fild dword ptr [{rc} + 0x22400C]",
+        "fmul dword ptr [{rc} + 0x214C0C]",
+        "fistp dword ptr [{rc} + 0x22400C]";
+        rc = crate::race::store::asm_base()
     );
     g(0x62400C)
 }
@@ -94,10 +94,10 @@ pub unsafe fn steer_inputs() {
         let product = i64::from(g(WORD) as i32) * i64::from(RIGHT as i32);
         p(0x62400C, (product >> 8) as u32);
         x87_run!(
-            "fild dword ptr [{b} + 0x22400C]",
-            "fmul dword ptr [{b} + 0x214C08]",
-            "fistp dword ptr [{b} + 0x22400C]";
-            b = base()
+            "fild dword ptr [{rc} + 0x22400C]",
+            "fmul dword ptr [{rc} + 0x214C08]",
+            "fistp dword ptr [{rc} + 0x22400C]";
+            rc = crate::race::store::asm_base()
         );
         if sign(g(0x62400C).wrapping_sub(LEFT)) {
             p(0x62400C, LEFT);
@@ -111,10 +111,10 @@ pub unsafe fn steer_inputs() {
     // 0x439F7D: the trim.
     p(0x62400C, RIGHT);
     x87_run!(
-        "fild dword ptr [{b} + 0x22400C]",
-        "fmul dword ptr [{b} + 0x31A3E0]",
-        "fistp dword ptr [{b} + 0x31A1E0]";
-        b = base()
+        "fild dword ptr [{rc} + 0x22400C]",
+        "fmul dword ptr [{rc} + 0x31A3E0]",
+        "fistp dword ptr [{rc} + 0x31A1E0]";
+        rc = crate::race::store::asm_base()
     );
     if g(0x719FE8) & 0x10 != 0 {
         p(0x71A1E0, g(0x71A1E0).wrapping_neg());

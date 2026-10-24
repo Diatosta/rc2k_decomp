@@ -65,13 +65,14 @@ macro_rules! x87_block {
 
 /// `fld v[c] x 65536; fistp` through `dword_62400C` (`v` the table's offset from the base).
 unsafe fn share_bit(v: u32, c: u32) -> u32 {
-    let b = game_addr(0) as u32;
+    // The tables (0x6D2A14, 0x6D2B14) are the race core's (`race::store`).
+    let b = crate::race::store::asm_base();
     unsafe {
         x87_block!(
             "fld dword ptr [{t} + {c}*4]",
-            "fmul dword ptr [{b} + 0x1C5D98]",
-            "fistp dword ptr [{b} + 0x22400C]";
-            b = b, t = b + v, c = c
+            "fmul dword ptr [{rc} + 0x1C5D98]",
+            "fistp dword ptr [{rc} + 0x22400C]";
+            t = b + v, c = c, rc = crate::race::store::asm_base()
         );
     }
     g(0x62400C)
@@ -93,7 +94,6 @@ fn check() -> Result<(), Refused> {
 /// back).
 unsafe fn steps() -> Result<(), Refused> {
     check()?;
-    let b = game_addr(0) as u32;
     let infos = game_addr(rva(0x979F30)) as u32;
     let surfaces = game_addr(rva(0x613978)) as u32;
     for c in 0..5u32 {
@@ -135,16 +135,16 @@ unsafe fn steps() -> Result<(), Refused> {
                 p(0x624044, y.wrapping_sub(x));
                 p(0x624048, z.wrapping_sub(x));
                 x87_block!(
-                    "fild dword ptr [{b} + 0x224044]",
-                    "fmul dword ptr [{b} + {c}*4 + 0x2D2A14]",
-                    "fild dword ptr [{b} + 0x224048]",
-                    "fmul dword ptr [{b} + {c}*4 + 0x2D2B14]",
-                    "fild dword ptr [{b} + 0x224040]",
+                    "fild dword ptr [{rc} + 0x224044]",
+                    "fmul dword ptr [{rc} + {c}*4 + 0x2D2A14]",
+                    "fild dword ptr [{rc} + 0x224048]",
+                    "fmul dword ptr [{rc} + {c}*4 + 0x2D2B14]",
+                    "fild dword ptr [{rc} + 0x224040]",
                     ".byte 0xDE, 0xC1",
                     ".byte 0xDE, 0xC1",
-                    "fdiv dword ptr [{b} + 0x1C5E2C]",
-                    "fstp dword ptr [{b} + {c}*4 + 0x31A984]";
-                    b = b, c = c
+                    "fdiv dword ptr [{rc} + 0x1C5E2C]",
+                    "fstp dword ptr [{rc} + {c}*4 + 0x31A984]";
+                    c = c, rc = crate::race::store::asm_base()
                 );
             }
             if ((f + 2) as *const u16).read_unaligned() & 0x1000 != 0 {
@@ -165,107 +165,107 @@ unsafe fn steps() -> Result<(), Refused> {
                 "fld dword ptr [{s} + 0x28]",
                 "fld dword ptr [{d} + 0x28]",
                 ".byte 0xD8, 0xE1",
-                "fmul dword ptr [{b} + {c}*4 + 0x31A984]",
+                "fmul dword ptr [{rc} + {c}*4 + 0x31A984]",
                 ".byte 0xDE, 0xC1",
-                "fstp dword ptr [{b} + {c}*4 + 0x2142C0]",
+                "fstp dword ptr [{rc} + {c}*4 + 0x2142C0]",
                 "fld dword ptr [{s} + 0x2C]",
                 "fld dword ptr [{d} + 0x2C]",
                 ".byte 0xD8, 0xE1",
-                "fmul dword ptr [{b} + {c}*4 + 0x31A984]",
+                "fmul dword ptr [{rc} + {c}*4 + 0x31A984]",
                 ".byte 0xDE, 0xC1",
-                "fstp dword ptr [{b} + {c}*4 + 0x31A920]";
-                b = b, c = c, s = esi, d = edi
+                "fstp dword ptr [{rc} + {c}*4 + 0x31A920]";
+                c = c, s = esi, d = edi, rc = crate::race::store::asm_base()
             );
             let (ps, pd) = (*(esi as *const u32), *(edi as *const u32));
             let k = g(0x71A004);
             x87_block!(
                 "fild dword ptr [{s}]",
-                "fmul dword ptr [{b} + 0x1C5CFC]",
-                "fstp dword ptr [{b} + 0x21411C]",
+                "fmul dword ptr [{rc} + 0x1C5CFC]",
+                "fstp dword ptr [{rc} + 0x21411C]",
                 "fild dword ptr [{d}]",
-                "fmul dword ptr [{b} + 0x1C5CFC]",
-                "fstp dword ptr [{b} + 0x214120]",
+                "fmul dword ptr [{rc} + 0x1C5CFC]",
+                "fstp dword ptr [{rc} + 0x214120]",
                 "fild dword ptr [{s} + {k}*4 + 4]",
                 "fild dword ptr [{s} + {k}*4 + 0x1C]",
                 ".byte 0xD8, 0xE1",
-                "fmul dword ptr [{b} + 0x31A258]",
+                "fmul dword ptr [{rc} + 0x31A258]",
                 ".byte 0xDE, 0xC1",
-                "fmul dword ptr [{b} + 0x1C5CFC]",
-                "fstp dword ptr [{b} + 0x21411C]",
+                "fmul dword ptr [{rc} + 0x1C5CFC]",
+                "fstp dword ptr [{rc} + 0x21411C]",
                 "fild dword ptr [{d} + {k}*4 + 4]",
                 "fild dword ptr [{d} + {k}*4 + 0x1C]",
                 ".byte 0xD8, 0xE1",
-                "fmul dword ptr [{b} + 0x31A258]",
+                "fmul dword ptr [{rc} + 0x31A258]",
                 ".byte 0xDE, 0xC1",
-                "fmul dword ptr [{b} + 0x1C5CFC]",
-                "fstp dword ptr [{b} + 0x214120]";
-                b = b, s = ps, d = pd, k = k
+                "fmul dword ptr [{rc} + 0x1C5CFC]",
+                "fstp dword ptr [{rc} + 0x214120]";
+                s = ps, d = pd, k = k, rc = crate::race::store::asm_base()
             );
             x87_block!(
                 "fld dword ptr [{s} + 0x4]",
-                "fmul dword ptr [{b} + 0x21411C]",
+                "fmul dword ptr [{rc} + 0x21411C]",
                 "fld dword ptr [{d} + 0x4]",
-                "fmul dword ptr [{b} + 0x214120]",
+                "fmul dword ptr [{rc} + 0x214120]",
                 ".byte 0xD8, 0xE1",
-                "fmul dword ptr [{b} + {c}*4 + 0x31A984]",
+                "fmul dword ptr [{rc} + {c}*4 + 0x31A984]",
                 ".byte 0xDE, 0xC1",
-                "fmul dword ptr [{b} + 0x214BBC]",
-                "fstp dword ptr [{b} + {c}*4 + 0x214284]",
+                "fmul dword ptr [{rc} + 0x214BBC]",
+                "fstp dword ptr [{rc} + {c}*4 + 0x214284]",
                 "fld dword ptr [{s} + 0x8]",
-                "fmul dword ptr [{b} + 0x21411C]",
+                "fmul dword ptr [{rc} + 0x21411C]",
                 "fld dword ptr [{d} + 0x8]",
-                "fmul dword ptr [{b} + 0x214120]",
+                "fmul dword ptr [{rc} + 0x214120]",
                 ".byte 0xD8, 0xE1",
-                "fmul dword ptr [{b} + {c}*4 + 0x31A984]",
+                "fmul dword ptr [{rc} + {c}*4 + 0x31A984]",
                 ".byte 0xDE, 0xC1",
-                "fmul dword ptr [{b} + 0x214BB4]",
-                "fstp dword ptr [{b} + {c}*4 + 0x214298]",
+                "fmul dword ptr [{rc} + 0x214BB4]",
+                "fstp dword ptr [{rc} + {c}*4 + 0x214298]",
                 "fld dword ptr [{s} + 0xC]",
-                "fmul dword ptr [{b} + 0x21411C]",
+                "fmul dword ptr [{rc} + 0x21411C]",
                 "fld dword ptr [{d} + 0xC]",
-                "fmul dword ptr [{b} + 0x214120]",
+                "fmul dword ptr [{rc} + 0x214120]",
                 ".byte 0xD8, 0xE1",
-                "fmul dword ptr [{b} + {c}*4 + 0x31A984]",
+                "fmul dword ptr [{rc} + {c}*4 + 0x31A984]",
                 ".byte 0xDE, 0xC1",
-                "fmul dword ptr [{b} + 0x214BB8]",
-                "fstp dword ptr [{b} + {c}*4 + 0x2142AC]",
+                "fmul dword ptr [{rc} + 0x214BB8]",
+                "fstp dword ptr [{rc} + {c}*4 + 0x2142AC]",
                 "fld dword ptr [{s} + 0x20]",
                 "fld dword ptr [{d} + 0x20]",
                 ".byte 0xD8, 0xE1",
-                "fmul dword ptr [{b} + {c}*4 + 0x31A984]",
+                "fmul dword ptr [{rc} + {c}*4 + 0x31A984]",
                 ".byte 0xDE, 0xC1",
-                "fstp dword ptr [{b} + {c}*4 + 0x2146C0]",
+                "fstp dword ptr [{rc} + {c}*4 + 0x2146C0]",
                 "fld dword ptr [{s} + 0x24]",
                 "fld dword ptr [{d} + 0x24]",
                 ".byte 0xD8, 0xE1",
-                "fmul dword ptr [{b} + {c}*4 + 0x31A984]",
+                "fmul dword ptr [{rc} + {c}*4 + 0x31A984]",
                 ".byte 0xDE, 0xC1",
-                "fstp dword ptr [{b} + {c}*4 + 0x2146D4]",
+                "fstp dword ptr [{rc} + {c}*4 + 0x2146D4]",
                 "fld dword ptr [{s} + 0x14]",
                 "fld dword ptr [{d} + 0x14]",
                 ".byte 0xD8, 0xE1",
-                "fmul dword ptr [{b} + {c}*4 + 0x31A984]",
+                "fmul dword ptr [{rc} + {c}*4 + 0x31A984]",
                 ".byte 0xDE, 0xC1",
-                "fstp dword ptr [{b} + {c}*4 + 0x2146E8]",
+                "fstp dword ptr [{rc} + {c}*4 + 0x2146E8]",
                 "fld dword ptr [{s} + 0x10]",
                 "fld dword ptr [{d} + 0x10]",
                 ".byte 0xD8, 0xE1",
-                "fmul dword ptr [{b} + {c}*4 + 0x31A984]",
+                "fmul dword ptr [{rc} + {c}*4 + 0x31A984]",
                 ".byte 0xDE, 0xC1",
-                "fstp dword ptr [{b} + {c}*4 + 0x2146FC]";
-                b = b, c = c, s = esi, d = edi
+                "fstp dword ptr [{rc} + {c}*4 + 0x2146FC]";
+                c = c, s = esi, d = edi, rc = crate::race::store::asm_base()
             );
         }
     }
     unsafe {
         x87_block!(
-            "fld dword ptr [{b} + 0x214284]",
-            "fadd dword ptr [{b} + 0x214288]",
-            "fadd dword ptr [{b} + 0x21428C]",
-            "fadd dword ptr [{b} + 0x214290]",
-            "fmul dword ptr [{b} + 0x213FEC]",
-            "fstp dword ptr [{b} + 0x214268]";
-            b = b
+            "fld dword ptr [{rc} + 0x214284]",
+            "fadd dword ptr [{rc} + 0x214288]",
+            "fadd dword ptr [{rc} + 0x21428C]",
+            "fadd dword ptr [{rc} + 0x214290]",
+            "fmul dword ptr [{rc} + 0x213FEC]",
+            "fstp dword ptr [{rc} + 0x214268]";
+            rc = crate::race::store::asm_base()
         );
     }
     for c in 0..5usize {
@@ -300,35 +300,35 @@ unsafe fn steps() -> Result<(), Refused> {
     }
     unsafe {
         x87_block!(
-            "fld dword ptr [{b} + 0x31A038]",
-            "fmul dword ptr [{b} + 0x214C04]",
-            "fstp dword ptr [{b} + 0x31A038]",
-            "fld dword ptr [{b} + 0x213F5C]",
-            "fsub dword ptr [{b} + 0x213F64]",
-            "fmul dword ptr [{b} + 0x31A258]",
-            "fadd dword ptr [{b} + 0x213F64]",
-            "fstp dword ptr [{b} + 0x224040]",
-            "fld dword ptr [{b} + 0x213F60]",
-            "fsub dword ptr [{b} + 0x213F68]",
-            "fmul dword ptr [{b} + 0x31A258]",
-            "fadd dword ptr [{b} + 0x213F68]",
-            "fstp dword ptr [{b} + 0x224044]",
-            "fld dword ptr [{b} + 0x224044]",
-            "fsub dword ptr [{b} + 0x224040]",
-            "fild dword ptr [{b} + 0x31A00C]",
-            "fdiv dword ptr [{b} + 0x1C5E2C]",
+            "fld dword ptr [{rc} + 0x31A038]",
+            "fmul dword ptr [{rc} + 0x214C04]",
+            "fstp dword ptr [{rc} + 0x31A038]",
+            "fld dword ptr [{rc} + 0x213F5C]",
+            "fsub dword ptr [{rc} + 0x213F64]",
+            "fmul dword ptr [{rc} + 0x31A258]",
+            "fadd dword ptr [{rc} + 0x213F64]",
+            "fstp dword ptr [{rc} + 0x224040]",
+            "fld dword ptr [{rc} + 0x213F60]",
+            "fsub dword ptr [{rc} + 0x213F68]",
+            "fmul dword ptr [{rc} + 0x31A258]",
+            "fadd dword ptr [{rc} + 0x213F68]",
+            "fstp dword ptr [{rc} + 0x224044]",
+            "fld dword ptr [{rc} + 0x224044]",
+            "fsub dword ptr [{rc} + 0x224040]",
+            "fild dword ptr [{rc} + 0x31A00C]",
+            "fdiv dword ptr [{rc} + 0x1C5E2C]",
             ".byte 0xDE, 0xC9",
-            "fadd dword ptr [{b} + 0x224040]",
-            "fstp dword ptr [{b} + 0x214230]",
-            "fld dword ptr [{b} + 0x2146D0]",
-            "fstp dword ptr [{b} + 0x214760]",
-            "fld dword ptr [{b} + 0x2146E4]",
-            "fstp dword ptr [{b} + 0x214764]",
-            "fld dword ptr [{b} + 0x2146F8]",
-            "fstp dword ptr [{b} + 0x223DA8]",
-            "fld dword ptr [{b} + 0x21470C]",
-            "fstp dword ptr [{b} + 0x223DAC]";
-            b = b
+            "fadd dword ptr [{rc} + 0x224040]",
+            "fstp dword ptr [{rc} + 0x214230]",
+            "fld dword ptr [{rc} + 0x2146D0]",
+            "fstp dword ptr [{rc} + 0x214760]",
+            "fld dword ptr [{rc} + 0x2146E4]",
+            "fstp dword ptr [{rc} + 0x214764]",
+            "fld dword ptr [{rc} + 0x2146F8]",
+            "fstp dword ptr [{rc} + 0x223DA8]",
+            "fld dword ptr [{rc} + 0x21470C]",
+            "fstp dword ptr [{rc} + 0x223DAC]";
+            rc = crate::race::store::asm_base()
         );
     }
     Ok(())

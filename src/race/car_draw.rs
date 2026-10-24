@@ -347,15 +347,14 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
 unsafe fn nearness() {
     use crate::math::x87_load::below_or_unordered;
     unsafe {
-        let b = game_addr(0) as u32;
         game_write(rva(0x62400C), 0xA_0000u32);
         core::arch::asm!(
-            "fild dword ptr [{b} + 0x2415A4]",
-            "fisub dword ptr [{b} + 0x22400C]",
-            "mov dword ptr [{b} + 0x22400C], 0x140000",
-            "fidiv dword ptr [{b} + 0x22400C]",
-            "fstp dword ptr [{b} + 0x31BA08]",
-            b = in(reg) b,
+            "fild dword ptr [{rc} + 0x2415A4]",
+            "fisub dword ptr [{rc} + 0x22400C]",
+            "mov dword ptr [{rc} + 0x22400C], 0x140000",
+            "fidiv dword ptr [{rc} + 0x22400C]",
+            "fstp dword ptr [{rc} + 0x31BA08]",
+            rc = in(reg) crate::race::store::asm_base(),
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
@@ -371,11 +370,11 @@ unsafe fn nearness() {
         }
         core::arch::asm!(
             ".byte 0xD9, 0xE8",
-            "fsub dword ptr [{b} + 0x31BA08]",
-            "fimul dword ptr [{b} + 0x1CCE74]",
-            "fist dword ptr [{b} + 0x1CCE78]",
-            "fistp dword ptr [{b} + 0x1CCE74]",
-            b = in(reg) b,
+            "fsub dword ptr [{rc} + 0x31BA08]",
+            "fimul dword ptr [{rc} + 0x1CCE74]",
+            "fist dword ptr [{rc} + 0x1CCE78]",
+            "fistp dword ptr [{rc} + 0x1CCE74]",
+            rc = in(reg) crate::race::store::asm_base(),
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
@@ -387,13 +386,12 @@ unsafe fn nearness() {
 /// `dword_62400C`).
 unsafe fn near_size() -> u32 {
     unsafe {
-        let b = game_addr(0) as u32;
         game_write(rva(0x62400C), 0x90u32);
         core::arch::asm!(
-            "fild dword ptr [{b} + 0x22400C]",
-            "fmul dword ptr [{b} + 0x31BA08]",
-            "fistp dword ptr [{b} + 0x22400C]",
-            b = in(reg) b,
+            "fild dword ptr [{rc} + 0x22400C]",
+            "fmul dword ptr [{rc} + 0x31BA08]",
+            "fistp dword ptr [{rc} + 0x22400C]",
+            rc = in(reg) crate::race::store::asm_base(),
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),

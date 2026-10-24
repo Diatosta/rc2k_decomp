@@ -21,7 +21,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, game_addr, game_write, rva};
+use crate::framework::{EAX, game_write, rva};
 use crate::math::x87;
 use crate::math::x87_run::ext_to_int;
 use crate::physics::car_sound_state::car_sound_state;
@@ -41,30 +41,29 @@ fn p(x: usize, v: u32) {
 
 /// 0x43DC72 .. 0x43DCC6, as the original (its `test` / `jz` in the block).
 unsafe fn run() {
-    let b = game_addr(0) as u32;
     unsafe {
         core::arch::asm!(
-            "fld dword ptr [{b} + 0x31A184]",
-            "fmul dword ptr [{b} + 0x1C5D00]",
-            "fstp dword ptr [{b} + 0x31AEE0]",
-            "fld dword ptr [{b} + 0x31AEE0]",
-            "test dword ptr [{b} + 0x31A1F8], 0x100",
+            "fld dword ptr [{rc} + 0x31A184]",
+            "fmul dword ptr [{rc} + 0x1C5D00]",
+            "fstp dword ptr [{rc} + 0x31AEE0]",
+            "fld dword ptr [{rc} + 0x31AEE0]",
+            "test dword ptr [{rc} + 0x31A1F8], 0x100",
             "jz 2f",
-            "fmul dword ptr [{b} + 0x1C5E08]",
+            "fmul dword ptr [{rc} + 0x1C5E08]",
             "2:",
-            "fistp dword ptr [{b} + 0x31AA88]",
-            "fld dword ptr [{b} + 0x31A178]",
+            "fistp dword ptr [{rc} + 0x31AA88]",
+            "fld dword ptr [{rc} + 0x31A178]",
             ".byte 0xD8, 0xC8", // fmul st, st
-            "fld dword ptr [{b} + 0x31A170]",
+            "fld dword ptr [{rc} + 0x31A170]",
             ".byte 0xD8, 0xC8",
-            "fld dword ptr [{b} + 0x31A174]",
+            "fld dword ptr [{rc} + 0x31A174]",
             ".byte 0xD8, 0xC8",
             ".byte 0xDE, 0xC1", // faddp st(1), st
             ".byte 0xDE, 0xC1",
             ".byte 0xD9, 0xFA", // fsqrt
-            "fmul dword ptr [{b} + 0x1C5D00]",
-            "fstp dword ptr [{b} + 0x31A26C]",
-            b = in(reg) b,
+            "fmul dword ptr [{rc} + 0x1C5D00]",
+            "fstp dword ptr [{rc} + 0x31A26C]",
+            rc = in(reg) crate::race::store::asm_base(),
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),

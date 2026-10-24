@@ -33,7 +33,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::marks::setup::SETTINGS_RVA;
-use crate::marks::store::{Slot, game_addr, game_read, game_write};
+use crate::marks::store::{Slot, game_read, game_write};
 use crate::math::{x87, x87_run};
 use crate::scene::vector3::STATUS_RVA;
 
@@ -94,7 +94,7 @@ unsafe fn box_moved(e: u32) {
 }
 
 /// The original's 0x4C1965 .. 0x4C1996: the move's length into `flt_8BDD5D`, compared with `flt_8C5FA1` (`fstsw` into `g_fpuStatus`).
-unsafe fn move_length(b: u32) {
+unsafe fn move_length() {
     unsafe {
         core::arch::asm!(
             "fld dword ptr [{mk} + 0x15753D]",
@@ -108,8 +108,8 @@ unsafe fn move_length(b: u32) {
             ".byte 0xD9, 0xFA",
             "fst dword ptr [{mk} + 0x158E1D]",
             "fcomp dword ptr [{mk} + 0x161061]",
-            "fstsw word ptr [{b} + 0x31C814]",
-            b = in(reg) b,
+            "fstsw word ptr [{rc} + 0x31C814]",
+            rc = in(reg) crate::race::store::asm_base(),
             mk = in(reg) crate::marks::store::base(),
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
@@ -170,7 +170,6 @@ pub unsafe fn run_rain() -> Result<(), Refused> {
         if get(s + 8) >= ENTRIES {
             return Err(BadInput("a rain view entry past the five").into());
         }
-        let b = game_addr(0) as u32;
         let mut drops = get(s + 0x2764) as i32;
         game_write(DROPS_RVA, drops);
         if drops == 0 {
@@ -219,7 +218,7 @@ pub unsafe fn run_rain() -> Result<(), Refused> {
                 game_read::<u32>(ENTRY_RVA + e as usize + 4 * n),
             );
         }
-        move_length(b);
+        move_length();
         let status = game_read::<u32>(STATUS_RVA) & 0x700;
         game_write(STATUS_RVA, status);
         if status != 0x100 {

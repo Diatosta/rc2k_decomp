@@ -73,6 +73,8 @@ pub mod stage_free;
 pub mod stage_loading;
 pub mod stage_prefs;
 pub mod start_place;
+pub mod store;
+pub mod store_data;
 pub mod throw_mud_texel;
 pub mod tint_to_mud_colour;
 pub mod tyre_change_gauge;

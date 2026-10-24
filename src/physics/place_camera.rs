@@ -18,7 +18,7 @@
 //! above are the original's, for reference.
 
 use crate::physics::camera_view::rd;
-use crate::physics::flow::{a, base, g, p, x87_run};
+use crate::physics::flow::{a, g, p, x87_run};
 use rc2k_core::physics::camera_place::{SECOND_RECORD_MODE, add_offset};
 
 /// The turns: `math::turn_point_xz_ebx`, `_ecx` and `turn_point_xz`, exact or plain.
@@ -91,9 +91,9 @@ pub unsafe fn place_camera() {
         for (k, x) in [0x608B74usize, 0x608B78, 0x608B7C].iter().enumerate() {
             x87_run!(
                 "fild dword ptr [{v}]",
-                "fdiv dword ptr [{b} + 0x1C5D98]",
+                "fdiv dword ptr [{rc} + 0x1C5D98]",
                 "fstp tbyte ptr [{o}]";
-                b = base(), v = a(*x), o = parts[k].as_mut_ptr()
+                v = a(*x), o = parts[k].as_mut_ptr(), rc = crate::race::store::asm_base()
             );
         }
         let turned = unsafe { crate::scene::rotate_point::rotate_point(a(0x71A08C), parts) };

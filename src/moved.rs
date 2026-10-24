@@ -43,15 +43,15 @@ impl<T> Place<T> {
 }
 
 /// A moved range: IDA's address, its length, its new home.
-struct Moved {
-    ida: usize,
-    len: usize,
+pub(crate) struct Moved {
+    pub(crate) ida: usize,
+    pub(crate) len: usize,
     home: fn() -> usize,
 }
 
 /// Every range moved so far, by IDA address. Kept in step with the owners' statics; ranges
 /// do not overlap (`tests::moved_ranges_are_apart`).
-const MOVED: &[Moved] = &[
+pub(crate) const MOVED: &[Moved] = &[
     // logfile (`logfile::write_line::state`, the buffers)
     Moved {
         ida: 0x4E0094, // g_logEnabled
@@ -542,6 +542,53 @@ const MOVED: &[Moved] = &[
         ida: crate::menu::store::state::START,
         len: crate::menu::store::state::LEN,
         home: crate::menu::store::state::base,
+    },
+    Moved {
+        ida: crate::menu::store::players::START,
+        len: crate::menu::store::players::LEN,
+        home: crate::menu::store::players::base,
+    },
+    // race: the race core (`race::store`), the seven ranges around the holes
+    Moved {
+        ida: crate::race::store::OWN[0].0,
+        len: crate::race::store::OWN[0].1 - crate::race::store::OWN[0].0,
+        home: || crate::race::store::home(crate::race::store::OWN[0].0),
+    },
+    Moved {
+        ida: crate::race::store::OWN[1].0,
+        len: crate::race::store::OWN[1].1 - crate::race::store::OWN[1].0,
+        home: || crate::race::store::home(crate::race::store::OWN[1].0),
+    },
+    Moved {
+        ida: crate::race::store::OWN[2].0,
+        len: crate::race::store::OWN[2].1 - crate::race::store::OWN[2].0,
+        home: || crate::race::store::home(crate::race::store::OWN[2].0),
+    },
+    Moved {
+        ida: crate::race::store::OWN[3].0,
+        len: crate::race::store::OWN[3].1 - crate::race::store::OWN[3].0,
+        home: || crate::race::store::home(crate::race::store::OWN[3].0),
+    },
+    Moved {
+        ida: crate::race::store::OWN[4].0,
+        len: crate::race::store::OWN[4].1 - crate::race::store::OWN[4].0,
+        home: || crate::race::store::home(crate::race::store::OWN[4].0),
+    },
+    Moved {
+        ida: crate::race::store::OWN[5].0,
+        len: crate::race::store::OWN[5].1 - crate::race::store::OWN[5].0,
+        home: || crate::race::store::home(crate::race::store::OWN[5].0),
+    },
+    Moved {
+        ida: crate::race::store::OWN[6].0,
+        len: crate::race::store::OWN[6].1 - crate::race::store::OWN[6].0,
+        home: || crate::race::store::home(crate::race::store::OWN[6].0),
+    },
+    // physics: the car lists, race settings and damage model (`physics::store`)
+    Moved {
+        ida: crate::physics::store::vars::START,
+        len: crate::physics::store::vars::LEN,
+        home: crate::physics::store::vars::base,
     },
     // marks: the whole of 0x764F40 .. 0x93CCC8 (`marks::store`)
     Moved {

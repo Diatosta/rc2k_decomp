@@ -18,7 +18,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::physics::flow::{base, g, hold_high, hold_low, negate, p, x87_run};
+use crate::physics::flow::{g, hold_high, hold_low, negate, p, x87_run};
 
 // Converted: `rc2k_core::physics::camera_view::shakes` (the x87 steps stay).
 fn steps() -> Result<(), Refused> {
@@ -27,10 +27,10 @@ fn steps() -> Result<(), Refused> {
     }
     if rc2k_core::physics::camera_view::shakes(g(0x71A65C), g(0x71A22C)) {
         x87_run!(
-            "fld dword ptr [{b} + 0x31A8E4]",
-            "fmul dword ptr [{b} + 0x214098]",
-            "fstp dword ptr [{b} + 0x23763C]";
-            b = base()
+            "fld dword ptr [{rc} + 0x31A8E4]",
+            "fmul dword ptr [{rc} + 0x214098]",
+            "fstp dword ptr [{rc} + 0x23763C]";
+            rc = crate::race::store::asm_base()
         );
         hold_high(0x63763C, 0x614094);
         negate(0x614094);
@@ -38,13 +38,13 @@ fn steps() -> Result<(), Refused> {
         negate(0x614094);
         p(0x62400C, unsafe { crate::math::next_random::next_random() });
         x87_run!(
-            "fild dword ptr [{b} + 0x22400C]",
-            "fdiv dword ptr [{b} + 0x1C5D98]",
-            "fdiv dword ptr [{b} + 0x1C5E28]",
-            "fmul dword ptr [{b} + 0x1C5D40]",
-            "fmul dword ptr [{b} + 0x23763C]",
-            "fstp dword ptr [{b} + 0x237644]";
-            b = base()
+            "fild dword ptr [{rc} + 0x22400C]",
+            "fdiv dword ptr [{rc} + 0x1C5D98]",
+            "fdiv dword ptr [{rc} + 0x1C5E28]",
+            "fmul dword ptr [{rc} + 0x1C5D40]",
+            "fmul dword ptr [{rc} + 0x23763C]",
+            "fstp dword ptr [{rc} + 0x237644]";
+            rc = crate::race::store::asm_base()
         );
         if g(0x601024) != 0 {
             p(0x63763C, 0);

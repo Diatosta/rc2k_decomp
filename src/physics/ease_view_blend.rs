@@ -16,7 +16,7 @@
 //! above are the original's, for reference.
 
 use crate::physics::camera_view::{rd, record, share_done};
-use crate::physics::flow::{base, x87_run};
+use crate::physics::flow::x87_run;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
 pub unsafe fn ease_view_blend() {
@@ -28,24 +28,24 @@ pub unsafe fn ease_view_blend() {
     if (rd(esi + 0x58) as i32) < 0 {
         x87_run!(
             ".byte 0xD9, 0xE8", // fld1
-            "fsub dword ptr [{b} + 0x205260]",
-            "fstp dword ptr [{b} + 0x205260]";
-            b = base()
+            "fsub dword ptr [{rc} + 0x205260]",
+            "fstp dword ptr [{rc} + 0x205260]";
+            rc = crate::race::store::asm_base()
         );
     }
     x87_run!(
-        "fld dword ptr [{b} + 0x208B24]",
-        "fsub dword ptr [{b} + 0x208B20]",
-        "fmul dword ptr [{b} + 0x205260]",
-        "fadd dword ptr [{b} + 0x208B20]",
-        "fstp dword ptr [{b} + 0x31A6A0]",
-        "fld dword ptr [{b} + 0x208B2C]",
-        "fsub dword ptr [{b} + 0x208B28]",
-        "fmul dword ptr [{b} + 0x205260]",
-        "fadd dword ptr [{b} + 0x208B28]",
-        "fmul dword ptr [{b} + 0x1C5D98]",
+        "fld dword ptr [{rc} + 0x208B24]",
+        "fsub dword ptr [{rc} + 0x208B20]",
+        "fmul dword ptr [{rc} + 0x205260]",
+        "fadd dword ptr [{rc} + 0x208B20]",
+        "fstp dword ptr [{rc} + 0x31A6A0]",
+        "fld dword ptr [{rc} + 0x208B2C]",
+        "fsub dword ptr [{rc} + 0x208B28]",
+        "fmul dword ptr [{rc} + 0x205260]",
+        "fadd dword ptr [{rc} + 0x208B28]",
+        "fmul dword ptr [{rc} + 0x1C5D98]",
         ".byte 0xD9, 0xE0", // fchs
-        "fistp dword ptr [{b} + 0x208B38]";
-        b = base()
+        "fistp dword ptr [{rc} + 0x208B38]";
+        rc = crate::race::store::asm_base()
     );
 }
